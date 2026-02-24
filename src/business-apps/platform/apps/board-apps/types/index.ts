@@ -12,7 +12,10 @@ export type {
   EntityDataSource,
   MyWorkItem,
   MyWorkResponse,
-  BoardStatsResponse
+  BoardStatsResponse,
+  BoardShare,
+  BoardPermission,
+  BoardQuickFilter
 } from './board'
 
 export type {

@@ -6,6 +6,7 @@ import type {
   BoardSheet,
   BoardView,
   BoardViewType,
+  BoardQuickFilter,
   KanbanViewConfig,
   CalendarViewConfig,
   TimelineViewConfig,
@@ -51,6 +52,10 @@ export interface BoardViewContentProps {
   dashboardLoadedRows?: number
   onTableLoadMore?: () => void
   rowsLoading?: boolean
+  quickFilters?: BoardQuickFilter[]
+  onAddQuickFilter?: (qf: BoardQuickFilter) => void
+  onRenameQuickFilter?: (id: string, name: string) => void
+  onDeleteQuickFilter?: (id: string) => void
   testId: string
 }
 
@@ -83,6 +88,10 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   dashboardLoadedRows,
   onTableLoadMore,
   rowsLoading,
+  quickFilters,
+  onAddQuickFilter,
+  onRenameQuickFilter,
+  onDeleteQuickFilter,
   testId
 }) => {
   const [kanbanGroupColumn, setKanbanGroupColumn] = useState<string | null>(null)
@@ -162,6 +171,10 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
             rowsTotal={rowsTotal}
             onLoadMore={onTableLoadMore}
             rowsLoading={rowsLoading}
+            quickFilters={quickFilters}
+            onAddQuickFilter={onAddQuickFilter}
+            onRenameQuickFilter={onRenameQuickFilter}
+            onDeleteQuickFilter={onDeleteQuickFilter}
             testId={testId}
           />
         </>
@@ -169,7 +182,9 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
     case 'kanban': {
       const kc = (viewConfig || {}) as Partial<KanbanViewConfig>
       const autoStatusName =
-        visibleColumns.find(c => c.type === 'status' || c.type === 'select')?.name || visibleColumns[0]?.name || ''
+        visibleColumns.find(c => c.type === 'status' || c.type === 'priority' || c.type === 'select')?.name ||
+        visibleColumns[0]?.name ||
+        ''
       const primaryName = getPrimaryColumn(visibleColumns)?.name || ''
       const effectiveStatusCol = kanbanGroupColumn || kc.statusColumn || autoStatusName
       return (

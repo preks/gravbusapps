@@ -31,7 +31,9 @@ import {
   Sparkles,
   Home,
   Database,
-  Settings
+  Settings,
+  Share2,
+  GitBranch
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CreateHeroHeader } from '@/business-apps/core/create/components/CreateHeroHeader'
@@ -41,18 +43,24 @@ import { CreateBoardAIDialog } from './components/CreateBoardAIDialog'
 import { BoardListItem, formatRelativeTime } from './components/BoardListItem'
 import { useMobileDetect } from './hooks/useMobileDetect'
 import { setBoardApiAuthTokenProvider } from './services/BoardApiService'
+import { setFlowEngineTokenProvider } from './services/flowEngine'
 import { BoardViewer } from './BoardViewer'
 import type { BoardViewerHandle } from './BoardViewer'
 import { GlobalSearchDialog } from './components/search/GlobalSearchDialog'
+import { ShareBoardDialog } from './components/ShareBoardDialog'
+import { ManageBoardSharesDialog } from './components/ManageBoardSharesDialog'
 import type { Board } from './types'
 import { useBoardUrlState } from './hooks/useBoardUrlState'
 import { BoardsHomeDashboard } from './components/home/BoardsHomeDashboard'
+import { useBoardAppsHubFavorites } from './hooks/useBoardAppsHubFavorites'
+import { useBoardAppsHubFiltering } from './hooks/useBoardAppsHubFiltering'
+import type { BoardHubSidebarSection } from './hooks/useBoardAppsHubFiltering'
 
 export interface BoardsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type SidebarSection = 'home' | 'my-boards' | 'shared' | 'favorites' | 'recent'
+type SidebarSection = BoardHubSidebarSection
 
 const HERO_BTN = 'gba:bg-white/10 gba:border-white/20 gba:text-white gba:hover:bg-white/15'
 
@@ -79,12 +87,16 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     position?: number
   } | null>(null)
   const viewerRef = useRef<BoardViewerHandle>(null)
+  const { favorites, setFavorites } = useBoardAppsHubFavorites()
+  const [shareBoardId, setShareBoardId] = useState<string | null>(null)
+  const [manageBoardId, setManageBoardId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!accessToken) return
-    setBoardApiAuthTokenProvider(() => accessToken)
-    return () => setBoardApiAuthTokenProvider(null)
-  }, [accessToken])
+  // Set token synchronously during render so child effects already have it
+  // (useEffect would run after children, causing 401 races)
+  const tokenRef = useRef(accessToken)
+  tokenRef.current = accessToken
+  setBoardApiAuthTokenProvider(accessToken ? () => tokenRef.current : null)
+  setFlowEngineTokenProvider(accessToken ? () => tokenRef.current : null)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -229,6 +241,17 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     return () => clearTimeout(timer)
   }, [isViewing, highlightTarget, selectedBoardId])
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { boardId, sheetId, rowId } = (e as CustomEvent).detail || {}
+      if (boardId && sheetId && rowId) handleNavigateToItem(boardId, sheetId, rowId)
+    }
+    window.addEventListener('board:navigate-to-item', handler)
+    return () => window.removeEventListener('board:navigate-to-item', handler)
+  }, [handleNavigateToItem])
+
+  const isViewerOwner = currentBoard && !currentBoard.isShared
+
   const heroActions = isViewing ? (
     <>
       <Button
@@ -241,16 +264,36 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         <Search className="gba:h-4 gba:w-4 gba:mr-1.5" />
         Search
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className={HERO_BTN}
-        onClick={() => viewerRef.current?.openSystemData()}
-        data-testid={`${testId}-import-btn`}
-      >
-        <Database className="gba:h-4 gba:w-4 gba:mr-1.5" />
-        Import
-      </Button>
+      {isViewerOwner && (
+        <Button
+          variant="outline"
+          size="sm"
+          className={HERO_BTN}
+          onClick={() => setShareBoardId(currentBoard!.id)}
+          data-testid={`${testId}-share-btn`}
+        >
+          <Share2 className="gba:h-4 gba:w-4 gba:mr-1.5" />
+          Share
+        </Button>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className={HERO_BTN} data-testid={`${testId}-import-btn`}>
+            <Database className="gba:h-4 gba:w-4 gba:mr-1.5" />
+            Import
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => viewerRef.current?.openSystemData()} data-testid={`${testId}-import-system`}>
+            <Database className="gba:h-4 gba:w-4 gba:mr-2" />
+            System data
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => viewerRef.current?.openFlowData()} data-testid={`${testId}-import-flow`}>
+            <GitBranch className="gba:h-4 gba:w-4 gba:mr-2" />
+            Flow data
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Button
         variant="outline"
         size="sm"
@@ -295,7 +338,35 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     </>
   )
 
-  const filteredBoards = boards.filter(b => !searchQuery || b.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  const { filteredBoards } = useBoardAppsHubFiltering({
+    boards,
+    activeSection,
+    favorites,
+    searchQuery,
+    sortBy: 'modified',
+    sortOrder: 'desc'
+  })
+
+  const toggleFavorite = useCallback(
+    (id: string, e?: React.MouseEvent) => {
+      e?.stopPropagation()
+      setFavorites(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) {
+          next.delete(id)
+          toast.success('Removed from favorites')
+        } else {
+          next.add(id)
+          toast.success('Added to favorites')
+        }
+        return next
+      })
+    },
+    [setFavorites]
+  )
+
+  const shareBoardInfo = shareBoardId ? boards.find(b => b.id === shareBoardId) : null
+  const manageBoardInfo = manageBoardId ? boards.find(b => b.id === manageBoardId) : null
 
   const sidebarItems: Array<{ key: SidebarSection; label: string; icon: React.ReactNode }> = [
     { key: 'home', label: 'Home', icon: <Home className="gba:w-4 gba:h-4" /> },
@@ -374,6 +445,12 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
           onNavigateToItem={handleNavigateToItem}
           onCreateBoard={createBoard}
           onBoardCreated={handleTemplateCreated}
+          createRow={createRow}
+          updateSheet={updateSheet}
+          favorites={favorites}
+          onToggleFavorite={toggleFavorite}
+          onShare={setShareBoardId}
+          onManageShares={setManageBoardId}
           accessToken={accessToken}
           userInfo={userInfo}
           testId={testId}
@@ -418,6 +495,42 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         }}
         data-testid={`${testId}-ai-dialog`}
       />
+
+      {shareBoardInfo && (
+        <ShareBoardDialog
+          open={!!shareBoardId}
+          onOpenChange={open => {
+            if (!open) setShareBoardId(null)
+          }}
+          boardId={shareBoardInfo.id}
+          boardTitle={shareBoardInfo.name}
+          currentUserId={currentUserId}
+          currentUserName={userInfo?.displayName as string | undefined}
+          accessToken={accessToken}
+          onShareComplete={() => {
+            setShareBoardId(null)
+          }}
+          data-testid={`${testId}-share-dialog`}
+        />
+      )}
+
+      {manageBoardInfo && (
+        <ManageBoardSharesDialog
+          open={!!manageBoardId}
+          onOpenChange={open => {
+            if (!open) setManageBoardId(null)
+          }}
+          boardId={manageBoardInfo.id}
+          boardTitle={manageBoardInfo.name}
+          accessToken={accessToken}
+          onSharesChanged={() => void 0}
+          onAddMoreUsers={() => {
+            setManageBoardId(null)
+            setShareBoardId(manageBoardInfo.id)
+          }}
+          data-testid={`${testId}-manage-shares-dialog`}
+        />
+      )}
     </div>
   )
 }
@@ -450,6 +563,20 @@ interface HubContentProps {
   onNavigateToItem: (boardId: string, sheetId: string, rowId: string) => void
   onCreateBoard: (board: Partial<Board>) => Promise<Board | null>
   onBoardCreated: (boardId: string) => Promise<void>
+  createRow: (
+    boardId: string,
+    sheetId: string,
+    data: Record<string, unknown>
+  ) => Promise<import('./types').BoardRow | null>
+  updateSheet: (
+    boardId: string,
+    sheetId: string,
+    updates: Partial<import('./types').BoardSheet>
+  ) => Promise<import('./types').BoardSheet | null>
+  favorites: Set<string>
+  onToggleFavorite: (id: string, e?: React.MouseEvent) => void
+  onShare: (boardId: string) => void
+  onManageShares: (boardId: string) => void
   accessToken: string
   userInfo?: Record<string, unknown>
   testId: string
@@ -479,6 +606,12 @@ const HubContent: React.FC<HubContentProps> = ({
   onNavigateToItem,
   onCreateBoard,
   onBoardCreated,
+  createRow,
+  updateSheet,
+  favorites,
+  onToggleFavorite,
+  onShare,
+  onManageShares,
   accessToken,
   userInfo,
   testId
@@ -583,6 +716,8 @@ const HubContent: React.FC<HubContentProps> = ({
           onNavigateToItem={onNavigateToItem}
           onCreateBoard={onCreateBoard}
           onBoardCreated={onBoardCreated}
+          createRow={createRow}
+          updateSheet={updateSheet}
           data-testid={`${testId}-home`}
         />
       ) : (
@@ -602,36 +737,19 @@ const HubContent: React.FC<HubContentProps> = ({
           )}
 
           {!isLoading && !error && filteredBoards.length === 0 && (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
-              <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:mb-4">
-                <LayoutGrid className="gba:w-8 gba:h-8 gba:text-primary" />
-              </div>
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">No boards yet</h3>
-              <p className="gba:text-muted-foreground gba:text-sm gba:mb-5">Create your first board to get started.</p>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" data-testid={`${testId}-empty-create`}>
-                    <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-1" /> New Board
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center">
-                  <DropdownMenuItem onClick={onCreateOpen} data-testid={`${testId}-empty-create-manual`}>
-                    <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
-                    Create manually
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onAIOpen} data-testid={`${testId}-empty-create-ai`}>
-                    <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
-                    Create with AI
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <SectionEmptyState
+              activeSection={activeSection}
+              onCreateOpen={onCreateOpen}
+              onAIOpen={onAIOpen}
+              testId={testId}
+            />
           )}
 
           {!isLoading && filteredBoards.length > 0 && viewLayout === 'list' && (
             <div className="gba:w-full">
               <div className="gba:sticky gba:top-0 gba:bg-muted/50 gba:border-b gba:z-10">
                 <div className="gba:flex gba:items-center gba:px-4 gba:py-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground">
+                  <div className="gba:w-8 gba:flex-shrink-0" />
                   <div className="gba:flex-1 gba:min-w-0">Name</div>
                   <div className="gba:w-28 gba:flex-shrink-0">Modified</div>
                   <div className="gba:w-16 gba:flex-shrink-0 gba:text-right">Rows</div>
@@ -643,9 +761,13 @@ const HubContent: React.FC<HubContentProps> = ({
                   <BoardListItem
                     key={board.id}
                     board={board}
+                    isFavorite={favorites.has(board.id)}
+                    onToggleFavorite={onToggleFavorite}
                     onOpen={onOpenBoard}
                     onDuplicate={onDuplicate}
                     onDelete={onDelete}
+                    onShare={onShare}
+                    onManageShares={onManageShares}
                     testId={testId}
                   />
                 ))}
@@ -681,3 +803,59 @@ const HubContent: React.FC<HubContentProps> = ({
     </main>
   </div>
 )
+
+const EMPTY_STATE_COPY: Record<SidebarSection, { title: string; description: string; showCreate: boolean }> = {
+  home: { title: 'No boards yet', description: 'Create your first board to get started.', showCreate: true },
+  'my-boards': { title: 'No boards yet', description: 'Create your first board to get started.', showCreate: true },
+  shared: {
+    title: 'Nothing shared with you',
+    description: 'When someone shares a board with you, it will appear here.',
+    showCreate: false
+  },
+  favorites: { title: 'No favorites', description: 'Star boards to see them here.', showCreate: false },
+  recent: { title: 'No recent boards', description: 'Boards you work on will appear here.', showCreate: true }
+}
+
+function SectionEmptyState({
+  activeSection,
+  onCreateOpen,
+  onAIOpen,
+  testId
+}: {
+  activeSection: SidebarSection
+  onCreateOpen: () => void
+  onAIOpen: () => void
+  testId: string
+}) {
+  const copy = EMPTY_STATE_COPY[activeSection] || EMPTY_STATE_COPY['my-boards']
+  const SectionIcon = activeSection === 'shared' ? Users : activeSection === 'favorites' ? Star : LayoutGrid
+
+  return (
+    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
+      <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:mb-4">
+        <SectionIcon className="gba:w-8 gba:h-8 gba:text-primary" />
+      </div>
+      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-1">{copy.title}</h3>
+      <p className="gba:text-muted-foreground gba:text-sm gba:mb-5">{copy.description}</p>
+      {copy.showCreate && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" data-testid={`${testId}-empty-create`}>
+              <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-1" /> New Board
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center">
+            <DropdownMenuItem onClick={onCreateOpen} data-testid={`${testId}-empty-create-manual`}>
+              <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+              Create manually
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onAIOpen} data-testid={`${testId}-empty-create-ai`}>
+              <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
+              Create with AI
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  )
+}

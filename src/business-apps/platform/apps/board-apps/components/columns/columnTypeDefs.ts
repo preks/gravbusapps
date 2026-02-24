@@ -18,6 +18,7 @@ export const QUICK_ADD_TYPES: ColumnTypeDef[] = [
   { type: 'text', label: 'Text' },
   { type: 'number', label: 'Number' },
   { type: 'status', label: 'Status' },
+  { type: 'priority', label: 'Priority' },
   { type: 'date', label: 'Date' },
   { type: 'datetime', label: 'Date & Time' },
   { type: 'select', label: 'Select' },

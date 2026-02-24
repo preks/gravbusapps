@@ -109,7 +109,7 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
   const [name, setName] = useState('')
 
   const statusCandidates = useMemo(() => {
-    const preferred = columns.filter(c => c.type === 'status' || c.type === 'select')
+    const preferred = columns.filter(c => c.type === 'status' || c.type === 'priority' || c.type === 'select')
     if (preferred.length > 0) return preferred
     return columns.filter(c => c.type === 'text' || c.type === 'multiselect')
   }, [columns])

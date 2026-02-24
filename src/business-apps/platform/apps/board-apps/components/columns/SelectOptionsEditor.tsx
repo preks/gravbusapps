@@ -1,26 +1,30 @@
 import React, { useCallback, useState } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
-import { Plus, X, GripVertical } from 'lucide-react'
+import { Plus, X, GripVertical, CheckCircle2, XCircle } from 'lucide-react'
 import type { SelectOption } from '../../types'
 
 const COLOR_TOKENS = [
-  { token: 'primary', cls: 'gba:bg-primary' },
-  { token: 'success', cls: 'gba:bg-success' },
-  { token: 'info', cls: 'gba:bg-info' },
-  { token: 'warning', cls: 'gba:bg-warning' },
-  { token: 'destructive', cls: 'gba:bg-destructive' },
-  { token: 'muted', cls: 'gba:bg-muted-foreground' }
+  { token: 'primary', cls: 'gba:bg-primary', label: 'Default' },
+  { token: 'success', cls: 'gba:bg-success', label: 'Done', terminal: true },
+  { token: 'info', cls: 'gba:bg-info', label: 'Active' },
+  { token: 'warning', cls: 'gba:bg-warning', label: 'Pending' },
+  { token: 'destructive', cls: 'gba:bg-destructive', label: 'Cancelled', terminal: true },
+  { token: 'muted', cls: 'gba:bg-muted-foreground', label: 'Neutral' }
 ]
+
+const TERMINAL_TOKENS = new Set(['success', 'destructive'])
 
 export interface SelectOptionsEditorProps {
   options: SelectOption[]
   onChange: (options: SelectOption[]) => void
+  showStatusHint?: boolean
   'data-testid'?: string
 }
 
 export const SelectOptionsEditor: React.FC<SelectOptionsEditorProps> = ({
   options,
   onChange,
+  showStatusHint,
   'data-testid': testId = 'select-options-editor'
 }) => {
   const [newLabel, setNewLabel] = useState('')
@@ -77,40 +81,50 @@ export const SelectOptionsEditor: React.FC<SelectOptionsEditorProps> = ({
 
   return (
     <div className="gba:space-y-2" data-testid={testId}>
-      {options.map((opt, idx) => (
-        <div key={opt.value} className="gba:flex gba:items-center gba:gap-1.5">
-          <button
-            type="button"
-            onClick={() => handleMoveUp(idx)}
-            className="gba:p-0.5 gba:text-muted-foreground gba:hover:text-foreground gba:cursor-grab"
-            data-testid={`${testId}-grip-${idx}`}
-          >
-            <GripVertical className="gba:w-3 gba:h-3" />
-          </button>
+      {options.map((opt, idx) => {
+        const isTerminal = showStatusHint && TERMINAL_TOKENS.has(opt.colorToken || '')
+        return (
+          <div key={opt.value} className="gba:flex gba:items-center gba:gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleMoveUp(idx)}
+              className="gba:p-0.5 gba:text-muted-foreground gba:hover:text-foreground gba:cursor-grab"
+              data-testid={`${testId}-grip-${idx}`}
+            >
+              <GripVertical className="gba:w-3 gba:h-3" />
+            </button>
 
-          <ColorPicker
-            value={opt.colorToken || 'muted'}
-            onChange={token => handleColorChange(idx, token)}
-            testId={`${testId}-color-${idx}`}
-          />
+            <ColorPicker
+              value={opt.colorToken || 'muted'}
+              onChange={token => handleColorChange(idx, token)}
+              showLabels={showStatusHint}
+              testId={`${testId}-color-${idx}`}
+            />
 
-          <Input
-            value={opt.label}
-            onChange={e => handleLabelChange(idx, e.target.value)}
-            className="gba:h-7 gba:text-xs gba:flex-1"
-            data-testid={`${testId}-label-${idx}`}
-          />
+            <Input
+              value={opt.label}
+              onChange={e => handleLabelChange(idx, e.target.value)}
+              className="gba:h-7 gba:text-xs gba:flex-1"
+              data-testid={`${testId}-label-${idx}`}
+            />
 
-          <button
-            type="button"
-            onClick={() => handleRemove(idx)}
-            className="gba:p-0.5 gba:text-muted-foreground gba:hover:text-destructive gba:transition-colors"
-            data-testid={`${testId}-remove-${idx}`}
-          >
-            <X className="gba:w-3 gba:h-3" />
-          </button>
-        </div>
-      ))}
+            {isTerminal && (
+              <span className="gba:text-[9px] gba:text-muted-foreground gba:whitespace-nowrap gba:flex-shrink-0">
+                {opt.colorToken === 'success' ? 'done' : 'closed'}
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleRemove(idx)}
+              className="gba:p-0.5 gba:text-muted-foreground gba:hover:text-destructive gba:transition-colors"
+              data-testid={`${testId}-remove-${idx}`}
+            >
+              <X className="gba:w-3 gba:h-3" />
+            </button>
+          </div>
+        )
+      })}
 
       <div className="gba:flex gba:items-center gba:gap-1.5">
         <Input
@@ -137,15 +151,39 @@ export const SelectOptionsEditor: React.FC<SelectOptionsEditorProps> = ({
           <Plus className="gba:w-3 gba:h-3" />
         </Button>
       </div>
+
+      {showStatusHint && (
+        <div className="gba:rounded-md gba:bg-muted/40 gba:px-3 gba:py-2 gba:space-y-1.5 gba:mt-3">
+          <p className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+            Color meaning for &ldquo;My Tasks&rdquo;
+          </p>
+          <div className="gba:flex gba:items-start gba:gap-1.5">
+            <CheckCircle2 className="gba:w-3 gba:h-3 gba:text-success gba:mt-0.5 gba:flex-shrink-0" />
+            <p className="gba:text-[10px] gba:text-muted-foreground">
+              <span className="gba:font-medium gba:text-foreground">Green</span> = completed &mdash; removed from tasks
+            </p>
+          </div>
+          <div className="gba:flex gba:items-start gba:gap-1.5">
+            <XCircle className="gba:w-3 gba:h-3 gba:text-destructive gba:mt-0.5 gba:flex-shrink-0" />
+            <p className="gba:text-[10px] gba:text-muted-foreground">
+              <span className="gba:font-medium gba:text-foreground">Red</span> = cancelled &mdash; removed from tasks
+            </p>
+          </div>
+          <p className="gba:text-[10px] gba:text-muted-foreground">
+            All other colors are treated as active and will appear in &ldquo;My Tasks&rdquo;.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
 
-const ColorPicker: React.FC<{ value: string; onChange: (token: string) => void; testId: string }> = ({
-  value,
-  onChange,
-  testId
-}) => {
+const ColorPicker: React.FC<{
+  value: string
+  onChange: (token: string) => void
+  showLabels?: boolean
+  testId: string
+}> = ({ value, onChange, showLabels, testId }) => {
   const [open, setOpen] = useState(false)
   const current = COLOR_TOKENS.find(t => t.token === value) || COLOR_TOKENS[5]
 
@@ -155,10 +193,11 @@ const ColorPicker: React.FC<{ value: string; onChange: (token: string) => void; 
         type="button"
         onClick={() => setOpen(!open)}
         className={`gba:w-4 gba:h-4 gba:rounded-full gba:flex-shrink-0 gba:ring-1 gba:ring-border ${current.cls}`}
+        title={current.label}
         data-testid={testId}
       />
       {open && (
-        <div className="gba:absolute gba:top-full gba:left-0 gba:mt-1 gba:bg-popover gba:border gba:rounded-md gba:p-1.5 gba:z-50 gba:flex gba:gap-1">
+        <div className="gba:absolute gba:top-full gba:left-0 gba:mt-1 gba:bg-popover gba:border gba:rounded-md gba:p-1.5 gba:z-50 gba:flex gba:flex-col gba:gap-0.5 gba:w-44">
           {COLOR_TOKENS.map(ct => (
             <button
               key={ct.token}
@@ -167,9 +206,21 @@ const ColorPicker: React.FC<{ value: string; onChange: (token: string) => void; 
                 onChange(ct.token)
                 setOpen(false)
               }}
-              className={`gba:w-5 gba:h-5 gba:rounded-full ${ct.cls} ${ct.token === value ? 'gba:ring-2 gba:ring-primary' : 'gba:ring-1 gba:ring-border'}`}
+              className={`gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:whitespace-nowrap ${
+                ct.token === value ? 'gba:bg-accent' : 'gba:hover:bg-accent/50'
+              }`}
               data-testid={`${testId}-${ct.token}`}
-            />
+            >
+              <span
+                className={`gba:w-3 gba:h-3 gba:rounded-full gba:flex-shrink-0 ${ct.cls} ${
+                  ct.token === value ? 'gba:ring-2 gba:ring-primary' : 'gba:ring-1 gba:ring-border'
+                }`}
+              />
+              <span className="gba:flex-1">{ct.label}</span>
+              {showLabels && ct.terminal && (
+                <span className="gba:text-[9px] gba:text-muted-foreground/70 gba:italic">ends task</span>
+              )}
+            </button>
           ))}
         </div>
       )}

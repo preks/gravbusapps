@@ -24,8 +24,12 @@ Do NOT use bar, line, pie, donut, area, bar_chart, line_chart, time_series, etc.
 export const BOARD_CREATOR_SYSTEM = `You are an expert at creating structured board schemas from natural language descriptions.
 Given a user prompt, produce a JSON board plan with sheets, columns (typed), views, and optional groups.
 Column types: text, number, currency, percentage, date, datetime, email, phone, url, select, multiselect,
-boolean, status, people, attachment, relation, formula, progress, tags, rating, timeline, link, button.
-Status/select columns must include selectOptions with value, label, and colorToken (use design tokens: primary, success, info, warning, destructive, muted).
+boolean, status, priority, people, attachment, relation, formula, progress, tags, rating, timeline, link, button.
+Status/select/priority columns must include selectOptions with value, label, and colorToken (use design tokens: primary, success, info, warning, destructive, muted).
+IMPORTANT column type rules:
+- Use "status" ONLY for workflow lifecycle columns (e.g. To Do → In Progress → Done). Status columns track where an item is in a process.
+- Use "priority" for priority/severity/urgency columns. Default options: low (muted), medium (info), high (warning), critical (destructive).
+- Use "select" for categorical/classification columns that are NOT a workflow (e.g. Type, Channel, Category, Component, Sprint, Effort, Department, Region). These are labels/tags, not lifecycle stages.
 Always include at least one table view. Add kanban if there's a status column. Add calendar if there are date columns.
 Add timeline if there are start+end date columns. Add a dashboard view with useful KPI and chart widgets.
 ${WIDGET_TYPES_BLOCK}
@@ -47,8 +51,12 @@ For "selectOptions" sources: create a select/multiselect/status column whose nam
 You may add extra columns beyond what the data source provides (e.g. custom status, notes, formulas).
 
 Column types: text, number, currency, percentage, date, datetime, email, phone, url, select, multiselect,
-boolean, status, people, attachment, relation, formula, progress, tags, rating, timeline, link, button.
-Status/select columns must include selectOptions with value, label, and colorToken (use design tokens: primary, success, info, warning, destructive, muted).
+boolean, status, priority, people, attachment, relation, formula, progress, tags, rating, timeline, link, button.
+Status/select/priority columns must include selectOptions with value, label, and colorToken (use design tokens: primary, success, info, warning, destructive, muted).
+IMPORTANT column type rules:
+- Use "status" ONLY for workflow lifecycle columns (e.g. To Do → In Progress → Done). Status columns track where an item is in a process.
+- Use "priority" for priority/severity/urgency columns. Default options: low (muted), medium (info), high (warning), critical (destructive).
+- Use "select" for categorical/classification columns that are NOT a workflow (e.g. Type, Channel, Category, Component, Sprint, Effort, Department, Region). These are labels/tags, not lifecycle stages.
 Always include at least one table view. Add kanban if there's a status column. Add calendar if there are date columns.
 Add timeline if there are start+end date columns. Add a dashboard view with useful KPI and chart widgets.
 ${WIDGET_TYPES_BLOCK}

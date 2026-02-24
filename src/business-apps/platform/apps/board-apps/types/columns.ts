@@ -20,6 +20,7 @@ export type BoardColumnType =
   | 'multiselect'
   | 'boolean'
   | 'status'
+  | 'priority'
   | 'people'
   | 'attachment'
   | 'relation'
@@ -63,6 +64,7 @@ export interface SelectOption {
   value: string
   label: string
   colorToken?: string
+  avatarUrl?: string
 }
 
 export interface ColumnValidation {
@@ -90,6 +92,8 @@ export interface StatusConfig {
 export interface PeopleConfig {
   multiple?: boolean
   allowedRoles?: string[]
+  /** When true, this column is treated as an assignment field for "Action required" / my-work. */
+  isAssignment?: boolean
 }
 
 export interface AttachmentConfig {

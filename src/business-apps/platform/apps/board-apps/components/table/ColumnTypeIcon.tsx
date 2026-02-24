@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CheckSquare,
   ListChecks,
+  Flag,
   Users,
   Link2,
   Mail,
@@ -44,6 +45,8 @@ export const ColumnTypeIcon: React.FC<{ type: string }> = ({ type }) => {
     case 'select':
     case 'multiselect':
       return <ListChecks className={CLS} />
+    case 'priority':
+      return <Flag className={CLS} />
     case 'people':
       return <Users className={CLS} />
     case 'email':

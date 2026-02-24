@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Input, Checkbox, Popover, PopoverTrigger, PopoverContent } from '@newwork/nw-design-system'
+import {
+  Input,
+  Checkbox,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import type { BoardColumn } from '../../types'
 import { RatingEditor, TagsEditor, DateEditor, DateTimeEditor } from './CellEditorSpecialized'
@@ -29,6 +38,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     case 'boolean':
       return <BooleanEditor value={value} onSave={onSave} onCancel={onCancel} />
     case 'status':
+    case 'priority':
     case 'select':
     case 'people':
       return <SelectEditor column={column} value={value} onSave={onSave} onCancel={onCancel} />
@@ -197,17 +207,58 @@ const SelectEditor: React.FC<{
   const opts = column.selectOptions || []
   const currentVal = String(value || '')
   const [search, setSearch] = useState('')
+  const [focusedIdx, setFocusedIdx] = useState(-1)
   const searchRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  const showSearch = opts.length > 8
 
   useEffect(() => {
-    requestAnimationFrame(() => searchRef.current?.focus())
-  }, [])
+    if (showSearch) {
+      requestAnimationFrame(() => searchRef.current?.focus())
+    }
+  }, [showSearch])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return opts
     const term = search.toLowerCase()
     return opts.filter(o => o.label.toLowerCase().includes(term) || o.value.toLowerCase().includes(term))
   }, [opts, search])
+
+  useEffect(() => {
+    setFocusedIdx(-1)
+  }, [search])
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setFocusedIdx(prev => {
+          const next = Math.min(prev + 1, filtered.length - 1)
+          listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' })
+          return next
+        })
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setFocusedIdx(prev => {
+          const next = Math.max(prev - 1, 0)
+          listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' })
+          return next
+        })
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        if (focusedIdx >= 0 && focusedIdx < filtered.length) {
+          onSave(filtered[focusedIdx].value)
+        } else if (filtered.length === 1) {
+          onSave(filtered[0].value)
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        onCancel()
+      }
+    },
+    [filtered, focusedIdx, onSave, onCancel]
+  )
 
   return (
     <Popover
@@ -218,12 +269,38 @@ const SelectEditor: React.FC<{
     >
       <PopoverTrigger asChild>
         <button className="gba:flex gba:items-center gba:gap-1 gba:h-6 gba:text-xs gba:px-1 gba:w-full gba:text-left">
-          <span className="gba:truncate gba:flex-1">{currentVal || 'Select...'}</span>
+          {(() => {
+            const selectedOpt = currentVal ? opts.find(o => o.value === currentVal) : undefined
+            const displayLabel = selectedOpt?.label || currentVal || 'Select...'
+            if (selectedOpt?.avatarUrl) {
+              const ti = displayLabel
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map(w => w[0].toUpperCase())
+                .join('')
+              return (
+                <>
+                  <Avatar size="sm" className="gba:h-4 gba:w-4 gba:flex-shrink-0">
+                    <AvatarImage src={selectedOpt.avatarUrl} alt={displayLabel} />
+                    <AvatarFallback className="gba:text-[7px]">{ti}</AvatarFallback>
+                  </Avatar>
+                  <span className="gba:truncate gba:flex-1">{displayLabel}</span>
+                </>
+              )
+            }
+            return <span className="gba:truncate gba:flex-1">{displayLabel}</span>
+          })()}
           <ChevronDown className="gba:w-3 gba:h-3 gba:shrink-0 gba:text-muted-foreground" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="gba:w-56 gba:p-0" onOpenAutoFocus={e => e.preventDefault()}>
-        {opts.length > 8 && (
+      <PopoverContent
+        align="start"
+        className="gba:w-56 gba:p-0"
+        onOpenAutoFocus={e => e.preventDefault()}
+        onKeyDown={!showSearch ? handleKeyDown : undefined}
+      >
+        {showSearch && (
           <div className="gba:p-2 gba:border-b gba:border-border">
             <div className="gba:relative">
               <Search className="gba:absolute gba:left-2 gba:top-1.5 gba:h-3 gba:w-3 gba:text-muted-foreground gba:pointer-events-none" />
@@ -231,34 +308,50 @@ const SelectEditor: React.FC<{
                 ref={searchRef}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Search..."
                 className="gba:h-7 gba:pl-6 gba:text-xs"
               />
             </div>
           </div>
         )}
-        <div className="gba:overflow-y-auto gba:p-1" style={{ maxHeight: '15rem' }}>
+        <div ref={listRef} className="gba:overflow-y-auto gba:p-1" style={{ maxHeight: '15rem' }}>
           {filtered.length === 0 && (
             <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-3">No options found</p>
           )}
-          {filtered.map(opt => (
-            <div
-              key={opt.value}
-              role="button"
-              tabIndex={0}
-              onClick={() => onSave(opt.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' || e.key === ' ') onSave(opt.value)
-              }}
-              className={`gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:rounded gba:text-xs gba:cursor-pointer gba:select-none ${
-                opt.value === currentVal ? 'gba:bg-primary/10 gba:text-primary' : 'gba:hover:bg-accent'
-              }`}
-            >
-              {opt.value === currentVal && <Check className="gba:w-3 gba:h-3 gba:shrink-0" />}
-              {opt.value !== currentVal && <span className="gba:w-3" />}
-              <span className="gba:truncate">{opt.label}</span>
-            </div>
-          ))}
+          {filtered.map((opt, idx) => {
+            const hasAvatar = Boolean(opt.avatarUrl)
+            const isFocused = idx === focusedIdx
+            const isSelected = opt.value === currentVal
+            const initials = opt.label
+              .split(/\s+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .map(w => w[0].toUpperCase())
+              .join('')
+            return (
+              <div
+                key={opt.value}
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => onSave(opt.value)}
+                onMouseEnter={() => setFocusedIdx(idx)}
+                className={`gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:rounded gba:text-xs gba:cursor-pointer gba:select-none ${
+                  isFocused ? 'gba:bg-accent' : isSelected ? 'gba:bg-primary/10 gba:text-primary' : ''
+                }`}
+              >
+                {isSelected && <Check className="gba:w-3 gba:h-3 gba:shrink-0" />}
+                {!isSelected && <span className="gba:w-3" />}
+                {hasAvatar && (
+                  <Avatar size="sm" className="gba:h-5 gba:w-5 gba:flex-shrink-0">
+                    <AvatarImage src={opt.avatarUrl} alt={opt.label} />
+                    <AvatarFallback className="gba:text-[8px]">{initials}</AvatarFallback>
+                  </Avatar>
+                )}
+                <span className="gba:truncate">{opt.label}</span>
+              </div>
+            )
+          })}
         </div>
       </PopoverContent>
     </Popover>

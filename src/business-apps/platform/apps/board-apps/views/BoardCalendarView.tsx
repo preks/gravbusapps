@@ -87,7 +87,10 @@ export const BoardCalendarView: React.FC<BoardCalendarViewProps> = ({
     return map
   }, [rows, dateCol])
 
-  const statusColumn = useMemo(() => columns.find(c => c.type === 'status' || c.type === 'select'), [columns])
+  const statusColumn = useMemo(
+    () => columns.find(c => c.type === 'status' || c.type === 'priority' || c.type === 'select'),
+    [columns]
+  )
 
   const getStatusBadge = (row: BoardRow) => {
     if (!statusColumn) return null

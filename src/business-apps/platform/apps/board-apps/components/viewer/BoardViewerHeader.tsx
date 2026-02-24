@@ -4,8 +4,14 @@
  */
 
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
-import { LayoutGrid, Search, Database, Settings } from 'lucide-react'
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { LayoutGrid, Search, Database, Settings, GitBranch } from 'lucide-react'
 import { CreateHeroHeader } from '@/business-apps/core/create/components/CreateHeroHeader'
 
 export interface BoardViewerHeaderProps {
@@ -14,6 +20,7 @@ export interface BoardViewerHeaderProps {
   onOpenSearch: () => void
   onOpenSettings: () => void
   onOpenSystemData?: () => void
+  onOpenFlowData?: () => void
   testId: string
 }
 
@@ -25,8 +32,11 @@ export const BoardViewerHeader: React.FC<BoardViewerHeaderProps> = ({
   onOpenSearch,
   onOpenSettings,
   onOpenSystemData,
+  onOpenFlowData,
   testId
 }) => {
+  const hasImport = onOpenSystemData || onOpenFlowData
+
   return (
     <CreateHeroHeader
       icon={LayoutGrid}
@@ -46,17 +56,29 @@ export const BoardViewerHeader: React.FC<BoardViewerHeaderProps> = ({
             <Search className="gba:h-4 gba:w-4 gba:mr-1.5" />
             Search
           </Button>
-          {onOpenSystemData && (
-            <Button
-              variant="outline"
-              size="sm"
-              className={HERO_BTN}
-              onClick={onOpenSystemData}
-              data-testid={`${testId}-system-data`}
-            >
-              <Database className="gba:h-4 gba:w-4 gba:mr-1.5" />
-              Import
-            </Button>
+          {hasImport && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className={HERO_BTN} data-testid={`${testId}-import`}>
+                  <Database className="gba:h-4 gba:w-4 gba:mr-1.5" />
+                  Import
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onOpenSystemData && (
+                  <DropdownMenuItem onClick={onOpenSystemData} data-testid={`${testId}-import-system`}>
+                    <Database className="gba:h-4 gba:w-4 gba:mr-2" />
+                    System data
+                  </DropdownMenuItem>
+                )}
+                {onOpenFlowData && (
+                  <DropdownMenuItem onClick={onOpenFlowData} data-testid={`${testId}-import-flow`}>
+                    <GitBranch className="gba:h-4 gba:w-4 gba:mr-2" />
+                    Flow data
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           <Button
             variant="outline"

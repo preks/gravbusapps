@@ -1,6 +1,15 @@
-import React, { useState } from 'react'
-import { Badge, Button } from '@newwork/nw-design-system'
-import { AlertTriangle, Clock, CalendarClock, ShieldAlert, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { Card } from '@newwork/nw-design-system'
+import {
+  AlertTriangle,
+  Clock,
+  CalendarClock,
+  ShieldAlert,
+  CheckCircle2,
+  ChevronRight,
+  ChevronDown,
+  Circle
+} from 'lucide-react'
 import type { MyWorkResponse, MyWorkItem } from '../../types'
 
 interface BoardsHomeActionItemsProps {
@@ -8,6 +17,15 @@ interface BoardsHomeActionItemsProps {
   isLoading?: boolean
   onNavigateToItem: (boardId: string, sheetId: string, rowId: string) => void
   'data-testid'?: string
+}
+
+const STATUS_DOT_COLOR: Record<string, string> = {
+  destructive: 'gba:text-destructive',
+  warning: 'gba:text-warning',
+  success: 'gba:text-success',
+  info: 'gba:text-info',
+  muted: 'gba:text-muted-foreground',
+  primary: 'gba:text-primary'
 }
 
 function formatDeadline(deadline?: string): string {
@@ -22,96 +40,108 @@ function formatDeadline(deadline?: string): string {
   return `In ${diffDays}d`
 }
 
-const STATUS_VARIANT_MAP: Record<string, 'destructive' | 'warning' | 'success' | 'info' | 'offline' | 'default'> = {
-  destructive: 'destructive',
-  warning: 'warning',
-  success: 'success',
-  info: 'info',
-  muted: 'offline',
-  primary: 'default'
+function isOverdue(deadline?: string): boolean {
+  if (!deadline) return false
+  const d = new Date(deadline + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return d.getTime() < today.getTime()
 }
 
-function ItemCard({
+function TaskRow({
   item,
-  accent,
   onNavigate,
   testId
 }: {
   item: MyWorkItem
-  accent: string
   onNavigate: (boardId: string, sheetId: string, rowId: string) => void
   testId: string
 }) {
-  const badgeVariant = item.statusColor ? STATUS_VARIANT_MAP[item.statusColor] || 'default' : 'default'
+  const dotColor = item.statusColor
+    ? STATUS_DOT_COLOR[item.statusColor] || 'gba:text-muted-foreground'
+    : 'gba:text-muted-foreground'
+  const deadlineText = formatDeadline(item.deadline)
+  const overdue = isOverdue(item.deadline)
 
   return (
     <button
-      className={`gba:w-full gba:text-left gba:rounded-lg gba:bg-background gba:p-3 gba:border-l-2 ${accent} gba:hover:bg-muted/50 gba:transition-colors`}
+      className="gba:w-full gba:text-left gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-md gba:hover:bg-accent/50 gba:transition-colors gba:group"
       onClick={() => onNavigate(item.boardId, item.sheetId, item.rowId)}
       data-testid={testId}
     >
-      <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:mb-0.5">
-        {item.boardName} &middot; {item.sheetName}
-      </p>
-      <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{item.title}</p>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1.5">
-        {item.status && (
-          <Badge variant={badgeVariant} className="gba:text-xs">
-            {item.status}
-          </Badge>
+      <Circle className={`gba:w-2 gba:h-2 gba:flex-shrink-0 gba:fill-current ${dotColor}`} />
+
+      <span className="gba:text-sm gba:text-foreground gba:truncate gba:flex-1 gba:min-w-0">{item.title}</span>
+
+      <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
+        {item.status && <span className={`gba:text-xs ${dotColor}`}>{item.status}</span>}
+        <span className="gba:text-xs gba:text-muted-foreground gba:hidden gba:sm:inline gba:truncate gba:max-w-32">
+          {item.boardName}
+        </span>
+        {deadlineText && (
+          <span
+            className={`gba:text-xs gba:tabular-nums gba:whitespace-nowrap ${overdue ? 'gba:text-destructive' : 'gba:text-muted-foreground'}`}
+          >
+            {deadlineText}
+          </span>
         )}
-        {item.deadline && (
-          <span className="gba:text-xs gba:text-muted-foreground">{formatDeadline(item.deadline)}</span>
-        )}
+        <ChevronRight className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity" />
       </div>
     </button>
   )
 }
 
-function ItemColumn({
-  title,
-  icon,
-  items,
-  accent,
-  badgeVariant,
-  onNavigate,
-  testId
-}: {
+interface UrgencySection {
+  key: string
   title: string
   icon: React.ReactNode
   items: MyWorkItem[]
-  accent: string
-  badgeVariant: 'destructive' | 'warning' | 'info'
+  colorClass: string
+}
+
+const MAX_VISIBLE = 10
+
+function SectionBlock({
+  section,
+  onNavigate,
+  testId
+}: {
+  section: UrgencySection
   onNavigate: (boardId: string, sheetId: string, rowId: string) => void
   testId: string
 }) {
+  const [showAll, setShowAll] = useState(false)
+  const visible = showAll ? section.items : section.items.slice(0, MAX_VISIBLE)
+  const hasMore = section.items.length > MAX_VISIBLE
+
   return (
-    <div data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-        {icon}
-        <span className="gba:text-sm gba:font-medium gba:text-foreground">{title}</span>
-        {items.length > 0 && (
-          <Badge variant={badgeVariant} className="gba:text-xs">
-            {items.length}
-          </Badge>
-        )}
+    <div data-testid={`${testId}-${section.key}`}>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2">
+        {section.icon}
+        <span className={`gba:text-xs gba:font-medium ${section.colorClass}`}>{section.title}</span>
+        <span className="gba:text-xs gba:text-muted-foreground">{section.items.length}</span>
       </div>
-      {items.length === 0 ? (
-        <p className="gba:text-xs gba:text-muted-foreground gba:py-4 gba:text-center">None</p>
-      ) : (
-        <div className="gba:space-y-2">
-          {items.slice(0, 5).map(item => (
-            <ItemCard
-              key={item.rowId}
-              item={item}
-              accent={accent}
-              onNavigate={onNavigate}
-              testId={`${testId}-item-${item.rowId}`}
-            />
-          ))}
-          {items.length > 5 && (
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:pt-1">+{items.length - 5} more</p>
-          )}
+
+      <div>
+        {visible.map(item => (
+          <TaskRow
+            key={item.rowId}
+            item={item}
+            onNavigate={onNavigate}
+            testId={`${testId}-${section.key}-${item.rowId}`}
+          />
+        ))}
+      </div>
+
+      {hasMore && (
+        <div className="gba:px-3 gba:py-1">
+          <button
+            className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
+            onClick={() => setShowAll(s => !s)}
+            data-testid={`${testId}-${section.key}-toggle`}
+          >
+            {showAll ? 'Show less' : `${section.items.length - MAX_VISIBLE} more…`}
+          </button>
         </div>
       )}
     </div>
@@ -124,121 +154,151 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
   onNavigateToItem,
   'data-testid': testId = 'boards-home-actions'
 }) => {
-  const [expanded, setExpanded] = useState(true)
-  const totalItems =
-    (myWork?.overdue.length ?? 0) +
-    (myWork?.dueToday.length ?? 0) +
-    (myWork?.dueThisWeek.length ?? 0) +
-    (myWork?.blocked.length ?? 0)
+  const sections = useMemo<UrgencySection[]>(() => {
+    if (!myWork) return []
+    const all: UrgencySection[] = []
+
+    if (myWork.overdue.length > 0) {
+      all.push({
+        key: 'overdue',
+        title: 'Overdue',
+        icon: <AlertTriangle className="gba:w-3.5 gba:h-3.5 gba:text-destructive" />,
+        items: myWork.overdue,
+        colorClass: 'gba:text-destructive'
+      })
+    }
+    if (myWork.dueToday.length > 0) {
+      all.push({
+        key: 'today',
+        title: 'Due today',
+        icon: <Clock className="gba:w-3.5 gba:h-3.5 gba:text-warning" />,
+        items: myWork.dueToday,
+        colorClass: 'gba:text-warning'
+      })
+    }
+    if (myWork.dueThisWeek.length > 0) {
+      all.push({
+        key: 'week',
+        title: 'This week',
+        icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-info" />,
+        items: myWork.dueThisWeek,
+        colorClass: 'gba:text-info'
+      })
+    }
+    if (myWork.upcoming.length > 0) {
+      all.push({
+        key: 'upcoming',
+        title: 'Upcoming',
+        icon: <Circle className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />,
+        items: myWork.upcoming,
+        colorClass: 'gba:text-muted-foreground'
+      })
+    }
+    if (myWork.blocked.length > 0) {
+      all.push({
+        key: 'blocked',
+        title: 'Blocked',
+        icon: <ShieldAlert className="gba:w-3.5 gba:h-3.5 gba:text-destructive" />,
+        items: myWork.blocked,
+        colorClass: 'gba:text-destructive'
+      })
+    }
+    return all
+  }, [myWork])
+
+  const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0)
 
   if (isLoading) {
     return (
-      <section className="gba:rounded-xl gba:bg-card gba:p-6" data-testid={testId}>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-          <div className="gba:h-4 gba:w-4 gba:bg-muted/50 gba:rounded gba:animate-pulse" />
-          <div className="gba:h-4 gba:w-32 gba:bg-muted/50 gba:rounded gba:animate-pulse" />
-        </div>
-        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="gba:space-y-2">
-              <div className="gba:h-3 gba:w-20 gba:bg-muted/50 gba:rounded gba:animate-pulse" />
-              <div className="gba:h-16 gba:bg-muted/50 gba:rounded-lg gba:animate-pulse" />
-              <div className="gba:h-16 gba:bg-muted/50 gba:rounded-lg gba:animate-pulse" />
+      <Card className="gba:overflow-hidden" data-testid={testId}>
+        <div className="gba:px-4 gba:py-3 gba:space-y-3">
+          <div className="gba:h-4 gba:w-24 gba:bg-muted gba:rounded gba:animate-pulse" />
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2">
+              <div className="gba:h-2 gba:w-2 gba:bg-muted gba:rounded-full gba:animate-pulse" />
+              <div className="gba:flex-1 gba:h-3.5 gba:bg-muted gba:rounded gba:animate-pulse" />
+              <div className="gba:h-3 gba:w-16 gba:bg-muted gba:rounded gba:animate-pulse" />
             </div>
           ))}
         </div>
-      </section>
+      </Card>
     )
   }
 
   if (totalItems === 0 && myWork) {
     return (
-      <section className="gba:rounded-xl gba:bg-card gba:p-6" data-testid={testId}>
-        <div className="gba:flex gba:flex-col gba:items-center gba:py-4">
-          <CheckCircle2 className="gba:w-8 gba:h-8 gba:text-success gba:mb-2" />
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">All caught up!</p>
-          <p className="gba:text-xs gba:text-muted-foreground">No items need your attention right now.</p>
+      <Card className="gba:overflow-hidden" data-testid={testId}>
+        <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-6">
+          <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-success gba:flex-shrink-0" />
+          <div>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">All caught up</p>
+            <p className="gba:text-xs gba:text-muted-foreground">No tasks need your attention right now.</p>
+          </div>
         </div>
-      </section>
+      </Card>
     )
   }
 
   return (
-    <section className="gba:rounded-xl gba:bg-card gba:p-6" data-testid={testId}>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="gba:w-full gba:flex gba:items-center gba:justify-between gba:px-0 gba:mb-3"
+    <Card className="gba:overflow-hidden" data-testid={testId}>
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:pt-3 gba:pb-1">
+        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">My Tasks</h2>
+        <span className="gba:text-xs gba:text-muted-foreground gba:tabular-nums">{totalItems}</span>
+      </div>
+
+      <div className="gba:pb-1">
+        {sections.map((section, i) => (
+          <React.Fragment key={section.key}>
+            {i > 0 && <div className="gba:mx-3 gba:border-t gba:border-border" />}
+            <SectionBlock section={section} onNavigate={onNavigateToItem} testId={testId} />
+          </React.Fragment>
+        ))}
+      </div>
+
+      {(myWork?.recentlyCompleted.length ?? 0) > 0 && (
+        <CompletedSection items={myWork!.recentlyCompleted} onNavigate={onNavigateToItem} testId={testId} />
+      )}
+    </Card>
+  )
+}
+
+function CompletedSection({
+  items,
+  onNavigate,
+  testId
+}: {
+  items: MyWorkItem[]
+  onNavigate: (boardId: string, sheetId: string, rowId: string) => void
+  testId: string
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="gba:border-t gba:border-border" data-testid={`${testId}-completed`}>
+      <button
+        className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:text-left gba:hover:bg-accent/30 gba:transition-colors"
         onClick={() => setExpanded(e => !e)}
-        data-testid={`${testId}-toggle`}
+        data-testid={`${testId}-completed-toggle`}
       >
-        <span className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-            Action required
-          </span>
-          {totalItems > 0 && (
-            <Badge variant="destructive" className="gba:text-xs">
-              {totalItems}
-            </Badge>
-          )}
-        </span>
-        {expanded ? <ChevronUp className="gba:w-4 gba:h-4" /> : <ChevronDown className="gba:w-4 gba:h-4" />}
-      </Button>
-
+        <CheckCircle2 className="gba:w-3.5 gba:h-3.5 gba:text-success" />
+        <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:flex-1">Completed</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:tabular-nums">{items.length}</span>
+        <ChevronDown
+          className={`gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:transition-transform ${expanded ? 'gba:rotate-180' : ''}`}
+        />
+      </button>
       {expanded && (
-        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-          <ItemColumn
-            title="Overdue"
-            icon={<AlertTriangle className="gba:w-4 gba:h-4 gba:text-destructive" />}
-            items={myWork?.overdue ?? []}
-            accent="gba:border-destructive"
-            badgeVariant="destructive"
-            onNavigate={onNavigateToItem}
-            testId={`${testId}-overdue`}
-          />
-          <ItemColumn
-            title="Due today"
-            icon={<Clock className="gba:w-4 gba:h-4 gba:text-warning" />}
-            items={myWork?.dueToday ?? []}
-            accent="gba:border-warning"
-            badgeVariant="warning"
-            onNavigate={onNavigateToItem}
-            testId={`${testId}-today`}
-          />
-          <ItemColumn
-            title="This week"
-            icon={<CalendarClock className="gba:w-4 gba:h-4 gba:text-info" />}
-            items={myWork?.dueThisWeek ?? []}
-            accent="gba:border-info"
-            badgeVariant="info"
-            onNavigate={onNavigateToItem}
-            testId={`${testId}-week`}
-          />
+        <div className="gba:pb-1">
+          {items.slice(0, 5).map(item => (
+            <TaskRow
+              key={item.rowId}
+              item={item}
+              onNavigate={onNavigate}
+              testId={`${testId}-completed-${item.rowId}`}
+            />
+          ))}
         </div>
       )}
-
-      {expanded && (myWork?.blocked.length ?? 0) > 0 && (
-        <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-border">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-            <ShieldAlert className="gba:w-4 gba:h-4 gba:text-destructive-secondary" />
-            <span className="gba:text-sm gba:font-medium gba:text-foreground">Blocked</span>
-            <Badge variant="destructive" className="gba:text-xs">
-              {myWork!.blocked.length}
-            </Badge>
-          </div>
-          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-2">
-            {myWork!.blocked.slice(0, 3).map(item => (
-              <ItemCard
-                key={item.rowId}
-                item={item}
-                accent="gba:border-destructive-secondary"
-                onNavigate={onNavigateToItem}
-                testId={`${testId}-blocked-${item.rowId}`}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
+    </div>
   )
 }

@@ -5,17 +5,14 @@
  *   2. "Suggest Full Dashboard" to let AI auto-generate an optimal set of widgets
  */
 
-import React, { useState, useCallback, lazy, Suspense } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Button, Input, Spinner, Badge } from '@newwork/nw-design-system'
 import { Sparkles, Plus, X, LayoutDashboard } from 'lucide-react'
 import { useBoardAI } from '../../hooks/useBoardAI'
 import { profileData } from '../../services/dataProfiler'
 import { resolveColumnName, normalizeWidgetType } from '../../services/analyticsAggregators'
 import type { BoardColumn, BoardRow, DashboardWidget } from '../../types'
-
-const AISuggestWidgetsDialog = lazy(() =>
-  import('./AISuggestWidgetsDialog').then(m => ({ default: m.AISuggestWidgetsDialog }))
-)
+import { AISuggestWidgetsDialog } from './AISuggestWidgetsDialog'
 
 export interface AskDashboardInputProps {
   columns: BoardColumn[]
@@ -210,17 +207,15 @@ export const AskDashboardInput: React.FC<AskDashboardInputProps> = ({
         )}
       </div>
 
-      <Suspense fallback={null}>
-        <AISuggestWidgetsDialog
-          open={isSuggestOpen}
-          onOpenChange={setIsSuggestOpen}
-          columns={columns}
-          rows={rows}
-          accessToken={accessToken}
-          onAddWidgets={onAddWidgets}
-          data-testid={`${testId}-ai-suggest-dialog`}
-        />
-      </Suspense>
+      <AISuggestWidgetsDialog
+        open={isSuggestOpen}
+        onOpenChange={setIsSuggestOpen}
+        columns={columns}
+        rows={rows}
+        accessToken={accessToken}
+        onAddWidgets={onAddWidgets}
+        data-testid={`${testId}-ai-suggest-dialog`}
+      />
     </>
   )
 }

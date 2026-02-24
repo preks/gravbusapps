@@ -6,10 +6,11 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { Button, Badge, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import { Filter, ArrowUpDown, Plus, X, Search } from 'lucide-react'
-import type { BoardColumn, ViewFilter, ViewSort, FilterConnector } from '../../types'
+import type { BoardColumn, BoardQuickFilter, ViewFilter, ViewSort, FilterConnector } from '../../types'
 import { getDefaultOperator } from '../../utils/filterOperators'
 import { FilterRow } from './FilterRow'
 import { SortRow } from './SortRow'
+import { QuickFiltersBar } from './QuickFiltersBar'
 
 interface FilterSortToolbarProps {
   columns: BoardColumn[]
@@ -28,6 +29,12 @@ interface FilterSortToolbarProps {
   onClearAll: () => void
   quickSearch: string
   onQuickSearchChange: (v: string) => void
+  quickFilters?: BoardQuickFilter[]
+  activeQuickFilterIds?: string[]
+  onToggleQuickFilter?: (id: string) => void
+  onAddQuickFilter?: (qf: BoardQuickFilter) => void
+  onRenameQuickFilter?: (id: string, name: string) => void
+  onDeleteQuickFilter?: (id: string) => void
   'data-testid'?: string
 }
 
@@ -48,6 +55,12 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
   onClearAll,
   quickSearch,
   onQuickSearchChange,
+  quickFilters,
+  activeQuickFilterIds,
+  onToggleQuickFilter,
+  onAddQuickFilter,
+  onRenameQuickFilter,
+  onDeleteQuickFilter,
   'data-testid': testId = 'filter-sort-toolbar'
 }) => {
   const [filterOpen, setFilterOpen] = useState(false)
@@ -77,7 +90,8 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
 
   const isFiltering = filters.length > 0
   const isSorting = sorts.length > 0
-  const hasAnything = isFiltering || isSorting || quickSearch
+  const hasActiveQuickFilters = (activeQuickFilterIds?.length ?? 0) > 0
+  const hasAnything = isFiltering || isSorting || quickSearch || hasActiveQuickFilters
 
   const filterSummary = useMemo(() => {
     if (filters.length === 0) return null
@@ -164,6 +178,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
                 columns={columns}
                 onUpdate={onUpdateFilter}
                 onRemove={onRemoveFilter}
+                onSaveAsQuickFilter={onAddQuickFilter ? filter => onAddQuickFilter(filter) : undefined}
                 connectorLabel={i === 0 ? 'Where' : connector.toUpperCase()}
                 data-testid={`${testId}-filter-${i}`}
               />
@@ -225,6 +240,21 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
           </div>
         </PopoverContent>
       </Popover>
+
+      {/* Quick filters */}
+      {quickFilters && quickFilters.length > 0 && onToggleQuickFilter && (
+        <>
+          <div className="gba:h-4 gba:w-px gba:bg-border" />
+          <QuickFiltersBar
+            quickFilters={quickFilters}
+            activeIds={activeQuickFilterIds ?? []}
+            onToggle={onToggleQuickFilter}
+            onRename={onRenameQuickFilter}
+            onDelete={onDeleteQuickFilter}
+            data-testid={`${testId}-quick-filters`}
+          />
+        </>
+      )}
 
       {/* Active indicator & clear */}
       {hasAnything && (

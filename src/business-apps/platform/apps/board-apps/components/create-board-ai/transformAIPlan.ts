@@ -87,7 +87,7 @@ function buildColumns(cols: Partial<BoardColumn>[]): Partial<BoardColumn>[] {
 }
 
 const SUPPORTED_VIEW_TYPES = new Set(['table', 'kanban', 'calendar', 'timeline', 'form', 'dashboard'])
-const STATUS_TYPES = new Set(['status', 'select', 'multiselect'])
+const STATUS_TYPES = new Set(['status', 'priority', 'select', 'multiselect'])
 const DATE_TYPES = new Set(['date', 'datetime'])
 
 function buildViews(

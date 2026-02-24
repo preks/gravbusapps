@@ -10,7 +10,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
-import type { Board, BoardSheet, BoardRow } from './types'
+import type { Board, BoardSheet, BoardRow, BoardQuickFilter } from './types'
 import { RowPagePanel } from './components/RowPagePanel'
 import { BoardViewContent } from './components/BoardViewContent'
 import { useBoardRealtime } from './hooks/useBoardRealtime'
@@ -18,13 +18,51 @@ import { BoardViewerTabs } from './components/viewer/BoardViewerTabs'
 import { BoardViewerFooter } from './components/viewer/BoardViewerFooter'
 import { BoardViewerOverlays } from './components/viewer/BoardViewerOverlays'
 import { SystemDataSheet } from './components/system-data/SystemDataSheet'
+import { FlowEngineDataSheet } from './components/flow-engine/FlowEngineDataSheet'
 import { BoardApiService } from './services/BoardApiService'
 import { useDashboardData } from './hooks/useDashboardData'
+import { usePeopleColumnOptions } from './hooks/usePeopleColumnOptions'
+
+function readInitialServerFilters(): { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string } {
+  try {
+    const params = new URLSearchParams(globalThis.window?.location?.search || '')
+    const bf = params.get('bf')
+    const bc = params.get('bc')
+    const bs = params.get('bs')
+    const result: { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string } = {}
+    if (bf) {
+      const parsed = JSON.parse(decodeURIComponent(bf))
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        result.filters = JSON.stringify(
+          parsed.map((f: Record<string, unknown>) => ({
+            column: f.column,
+            operator: f.operator,
+            value: f.value,
+            ...(f.secondValue !== undefined ? { secondValue: f.secondValue } : {})
+          }))
+        )
+        if (bc === 'or') result.filterConnector = 'or'
+      }
+    }
+    if (bs) {
+      const parsed = JSON.parse(decodeURIComponent(bs))
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        result.sorts = JSON.stringify(
+          parsed.map((s: Record<string, unknown>) => ({ column: s.column, direction: s.direction }))
+        )
+      }
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
 
 export interface BoardViewerHandle {
   openSearch: () => void
   openSettings: () => void
   openSystemData: () => void
+  openFlowData: () => void
   navigateToRow: (sheetId: string, rowId: string, position?: number) => void
 }
 
@@ -70,6 +108,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   {
     board,
     accessToken,
+    userId,
     initialSheetId,
     initialViewId,
     initialPage,
@@ -125,15 +164,21 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     },
     [onPageChange]
   )
+  const canEdit =
+    !board.permission || board.permission === 'owner' || board.permission === 'edit' || board.permission === 'admin'
+
   const [activeRow, setActiveRow] = useState<BoardRow | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isAddViewOpen, setIsAddViewOpen] = useState(false)
   const [isSystemDataOpen, setIsSystemDataOpen] = useState(false)
+  const [isFlowEngineDataOpen, setIsFlowEngineDataOpen] = useState(false)
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null)
   const tableNextPageRef = useRef(1)
   const kanbanNextPageRef = useRef(1)
-  const serverFilterRef = useRef<{ filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }>({})
+  const serverFilterRef = useRef<{ filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }>(
+    readInitialServerFilters()
+  )
   const navigateLoadingRef = useRef(false)
   const KANBAN_BATCH = 500
 
@@ -159,11 +204,81 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     return raw
   }, [board.sheets, activeSheetId, DEFAULT_TABLE_VIEW])
 
+  const { options: peopleOptions } = usePeopleColumnOptions(accessToken, activeSheet?.columns ?? [])
+
+  const enrichedSheet = useMemo(() => {
+    if (!activeSheet || peopleOptions.length === 0) return activeSheet
+    const enrichedColumns = activeSheet.columns.map(col => {
+      if (col.type !== 'people') return col
+      return { ...col, selectOptions: peopleOptions }
+    })
+    return { ...activeSheet, columns: enrichedColumns }
+  }, [activeSheet, peopleOptions])
+
+  const quickFilters = useMemo(() => activeSheet?.settings?.quickFilters ?? [], [activeSheet])
+
+  const qfInitDone = useRef(false)
+  useEffect(() => {
+    if (qfInitDone.current || quickFilters.length === 0) return
+    qfInitDone.current = true
+    try {
+      const params = new URLSearchParams(globalThis.window?.location?.search || '')
+      const qfIds = params.getAll('qf')
+      if (qfIds.length === 0) return
+      const defMap = new Map(quickFilters.map(d => [d.id, d]))
+      const qfConditions = qfIds
+        .map(id => defMap.get(id))
+        .filter((d): d is BoardQuickFilter => d != null)
+        .map(d => ({
+          column: d.column,
+          operator: d.operator,
+          value: d.value,
+          ...(d.secondValue !== undefined ? { secondValue: d.secondValue } : {})
+        }))
+      if (qfConditions.length === 0) return
+      const existing = serverFilterRef.current.filters ? (JSON.parse(serverFilterRef.current.filters) as unknown[]) : []
+      serverFilterRef.current = {
+        ...serverFilterRef.current,
+        filters: JSON.stringify([...existing, ...qfConditions]),
+        filterConnector: 'and'
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+  }, [quickFilters])
+
+  const addQuickFilter = useCallback(
+    (qf: BoardQuickFilter) => {
+      if (!activeSheet || !onSheetUpdate || !canEdit) return
+      const next = [...(activeSheet.settings?.quickFilters ?? []), qf]
+      void onSheetUpdate(board.id, activeSheet.id, { settings: { ...activeSheet.settings, quickFilters: next } } as any)
+    },
+    [activeSheet, board.id, canEdit, onSheetUpdate]
+  )
+
+  const renameQuickFilter = useCallback(
+    (id: string, name: string) => {
+      if (!activeSheet || !onSheetUpdate || !canEdit) return
+      const next = (activeSheet.settings?.quickFilters ?? []).map(qf => (qf.id === id ? { ...qf, name } : qf))
+      void onSheetUpdate(board.id, activeSheet.id, { settings: { ...activeSheet.settings, quickFilters: next } } as any)
+    },
+    [activeSheet, board.id, canEdit, onSheetUpdate]
+  )
+
+  const deleteQuickFilter = useCallback(
+    (id: string) => {
+      if (!activeSheet || !onSheetUpdate || !canEdit) return
+      const next = (activeSheet.settings?.quickFilters ?? []).filter(qf => qf.id !== id)
+      void onSheetUpdate(board.id, activeSheet.id, { settings: { ...activeSheet.settings, quickFilters: next } } as any)
+    },
+    [activeSheet, board.id, canEdit, onSheetUpdate]
+  )
+
   const activeView = useMemo(() => {
-    if (!activeSheet) return null
-    if (activeViewId) return activeSheet.views.find(v => v.id === activeViewId) || activeSheet.views[0]
-    return activeSheet.views.find(v => v.isDefault) || activeSheet.views[0]
-  }, [activeSheet, activeViewId])
+    if (!enrichedSheet) return null
+    if (activeViewId) return enrichedSheet.views.find(v => v.id === activeViewId) || enrichedSheet.views[0]
+    return enrichedSheet.views.find(v => v.isDefault) || enrichedSheet.views[0]
+  }, [enrichedSheet, activeViewId])
 
   const navigateToRow = useCallback(
     (targetSheetId: string, rowId: string, position?: number) => {
@@ -238,6 +353,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
       openSearch: () => setIsSearchOpen(true),
       openSettings: () => setIsSettingsOpen(true),
       openSystemData: () => setIsSystemDataOpen(true),
+      openFlowData: () => setIsFlowEngineDataOpen(true),
       navigateToRow
     }),
     [navigateToRow]
@@ -317,6 +433,21 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             ds.populateTargetCol as string,
             dsLimit
           )
+        } else if (ds.provider === 'flowEngine') {
+          await BoardApiService.syncFromFlowEngine(board.id, activeSheet.id, {
+            flowEntity: (ds.flowEntity as 'flows' | 'tasks') || 'flows',
+            templateIds: ds.templateIds as string[] | undefined,
+            tags: ds.tags as Array<{ key: string; value: string }> | undefined,
+            scope: (ds.scope as 'all' | 'byUser') || 'all',
+            userId: ds.userId as string | undefined,
+            participationType: ds.participationType as 'initiated' | 'participated' | undefined,
+            status: ds.status as string | undefined,
+            customStatus: ds.customStatus as string | undefined,
+            priority: ds.priority as string | undefined,
+            limit: dsLimit,
+            mode: 'replace',
+            autoColumns: true
+          })
         } else {
           await BoardApiService.syncFromGraphQL(board.id, activeSheet.id, {
             entity: ds.entityType as string,
@@ -467,11 +598,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
 
       <div className="gba:flex-1 gba:relative gba:min-h-0 gba:min-w-0 gba:overflow-hidden">
         <div ref={scrollRefCallback} className="gba:absolute gba:inset-0 gba:overflow-auto">
-          {rowsLoading && rows.length === 0 ? (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-              <Spinner size="lg" />
-            </div>
-          ) : rowsError ? (
+          {rowsError && rows.length === 0 ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
               <p className="gba:text-destructive gba:text-sm" data-testid={`${testId}-error`}>
                 {rowsError}
@@ -479,10 +606,15 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             </div>
           ) : (
             <>
+              {rowsLoading && rows.length === 0 && (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+                  <Spinner size="lg" />
+                </div>
+              )}
               <BoardViewContent
                 scrollParent={isKanbanView ? scrollParent : undefined}
                 view={activeView}
-                sheet={activeSheet!}
+                sheet={enrichedSheet!}
                 rows={rows}
                 accessToken={accessToken}
                 boardId={board.id}
@@ -491,35 +623,35 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 onClearHighlight={() => setHighlightedRowId(null)}
                 onRowClick={handleRowOpen}
                 onAddRow={
-                  onCreateRow
+                  canEdit && onCreateRow
                     ? async data => {
                         await onCreateRow(board.id, activeSheet!.id, data)
                       }
                     : undefined
                 }
                 onUpdateCell={
-                  onUpdateRow
+                  canEdit && onUpdateRow
                     ? async (rowId, colName, value, extraData) => {
                         await onUpdateRow(board.id, activeSheet!.id, rowId, { [colName]: value, ...extraData })
                       }
                     : undefined
                 }
                 onDeleteRow={
-                  onDeleteRow
+                  canEdit && onDeleteRow
                     ? rowId => {
                         void onDeleteRow(board.id, activeSheet!.id, rowId)
                       }
                     : undefined
                 }
                 onSubmitRow={
-                  onCreateRow
+                  canEdit && onCreateRow
                     ? async data => {
                         await onCreateRow(board.id, activeSheet!.id, data)
                       }
                     : undefined
                 }
                 onAddColumn={
-                  onSheetUpdate
+                  canEdit && onSheetUpdate
                     ? column => {
                         const nextColumns = [...activeSheet!.columns, column].map((c, i) => ({
                           ...c,
@@ -530,7 +662,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                     : undefined
                 }
                 onUpdateColumn={
-                  onSheetUpdate
+                  canEdit && onSheetUpdate
                     ? updated => {
                         const nextColumns = activeSheet!.columns.map(c => (c.id === updated.id ? updated : c))
                         void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
@@ -538,7 +670,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                     : undefined
                 }
                 onDeleteColumn={
-                  onSheetUpdate
+                  canEdit && onSheetUpdate
                     ? columnId => {
                         const target = activeSheet!.columns.find(c => c.id === columnId)
                         if (target?.isPrimary) return
@@ -548,7 +680,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                     : undefined
                 }
                 onUpdateDashboardWidgets={
-                  onSheetUpdate && activeView
+                  canEdit && onSheetUpdate && activeView
                     ? widgets => {
                         const updatedConfig = { ...activeView.config, widgets }
                         const updatedViews = activeSheet!.views.map(v =>
@@ -559,7 +691,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                     : undefined
                 }
                 onUpdateView={
-                  onSheetUpdate && activeView
+                  canEdit && onSheetUpdate && activeView
                     ? (viewId, config) => {
                         const updatedViews = activeSheet!.views.map(v =>
                           v.id === viewId ? { ...v, config: { ...v.config, ...config } } : v
@@ -577,6 +709,10 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 dashboardLoadedRows={dashboardData.loadedRows}
                 onTableLoadMore={!isKanbanView ? handleTableLoadMore : undefined}
                 rowsLoading={rowsLoading}
+                quickFilters={quickFilters}
+                onAddQuickFilter={canEdit ? addQuickFilter : undefined}
+                onRenameQuickFilter={canEdit ? renameQuickFilter : undefined}
+                onDeleteQuickFilter={canEdit ? deleteQuickFilter : undefined}
                 testId={`${testId}-${viewType}`}
               />
 
@@ -605,7 +741,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         totalPages={totalPages}
         onPrevPage={() => setPage(p => Math.max(1, p - 1))}
         onNextPage={() => setPage(p => Math.min(totalPages, p + 1))}
-        onAddRow={onCreateRow ? handleAddRow : undefined}
+        onAddRow={canEdit && onCreateRow ? handleAddRow : undefined}
         hidePagination
         loadedRows={rows.length}
         testId={testId}
@@ -622,6 +758,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         onBoardUpdate={onBoardUpdate}
         onSheetUpdate={onSheetUpdate}
         onOpenImport={() => setIsSystemDataOpen(true)}
+        onOpenFlowImport={() => setIsFlowEngineDataOpen(true)}
         isSearchOpen={isSearchOpen}
         setIsSearchOpen={setIsSearchOpen}
         isSettingsOpen={isSettingsOpen}
@@ -663,6 +800,36 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             }
           }}
           data-testid={`${testId}-system-data-sheet`}
+        />
+      )}
+
+      {activeSheet && (
+        <FlowEngineDataSheet
+          open={isFlowEngineDataOpen}
+          onOpenChange={setIsFlowEngineDataOpen}
+          boardId={board.id}
+          sheetId={activeSheet.id}
+          userId={userId}
+          onSheetUpdate={
+            onSheetUpdate
+              ? async (bId, sId, updates) => {
+                  await onSheetUpdate(bId, sId, updates as any)
+                }
+              : undefined
+          }
+          onAfterImport={() => {
+            void onReloadBoard?.(board.id)
+            const rpp = activeSheet.settings.rowsPerPage || 50
+            const opts = { ...serverFilterRef.current }
+            if (isKanbanView) {
+              kanbanNextPageRef.current = 2
+              void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+            } else {
+              tableNextPageRef.current = 2
+              void onLoadRows(board.id, activeSheet.id, { page: 1, limit: rpp, ...opts })
+            }
+          }}
+          data-testid={`${testId}-flow-engine-data-sheet`}
         />
       )}
     </div>

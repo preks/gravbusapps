@@ -94,7 +94,7 @@ export const BoardKanbanView: React.FC<BoardKanbanViewProps> = ({
   const statusCol = useMemo(() => {
     const configured = columns.find(c => c.name === viewConfig.statusColumn || c.id === viewConfig.statusColumn)
     if (configured) return configured
-    return columns.find(c => c.type === 'status' || c.type === 'select') || columns[0] || null
+    return columns.find(c => c.type === 'status' || c.type === 'priority' || c.type === 'select') || columns[0] || null
   }, [columns, viewConfig.statusColumn])
 
   const laneOrderRef = useRef<string[]>([])

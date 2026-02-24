@@ -23,7 +23,10 @@ export function useBoardHomeData(isActive: boolean): BoardHomeData {
     try {
       setIsLoading(true)
       setError(null)
-      const [statsRes, workRes] = await Promise.all([BoardApiService.getBoardStats(), BoardApiService.getMyWork()])
+      const [statsRes, workRes] = await Promise.all([
+        BoardApiService.getBoardStats(),
+        BoardApiService.getMyWork({ scope: 'assigned' })
+      ])
       setStats(statsRes)
       setMyWork(workRes)
       loadedRef.current = true

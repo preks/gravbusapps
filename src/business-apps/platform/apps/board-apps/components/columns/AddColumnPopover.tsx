@@ -77,6 +77,16 @@ export const AddColumnPopover: React.FC<AddColumnPopoverProps> = ({
               ]
             }
           : null),
+        ...(type === 'priority'
+          ? {
+              selectOptions: [
+                { value: 'low', label: 'Low', colorToken: 'muted' },
+                { value: 'medium', label: 'Medium', colorToken: 'info' },
+                { value: 'high', label: 'High', colorToken: 'warning' },
+                { value: 'critical', label: 'Critical', colorToken: 'destructive' }
+              ]
+            }
+          : null),
         ...(type === 'select' || type === 'multiselect' ? { selectOptions: [] } : null)
       }
 

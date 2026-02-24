@@ -3,7 +3,7 @@
  * Supports legacy (kpi/chart/table) and v2 (multi_chart/timeseries/scatter/histogram) types.
  */
 
-import React, { useMemo, lazy, Suspense } from 'react'
+import React, { useMemo } from 'react'
 import type {
   BoardRow,
   BoardColumn,
@@ -18,21 +18,12 @@ import type {
 } from '../../types'
 import { ChartWidget } from './ChartWidget'
 import { TableWidget } from './TableWidget'
+import { MultiSeriesChartWidget } from './MultiSeriesChartWidget'
+import { TimeSeriesWidget } from './TimeSeriesWidget'
+import { ScatterWidget } from './ScatterWidget'
+import { HistogramWidget } from './HistogramWidget'
 import { normalizeWidgetType } from '../../services/analyticsAggregators'
 import { applyWidgetFilters } from './widgetFieldHelpers'
-
-const MultiSeriesChartWidget = lazy(() =>
-  import('./MultiSeriesChartWidget').then(m => ({ default: m.MultiSeriesChartWidget }))
-)
-const TimeSeriesWidget = lazy(() => import('./TimeSeriesWidget').then(m => ({ default: m.TimeSeriesWidget })))
-const ScatterWidget = lazy(() => import('./ScatterWidget').then(m => ({ default: m.ScatterWidget })))
-const HistogramWidget = lazy(() => import('./HistogramWidget').then(m => ({ default: m.HistogramWidget })))
-
-const LazyFallback = () => (
-  <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-xs gba:text-muted-foreground">
-    Loading...
-  </div>
-)
 
 export interface WidgetContentProps {
   widget: DashboardWidget
@@ -81,53 +72,45 @@ export const WidgetContent: React.FC<WidgetContentProps> = ({ widget, columns, r
 
   if (widgetType === 'multi_chart') {
     return (
-      <Suspense fallback={<LazyFallback />}>
-        <MultiSeriesChartWidget
-          config={widget.config as MultiSeriesChartWidgetConfig}
-          columns={columns}
-          rows={filteredRows}
-          testId={testId}
-        />
-      </Suspense>
+      <MultiSeriesChartWidget
+        config={widget.config as MultiSeriesChartWidgetConfig}
+        columns={columns}
+        rows={filteredRows}
+        testId={testId}
+      />
     )
   }
 
   if (widgetType === 'timeseries') {
     return (
-      <Suspense fallback={<LazyFallback />}>
-        <TimeSeriesWidget
-          config={widget.config as TimeSeriesWidgetConfig}
-          columns={columns}
-          rows={filteredRows}
-          testId={testId}
-        />
-      </Suspense>
+      <TimeSeriesWidget
+        config={widget.config as TimeSeriesWidgetConfig}
+        columns={columns}
+        rows={filteredRows}
+        testId={testId}
+      />
     )
   }
 
   if (widgetType === 'scatter') {
     return (
-      <Suspense fallback={<LazyFallback />}>
-        <ScatterWidget
-          config={widget.config as ScatterWidgetConfig}
-          columns={columns}
-          rows={filteredRows}
-          testId={testId}
-        />
-      </Suspense>
+      <ScatterWidget
+        config={widget.config as ScatterWidgetConfig}
+        columns={columns}
+        rows={filteredRows}
+        testId={testId}
+      />
     )
   }
 
   if (widgetType === 'histogram') {
     return (
-      <Suspense fallback={<LazyFallback />}>
-        <HistogramWidget
-          config={widget.config as HistogramWidgetConfig}
-          columns={columns}
-          rows={filteredRows}
-          testId={testId}
-        />
-      </Suspense>
+      <HistogramWidget
+        config={widget.config as HistogramWidgetConfig}
+        columns={columns}
+        rows={filteredRows}
+        testId={testId}
+      />
     )
   }
 

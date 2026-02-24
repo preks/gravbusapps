@@ -5,13 +5,14 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { toast } from '@newwork/nw-design-system'
-import type { BoardRow, BoardColumn, ViewFilter, ViewSort, FilterConnector } from '../types'
+import type { BoardRow, BoardColumn, BoardQuickFilter, ViewFilter, ViewSort, FilterConnector } from '../types'
 import { ColumnSettingsSheet } from '../components/columns/ColumnSettingsSheet'
 import { FilterSortToolbar } from '../components/table/FilterSortToolbar'
 import { TableHeader } from '../components/table/TableHeader'
 import { TableBodyRows } from '../components/table/TableBodyRows'
 import { useTableFilterSort } from '../hooks/useTableFilterSort'
 import type { ServerFilterParams } from '../hooks/useTableFilterSort'
+import { useFlowExpandableRows } from '../hooks/useFlowExpandableRows'
 
 export interface BoardTableViewProps {
   columns: BoardColumn[]
@@ -39,6 +40,10 @@ export interface BoardTableViewProps {
   rowsTotal?: number
   onLoadMore?: () => void
   rowsLoading?: boolean
+  quickFilters?: BoardQuickFilter[]
+  onAddQuickFilter?: (qf: BoardQuickFilter) => void
+  onRenameQuickFilter?: (id: string, name: string) => void
+  onDeleteQuickFilter?: (id: string) => void
   testId: string
 }
 
@@ -63,12 +68,15 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   rowsTotal: rowsTotalProp,
   onLoadMore,
   rowsLoading,
+  quickFilters,
+  onAddQuickFilter,
+  onRenameQuickFilter,
+  onDeleteQuickFilter,
   testId
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
   const [settingsColumn, setSettingsColumn] = useState<BoardColumn | null>(null)
-
   useEffect(() => {
     if (!onLoadMore || rowsLoading || !rowsTotalProp) return
     const hasMore = rows.length < rowsTotalProp
@@ -86,10 +94,14 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     return () => observer.disconnect()
   }, [onLoadMore, rows.length, rowsTotalProp, rowsLoading])
 
+  const hasFlowRows = rows.some(r => r.data.flowId && typeof r.data.flowId === 'string')
+  const flowExpand = useFlowExpandableRows()
+
   const fs = useTableFilterSort(rows, columns, {
     initialFilters,
     initialSorts,
     initialConnector,
+    quickFilters,
     onServerParamsChange: onServerFilterChange
   })
   const displayRows = fs.filteredRows
@@ -159,6 +171,8 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (!selectedCell) return
       if (editingCell) return
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (e.target !== containerRef.current && !containerRef.current?.contains(e.target as Node)) return
 
       if (e.key === 'ArrowDown') {
@@ -203,6 +217,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
 
   const CLICK_TO_EDIT_TYPES = new Set([
     'status',
+    'priority',
     'select',
     'multiselect',
     'boolean',
@@ -210,7 +225,8 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     'datetime',
     'relation',
     'rating',
-    'tags'
+    'tags',
+    'people'
   ])
 
   const handleCellClick = useCallback(
@@ -237,10 +253,10 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   )
 
   const handleSaveEdit = useCallback(
-    async (_rowId: string, colName: string, newValue: unknown) => {
+    async (_rowId: string, colName: string, newValue: unknown, extraData?: Record<string, unknown>) => {
       if (!onUpdateCell || !editingCell) return
       try {
-        await onUpdateCell(editingCell.rowId, colName, newValue)
+        await onUpdateCell(editingCell.rowId, colName, newValue, extraData)
       } catch {
         toast.error('Failed to save')
       }
@@ -293,6 +309,12 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         onClearAll={fs.clearAll}
         quickSearch={fs.quickSearch}
         onQuickSearchChange={fs.setQuickSearch}
+        quickFilters={quickFilters}
+        activeQuickFilterIds={fs.activeQuickFilterIds}
+        onToggleQuickFilter={fs.toggleQuickFilter}
+        onAddQuickFilter={onAddQuickFilter}
+        onRenameQuickFilter={onRenameQuickFilter}
+        onDeleteQuickFilter={onDeleteQuickFilter}
         data-testid={`${testId}-toolbar`}
       />
       <div
@@ -338,6 +360,9 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
             onCancelEdit={handleCancelEdit}
             onMoveNext={() => moveSelection(1, 0)}
             onAddRow={onAddRow ? handleQuickAddRow : undefined}
+            isFlowExpanded={hasFlowRows ? flowExpand.isExpanded : undefined}
+            getFlowSubRows={hasFlowRows ? flowExpand.getSubRows : undefined}
+            onToggleFlowExpand={hasFlowRows ? row => void flowExpand.toggleExpand(row) : undefined}
             testId={testId}
           />
         </table>

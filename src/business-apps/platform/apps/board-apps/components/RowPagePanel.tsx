@@ -13,6 +13,7 @@ import DOMPurify from 'dompurify'
 import type { BoardRow, BoardColumn } from '../types'
 import { BoardApiService } from '../services/BoardApiService'
 import { CellRenderer } from './table/CellRenderer'
+import { FlowTimelinePanel } from './flow-engine/FlowTimelinePanel'
 
 export interface RowPagePanelProps {
   boardId: string
@@ -254,9 +255,11 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
                         <CellRenderer
                           value={row.data[col.name]}
                           type={col.type}
+                          columnName={col.name}
                           options={col.selectOptions}
                           isPrimary={!!col.isPrimary}
                           rowData={row.data}
+                          relationConfig={col.relationConfig}
                         />
                       </span>
                     </div>
@@ -264,6 +267,13 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
                 </div>
               )}
             </section>
+
+            {/* Flow timeline (when row is a flow instance) */}
+            {row.data.flowId && typeof row.data.flowId === 'string' && (
+              <section className="gba:mb-8">
+                <FlowTimelinePanel flowId={row.data.flowId} data-testid={`${testId}-flow-timeline`} />
+              </section>
+            )}
 
             {/* Divider */}
             <div className="gba:h-px gba:bg-border gba:mb-8" />

@@ -13,7 +13,7 @@ import {
   Badge,
   toast
 } from '@newwork/nw-design-system'
-import { Database, RefreshCw, Unlink, Plus } from 'lucide-react'
+import { Database, RefreshCw, Unlink, Plus, GitBranch } from 'lucide-react'
 import type { Board, BoardSheet, EntityDataSource } from '../../types'
 import { BoardApiService } from '../../services/BoardApiService'
 
@@ -25,6 +25,7 @@ export interface BoardSettingsSheetProps {
   onUpdateBoard?: (updates: Partial<Board>) => Promise<void>
   onSheetUpdate?: (boardId: string, sheetId: string, updates: Record<string, unknown>) => Promise<unknown>
   onOpenImport?: () => void
+  onOpenFlowImport?: () => void
   'data-testid'?: string
 }
 
@@ -36,6 +37,7 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
   onUpdateBoard,
   onSheetUpdate,
   onOpenImport,
+  onOpenFlowImport,
   'data-testid': testId = 'board-settings-sheet'
 }) => {
   const [name, setName] = useState(board.name)
@@ -97,6 +99,28 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
         toast.success(
           `Updated ${syncCount} options for "${dsAny.populateTargetCol}" from ${dataSource.entityDisplayName || dataSource.entityType}`
         )
+      } else if (dsAny.provider === 'flowEngine') {
+        const syncLimit = dataSource.limit != null ? dataSource.limit : 200
+        const result = await BoardApiService.syncFromFlowEngine(board.id, activeSheet.id, {
+          flowEntity: (dsAny.flowEntity as 'flows' | 'tasks') || 'flows',
+          templateIds: dsAny.templateIds as string[] | undefined,
+          tags: dsAny.tags as Array<{ key: string; value: string }> | undefined,
+          scope: (dsAny.scope as 'all' | 'byUser') || 'all',
+          userId: dsAny.userId as string | undefined,
+          participationType: dsAny.participationType as 'initiated' | 'participated' | undefined,
+          status: dsAny.status as string | undefined,
+          customStatus: dsAny.customStatus as string | undefined,
+          priority: dsAny.priority as string | undefined,
+          limit: syncLimit,
+          mode: 'replace',
+          autoColumns: true
+        })
+        if (!result) {
+          toast.error('Sync failed')
+          return
+        }
+        syncCount = result.fetched
+        toast.success(`Synced ${syncCount} ${dataSource.entityDisplayName || 'flow'} records`)
       } else {
         const syncLimit = dataSource.limit != null ? dataSource.limit : 200
         const result = await BoardApiService.syncFromGraphQL(board.id, activeSheet.id, {
@@ -184,20 +208,36 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
                 <Database className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
                 <span className="gba:text-sm gba:font-medium gba:text-foreground">Data sources</span>
               </div>
-              {onOpenImport && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gba:h-7 gba:text-xs gba:gap-1"
-                  onClick={() => {
-                    onOpenChange(false)
-                    onOpenImport()
-                  }}
-                  data-testid={`${testId}-add-source`}
-                >
-                  <Plus className="gba:w-3 gba:h-3" /> Add source
-                </Button>
-              )}
+              <div className="gba:flex gba:gap-1">
+                {onOpenImport && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gba:h-7 gba:text-xs gba:gap-1"
+                    onClick={() => {
+                      onOpenChange(false)
+                      onOpenImport()
+                    }}
+                    data-testid={`${testId}-add-source`}
+                  >
+                    <Plus className="gba:w-3 gba:h-3" /> System data
+                  </Button>
+                )}
+                {onOpenFlowImport && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gba:h-7 gba:text-xs gba:gap-1"
+                    onClick={() => {
+                      onOpenChange(false)
+                      onOpenFlowImport()
+                    }}
+                    data-testid={`${testId}-add-flow-source`}
+                  >
+                    <GitBranch className="gba:w-3 gba:h-3" /> Flow data
+                  </Button>
+                )}
+              </div>
             </div>
 
             {dataSource ? (

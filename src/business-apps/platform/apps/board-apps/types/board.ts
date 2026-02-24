@@ -8,7 +8,7 @@
 
 import type { EntityDataSource } from '../../spreadsheet-apps/types/entityDataSource'
 import type { BoardColumn } from './columns'
-import type { BoardView } from './views'
+import type { BoardView, ViewFilterOperator } from './views'
 
 export type BoardStatus = 'draft' | 'promoted' | 'archived'
 
@@ -58,6 +58,16 @@ export interface BoardSheetSettings {
   allowImport: boolean
   rowsPerPage: number
   showRowNumbers: boolean
+  quickFilters?: BoardQuickFilter[]
+}
+
+export interface BoardQuickFilter {
+  id: string
+  name: string
+  column: string
+  operator: ViewFilterOperator
+  value?: unknown
+  secondValue?: unknown
 }
 
 export interface BoardGroup {
@@ -131,6 +141,7 @@ export interface MyWorkResponse {
   overdue: MyWorkItem[]
   dueToday: MyWorkItem[]
   dueThisWeek: MyWorkItem[]
+  upcoming: MyWorkItem[]
   blocked: MyWorkItem[]
   recentlyCompleted: MyWorkItem[]
   totalAssigned: number
@@ -144,5 +155,17 @@ export interface BoardStatsResponse {
   overdueItems: number
   boardsByStatus: { draft: number; promoted: number; archived: number }
 }
+
+export interface BoardShare {
+  id: string
+  userId: string
+  userName?: string
+  userEmail?: string
+  permission: 'view' | 'edit' | 'comment'
+  sharedAt: string
+  sharedBy: string
+}
+
+export type BoardPermission = 'view' | 'edit' | 'comment'
 
 export type { EntityDataSource }

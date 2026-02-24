@@ -1,14 +1,18 @@
 import React from 'react'
-import { Avatar, AvatarImage, AvatarFallback, Badge, Checkbox } from '@newwork/nw-design-system'
-import { ExternalLink, Mail, Phone, Star, Link2, FileText, Copy, Calculator } from 'lucide-react'
+import { Avatar, AvatarImage, AvatarFallback, Checkbox } from '@newwork/nw-design-system'
+import { ExternalLink, Mail, Phone, Star, FileText, Copy, Calculator, Flag } from 'lucide-react'
+import { RelationCellDisplay } from './RelationCellDisplay'
+import type { RelationConfig } from '../../types'
+import type { RelationItemStatus } from './RelationCellDisplay'
 
 export interface CellRendererProps {
   value: unknown
   type: string
   columnName?: string
-  options?: Array<{ value: string; label: string; colorToken?: string }>
+  options?: Array<{ value: string; label: string; colorToken?: string; avatarUrl?: string }>
   isPrimary?: boolean
   rowData?: Record<string, unknown>
+  relationConfig?: RelationConfig
 }
 
 const TOKEN_CLASSES: Record<string, string> = {
@@ -29,7 +33,15 @@ function getInitials(name: string): string {
     .join('')
 }
 
-export const CellRenderer: React.FC<CellRendererProps> = ({ value, type, columnName, options, isPrimary, rowData }) => {
+export const CellRenderer: React.FC<CellRendererProps> = ({
+  value,
+  type,
+  columnName,
+  options,
+  isPrimary,
+  rowData,
+  relationConfig
+}) => {
   if (value === null || value === undefined || value === '') {
     return <span className="gba:text-muted-foreground/30">--</span>
   }
@@ -58,6 +70,23 @@ export const CellRenderer: React.FC<CellRendererProps> = ({ value, type, columnN
         return (
           <span className={`gba:inline-block gba:px-1.5 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium ${cls}`}>
             {opt.label}
+          </span>
+        )
+      }
+      return <span className="gba:text-xs">{String(value)}</span>
+    }
+
+    case 'priority': {
+      if (!options) break
+      const pOpt = options.find(o => o.value === String(value))
+      if (pOpt) {
+        const pCls = pOpt.colorToken ? TOKEN_CLASSES[pOpt.colorToken] || TOKEN_CLASSES.muted : TOKEN_CLASSES.muted
+        return (
+          <span
+            className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium ${pCls}`}
+          >
+            <Flag className="gba:w-3 gba:h-3" />
+            {pOpt.label}
           </span>
         )
       }
@@ -215,53 +244,36 @@ export const CellRenderer: React.FC<CellRendererProps> = ({ value, type, columnN
     }
 
     case 'people': {
-      const names = Array.isArray(value) ? value : [value]
+      const ids = Array.isArray(value) ? value : [value]
       return (
         <span className="gba:flex gba:items-center gba:gap-1">
-          {names.slice(0, 3).map((name, i) => (
-            <Badge key={i} variant="secondary" className="gba:text-xs gba:px-1 gba:py-0">
-              {String(name).slice(0, 12)}
-            </Badge>
-          ))}
-          {names.length > 3 && <span className="gba:text-xs gba:text-muted-foreground">+{names.length - 3}</span>}
+          {ids.slice(0, 3).map((id, i) => {
+            const person = options?.find(o => o.value === String(id))
+            const displayName = person?.label || String(id).slice(0, 12)
+            return (
+              <span key={i} className="gba:flex gba:items-center gba:gap-1">
+                <Avatar size="sm" className="gba:flex-shrink-0 gba:h-5 gba:w-5">
+                  {person?.avatarUrl && <AvatarImage src={person.avatarUrl} alt={displayName} />}
+                  <AvatarFallback className="gba:text-[8px]">{getInitials(displayName)}</AvatarFallback>
+                </Avatar>
+                <span className="gba:text-xs gba:truncate">{displayName}</span>
+              </span>
+            )
+          })}
+          {ids.length > 3 && <span className="gba:text-xs gba:text-muted-foreground">+{ids.length - 3}</span>}
         </span>
       )
     }
 
     case 'relation': {
-      const relIds = Array.isArray(value) ? value : typeof value === 'string' && value ? [value] : []
-      if (relIds.length === 0) {
-        return (
-          <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground/30 gba:group-hover:text-muted-foreground/60 gba:transition-colors">
-            <Link2 className="gba:w-3 gba:h-3" />
-            <span className="gba:hidden gba:group-hover:inline">Link...</span>
-          </span>
-        )
-      }
+      const relIds = Array.isArray(value) ? value.map(String) : typeof value === 'string' && value ? [value] : []
       const relLabels = columnName && rowData?.[`_rel_${columnName}`]
       const labels: string[] = Array.isArray(relLabels) ? relLabels.map(String) : []
-      if (labels.length > 0) {
-        return (
-          <span className="gba:flex gba:flex-wrap gba:items-center gba:gap-0.5">
-            <Link2 className="gba:w-3 gba:h-3 gba:text-muted-foreground/40 gba:shrink-0" />
-            {labels.slice(0, 3).map((label, i) => (
-              <span
-                key={i}
-                className="gba:inline-block gba:px-1.5 gba:py-0 gba:rounded gba:text-xs gba:bg-primary/10 gba:text-primary"
-              >
-                {label}
-              </span>
-            ))}
-            {labels.length > 3 && <span className="gba:text-xs gba:text-muted-foreground">+{labels.length - 3}</span>}
-          </span>
-        )
-      }
-      return (
-        <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-          <Link2 className="gba:w-3 gba:h-3" />
-          {relIds.length} linked
-        </span>
-      )
+      const relStatuses = columnName && rowData?.[`_rel_${columnName}_status`]
+      const statuses: Array<RelationItemStatus | null> = Array.isArray(relStatuses)
+        ? relStatuses.map(s => (s && typeof s === 'object' && 'value' in s ? (s as RelationItemStatus) : null))
+        : []
+      return <RelationCellDisplay ids={relIds} labels={labels} statuses={statuses} relationConfig={relationConfig} />
     }
 
     case 'mirror':

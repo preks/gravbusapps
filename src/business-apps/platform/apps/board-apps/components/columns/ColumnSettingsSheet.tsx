@@ -169,12 +169,42 @@ export const ColumnSettingsSheet: React.FC<ColumnSettingsSheetProps> = ({
             />
           </div>
 
-          {(draft.type === 'select' || draft.type === 'status' || draft.type === 'multiselect') && (
+          {draft.type === 'people' && (
+            <>
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+                <div>
+                  <Label className="gba:text-xs">Used for assignment</Label>
+                  <p className="gba:text-[10px] gba:text-muted-foreground">
+                    Items assigned via this column appear in &ldquo;Action required&rdquo;
+                  </p>
+                </div>
+                <Switch
+                  checked={draft.peopleConfig?.isAssignment ?? false}
+                  onCheckedChange={v => patch({ peopleConfig: { ...draft.peopleConfig, isAssignment: v } })}
+                  data-testid={`${testId}-people-assignment`}
+                />
+              </div>
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+                <Label className="gba:text-xs">Allow multiple people</Label>
+                <Switch
+                  checked={draft.peopleConfig?.multiple ?? false}
+                  onCheckedChange={v => patch({ peopleConfig: { ...draft.peopleConfig, multiple: v } })}
+                  data-testid={`${testId}-people-multiple`}
+                />
+              </div>
+            </>
+          )}
+
+          {(draft.type === 'select' ||
+            draft.type === 'status' ||
+            draft.type === 'priority' ||
+            draft.type === 'multiselect') && (
             <div>
               <Label className="gba:text-xs gba:mb-2 gba:block">Options</Label>
               <SelectOptionsEditor
                 options={draft.selectOptions || []}
                 onChange={opts => patch({ selectOptions: opts })}
+                showStatusHint={draft.type === 'status'}
                 data-testid={`${testId}-options`}
               />
             </div>

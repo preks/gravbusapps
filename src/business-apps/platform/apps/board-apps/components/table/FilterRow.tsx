@@ -3,17 +3,19 @@
  * Renders type-aware value inputs (text, number, date, select dropdown).
  */
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { X } from 'lucide-react'
-import type { BoardColumn, ViewFilter, ViewFilterOperator } from '../../types'
+import { X, Pin } from 'lucide-react'
+import type { BoardColumn, BoardQuickFilter, ViewFilter, ViewFilterOperator } from '../../types'
 import { getOperatorsForType, getOperatorDef } from '../../utils/filterOperators'
+import { SaveQuickFilterDialog } from './SaveQuickFilterDialog'
 
 interface FilterRowProps {
   filter: ViewFilter
   columns: BoardColumn[]
   onUpdate: (id: string, updates: Partial<ViewFilter>) => void
   onRemove: (id: string) => void
+  onSaveAsQuickFilter?: (qf: BoardQuickFilter) => void
   connectorLabel?: string
   'data-testid'?: string
 }
@@ -23,9 +25,11 @@ export const FilterRow: React.FC<FilterRowProps> = ({
   columns,
   onUpdate,
   onRemove,
+  onSaveAsQuickFilter,
   connectorLabel,
   'data-testid': testId = 'filter-row'
 }) => {
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const col = useMemo(() => columns.find(c => c.name === filter.column), [columns, filter.column])
   const operators = useMemo(() => (col ? getOperatorsForType(col.type) : []), [col])
   const opDef = useMemo(() => (col ? getOperatorDef(col.type, filter.operator) : undefined), [col, filter.operator])
@@ -95,6 +99,19 @@ export const FilterRow: React.FC<FilterRowProps> = ({
         </>
       )}
 
+      {onSaveAsQuickFilter && filter.column && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="gba:h-6 gba:w-6 gba:flex-shrink-0 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity"
+          onClick={() => setSaveDialogOpen(true)}
+          title="Save as quick filter"
+          data-testid={`${testId}-save-quick`}
+        >
+          <Pin className="gba:w-3 gba:h-3" />
+        </Button>
+      )}
+
       <Button
         variant="ghost"
         size="icon"
@@ -104,6 +121,17 @@ export const FilterRow: React.FC<FilterRowProps> = ({
       >
         <X className="gba:w-3 gba:h-3" />
       </Button>
+
+      {saveDialogOpen && onSaveAsQuickFilter && (
+        <SaveQuickFilterDialog
+          open={saveDialogOpen}
+          onOpenChange={setSaveDialogOpen}
+          filter={filter}
+          columns={columns}
+          onSave={onSaveAsQuickFilter}
+          data-testid={`${testId}-save-dialog`}
+        />
+      )}
     </div>
   )
 }

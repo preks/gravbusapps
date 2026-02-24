@@ -54,8 +54,8 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
         parent?.querySelector<HTMLElement>('[data-slot="dialog-overlay"]') ??
         (el.previousElementSibling as HTMLElement | null)
       if (overlay instanceof HTMLElement) {
-        overlay.style.backdropFilter = 'blur(8px)'
-        overlay.style.setProperty('-webkit-backdrop-filter', 'blur(8px)')
+        overlay.style.backdropFilter = 'blur(4px)'
+        overlay.style.setProperty('-webkit-backdrop-filter', 'blur(4px)')
       }
     })
     return () => cancelAnimationFrame(raf)

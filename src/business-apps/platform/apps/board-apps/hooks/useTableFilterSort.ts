@@ -5,10 +5,11 @@
  * already-filtered/sorted rows. Quick search runs client-side for instant feedback.
  *
  * Filter/sort state is persisted to URL parameters so it survives page refreshes.
+ * Quick filters (saved per-sheet) are toggled via the `qf` URL param.
  */
 
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react'
-import type { BoardRow, BoardColumn, ViewFilter, ViewSort, FilterConnector } from '../types'
+import type { BoardRow, BoardColumn, ViewFilter, ViewSort, FilterConnector, BoardQuickFilter } from '../types'
 
 function normalizeStr(v: unknown): string {
   if (v == null) return ''
@@ -25,6 +26,7 @@ export interface UseTableFilterSortOptions {
   initialFilters?: ViewFilter[]
   initialSorts?: ViewSort[]
   initialConnector?: FilterConnector
+  quickFilters?: BoardQuickFilter[]
   onServerParamsChange?: (params: ServerFilterParams) => void
 }
 
@@ -35,6 +37,7 @@ export interface UseTableFilterSortReturn {
   connector: FilterConnector
   quickSearch: string
   serverParams: ServerFilterParams
+  activeQuickFilterIds: string[]
   setQuickSearch: (v: string) => void
   setFilters: (filters: ViewFilter[]) => void
   setSorts: (sorts: ViewSort[]) => void
@@ -47,25 +50,40 @@ export interface UseTableFilterSortReturn {
   removeSort: (id: string) => void
   clearAll: () => void
   toggleColumnSort: (columnName: string) => void
+  toggleQuickFilter: (id: string) => void
 }
 
-function readFiltersFromUrl(): { filters: ViewFilter[]; sorts: ViewSort[]; connector: FilterConnector } {
+interface UrlFilterState {
+  filters: ViewFilter[]
+  sorts: ViewSort[]
+  connector: FilterConnector
+  quickFilterIds: string[]
+}
+
+function readFiltersFromUrl(): UrlFilterState {
   try {
     const params = new URLSearchParams(window.location.search)
     const filtersRaw = params.get('bf')
     const sortsRaw = params.get('bs')
     const connectorRaw = params.get('bc')
+    const qfIds = params.getAll('qf')
     return {
       filters: filtersRaw ? JSON.parse(decodeURIComponent(filtersRaw)) : [],
       sorts: sortsRaw ? JSON.parse(decodeURIComponent(sortsRaw)) : [],
-      connector: connectorRaw === 'or' ? 'or' : 'and'
+      connector: connectorRaw === 'or' ? 'or' : 'and',
+      quickFilterIds: qfIds
     }
   } catch {
-    return { filters: [], sorts: [], connector: 'and' }
+    return { filters: [], sorts: [], connector: 'and', quickFilterIds: [] }
   }
 }
 
-function writeFiltersToUrl(filters: ViewFilter[], sorts: ViewSort[], connector: FilterConnector) {
+function writeFiltersToUrl(
+  filters: ViewFilter[],
+  sorts: ViewSort[],
+  connector: FilterConnector,
+  quickFilterIds: string[]
+) {
   const params = new URLSearchParams(window.location.search)
   if (filters.length > 0) {
     params.set('bf', encodeURIComponent(JSON.stringify(filters)))
@@ -77,13 +95,34 @@ function writeFiltersToUrl(filters: ViewFilter[], sorts: ViewSort[], connector: 
   } else {
     params.delete('bs')
   }
-  if (connector !== 'and') {
+  if (connector !== 'and' && quickFilterIds.length === 0) {
     params.set('bc', connector)
   } else {
     params.delete('bc')
   }
+  params.delete('qf')
+  for (const id of quickFilterIds) {
+    params.append('qf', id)
+  }
   const newUrl = `${window.location.pathname}?${params.toString()}`
   window.history.replaceState({}, '', newUrl)
+}
+
+/**
+ * Converts active quick filter definitions into ViewFilter[] for server params.
+ */
+function quickFiltersToViewFilters(activeIds: string[], definitions: BoardQuickFilter[]): ViewFilter[] {
+  const defMap = new Map(definitions.map(d => [d.id, d]))
+  return activeIds
+    .map(id => defMap.get(id))
+    .filter((d): d is BoardQuickFilter => d != null)
+    .map(d => ({
+      id: `qf:${d.id}`,
+      column: d.column,
+      operator: d.operator,
+      value: d.value,
+      ...(d.secondValue !== undefined ? { secondValue: d.secondValue } : {})
+    }))
 }
 
 export function useTableFilterSort(
@@ -104,6 +143,9 @@ export function useTableFilterSort(
     hasUrlFilters ? urlState.current.connector : options?.initialConnector || 'and'
   )
   const [quickSearch, setQuickSearch] = useState('')
+  const [activeQuickFilterIds, setActiveQuickFilterIds] = useState<string[]>(urlState.current.quickFilterIds)
+
+  const quickFilterDefs = options?.quickFilters ?? []
 
   const setFilters = useCallback((f: ViewFilter[]) => {
     setFiltersRaw(f)
@@ -116,8 +158,8 @@ export function useTableFilterSort(
   }, [])
 
   useEffect(() => {
-    writeFiltersToUrl(filters, sorts, connector)
-  }, [filters, sorts, connector])
+    writeFiltersToUrl(filters, sorts, connector, activeQuickFilterIds)
+  }, [filters, sorts, connector, activeQuickFilterIds])
 
   useEffect(() => {
     const handlePopState = () => {
@@ -125,29 +167,37 @@ export function useTableFilterSort(
       setFiltersRaw(restored.filters)
       setSortsRaw(restored.sorts)
       setConnectorRaw(restored.connector)
+      setActiveQuickFilterIds(restored.quickFilterIds)
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
+  const combinedFilters = useMemo(() => {
+    const qfFilters = quickFiltersToViewFilters(activeQuickFilterIds, quickFilterDefs)
+    return [...filters, ...qfFilters]
+  }, [filters, activeQuickFilterIds, quickFilterDefs])
+
+  const effectiveConnector: FilterConnector = activeQuickFilterIds.length > 0 ? 'and' : connector
+
   const serverParams = useMemo<ServerFilterParams>(() => {
     const params: ServerFilterParams = {}
-    if (filters.length > 0) {
+    if (combinedFilters.length > 0) {
       params.filters = JSON.stringify(
-        filters.map(f => ({
+        combinedFilters.map(f => ({
           column: f.column,
           operator: f.operator,
           value: f.value,
           ...(f.secondValue !== undefined ? { secondValue: f.secondValue } : {})
         }))
       )
-      if (connector !== 'and') params.filterConnector = connector
+      if (effectiveConnector !== 'and') params.filterConnector = effectiveConnector
     }
     if (sorts.length > 0) {
       params.sorts = JSON.stringify(sorts.map(s => ({ column: s.column, direction: s.direction })))
     }
     return params
-  }, [filters, connector, sorts])
+  }, [combinedFilters, effectiveConnector, sorts])
 
   const onServerParamsChangeRef = useRef(options?.onServerParamsChange)
   onServerParamsChangeRef.current = options?.onServerParamsChange
@@ -218,6 +268,7 @@ export function useTableFilterSort(
     setSortsRaw([])
     setConnectorRaw('and')
     setQuickSearch('')
+    setActiveQuickFilterIds([])
   }, [])
 
   const toggleColumnSort = useCallback((columnName: string) => {
@@ -233,6 +284,10 @@ export function useTableFilterSort(
     })
   }, [])
 
+  const toggleQuickFilter = useCallback((id: string) => {
+    setActiveQuickFilterIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
+  }, [])
+
   return {
     filteredRows,
     filters,
@@ -240,6 +295,7 @@ export function useTableFilterSort(
     connector,
     quickSearch,
     serverParams,
+    activeQuickFilterIds,
     setQuickSearch,
     setFilters,
     setSorts,
@@ -251,6 +307,7 @@ export function useTableFilterSort(
     updateSort,
     removeSort,
     clearAll,
-    toggleColumnSort
+    toggleColumnSort,
+    toggleQuickFilter
   }
 }

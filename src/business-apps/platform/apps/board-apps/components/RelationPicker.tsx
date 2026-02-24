@@ -7,13 +7,19 @@ import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from
 import { createPortal } from 'react-dom'
 import { Badge } from '@newwork/nw-design-system'
 import { X, Check } from 'lucide-react'
-import type { BoardRow, RelationConfig } from '../types'
+import type { BoardRow, BoardColumn, RelationConfig } from '../types'
 import { BoardApiService } from '../services/BoardApiService'
+
+export interface RelationItemStatus {
+  value: string
+  label: string
+  colorToken: string
+}
 
 export interface RelationPickerProps {
   config: RelationConfig
   selectedIds: string[]
-  onChange: (ids: string[], labels: string[]) => void
+  onChange: (ids: string[], labels: string[], statuses: Array<RelationItemStatus | null>) => void
   onPeek?: (targetBoardId: string, targetRowId: string) => void
   'data-testid'?: string
 }
@@ -37,6 +43,8 @@ export const RelationPicker: React.FC<RelationPickerProps> = ({
   const localRef = useRef(local)
   localRef.current = local
 
+  const [statusCol, setStatusCol] = useState<BoardColumn | null>(null)
+
   const displayColumn = config.displayColumn || 'name'
   const primaryFallbacks = ['name', 'title', 'displayName', 'label', 'subject']
 
@@ -52,14 +60,32 @@ export const RelationPicker: React.FC<RelationPickerProps> = ({
     [displayColumn]
   )
 
+  const getRowStatus = useCallback(
+    (row: Pick<BoardRow, 'id' | 'data'>): RelationItemStatus | null => {
+      if (!statusCol) return null
+      const val = row.data[statusCol.name]
+      if (!val) return null
+      const opt = statusCol.selectOptions?.find(o => o.value === String(val))
+      return opt
+        ? { value: opt.value, label: opt.label, colorToken: opt.colorToken || 'muted' }
+        : { value: String(val), label: String(val), colorToken: 'muted' }
+    },
+    [statusCol]
+  )
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    BoardApiService.getRows(config.targetAppId, config.targetSheetId, { limit: 200 })
-      .then(res => {
-        if (!cancelled) {
-          setAllRows(res.items)
-          setFiltered(res.items)
+    const fetchRows = BoardApiService.getRows(config.targetAppId, config.targetSheetId, { limit: 200 })
+    const fetchSheet = BoardApiService.getSheet(config.targetAppId, config.targetSheetId)
+    Promise.all([fetchRows, fetchSheet])
+      .then(([rowsRes, sheet]) => {
+        if (cancelled) return
+        setAllRows(rowsRes.items)
+        setFiltered(rowsRes.items)
+        if (sheet) {
+          const sc = sheet.columns.find(c => c.type === 'status') || sheet.columns.find(c => c.type === 'priority')
+          if (sc) setStatusCol(sc)
         }
       })
       .catch(() => {
@@ -126,8 +152,12 @@ export const RelationPicker: React.FC<RelationPickerProps> = ({
       const row = allRows.find(r => r.id === id)
       return row ? getRowLabel(row) : id.slice(0, 8)
     })
-    onChange(ids, labels)
-  }, [onChange, allRows, getRowLabel])
+    const statuses = ids.map(id => {
+      const row = allRows.find(r => r.id === id)
+      return row ? getRowStatus(row) : null
+    })
+    onChange(ids, labels, statuses)
+  }, [onChange, allRows, getRowLabel, getRowStatus])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -250,7 +280,28 @@ export const RelationPicker: React.FC<RelationPickerProps> = ({
                       }`}
                       data-testid={`${testId}-result-${row.id}`}
                     >
-                      <span className="gba:truncate">{getRowLabel(row)}</span>
+                      <span className="gba:flex gba:items-center gba:gap-1.5 gba:min-w-0">
+                        <span className="gba:truncate">{getRowLabel(row)}</span>
+                        {(() => {
+                          const st = getRowStatus(row)
+                          if (!st) return null
+                          const TC: Record<string, string> = {
+                            primary: 'gba:bg-primary/15 gba:text-primary',
+                            success: 'gba:bg-success-secondary gba:text-success-secondary-foreground',
+                            info: 'gba:bg-info-secondary gba:text-info-secondary-foreground',
+                            warning: 'gba:bg-warning-secondary gba:text-warning-secondary-foreground',
+                            destructive: 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground',
+                            muted: 'gba:bg-muted gba:text-muted-foreground'
+                          }
+                          return (
+                            <span
+                              className={`gba:inline-block gba:px-1 gba:py-0 gba:rounded gba:text-[10px] gba:font-medium gba:shrink-0 ${TC[st.colorToken] || TC.muted}`}
+                            >
+                              {st.label}
+                            </span>
+                          )
+                        })()}
+                      </span>
                       {isLinked && <Check className="gba:w-3 gba:h-3 gba:shrink-0 gba:text-primary" />}
                     </button>
                   )

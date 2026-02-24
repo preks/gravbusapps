@@ -235,7 +235,18 @@ export const AddColumnDialog: React.FC<AddColumnDialogProps> = ({
             ]
           }
         : null),
-      ...(type === 'select' || type === 'multiselect' ? { selectOptions: [] } : null)
+      ...(type === 'priority'
+        ? {
+            selectOptions: [
+              { value: 'low', label: 'Low', colorToken: 'muted' },
+              { value: 'medium', label: 'Medium', colorToken: 'info' },
+              { value: 'high', label: 'High', colorToken: 'warning' },
+              { value: 'critical', label: 'Critical', colorToken: 'destructive' }
+            ]
+          }
+        : null),
+      ...(type === 'select' || type === 'multiselect' ? { selectOptions: [] } : null),
+      ...(type === 'people' ? { peopleConfig: { isAssignment: true, multiple: false } } : null)
     }
 
     await onCreate(column)

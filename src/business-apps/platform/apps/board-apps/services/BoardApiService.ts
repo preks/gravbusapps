@@ -13,7 +13,9 @@ import type {
   BoardRow,
   BoardStatus,
   BoardStatsResponse,
-  MyWorkResponse
+  MyWorkResponse,
+  BoardShare,
+  BoardPermission
 } from '../types'
 import type { BoardColumn, BoardColumnType } from '../types/columns'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
@@ -323,11 +325,22 @@ export const BoardApiService = {
     }
   },
 
-  async getMyWork(): Promise<MyWorkResponse> {
+  async getMyWork(options?: { scope?: 'all' | 'assigned' }): Promise<MyWorkResponse> {
     try {
-      return await apiRequest<MyWorkResponse>('/boards/my-work')
+      const params = new URLSearchParams()
+      if (options?.scope) params.set('scope', options.scope)
+      const qs = params.toString()
+      return await apiRequest<MyWorkResponse>(`/boards/my-work${qs ? `?${qs}` : ''}`)
     } catch {
-      return { overdue: [], dueToday: [], dueThisWeek: [], blocked: [], recentlyCompleted: [], totalAssigned: 0 }
+      return {
+        overdue: [],
+        dueToday: [],
+        dueThisWeek: [],
+        upcoming: [],
+        blocked: [],
+        recentlyCompleted: [],
+        totalAssigned: 0
+      }
     }
   },
 
@@ -857,6 +870,232 @@ export const BoardApiService = {
     } catch (err) {
       console.error(`[BoardSync] FAILED for entity=${dto.entity}:`, err instanceof Error ? err.message : err)
       return null
+    }
+  },
+
+  async syncFromFlowEngine(
+    boardId: string,
+    sheetId: string,
+    dto: {
+      flowEntity: 'flows' | 'tasks'
+      templateIds?: string[]
+      tags?: Array<{ key: string; value: string }>
+      scope?: 'all' | 'byUser'
+      userId?: string
+      participationType?: 'initiated' | 'participated'
+      includeAssigned?: boolean
+      includeClaimable?: boolean
+      status?: string
+      customStatus?: string
+      priority?: string
+      search?: string
+      limit?: number
+      mode: 'replace' | 'append' | 'merge'
+      mergeKey?: string
+      autoColumns?: boolean
+    }
+  ): Promise<{ synced: number; deleted: number; fetched: number } | null> {
+    const humanizeFlowName = (raw: string) =>
+      raw
+        .replace(/^flow_/, '')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase())
+
+    try {
+      const { listFlows, listTasks } = await import('./flowEngine/flowEngineClient')
+      const requestedLimit = dto.limit && dto.limit > 0 ? dto.limit : 500
+      let records: Record<string, unknown>[] = []
+
+      if (dto.flowEntity === 'flows') {
+        const { flows } = await listFlows({
+          status: dto.status,
+          search: dto.search,
+          limit: requestedLimit,
+          tags: dto.tags,
+          participationType: dto.participationType,
+          userId: dto.scope === 'byUser' ? dto.userId : undefined,
+          templateIds: dto.templateIds
+        })
+        records = flows.map(f => ({
+          id: f.flowId,
+          flowId: f.flowId,
+          name: humanizeFlowName(f.flowName),
+          status: f.status,
+          progress: f.totalSteps > 0 ? `${f.currentStep}/${f.totalSteps} (${f.progressPercentage}%)` : '',
+          initiatedBy: f.initiatedBy,
+          startTime: f.startTime,
+          updateTime: f.updateTime,
+          endTime: f.endTime ?? '',
+          priority: f.priority ?? '',
+          isOverdue: f.isOverdue ? 'Yes' : 'No',
+          participants: (f.participants ?? []).join(', '),
+          templateId: f.templateId
+        }))
+      } else {
+        const templateIds = dto.templateIds ?? []
+        if (templateIds.length > 0) {
+          for (const tid of templateIds) {
+            const { tasks } = await listTasks({
+              templateId: tid,
+              userId: dto.scope === 'byUser' ? dto.userId : undefined,
+              includeAssigned: dto.includeAssigned,
+              includeClaimable: dto.includeClaimable,
+              search: dto.search,
+              customStatus: dto.customStatus,
+              priority: dto.priority,
+              limit: requestedLimit,
+              tags: dto.tags
+            })
+            records.push(
+              ...tasks.map(t => ({
+                id: t.id,
+                taskId: t.id,
+                flowId: t.flowId,
+                flowName: t.flowName ?? '',
+                title: t.title,
+                name: t.name,
+                status: t.status,
+                priority: t.priority ?? '',
+                customStatus: t.customStatus ?? '',
+                dueDate: t.dueDate ?? '',
+                assignedTo: t.assignedTo ?? '',
+                claimedBy: t.claimedBy ?? '',
+                assignmentStatus: t.assignmentStatus ?? '',
+                templateId: t.templateId ?? tid,
+                templateName: t.templateName ?? ''
+              }))
+            )
+          }
+        } else {
+          const { tasks } = await listTasks({
+            userId: dto.scope === 'byUser' ? dto.userId : undefined,
+            includeAssigned: dto.includeAssigned,
+            includeClaimable: dto.includeClaimable,
+            search: dto.search,
+            customStatus: dto.customStatus,
+            priority: dto.priority,
+            limit: requestedLimit,
+            tags: dto.tags
+          })
+          records = tasks.map(t => ({
+            id: t.id,
+            taskId: t.id,
+            flowId: t.flowId,
+            flowName: t.flowName ?? '',
+            title: t.title,
+            name: t.name,
+            status: t.status,
+            priority: t.priority ?? '',
+            customStatus: t.customStatus ?? '',
+            dueDate: t.dueDate ?? '',
+            assignedTo: t.assignedTo ?? '',
+            claimedBy: t.claimedBy ?? '',
+            assignmentStatus: t.assignmentStatus ?? '',
+            templateId: t.templateId ?? '',
+            templateName: t.templateName ?? ''
+          }))
+        }
+      }
+
+      if (requestedLimit > 0 && records.length > requestedLimit) {
+        records = records.slice(0, requestedLimit)
+      }
+
+      console.log(`[BoardSync:FlowEngine] Fetched ${records.length} ${dto.flowEntity} records`)
+
+      if (records.length === 0) return { synced: 0, deleted: 0, fetched: 0 }
+
+      if (dto.autoColumns) {
+        const newColumns = inferColumnsFromRecords(records)
+        if (newColumns.length > 0) {
+          const currentSheet = await BoardApiService.getSheet(boardId, sheetId)
+          const existingNames = new Set((currentSheet?.columns ?? []).map(c => c.name))
+          const merged = [...(currentSheet?.columns ?? []), ...newColumns.filter(c => !existingNames.has(c.name))]
+          if (merged.length > (currentSheet?.columns ?? []).length || dto.mode === 'replace') {
+            await BoardApiService.updateSheet(boardId, sheetId, { columns: merged.length > 0 ? merged : newColumns })
+          }
+        }
+      }
+
+      const flat = records.map(flattenRecord)
+
+      if (dto.mode === 'replace') {
+        const result = await smartSyncRows(BoardApiService, boardId, sheetId, flat)
+        console.log(
+          `[BoardSync:FlowEngine] Done: synced=${result.synced}, deleted=${result.deleted}, fetched=${records.length}`
+        )
+        return { synced: result.synced, deleted: result.deleted, fetched: records.length }
+      }
+
+      let synced = 0
+      const BATCH = 5
+      for (let i = 0; i < flat.length; i += BATCH) {
+        const results = await Promise.all(
+          flat
+            .slice(i, i + BATCH)
+            .map(rowData => BoardApiService.createRow(boardId, sheetId, rowData).catch(() => null))
+        )
+        synced += results.filter(Boolean).length
+      }
+
+      console.log(`[BoardSync:FlowEngine] Done: synced=${synced}, fetched=${records.length}`)
+      return { synced, deleted: 0, fetched: records.length }
+    } catch (err) {
+      console.error('[BoardSync:FlowEngine] FAILED:', err instanceof Error ? err.message : err)
+      return null
+    }
+  },
+
+  async shareBoard(boardId: string, shares: Array<{ userId: string; permission: BoardPermission }>): Promise<boolean> {
+    try {
+      await apiRequest('/sharing', {
+        method: 'POST',
+        body: JSON.stringify({
+          entityType: 'board',
+          entityId: boardId,
+          recipients: shares.map(s => ({ userId: s.userId, permission: s.permission }))
+        })
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to share board:', error instanceof Error ? error.message : error)
+      return false
+    }
+  },
+
+  async getBoardSharedUsers(boardId: string): Promise<BoardShare[]> {
+    try {
+      const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/board/${boardId}`)
+      return (shares || []).map(s => ({
+        id: s.id as string,
+        userId: s.userId as string,
+        permission: s.permission as BoardPermission,
+        sharedAt: s.createdAt as string,
+        sharedBy: s.sharedBy as string
+      }))
+    } catch {
+      return []
+    }
+  },
+
+  async updateBoardSharePermission(shareId: string, permission: BoardPermission): Promise<boolean> {
+    try {
+      await apiRequest(`/sharing/${shareId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ permission })
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async revokeBoardShare(shareId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/sharing/${shareId}`, { method: 'DELETE' })
+      return true
+    } catch {
+      return false
     }
   }
 }

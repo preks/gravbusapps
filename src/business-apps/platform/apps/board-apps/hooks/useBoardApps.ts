@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import type { Board, BoardSummary, BoardSheet, BoardRow } from '../types'
+import type { Board, BoardSummary, BoardSheet, BoardRow, BoardPermission } from '../types'
 import { BoardApiService } from '../services/BoardApiService'
 
 export interface UseBoardAppsReturn {
@@ -42,6 +42,7 @@ export interface UseBoardAppsReturn {
   createRow: (boardId: string, sheetId: string, data: Record<string, unknown>) => Promise<BoardRow | null>
   updateRow: (boardId: string, sheetId: string, rowId: string, data: Record<string, unknown>) => Promise<void>
   deleteRow: (boardId: string, sheetId: string, rowId: string) => Promise<boolean>
+  shareBoard: (boardId: string, userIds: string[], permission: BoardPermission) => Promise<boolean>
 }
 
 export function useBoardApps(accessToken: string): UseBoardAppsReturn {
@@ -53,6 +54,8 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
   const [rowsLoading, setRowsLoading] = useState(false)
   const [rowsTotal, setRowsTotal] = useState(0)
   const loadedRef = useRef(false)
+  const loadRowsKeyRef = useRef<string>('')
+  const prevBoardIdRef = useRef<string | null>(null)
 
   const refreshBoards = useCallback(async () => {
     if (!accessToken) return
@@ -75,6 +78,12 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
   }, [accessToken, refreshBoards])
 
   const loadBoard = useCallback(async (id: string): Promise<Board | null> => {
+    if (prevBoardIdRef.current !== id) {
+      prevBoardIdRef.current = id
+      setRows([])
+      setRowsTotal(0)
+      loadRowsKeyRef.current = ''
+    }
     setIsLoading(true)
     try {
       const board = await BoardApiService.getBoard(id)
@@ -136,7 +145,13 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
     [refreshBoards]
   )
 
-  const clearCurrentBoard = useCallback(() => setCurrentBoard(null), [])
+  const clearCurrentBoard = useCallback(() => {
+    setCurrentBoard(null)
+    setRows([])
+    setRowsTotal(0)
+    prevBoardIdRef.current = null
+    loadRowsKeyRef.current = ''
+  }, [])
 
   const updateSheet = useCallback(
     async (boardId: string, sheetId: string, updates: Partial<BoardSheet>): Promise<BoardSheet | null> => {
@@ -173,6 +188,9 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         append?: boolean
       }
     ) => {
+      const callKey = `${boardId}:${sheetId}:${options?.page ?? 1}:${options?.limit ?? 50}:${options?.filters ?? ''}:${options?.sorts ?? ''}:${options?.append ?? false}`
+      if (callKey === loadRowsKeyRef.current) return
+      loadRowsKeyRef.current = callKey
       setRowsLoading(true)
       try {
         const result = await BoardApiService.getRows(boardId, sheetId, options)
@@ -190,6 +208,7 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         setError(err instanceof Error ? err.message : 'Failed to load rows')
       } finally {
         setRowsLoading(false)
+        loadRowsKeyRef.current = ''
       }
     },
     []
@@ -230,6 +249,20 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
     return ok
   }, [])
 
+  const shareBoard = useCallback(
+    async (boardId: string, userIds: string[], permission: BoardPermission): Promise<boolean> => {
+      try {
+        const shares = userIds.map(userId => ({ userId, permission }))
+        const success = await BoardApiService.shareBoard(boardId, shares)
+        if (success) await refreshBoards()
+        return success
+      } catch {
+        return false
+      }
+    },
+    [refreshBoards]
+  )
+
   return {
     boards,
     currentBoard,
@@ -249,6 +282,7 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
     loadRows,
     createRow,
     updateRow,
-    deleteRow
+    deleteRow,
+    shareBoard
   }
 }

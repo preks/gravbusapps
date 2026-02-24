@@ -22,7 +22,7 @@ function readFromUrl(): BoardUrlState {
   }
 }
 
-function writeToUrl(state: Partial<BoardUrlState>) {
+function writeToUrl(state: Partial<BoardUrlState & { clearFilters?: boolean }>) {
   const params = new URLSearchParams(globalThis.window?.location?.search || '')
 
   if (state.boardId !== undefined) {
@@ -40,6 +40,12 @@ function writeToUrl(state: Partial<BoardUrlState>) {
   if (state.page !== undefined) {
     if (state.page > 1) params.set('page', String(state.page))
     else params.delete('page')
+  }
+  if (state.clearFilters) {
+    params.delete('bf')
+    params.delete('bs')
+    params.delete('bc')
+    params.delete('qf')
   }
 
   const qs = params.toString()
@@ -71,7 +77,7 @@ export function useBoardUrlState(): UseBoardUrlStateReturn {
     _setSheetId(null)
     _setViewId(null)
     _setPage(1)
-    writeToUrl({ boardId: id, sheetId: null, viewId: null, page: 1 })
+    writeToUrl({ boardId: id, sheetId: null, viewId: null, page: 1, clearFilters: true })
   }, [])
 
   const setSheetId = useCallback((id: string | null) => {
@@ -96,7 +102,7 @@ export function useBoardUrlState(): UseBoardUrlStateReturn {
     _setSheetId(null)
     _setViewId(null)
     _setPage(1)
-    writeToUrl({ boardId: null, sheetId: null, viewId: null, page: 1 })
+    writeToUrl({ boardId: null, sheetId: null, viewId: null, page: 1, clearFilters: true })
   }, [])
 
   useEffect(() => {
