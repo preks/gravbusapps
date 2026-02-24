@@ -11,6 +11,8 @@ import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import type { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { StepStatus } from '@/common/components/flow/flow-viewer/types/viewerTypes'
 
+type SimStatus = 'pending' | 'active' | 'completed'
+
 interface FlowStudioCanvasProps extends BusinessAppContextProps {
   mode: DesignerMode
   onModeChange?: (mode: DesignerMode) => void
@@ -37,7 +39,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   const { saveFlow } = useFlowStudioClient(accessToken)
   const studioData = useFlowStudioData(accessToken)
   const { errors, warnings } = useFlowValidation()
-  const [simStatuses, setSimStatuses] = useState<Record<string, 'pending' | 'active' | 'completed'>>({})
+  const [simStatuses, setSimStatuses] = useState<Record<string, SimStatus>>({})
   const prevContentKeyRef = useRef<string>('')
   const prevDefinitionRef = useRef<ReturnType<typeof toGraphDefinition>>({
     nodes: [],

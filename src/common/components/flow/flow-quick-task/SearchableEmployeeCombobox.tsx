@@ -118,10 +118,7 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
     setOpen(false)
   }
 
-  const handleSelect = (selectedValue: string) => {
-    if (multiple) handleMultiSelect(selectedValue)
-    else handleSingleSelect(selectedValue)
-  }
+  const handleSelect = multiple ? handleMultiSelect : handleSingleSelect
 
   const selectedOptionsWithAvatar = useMemo(() => {
     if (multiple) {

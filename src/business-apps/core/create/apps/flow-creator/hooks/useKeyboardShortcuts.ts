@@ -21,6 +21,39 @@ function isTypingInInput(target: HTMLElement): boolean {
   )
 }
 
+function handleDeleteKeyEvent(
+  e: KeyboardEvent,
+  selectedNodeId: string | null,
+  selectedEdgeId: string | null,
+  requestDeleteNode: (id: string) => void
+): boolean {
+  if (e.key !== 'Delete' && e.key !== 'Backspace') return false
+  if (selectedNodeId) {
+    e.preventDefault()
+    requestDeleteNode(selectedNodeId)
+    return true
+  }
+  if (selectedEdgeId) {
+    e.preventDefault()
+    return true
+  }
+  return false
+}
+
+function handleUndoRedoKeyEvent(e: KeyboardEvent, isCtrlOrMeta: boolean, undo: () => void, redo: () => void): boolean {
+  if (isCtrlOrMeta && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault()
+    undo()
+    return true
+  }
+  if ((isCtrlOrMeta && e.key === 'y') || (isCtrlOrMeta && e.key === 'z' && e.shiftKey)) {
+    e.preventDefault()
+    redo()
+    return true
+  }
+  return false
+}
+
 export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) {
   const { onSave, onSimulate, enabled = true } = options
 
@@ -34,40 +67,13 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!enabled) return
-
-      // Don't capture shortcuts when typing in inputs
       const target = e.target as HTMLElement
-      if (isTypingInInput(target)) {
-        return
-      }
+      if (isTypingInInput(target)) return
 
       const isCtrlOrMeta = e.ctrlKey || e.metaKey
 
-      // Delete selected node/edge
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId) {
-        e.preventDefault()
-        requestDeleteNode(selectedNodeId)
-        return
-      }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEdgeId) {
-        e.preventDefault()
-        // Edges are not deleted directly; users delete steps instead.
-        return
-      }
-
-      // Undo: Ctrl+Z
-      if (isCtrlOrMeta && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault()
-        undo()
-        return
-      }
-
-      // Redo: Ctrl+Y or Ctrl+Shift+Z
-      if ((isCtrlOrMeta && e.key === 'y') || (isCtrlOrMeta && e.key === 'z' && e.shiftKey)) {
-        e.preventDefault()
-        redo()
-        return
-      }
+      if (handleDeleteKeyEvent(e, selectedNodeId, selectedEdgeId, requestDeleteNode)) return
+      if (handleUndoRedoKeyEvent(e, isCtrlOrMeta, undo, redo)) return
 
       // Duplicate: Ctrl+D
       if (isCtrlOrMeta && e.key === 'd' && selectedNodeId) {

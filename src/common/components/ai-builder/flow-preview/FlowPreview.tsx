@@ -112,8 +112,8 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
       }),
     [template?.steps, template?.start]
   )
-  const selectedIndex = selectedNodeId != null ? flowNodeIdToStepIndex(selectedNodeId) : null
-  const selectedStep = selectedIndex != null ? (steps[selectedIndex] ?? null) : null
+  const selectedIndex = selectedNodeId == null ? null : flowNodeIdToStepIndex(selectedNodeId)
+  const selectedStep = selectedIndex == null ? null : (steps[selectedIndex] ?? null)
   const handleNodeSelect = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId)
   }, [])

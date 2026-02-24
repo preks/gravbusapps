@@ -38,8 +38,52 @@ function validateStartAndEndNodes(nodes: StudioNode[]): PartialIssue[] {
   return issues
 }
 
-function validateOrphanNodes(nodes: StudioNode[], edges: FlowGraphEdge[]): PartialIssue[] {
+function validateSingleOrphanNode(
+  node: StudioNode,
+  hasIncoming: Set<string>,
+  hasOutgoing: Set<string>,
+  nodeCount: number
+): PartialIssue[] {
   const issues: PartialIssue[] = []
+  const multiNode = nodeCount > 1
+  if (node.type === 'start') {
+    if (multiNode && !hasOutgoing.has(node.id))
+      issues.push({
+        nodeId: node.id,
+        severity: 'warning',
+        message: `"${node.label}" has no outgoing connections`,
+        rule: 'orphan-no-outgoing'
+      })
+    return issues
+  }
+  if (node.type === 'end') {
+    if (multiNode && !hasIncoming.has(node.id))
+      issues.push({
+        nodeId: node.id,
+        severity: 'warning',
+        message: `"${node.label}" has no incoming connections`,
+        rule: 'orphan-no-incoming'
+      })
+    return issues
+  }
+  if (multiNode && !hasIncoming.has(node.id))
+    issues.push({
+      nodeId: node.id,
+      severity: 'warning',
+      message: `"${node.label}" has no incoming connections`,
+      rule: 'orphan-no-incoming'
+    })
+  if (!hasOutgoing.has(node.id))
+    issues.push({
+      nodeId: node.id,
+      severity: 'warning',
+      message: `"${node.label}" has no outgoing connections`,
+      rule: 'orphan-no-outgoing'
+    })
+  return issues
+}
+
+function validateOrphanNodes(nodes: StudioNode[], edges: FlowGraphEdge[]): PartialIssue[] {
   const hasIncoming = new Set<string>()
   const hasOutgoing = new Set<string>()
   for (const edge of edges) {
@@ -48,41 +92,7 @@ function validateOrphanNodes(nodes: StudioNode[], edges: FlowGraphEdge[]): Parti
       hasOutgoing.add(edge.source)
     }
   }
-  for (const node of nodes) {
-    if (node.type === 'start') {
-      if (!hasOutgoing.has(node.id) && nodes.length > 1)
-        issues.push({
-          nodeId: node.id,
-          severity: 'warning',
-          message: `"${node.label}" has no outgoing connections`,
-          rule: 'orphan-no-outgoing'
-        })
-    } else if (node.type === 'end') {
-      if (!hasIncoming.has(node.id) && nodes.length > 1)
-        issues.push({
-          nodeId: node.id,
-          severity: 'warning',
-          message: `"${node.label}" has no incoming connections`,
-          rule: 'orphan-no-incoming'
-        })
-    } else {
-      if (!hasIncoming.has(node.id) && nodes.length > 1)
-        issues.push({
-          nodeId: node.id,
-          severity: 'warning',
-          message: `"${node.label}" has no incoming connections`,
-          rule: 'orphan-no-incoming'
-        })
-      if (!hasOutgoing.has(node.id))
-        issues.push({
-          nodeId: node.id,
-          severity: 'warning',
-          message: `"${node.label}" has no outgoing connections`,
-          rule: 'orphan-no-outgoing'
-        })
-    }
-  }
-  return issues
+  return nodes.flatMap(node => validateSingleOrphanNode(node, hasIncoming, hasOutgoing, nodes.length))
 }
 
 function validateDecisionNodes(nodes: StudioNode[]): PartialIssue[] {

@@ -72,8 +72,7 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
     }
 
     const taskNodes = nodes.filter(n => n.type === 'task' && n.config?.nodeType === 'task')
-    for (let i = 0; i < taskNodes.length; i++) {
-      const task = taskNodes[i]!
+    for (const [i, task] of taskNodes.entries()) {
       const cfg = task.config as any
       const fields = Array.isArray(cfg.form)
         ? (cfg.form as InputBlock[])

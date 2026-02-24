@@ -77,8 +77,14 @@ export function labelForType(type: FlowNodeType): string {
   }
 }
 
+function resolveNodeId(type: FlowNodeType): string {
+  if (type === 'start') return START_ID
+  if (type === 'end') return END_ID
+  return uuid()
+}
+
 export function createNode(type: FlowNodeType): StudioNode {
-  const nodeId = type === 'start' ? START_ID : type === 'end' ? END_ID : uuid()
+  const nodeId = resolveNodeId(type)
   return {
     id: nodeId,
     type,
@@ -101,6 +107,44 @@ function normalizeEdgeDirection(value: unknown): 'forward' | 'backward' {
   return v === 'backward' ? 'backward' : 'forward'
 }
 
+function filterAndDeduplicateEdges(
+  edges: FlowGraphEdge[],
+  nodeIdSet: Set<string>,
+  startNodeId: string,
+  endNodeId: string
+): FlowGraphEdge[] {
+  const seenIds = new Set<string>()
+  const result: FlowGraphEdge[] = []
+  for (const edge of edges) {
+    if (!nodeIdSet.has(edge.source) || !nodeIdSet.has(edge.target)) continue
+    if (edge.target === startNodeId || edge.source === endNodeId) continue
+    if (seenIds.has(edge.id)) continue
+    seenIds.add(edge.id)
+    result.push({ ...edge, direction: normalizeEdgeDirection((edge as any).direction) })
+  }
+  return result
+}
+
+function ensureAllNodesHaveOutgoing(
+  nodes: StudioNode[],
+  edges: FlowGraphEdge[],
+  startNodeId: string,
+  endNodeId: string
+): FlowGraphEdge[] {
+  const result = [...edges]
+  const outForward = new Map<string, number>()
+  for (const edge of result) {
+    if (edge.direction === 'forward') outForward.set(edge.source, (outForward.get(edge.source) ?? 0) + 1)
+  }
+  if ((outForward.get(startNodeId) ?? 0) === 0) result.push(createEdge(startNodeId, endNodeId))
+  for (const node of nodes) {
+    if (node.id === endNodeId) continue
+    if (!result.some(e => e.source === node.id && e.direction === 'forward'))
+      result.push(createEdge(node.id, endNodeId))
+  }
+  return result
+}
+
 function ensureGraphInvariants(
   nodes: StudioNode[],
   edges: FlowGraphEdge[]
@@ -112,36 +156,9 @@ function ensureGraphInvariants(
   const startNode = normalizedNodes.find(n => n.type === 'start')!
   const endNode = normalizedNodes.find(n => n.type === 'end')!
   const nodeIdSet = new Set(normalizedNodes.map(n => n.id))
-  const seenIds = new Set<string>()
-  const normalizedEdges: FlowGraphEdge[] = []
 
-  for (const edge of edges) {
-    if (!nodeIdSet.has(edge.source) || !nodeIdSet.has(edge.target)) continue
-    if (edge.target === startNode.id || edge.source === endNode.id) continue
-    // Deduplicate by edge id (each edge is a distinct entity)
-    if (seenIds.has(edge.id)) continue
-    seenIds.add(edge.id)
-    normalizedEdges.push({
-      ...edge,
-      direction: normalizeEdgeDirection((edge as any).direction)
-    })
-  }
-
-  const outForward = new Map<string, number>()
-  for (const edge of normalizedEdges) {
-    if (edge.direction !== 'forward') continue
-    outForward.set(edge.source, (outForward.get(edge.source) ?? 0) + 1)
-  }
-
-  if ((outForward.get(startNode.id) ?? 0) === 0) {
-    normalizedEdges.push(createEdge(startNode.id, endNode.id))
-  }
-
-  for (const node of normalizedNodes) {
-    if (node.id === endNode.id) continue
-    const hasOutgoing = normalizedEdges.some(e => e.source === node.id && e.direction === 'forward')
-    if (!hasOutgoing) normalizedEdges.push(createEdge(node.id, endNode.id))
-  }
+  const deduped = filterAndDeduplicateEdges(edges, nodeIdSet, startNode.id, endNode.id)
+  const normalizedEdges = ensureAllNodesHaveOutgoing(normalizedNodes, deduped, startNode.id, endNode.id)
 
   return { nodes: normalizedNodes, edges: normalizedEdges }
 }

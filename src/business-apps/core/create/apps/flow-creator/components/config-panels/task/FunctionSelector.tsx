@@ -17,6 +17,69 @@ import type { TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 import { useStudioExpressionSuggestions } from '../../../hooks/useStudioExpressionSuggestions'
 import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import type { ExpressionSuggestionItem } from '@/common/components/flow/expression-editor'
+
+interface FunctionParamRowProps {
+  paramName: string
+  currentExpr: string
+  stepValueSuggestions: ExpressionSuggestionItem[]
+  updateParam: (name: string, expression: string) => void
+  testId: string
+  idx: number
+}
+
+const FunctionParamRow: React.FC<FunctionParamRowProps> = ({
+  paramName,
+  currentExpr,
+  stepValueSuggestions,
+  updateParam,
+  testId,
+  idx
+}) => {
+  const selected = stepValueSuggestions.find(s => `{{${s.expression}}}` === currentExpr)
+  const displayValue = selected?.label ?? currentExpr ?? 'Select value'
+
+  return (
+    <div className="gba:grid gba:grid-cols-5 gba:gap-2 gba:items-start" data-testid={`${testId}-function-param-${idx}`}>
+      <Label className="gba:col-span-2 gba:text-xs gba:font-mono gba:pt-2">{paramName}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            className="gba:col-span-3 gba:justify-between gba:h-9 gba:text-xs gba:bg-background"
+            data-testid={`${testId}-function-param-pick-${idx}`}
+          >
+            <span className="gba:truncate">{displayValue}</span>
+            <ChevronsUpDown className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="gba:p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search step data..." />
+            <CommandEmpty>No matching values</CommandEmpty>
+            <CommandList>
+              <CommandGroup heading="Step data">
+                {stepValueSuggestions.map(item => (
+                  <CommandItem
+                    key={item.id}
+                    onSelect={() => updateParam(paramName, `{{${item.expression}}}`)}
+                    value={`${item.label} ${item.expression}`}
+                  >
+                    <span className="gba:flex gba:flex-col gba:min-w-0">
+                      <span className="gba:text-xs gba:font-medium gba:truncate">{item.label}</span>
+                      <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate">{item.expression}</span>
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
 
 interface FunctionSelectorProps {
   config: TaskNodeConfig
@@ -222,57 +285,17 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
             }
             return (
               <div className="gba:flex gba:flex-col gba:gap-2">
-                {inputParams.map((paramName, idx) => {
-                  const currentExpr = config.functionConfig?.inputExpressionMap?.[paramName] ?? ''
-                  const selected = stepValueSuggestions.find(s => `{{${s.expression}}}` === currentExpr)
-                  const displayValue = selected?.label ?? currentExpr ?? 'Select value'
-                  return (
-                    <div
-                      key={paramName}
-                      className="gba:grid gba:grid-cols-5 gba:gap-2 gba:items-start"
-                      data-testid={`${testId}-function-param-${idx}`}
-                    >
-                      <Label className="gba:col-span-2 gba:text-xs gba:font-mono gba:pt-2">{paramName}</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className="gba:col-span-3 gba:justify-between gba:h-9 gba:text-xs gba:bg-background"
-                            data-testid={`${testId}-function-param-pick-${idx}`}
-                          >
-                            <span className="gba:truncate">{displayValue}</span>
-                            <ChevronsUpDown className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="gba:p-0" align="start">
-                          <Command>
-                            <CommandInput placeholder="Search step data..." />
-                            <CommandEmpty>No matching values</CommandEmpty>
-                            <CommandList>
-                              <CommandGroup heading="Step data">
-                                {stepValueSuggestions.map(item => (
-                                  <CommandItem
-                                    key={item.id}
-                                    onSelect={() => updateParam(paramName, `{{${item.expression}}}`)}
-                                    value={`${item.label} ${item.expression}`}
-                                  >
-                                    <span className="gba:flex gba:flex-col gba:min-w-0">
-                                      <span className="gba:text-xs gba:font-medium gba:truncate">{item.label}</span>
-                                      <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate">
-                                        {item.expression}
-                                      </span>
-                                    </span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  )
-                })}
+                {inputParams.map((paramName, idx) => (
+                  <FunctionParamRow
+                    key={paramName}
+                    paramName={paramName}
+                    currentExpr={config.functionConfig?.inputExpressionMap?.[paramName] ?? ''}
+                    stepValueSuggestions={stepValueSuggestions}
+                    updateParam={updateParam}
+                    testId={testId}
+                    idx={idx}
+                  />
+                ))}
               </div>
             )
           })()}

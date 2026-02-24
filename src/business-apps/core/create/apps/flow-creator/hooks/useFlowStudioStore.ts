@@ -34,6 +34,44 @@ const initialState: FlowStudioState = {
   redoStack: []
 }
 
+function resolveStepType(
+  taskStepType?: FlowStepType | { stepType: FlowStepType; preset?: 'HYBRID' }
+): FlowStepType | undefined {
+  if (!taskStepType) return undefined
+  return typeof taskStepType === 'object' ? taskStepType.stepType : taskStepType
+}
+
+function applyTaskNodeStepType(
+  node: StudioNode,
+  stepType: FlowStepType,
+  preset: 'HYBRID' | undefined,
+  mode: DesignerMode
+): void {
+  if (node.config.nodeType !== 'task') return
+  const automationTypes = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT]
+  const isAutomation = automationTypes.includes(stepType)
+  node.config = {
+    ...node.config,
+    stepType,
+    kind: isAutomation ? 'SYSTEM' : 'USER',
+    title: stepType === FlowStepType.TASK ? node.config.title : 'New Task',
+    permissionContext:
+      stepType === FlowStepType.AI_AGENT
+        ? (node.config.permissionContext ?? { contextType: 'USER', permissions: ['read', 'write', 'execute'] })
+        : undefined,
+    simpleAIConfig:
+      mode === 'simple' && stepType === FlowStepType.AI_TASK_EXPERT
+        ? { instruction: node.config.simpleAIConfig?.instruction ?? '' }
+        : undefined
+  }
+  if (preset === 'HYBRID') {
+    node.config = { ...node.config, title: 'Hybrid Task' }
+    node.label = 'Hybrid Task'
+  } else {
+    node.label = node.config.title
+  }
+}
+
 function setDirtyGraph(
   set: (partial: Partial<FlowStudioState & FlowStudioActions>) => void,
   next: { nodes: StudioNode[]; edges: FlowGraphEdge[] },
@@ -277,40 +315,11 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
 
     // Default: simple inline insertion (task, etc.)
     const node = createNode(type)
-    const stepType = (() => {
-      if (!taskStepType) return undefined
-      return typeof taskStepType === 'object' ? taskStepType.stepType : taskStepType
-    })()
+    const stepType = resolveStepType(taskStepType)
     const preset = typeof taskStepType === 'object' ? taskStepType.preset : undefined
 
-    if (type === 'task' && node.config.nodeType === 'task' && stepType) {
-      const isAutomation = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(
-        stepType
-      )
-      const titleForStepType = stepType === FlowStepType.TASK ? node.config.title : 'New Task'
-      node.config = {
-        ...node.config,
-        stepType,
-        kind: isAutomation ? 'SYSTEM' : 'USER',
-        title: titleForStepType,
-        permissionContext:
-          stepType === FlowStepType.AI_AGENT
-            ? (node.config.permissionContext ?? { contextType: 'USER', permissions: ['read', 'write', 'execute'] })
-            : undefined,
-        simpleAIConfig:
-          state.mode === 'simple' && stepType === FlowStepType.AI_TASK_EXPERT
-            ? { instruction: node.config.simpleAIConfig?.instruction ?? '' }
-            : undefined
-      }
-      if (preset === 'HYBRID') {
-        node.config = {
-          ...node.config,
-          title: 'Hybrid Task'
-        }
-        node.label = 'Hybrid Task'
-      } else {
-        node.label = node.config.title
-      }
+    if (type === 'task' && stepType) {
+      applyTaskNodeStepType(node, stepType, preset, state.mode)
     }
     const next = normalizeGraph(
       [...state.nodes, node],

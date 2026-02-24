@@ -57,20 +57,19 @@ export const NodePalette: React.FC<NodePaletteProps> = ({
       {visibleItems.map(item => {
         const Icon = item.icon
         return (
-          <div
+          <button
             key={item.type}
-            role="button"
-            tabIndex={0}
+            type="button"
             draggable
             onDragStart={e => onDragStart(e, item.type)}
             data-testid={`${testId}-item-${item.type}`}
-            className="gba:flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-2 gba:rounded-md gba:cursor-grab gba:border gba:border-transparent gba:transition-all gba:hover:bg-accent/50 gba:hover:border-border gba:active:cursor-grabbing gba:select-none"
+            className="gba:flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-2 gba:rounded-md gba:cursor-grab gba:border gba:border-transparent gba:transition-all gba:hover:bg-accent/50 gba:hover:border-border gba:active:cursor-grabbing gba:select-none gba:w-full gba:text-left"
           >
             <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-muted">
               <Icon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
             </div>
             <span className="gba:text-sm gba:font-medium gba:text-foreground">{t(item.label)}</span>
-          </div>
+          </button>
         )
       })}
     </div>

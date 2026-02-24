@@ -62,6 +62,37 @@ function parseMessageLines(message: string): { eventData: string; eventType: str
 
 const TERMINAL_EVENTS = new Set<FlowEventType>(['flow.completed', 'flow.failed'])
 
+interface SseMessageHandlers {
+  setEvents: React.Dispatch<React.SetStateAction<FlowStreamEvent[]>>
+  setStatus: (status: StreamStatus) => void
+  onEvent?: (event: FlowStreamEvent) => void
+  onComplete?: () => void
+  controller: AbortController
+}
+
+function processSseMessages(messages: string[], handlers: SseMessageHandlers): boolean {
+  const { setEvents, setStatus, onEvent, onComplete, controller } = handlers
+  for (const message of messages) {
+    const { eventData, eventType } = parseMessageLines(message)
+    if (!eventData) continue
+    try {
+      const parsed = JSON.parse(eventData) as FlowStreamEvent
+      if (eventType) parsed.event = eventType as FlowEventType
+      setEvents(prev => [...prev, parsed])
+      onEvent?.(parsed)
+      if (TERMINAL_EVENTS.has(parsed.event)) {
+        setStatus('closed')
+        onComplete?.()
+        controller.abort()
+        return true
+      }
+    } catch {
+      // Skip malformed events
+    }
+  }
+  return false
+}
+
 export function useFlowEventStream(options: UseFlowEventStreamOptions) {
   const { url, accessToken, enabled = true, onEvent, onComplete, onError, maxReconnectAttempts = 5 } = options
 
@@ -121,24 +152,8 @@ export function useFlowEventStream(options: UseFlowEventStreamOptions) {
         const messages = buffer.split('\n\n')
         buffer = messages.pop() ?? ''
 
-        for (const message of messages) {
-          const { eventData, eventType } = parseMessageLines(message)
-          if (!eventData) continue
-          try {
-            const parsed = JSON.parse(eventData) as FlowStreamEvent
-            if (eventType) parsed.event = eventType as FlowEventType
-            setEvents(prev => [...prev, parsed])
-            onEvent?.(parsed)
-            if (TERMINAL_EVENTS.has(parsed.event)) {
-              setStatus('closed')
-              onComplete?.()
-              controller.abort()
-              return
-            }
-          } catch {
-            // Skip malformed events
-          }
-        }
+        const isDone = processSseMessages(messages, { setEvents, setStatus, onEvent, onComplete, controller })
+        if (isDone) return
       }
     } catch (err: unknown) {
       if ((err as Error).name === 'AbortError') {

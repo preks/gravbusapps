@@ -134,7 +134,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
   const prevPanelContentRef = useRef<React.ReactNode>(null)
   const hasRightPanelEverRef = useRef(false)
-  const [, setPanelKey] = useState(0)
+  const [panelKey, setPanelKey] = useState(0)
   const [panelOpenTransition, setPanelOpenTransition] = useState(false)
   const [layoutReady, setLayoutReady] = useState(false)
   const [layoutNodes, setLayoutNodes] = useState<Record<string, { x: number; y: number }>>({})
@@ -223,8 +223,8 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         ...(points?.length ? { points } : {}),
         isSelected: selectedEdgeId === edge.id,
         onSelect: () => selectEdge(edge.id),
-        ...(edgeActions.onInsert != null ? { onInsert: edgeActions.onInsert } : {}),
-        ...(edgeActions.onOpenInsertPanel != null ? { onOpenInsertPanel: edgeActions.onOpenInsertPanel } : {})
+        ...(edgeActions.onInsert == null ? {} : { onInsert: edgeActions.onInsert }),
+        ...(edgeActions.onOpenInsertPanel == null ? {} : { onOpenInsertPanel: edgeActions.onOpenInsertPanel })
       }
       const isSelected = selectedEdgeId === edge.id
       const isBackward = edge.direction === 'backward'
@@ -446,7 +446,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
               if (e.propertyName === 'transform') handlePanelTransitionEnd()
             }}
           >
-            <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar">
+            <div key={panelKey} className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar">
               <RightPanelExitingContext.Provider value={rightPanel == null && showRightPanel}>
                 {panelContent}
               </RightPanelExitingContext.Provider>

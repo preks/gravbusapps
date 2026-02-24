@@ -44,7 +44,7 @@ function getFlowIdFromUrl(): string | null {
   if (globalThis.window === undefined) return null
   const urlParams = new URLSearchParams(globalThis.location.search)
   const id = urlParams.get(FLOW_ID_PARAM)
-  return id && id.trim() ? id.trim() : null
+  return id?.trim() || null
 }
 
 function updateUrlWithFlowId(flowId: string | null, push = false): void {

@@ -147,6 +147,52 @@ function getTabGridCols(hiddenCount: number): string {
   return 'gba:grid-cols-1'
 }
 
+function transformFlowStep(step: any): Record<string, unknown> {
+  return {
+    id: step.id || `step-${step.stepIndex}`,
+    title: step.title || 'Untitled Step',
+    status: step.status || 'QUEUED',
+    stepIndex: step.stepIndex || 0,
+    assignedTo: step.assignedTo || undefined,
+    completedBy: step.completedBy || undefined,
+    totalForks: step.totalForks || undefined,
+    completedForks: step.completedForks || undefined,
+    totalTasks: step.totalTasks ?? step.total_tasks ?? undefined,
+    completedTasks: step.completedTasks ?? step.completed_tasks ?? undefined,
+    rejectedForks: step.rejectedForks || undefined,
+    inProgressForks: step.inProgressForks || undefined,
+    assignmentMode: step.assignmentMode || undefined,
+    dueDate: step.dueDate || undefined,
+    completedAt: step.completedAt || undefined,
+    startedAt: step.startedAt || undefined,
+    scheduledAt: step.scheduledAt || undefined,
+    availableAt: step.availableAt || undefined,
+    expectedStartAt: step.expectedStartAt || undefined,
+    expectedFinishAt: step.expectedFinishAt || undefined,
+    completionTimeMinutes: step.completionTimeMinutes || undefined
+  }
+}
+
+function generateFallbackSteps(total: number, completed: number, currentStep: number): Record<string, unknown>[] {
+  const steps: Record<string, unknown>[] = []
+  for (let i = 1; i <= total; i++) {
+    let stepStatus = 'QUEUED'
+    if (i <= completed) stepStatus = 'COMPLETED'
+    else if (i === currentStep) stepStatus = 'IN_PROGRESS'
+    steps.push({
+      id: `step-${i}`,
+      title: `Step ${i}`,
+      status: stepStatus,
+      stepIndex: i - 1,
+      assignedTo: undefined,
+      dueDate: undefined,
+      completedAt:
+        i <= completed ? new Date(Date.now() - (completed - i) * 24 * 60 * 60 * 1000).toISOString() : undefined
+    })
+  }
+  return steps
+}
+
 function transformAuditEntry(entry: any, index: number): HistoryEvent {
   let eventType: 'step' | 'assignment' | 'comment' | 'flow' | 'status' = 'step'
   const stepTitle = entry.taskName || 'Unknown Step'
@@ -435,57 +481,19 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         // Transform steps data if available from flow details
         if (flowDetails?.steps) {
           console.log('🔍 Found steps, transforming...', flowDetails.steps.length, 'steps')
-          const transformedSteps = flowDetails.steps.map((step: any) => ({
-            id: step.id || `step-${step.stepIndex}`,
-            title: step.title || 'Untitled Step',
-            status: step.status || 'QUEUED',
-            stepIndex: step.stepIndex || 0,
-            assignedTo: step.assignedTo || undefined,
-            completedBy: step.completedBy || undefined,
-            totalForks: step.totalForks || undefined,
-            completedForks: step.completedForks || undefined,
-            // Map backend task counts for progress computation
-            totalTasks: step.totalTasks ?? step.total_tasks ?? undefined,
-            completedTasks: step.completedTasks ?? step.completed_tasks ?? undefined,
-            rejectedForks: step.rejectedForks || undefined,
-            inProgressForks: step.inProgressForks || undefined,
-            assignmentMode: step.assignmentMode || undefined,
-            dueDate: step.dueDate || undefined,
-            completedAt: step.completedAt || undefined,
-            // include additional timing fields to enable chronological sorting
-            startedAt: step.startedAt || undefined,
-            scheduledAt: step.scheduledAt || undefined,
-            availableAt: step.availableAt || undefined,
-            expectedStartAt: step.expectedStartAt || undefined,
-            expectedFinishAt: step.expectedFinishAt || undefined,
-            completionTimeMinutes: step.completionTimeMinutes || undefined
-          }))
+          const transformedSteps = flowDetails.steps.map(transformFlowStep)
           console.log('🔍 Transformed steps:', transformedSteps)
-          // Sort strictly by template order (stepIndex)
-          setFlowSteps([...transformedSteps].sort((a, b) => (a.stepIndex ?? 0) - (b.stepIndex ?? 0)))
+          setFlowSteps(
+            [...transformedSteps].sort((a, b) => ((a.stepIndex as number) ?? 0) - ((b.stepIndex as number) ?? 0))
+          )
         } else {
           console.log('🔍 No steps found, creating fallback steps')
-          // Fallback: create steps based on progress data
-          const steps = []
-          for (let i = 1; i <= flowData.stepStatus.total; i++) {
-            let stepStatus = 'QUEUED'
-            if (i <= flowData.stepStatus.completed) stepStatus = 'COMPLETED'
-            else if (i === flowData.currentStep) stepStatus = 'IN_PROGRESS'
-            steps.push({
-              id: `step-${i}`,
-              title: `Step ${i}`,
-              status: stepStatus,
-              stepIndex: i - 1,
-              assignedTo: undefined,
-              dueDate: undefined,
-              completedAt:
-                i <= flowData.stepStatus.completed
-                  ? new Date(Date.now() - (flowData.stepStatus.completed - i) * 24 * 60 * 60 * 1000).toISOString()
-                  : undefined
-            })
-          }
-          // Keep template order (ascending by stepIndex)
-          setFlowSteps([...steps].sort((a, b) => (a.stepIndex ?? 0) - (b.stepIndex ?? 0)))
+          const steps = generateFallbackSteps(
+            flowData.stepStatus.total,
+            flowData.stepStatus.completed,
+            flowData.currentStep
+          )
+          setFlowSteps([...steps].sort((a, b) => ((a.stepIndex as number) ?? 0) - ((b.stepIndex as number) ?? 0)))
         }
 
         setIsLoading(false)

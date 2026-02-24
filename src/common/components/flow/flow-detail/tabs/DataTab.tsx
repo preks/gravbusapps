@@ -109,6 +109,181 @@ function getStepStatusTextColor(status: string): string {
   return status === 'COMPLETED' || status === 'IN_PROGRESS' ? 'white' : '#6b7280'
 }
 
+const FIELD_LABEL_MAP: Record<string, string> = {
+  startDate: 'Start Date',
+  endDate: 'End Date',
+  employeeName: 'Employee Name',
+  laptopType: 'Laptop Type',
+  accessories: 'Accessories',
+  firstName: 'First Name',
+  lastName: 'Last Name',
+  email: 'Email Address',
+  phone: 'Phone Number',
+  department: 'Department',
+  position: 'Position',
+  manager: 'Manager',
+  requestType: 'Request Type',
+  priority: 'Priority',
+  description: 'Description',
+  comments: 'Comments',
+  approvalStatus: 'Approval Status',
+  dueDate: 'Due Date',
+  completedDate: 'Completed Date',
+  assignedTo: 'Assigned To',
+  createdBy: 'Created By',
+  modifiedBy: 'Modified By',
+  status: 'Status',
+  amount: 'Amount',
+  currency: 'Currency',
+  category: 'Category',
+  subcategory: 'Subcategory'
+}
+
+function generateFieldLabel(fieldName: string): string {
+  if (FIELD_LABEL_MAP[fieldName]) return FIELD_LABEL_MAP[fieldName]
+  return fieldName
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, s => s.toUpperCase())
+    .trim()
+}
+
+function formatFieldValue(key: string, value: any): string {
+  if (value === null || value === undefined) return '-'
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'None'
+    return value.map(item => (typeof item === 'string' ? item : JSON.stringify(item))).join(', ')
+  }
+  if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
+    try {
+      const date = new Date(value)
+      if (!Number.isNaN(date.getTime())) return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+    } catch {
+      /* not a valid date */
+    }
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (typeof value === 'object') return JSON.stringify(value, null, 2)
+  const stringValue = String(value)
+  if (key.toLowerCase().includes('email')) return stringValue.toLowerCase()
+  if (key.toLowerCase().includes('phone')) return stringValue.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')
+  return stringValue
+}
+
+interface SingleFormDataProps {
+  formData: { [key: string]: any }
+}
+
+const SingleFormData: React.FC<SingleFormDataProps> = ({ formData }) => {
+  const hasFormData = formData && Object.keys(formData).length > 0
+  return (
+    <div className="gba:mt-3 gba:ml-9">
+      {hasFormData ? (
+        <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-4">
+          {Object.entries(formData).map(([key, value]) => (
+            <div key={key} className="gba:space-y-1">
+              <label className="gba:text-xs gba:font-medium gba:text-gray-700 gba:uppercase gba:tracking-wide">
+                {generateFieldLabel(key)}
+              </label>
+              <div className="gba:bg-gray-50 gba:rounded gba:px-3 gba:py-2 gba:border gba:border-gray-200 gba:text-sm gba:text-gray-900">
+                {formatFieldValue(key, value)}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="gba:text-center gba:py-6 gba:text-gray-500 gba:text-sm">No form data submitted</div>
+      )}
+    </div>
+  )
+}
+
+interface MultiRowDataTableProps {
+  data: StepDataRow[]
+  totalCount: number
+  valuePlaceholder?: string
+}
+
+const MultiRowDataTable: React.FC<MultiRowDataTableProps> = ({ data, totalCount }) => {
+  const allFields = new Set<string>()
+  for (const dataRow of data) {
+    if (dataRow.formData) {
+      for (const key of Object.keys(dataRow.formData)) allFields.add(key)
+    }
+  }
+  const fieldKeys = Array.from(allFields)
+  return (
+    <div className="gba:mt-3 gba:ml-9">
+      <div className="gba:rounded-lg gba:border gba:border-gray-200 gba:overflow-hidden">
+        <TableComponent>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:w-[200px]">Submitted By</TableHead>
+              <TableHead className="gba:w-[180px]">Timestamp</TableHead>
+              {fieldKeys.map(key => (
+                <TableHead key={key}>{generateFieldLabel(key)}</TableHead>
+              ))}
+              <TableHead className="gba:w-[60px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map(dataRow => (
+              <TableRow key={dataRow.taskId}>
+                <TableCell>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <div className="gba:w-6 gba:h-6 gba:bg-gray-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-gray-600 gba:text-xs gba:font-medium">
+                      {dataRow.userName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="gba:flex gba:flex-col">
+                      <span className="gba:font-medium gba:text-sm">{dataRow.userName}</span>
+                      <span className="gba:text-xs gba:text-gray-500">{dataRow.userId}</span>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="gba:flex gba:flex-col">
+                    <span className="gba:text-sm">{new Date(dataRow.timestamp).toLocaleDateString()}</span>
+                    <span className="gba:text-xs gba:text-gray-500">
+                      {new Date(dataRow.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </TableCell>
+                {fieldKeys.map(key => (
+                  <TableCell key={key}>
+                    <div
+                      className="gba:text-sm gba:max-w-[300px] gba:truncate"
+                      title={formatFieldValue(key, dataRow.formData?.[key])}
+                    >
+                      {formatFieldValue(key, dataRow.formData?.[key])}
+                    </div>
+                  </TableCell>
+                ))}
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gba:h-8 gba:w-8 gba:p-0"
+                    onClick={() => navigator.clipboard.writeText(JSON.stringify(dataRow, null, 2))}
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="gba:h-4 gba:w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </TableComponent>
+      </div>
+      {totalCount > data.length && (
+        <div className="gba:text-center gba:py-4">
+          <Button variant="outline" size="sm">
+            Load More ({totalCount - data.length} remaining)
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessToken }) => {
   const [stepDataMap, setStepDataMap] = useState<Map<number, StepDataResponse>>(new Map())
   const [isLoading, setIsLoading] = useState(false)
@@ -180,100 +355,6 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessTok
       const hours = Math.floor((minutes % 1440) / 60)
       return hours > 0 ? `${days}d ${hours}h` : `${days}d`
     }
-  }
-
-  // Helper function to generate human-readable labels from field names
-  const generateFieldLabel = (fieldName: string): string => {
-    // Handle common field patterns
-    const labelMap: { [key: string]: string } = {
-      startDate: 'Start Date',
-      endDate: 'End Date',
-      employeeName: 'Employee Name',
-      laptopType: 'Laptop Type',
-      accessories: 'Accessories',
-      firstName: 'First Name',
-      lastName: 'Last Name',
-      email: 'Email Address',
-      phone: 'Phone Number',
-      department: 'Department',
-      position: 'Position',
-      manager: 'Manager',
-      requestType: 'Request Type',
-      priority: 'Priority',
-      description: 'Description',
-      comments: 'Comments',
-      approvalStatus: 'Approval Status',
-      dueDate: 'Due Date',
-      completedDate: 'Completed Date',
-      assignedTo: 'Assigned To',
-      createdBy: 'Created By',
-      modifiedBy: 'Modified By',
-      status: 'Status',
-      amount: 'Amount',
-      currency: 'Currency',
-      category: 'Category',
-      subcategory: 'Subcategory'
-    }
-
-    if (labelMap[fieldName]) {
-      return labelMap[fieldName]
-    }
-
-    // Convert camelCase to Title Case
-    return fieldName
-      .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-      .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
-      .trim()
-  }
-
-  // Helper function to format field values for display
-  const formatFieldValue = (key: string, value: any): string => {
-    if (value === null || value === undefined) {
-      return '-'
-    }
-
-    // Handle arrays
-    if (Array.isArray(value)) {
-      if (value.length === 0) return 'None'
-      return value.map(item => (typeof item === 'string' ? item : JSON.stringify(item))).join(', ')
-    }
-
-    // Handle dates
-    if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
-      try {
-        const date = new Date(value)
-        if (!Number.isNaN(date.getTime())) {
-          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-        }
-      } catch {
-        // Not a valid date, fall through to default handling
-      }
-    }
-
-    // Handle booleans
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No'
-    }
-
-    // Handle objects (stringify)
-    if (typeof value === 'object') {
-      return JSON.stringify(value, null, 2)
-    }
-
-    // Convert to string and handle special cases
-    const stringValue = String(value)
-
-    // Format common field types
-    if (key.toLowerCase().includes('email')) {
-      return stringValue.toLowerCase()
-    }
-
-    if (key.toLowerCase().includes('phone')) {
-      // Simple phone formatting (you can enhance this)
-      return stringValue.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')
-    }
-
-    return stringValue
   }
 
   return (
@@ -405,129 +486,13 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessTok
                         )}
                         {(() => {
                           if (stepData.totalCount === 1) {
-                            const firstFormData = stepData.data[0].formData
-                            const hasFormData = firstFormData && Object.keys(firstFormData).length > 0
-                            return (
-                              <div className="gba:mt-3 gba:ml-9">
-                                {hasFormData ? (
-                                  <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-4">
-                                    {Object.entries(firstFormData).map(([key, value]) => (
-                                      <div key={key} className="gba:space-y-1">
-                                        <label className="gba:text-xs gba:font-medium gba:text-gray-700 gba:uppercase gba:tracking-wide">
-                                          {generateFieldLabel(key)}
-                                        </label>
-                                        <div className="gba:bg-gray-50 gba:rounded gba:px-3 gba:py-2 gba:border gba:border-gray-200 gba:text-sm gba:text-gray-900">
-                                          {formatFieldValue(key, value)}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="gba:text-center gba:py-6 gba:text-gray-500 gba:text-sm">
-                                    No form data submitted
-                                  </div>
-                                )}
-                              </div>
-                            )
+                            return <SingleFormData formData={stepData.data[0].formData} />
                           }
                           if (stepData.totalCount > 1) {
-                            const allFields = new Set<string>()
-                            for (const dataRow of stepData.data) {
-                              if (dataRow.formData) {
-                                for (const key of Object.keys(dataRow.formData)) {
-                                  allFields.add(key)
-                                }
-                              }
-                            }
-                            const fieldKeys = Array.from(allFields)
-                            return (
-                              <div className="gba:mt-3 gba:ml-9">
-                                <div className="gba:rounded-lg gba:border gba:border-gray-200 gba:overflow-hidden">
-                                  <TableComponent>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead className="gba:w-[200px]">Submitted By</TableHead>
-                                        <TableHead className="gba:w-[180px]">Timestamp</TableHead>
-                                        {fieldKeys.map(key => (
-                                          <TableHead key={key}>{generateFieldLabel(key)}</TableHead>
-                                        ))}
-                                        <TableHead className="gba:w-[60px]"></TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {stepData.data.map(dataRow => {
-                                        const handleCopy = () =>
-                                          navigator.clipboard.writeText(JSON.stringify(dataRow, null, 2))
-                                        return (
-                                          <TableRow key={dataRow.taskId}>
-                                            <TableCell>
-                                              <div className="gba:flex gba:items-center gba:gap-2">
-                                                <div className="gba:w-6 gba:h-6 gba:bg-gray-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-gray-600 gba:text-xs gba:font-medium">
-                                                  {dataRow.userName.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div className="gba:flex gba:flex-col">
-                                                  <span className="gba:font-medium gba:text-sm">
-                                                    {dataRow.userName}
-                                                  </span>
-                                                  <span className="gba:text-xs gba:text-gray-500">
-                                                    {dataRow.userId}
-                                                  </span>
-                                                </div>
-                                              </div>
-                                            </TableCell>
-                                            <TableCell>
-                                              <div className="gba:flex gba:flex-col">
-                                                <span className="gba:text-sm">
-                                                  {new Date(dataRow.timestamp).toLocaleDateString()}
-                                                </span>
-                                                <span className="gba:text-xs gba:text-gray-500">
-                                                  {new Date(dataRow.timestamp).toLocaleTimeString()}
-                                                </span>
-                                              </div>
-                                            </TableCell>
-                                            {fieldKeys.map(key => (
-                                              <TableCell key={key}>
-                                                <div
-                                                  className="gba:text-sm gba:max-w-[300px] gba:truncate"
-                                                  title={formatFieldValue(key, dataRow.formData?.[key])}
-                                                >
-                                                  {formatFieldValue(key, dataRow.formData?.[key])}
-                                                </div>
-                                              </TableCell>
-                                            ))}
-                                            <TableCell>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="gba:h-8 gba:w-8 gba:p-0"
-                                                onClick={handleCopy}
-                                                title="Copy to clipboard"
-                                              >
-                                                <Copy className="gba:h-4 gba:w-4" />
-                                              </Button>
-                                            </TableCell>
-                                          </TableRow>
-                                        )
-                                      })}
-                                    </TableBody>
-                                  </TableComponent>
-                                </div>
-                                {stepData.hasMore && (
-                                  <div className="gba:text-center gba:py-4">
-                                    <Button variant="outline" size="sm">
-                                      Load More ({stepData.totalCount - stepData.data.length} remaining)
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            )
+                            return <MultiRowDataTable data={stepData.data} totalCount={stepData.totalCount} />
                           }
-                          return (
-                            <div className="gba:ml-9 gba:text-center gba:py-4 gba:text-gray-500 gba:text-sm">
-                              <FileText className="gba:h-6 gba:w-6 gba:mx-auto gba:mb-1 gba:text-gray-400" />
-                              <div>No data available for this step</div>
-                            </div>
-                          )
+                          // stepData.totalCount === 0 - intentional fall-through, no data to show
+                          return null
                         })()}
                       </>
                     ) : (

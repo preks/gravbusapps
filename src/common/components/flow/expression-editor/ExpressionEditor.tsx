@@ -213,7 +213,7 @@ export const ExpressionEditor: React.FC<ExpressionEditorProps> = ({
         if (!isSingleLine) return false
         const text = event.clipboardData?.getData('text/plain')
         if (typeof text !== 'string') return false
-        const sanitized = text.replace(/\n+/g, ' ')
+        const sanitized = text.split(/\n+/).join(' ')
         view.dispatch(view.state.tr.insertText(sanitized))
         return true
       }

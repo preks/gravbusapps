@@ -265,7 +265,6 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
               mode={mode}
               testId={testId}
               accessToken={accessToken}
-              studioData={studioData}
               branchEdges={branchEdges}
               nodeId={nodeId}
               syncBranches={syncBranches}
@@ -282,9 +281,6 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
               testId={testId}
               accessToken={accessToken}
               studioData={studioData}
-              branchEdges={branchEdges}
-              nodeId={nodeId}
-              syncBranches={syncBranches}
             />
           </TabsContent>
 
@@ -317,12 +313,7 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
 
         <div className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[200px] gba:overflow-y-auto">
           {branchEdges.map((branch, index) => {
-            const branchColorClass =
-              branchesLocked && index === 0
-                ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                : branchesLocked && index === 1
-                  ? 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
-                  : 'gba:bg-accent gba:text-accent-foreground'
+            const branchColorClass = getBranchColorClass(branchesLocked, index)
             return (
               <div
                 key={branch.id}
@@ -382,20 +373,34 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
 
 // ---- Sub-components for each decision mode ----
 
-interface ModeConfigProps {
+function getBranchColorClass(branchesLocked: boolean, index: number): string {
+  if (branchesLocked && index === 0) return 'gba:bg-success-secondary gba:text-success-secondary-foreground'
+  if (branchesLocked && index === 1) return 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
+  return 'gba:bg-accent gba:text-accent-foreground'
+}
+
+interface UserDecisionConfigProps {
   config: DecisionNodeConfig
   update: (partial: Partial<DecisionNodeConfig>) => void
   mode: DesignerMode
   testId: string
   accessToken: string
-  studioData: FlowStudioData
   /** Edge management for syncing branches with options */
   branchEdges: Array<{ id: string; source: string; target: string; label?: string }>
   nodeId: string
   syncBranches: (labels: string[]) => void
 }
 
-const UserDecisionConfig: React.FC<ModeConfigProps> = ({
+interface AIDecisionConfigProps {
+  config: DecisionNodeConfig
+  update: (partial: Partial<DecisionNodeConfig>) => void
+  mode: DesignerMode
+  testId: string
+  accessToken: string
+  studioData: FlowStudioData
+}
+
+const UserDecisionConfig: React.FC<UserDecisionConfigProps> = ({
   config,
   update,
   mode,
@@ -951,6 +956,29 @@ const POLICY_PICKER_FIELDS: Array<keyof ContentEntry> = [
 
 type JsonSchema = Record<string, unknown>
 
+function visitJsonSchemaNodeProps(
+  props: Record<string, unknown>,
+  prefix: string,
+  out: string[],
+  visitFn: (n: any, p: string) => void
+): void {
+  for (const [k, v] of Object.entries(props)) {
+    const key = String(k || '').trim()
+    if (!key) continue
+    const nextPrefix = prefix ? `${prefix}.${key}` : key
+    out.push(nextPrefix)
+    visitFn(v, nextPrefix)
+  }
+}
+
+function visitJsonSchemaNodeAlts(node: any, prefix: string, visitFn: (n: any, p: string) => void): void {
+  const alts = [...(Array.isArray(node.oneOf) ? node.oneOf : []), ...(Array.isArray(node.anyOf) ? node.anyOf : [])]
+  for (const alt of alts) visitFn(alt, prefix)
+  if (Array.isArray(node.allOf)) {
+    for (const part of node.allOf) visitFn(part, prefix)
+  }
+}
+
 function visitJsonSchemaNode(
   node: any,
   prefix: string,
@@ -965,24 +993,14 @@ function visitJsonSchemaNode(
   const type = node.type
   const props = type === 'object' ? node.properties : undefined
   if (props && typeof props === 'object') {
-    for (const [k, v] of Object.entries(props)) {
-      const key = String(k || '').trim()
-      if (!key) continue
-      const nextPrefix = prefix ? `${prefix}.${key}` : key
-      out.push(nextPrefix)
-      visitFn(v, nextPrefix)
-    }
+    visitJsonSchemaNodeProps(props as Record<string, unknown>, prefix, out, visitFn)
   }
 
   if (type === 'array' && node.items) {
     visitFn(node.items, prefix ? `${prefix}[]` : '[]')
   }
 
-  const alts = [...(Array.isArray(node.oneOf) ? node.oneOf : []), ...(Array.isArray(node.anyOf) ? node.anyOf : [])]
-  for (const alt of alts) visitFn(alt, prefix)
-  if (Array.isArray(node.allOf)) {
-    for (const part of node.allOf) visitFn(part, prefix)
-  }
+  visitJsonSchemaNodeAlts(node, prefix, visitFn)
 }
 
 function collectJsonSchemaPaths(schema: unknown): string[] {
@@ -997,7 +1015,14 @@ function collectJsonSchemaPaths(schema: unknown): string[] {
   return Array.from(new Set(out)).sort((a, b) => a.localeCompare(b))
 }
 
-const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, testId, accessToken, studioData }) => {
+const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
+  config,
+  update,
+  mode,
+  testId,
+  accessToken,
+  studioData
+}) => {
   const { t } = useTranslation(translations)
   const expressionSuggestions = useStudioExpressionSuggestions()
   const [policyOpen, setPolicyOpen] = useState(false)
@@ -1124,7 +1149,7 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
 
   const decisionResultEnumOptions = useMemo(() => {
     const schema = selectedTaskExpert?.response_schema
-    const props = schema && typeof schema === 'object' ? (schema as Record<string, unknown>).properties : undefined
+    const props = schema && typeof schema === 'object' ? schema.properties : undefined
     const dr = props && typeof props === 'object' ? (props as Record<string, unknown>).decisionResult : undefined
     const en = dr && typeof dr === 'object' ? (dr as Record<string, unknown>).enum : undefined
     if (!Array.isArray(en)) return []
@@ -1540,7 +1565,8 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
     (promptEnum: string[] | undefined) => {
       const branchId = config.branches[0]?.id ?? ''
       const value = String(promptEnum?.[0] ?? '').trim()
-      const rhs = value ? `'${value.split("'").join(String.raw`\'`)}'` : "''"
+      const escapedValue = value.split("'").join(String.raw`\'`)
+      const rhs = value ? `'${escapedValue}'` : "''"
       return {
         conditions: [
           {
@@ -1699,10 +1725,7 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
                             value={agent._id ?? ''}
                             onSelect={() => {
                               const schema = agent.response_schema
-                              const props =
-                                schema && typeof schema === 'object'
-                                  ? (schema as Record<string, unknown>).properties
-                                  : undefined
+                              const props = schema && typeof schema === 'object' ? schema.properties : undefined
                               const dr =
                                 props && typeof props === 'object'
                                   ? (props as Record<string, unknown>).decisionResult
@@ -2005,6 +2028,134 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
   )
 }
 
+type OperatorId = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'not_contains' | 'starts_with' | 'ends_with'
+
+function stripQuotes(v: string): string {
+  const s = String(v ?? '').trim()
+  if (
+    (s.startsWith("'") && s.endsWith("'") && s.length >= 2) ||
+    (s.startsWith('"') && s.endsWith('"') && s.length >= 2)
+  ) {
+    return s.slice(1, -1)
+  }
+  return s
+}
+
+function quoteSingle(v: string): string {
+  const s = String(v ?? '').trim()
+  if (!s) return ''
+  const escaped = s.split("'").join(String.raw`\'`)
+  return `'${escaped}'`
+}
+
+type ValueType = 'boolean' | 'date' | 'datetime' | 'number' | 'string' | 'unknown'
+
+interface LogicValueInputProps {
+  valueType: ValueType
+  rhs: string
+  lhs: string
+  activeOpId: OperatorId
+  testId: string
+  index: number
+  stringEnumOptionsByExpression?: Record<string, string[]>
+  valuePlaceholder: string
+  onChangeExpr: (nextExpr: string) => void
+  buildConditionExpression: (lhs: string, opId: OperatorId, rhs: string) => string
+}
+
+const LogicValueInput: React.FC<LogicValueInputProps> = ({
+  valueType,
+  rhs,
+  lhs,
+  activeOpId,
+  testId,
+  index,
+  stringEnumOptionsByExpression,
+  valuePlaceholder,
+  onChangeExpr,
+  buildConditionExpression
+}) => {
+  if (valueType === 'boolean') {
+    return (
+      <Select value={rhs || 'true'} onValueChange={v => onChangeExpr(buildConditionExpression(lhs, activeOpId, v))}>
+        <SelectTrigger className="gba:h-8 gba:text-xs gba:bg-background" data-testid={`${testId}-logic-value-${index}`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="true">true</SelectItem>
+          <SelectItem value="false">false</SelectItem>
+        </SelectContent>
+      </Select>
+    )
+  }
+  if (valueType === 'date') {
+    return (
+      <Input
+        type="date"
+        value={stripQuotes(rhs).slice(0, 10)}
+        onChange={e => {
+          const raw = String(e.target.value || '').trim()
+          onChangeExpr(buildConditionExpression(lhs, activeOpId, raw ? quoteSingle(raw) : ''))
+        }}
+        className="gba:h-8 gba:text-xs gba:bg-background"
+        data-testid={`${testId}-logic-value-${index}`}
+      />
+    )
+  }
+  if (valueType === 'datetime') {
+    const rawDt = stripQuotes(rhs)
+    const noZ = rawDt.endsWith('Z') ? rawDt.slice(0, -1) : rawDt
+    const dtSliced = noZ.length >= 16 ? noZ.slice(0, 16) : noZ
+    const dtValue = rawDt ? dtSliced : ''
+    return (
+      <Input
+        type="datetime-local"
+        value={dtValue}
+        onChange={e => {
+          const raw = String(e.target.value || '').trim()
+          onChangeExpr(buildConditionExpression(lhs, activeOpId, raw ? quoteSingle(raw) : ''))
+        }}
+        className="gba:h-8 gba:text-xs gba:bg-background"
+        data-testid={`${testId}-logic-value-${index}`}
+      />
+    )
+  }
+  const enumOptions = valueType === 'string' ? stringEnumOptionsByExpression?.[String(lhs || '').trim()] : undefined
+  if (Array.isArray(enumOptions) && enumOptions.length > 0) {
+    const NONE = '__none__'
+    const raw = stripQuotes(rhs)
+    const value = raw || NONE
+    const options = raw && !enumOptions.includes(raw) ? [raw, ...enumOptions] : enumOptions
+    return (
+      <Select
+        value={value}
+        onValueChange={v => onChangeExpr(buildConditionExpression(lhs, activeOpId, v === NONE ? '' : quoteSingle(v)))}
+      >
+        <SelectTrigger className="gba:h-8 gba:text-xs gba:bg-background" data-testid={`${testId}-logic-value-${index}`}>
+          <SelectValue placeholder={valuePlaceholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NONE}>—</SelectItem>
+          {options.map(opt => (
+            <SelectItem key={opt} value={opt}>
+              {opt}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+  return (
+    <Input
+      value={rhs}
+      onChange={e => onChangeExpr(buildConditionExpression(lhs, activeOpId, e.target.value))}
+      placeholder={valueType === 'number' ? 'e.g. 1000' : valuePlaceholder}
+      className="gba:h-8 gba:text-xs gba:bg-background"
+      data-testid={`${testId}-logic-value-${index}`}
+    />
+  )
+}
+
 type LogicDecisionConfigProps = {
   config: DecisionNodeConfig
   update: (partial: Partial<DecisionNodeConfig>) => void
@@ -2032,20 +2183,6 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
     () => expressionSuggestions.filter(s => s.source === 'steps' || s.source === 'trigger'),
     [expressionSuggestions]
   )
-
-  type OperatorId =
-    | 'eq'
-    | 'neq'
-    | 'gt'
-    | 'gte'
-    | 'lt'
-    | 'lte'
-    | 'contains'
-    | 'not_contains'
-    | 'starts_with'
-    | 'ends_with'
-
-  type ValueType = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'unknown'
 
   const OPERATORS_BY_TYPE: Record<ValueType, Array<{ id: OperatorId; label: string }>> = useMemo(
     () => ({
@@ -2165,23 +2302,6 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
     },
     [symbolToOpId]
   )
-
-  const stripQuotes = useCallback((v: string): string => {
-    const s = String(v ?? '').trim()
-    if (
-      (s.startsWith("'") && s.endsWith("'") && s.length >= 2) ||
-      (s.startsWith('"') && s.endsWith('"') && s.length >= 2)
-    ) {
-      return s.slice(1, -1)
-    }
-    return s
-  }, [])
-
-  const quoteSingle = useCallback((v: string): string => {
-    const s = String(v ?? '').trim()
-    if (!s) return ''
-    return `'${s.split("'").join(String.raw`\'`)}'`
-  }, [])
 
   const buildConditionExpression = useCallback(
     (lhs: string, opId: OperatorId, rhs: string): string => {
@@ -2333,123 +2453,22 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
                     <Label className="gba:text-[10px] gba:font-medium gba:text-muted-foreground">
                       {t('logic-value-label')}
                     </Label>
-                    {(() => {
-                      if (valueType === 'boolean') {
-                        return (
-                          <Select
-                            value={parsed.rhs || 'true'}
-                            onValueChange={v => {
-                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, v)
-                              const updated = [...conditions]
-                              updated[index] = { ...updated[index], expression: nextExpr }
-                              update({ logicConfig: { conditions: updated } })
-                            }}
-                          >
-                            <SelectTrigger
-                              className="gba:h-8 gba:text-xs gba:bg-background"
-                              data-testid={`${testId}-logic-value-${index}`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">true</SelectItem>
-                              <SelectItem value="false">false</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )
-                      }
-                      if (valueType === 'date') {
-                        return (
-                          <Input
-                            type="date"
-                            value={stripQuotes(parsed.rhs).slice(0, 10)}
-                            onChange={e => {
-                              const raw = String(e.target.value || '').trim()
-                              const rhs = raw ? quoteSingle(raw) : ''
-                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
-                              const updated = [...conditions]
-                              updated[index] = { ...updated[index], expression: nextExpr }
-                              update({ logicConfig: { conditions: updated } })
-                            }}
-                            className="gba:h-8 gba:text-xs gba:bg-background"
-                            data-testid={`${testId}-logic-value-${index}`}
-                          />
-                        )
-                      }
-                      if (valueType === 'datetime') {
-                        const rawDt = stripQuotes(parsed.rhs)
-                        const noZ = rawDt.endsWith('Z') ? rawDt.slice(0, -1) : rawDt
-                        const dtValue = rawDt ? (noZ.length >= 16 ? noZ.slice(0, 16) : noZ) : ''
-                        return (
-                          <Input
-                            type="datetime-local"
-                            value={dtValue}
-                            onChange={e => {
-                              const raw = String(e.target.value || '').trim()
-                              const rhs = raw ? quoteSingle(raw) : ''
-                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
-                              const updated = [...conditions]
-                              updated[index] = { ...updated[index], expression: nextExpr }
-                              update({ logicConfig: { conditions: updated } })
-                            }}
-                            className="gba:h-8 gba:text-xs gba:bg-background"
-                            data-testid={`${testId}-logic-value-${index}`}
-                          />
-                        )
-                      }
-                      const enumOptions =
-                        valueType === 'string'
-                          ? stringEnumOptionsByExpression?.[String(parsed.lhs || '').trim()]
-                          : undefined
-                      if (Array.isArray(enumOptions) && enumOptions.length > 0) {
-                        const NONE = '__none__'
-                        const raw = stripQuotes(parsed.rhs)
-                        const value = raw || NONE
-                        const options = raw && !enumOptions.includes(raw) ? [raw, ...enumOptions] : enumOptions
-                        return (
-                          <Select
-                            value={value}
-                            onValueChange={v => {
-                              const rhs = v === NONE ? '' : quoteSingle(v)
-                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
-                              const updated = [...conditions]
-                              updated[index] = { ...updated[index], expression: nextExpr }
-                              update({ logicConfig: { conditions: updated } })
-                            }}
-                          >
-                            <SelectTrigger
-                              className="gba:h-8 gba:text-xs gba:bg-background"
-                              data-testid={`${testId}-logic-value-${index}`}
-                            >
-                              <SelectValue placeholder={t('logic-value-placeholder')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={NONE}>—</SelectItem>
-                              {options.map(opt => (
-                                <SelectItem key={opt} value={opt}>
-                                  {opt}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )
-                      }
-                      const inputPlaceholder = valueType === 'number' ? 'e.g. 1000' : t('logic-value-placeholder')
-                      return (
-                        <Input
-                          value={parsed.rhs}
-                          onChange={e => {
-                            const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, e.target.value)
-                            const updated = [...conditions]
-                            updated[index] = { ...updated[index], expression: nextExpr }
-                            update({ logicConfig: { conditions: updated } })
-                          }}
-                          placeholder={inputPlaceholder}
-                          className="gba:h-8 gba:text-xs gba:bg-background"
-                          data-testid={`${testId}-logic-value-${index}`}
-                        />
-                      )
-                    })()}
+                    <LogicValueInput
+                      valueType={valueType}
+                      rhs={parsed.rhs}
+                      lhs={parsed.lhs}
+                      activeOpId={activeOpId}
+                      testId={testId}
+                      index={index}
+                      stringEnumOptionsByExpression={stringEnumOptionsByExpression}
+                      valuePlaceholder={t('logic-value-placeholder')}
+                      buildConditionExpression={buildConditionExpression}
+                      onChangeExpr={nextExpr => {
+                        const updated = [...conditions]
+                        updated[index] = { ...updated[index], expression: nextExpr }
+                        update({ logicConfig: { conditions: updated } })
+                      }}
+                    />
                   </div>
                 </div>
 

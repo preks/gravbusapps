@@ -73,10 +73,9 @@ const formatDateTime = (dateString: string): string => {
 }
 
 // Helper function to calculate running time from start time (for incomplete workflows)
-const calculateRunningTimeFromStart = (startTime: string): number => {
+const calculateRunningTimeFromStart = (startTime: string, nowMs: number): number => {
   const start = new Date(startTime)
-  const now = new Date()
-  return Math.round((now.getTime() - start.getTime()) / (1000 * 60))
+  return Math.round((nowMs - start.getTime()) / (1000 * 60))
 }
 
 // Helper function to format running time with minutes resolution
@@ -214,7 +213,7 @@ const getAssignmentDisplayText = (step: FlowStep): string => {
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ flowData, flowSteps }) => {
   // State to force re-render and update running time for incomplete workflows
-  const [, setCurrentTime] = useState(Date.now())
+  const [currentTime, setCurrentTime] = useState(Date.now())
 
   // Update the time every minute for running workflows
   useEffect(() => {
@@ -286,7 +285,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ flowData, flowSteps })
               <span className="gba:text-sm gba:font-medium">
                 {formatRunningTime(
                   flowData.timeInsights.minutesRunning ??
-                    calculateRunningTimeFromStart(flowData.timeInsights.workflowStartTime)
+                    calculateRunningTimeFromStart(flowData.timeInsights.workflowStartTime, currentTime)
                 )}
               </span>
             </div>

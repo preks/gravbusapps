@@ -69,6 +69,18 @@ function getLinearNext(steps: FlowTemplateStepForGraph[], idx: number, branchSta
   return fallback
 }
 
+function computeNextFallback(
+  steps: FlowTemplateStepForGraph[],
+  cur: number,
+  branchStartSet: Set<number>
+): number | null {
+  const nextIdx = cur + 1
+  if (nextIdx >= steps.length) return null
+  if (branchStartSet.has(nextIdx)) return null
+  if (isGateway(steps[nextIdx])) return null
+  return nextIdx
+}
+
 function findBranchTerminals(
   steps: FlowTemplateStepForGraph[],
   gwStep: FlowTemplateStepForGraph,
@@ -82,8 +94,7 @@ function findBranchTerminals(
       seen.add(cur)
       const s = steps[cur]
       if (!s) break
-      const nextFallback =
-        cur + 1 < steps.length && !branchStartSet.has(cur + 1) && !isGateway(steps[cur + 1]) ? cur + 1 : null
+      const nextFallback = computeNextFallback(steps, cur, branchStartSet)
       const next = s.nextStep ?? nextFallback
       if (next === null || next >= steps.length) {
         terminal.add(cur)
@@ -109,6 +120,66 @@ function getTerminalStepIndices(steps: FlowTemplateStepForGraph[], branchStartSe
   return terminal
 }
 
+function addGatewayStep(
+  i: number,
+  step: FlowTemplateStepForGraph,
+  steps: FlowTemplateStepForGraph[],
+  nodes: FlowGraphNode[],
+  edges: FlowGraphEdge[]
+): void {
+  nodes.push({
+    id: `${STEP_PREFIX}${i}`,
+    type: 'decision',
+    label: step.title || 'Branch',
+    metadata: { decisionMode: 'LOGIC', branchCount: getBranchStarts(step).length }
+  })
+  for (const startIdx of getBranchStarts(step)) {
+    if (startIdx < 0 || startIdx >= steps.length) continue
+    const branch = step.branches?.find(b => b.nextStep === startIdx)
+    const label = branch?.condition ?? `Step ${startIdx + 1}`
+    edges.push({
+      id: `e-branch-${i}-${startIdx}`,
+      source: `${STEP_PREFIX}${i}`,
+      target: `${STEP_PREFIX}${startIdx}`,
+      label,
+      direction: 'forward',
+      metadata: { condition: label }
+    })
+  }
+}
+
+function addTaskStep(
+  i: number,
+  step: FlowTemplateStepForGraph,
+  steps: FlowTemplateStepForGraph[],
+  branchStartSet: Set<number>,
+  nodes: FlowGraphNode[],
+  edges: FlowGraphEdge[]
+): void {
+  const systemTypes = ['FUNCTION', 'AI_AGENT', 'AI_TASK_EXPERT']
+  nodes.push({
+    id: `${STEP_PREFIX}${i}`,
+    type: 'task',
+    label: step.title || `Step ${i + 1}`,
+    metadata: {
+      taskVariant: getTaskVariant(step.type),
+      description: step.message,
+      assignmentMode: step.assignment?.assignmentMode,
+      isSystem: systemTypes.includes(step.type),
+      stepNumber: i + 1
+    }
+  })
+  const next = getLinearNext(steps, i, branchStartSet)
+  if (next !== null) {
+    edges.push({
+      id: `e-${i}-${next}`,
+      source: `${STEP_PREFIX}${i}`,
+      target: `${STEP_PREFIX}${next}`,
+      direction: 'forward'
+    })
+  }
+}
+
 export function templateToFlowGraphDefinition(template: FlowTemplateForGraph): FlowGraphDefinition {
   const steps = template.steps ?? []
   const summaryFieldsCount = template.summaryFieldsCount ?? 0
@@ -129,75 +200,23 @@ export function templateToFlowGraphDefinition(template: FlowTemplateForGraph): F
       id: START_NODE_ID,
       type: 'start',
       label: 'Start',
-      metadata: {
-        triggerType: (firstTrigger?.type ?? 'MANUAL_FORM') as TriggerType
-      }
+      metadata: { triggerType: (firstTrigger?.type ?? 'MANUAL_FORM') as TriggerType }
     })
-    edges.push({
-      id: 'e-start-0',
-      source: START_NODE_ID,
-      target: `${STEP_PREFIX}0`,
-      direction: 'forward'
-    })
+    edges.push({ id: 'e-start-0', source: START_NODE_ID, target: `${STEP_PREFIX}0`, direction: 'forward' })
   }
 
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]
     if (isGateway(step)) {
-      const branchCount = getBranchStarts(step).length
-      nodes.push({
-        id: `${STEP_PREFIX}${i}`,
-        type: 'decision',
-        label: step.title || 'Branch',
-        metadata: { decisionMode: 'LOGIC', branchCount }
-      })
-      for (const startIdx of getBranchStarts(step)) {
-        if (startIdx < 0 || startIdx >= steps.length) continue
-        const branch = step.branches?.find(b => b.nextStep === startIdx)
-        const label = branch?.condition ?? `Step ${startIdx + 1}`
-        edges.push({
-          id: `e-branch-${i}-${startIdx}`,
-          source: `${STEP_PREFIX}${i}`,
-          target: `${STEP_PREFIX}${startIdx}`,
-          label,
-          direction: 'forward',
-          metadata: { condition: label }
-        })
-      }
+      addGatewayStep(i, step, steps, nodes, edges)
     } else {
-      const isSystem = step.type === 'FUNCTION' || step.type === 'AI_AGENT' || step.type === 'AI_TASK_EXPERT'
-      nodes.push({
-        id: `${STEP_PREFIX}${i}`,
-        type: 'task',
-        label: step.title || `Step ${i + 1}`,
-        metadata: {
-          taskVariant: getTaskVariant(step.type),
-          description: step.message,
-          assignmentMode: step.assignment?.assignmentMode,
-          isSystem,
-          stepNumber: i + 1
-        }
-      })
-      const next = getLinearNext(steps, i, branchStartSet)
-      if (next !== null) {
-        edges.push({
-          id: `e-${i}-${next}`,
-          source: `${STEP_PREFIX}${i}`,
-          target: `${STEP_PREFIX}${next}`,
-          direction: 'forward'
-        })
-      }
+      addTaskStep(i, step, steps, branchStartSet, nodes, edges)
     }
   }
 
   const terminalIndices = getTerminalStepIndices(steps, branchStartSet)
   if (terminalIndices.size > 0) {
-    nodes.push({
-      id: END_NODE_ID,
-      type: 'end',
-      label: 'Workflow Summary',
-      metadata: { summaryFieldsCount }
-    })
+    nodes.push({ id: END_NODE_ID, type: 'end', label: 'Workflow Summary', metadata: { summaryFieldsCount } })
     for (const termIdx of terminalIndices) {
       edges.push({
         id: `e-term-${termIdx}-end`,

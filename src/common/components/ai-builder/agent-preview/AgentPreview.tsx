@@ -134,6 +134,80 @@ const AGENT_TYPE_LABELS: Record<string, string> = {
   general: 'General Agent'
 }
 
+function useAgentPromptLoader(
+  client: ReturnType<typeof usePromptManagerClient>,
+  promptProp: PromptODM | null | undefined,
+  paramKeysProp: string[] | undefined,
+  agentId: string | undefined,
+  accessToken: string,
+  setPrompt: (p: PromptODM | null) => void,
+  setParamKeys: (k: string[]) => void,
+  setLoading: (v: boolean) => void,
+  setError: (e: string | null) => void
+): void {
+  useEffect(() => {
+    if (promptProp != null) {
+      setPrompt(promptProp)
+      setParamKeys(paramKeysProp ?? [])
+      setLoading(false)
+      setError(null)
+      return
+    }
+    if (!agentId || !accessToken) {
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    Promise.all([
+      client.getPrompt(agentId),
+      client.getPromptParameters(agentId).catch(() => ({ system_parameters: [], user_parameters: [] }))
+    ])
+      .then(([p, params]) => {
+        if (cancelled) return
+        setPrompt(p)
+        const keys = [...(params.user_parameters || []), ...(params.system_parameters || [])].filter(Boolean)
+        setParamKeys(keys)
+      })
+      .catch(e => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load expert')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client, agentId, accessToken, promptProp, paramKeysProp, setPrompt, setParamKeys, setLoading, setError])
+}
+
+function useAgentModelLoader(
+  client: ReturnType<typeof usePromptManagerClient>,
+  needsModelSelection: boolean,
+  accessToken: string,
+  setAvailableModels: (m: AIModelODM[]) => void,
+  setSelectedModelId: (id: string) => void
+): void {
+  useEffect(() => {
+    if (!needsModelSelection || !accessToken) return
+    client
+      .getAiModels({ limit: 50 })
+      .then(page => {
+        const models = page.data ?? []
+        setAvailableModels(models)
+        if (models.length > 0 && models[0]._id) setSelectedModelId(models[0]._id)
+      })
+      .catch(() => {})
+  }, [client, needsModelSelection, accessToken, setAvailableModels, setSelectedModelId])
+}
+
+function extractResponseContent(content: unknown): string {
+  if (content == null) return ''
+  if (typeof content === 'string') return content
+  return JSON.stringify(content)
+}
+
 export const AgentPreview: React.FC<AgentPreviewProps> = ({
   accessToken,
   items,
@@ -200,57 +274,21 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
   const [selectedModelId, setSelectedModelId] = useState<string>('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (promptProp != null) {
-      setPrompt(promptProp)
-      setParamKeys(paramKeysProp ?? [])
-      setLoading(false)
-      setError(null)
-      return
-    }
-    if (!agentId || !accessToken) {
-      setLoading(false)
-      return
-    }
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    Promise.all([
-      client.getPrompt(agentId),
-      client.getPromptParameters(agentId).catch(() => ({ system_parameters: [], user_parameters: [] }))
-    ])
-      .then(([p, params]) => {
-        if (cancelled) return
-        setPrompt(p)
-        const keys = [...(params.user_parameters || []), ...(params.system_parameters || [])].filter(Boolean)
-        setParamKeys(keys)
-      })
-      .catch(e => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load expert')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [client, agentId, accessToken, promptProp, paramKeysProp])
+  useAgentPromptLoader(
+    client,
+    promptProp,
+    paramKeysProp,
+    agentId,
+    accessToken,
+    setPrompt,
+    setParamKeys,
+    setLoading,
+    setError
+  )
 
   const needsModelSelection = !!promptProp && !agentId && !promptProp.model.id
 
-  useEffect(() => {
-    if (!needsModelSelection || !accessToken) return
-    client
-      .getAiModels({ limit: 50 })
-      .then(page => {
-        const models = page.data ?? []
-        setAvailableModels(models)
-        if (models.length > 0 && models[0]._id) {
-          setSelectedModelId(models[0]._id)
-        }
-      })
-      .catch(() => {})
-  }, [client, needsModelSelection, accessToken])
+  useAgentModelLoader(client, needsModelSelection, accessToken, setAvailableModels, setSelectedModelId)
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -287,8 +325,7 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
 
     try {
       const res = promptProp && !agentId ? await client.executePrompt(fd) : await client.executePromptById(agentId!, fd)
-      const fallbackContent = res.content == null ? '' : JSON.stringify(res.content)
-      const content = typeof res.content === 'string' ? res.content : fallbackContent
+      const content = extractResponseContent(res.content)
       setMessages(prev => [...prev, { role: 'assistant', content: content || '(No response)' }])
     } catch (e) {
       setSendError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')

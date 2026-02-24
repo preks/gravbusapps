@@ -71,11 +71,13 @@ export const FlowList: React.FC<FlowListProps> = ({
     if (minutesDuration < 1440) {
       const hours = Math.floor(minutesDuration / 60)
       const remainingMinutes = Math.round(minutesDuration % 60)
-      return remainingMinutes === 0 ? `${hours} hour${hours === 1 ? '' : 's'}` : `${hours}h ${remainingMinutes}m`
+      if (remainingMinutes === 0) return `${hours} hour${hours === 1 ? '' : 's'}`
+      return `${hours}h ${remainingMinutes}m`
     }
     const days = Math.floor(minutesDuration / 1440)
     const remainingHours = Math.floor((minutesDuration % 1440) / 60)
-    return remainingHours === 0 ? `${days} day${days === 1 ? '' : 's'}` : `${days}d ${remainingHours}h`
+    if (remainingHours === 0) return `${days} day${days === 1 ? '' : 's'}`
+    return `${days}d ${remainingHours}h`
   }
 
   const formatFlowDuration = (flow: any): { label: string; duration: string } => {
@@ -136,11 +138,8 @@ export const FlowList: React.FC<FlowListProps> = ({
           if (flowsLoading)
             return (
               <div className="gba:space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div
-                    key={`skeleton-${i}`}
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg"
-                  >
+                {(['sk-a', 'sk-b', 'sk-c', 'sk-d', 'sk-e'] as const).map(skKey => (
+                  <div key={skKey} className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg">
                     <div className="gba:w-10 gba:h-10 gba:bg-gray-200 gba:rounded gba:animate-pulse" />
                     <div className="gba:flex-1 gba:space-y-2">
                       <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:animate-pulse gba:w-2/3" />
@@ -174,28 +173,19 @@ export const FlowList: React.FC<FlowListProps> = ({
           return (
             <div className="gba:space-y-3">
               {flows.map((flow, index) => {
-                const badgeVariant =
-                  flow.status === 'COMPLETED'
-                    ? 'success'
-                    : flow.status === 'RUNNING'
-                      ? 'info'
-                      : flow.status === 'TIMED_OUT'
-                        ? 'warning'
-                        : flow.status === 'FAILED'
-                          ? 'destructive'
-                          : 'outline'
+                let badgeVariant: 'success' | 'info' | 'warning' | 'destructive' | 'outline' = 'outline'
+                if (flow.status === 'COMPLETED') badgeVariant = 'success'
+                else if (flow.status === 'RUNNING') badgeVariant = 'info'
+                else if (flow.status === 'TIMED_OUT') badgeVariant = 'warning'
+                else if (flow.status === 'FAILED') badgeVariant = 'destructive'
                 const badgeLabel = flow.status === 'TIMED_OUT' ? 'TIMED OUT' : flow.status
                 return (
-                  <div
+                  <button
                     key={flow.flowId}
-                    role="button"
-                    tabIndex={0}
-                    className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-gray-200 gba:rounded-xl gba:hover:bg-gray-50 gba:hover:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:bg-white"
+                    type="button"
+                    className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-gray-200 gba:rounded-xl gba:hover:bg-gray-50 gba:hover:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:bg-white gba:w-full gba:text-left"
                     data-testid={`${prefixDataTestId}-flow-${index}`}
                     onClick={() => onFlowSelect?.(flow.flowId)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') onFlowSelect?.(flow.flowId)
-                    }}
                   >
                     <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:bg-gradient-to-br gba:from-blue-50 gba:to-blue-100 gba:rounded-lg gba:flex-shrink-0 gba:shadow-sm">
                       <Workflow className="gba:h-6 gba:w-6 gba:text-blue-600" />
@@ -253,7 +243,7 @@ export const FlowList: React.FC<FlowListProps> = ({
                     <div className="gba:flex gba:items-center">
                       <ArrowRight className="gba:h-4 gba:w-4 gba:text-gray-400" />
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>

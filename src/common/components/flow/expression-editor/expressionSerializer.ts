@@ -58,7 +58,6 @@ export function expressionToEditorJSON(value: string): Record<string, unknown> {
 
     const closeIdx = value.indexOf('}}', openIdx + 2)
     if (closeIdx === -1) {
-      searchFrom = value.length
       break
     }
 
