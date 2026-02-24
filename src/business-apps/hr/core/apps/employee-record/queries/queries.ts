@@ -67,6 +67,7 @@ export const GET_ABSENCE_DAILY_FACTS = `
       }
     ) {
       dayDate
+      signedDayFraction
       dayFraction
       status
       typeRef

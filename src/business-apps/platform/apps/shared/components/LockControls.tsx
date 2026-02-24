@@ -7,6 +7,7 @@
 import React, { useState } from 'react'
 import {
   Button,
+  useTranslation,
   Badge,
   Dialog,
   DialogContent,
@@ -17,9 +18,32 @@ import {
   Label,
   Alert
 } from '@newwork/nw-design-system'
+
 import { Lock, Unlock, AlertCircle, User, Clock } from 'lucide-react'
+import sharedTranslations from '../_i18n'
 import type { FileLock } from '../types/versioning'
 import { formatDistanceToNow } from 'date-fns'
+
+export interface LockControlsMessages {
+  fileLocked?: string
+  lockedBy?: string
+  forceUnlock?: string
+  lockedByYou?: string
+  unlockFile?: string
+  lockFile?: string
+  lockFileTitle?: string
+  lockDialogTitle?: string
+  reasonOptional?: string
+  reasonPlaceholder?: string
+  durationLabel?: string
+  durationHint?: string
+  lockInfo?: string
+  cancel?: string
+  lock?: string
+  locking?: string
+  confirmUnlock?: string
+  confirmForceUnlock?: string
+}
 
 export interface LockControlsProps {
   lock: FileLock | null
@@ -30,6 +54,7 @@ export interface LockControlsProps {
   onUnlock: () => Promise<void>
   onForceUnlock?: () => Promise<void>
   canForceUnlock?: boolean
+  messages?: LockControlsMessages
   'data-testid'?: string
 }
 
@@ -45,8 +70,31 @@ export const LockControls: React.FC<LockControlsProps> = ({
   onUnlock,
   onForceUnlock,
   canForceUnlock = false,
+  messages: messagesProp,
   'data-testid': testId = 'lock-controls'
 }) => {
+  const { t } = useTranslation(sharedTranslations)
+  const defaultLockMessages = {
+    fileLocked: t('lock-file-locked'),
+    lockedBy: t('lock-locked-by'),
+    forceUnlock: t('lock-force-unlock'),
+    lockedByYou: t('lock-locked-by-you'),
+    unlockFile: t('lock-unlock-file'),
+    lockFile: t('lock-lock-file'),
+    lockFileTitle: t('lock-file-title'),
+    lockDialogTitle: t('lock-dialog-title'),
+    reasonOptional: t('lock-reason-optional'),
+    reasonPlaceholder: t('lock-reason-placeholder'),
+    durationLabel: t('lock-duration-label'),
+    durationHint: t('lock-duration-hint'),
+    lockInfo: t('lock-info'),
+    cancel: t('lock-cancel'),
+    lock: t('lock-confirm-button'),
+    locking: t('lock-locking'),
+    confirmUnlock: t('lock-confirm-unlock'),
+    confirmForceUnlock: t('lock-confirm-force-unlock')
+  }
+  const messages = { ...defaultLockMessages, ...messagesProp }
   const [showLockDialog, setShowLockDialog] = useState(false)
   const [lockReason, setLockReason] = useState('')
   const [lockDuration, setLockDuration] = useState('240') // 4 hours default
@@ -58,17 +106,13 @@ export const LockControls: React.FC<LockControlsProps> = ({
   }
 
   const handleUnlock = async () => {
-    if (window.confirm('Are you sure you want to unlock this file?')) {
+    if (window.confirm(messages.confirmUnlock)) {
       await onUnlock()
     }
   }
 
   const handleForceUnlock = async () => {
-    if (
-      window.confirm(
-        'Are you sure you want to force unlock this file? This will remove the lock acquired by another user.'
-      )
-    ) {
+    if (window.confirm(messages.confirmForceUnlock)) {
       await onForceUnlock?.()
     }
   }
@@ -81,12 +125,12 @@ export const LockControls: React.FC<LockControlsProps> = ({
           <div className="gba:flex gba:items-start gba:gap-2">
             <Lock className="gba:h-4 gba:w-4 gba:mt-0.5" />
             <div className="gba:space-y-1">
-              <p className="gba:font-medium">File is locked</p>
+              <p className="gba:font-medium">{messages.fileLocked}</p>
               <div className="gba:text-sm gba:space-y-0.5">
                 {lock.lockedByName && (
                   <p className="gba:flex gba:items-center gba:gap-1">
                     <User className="gba:h-3 gba:w-3" />
-                    Locked by {lock.lockedByName}
+                    {messages.lockedBy} {lock.lockedByName}
                   </p>
                 )}
                 {lock.lockedAt && (
@@ -113,7 +157,7 @@ export const LockControls: React.FC<LockControlsProps> = ({
               disabled={isUnlocking}
               data-testid="force-unlock-button"
             >
-              Force Unlock
+              {messages.forceUnlock}
             </Button>
           )}
         </div>
@@ -128,7 +172,7 @@ export const LockControls: React.FC<LockControlsProps> = ({
         <>
           <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
             <Lock className="gba:h-3 gba:w-3" />
-            Locked by you
+            {messages.lockedByYou}
           </Badge>
           <Button
             variant="outline"
@@ -136,7 +180,7 @@ export const LockControls: React.FC<LockControlsProps> = ({
             onClick={handleUnlock}
             disabled={isUnlocking}
             data-testid="unlock-button"
-            title="Unlock file"
+            title={messages.unlockFile}
           >
             <Unlock className="gba:h-4 gba:w-4" />
           </Button>
@@ -148,10 +192,10 @@ export const LockControls: React.FC<LockControlsProps> = ({
           onClick={() => setShowLockDialog(true)}
           disabled={isLocking}
           data-testid="lock-button"
-          title="Lock file to prevent others from editing"
+          title={messages.lockFileTitle}
         >
           <Lock className="gba:h-4 gba:w-4" />
-          Lock
+          {messages.lockFile}
         </Button>
       )}
 
@@ -161,16 +205,16 @@ export const LockControls: React.FC<LockControlsProps> = ({
           <DialogHeader>
             <DialogTitle className="gba:flex gba:items-center gba:gap-2">
               <Lock className="gba:h-5 gba:w-5" />
-              Lock File
+              {messages.lockDialogTitle}
             </DialogTitle>
           </DialogHeader>
 
           <div className="gba:space-y-4 gba:py-4">
             <div className="gba:space-y-2">
-              <Label htmlFor="lock-reason">Reason (Optional)</Label>
+              <Label htmlFor="lock-reason">{messages.reasonOptional}</Label>
               <Input
                 id="lock-reason"
-                placeholder="e.g., Working on major changes"
+                placeholder={messages.reasonPlaceholder}
                 value={lockReason}
                 onChange={e => setLockReason(e.target.value)}
                 data-testid="lock-reason-input"
@@ -178,7 +222,7 @@ export const LockControls: React.FC<LockControlsProps> = ({
             </div>
 
             <div className="gba:space-y-2">
-              <Label htmlFor="lock-duration">Lock Duration (minutes)</Label>
+              <Label htmlFor="lock-duration">{messages.durationLabel}</Label>
               <Input
                 id="lock-duration"
                 type="number"
@@ -188,16 +232,12 @@ export const LockControls: React.FC<LockControlsProps> = ({
                 onChange={e => setLockDuration(e.target.value)}
                 data-testid="lock-duration-input"
               />
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Lock will automatically expire after this duration (default: 240 minutes / 4 hours)
-              </p>
+              <p className="gba:text-sm gba:text-muted-foreground">{messages.durationHint}</p>
             </div>
 
             <Alert variant="info">
               <AlertCircle className="gba:h-4 gba:w-4" />
-              <p className="gba:text-sm">
-                While locked, other users will only be able to view the file. Collaboration features will be disabled.
-              </p>
+              <p className="gba:text-sm">{messages.lockInfo}</p>
             </Alert>
           </div>
 
@@ -208,10 +248,10 @@ export const LockControls: React.FC<LockControlsProps> = ({
               disabled={isLocking}
               data-testid="lock-cancel-button"
             >
-              Cancel
+              {messages.cancel}
             </Button>
             <Button onClick={handleLock} disabled={isLocking} data-testid="lock-confirm-button">
-              {isLocking ? 'Locking...' : 'Lock File'}
+              {isLocking ? messages.locking : messages.lock}
             </Button>
           </DialogFooter>
         </DialogContent>

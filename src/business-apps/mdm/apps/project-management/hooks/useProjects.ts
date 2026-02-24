@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { Project, ProjectData, ProjectStatusBE, ProjectStatusUI, ProjectTypeBE } from '../types'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 // Default pagination values
 const DEFAULT_PAGE_SIZE = 10
@@ -29,7 +31,11 @@ interface ActiveStructureResponse {
 
 // GraphQL query builder for projects with pagination
 // Uses variables for all user inputs to prevent injection
-export const buildProjectsQuery = (hasSearch: boolean, onlyActiveProjects: boolean): string => {
+export const buildProjectsQuery = (
+  hasSearch: boolean,
+  onlyActiveProjects: boolean,
+  includeCustomerId: boolean = true
+): string => {
   const searchCondition = hasSearch
     ? `_or: [
         { name: { _ilike: $search } }
@@ -66,7 +72,7 @@ export const buildProjectsQuery = (hasSearch: boolean, onlyActiveProjects: boole
         hoursBudget
         projectType
         status
-        customerId
+        ${includeCustomerId ? 'customerId' : ''}
         projectManagerId
         matrixUnitId
         validFrom
@@ -309,6 +315,7 @@ export const useProjects = (
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE)
 
   const graphqlClient = useGraphqlClient(context.accessToken)
+  const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
 
   // Fetch structure ID only if not already cached
   const fetchStructureId = useCallback(async (): Promise<string> => {
@@ -336,7 +343,7 @@ export const useProjects = (
         // Get structure ID (cached or fetched)
         const activeStructureId = await fetchStructureId()
 
-        const query = buildProjectsQuery(Boolean(search), onlyActiveProjects)
+        const query = buildProjectsQuery(Boolean(search), onlyActiveProjects, customerRelationsEnabled)
         const variables = buildProjectsQueryVariables(activeStructureId, limit, offset, search, onlyActiveProjects)
         const result = await graphqlClient.request<ProjectsGraphQLResponse>(query, variables)
 
@@ -377,7 +384,7 @@ export const useProjects = (
         throw new Error('Failed to fetch projects')
       }
     },
-    [graphqlClient, fetchStructureId, locale]
+    [graphqlClient, fetchStructureId, locale, customerRelationsEnabled, onlyActiveProjects]
   )
 
   // Fetch accounts using GraphQL
@@ -463,8 +470,8 @@ export const useProjects = (
         // Calculate offset based on current page and page size
         const offset = (currentPage - 1) * pageSize
 
-        // Step 1: Fetch projects (always) and accounts (only if not already fetched)
-        const shouldFetchAccounts = !accountsFetched.current || accounts.length === 0
+        // Step 1: Fetch projects (always) and accounts (only if CRM is enabled and not already fetched)
+        const shouldFetchAccounts = customerRelationsEnabled && (!accountsFetched.current || accounts.length === 0)
 
         const [projectsResult, accountsResult] = await Promise.all([
           fetchProjects(pageSize, offset, search),
@@ -528,7 +535,16 @@ export const useProjects = (
         setIsLoading(false)
       }
     },
-    [fetchProjects, fetchAccounts, fetchEmployeesByIds, fetchMatrixMemberCounts, currentPage, pageSize, accounts]
+    [
+      fetchProjects,
+      fetchAccounts,
+      fetchEmployeesByIds,
+      fetchMatrixMemberCounts,
+      currentPage,
+      pageSize,
+      accounts,
+      customerRelationsEnabled
+    ]
   )
 
   // Search projects - triggers BE query

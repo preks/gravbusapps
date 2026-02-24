@@ -14,7 +14,8 @@ import type {
   ComponentTileInfo,
   TileState,
   ExecuteRequest,
-  BuildPhase
+  BuildPhase,
+  BuildStatus
 } from '../types'
 
 export interface UseBuildProgressOptions {
@@ -27,7 +28,7 @@ export interface UseBuildProgressOptions {
   onComponentUpdate?: (
     componentId: string,
     updates: Partial<{
-      status: string
+      status: BuildStatus
       resourceUrl: string
       azureUrl: string
       publishedFileCount: number

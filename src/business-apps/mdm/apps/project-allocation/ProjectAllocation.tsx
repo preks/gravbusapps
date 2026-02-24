@@ -59,6 +59,8 @@ import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { showProjectManager } from '../project-setup/ProjectSetup'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import translations from './_i18n'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 export interface ProjectAllocationProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -331,6 +333,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
+  const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
   const { projects, accounts, isLoading, error, refetch, structureId } = useProjects(context, true, dateLocale)
   const { teams, refetch: refretchTeams } = useTeams(context)
   const { getTeamEmployees, removeEmployeeFromTeam } = useTeamAssignments(context.accessToken)
@@ -388,9 +391,11 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         (project.description && project.description.toLowerCase().includes(searchLower)) ||
         (project.status && project.status.toLowerCase().includes(searchLower)) ||
         (project.projectType && project.projectType.toLowerCase().includes(searchLower)) ||
-        (accounts.find(acc => acc.id === project.customerId)?.name || '').toLowerCase().includes(searchLower)
+        (customerRelationsEnabled
+          ? (accounts.find(acc => acc.id === project.customerId)?.name || '').toLowerCase().includes(searchLower)
+          : false)
     )
-  }, [projects, searchTerm, accounts])
+  }, [projects, searchTerm, accounts, customerRelationsEnabled])
 
   useEffect(() => {
     if (selectedProject) {
@@ -734,7 +739,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
 
   const drawerItems = useMemo(() => {
     if (!selectedProject) return []
-    const account = accounts.find(account => account.id === selectedProject.customerId)
+    const account = customerRelationsEnabled
+      ? accounts.find(account => account.id === selectedProject.customerId)
+      : undefined
     const items: VerticalTableProps[] = [
       {
         icon: <InfoIcon />,
@@ -749,7 +756,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
       }
     ]
 
-    if (account) {
+    if (customerRelationsEnabled && account) {
       items[0].items.push({
         label: getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.label.account', 'Account'),
         value: account.name
@@ -795,7 +802,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     }
 
     return items
-  }, [selectedProject, accounts, t])
+  }, [selectedProject, accounts, customerRelationsEnabled, t])
 
   if (isLoading && projects.length === 0) {
     return (

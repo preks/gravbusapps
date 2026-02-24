@@ -462,7 +462,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   }, [props.search, searchText])
 
   useEffect(() => {
-    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId && isCurrencyReady) {
+    const hasAccessToken = !!contextProps.accessToken
+    const hasEmployeeId = !!contextProps.userInfo?.employeeDetails?.employeeId
+    if (hasAccessToken && hasEmployeeId && isCurrencyReady) {
       fetchItems({
         searchTerm: fetchParams.searchText,
         page: fetchParams.currentPage,
@@ -474,7 +476,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         sortOrder: fetchParams.sortOrder,
         currencyRef: fetchParams.selectedCurrencyRef
       })
-    } else {
+    } else if (!hasAccessToken || !hasEmployeeId) {
       console.warn('Cannot fetch advance payments: Missing accessToken or employeeId')
     }
   }, [
@@ -1101,6 +1103,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
       <GenerateDocumentDialog
         open={generateDocOpen}
+        accessToken={contextProps.accessToken}
         onOpenChange={open => {
           setGenerateDocOpen(open)
           if (!open) {
@@ -1120,7 +1123,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           if (!contextProps.accessToken) return
           DocumentApiService.setAccessToken(contextProps.accessToken)
           try {
-            const doc = await DocumentApiService.getDocument(documentId)
+            const doc = await DocumentApiService.getDocument(documentId, contextProps.accessToken)
             if (doc?.content != null) {
               await exportToWord(doc.title || 'Document', doc.content)
               toast.success('Document downloaded')

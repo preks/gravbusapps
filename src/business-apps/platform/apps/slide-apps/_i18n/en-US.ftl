@@ -1,0 +1,453 @@
+sidebar-back-to-desk = Back to Desk
+sidebar-expand = Expand sidebar
+sidebar-collapse = Collapse sidebar
+sidebar-brand-title = Slides
+sidebar-brand-subtitle = NEWWORK Apps
+sidebar-new = New
+sidebar-home = Home
+sidebar-my-items = My Slides
+sidebar-shared = Shared with me
+sidebar-favorites = Favorites
+sidebar-recent = Recent
+sidebar-archived = Archived
+sidebar-storage = Storage
+sidebar-storage-cloud = Cloud storage
+sidebar-storage-slides = { $count } slides
+
+menu-new-blank-title = Blank Slide
+menu-new-blank-description = Start from scratch
+menu-new-template-title = From Template
+menu-new-template-description = Choose a template
+menu-new-import-title = Import PowerPoint
+menu-new-import-description = Upload .pptx file
+
+header-sort = Sort
+header-search-placeholder = Search...
+sort-name = Name
+sort-modified = Modified
+sort-created = Created
+table-owner = Owner
+
+empty-favorites-title = No favorites yet
+empty-favorites-description = Star your frequently used slides to see them here.
+empty-shared-title = Nothing shared with you
+empty-shared-description = When someone shares a slide with you, it will appear here.
+empty-archived-title = No archived slides
+empty-archived-description = Archived slides will appear here.
+empty-default-title = No slides yet
+empty-default-description = Create your first slide to get started.
+empty-create-slide = Create Slide
+
+menu-open = Open
+menu-share = Share
+menu-manage-sharing = Manage sharing
+menu-copy-link = Copy link
+menu-duplicate = Duplicate
+menu-remove-favorite = Remove from favorites
+menu-add-favorite = Add to favorites
+menu-delete = Delete
+
+label-shared = Shared
+owner-you = You
+owner-unknown = Unknown
+title-untitled = Untitled
+title-untitled-slide = Untitled Slide
+shared-with-count = Shared with { $count } { $count ->
+  [one] person
+ *[other] people
+}
+shared-click-manage = Click to manage
+
+confirm-delete = Are you sure you want to delete this slide?
+toast-slide-duplicated = Slide duplicated
+toast-link-copied = Link copied to clipboard
+toast-favorite-removed = Removed from favorites
+toast-favorite-added = Added to favorites
+toast-imported-slides = Imported { $count } slides
+toast-import-failed = Failed to import PowerPoint
+
+# Editor
+editor-slide-saved = Slide saved
+editor-save-failed = Failed to save
+editor-added-element = Added { $type }
+editor-element-deleted = Element deleted
+editor-element-duplicated = Element duplicated
+editor-slide-added = Slide added
+editor-delete-last-slide-error = Cannot delete the last slide
+editor-delete-slide-confirm = Delete this slide?
+editor-slide-deleted = Slide deleted
+editor-title-empty = Title cannot be empty
+editor-presentation-renamed = Presentation renamed
+editor-rename-failed = Failed to rename presentation
+editor-export-pptx-success = Exported to PowerPoint
+editor-export-failed = Export failed
+
+# Relative time & formatting
+time-just-now = Just now
+time-yesterday = Yesterday
+time-days-ago = { $count } days ago
+time-minutes-ago = { $count }m ago
+time-hours-ago = { $count }h ago
+time-days-short-ago = { $count }d ago
+
+# Editor UI
+editor-back-to-slides = Back to slides
+editor-click-to-rename = Click to rename
+editor-slide-count = { $count } { $count ->
+  [one] slide
+ *[other] slides
+}
+editor-slide-of = Slide { $current } of { $total }
+editor-saving = Saving...
+editor-synced = Synced
+editor-connecting = Connecting...
+editor-zoom-out = Zoom Out
+editor-zoom-in = Zoom In
+editor-present = Present
+editor-export = Export
+editor-save-now = Save Now
+editor-export-pptx = Export as PowerPoint
+editor-export-pdf = Export as PDF
+editor-export-pdf-coming = PDF export coming soon
+editor-insert = Insert:
+editor-text = Text
+editor-shapes = Shapes
+editor-rectangle = Rectangle
+editor-rounded-rectangle = Rounded Rectangle
+editor-circle = Circle
+editor-triangle = Triangle
+editor-diamond = Diamond
+editor-star = Star
+editor-hexagon = Hexagon
+editor-arrow-right = Arrow Right
+editor-line = Line
+editor-callout = Callout
+editor-image = Image
+editor-code = Code
+editor-video = Video
+editor-design = Design:
+editor-background = Background
+editor-theme = Theme
+editor-theme-active = Active
+editor-slides-label = Slides:
+editor-add = Add
+editor-duplicate-slide = Duplicate slide
+editor-delete-slide = Delete slide
+editor-properties = Properties
+editor-select-element = Select an element to edit its properties
+editor-edit-text = Edit Text
+editor-done = Done
+editor-add-image = Add Image
+editor-upload-from-computer = Upload from computer
+editor-paste-image-url = Or paste image URL
+editor-add-button = Add
+editor-image-url-placeholder = https://example.com/image.jpg
+editor-rename-presentation = Rename Presentation
+editor-presentation-title = Presentation Title
+editor-enter-title-placeholder = Enter presentation title
+editor-cancel = Cancel
+editor-rename = Rename
+editor-add-video = Add Video
+editor-paste-video-url = Or paste video URL
+editor-video-formats = Supports MP4, WebM, and other video formats
+editor-slide-background = Slide Background
+editor-current-background = Current Background
+editor-solid-colors = Solid Colors
+editor-gradient-presets = Gradient Presets
+editor-create-custom-gradient = Create Custom Gradient
+editor-video-url-placeholder = Paste video URL (MP4)
+editor-video-background = Video Background
+editor-video-backgrounds-note = Video backgrounds loop automatically and play muted
+editor-previous = ← Previous
+editor-next = Next →
+editor-exit = Exit
+editor-new-slide = New Slide
+editor-user-fallback = User
+editor-placeholder-title = Click to add title
+editor-placeholder-subtitle = Click to add subtitle
+editor-code-placeholder = // Your code here
+
+# Collaborators
+collaborators-viewing-now = Viewing now
+collaborators-more-viewing = { $count } more { $count ->
+  [one] person
+ *[other] people
+} viewing
+
+# PowerPoint Import
+import-file-too-large = File too large. Maximum size is { $maxSize }
+toast-import-success = PowerPoint imported successfully
+toast-import-failed-generic = Import failed
+import-drop-pptx = Please drop a PowerPoint (.pptx) file
+import-importing-title = Importing PowerPoint
+import-parsing = Parsing slides and extracting content...
+import-failed-title = Import Failed
+import-try-again = Try Again
+import-success-title = Import Successful
+import-imported-count = Imported { $count } { $count ->
+  [one] slide
+ *[other] slides
+}
+import-notes = Import Notes
+import-powerpoint-title = Import PowerPoint
+import-drag-drop = Drag and drop a .pptx file here
+import-max-size = Maximum file size: { $size }
+import-choose-file = Choose File
+import-cancel = Cancel
+import-supported-features = Supported features:
+import-feature-text = Text boxes and formatting
+import-feature-images = Images and shapes
+import-feature-layouts = Slide layouts
+import-feature-transitions = Basic transitions (partial)
+
+# Share Dialog
+share-title = Share Slide
+share-description = Share "{ $title }" with others and set their access level.
+share-success-title = Slide Shared!
+share-notified-single = { $name } has been notified and can now access this slide.
+share-notified-multiple = { $count } people have been notified and can now access this slide.
+share-default-permission = Default permission for new users
+share-can-view = Can view
+share-can-comment = Can comment
+share-can-edit = Can edit
+share-add-people = Add people
+share-search-placeholder = Search for people...
+share-no-results = No people found matching "{ $query }"
+share-people-with-access = People with access ({ $count })
+share-message-optional = Message (optional)
+share-message-placeholder = Add a message for the recipients...
+share-info = People you share with will receive a notification and can access the slide based on their permission level.
+share-cancel = Cancel
+share-button = Share
+share-sharing = Sharing...
+share-select-one = Please select at least one user
+share-failed = Share failed
+share-success-toast = Slide shared
+share-success-description = Shared with { $count } { $count ->
+  [one] person
+ *[other] people
+}
+
+# Manage Shares
+manage-title = Manage shares
+manage-description = Manage who can access "{ $title }"
+manage-not-shared = Not shared with anyone yet
+manage-add-users-hint = Click "Add users" to share this presentation
+manage-can-view = Can view
+manage-can-comment = Can comment
+manage-can-edit = Can edit
+manage-add-users = Add users
+manage-done = Done
+manage-remove-user = Remove user
+manage-shared-at = Shared { $time }
+manage-confirm-remove = Remove access for this user?
+manage-permission-updated = Permission updated
+manage-permission-update-failed = Failed to update permission
+manage-user-removed = User removed
+manage-remove-failed = Failed to remove user
+manage-load-failed = Failed to load shares
+
+# Header Actions
+header-locked = Locked
+header-slide = Slide
+header-version-history = Version History
+header-save-checkpoint = Save Checkpoint
+header-unlock-slide = Unlock Slide
+header-lock-slide = Lock Slide
+header-share = Share...
+header-manage-access = Manage access...
+
+# Generate Presentation
+generate-title = Generate Presentation
+generate-description = Describe what you need and AI will create the slides.
+generate-topic = Topic
+generate-topic-placeholder = Quarterly business review covering sales metrics, team highlights, and Q2 goals...
+generate-length = Length
+generate-length-short = Short
+generate-length-medium = Medium
+generate-length-long = Long
+generate-slides-short = 5-8 slides
+generate-slides-medium = 9-14 slides
+generate-slides-long = 15-25 slides
+generate-web-search = Web Search
+generate-web-search-desc = Include real-time data and sources
+generate-references = Reference Materials
+generate-references-optional = (optional)
+generate-additional-instructions = Additional Instructions
+generate-requirements-placeholder = Include a timeline, use minimal text per slide, end with next steps...
+generate-failed = Generation failed
+generate-research = Research
+generate-generate = Generate
+generate-validate = Validate
+generate-cancel = Cancel
+generate-button = Generate
+generate-generating = Generating...
+generate-toast-success = Presentation generated!
+generate-toast-description = Created { $count } slides
+
+# Version History
+version-history-title = Version History
+version-description = View and restore previous versions of "{ $title }"
+version-no-history = No version history available
+version-current = Current
+version-current-description = Current version
+version-checkpoint = Checkpoint
+version-restore = Restore
+version-close = Close
+version-restore-confirm = Restore this version? Current changes will be saved as a new version.
+version-restored = Version restored
+version-restore-failed = Failed to restore version
+version-load-failed = Failed to load versions
+version-number = Version { $number }
+
+# Property Panel
+props-select-element = Select an element to edit its properties
+props-position-size = Position & Size
+props-position-x = X
+props-position-y = Y
+props-width = Width
+props-height = Height
+props-rotation = Rotation
+props-opacity = Opacity
+props-layer = Layer
+props-forward = Forward
+props-back = Back
+props-text-formatting = Text Formatting
+props-font-family = Font Family
+props-font-size = Font Size
+props-text-color = Text Color
+props-background-color = Background Color
+props-line-height = Line Height
+props-letter-spacing = Letter Spacing
+props-gradient-fill = Gradient Fill
+props-close = Close
+props-custom = Custom
+props-no-gradient = No gradient
+props-shape-styling = Shape Styling
+props-fill-color = Fill Color
+props-stroke-color = Stroke Color
+props-stroke-width = Stroke Width
+props-stroke-style = Stroke Style
+props-solid = Solid
+props-dashed = Dashed
+props-dotted = Dotted
+props-corner-radius = Corner Radius
+props-drop-shadow = Drop Shadow
+props-image-styling = Image Styling
+props-object-fit = Object Fit
+props-cover = Cover
+props-contain = Contain
+props-fill = Fill
+props-none = None
+props-border-radius = Border Radius
+props-border-width = Border Width
+props-border-color = Border Color
+props-video-styling = Video Styling
+props-playback = Playback
+props-autoplay = Autoplay
+props-loop = Loop
+props-muted = Muted
+props-lock = Lock
+props-unlock = Unlock
+props-duplicate = Duplicate
+props-delete = Delete
+props-reset-rotation = Reset rotation
+
+# Content Attachment Picker
+attachment-add-reference = Add Reference
+attachment-search-placeholder = Search content...
+attachment-documents = Documents
+attachment-notes = Notes
+attachment-spreadsheets = Spreadsheets
+attachment-slides = Slides
+attachment-no-matching = No matching content found
+attachment-no-documents = No documents available
+attachment-no-notes = No notes available
+attachment-no-spreadsheets = No spreadsheets available
+attachment-no-slides = No slides available
+attachment-max-references = Maximum { $count } references allowed
+attachment-helper = Optionally attach documents, notes, or other content as reference for the AI
+
+# Gradient Builder
+gradient-quick-presets = Quick Presets
+gradient-type = Type
+gradient-linear = Linear
+gradient-radial = Radial
+gradient-angle = Angle: { $angle }°
+gradient-color-stops = Color Stops
+gradient-add = Add
+gradient-remove = Remove Gradient
+
+# Slide Editor Toolbar
+toolbar-image = Image
+toolbar-layout = Layout
+toolbar-theme = Theme
+toolbar-layout-title = Title Slide
+toolbar-layout-title-content = Title & Content
+toolbar-layout-two-column = Two Columns
+toolbar-layout-content-image = Content & Image
+toolbar-layout-blank = Blank
+toolbar-theme-default = Default
+toolbar-theme-dark = Dark
+toolbar-theme-nature = Nature
+toolbar-theme-sunset = Sunset
+toolbar-theme-ocean = Ocean
+
+# Share fallbacks / errors
+share-some-failed = Some shares failed
+share-notifications-failed = Failed to send notifications
+
+# useSlides
+slides-error-not-authenticated = Not authenticated
+slides-error-load-failed = Failed to load slides
+slides-toast-load-failed = Failed to load presentation
+slides-default-title = Untitled presentation
+slides-toast-created = Presentation created
+slides-toast-create-failed = Failed to create presentation
+slides-toast-save-failed = Failed to save
+slides-toast-deleted = Presentation deleted
+slides-toast-delete-failed = Failed to delete
+slides-toast-duplicated = Presentation duplicated
+slides-toast-duplicate-failed = Failed to duplicate
+
+# useSlideGeneration progress
+progress-preparing = Preparing your presentation...
+progress-ready = Presentation ready!
+progress-auth-required = Authentication required
+progress-generate-failed = Failed to generate slides
+progress-initiating-search = Initiating web search...
+progress-search-info = Searching the web for information...
+progress-search-tool = Searching: { $name }...
+progress-processing = Processing search results...
+progress-analyzing = Analyzing research data...
+progress-research-complete = Research complete!
+progress-generating = Generating presentation...
+progress-web-search-failed = Web search failed, continuing without research data
+progress-building = Building slides...
+
+# SlideGenerationService fallbacks (comparison/quote/thank-you)
+generation-option-a = Option A
+generation-option-b = Option B
+generation-unknown = Unknown
+generation-thank-you = Thank You
+
+# usePowerPointParser
+parser-invalid-type = Invalid file type. Please upload a .pptx file (PowerPoint 2007 or later).
+parser-invalid-file = Invalid PowerPoint file: missing presentation.xml
+parser-slide-not-found = Slide { $number } not found
+parser-no-slides-parsed = No slides could be parsed. Created a blank slide.
+parser-failed = Failed to parse PowerPoint file
+parser-imported-slide = Imported Slide
+
+# SlidesApiService (used when throwing to user)
+api-error = API Error: { $status }
+api-slide-not-found = Slide not found
+
+# Theme display names (for selectors)
+theme-corporate = Corporate Blue
+theme-dark = Dark Mode
+theme-nature = Nature Green
+theme-sunset = Sunset Orange
+theme-ocean = Ocean Breeze
+theme-minimal = Minimal
+theme-gradient = Gradient Purple

@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   InfoIcon,
-  LinkIcon,
   PlusIcon,
   XCircleIcon,
   PencilSimpleLineIcon,
@@ -13,8 +12,6 @@ import {
   ClockIcon,
   WarningIcon,
   WallIcon,
-  FileIcon,
-  IdentificationCardIcon,
   DotsThreeIcon,
   TrashIcon,
   MagnifyingGlassIcon
@@ -65,13 +62,14 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import ProjectForm from '@/business-apps/mdm/forms/project-form'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import { NavigationLinkCards, NavigationLinkCardsProps } from '../generic-components/card/NavigationLinkCards'
 import { VerticalTable, VerticalTableProps } from '../generic-components/table/VerticalTable'
 import CardTabHeaderComponent from '../generic-components/card'
 import { DeleteButton } from '../generic-components/delete-button/DeleteButton'
 import { formatDateToISO, getClosureDate } from '@/business-apps/mdm/forms/project-form/ProjectForm'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { PersonDisplay } from '@/common/components/person-display/PersonDisplay'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 export interface ProjectSetupProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -162,6 +160,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
   const { t } = useTranslation()
   const restClient = useRestClient(ORGCHART_BASE_URL)
 
+  const customerRelationsEnabled = useFeature(Feature.CRM.CustomerRelations.Key)
+
   // Data integration
   const {
     projects,
@@ -216,8 +216,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
     },
     [resetTeamAllocations, restClient, context.accessToken]
   )
-
-  const showNavigationItems = false
 
   // Trigger BE search when debounced search term changes
   useEffect(() => {
@@ -314,7 +312,9 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
   const dataTable = useMemo(
     () =>
       projects.map(project => {
-        const account = accounts.find(account => account.id === project.customerId)
+        const account = customerRelationsEnabled
+          ? accounts.find(account => account.id === project.customerId)
+          : undefined
         const projectManagerName =
           project.manager?.displayName ??
           (project.manager?.firstName || project.manager?.lastName
@@ -334,7 +334,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
           hasMatrixTeam
         }
       }),
-    [projects, accounts]
+    [projects, accounts, customerRelationsEnabled]
   )
 
   const renderProjectsTable = () => {
@@ -401,19 +401,23 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
           )
         }
       },
-      {
-        accessorKey: 'accountName',
-        header: 'Account',
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const accountName = getValue()
-          return (
-            <div className="gba:font-semibold">
-              {(accountName as string) || <span className="gba:text-muted-foreground">-</span>}
-            </div>
-          )
-        }
-      },
+      ...(customerRelationsEnabled
+        ? [
+            {
+              accessorKey: 'accountName',
+              header: 'Account',
+              enableSorting: true,
+              cell: ({ getValue }: { getValue: () => unknown }) => {
+                const accountName = getValue()
+                return (
+                  <div className="gba:font-semibold">
+                    {(accountName as string) || <span className="gba:text-muted-foreground">-</span>}
+                  </div>
+                )
+              }
+            } as ColumnDef<Project>
+          ]
+        : []),
       {
         accessorKey: 'status',
         header: 'Status',
@@ -568,7 +572,9 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
   const drawerItems = useMemo(() => {
     if (!selectedProject) return []
-    const account = accounts.find(account => account.id === selectedProject.customerId)
+    const account = customerRelationsEnabled
+      ? accounts.find(account => account.id === selectedProject.customerId)
+      : undefined
     const items: VerticalTableProps[] = [
       {
         icon: <InfoIcon />,
@@ -583,7 +589,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
       }
     ]
 
-    if (account) {
+    if (customerRelationsEnabled && account) {
       items[0].items.push({
         label: 'Account',
         value: account.name
@@ -625,44 +631,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
     }
 
     return items
-  }, [selectedProject, accounts])
-
-  const navigationItems = useMemo(() => {
-    if (!selectedProject) return []
-
-    const items: NavigationLinkCardsProps[] = [
-      {
-        redirectLink: `/project-management/tasks?projectId=${selectedProject.id}`,
-        color: 'blue',
-        icon: CheckCircleIcon,
-        title: 'View Tasks & Milestones',
-        description: 'Track project tasks and upcoming milestones'
-      },
-      {
-        redirectLink: `/project-management/teams?projectId=${selectedProject.id}`,
-        color: 'green',
-        icon: UsersIcon,
-        title: 'View Team Members',
-        description: 'See all team members and roles assigned to this project'
-      },
-      {
-        redirectLink: selectedProject.customerId ? `/customer-management/customers/${selectedProject.customerId}` : '#',
-        color: 'purple',
-        icon: IdentificationCardIcon,
-        title: 'View Customer Details',
-        description: 'View details about the customer for this project'
-      },
-      {
-        redirectLink: `/project-management/reports?projectId=${selectedProject.id}`,
-        color: 'cyan',
-        icon: FileIcon,
-        title: 'View Project Reports',
-        description: 'Access project reports and analytics'
-      }
-    ]
-
-    return items
-  }, [selectedProject])
+  }, [selectedProject, accounts, customerRelationsEnabled])
 
   const handleView = (targetProject: Project | undefined) => {
     if (!targetProject) return
@@ -803,7 +772,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
             refetch={refetch}
             accessToken={context.accessToken}
             structureId={structureId}
-            accounts={accounts}
+            accounts={customerRelationsEnabled ? accounts : []}
           />
         }
         cardTitle={`${t('hr.project_setup', 'Project Setup')} (${totalProjects})`}
@@ -848,7 +817,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
             accessToken={context.accessToken}
             structureId={structureId}
             project={selectedProject}
-            accounts={accounts}
+            accounts={customerRelationsEnabled ? accounts : []}
             open={isEditProjectOpen}
             setOpen={setIsEditProjectOpen}
             onProjectClosed={handleProjectClosed}
@@ -1042,20 +1011,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                     )
                   })}
                 </div>
-                {showNavigationItems && (
-                  <div className="gba:mt-6">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:pb-4">
-                      <LinkIcon className="gba:h-4 gba:w-4 gba:inline gba:mr-2" />
-                      <span className="gba:text-base gba:font-semibold">Related Resources</span>
-                    </div>
-
-                    <div className="gba:grid gba:grid-cols-1 gba:gap-4">
-                      {navigationItems.map((item, index) => {
-                        return <NavigationLinkCards key={`${item.title}-${index}`} {...item} />
-                      })}
-                    </div>
-                  </div>
-                )}
               </ScrollArea>
               <SheetFooter>
                 <div className="gba:flex gba:justify-end gba:gap-2">
@@ -1075,7 +1030,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                     structureId={structureId}
                     project={selectedProject}
                     isDrawerActive={true}
-                    accounts={accounts}
+                    accounts={customerRelationsEnabled ? accounts : []}
                     onProjectClosed={handleProjectClosed}
                   />
 

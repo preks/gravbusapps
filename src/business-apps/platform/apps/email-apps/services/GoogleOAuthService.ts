@@ -12,6 +12,18 @@ function normalize(value?: string): string | undefined {
   return trimmed ? trimmed : undefined
 }
 
+/** Error with i18n code for user-facing config messages */
+export class OAuthConfigError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string
+  ) {
+    super(message)
+    this.name = 'OAuthConfigError'
+    Object.setPrototypeOf(this, OAuthConfigError.prototype)
+  }
+}
+
 /** Generate a random string for PKCE */
 function generateRandomString(length: number): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
@@ -53,10 +65,16 @@ export const GoogleOAuthService = {
     const scopes = normalize(tenantConfig?.scopes)
 
     if (!clientId) {
-      throw new Error('Google OAuth client ID is not configured')
+      throw new OAuthConfigError(
+        'Google OAuth client ID is not configured. Please ask your admin to configure it.',
+        'oauth-google-client-id-not-configured'
+      )
     }
     if (!scopes) {
-      throw new Error('Google OAuth scopes are not configured')
+      throw new OAuthConfigError(
+        'Google OAuth scopes are not configured. Please ask your admin to configure them.',
+        'oauth-google-scopes-not-configured'
+      )
     }
     return {
       clientId,

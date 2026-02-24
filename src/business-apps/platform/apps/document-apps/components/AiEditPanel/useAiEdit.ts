@@ -6,7 +6,9 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { Editor } from '@tiptap/react'
+import translations from '../../_i18n'
 import { DOMSerializer } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
@@ -32,6 +34,7 @@ export interface UseAiEditOptions {
 }
 
 export function useAiEdit({ editor, documentId, documentTitle, llmProvider }: UseAiEditOptions) {
+  const { t } = useTranslation(translations)
   const [instruction, setInstruction] = useState('')
   const [mode, setModeState] = useState<AiEditMode>('document')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -173,11 +176,11 @@ export function useAiEdit({ editor, documentId, documentTitle, llmProvider }: Us
       }
       setChangeSummary(result.changeSummary)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate AI edit')
+      setError(err instanceof Error ? err.message : t('ai-edit-error-generate'))
     } finally {
       setIsProcessing(false)
     }
-  }, [editor, instruction, llmProvider, mode, documentId, documentTitle, capturedSelection])
+  }, [editor, instruction, llmProvider, mode, documentId, documentTitle, capturedSelection, t])
 
   /** Apply the preview to the TipTap editor */
   const apply = useCallback(() => {
