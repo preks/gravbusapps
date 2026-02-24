@@ -2048,6 +2048,12 @@ function quoteSingle(v: string): string {
   return `'${escaped}'`
 }
 
+function normalizeDatetimeLocal(rawDt: string): string {
+  if (!rawDt) return ''
+  const noZ = rawDt.endsWith('Z') ? rawDt.slice(0, -1) : rawDt
+  return noZ.length >= 16 ? noZ.slice(0, 16) : noZ
+}
+
 type ValueType = 'boolean' | 'date' | 'datetime' | 'number' | 'string' | 'unknown'
 
 interface LogicValueInputProps {
@@ -2104,9 +2110,7 @@ const LogicValueInput: React.FC<LogicValueInputProps> = ({
   }
   if (valueType === 'datetime') {
     const rawDt = stripQuotes(rhs)
-    const noZ = rawDt.endsWith('Z') ? rawDt.slice(0, -1) : rawDt
-    const dtSliced = noZ.length >= 16 ? noZ.slice(0, 16) : noZ
-    const dtValue = rawDt ? dtSliced : ''
+    const dtValue = normalizeDatetimeLocal(rawDt)
     return (
       <Input
         type="datetime-local"

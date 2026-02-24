@@ -141,10 +141,10 @@ const FIELD_LABEL_MAP: Record<string, string> = {
 
 function generateFieldLabel(fieldName: string): string {
   if (FIELD_LABEL_MAP[fieldName]) return FIELD_LABEL_MAP[fieldName]
-  return fieldName
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, s => s.toUpperCase())
-    .trim()
+  const spaced = Array.from(fieldName)
+    .map((c, i) => (i > 0 && c >= 'A' && c <= 'Z' ? ' ' + c : c))
+    .join('')
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
 function formatFieldValue(key: string, value: any): string {
@@ -200,7 +200,6 @@ const SingleFormData: React.FC<SingleFormDataProps> = ({ formData }) => {
 interface MultiRowDataTableProps {
   data: StepDataRow[]
   totalCount: number
-  valuePlaceholder?: string
 }
 
 const MultiRowDataTable: React.FC<MultiRowDataTableProps> = ({ data, totalCount }) => {

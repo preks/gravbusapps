@@ -134,17 +134,22 @@ const AGENT_TYPE_LABELS: Record<string, string> = {
   general: 'General Agent'
 }
 
+interface AgentPromptLoaderSetters {
+  setPrompt: (p: PromptODM | null) => void
+  setParamKeys: (k: string[]) => void
+  setLoading: (v: boolean) => void
+  setError: (e: string | null) => void
+}
+
 function useAgentPromptLoader(
   client: ReturnType<typeof usePromptManagerClient>,
   promptProp: PromptODM | null | undefined,
   paramKeysProp: string[] | undefined,
   agentId: string | undefined,
   accessToken: string,
-  setPrompt: (p: PromptODM | null) => void,
-  setParamKeys: (k: string[]) => void,
-  setLoading: (v: boolean) => void,
-  setError: (e: string | null) => void
+  setters: AgentPromptLoaderSetters
 ): void {
+  const { setPrompt, setParamKeys, setLoading, setError } = setters
   useEffect(() => {
     if (promptProp != null) {
       setPrompt(promptProp)
@@ -180,6 +185,16 @@ function useAgentPromptLoader(
       cancelled = true
     }
   }, [client, agentId, accessToken, promptProp, paramKeysProp, setPrompt, setParamKeys, setLoading, setError])
+}
+
+async function executeAgentRequest(
+  client: ReturnType<typeof usePromptManagerClient>,
+  promptProp: PromptODM | null | undefined,
+  agentId: string | undefined,
+  fd: FormData
+): Promise<string> {
+  const res = promptProp && !agentId ? await client.executePrompt(fd) : await client.executePromptById(agentId!, fd)
+  return extractResponseContent(res.content)
 }
 
 function useAgentModelLoader(
@@ -274,17 +289,12 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
   const [selectedModelId, setSelectedModelId] = useState<string>('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  useAgentPromptLoader(
-    client,
-    promptProp,
-    paramKeysProp,
-    agentId,
-    accessToken,
+  useAgentPromptLoader(client, promptProp, paramKeysProp, agentId, accessToken, {
     setPrompt,
     setParamKeys,
     setLoading,
     setError
-  )
+  })
 
   const needsModelSelection = !!promptProp && !agentId && !promptProp.model.id
 
@@ -324,8 +334,7 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
     const fd = buildRequestFormData(userParams, promptProp, agentId, effectiveModelId)
 
     try {
-      const res = promptProp && !agentId ? await client.executePrompt(fd) : await client.executePromptById(agentId!, fd)
-      const content = extractResponseContent(res.content)
+      const content = await executeAgentRequest(client, promptProp, agentId, fd)
       setMessages(prev => [...prev, { role: 'assistant', content: content || '(No response)' }])
     } catch (e) {
       setSendError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
