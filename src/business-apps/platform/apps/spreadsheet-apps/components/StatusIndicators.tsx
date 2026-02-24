@@ -38,11 +38,10 @@ export const StatusIndicators: React.FC<StatusIndicatorsProps> = ({
     <div className="gba:flex gba:items-center gba:gap-2" data-testid={testId}>
       {/* Collaboration presence indicator - shows active users */}
       {headerParticipants.length > 0 && (
-        <Badge variant="success" className="gba:flex gba:items-center gba:gap-2 gba:pl-2 gba:pr-2.5">
-          <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2 gba:pr-2 gba:border-r">
           <PresenceIndicator participants={headerParticipants} maxVisible={3} size="sm" showLabel={false} />
-          <span className="gba:text-xs gba:font-medium">{headerParticipants.length} active</span>
-        </Badge>
+          <span className="gba:text-xs gba:text-muted-foreground">{headerParticipants.length} active</span>
+        </div>
       )}
 
       {/* Connection status indicator - shows when connected but alone */}
