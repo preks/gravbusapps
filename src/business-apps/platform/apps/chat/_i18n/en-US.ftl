@@ -432,11 +432,17 @@ chat-transcript-ready = Transcript Ready: { $sessionName }
 chat-transcript-view = View Transcript
 chat-transcript-saved = Your meeting transcript has been saved
 chat-transcript-create-minutes-description = Create meeting minutes from the call transcript in notes
+chat-transcript-minutes-automatic = Meeting minutes are being created automatically.
 chat-transcript-create-minutes-button = Create Meeting Minutes
 chat-transcript-generating-minutes = Generating Meeting Minutes...
 chat-transcript-generating-minutes-status = Generating meeting minutes...
 chat-transcript-failed-create-minutes = Failed to create meeting minutes
 chat-transcript-retry = Retry
+
+# Meeting minutes ready (block in chat)
+chat-meeting-minutes-created-shared = AI-generated meeting minutes have been created and shared with all participants
+chat-meeting-minutes-ai-summary = AI Summary
+chat-meeting-minutes-open = Open meeting minutes
 
 # Notifications
 notifications-title = Notifications
