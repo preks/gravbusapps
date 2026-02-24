@@ -7,13 +7,12 @@ import React from 'react'
 import { CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, Box } from 'lucide-react'
 import { cn } from '@newwork/nw-design-system'
 import type { ComponentSpec, BuildStatus } from '../../types/components'
-import type { UserSummary, BuildAnalysis } from '../../types/build'
+import type { UserSummary } from '../../types/build'
 import { typeIcons, getComponentDescription } from '../widgets/buildPlanReview/buildPlanReview.utils'
 
 interface BuildPlanTabProps {
   components: ComponentSpec[]
   userSummary?: UserSummary
-  analysis?: BuildAnalysis
   prompt?: string
 }
 

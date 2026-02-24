@@ -9,6 +9,7 @@ import type { CreateChatMessage } from '../../types/chat'
 
 export interface UserAvatar {
   pictureBase64?: string
+  pictureMimeType?: string
   initials: string
 }
 
@@ -17,6 +18,22 @@ interface CreateAgentChatMessageProps {
   isStreaming?: boolean
   userAvatar?: UserAvatar
   testId?: string
+}
+
+function renderUserAvatarContent(userAvatar?: UserAvatar): React.ReactNode {
+  if (userAvatar?.pictureBase64) {
+    return (
+      <img
+        src={`data:${userAvatar.pictureMimeType ?? 'image/jpeg'};base64,${userAvatar.pictureBase64}`}
+        alt="You"
+        className="gba:w-full gba:h-full gba:object-cover"
+      />
+    )
+  }
+  if (userAvatar?.initials) {
+    return <span className="gba:text-xs gba:font-semibold gba:text-primary-foreground">{userAvatar.initials}</span>
+  }
+  return <User className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" />
 }
 
 export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
@@ -50,17 +67,7 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
         }`}
       >
         {isUser ? (
-          userAvatar?.pictureBase64 ? (
-            <img
-              src={`data:image/jpeg;base64,${userAvatar.pictureBase64}`}
-              alt="You"
-              className="gba:w-full gba:h-full gba:object-cover"
-            />
-          ) : userAvatar?.initials ? (
-            <span className="gba:text-xs gba:font-semibold gba:text-primary-foreground">{userAvatar.initials}</span>
-          ) : (
-            <User className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" />
-          )
+          renderUserAvatarContent(userAvatar)
         ) : (
           <Bot className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
         )}

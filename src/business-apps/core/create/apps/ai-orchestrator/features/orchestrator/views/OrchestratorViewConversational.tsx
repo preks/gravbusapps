@@ -55,16 +55,16 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   // Keep ?jobId= in sync with the active plan so page refresh restores the session
   useEffect(() => {
     const jobId = orchestratorClient.currentPlan?.jobId ?? null
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     if (jobId) {
       urlParams.set('jobId', jobId)
     } else {
       urlParams.delete('jobId')
     }
     const newUrl = urlParams.toString()
-      ? `${window.location.pathname}?${urlParams.toString()}`
-      : window.location.pathname
-    window.history.replaceState({}, '', newUrl)
+      ? `${globalThis.location.pathname}?${urlParams.toString()}`
+      : globalThis.location.pathname
+    globalThis.history.replaceState({}, '', newUrl)
   }, [orchestratorClient.currentPlan?.jobId])
 
   useEffect(() => {

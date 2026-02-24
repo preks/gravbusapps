@@ -62,7 +62,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   const renderTabContent = () => {
     switch (activeTab) {
       case 'build-plan':
-        return <BuildPlanTab components={components} userSummary={userSummary} analysis={analysis} prompt={prompt} />
+        return <BuildPlanTab components={components} userSummary={userSummary} prompt={prompt} />
 
       case 'data-flow':
         return <DataFlowDiagram components={components} />
