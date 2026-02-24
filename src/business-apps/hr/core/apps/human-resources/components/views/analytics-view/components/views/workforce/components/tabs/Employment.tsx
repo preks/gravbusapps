@@ -227,7 +227,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
 
       {/* Charts Grid */}
       <div className="gba:space-y-6 gba:mt-6">
-        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6 gba:items-start">
           <SelectableChartTile
             testId="employment-type-chart"
             isSelected={selectedChart === 'employment-type-chart'}
@@ -246,7 +246,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
           </SelectableChartTile>
         </div>
 
-        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6 gba:items-start">
           <SelectableChartTile
             testId="gap-rate-org-unit-chart"
             isSelected={selectedChart === 'gap-rate-org-unit-chart'}
