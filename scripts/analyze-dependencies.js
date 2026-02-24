@@ -124,13 +124,17 @@ async function findScreensImportingFile(changedFile) {
         // 2. Raw path imports: import { x } from 'common/utils/file'
         // 3. Relative imports: import { x } from '../../../common/utils/file'
         //    For relative imports, we just check if the path ends with our target
+        //
+        // Guards: aliasDir for top-level src/ files (e.g. src/BusinessAppIDE.tsx) resolves
+        // to bare '@', and rawDir resolves to '.'. Without the guards, content.includes('@')
+        // and content.includes('/.') would match virtually every screen file.
         if (
           content.includes(aliasPath) ||
-          content.includes(aliasDir) ||
+          (aliasDir.includes('/') && content.includes(aliasDir)) ||
           content.includes(`/${relativePath}'`) || // Matches '../../../common/utils/file'
           content.includes(`/${relativePath}"`) || // Double quotes
-          content.includes(`/${rawDir}'`) ||
-          content.includes(`/${rawDir}"`)
+          (rawDir !== '.' && content.includes(`/${rawDir}'`)) ||
+          (rawDir !== '.' && content.includes(`/${rawDir}"`))
         ) {
           affectedScreens.add(screen)
           break
@@ -525,12 +529,22 @@ async function main() {
   console.log('='.repeat(60))
   console.log(`📝 Changed files to analyze: ${changedFiles.length}`)
 
+  // Dev-only files that are never imported by any screen and must not trigger rebuilds.
+  // Changes to these files are irrelevant to published screen bundles.
+  const DEV_ONLY_FILES = new Set([
+    'src/BusinessAppIDE.tsx' // Local development IDE shell – not part of any deployed screen
+  ])
+
   // Filter to dependency-related files:
   // - Package files (package.json, etc.)
   // - Global shared code (src/* except business-apps)
   // - Shared code in business-apps (NOT inside a screen folder with index.ts)
   const dependencyFiles = []
   for (const f of changedFiles) {
+    if (DEV_ONLY_FILES.has(f)) {
+      console.log(`⏩ Skipping dev-only file (will not trigger rebuilds): ${f}`)
+      continue
+    }
     if (f === 'package.json') {
       dependencyFiles.push(f)
     } else if (f.startsWith('src/') && !f.startsWith('src/business-apps/')) {

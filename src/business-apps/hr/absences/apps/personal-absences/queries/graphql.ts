@@ -69,6 +69,7 @@ export const GET_ABSENCE_DAILY_FACTS_BY_TYPE = `
       }
     ) {
       typeRef
+      signedDayFraction
       dayFraction
     }
   }
@@ -84,6 +85,7 @@ export const GET_ABSENCE_DAILY_FACTS_BY_STATUS = `
       }
     ) {
       status
+      signedDayFraction
       dayFraction
     }
   }

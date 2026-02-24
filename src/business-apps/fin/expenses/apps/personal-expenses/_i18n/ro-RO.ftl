@@ -7,3 +7,6 @@ travel-order-fallback-file-name = Ordin de deplasare.pdf
 # Advance Payment Details
 expense-plan-code = Cod plan de cheltuieli
 
+# Expense Requests Tab
+personal-expenses-update-request-action = Actualizare Solicitare
+

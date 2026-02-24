@@ -1,3 +1,4 @@
 // Orchestrator view implementations
 export { OrchestratorViewConversational } from './OrchestratorViewConversational'
 export type { OrchestratorViewConversationalProps } from './OrchestratorViewConversational'
+export { OrchestratorCanvasContent } from './OrchestratorCanvasContent'

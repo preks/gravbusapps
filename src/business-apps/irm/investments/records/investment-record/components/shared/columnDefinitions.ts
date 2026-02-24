@@ -3,13 +3,9 @@ import React from 'react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import {
-  getInvestmentTypeFieldDefinition,
-  getLiquidFundTypeFieldDefinition,
-  formatFieldValue
-} from '../../utils/investmentHeaderConfig'
+import { findFormFieldsDefinition, formatFieldValue } from '../../utils/investmentHeaderConfig'
 import { getValueByPath } from '@/common/utils/objectUtils'
-import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
+import { FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 export interface ColumnDefinition {
   key: string
@@ -63,37 +59,14 @@ export const createInvestmentReportColumns = (
     }
   })
 
-  // Get form field definition using the correct logic based on investment group
-  let formFieldsDefinition: FormFieldsDefinition | null = null
-
-  // Determine investment group from either mainInvestment or investmentTypeCode
   const investmentGroup = mainInvestment?.investmentGroup?.code
-
-  // Apply the correct rules:
-  // 1) For equity, check the group catalog's object value
-  // 2) For real estate, check the type
-  // 3) For liquid funds, check the investmentliquidfundtype
-  // 4) For private equity, check the group's object value (no specific types)
-
-  if (investmentGroup === 'EQUITY') {
-    // RULE 1: For equity, check the EQUITY group's object value
-    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-  } else if (investmentGroup === 'LIQUID_FUND' && liquidFundTypeCode) {
-    // RULE 3: For liquid funds, check the investmentliquidfundtype
-    formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
-  } else if (investmentGroup === 'REAL_ESTATE') {
-    // RULE 2: For real estate, check the TYPE
-    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-  } else {
-    // RULE 4: For other groups (including generic groups), use the generic type definition lookup
-    // Fallback: Use investment type
-    if (liquidFundTypeCode) {
-      formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
-    }
-    if (!formFieldsDefinition) {
-      formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-    }
-  }
+  const formFieldsDefinition = findFormFieldsDefinition({
+    investment: mainInvestment,
+    catalogData,
+    investmentTypeCode,
+    liquidFundTypeCode,
+    investmentGroupCode: investmentGroup
+  })
 
   if (formFieldsDefinition?.formFields) {
     // Get all fields and sort by display order (same as header)
@@ -118,7 +91,7 @@ export const createInvestmentReportColumns = (
       columns.push({
         key: field.property.replace(/\./g, '_'),
         title: field.label,
-        width: getReportColumnWidth(field.type),
+        width: getReportColumnWidth(field.type, field.label),
         sortable: isReportFieldSortable(field.type),
         render: (record: any) => {
           // REPORTS DATA STRUCTURE: record is InvestmentReport from report tables
@@ -221,21 +194,33 @@ export const createInvestmentReportColumns = (
 /**
  * Helper functions for report column configuration
  */
-const getReportColumnWidth = (fieldType: string): string => {
+const getReportColumnWidth = (fieldType: string, label?: string): string => {
+  // Base width from field type
+  let baseWidth = 150
   switch (fieldType) {
     case 'DATE':
     case 'DATETIME':
-      return '120px'
+      baseWidth = 120
+      break
     case 'AMOUNT':
-      return '140px'
+      baseWidth = 140
+      break
     case 'PERCENTAGE':
     case 'NUMBER':
-      return '100px'
+      baseWidth = 100
+      break
     case 'TEXT':
-      return '180px'
-    default:
-      return '150px' // Default width for unknown types to prevent overflow
+      baseWidth = 180
+      break
   }
+
+  // If label provided, calculate width needed (roughly 8px per character + padding)
+  if (label) {
+    const labelWidth = Math.ceil(label.length * 8) + 32 // 32px for padding/icons
+    return `${Math.max(baseWidth, labelWidth)}px`
+  }
+
+  return `${baseWidth}px`
 }
 
 const getReportColumnClassName = (fieldType: string): string => {

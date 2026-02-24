@@ -291,38 +291,39 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             />
           )}
 
-          {/* Not approved benefits Section (CANCELLED_COMPENSATION) */}
-          {!loading && !error && (
-            <BenefitsSectionGrid
-              t={t}
-              benefits={notApprovedBenefits}
-              employeeId={employeeId}
-              currencyCode={currencyCode}
-              locale={locale}
-              onViewDetails={handleViewDetails}
-              sectionTitle={t('benefits-not-approved-section-title', { count: notApprovedBenefits.length })}
-              testId="not-approved-benefits-section"
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-            />
-          )}
+          {/* Lower-priority zones grouped on subtle gray background for better visual separation */}
+          {!loading && !error && (notApprovedBenefits.length > 0 || availableBenefits.length > 0) && (
+            <div className="gba:rounded-lg gba:px-0 gba:py-4 gba:mt-2">
+              {/* Not approved benefits Section (CANCELLED_COMPENSATION) */}
+              <BenefitsSectionGrid
+                t={t}
+                benefits={notApprovedBenefits}
+                employeeId={employeeId}
+                currencyCode={currencyCode}
+                locale={locale}
+                onViewDetails={handleViewDetails}
+                sectionTitle={t('benefits-not-approved-section-title', { count: notApprovedBenefits.length })}
+                testId="not-approved-benefits-section"
+                accessToken={accessToken}
+                userInfo={userInfo}
+                additionalData={additionalData}
+              />
 
-          {/* Available Benefits Section */}
-          {!loading && !error && (
-            <BenefitsSectionGrid
-              t={t}
-              benefits={availableBenefits}
-              employeeId={employeeId}
-              currencyCode={currencyCode}
-              locale={locale}
-              onViewDetails={handleViewDetails}
-              sectionTitle={t('benefits-available-section-title', { count: availableBenefits.length })}
-              testId="available-benefits-section"
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-            />
+              {/* Available Benefits Section */}
+              <BenefitsSectionGrid
+                t={t}
+                benefits={availableBenefits}
+                employeeId={employeeId}
+                currencyCode={currencyCode}
+                locale={locale}
+                onViewDetails={handleViewDetails}
+                sectionTitle={t('benefits-available-section-title', { count: availableBenefits.length })}
+                testId="available-benefits-section"
+                accessToken={accessToken}
+                userInfo={userInfo}
+                additionalData={additionalData}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

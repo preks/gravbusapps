@@ -18,12 +18,15 @@ import {
 } from '@newwork/nw-design-system'
 import { formatDate } from '@/common/utils/windowUtils'
 import { PercentIcon } from '@phosphor-icons/react'
+import dayjs from 'dayjs'
 
 interface FormScreenComponentProps {
   statusOptions: { value: string; label: string }[]
   prefixDataTestId?: string
   dataTestId?: string
   form: UseFormReturn<FormData>
+  cycleStartDate?: string
+  cycleEndDate?: string
 }
 
 interface FormData {
@@ -39,9 +42,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   statusOptions,
   prefixDataTestId = 'performance-goal-form',
   dataTestId = 'performance-goal-form-modal',
-  form
+  form,
+  cycleStartDate,
+  cycleEndDate
 }) => {
   const { t } = useTranslation()
+  const cycleStart = cycleStartDate ? dayjs(cycleStartDate).startOf('day') : null
+  const cycleEnd = cycleEndDate ? dayjs(cycleEndDate).startOf('day') : null
+  const cycleStartValue = cycleStart ? cycleStart.format('YYYY-MM-DD') : undefined
+  const cycleEndValue = cycleEnd ? cycleEnd.format('YYYY-MM-DD') : undefined
 
   // Store initial progress value to determine disabled state
   const [initialProgress] = useState(() => form.getValues('progressPercent'))
@@ -93,7 +102,22 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         control={form.control}
         name="startDate"
         rules={{
-          required: t('performance_goal.start_date_required', 'Please select a start date')
+          required: t('performance_goal.start_date_required', 'Please select a start date'),
+          validate: value => {
+            if (!value) return t('performance_goal.start_date_required', 'Please select a start date')
+            const startDate = dayjs(value).startOf('day')
+            const dueDate = dayjs(form.getValues('dueDate')).startOf('day')
+            if (cycleStart && startDate.isBefore(cycleStart, 'day')) {
+              return t('performance_goal.start_date_cycle_min', 'Start date must be within the selected cycle')
+            }
+            if (cycleEnd && startDate.isAfter(cycleEnd, 'day')) {
+              return t('performance_goal.start_date_cycle_max', 'Start date must be within the selected cycle')
+            }
+            if (dueDate.isValid() && startDate.isAfter(dueDate, 'day')) {
+              return t('performance_goal.start_before_due', 'Start date must be on or before due date')
+            }
+            return true
+          }
         }}
         render={({ field }) => (
           <FormItem>
@@ -116,6 +140,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                     : ''
                 }
                 className="gba:w-full"
+                min={cycleStartValue}
+                max={cycleEndValue}
                 onChange={e => {
                   const dateValue = e.target.value ? new Date(e.target.value + 'T12:00:00') : undefined
                   field.onChange(dateValue)
@@ -132,7 +158,22 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         control={form.control}
         name="dueDate"
         rules={{
-          required: t('performance_goal.Due_date_required', 'Please select a due date')
+          required: t('performance_goal.Due_date_required', 'Please select a due date'),
+          validate: value => {
+            if (!value) return t('performance_goal.Due_date_required', 'Please select a due date')
+            const dueDate = dayjs(value).startOf('day')
+            const startDate = dayjs(form.getValues('startDate')).startOf('day')
+            if (cycleStart && dueDate.isBefore(cycleStart, 'day')) {
+              return t('performance_goal.due_date_cycle_min', 'Due date must be within the selected cycle')
+            }
+            if (cycleEnd && dueDate.isAfter(cycleEnd, 'day')) {
+              return t('performance_goal.due_date_cycle_max', 'Due date must be within the selected cycle')
+            }
+            if (startDate.isValid() && dueDate.isBefore(startDate, 'day')) {
+              return t('performance_goal.due_after_start', 'Due date must be on or after start date')
+            }
+            return true
+          }
         }}
         render={({ field }) => (
           <FormItem>
@@ -150,6 +191,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   'Please Select'
                 )}
                 data-testid="flw_changePersonalData_dueDate"
+                min={cycleStartValue}
+                max={cycleEndValue}
                 value={
                   field.value
                     ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}`

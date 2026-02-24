@@ -4,8 +4,9 @@
  */
 
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Undo2, Trash2 } from 'lucide-react'
+import translations from '../../_i18n'
 import type { PaperStyle } from './index'
 
 interface HandwritingToolbarProps {
@@ -21,24 +22,24 @@ interface HandwritingToolbarProps {
 }
 
 const PEN_COLORS = [
-  { value: '#000000', label: 'Black' },
-  { value: '#1e40af', label: 'Blue' },
-  { value: '#dc2626', label: 'Red' },
-  { value: '#16a34a', label: 'Green' },
-  { value: '#9333ea', label: 'Purple' }
+  { value: '#000000', labelKey: 'toolbar-pen-black' },
+  { value: '#1e40af', labelKey: 'toolbar-pen-blue' },
+  { value: '#dc2626', labelKey: 'toolbar-pen-red' },
+  { value: '#16a34a', labelKey: 'toolbar-pen-green' },
+  { value: '#9333ea', labelKey: 'toolbar-pen-purple' }
 ]
 
 const PEN_WIDTHS = [
-  { value: 2, label: 'Fine' },
-  { value: 4, label: 'Medium' },
-  { value: 8, label: 'Bold' }
+  { value: 2, labelKey: 'toolbar-pen-fine' },
+  { value: 4, labelKey: 'toolbar-pen-medium' },
+  { value: 8, labelKey: 'toolbar-pen-bold' }
 ]
 
-const PAPER_STYLES: { value: PaperStyle; label: string }[] = [
-  { value: 'lined', label: 'Lined' },
-  { value: 'grid', label: 'Grid' },
-  { value: 'dotted', label: 'Dotted' },
-  { value: 'plain', label: 'Plain' }
+const PAPER_STYLES: { value: PaperStyle; labelKey: string }[] = [
+  { value: 'lined', labelKey: 'toolbar-paper-lined' },
+  { value: 'grid', labelKey: 'toolbar-paper-grid' },
+  { value: 'dotted', labelKey: 'toolbar-paper-dotted' },
+  { value: 'plain', labelKey: 'toolbar-paper-plain' }
 ]
 
 export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
@@ -52,11 +53,12 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
   onClear,
   canUndo
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <div className="gba:flex gba:items-center gba:gap-4 gba:px-4 gba:py-2 gba:border-b gba:bg-muted/30">
       {/* Pen Colors */}
       <div className="gba:flex gba:items-center gba:gap-1">
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-1">Color:</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:mr-1">{t('toolbar-color')}</span>
         {PEN_COLORS.map(color => (
           <button
             key={color.value}
@@ -67,7 +69,7 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
                 : 'gba:border-transparent hover:gba:scale-105'
             }`}
             style={{ backgroundColor: color.value }}
-            title={color.label}
+            title={t(color.labelKey)}
           />
         ))}
       </div>
@@ -77,7 +79,7 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
 
       {/* Pen Widths */}
       <div className="gba:flex gba:items-center gba:gap-1">
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-1">Size:</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:mr-1">{t('toolbar-size')}</span>
         {PEN_WIDTHS.map(width => (
           <button
             key={width.value}
@@ -87,9 +89,9 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
                 ? 'gba:bg-primary gba:text-primary-foreground'
                 : 'gba:bg-muted hover:gba:bg-muted/80'
             }`}
-            title={width.label}
+            title={t(width.labelKey)}
           >
-            {width.label}
+            {t(width.labelKey)}
           </button>
         ))}
       </div>
@@ -99,7 +101,7 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
 
       {/* Paper Styles */}
       <div className="gba:flex gba:items-center gba:gap-1">
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-1">Paper:</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:mr-1">{t('toolbar-paper')}</span>
         {PAPER_STYLES.map(style => (
           <button
             key={style.value}
@@ -110,7 +112,7 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
                 : 'gba:bg-muted hover:gba:bg-muted/80'
             }`}
           >
-            {style.label}
+            {t(style.labelKey)}
           </button>
         ))}
       </div>
@@ -120,10 +122,10 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
 
       {/* Actions */}
       <div className="gba:flex gba:items-center gba:gap-2">
-        <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo} title="Undo last stroke">
+        <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo} title={t('toolbar-undo')}>
           <Undo2 className="gba:w-4 gba:h-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onClear} disabled={!canUndo} title="Clear all">
+        <Button variant="ghost" size="sm" onClick={onClear} disabled={!canUndo} title={t('toolbar-clear')}>
           <Trash2 className="gba:w-4 gba:h-4" />
         </Button>
       </div>

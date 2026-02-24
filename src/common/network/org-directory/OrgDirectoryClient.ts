@@ -362,6 +362,40 @@ export class OrgDirectoryClient {
   }
 
   /**
+   * Get the manager's userId for a team (organizational unit).
+   * Uses the supervisor of the first position found in that org unit.
+   * Returns null if the org unit has no positions or the supervisor has no userId.
+   */
+  async getTeamManagerUserId(organizationalUnitId: string): Promise<string | null> {
+    const where = this.buildActiveWhere({
+      organizationalUnitEmployees: {
+        organizationalUnit: {
+          id: { _eq: String(organizationalUnitId) }
+        }
+      }
+    })
+    const query = `
+      query TeamManagerUserId($where: EmployeePositionBoolExp!) {
+        EmployeePosition(where: $where, limit: 1) {
+          supervisorEmployeeId
+          supervisorEmployee {
+            userId
+          }
+        }
+      }
+    `
+    const data = await this.client.request<{
+      EmployeePosition: Array<{
+        supervisorEmployeeId?: string | null
+        supervisorEmployee?: { userId?: string | null } | null
+      }>
+    }>(query, { where })
+    const position = data?.EmployeePosition?.[0]
+    const userId = position?.supervisorEmployee?.userId ?? null
+    return userId ? String(userId) : null
+  }
+
+  /**
    * Get users by matrix team
    * Only returns users with valid Keycloak userId (required for chat service)
    */

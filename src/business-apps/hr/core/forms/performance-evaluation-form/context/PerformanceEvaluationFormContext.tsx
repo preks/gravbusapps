@@ -4,7 +4,9 @@ import { PerformanceEvaluationFormValues, EmployeeOption, EvaluationTopic } from
 import { useStructureEmployees } from '../hooks/useStructureEmployees'
 import { useEmployeeDetails } from '../hooks/useEmployeeDetails'
 import { useEmployeeByUserId } from '../hooks/useEmployeeByUserId'
+import { useEmployeeFromProcess } from '../hooks/useEmployeeFromProcess'
 import { useEmployeeSkills } from '../hooks/useEmployeeSkills'
+import { useTextTransformation } from '@/business-apps/hr/core/forms/feedback-form/hooks/useTextTransformation'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 /** Rating scale value for UI: { label, value } */
@@ -95,6 +97,15 @@ interface PerformanceEvaluationFormContextType {
   ratingScaleValues: Array<{ label: string; value: number }>
   ratingScaleLoading: boolean
   employeeSkillsLoading: boolean
+  /** Transform comment text (Formalize / Translate / Shorten). Returns transformed text or null on error. */
+  transformCommentText: (
+    text: string,
+    type: 'formalize' | 'translate' | 'shorten',
+    targetLanguage?: string
+  ) => Promise<string | null>
+  textTransformationLoading: boolean
+  textTransformationError: string | null
+  clearTextTransformationError: () => void
 }
 
 const PerformanceEvaluationFormContext = createContext<PerformanceEvaluationFormContextType | undefined>(undefined)
@@ -121,9 +132,44 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const {
+    transformText: apiTransformText,
+    isLoading: textTransformationLoading,
+    error: textTransformationError,
+    clearError: clearTextTransformationError
+  } = useTextTransformation(businessAppContext.accessToken ?? '')
+
+  const ad = businessAppContext?.additionalData as any
+
+  // Fetch employee from process (GET process → employeeId → employee) for header, same as PeerApprove
+  const {
+    employeeId: employeeIdFromProcess,
+    employee: employeeFromProcess,
+    loading: employeeFromProcessLoading,
+    error: employeeFromProcessError
+  } = useEmployeeFromProcess(businessAppContext?.accessToken, ad)
+
+  const transformCommentText = useCallback(
+    async (
+      text: string,
+      type: 'formalize' | 'translate' | 'shorten',
+      targetLanguage?: string
+    ): Promise<string | null> => {
+      if (!text.trim()) return null
+      try {
+        const result = await apiTransformText({ text, transformationType: type, targetLanguage })
+        return result?.transformedText ?? null
+      } catch {
+        return null
+      }
+    },
+    [apiTransformText]
+  )
+
   // Extract employee ID from task payload (for manager reviews - to show employee's skills, not manager's)
-  const employeeIdFromTaskPayload = (businessAppContext?.additionalData as any)?.psi_taskPayload
-    ?.employeePerformanceEvaluation?.employee
+  // Prefer employee from GET process when available (same source as header)
+  const employeeIdFromTaskPayload =
+    employeeIdFromProcess ?? (ad?.psi_taskPayload?.employeePerformanceEvaluation?.employee as string | undefined)
 
   // Track selected employee ID separately to avoid circular dependency
   // Priority: task payload employee (for reviews) > preSelectedEmployeeId > initialValues
@@ -131,7 +177,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     employeeIdFromTaskPayload || preSelectedEmployeeId || initialValues.employeeId
   )
 
-  const ad = businessAppContext?.additionalData as any
   const evaluationFormData = ad?.psi_taskPayload?.evaluationFormData
 
   // Rating scale values and company values from evaluationFormData (no GraphQL)
@@ -265,12 +310,14 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     error: preSelectedEmployeeByUserIdError
   } = useEmployeeByUserId({ accessToken: businessAppContext.accessToken, userId: preSelectedUserId })
 
-  // Combine the results - prefer userId-based lookup if provided
-  const preSelectedEmployee = preSelectedUserId ? preSelectedEmployeeByUserId : preSelectedEmployeeById
-  const preSelectedEmployeeLoading = preSelectedUserId
-    ? preSelectedEmployeeByUserIdLoading
-    : preSelectedEmployeeByIdLoading
-  const preSelectedEmployeeError = preSelectedUserId ? preSelectedEmployeeByUserIdError : preSelectedEmployeeByIdError
+  // Prefer employee from GET process (same as PeerApprove header); else use props-based lookups
+  const preSelectedEmployee =
+    employeeFromProcess ?? (preSelectedUserId ? preSelectedEmployeeByUserId : preSelectedEmployeeById)
+  const preSelectedEmployeeLoading =
+    employeeFromProcessLoading ||
+    (preSelectedUserId ? preSelectedEmployeeByUserIdLoading : preSelectedEmployeeByIdLoading)
+  const preSelectedEmployeeError =
+    employeeFromProcessError ?? (preSelectedUserId ? preSelectedEmployeeByUserIdError : preSelectedEmployeeByIdError)
 
   // Get current user's employee ID
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
@@ -279,9 +326,8 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
   const preSelectedEmployeeOption = convertToEmployeeOption(preSelectedEmployee)
   const isPreSelectedEmployeeCurrentUser = preSelectedEmployeeOption?.id === currentUserEmployeeId
 
-  // Always treat as having a locked pre-selected employee when userId or employeeId is provided
-  // The dropdown will be hidden and employee info shown in header (read-only)
-  const hasPreSelectedEmployee = !!(preSelectedEmployeeId || preSelectedUserId)
+  // Always treat as having a locked pre-selected employee when we have employee from process or userId or employeeId from props
+  const hasPreSelectedEmployee = !!(employeeIdFromProcess || preSelectedEmployeeId || preSelectedUserId)
 
   // Detect "Enter Requested Performance Evaluation" flow from process metadata
   const flowTaskName = (businessAppContext?.additionalData as any)?.psi_processMetadata?.lastOpenedTask?.name || ''
@@ -390,7 +436,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
         return (item?.id ?? item?.ratingScaleValueId ?? '') as string
       }
 
-      const evaluationId = evaluationFormDataPayload?.evaluationId ?? ''
       const nodeName = taskPayload?.NodeName
       const taskName = taskPayload?.TaskName
       const isManagerReview = nodeName === 'Manager Review' || nodeName === 'Manager Evaluation'
@@ -417,7 +462,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
         }))
 
       const reviewSubmission = {
-        evaluationId,
         employeeId,
         skillRatings,
         companyValueRatings,
@@ -482,7 +526,11 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     isRequestedEvaluationFlow,
     ratingScaleValues,
     ratingScaleLoading: false,
-    employeeSkillsLoading
+    employeeSkillsLoading,
+    transformCommentText,
+    textTransformationLoading,
+    textTransformationError,
+    clearTextTransformationError
   }
 
   return (

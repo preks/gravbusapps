@@ -1,59 +1,41 @@
 /**
- * AI Orchestrator app: overview of plans and plan detail (orchestrator flow).
- * Route by query: no jobId = overview; jobId or plan=new = plan detail.
+ * AI Orchestrator app: always renders the plan detail flow (with IdleCanvas as the landing state).
+ * The old OverviewPage is no longer used — the IdleCanvas serves as the entry point.
  */
 
-import React, { useCallback } from 'react'
+import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { OverviewPage } from './pages/overview-page/OverviewPage'
 import { PlanDetailPage } from './pages/plan-detail-page/PlanDetailPage'
 
 const JOB_ID_PARAM = 'jobId'
-const PLAN_NEW_PARAM = 'plan'
 const PROMPT_PARAM = 'prompt'
 
-function getQueryParams(): { jobId: string | null; planNew: boolean; initialPrompt: string | null } {
+function getQueryParams(): { jobId: string | null; initialPrompt: string | null } {
   if (typeof globalThis.window === 'undefined') {
-    return { jobId: null, planNew: false, initialPrompt: null }
+    return { jobId: null, initialPrompt: null }
   }
   const params = new URLSearchParams(globalThis.location.search)
-  const jobId = params.get(JOB_ID_PARAM)
-  const planNew = params.get(PLAN_NEW_PARAM) === 'new'
-  const initialPrompt = params.get(PROMPT_PARAM)
-  return { jobId, planNew, initialPrompt }
+  return {
+    jobId: params.get(JOB_ID_PARAM),
+    initialPrompt: params.get(PROMPT_PARAM)
+  }
 }
 
 export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
-  const { jobId, planNew, initialPrompt } = getQueryParams()
+  // Capture URL params only on mount — replaceState during session must not re-trigger restore
+  const [{ jobId, initialPrompt }] = useState(() => getQueryParams())
 
-  const showPlanDetail = Boolean(jobId) || planNew
-
-  const handleNewPlan = useCallback(() => {
-    navigateTo(buildPlatformUrl(`/platform/create/ai-orchestrator?${PLAN_NEW_PARAM}=new`))
-  }, [])
-
-  const handleBackToOverview = useCallback(() => {
-    navigateTo(buildPlatformUrl('/platform/create/ai-orchestrator'))
-  }, [])
-
-  const handleOpenPlan = useCallback((jobId: string) => {
-    navigateTo(buildPlatformUrl(`/platform/create/ai-orchestrator?jobId=${encodeURIComponent(jobId)}`))
-  }, [])
-
-  if (showPlanDetail) {
-    return (
+  return (
+    <div className="gba:h-full gba:w-full">
       <PlanDetailPage
         accessToken={context.accessToken ?? ''}
         userInfo={context.userInfo}
         jobId={jobId}
         initialPrompt={initialPrompt ?? undefined}
-        onBack={handleBackToOverview}
+        onBack={() => {}}
       />
-    )
-  }
-
-  return <OverviewPage accessToken={context.accessToken ?? ''} onNewPlan={handleNewPlan} onOpenPlan={handleOpenPlan} />
+    </div>
+  )
 }
 
 export default AIOrchestrator

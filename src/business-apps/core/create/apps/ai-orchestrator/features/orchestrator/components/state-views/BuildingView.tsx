@@ -1,11 +1,12 @@
 import React from 'react'
-import { Badge, Button, Card, CardContent } from '@newwork/nw-design-system'
 import { CheckCircle2, Loader2, Recycle, XCircle } from 'lucide-react'
 import { Canvas } from '../layouts/Canvas'
 import { PhaseTimeline } from '../widgets/PhaseTimeline'
 import { BuildConsoleLog, type BuildLogEntry } from '../widgets/BuildConsoleLog'
 import { ProgressTilesGrid } from '../progress/ProgressTilesGrid'
+import { AppIconBadge } from '../ui/AppIconBadge'
 import type { BuildPhase, TileState } from '../../types'
+import type { AppMetadata } from '../../types/build'
 
 export interface BuildingViewProps {
   currentPhase: BuildPhase | null
@@ -19,7 +20,7 @@ export interface BuildingViewProps {
   phaseMessage: string | null
   isBuilding: boolean
   tiles: TileState
-  onCancel: () => void
+  appMetadata?: AppMetadata
 }
 
 export const BuildingView: React.FC<BuildingViewProps> = ({
@@ -34,30 +35,25 @@ export const BuildingView: React.FC<BuildingViewProps> = ({
   phaseMessage,
   isBuilding,
   tiles,
-  onCancel
+  appMetadata
 }) => {
   return (
-    <Canvas title="Building" subtitle="Creating your components">
-      <div className="gba:space-y-4">
-        <Card className="gba:border-border/80">
-          <CardContent className="gba:p-4 gba:space-y-3">
-            <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
-              <div>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                  <h3 className="gba:text-base gba:font-semibold gba:text-foreground">Building your components</h3>
-                  <Badge variant="secondary" className="gba:text-xs">
-                    {overallProgress}%
-                  </Badge>
-                </div>
-                <p className="gba:text-xs gba:text-muted-foreground">
-                  {completedCount + reusedCount} of {totalCount} completed
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={onCancel} disabled={!isBuilding}>
-                Cancel Build
-              </Button>
-            </div>
+    <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0">
+      {/* App Identity Header */}
+      {appMetadata && (
+        <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:border-b gba:border-border gba:bg-background gba:shrink-0">
+          <AppIconBadge iconName={appMetadata.icon} size="md" />
+          <div className="gba:min-w-0">
+            <p className="gba:font-semibold gba:text-foreground gba:text-base gba:leading-tight">{appMetadata.name}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:truncate">{appMetadata.description}</p>
+          </div>
+        </div>
+      )}
 
+      <Canvas>
+        <div className="gba:space-y-4">
+          {/* Progress stats and phase timeline */}
+          <div className="gba:space-y-3">
             <div className="gba:flex gba:items-center gba:gap-4 gba:flex-wrap gba:text-xs">
               <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-emerald-600">
                 <CheckCircle2 className="gba:w-3.5 gba:h-3.5" />
@@ -87,28 +83,28 @@ export const BuildingView: React.FC<BuildingViewProps> = ({
               currentPhase={currentPhase}
               completedPhases={completedPhases}
               overallProgress={overallProgress}
-              className="gba:pt-1"
+              isBuilding={isBuilding}
             />
-          </CardContent>
-        </Card>
+          </div>
 
-        <BuildConsoleLog logs={buildLogs} currentOperation={phaseMessage} isBuilding={isBuilding} maxHeight="220px" />
+          <BuildConsoleLog logs={buildLogs} currentOperation={phaseMessage} isBuilding={isBuilding} maxHeight="220px" />
 
-        <div className="gba:min-h-0">
-          <ProgressTilesGrid
-            tiles={tiles}
-            overallProgress={overallProgress}
-            completedCount={completedCount}
-            failedCount={failedCount}
-            reusedCount={reusedCount}
-            totalCount={totalCount}
-            isBuilding={isBuilding}
-            currentPhase={currentPhase}
-            phaseMessage={phaseMessage}
-            showHeader={false}
-          />
+          <div className="gba:min-h-0">
+            <ProgressTilesGrid
+              tiles={tiles}
+              overallProgress={overallProgress}
+              completedCount={completedCount}
+              failedCount={failedCount}
+              reusedCount={reusedCount}
+              totalCount={totalCount}
+              isBuilding={isBuilding}
+              currentPhase={currentPhase}
+              phaseMessage={phaseMessage}
+              showHeader={false}
+            />
+          </div>
         </div>
-      </div>
-    </Canvas>
+      </Canvas>
+    </div>
   )
 }

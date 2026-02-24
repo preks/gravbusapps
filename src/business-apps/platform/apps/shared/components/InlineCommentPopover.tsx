@@ -5,14 +5,22 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Button, Card, Textarea } from '@newwork/nw-design-system'
+import { Button, Card, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { Send, X } from 'lucide-react'
+import sharedTranslations from '../_i18n'
+
+export interface InlineCommentPopoverMessages {
+  addComment?: string
+  placeholder?: string
+  comment?: string
+}
 
 export interface InlineCommentPopoverProps {
   isOpen: boolean
   position: { top: number; left: number } | null
   onSubmit: (content: string) => void
   onClose: () => void
+  messages?: InlineCommentPopoverMessages
   'data-testid'?: string
 }
 
@@ -24,8 +32,16 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
   position,
   onSubmit,
   onClose,
+  messages: messagesProp,
   'data-testid': testId = 'inline-comment-popover'
 }) => {
+  const { t } = useTranslation(sharedTranslations)
+  const defaultMessages: Required<InlineCommentPopoverMessages> = {
+    addComment: t('inline-comment-add'),
+    placeholder: t('inline-comment-placeholder'),
+    comment: t('inline-comment-button')
+  }
+  const messages = { ...defaultMessages, ...messagesProp }
   const [content, setContent] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -75,7 +91,7 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
               <div className="gba:w-6 gba:h-6 gba:rounded-md gba:bg-warning/15 gba:flex gba:items-center gba:justify-center">
                 <Send className="gba:h-3.5 gba:w-3.5 gba:text-warning" />
               </div>
-              <span className="gba:text-sm gba:font-semibold">Add Comment</span>
+              <span className="gba:text-sm gba:font-semibold">{messages.addComment}</span>
             </div>
             <Button
               variant="ghost"
@@ -97,7 +113,7 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
             value={content}
             onChange={e => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Add a comment..."
+            placeholder={messages.placeholder}
             rows={3}
             className="gba:text-sm gba:resize-none gba:border-border/50 focus-visible:gba:ring-warning/30"
             data-testid={`${testId}-textarea`}
@@ -122,7 +138,7 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
               className="gba:h-8 gba:px-3 gba:gap-1.5"
             >
               <Send className="gba:h-3.5 gba:w-3.5" />
-              <span>Comment</span>
+              <span>{messages.comment}</span>
             </Button>
           </div>
         </div>

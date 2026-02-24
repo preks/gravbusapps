@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { PageLayout, useTranslation, toast, Spinner } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation, toast, Spinner, Toaster } from '@newwork/nw-design-system'
 import { ListChecks } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
@@ -7,6 +7,7 @@ import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { startProcess, getPlatformContext } from '@/common/utils/start-process'
+import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
 import { usePerformanceCycles } from './hooks/usePerformanceCycles'
 import { useRatingScales } from './hooks/useRatingScales'
 import { useCompanyValues } from './hooks/useCompanyValues'
@@ -37,6 +38,15 @@ function computeStatus(cycle: Omit<PerformanceCycle, 'status'> & { deactivated?:
 
 function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+/** Returns true if [startA, endA] and [startB, endB] overlap (inclusive). Dates in YYYY-MM-DD or parseable by Date. */
+function doDateRangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
+  const aStart = new Date(startA).getTime()
+  const aEnd = new Date(endA).getTime()
+  const bStart = new Date(startB).getTime()
+  const bEnd = new Date(endB).getTime()
+  return aStart <= bEnd && aEnd >= bStart
 }
 
 enum PerformanceTabEnum {
@@ -92,7 +102,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
   const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
-  const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
+  const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.RatingScales)
   const [startingCycleId, setStartingCycleId] = useState<string | null>(null)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
 
@@ -123,6 +133,16 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const pageSubtitle = t('subtitle')
 
   const handleSaveFromModal = async (values: CycleEditorValues) => {
+    const otherCycles = cycles.filter(c => c.id !== values.id)
+    const overlaps = otherCycles.some(c =>
+      doDateRangesOverlap(values.startDate, values.endDate, c.startDate, c.endDate)
+    )
+    if (overlaps) {
+      const err = new Error(t('cycles-error-dates-overlap')) as Error & { code?: string }
+      err.code = 'DATES_OVERLAP'
+      throw err
+    }
+
     if (accessToken) {
       try {
         await savePerformanceCycle(values)
@@ -232,7 +252,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     setStartingCycleId(cycleId)
   }
 
-  const handleConfirmStartCycle = (options: { runFor: 'self' | 'team'; teamIds: string[] }) => {
+  const handleConfirmStartCycle = async (options: { runFor: 'self' | 'team'; teamIds: string[] }) => {
     if (!startingCycleId) return
 
     const cycle = cycles.find(c => c.id === startingCycleId)
@@ -248,23 +268,64 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       return
     }
 
-    try {
-      // Build the payload according to the API specification
-      const payload = {
-        employeePerformanceEvaluation: {
-          employee: platformContext.employeeId,
-          performanceCycle: cycle.id
-        },
-        managerUserId: managerUserId || '',
-        employeeUserId: currentEmployeeUserId || ''
-      }
-
-      // Start the Kogito process
-      startProcess({
-        domain: 'employee',
-        processName: 'performanceEvaluation',
-        payload
+    if (runFor === 'team' && !accessToken) {
+      toast.error('Unable to start evaluation: not authenticated', {
+        position: 'bottom-right',
+        className: 'gba:text-base'
       })
+      return
+    }
+
+    try {
+      if (runFor === 'self') {
+        const payload = {
+          employeePerformanceEvaluation: {
+            employee: platformContext.employeeId,
+            performanceCycle: cycle.id
+          },
+          managerUserId: managerUserId || '',
+          employeeUserId: currentEmployeeUserId || '',
+          performanceCycleId: cycle.id
+        }
+        startProcess({
+          domain: 'employee',
+          processName: 'performanceEvaluation',
+          payload
+        })
+      } else {
+        const orgClient = new OrgDirectoryClient(accessToken!)
+        for (const teamId of selectedTeamIds) {
+          // Team dropdown uses OrganizationalUnit ids (TEAM/DEPARTMENT/UNIT), not MatrixUnit ids
+          const [users, teamManagerUserId] = await Promise.all([
+            orgClient.getUsersByOrganizationalUnit(teamId),
+            orgClient.getTeamManagerUserId(teamId)
+          ])
+          const employeeUserIds = users.map(u => u.id).filter(Boolean)
+          if (employeeUserIds.length === 0) {
+            toast.warning('Team has no members with user accounts; skipping.', {
+              position: 'bottom-right',
+              className: 'gba:text-base'
+            })
+            continue
+          }
+          const payload = {
+            employeePerformanceEvaluation: {
+              employee: platformContext.employeeId,
+              performanceCycle: cycle.id
+            },
+            employeeUserId: currentEmployeeUserId || '',
+            performanceCycleId: cycle.id,
+            teamId: '',
+            employeeUserIds,
+            managerUserId: teamManagerUserId ?? '' // Team manager's userId (from org unit supervisor)
+          }
+          startProcess({
+            domain: 'employee',
+            processName: 'teamPerformanceEvaluation',
+            payload
+          })
+        }
+      }
 
       const message =
         runFor === 'self'
@@ -406,6 +467,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
 
   return (
     <div data-testid="performance-evaluation-container">
+      <Toaster position="bottom-right" />
       <PageLayout
         headerIcon={ListChecks}
         headerTitle={pageTitle}
@@ -414,9 +476,9 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           value: activeTab,
           onValueChange: handleTabChange,
           items: [
-            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') },
             { value: PerformanceTabEnum.RatingScales, label: t('tab-rating-scales') },
-            { value: PerformanceTabEnum.Values, label: t('tab-values') }
+            { value: PerformanceTabEnum.Values, label: t('tab-values') },
+            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') }
           ]
         }}
         variant={MODULE_COLORS.HR}

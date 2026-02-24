@@ -280,6 +280,7 @@ export const getNewTypes = `query MyQuery($expenseRuleId: uuid, $objectFilter: j
     code
     name
     reimbursable
+    additionalProperties
     activeFrom
     activeTo
     expenseGroupRef

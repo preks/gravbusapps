@@ -1,87 +1,15 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { Badge } from '@newwork/nw-design-system'
-import { X, UserCircle, Users, Building2, MapPin, FileCheck, ChevronDown, Loader2 } from 'lucide-react'
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { X, ChevronDown, Loader2 } from 'lucide-react'
 import type { TaskAssignment, AssignmentTarget, AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 import { useOrgDirectory } from '@/common/network/org-directory'
-
-type TargetField = keyof AssignmentTarget
-
-interface ResourceType {
-  key: string
-  field: TargetField
-  label: string
-  placeholder: string
-  dataKey: string
-  icon: React.ReactNode
-}
-
-const RESOURCE_TYPES: ResourceType[] = [
-  {
-    key: 'people',
-    field: 'users',
-    label: 'People',
-    placeholder: 'Search people...',
-    dataKey: 'users',
-    icon: <UserCircle className="gba:w-4 gba:h-4" />
-  },
-  {
-    key: 'departments',
-    field: 'organizationalUnits',
-    label: 'Departments',
-    placeholder: 'Search departments...',
-    dataKey: 'organizationalUnits',
-    icon: <Users className="gba:w-4 gba:h-4" />
-  },
-  {
-    key: 'teams',
-    field: 'matrixTeams',
-    label: 'Teams',
-    placeholder: 'Search teams...',
-    dataKey: 'matrixTeams',
-    icon: <Users className="gba:w-4 gba:h-4" />
-  },
-  {
-    key: 'companies',
-    field: 'companies',
-    label: 'Companies',
-    placeholder: 'Search companies...',
-    dataKey: 'companies',
-    icon: <Building2 className="gba:w-4 gba:h-4" />
-  },
-  {
-    key: 'costCenters',
-    field: 'costCenters',
-    label: 'Cost Centers',
-    placeholder: 'Search cost centers...',
-    dataKey: 'costCenters',
-    icon: <Building2 className="gba:w-4 gba:h-4" />
-  },
-  {
-    key: 'locations',
-    field: 'siteLocations',
-    label: 'Locations',
-    placeholder: 'Search locations...',
-    dataKey: 'siteLocations',
-    icon: <MapPin className="gba:w-4 gba:h-4" />
-  },
-  {
-    key: 'capabilities',
-    field: 'capabilities',
-    label: 'Capabilities',
-    placeholder: 'Search capabilities...',
-    dataKey: 'capabilities',
-    icon: <FileCheck className="gba:w-4 gba:h-4" />
-  }
-]
-
-export type ResourceTypeKey =
-  | 'people'
-  | 'departments'
-  | 'teams'
-  | 'companies'
-  | 'costCenters'
-  | 'locations'
-  | 'capabilities'
+import { RESOURCE_TYPES, type ResourceTypeKey, type TargetField } from './assignmentResourceTypes'
 
 export interface AssignmentSelectorProps {
   value?: TaskAssignment
@@ -107,14 +35,12 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     [allowedTypes]
   )
   const [activeType, setActiveType] = useState(visibleTypes[0] || RESOURCE_TYPES[0])
-  const [typeSelectorOpen, setTypeSelectorOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [resultsOpen, setResultsOpen] = useState(false)
   const [dataRequested, setDataRequested] = useState(false)
   const [nameCache, setNameCache] = useState<Record<string, string>>({})
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const typeRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const { data: orgData, loading: orgLoading } = useOrgDirectory(dataRequested ? accessToken : '')
@@ -186,9 +112,6 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setResultsOpen(false)
       }
-      if (typeRef.current && !typeRef.current.contains(e.target as Node)) {
-        setTypeSelectorOpen(false)
-      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -200,54 +123,54 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
       <div ref={containerRef} className="gba:relative">
         {/* Single bordered container for input + dropdown with unified focus ring */}
         <div
-          className={`${resultsOpen ? 'gba:absolute gba:inset-x-0 gba:top-0 gba:z-50' : ''} gba:rounded-md gba:border gba:border-border gba:bg-background gba:focus-within:ring-1 gba:focus-within:ring-ring gba:overflow-hidden`}
+          className={`${resultsOpen ? 'gba:absolute gba:inset-x-0 gba:top-0 gba:z-50' : ''} gba:rounded-md gba:border gba:border-border gba:bg-background gba:focus-within:ring-1 gba:focus-within:ring-ring`}
         >
           {/* Input row */}
           <div className="gba:flex gba:items-center">
             {/* Type prefix */}
-            <div ref={typeRef} className="gba:relative">
+            <div className="gba:relative">
               {visibleTypes.length === 1 ? (
                 <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-2 gba:border-r gba:border-border gba:text-sm gba:font-medium gba:text-foreground gba:shrink-0">
                   {activeType.icon}
                   <span>{activeType.label}</span>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setTypeSelectorOpen(prev => !prev)}
-                  className="gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-2 gba:border-r gba:border-border gba:text-sm gba:font-medium gba:text-foreground gba:hover:bg-accent gba:transition-colors gba:shrink-0"
-                  data-testid={`${testId}-type-trigger`}
-                >
-                  {activeType.icon}
-                  <span>{activeType.label}</span>
-                  <ChevronDown className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
-                </button>
-              )}
-
-              {typeSelectorOpen && visibleTypes.length > 1 && (
-                <div className="gba:absolute gba:z-50 gba:top-full gba:right-0 gba:mt-1 gba:w-48 gba:max-h-60 gba:overflow-y-auto gba:rounded-md gba:border gba:border-border gba:bg-popover gba:shadow-md gba:py-1">
-                  {visibleTypes.map(rt => (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <button
-                      key={rt.key}
                       type="button"
-                      onClick={() => {
-                        setActiveType(rt)
-                        setTypeSelectorOpen(false)
-                        setQuery('')
-                        inputRef.current?.focus()
-                      }}
-                      className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-sm gba:transition-colors ${
-                        rt.key === activeType.key
-                          ? 'gba:bg-accent gba:text-accent-foreground'
-                          : 'gba:hover:bg-accent gba:cursor-pointer'
-                      }`}
-                      data-testid={`${testId}-type-${rt.key}`}
+                      className="gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-2 gba:border-r gba:border-border gba:text-sm gba:font-medium gba:text-foreground gba:hover:bg-accent gba:transition-colors gba:shrink-0"
+                      data-testid={`${testId}-type-trigger`}
                     >
-                      {rt.icon}
-                      <span>{rt.label}</span>
+                      {activeType.icon}
+                      <span>{activeType.label}</span>
+                      <ChevronDown className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
                     </button>
-                  ))}
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="gba:w-56 gba:max-h-60 gba:overflow-y-auto"
+                    data-testid={`${testId}-type-menu`}
+                  >
+                    {visibleTypes.map(rt => (
+                      <DropdownMenuItem
+                        key={rt.key}
+                        onClick={() => {
+                          setActiveType(rt)
+                          setQuery('')
+                          inputRef.current?.focus()
+                        }}
+                        className={rt.key === activeType.key ? 'gba:bg-accent gba:text-accent-foreground' : undefined}
+                        data-testid={`${testId}-type-${rt.key}`}
+                      >
+                        <span className="gba:flex gba:items-center gba:gap-2">
+                          <span className="gba:shrink-0 gba:text-muted-foreground">{rt.icon}</span>
+                          <span>{rt.label}</span>
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
 

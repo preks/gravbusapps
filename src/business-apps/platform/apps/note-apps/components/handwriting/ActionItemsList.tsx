@@ -1,5 +1,14 @@
 import React from 'react'
-import { Avatar, AvatarFallback, AvatarImage, Badge, Card, CardContent } from '@newwork/nw-design-system'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Badge,
+  Card,
+  CardContent,
+  useTranslation
+} from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { CheckCircle2, Clock, AlertTriangle, XCircle } from 'lucide-react'
 import type { NoteActionItemFlow } from '../../types'
 
@@ -17,22 +26,45 @@ function formatDateTime(iso?: string): string {
   }
 }
 
-function getStatusUi(status: NoteActionItemFlow['status']): {
+function getStatusUi(
+  status: NoteActionItemFlow['status'],
+  t: (key: string) => string
+): {
   label: string
   icon: React.ReactNode
   badgeVariant: 'secondary' | 'outline' | 'default' | 'destructive'
 } {
   switch (status) {
     case 'COMPLETED':
-      return { label: 'Completed', icon: <CheckCircle2 className="gba:w-3.5 gba:h-3.5" />, badgeVariant: 'default' }
+      return {
+        label: t('action-items-status-completed'),
+        icon: <CheckCircle2 className="gba:w-3.5 gba:h-3.5" />,
+        badgeVariant: 'default'
+      }
     case 'RUNNING':
-      return { label: 'In progress', icon: <Clock className="gba:w-3.5 gba:h-3.5" />, badgeVariant: 'secondary' }
+      return {
+        label: t('action-items-status-in-progress'),
+        icon: <Clock className="gba:w-3.5 gba:h-3.5" />,
+        badgeVariant: 'secondary'
+      }
     case 'FAILED':
-      return { label: 'Failed', icon: <AlertTriangle className="gba:w-3.5 gba:h-3.5" />, badgeVariant: 'destructive' }
+      return {
+        label: t('action-items-status-failed'),
+        icon: <AlertTriangle className="gba:w-3.5 gba:h-3.5" />,
+        badgeVariant: 'destructive'
+      }
     case 'CANCELED':
-      return { label: 'Canceled', icon: <XCircle className="gba:w-3.5 gba:h-3.5" />, badgeVariant: 'outline' }
+      return {
+        label: t('action-items-status-canceled'),
+        icon: <XCircle className="gba:w-3.5 gba:h-3.5" />,
+        badgeVariant: 'outline'
+      }
     default:
-      return { label: 'Unknown', icon: <Clock className="gba:w-3.5 gba:h-3.5" />, badgeVariant: 'outline' }
+      return {
+        label: t('action-items-status-unknown'),
+        icon: <Clock className="gba:w-3.5 gba:h-3.5" />,
+        badgeVariant: 'outline'
+      }
   }
 }
 
@@ -51,11 +83,13 @@ export const ActionItemsList: React.FC<ActionItemsListProps> = ({
   flows,
   'data-testid': testId = 'action-items-list'
 }) => {
+  const { t } = useTranslation(translations)
+
   if (flows.length === 0) {
     return (
       <Card data-testid={testId}>
         <CardContent className="gba:p-4 gba:text-sm gba:text-muted-foreground">
-          No action items yet. Use “Transform → Extract Action Items” to create blinks.
+          {t('action-items-list-empty')}
         </CardContent>
       </Card>
     )
@@ -64,7 +98,7 @@ export const ActionItemsList: React.FC<ActionItemsListProps> = ({
   return (
     <div className="gba:space-y-3" data-testid={testId}>
       {flows.map(flow => {
-        const ui = getStatusUi(flow.status)
+        const ui = getStatusUi(flow.status, t)
         return (
           <Card key={flow.id}>
             <CardContent className="gba:p-3 gba:space-y-2">
@@ -90,8 +124,10 @@ export const ActionItemsList: React.FC<ActionItemsListProps> = ({
               </div>
 
               <div className="gba:flex gba:flex-col gba:gap-1 gba:text-[11px] gba:text-muted-foreground">
-                <div>Sent: {formatDateTime(flow.createdAt)}</div>
-                {flow.completedAt && <div>Completed: {formatDateTime(flow.completedAt)}</div>}
+                <div>{t('action-items-sent', { date: formatDateTime(flow.createdAt) })}</div>
+                {flow.completedAt && (
+                  <div>{t('action-items-completed', { date: formatDateTime(flow.completedAt) })}</div>
+                )}
               </div>
             </CardContent>
           </Card>

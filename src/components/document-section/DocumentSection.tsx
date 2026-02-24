@@ -2,9 +2,7 @@ import React from 'react'
 import { Spinner, Alert, Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { env } from '@/common/env/EnvUtils'
 import { DocumentSectionProps } from './types'
 import { useDocumentState } from './hooks/useDocumentState'
 import { useDocumentTreeOperations } from './hooks/useDocumentTreeOperations'
@@ -25,6 +23,8 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   error = null,
   onRefresh,
   apiConfig,
+  restClient,
+  companyData,
   searchTerm: externalSearchTerm,
   onSearchChange,
   customActions = [],
@@ -37,9 +37,6 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   accessToken,
   'data-testid': dataTestId = 'document-section'
 }) => {
-  // REST client for direct API calls
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
-
   // Listen for process completion events to refresh documents after update/delete flows
   useProcessCompletion({
     onSuccess: () => {
@@ -123,7 +120,8 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     mouseDownPos: state.mouseDownPos,
     setMouseDownPos: state.setMouseDownPos,
     setIsDragging: state.setIsDragging,
-    isFolderDescendant: treeOps.isFolderDescendant
+    isFolderDescendant: treeOps.isFolderDescendant,
+    companyData // Pass company data for MDM operations
   })
 
   // Initialize confirmation modal handlers

@@ -97,6 +97,44 @@ function parseErrorResponse(errorData: any, fallbackMessage: string): string {
   return fallbackMessage
 }
 
+type PublishSSEEvent = {
+  type: string
+  message?: string
+  result?: { success: boolean; message?: string }
+}
+
+type PublishResult = { success: boolean; message?: string }
+
+function handlePublishSSEEvent(
+  data: string,
+  onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+): PublishResult | null {
+  const evt = JSON.parse(data) as PublishSSEEvent
+  onEvent?.(evt)
+  if (evt.type === 'done' && evt.result) {
+    return evt.result
+  }
+  if (evt.type === 'error') {
+    throw new Error(evt.message || 'Publish failed')
+  }
+  return null
+}
+
+function processPublishSSELine(
+  line: string,
+  onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+): PublishResult | null {
+  if (!line.startsWith('data:')) return null
+  const data = line.slice(5).trim()
+  if (!data) return null
+  try {
+    return handlePublishSSEEvent(data, onEvent)
+  } catch (e) {
+    if (!(e instanceof SyntaxError)) throw e
+    return null
+  }
+}
+
 /**
  * Client for the AI Orchestrator API
  */
@@ -148,21 +186,12 @@ export class OrchestratorClient {
   private parseSseLine(line: string, onEvent: (event: BuildProgressEvent) => void) {
     if (!line.startsWith('data:')) return
     const data = line.slice(5).trim()
-    if (!data) return
+    // Skip empty data and SSE comment content that infrastructure (nginx/ingress) may
+    // send as "data: :ping" instead of a proper SSE comment line ":ping".
+    if (!data || data.startsWith(':')) return
     try {
       const raw = JSON.parse(data) as Record<string, unknown>
       const event = normalizeProgressEvent(raw)
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[OrchestratorClient] Received SSE event:', {
-          type: event.eventType,
-          componentId: event.componentId,
-          componentName: event.componentName,
-          resourceUrl: event.resourceUrl,
-          azureUrl: event.azureUrl,
-          filesPublished: event.filesPublished,
-          message: event.message
-        })
-      }
       onEvent(event)
     } catch (e) {
       console.error('[OrchestratorClient] Failed to parse SSE event:', e, data)
@@ -341,6 +370,52 @@ export class OrchestratorClient {
     }
 
     return response.json() as Promise<AnalyzeResponse>
+  }
+
+  /**
+   * Publish the built screens for a job (calls /publish/stream, returns when done)
+   */
+  async publishApp(
+    repoId: string,
+    sessionId: string,
+    onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await fetch(`${this.baseUrl}/publish/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`,
+        Accept: 'text/event-stream'
+      },
+      body: JSON.stringify({ repoId, sessionId })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Publish failed: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('No response body')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let lastResult: PublishResult = { success: false }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        const result = processPublishSSELine(line, onEvent)
+        if (result) lastResult = result
+      }
+    }
+
+    return lastResult
   }
 
   /**

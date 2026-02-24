@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger, Badge } from '@newwork/nw-design-system'
 import { PlusIcon, MagnifyingGlassIcon, UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import { PhoneMissedIcon } from 'lucide-react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
@@ -8,6 +9,7 @@ import type { Conversation } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceData } from '../hooks/usePresence'
 import type { ConversationFilterKind } from '../hooks/useConversations'
+import { sortConversationsPinThenTime } from '../utils/conversationSort'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
@@ -15,6 +17,12 @@ interface ConversationListProps {
   activeConversationId: string | null
   onConversationSelect: (conversation: Conversation) => void
   onRemoveConversation?: (conversationId: string) => void
+  onPinChange?: (conversationId: string, isPinned: boolean) => void
+  onMuteChange?: (conversationId: string, isMuted: boolean) => void
+  onNudge?: (conversationId: string, toUserId: string) => void
+  onStartAudioCall?: (conversation: Conversation) => void
+  onStartVideoCall?: (conversation: Conversation) => void
+  isCallEnabled?: boolean
   onCreateConversation?: (user: any) => void
   onCreateGroup?: () => void
   isLoading?: boolean
@@ -35,6 +43,10 @@ interface ConversationListProps {
   onSearchChange?: (value: string) => void
   onFilterKindChange?: (kind: ConversationFilterKind) => void
   onUnreadOnlyChange?: (value: boolean) => void
+  onOpenCallHistory?: () => void
+  missedCallsCount?: number
+  onMarkAsUnread?: (conversationId: string) => void
+  markedAsUnreadConversationIds?: Set<string>
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -53,6 +65,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   activeConversationId,
   onConversationSelect,
   onRemoveConversation,
+  onPinChange,
+  onMuteChange,
+  onNudge,
+  onStartAudioCall,
+  onStartVideoCall,
+  isCallEnabled = false,
   onCreateConversation,
   onCreateGroup,
   isLoading = false,
@@ -72,7 +90,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   unreadOnly = false,
   onSearchChange,
   onFilterKindChange,
-  onUnreadOnlyChange
+  onUnreadOnlyChange,
+  onOpenCallHistory,
+  missedCallsCount = 0,
+  onMarkAsUnread,
+  markedAsUnreadConversationIds
 }) => {
   const t = useChatTranslation()
   // Force re-render when presenceVersion changes
@@ -82,8 +104,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Deduplicate conversations by ID (defensive programming - duplicates should be rare after fixes)
-  // List is backend-filtered; no client-side search/filter
+  // Deduplicate and sort: pinned first (by pinnedOrder), then unpinned by lastMessageAt
   const uniqueConversations = useMemo(() => {
     const seen = new Set<string>()
     const duplicates: string[] = []
@@ -101,8 +122,15 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       console.debug('[ConversationList] Filtered out duplicate conversations:', duplicates)
     }
 
-    return filtered
+    return [...filtered].sort(sortConversationsPinThenTime)
   }, [conversations])
+
+  // When Unread filter is on, show conversations with unread messages or marked-as-unread (dot)
+  const displayedConversations = useMemo(() => {
+    if (!unreadOnly) return uniqueConversations
+    const marked = markedAsUnreadConversationIds ?? new Set<string>()
+    return uniqueConversations.filter(c => (c.unreadCount ?? 0) > 0 || marked.has(c.id))
+  }, [unreadOnly, uniqueConversations, markedAsUnreadConversationIds])
 
   const hasActiveFilters = (search?.trim()?.length ?? 0) > 0 || filterKind !== 'all' || unreadOnly
 
@@ -211,6 +239,29 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           </div>
         )}
 
+        {onOpenCallHistory && (
+          <div className="gba:relative gba:flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:h-8 gba:w-8"
+              onClick={onOpenCallHistory}
+              aria-label={t('chat-callHistory')}
+              data-testid="chat-openCallHistory"
+            >
+              <PhoneMissedIcon className="gba:w-4 gba:h-4" />
+            </Button>
+            {missedCallsCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="gba:absolute gba:-top-1 gba:-right-1 gba:min-w-[1.25rem] gba:h-5 gba:px-1 gba:text-xs gba:flex gba:items-center gba:justify-center"
+                data-testid="chat-missedCallsBadge"
+              >
+                {missedCallsCount > 99 ? '99+' : missedCallsCount}
+              </Badge>
+            )}
+          </div>
+        )}
         <Popover open={showNewChatMenu} onOpenChange={setShowNewChatMenu}>
           <PopoverTrigger asChild>
             <Button
@@ -288,7 +339,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             )
           }
 
-          if (uniqueConversations.length === 0) {
+          if (displayedConversations.length === 0) {
             return (
               <div className="gba:p-6 gba:text-center">
                 <p className="gba:text-sm gba:text-muted-foreground">
@@ -301,7 +352,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           return (
             <>
               <div className="gba:py-1">
-                {uniqueConversations.map(conversation => {
+                {displayedConversations.map(conversation => {
                   const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
                   // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
                   const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
@@ -313,11 +364,21 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       conversation={conversation}
                       onClick={() => onConversationSelect(conversation)}
                       onRemove={onRemoveConversation}
+                      onPinChange={onPinChange}
+                      onMuteChange={onMuteChange}
+                      onNudge={onNudge}
+                      onStartAudioCall={onStartAudioCall}
+                      onStartVideoCall={onStartVideoCall}
+                      isCallEnabled={isCallEnabled}
+                      onMarkAsUnread={onMarkAsUnread}
+                      isMarkedAsUnread={markedAsUnreadConversationIds?.has(conversation.id)}
                       isActive={conversation.id === activeConversationId}
                       currentUserId={currentUserId}
                       compact={compact}
                       otherUserPresence={otherUserPresence}
                       activeExpertCount={activeExpertCount}
+                      isPinned={conversation.isPinned}
+                      isMuted={conversation.isMuted}
                       t={t}
                     />
                   )

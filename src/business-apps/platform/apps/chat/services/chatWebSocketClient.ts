@@ -9,6 +9,7 @@ import type {
   SetUserStatusPayload
 } from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
+import { normalizeMessage } from './chatApiClient'
 
 // Client version for tracking
 const CLIENT_VERSION = '2'
@@ -175,13 +176,15 @@ export class ChatWebSocketClient {
 
   // Event listeners
   onNewMessage(handler: (message: Message) => void) {
-    this.socket?.on('new_message', (message: Message) => {
-      handler(message)
+    this.socket?.on('new_message', (raw: unknown) => {
+      handler(normalizeMessage(raw))
     })
   }
 
   onMessageUpdated(handler: (message: Message) => void) {
-    this.socket?.on('message:updated', handler)
+    this.socket?.on('message:updated', (raw: unknown) => {
+      handler(normalizeMessage(raw))
+    })
   }
 
   onMessageDeleted(handler: (data: { messageId: string; conversationId: string }) => void) {
@@ -241,12 +244,23 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation:read', handler)
   }
 
+  onConversationUnread(handler: (data: { conversationId: string; userId: string }) => void) {
+    this.socket?.on('conversation:unread', handler)
+  }
+
   onConversationCallStarted(handler: (data: ActiveCall) => void) {
     this.socket?.on('conversation:call-started', handler)
   }
 
   onConversationCallEnded(handler: (data: { conversationId: string; roomId: string }) => void) {
     this.socket?.on('conversation:call-ended', handler)
+  }
+
+  onCallHistoryMissedCount(handler: (data: { count: number }) => void): () => void {
+    this.socket?.on('call_history:missed_count', handler)
+    return () => {
+      this.socket?.off('call_history:missed_count', handler)
+    }
   }
 
   onConversationActiveCalls(handler: (data: ActiveCall[]) => void) {
@@ -277,12 +291,21 @@ export class ChatWebSocketClient {
     this.socket.emit('conversation:mark-read', { conversationId })
   }
 
+  markConversationAsUnread(conversationId: string) {
+    if (!this.socket?.connected) {
+      return
+    }
+
+    this.socket.emit('conversation:mark-unread', { conversationId })
+  }
+
   sendMessage(
     conversationId: string,
     content: string,
     senderId: string,
     parentId?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
+    quotedMessageId?: string
   ) {
     if (!this.socket) {
       console.warn('[ChatWebSocket] ❌ Cannot send message - socket not initialized')
@@ -299,7 +322,8 @@ export class ChatWebSocketClient {
       content,
       senderId,
       ...(parentId && { parentId }),
-      ...(metadata && { metadata })
+      ...(metadata && { metadata }),
+      ...(quotedMessageId && { quotedMessageId })
     }
 
     this.socket.emit('send_message', payload)

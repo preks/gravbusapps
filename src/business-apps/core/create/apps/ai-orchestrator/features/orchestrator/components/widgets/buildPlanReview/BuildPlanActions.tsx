@@ -9,7 +9,7 @@ interface BuildPlanActionsProps {
   onConfirm: () => void
   onCancel: () => void
   isLoading: boolean
-  isRefining: boolean
+  isRefining?: boolean
   allQuestionsAnswered: boolean
   selectedCount?: number
   totalCount?: number

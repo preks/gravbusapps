@@ -5,7 +5,7 @@
  * analyzing prompts and executing build plans.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
 import type {
   AnalyzeRequest,
@@ -33,6 +33,9 @@ export interface UseOrchestratorClientResult {
   lastSessionId: string | null
   /** Shared repo ID from last build (for preview and execute-again) */
   lastRepoId: string | null
+  isPublishing: boolean
+  publishError: string | null
+  publishSuccess: boolean
 
   // Methods
   analyze: (prompt: string, context?: Record<string, unknown>) => Promise<AnalyzeResponse>
@@ -43,6 +46,8 @@ export interface UseOrchestratorClientResult {
   /** Refetch plan from backend after build so UI uses persisted components with metadata. Returns loaded plan or null. */
   refreshPlan: (jobId: string) => Promise<BuildPlan | null>
   cancelBuild: (jobId: string) => Promise<void>
+  /** Publish the built app screens using the session from the last build */
+  publishApp: () => Promise<void>
   clearPlan: () => void
   clearRefinementSummary: () => void
   /** Store session from build_complete event so refine/execute-again can send it */
@@ -76,9 +81,18 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   const [refinementSummary, setRefinementSummary] = useState<string | null>(null)
   const [lastSessionId, setLastSessionId] = useState<string | null>(null)
   const [lastRepoId, setLastRepoId] = useState<string | null>(null)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [publishError, setPublishError] = useState<string | null>(null)
+  const [publishSuccess, setPublishSuccess] = useState(false)
 
   // Create memoized client
   const client = useMemo(() => new OrchestratorClient(accessToken), [accessToken])
+
+  // Reset publish state when viewing a different plan (e.g. selecting another session from history)
+  useEffect(() => {
+    setPublishSuccess(false)
+    setPublishError(null)
+  }, [currentPlan?.jobId])
 
   /**
    * Analyze a prompt and generate a build plan
@@ -252,15 +266,45 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     setLastContext(undefined)
     setLastSessionId(null)
     setLastRepoId(null)
+    setPublishSuccess(false)
+    setPublishError(null)
   }, [])
 
   /**
-   * Store shared session from build_complete event for preview and execute-again
+   * Store shared session from build_complete event for preview and execute-again.
+   * Clears publish state so the UI shows "Publish" until the user actually publishes.
    */
   const setSessionFromBuild = useCallback((sessionId: string | undefined, repoId: string | undefined) => {
     setLastSessionId(sessionId ?? null)
     setLastRepoId(repoId ?? null)
+    setPublishSuccess(false)
+    setPublishError(null)
   }, [])
+
+  /**
+   * Publish the app using the session from the last build
+   */
+  const publishApp = useCallback(async (): Promise<void> => {
+    if (!lastRepoId || !lastSessionId) {
+      setPublishError('No build session available to publish. Please build first.')
+      return
+    }
+    setIsPublishing(true)
+    setPublishError(null)
+    setPublishSuccess(false)
+    try {
+      const result = await client.publishApp(lastRepoId, lastSessionId)
+      if (result.success) {
+        setPublishSuccess(true)
+      } else {
+        setPublishError(result.message || 'Publish failed')
+      }
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : 'Publish failed')
+    } finally {
+      setIsPublishing(false)
+    }
+  }, [client, lastRepoId, lastSessionId])
 
   /**
    * Clear refinement summary
@@ -315,6 +359,9 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     refinementSummary,
     lastSessionId,
     lastRepoId,
+    isPublishing,
+    publishError,
+    publishSuccess,
     analyze,
     reanalyze,
     refinePlan,
@@ -322,6 +369,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     getJobStatus,
     refreshPlan,
     cancelBuild,
+    publishApp,
     clearPlan,
     clearRefinementSummary,
     setSessionFromBuild,

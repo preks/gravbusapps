@@ -6,11 +6,13 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  useTranslation,
   type ChartConfig
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 import { FileText, FileSpreadsheet, StickyNote, Presentation, TrendingUp } from 'lucide-react'
 import { DESK_TYPE_COLORS } from '../constants/deskColors'
+import deskTranslations from '../_i18n'
 
 interface ActivityData {
   day: string
@@ -47,6 +49,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
   isLoading,
   'data-testid': testId = 'desk-activity'
 }) => {
+  const { t } = useTranslation(deskTranslations)
   const [hoveredType, setHoveredType] = useState<string | null>(null)
 
   const periodTotals = useMemo(() => {
@@ -71,18 +74,18 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
 
   const chartConfig = useMemo<ChartConfig>(
     () => ({
-      documents: { label: 'Documents', color: CHART_COLORS[0] },
-      spreadsheets: { label: 'Spreadsheets', color: CHART_COLORS[1] },
-      notes: { label: 'Notes', color: CHART_COLORS[2] },
-      slides: { label: 'Slides', color: CHART_COLORS[3] }
+      documents: { label: t('type-documents'), color: CHART_COLORS[0] },
+      spreadsheets: { label: t('type-spreadsheets'), color: CHART_COLORS[1] },
+      notes: { label: t('type-notes'), color: CHART_COLORS[2] },
+      slides: { label: t('type-slides'), color: CHART_COLORS[3] }
     }),
-    []
+    [t]
   )
 
   const legendItems = [
     {
       key: 'documents',
-      label: 'Documents',
+      label: t('type-documents'),
       icon: FileText,
       color: CHART_COLORS[0],
       count: stats.documents.total,
@@ -90,7 +93,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
     },
     {
       key: 'spreadsheets',
-      label: 'Spreadsheets',
+      label: t('type-spreadsheets'),
       icon: FileSpreadsheet,
       color: CHART_COLORS[1],
       count: stats.spreadsheets.total,
@@ -98,7 +101,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
     },
     {
       key: 'notes',
-      label: 'Notes',
+      label: t('type-notes'),
       icon: StickyNote,
       color: CHART_COLORS[2],
       count: stats.notes.total,
@@ -106,7 +109,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
     },
     {
       key: 'slides',
-      label: 'Slides',
+      label: t('type-slides'),
       icon: Presentation,
       color: CHART_COLORS[3],
       count: stats.slides?.total ?? 0,
@@ -126,12 +129,12 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
         <div className="gba:text-center gba:mb-6">
           <div className="gba:inline-flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:mb-3">
             <TrendingUp className="gba:h-5 gba:w-5" />
-            <span className="gba:text-sm gba:font-medium gba:uppercase gba:tracking-wider">7-Day Activity</span>
+            <span className="gba:text-sm gba:font-medium gba:uppercase gba:tracking-wider">{t('activity-7-day')}</span>
           </div>
           <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
-            {isLoading ? '—' : total} updates this week
+            {isLoading ? '—' : t('activity-updates', { count: total })}
           </h2>
-          <p className="gba:text-muted-foreground">Track your content creation across all applications</p>
+          <p className="gba:text-muted-foreground">{t('activity-subtitle')}</p>
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-4 gba:gap-6">

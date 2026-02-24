@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
 import { AssetStatus } from '../types'
+import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import assetsTranslations from '../_i18n'
 
 interface AssetTableActionButtonProps {
   assetId: string
@@ -12,6 +13,7 @@ interface AssetTableActionButtonProps {
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
 }
 
 export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
@@ -22,8 +24,10 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
-  onRetrieveAsset
+  onRetrieveAsset,
+  onGenerateDocument
 }) => {
+  const { t } = useTranslation(assetsTranslations)
   const isAllocated = assetStatus === AssetStatus.ALLOCATED
   const isRetired = assetStatus === AssetStatus.RETIRED
 
@@ -32,9 +36,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (!isRetired && onUpdateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: t('actions'),
         key: 'update-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_asset', 'Update Asset'),
+        label: t('update_asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onUpdateAsset(assetId)
@@ -44,9 +48,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (!isAllocated && !isRetired && onAllocateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: t('actions'),
         key: 'allocate-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
+        label: t('allocate_asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onAllocateAsset(assetId)
@@ -56,9 +60,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (isAllocated && !isRetired && onRetrieveAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: t('actions'),
         key: 'retrieve-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retrieve_asset', 'Retrieve Asset'),
+        label: t('retrieve_asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetrieveAsset(assetId)
@@ -68,9 +72,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (!isRetired && onRetireAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: t('actions'),
         key: 'retire-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retire_asset', 'Retire Asset'),
+        label: t('retire_asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetireAsset(assetId)
@@ -78,8 +82,30 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
       })
     }
 
+    if (onGenerateDocument) {
+      actions.push({
+        category: t('actions'),
+        key: 'generate-document',
+        label: t('export_pdf'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onGenerateDocument(assetId)
+        }
+      })
+    }
+
     return actions
-  }, [assetId, isAllocated, isRetired, onAllocateAsset, onUpdateAsset, onRetireAsset, onRetrieveAsset])
+  }, [
+    t,
+    assetId,
+    isAllocated,
+    isRetired,
+    onAllocateAsset,
+    onUpdateAsset,
+    onRetireAsset,
+    onRetrieveAsset,
+    onGenerateDocument
+  ])
 
   return (
     <AppActionButton

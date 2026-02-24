@@ -16,6 +16,7 @@ import { ReturnAsset } from '../../forms/return-asset/ReturnAsset'
 import { Asset, AssetStatus } from './types'
 import { useAssetService } from './services/useAssetService'
 import { AssetProcessClient } from './services/AssetProcessClient'
+import { generateAssetDocumentPdf } from './utils/assetDocumentPdf'
 
 const moduleColor = MODULE_COLORS.HR
 
@@ -66,10 +67,30 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
   const memoizedStatistics = useMemo(
     () => statistics,
-    [statistics.totalAssets, statistics.allocatedAssets, statistics.availableAssets, statistics.underRepairAssets]
+    [
+      statistics.totalAssets,
+      statistics.allocatedAssets,
+      statistics.availableAssets,
+      statistics.underRepairAssets,
+      statistics.retiredAssets
+    ]
   )
 
-  const { getAllocationsForAsset, getAssetById } = useAssetService(props)
+  const { getAllocationsForAsset, getAssetById, deallocateAsset } = useAssetService(props)
+
+  const handleGenerateDocument = useCallback(
+    async (assetId: string) => {
+      try {
+        const asset = assets.find(a => a.id === assetId) ?? (await getAssetById(assetId))
+        if (!asset) return
+        const allocations = await getAllocationsForAsset(assetId)
+        await generateAssetDocumentPdf(asset, allocations)
+      } catch (error) {
+        console.error('Error generating asset document:', error)
+      }
+    },
+    [assets, getAssetById, getAllocationsForAsset]
+  )
   const [selectedAssetAllocations, setSelectedAssetAllocations] = useState<any[]>([])
 
   const getAssetIdFromUrl = useCallback((): string | null => {
@@ -272,6 +293,15 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       if (!asset) return
 
       try {
+        // Close any active allocations first so history shows ended, not "Current"
+        const allocations = await getAllocationsForAsset(asset.id)
+        const today = new Date().toISOString().slice(0, 10)
+        for (const alloc of allocations) {
+          if (!alloc.endDate) {
+            await deallocateAsset(alloc.id, alloc.version, today)
+          }
+        }
+
         const client = new AssetProcessClient()
         client.setAccessToken(props.accessToken)
 
@@ -295,7 +325,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         console.error('Error retiring asset:', error)
       }
     },
-    [assets, props.accessToken, refetchAssets]
+    [assets, getAllocationsForAsset, deallocateAsset, props.accessToken, refetchAssets]
   )
 
   useAssetProcessEvents({
@@ -407,6 +437,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               onUpdateAsset={handleUpdateAsset}
               onRetireAsset={handleRetireAsset}
               onRetrieveAsset={handleRetrieveAsset}
+              onGenerateDocument={handleGenerateDocument}
             />
           </div>
         </div>

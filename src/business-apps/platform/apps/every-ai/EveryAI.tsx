@@ -95,16 +95,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     speed: 1.0,
     accessToken,
     onStart: () => {
-      // STOP listening when AI starts speaking to prevent feedback loop
-      console.log('🔇 [Voice] AI speaking started - stopping mic')
       voiceInput.cancelListening()
     },
     onEnd: () => {
       // Record when AI stopped speaking (for echo filtering)
       aiStoppedSpeakingAtRef.current = Date.now()
-      // Auto-restart listening IMMEDIATELY
       if (isSpeechModeRef.current) {
-        console.log('🎤 [Voice] AI finished speaking - restarting listening immediately')
         voiceInput.startListening()
       }
     }
@@ -113,9 +109,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Stop AI speech when user starts talking (detected by interim transcript or volume)
   useEffect(() => {
     if (isSpeechMode && voiceSynthesis.isSpeaking) {
-      // User is speaking - stop the AI
       if (voiceInput.interimTranscript || voiceInput.volume > 0.15) {
-        console.log('🔇 [Voice] User speaking - stopping AI speech')
         voiceSynthesis.stop()
       }
     }
@@ -124,8 +118,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Toggle speech mode
   const toggleSpeechMode = useCallback(() => {
     if (isSpeechMode) {
-      // Exiting speech mode - IMMEDIATELY stop everything
-      console.log('🎤 [Voice] Exiting speech mode - stopping all audio')
       isSpeechModeRef.current = false // Set ref FIRST to prevent any queued operations
       setIsSpeechMode(false)
       voiceInput.cancelListening()
@@ -138,15 +130,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       voiceForm.clearPendingFormSummary()
       voiceForm.setActiveForm(null) // Clear any active form registration
     } else {
-      // Entering speech mode - auto-start listening
       setIsSpeechMode(true)
       isSpeechModeRef.current = true
       lastSpokenTurnIndexRef.current = conversation.length - 1
       voiceForm.setIsVoiceMode(true)
-      // Auto-start listening after a brief delay for UI to render
       setTimeout(() => {
         if (isSpeechModeRef.current) {
-          console.log('🎤 [Voice] Auto-starting listening on speech mode entry')
           voiceInput.startListening()
         }
       }, 200)
@@ -160,20 +149,15 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       return
     }
 
-    // DON'T speak if already speaking (prevents queue buildup and loops)
     if (voiceSynthesis.isSpeaking || voiceSynthesis.isLoading) {
-      console.log('🔊 [Voice Form] Skipping - already speaking')
       return
     }
 
-    // CRITICAL: Check if we already spoke this exact summary (prevent loops)
     if (spokenFormSummaryRef.current === voiceForm.pendingFormSummary) {
-      console.log('🔊 [Voice Form] Already spoke this summary, skipping')
       voiceForm.clearPendingFormSummary()
       return
     }
 
-    console.log('🔊 [Voice Form] Speaking form summary:', voiceForm.pendingFormSummary.substring(0, 60) + '...')
     spokenFormSummaryRef.current = voiceForm.pendingFormSummary
     voiceSynthesis.speak(voiceForm.pendingFormSummary)
     voiceForm.clearPendingFormSummary()
@@ -193,62 +177,35 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Auto-speak new AI responses in speech mode - trigger as soon as answer appears
   useEffect(() => {
-    // Double-check both state and ref to prevent speaking after mode exit
     if (!isSpeechMode || !isSpeechModeRef.current) {
-      console.log('🔊 [TTS] Not in speech mode, skipping')
       return
     }
 
-    // DON'T speak if AI is already speaking (prevents overlap/loops)
     if (voiceSynthesis.isSpeaking || voiceSynthesis.isLoading) {
-      console.log('🔊 [TTS] Already speaking/loading, skipping')
       return
     }
 
-    // DON'T speak if there's an active form (the form summary effect handles that)
     if (voiceForm.activeForm) {
-      console.log('🔊 [TTS] Active form present, skipping')
       lastSpokenTurnIndexRef.current = conversation.length - 1
       return
     }
 
-    console.log(
-      '🔊 [TTS] Checking conversation for new responses. Length:',
-      conversation.length,
-      'lastSpoken:',
-      lastSpokenTurnIndexRef.current
-    )
-
     // Find the latest agent turn with an answer (don't wait for isLoading to finish)
     for (let i = conversation.length - 1; i > lastSpokenTurnIndexRef.current; i--) {
       const turn = conversation[i]
-      console.log('🔊 [TTS] Checking turn', i, 'side:', turn.side)
-
       if (turn.side === 'agent') {
-        // Skip if this turn has a flow_proposal (form) - let form summary handle it
         const hasFlowProposal = turn.outputs?.some((o: OutputItem) => o.type === 'flow_proposal')
         if (hasFlowProposal) {
-          console.log('🔊 [TTS] Turn has flow_proposal, skipping')
           lastSpokenTurnIndexRef.current = i
           continue
         }
 
         // Find the answer output
         const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
-        console.log(
-          '🔊 [TTS] Answer output:',
-          answerOutput ? 'FOUND' : 'NOT FOUND',
-          'outputs:',
-          turn.outputs?.map(o => o.type)
-        )
-
         if (answerOutput?.displayData) {
-          // Extract text from display data
           const textParts: string[] = []
           for (const data of answerOutput.displayData) {
-            console.log('🔊 [TTS] Display data type:', data.type)
             if (data.type === 'textBlock' && data.text) {
-              // Clean markdown for speech
               const cleanText = data.text
                 .replace(/\*\*/g, '')
                 .replace(/\*/g, '')
@@ -262,13 +219,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             }
           }
 
-          console.log('🔊 [TTS] Text parts:', textParts.length, textParts)
-
           if (textParts.length > 0 && isSpeechModeRef.current) {
             const textToSpeak = textParts.join('. ')
-            // Limit to first ~500 characters to avoid very long speeches
             const truncatedText = textToSpeak.length > 500 ? textToSpeak.substring(0, 500) + '...' : textToSpeak
-            console.log('🔊 [TTS] Speaking:', truncatedText.substring(0, 80) + '...')
             voiceSynthesis.speak(truncatedText)
             lastSpokenTurnIndexRef.current = i
             break // Only speak one response at a time
@@ -280,28 +233,22 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Auto-navigate in speech mode when AI returns a navigation action
   useEffect(() => {
-    // Double-check both state and ref to prevent navigation after mode exit
     if (!isSpeechMode || !isSpeechModeRef.current) return
 
-    // Find the latest agent turn with a navigation (don't wait for isLoading to finish)
     for (let i = conversation.length - 1; i > lastNavigatedTurnIndexRef.current; i--) {
       const turn = conversation[i]
 
       if (turn.side === 'agent') {
-        // Find the answer output with navigation data
         const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
 
         if (answerOutput?.displayData) {
-          // Look for navigation data
           const navigationData = answerOutput.displayData.find(
             (data): data is NavigationData => data.type === 'navigation'
           )
 
           if (navigationData?.url) {
-            console.log('🧭 [Voice] Auto-navigating to:', navigationData.url)
             lastNavigatedTurnIndexRef.current = i
 
-            // Small delay to let the user hear the AI's response first
             setTimeout(() => {
               navigateTo(navigationData.url)
             }, 1500) // Wait 1.5 seconds so they can hear the explanation
@@ -317,20 +264,13 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     (text: string) => {
       if (text && typeof text === 'string' && text.trim()) {
         const cleanText = text.trim()
-        console.log('🎤 [Voice] Received:', cleanText)
-
-        // IMPORTANT: Ignore very short inputs (likely noise/echo)
         if (cleanText.length < 2) {
-          console.log('🎤 [Voice] Ignoring too short input:', cleanText)
           voiceInput.resetTranscript()
           return
         }
 
-        // ECHO FILTER: Ignore transcripts that arrive within 800ms of AI stopping
-        // This prevents the microphone from picking up the AI's voice
         const timeSinceAIStopped = Date.now() - aiStoppedSpeakingAtRef.current
         if (timeSinceAIStopped < 800) {
-          console.log('🎤 [Voice] Ignoring echo (too soon after AI stopped):', cleanText, `(${timeSinceAIStopped}ms)`)
           voiceInput.resetTranscript()
           return
         }
@@ -338,15 +278,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         // Stop AI speech immediately when user speaks
         voiceSynthesis.stop()
 
-        // Check if there's an active form and if this is a form command
-        console.log('🎤 [Voice] activeForm check:', voiceForm.activeForm ? 'HAS ACTIVE FORM' : 'NO ACTIVE FORM')
         if (voiceForm.activeForm) {
           const command = voiceForm.parseVoiceCommand(cleanText)
-          console.log('🎤 [Voice Form] Parsed command:', command, 'from text:', cleanText)
 
           if (command.type === 'confirm') {
-            console.log('🎤 [Voice Form] Confirming and submitting form')
-            // Clear active form IMMEDIATELY to prevent re-announcing
             const submitHandler = voiceForm.activeForm.submitHandler
             voiceForm.setActiveForm(null)
             voiceForm.clearPendingFormSummary()
@@ -357,8 +292,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           }
 
           if (command.type === 'cancel') {
-            console.log('🎤 [Voice Form] Cancelling form')
-            // Clear active form IMMEDIATELY to prevent re-announcing
             const cancelHandler = voiceForm.activeForm.cancelHandler
             voiceForm.setActiveForm(null)
             voiceForm.clearPendingFormSummary()
@@ -369,7 +302,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           }
 
           if (command.type === 'modify') {
-            console.log('🎤 [Voice Form] Modifying field:', command.field, 'to:', command.value)
             voiceForm.activeForm.updateField(command.field, command.value)
             voiceSynthesis.speak(`Updated ${command.field} to ${command.value}. Say "submit" when ready.`)
             voiceInput.resetTranscript()
@@ -406,9 +338,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               return
             }
 
-            // NOT a new request and NOT a valid form command
-            // SILENTLY ignore to prevent feedback loop - just keep listening
-            console.log('🎤 [Voice Form] Unknown input, ignoring silently:', cleanText)
             voiceInput.resetTranscript()
             return
           }
@@ -465,14 +394,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     try {
       const initialPrompt = sessionStorage.getItem('everyAIInitialPrompt')
       if (initialPrompt && initialPrompt !== promptProcessedRef.current) {
-        console.log('[EveryAI] Found initial prompt in sessionStorage:', initialPrompt)
-        // Mark this prompt as processed
         promptProcessedRef.current = initialPrompt
-        // Clear the prompt from storage immediately to prevent duplicate sends
         sessionStorage.removeItem('everyAIInitialPrompt')
-        // Send the prompt after a short delay to ensure component is fully ready
         setTimeout(() => {
-          console.log('[EveryAI] Sending initial prompt:', initialPrompt)
           sendMessage(initialPrompt, [], false, false)
         }, 300)
       }
@@ -491,10 +415,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Listen for custom event when sidebar opens (handles case when component is already mounted)
   useEffect(() => {
     const handleSidebarOpen = () => {
-      console.log('[EveryAI] Sidebar opened event received')
-      // Reset processed prompt when sidebar opens fresh
       promptProcessedRef.current = null
-      // Check for prompt after a short delay to ensure component is ready
       setTimeout(() => {
         checkAndSendInitialPrompt()
       }, 500)
@@ -506,6 +427,28 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       window.removeEventListener('everyAISidebarOpened', handleSidebarOpen)
     }
   }, [checkAndSendInitialPrompt])
+
+  useEffect(() => {
+    const handleNativeSpeechToText = (event: Event) => {
+      const customEvent = event as CustomEvent<{ text?: string; isFinal?: boolean } | string>
+      const detail = customEvent.detail
+      const text = typeof detail === 'string' ? detail : detail?.text
+      const isFinal = typeof detail === 'string' ? true : detail?.isFinal !== false
+      if (!text || typeof text !== 'string') {
+        return
+      }
+      const normalizedText = text.trim()
+      if (!normalizedText || !isFinal) {
+        return
+      }
+      sendMessage(normalizedText, [], false, false)
+    }
+
+    window.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    return () => {
+      window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    }
+  }, [sendMessage])
 
   const handleSend = (text: string, files: File[], isThinking: boolean, isSearching: boolean) => {
     // Keep passing files for backwards compatibility.

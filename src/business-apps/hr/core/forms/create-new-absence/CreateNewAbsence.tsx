@@ -292,13 +292,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
           } catch {}
         }
       }
-
       const payload =
         isUpdateMode && existingSickLeave
           ? {
               employeeId: employeeId,
               absenceType: formData.selectedType,
               event: 'pse_submit',
+              shouldBECustomErrorMessage: true,
               employeeAbsence: {
                 ...baseAbsenceData,
                 id: existingSickLeave.id,
@@ -310,6 +310,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               employeeId: employeeId,
               absenceType: formData.selectedType,
               event: 'pse_submit',
+              shouldBECustomErrorMessage: true,
               employeeAbsence: baseAbsenceData,
               ...(employeeDocuments.length > 0 && { employeeDocuments })
             }

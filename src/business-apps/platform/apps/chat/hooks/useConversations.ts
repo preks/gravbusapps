@@ -3,6 +3,7 @@ import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
 import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
+import { sortConversationsPinThenTime } from '../utils/conversationSort'
 
 interface UseConversationsOptions {
   apiClient: ChatApiClient | null | undefined
@@ -196,10 +197,11 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         setError(null)
         setCurrentPage(1)
 
+        // When Unread filter is on we fetch all and filter client-side so "marked as unread" (dot) conversations are included
         const response = await apiClient.getConversations(1, LIMIT, {
           search: debouncedSearch || undefined,
           filter: filterKind,
-          unreadOnly: unreadOnly || undefined
+          unreadOnly: unreadOnly ? false : undefined
         })
         // Handle both response structures: { data: [...] } or { conversations: [...] }
         const conversationsData = response.data || (response as any).conversations || []
@@ -215,18 +217,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           ? enrichConversationsWithAvatarsOnly(conversationsData)
           : await enrichConversations(conversationsData)
 
-        // Sort by most recent activity
-        // Priority: lastMessage.createdAt > lastMessageAt > updatedAt > createdAt
-        // This ensures proper ordering even if backend's lastMessageAt is stale
-        const sortedConversations = enrichedConversations.sort((a, b) => {
-          // Use lastMessage.createdAt as the source of truth (most accurate)
-          const aTime = a.lastMessage?.createdAt || a.lastMessageAt || a.updatedAt || a.createdAt
-          const bTime = b.lastMessage?.createdAt || b.lastMessageAt || b.updatedAt || b.createdAt
-          const aTimestamp = new Date(aTime).getTime()
-          const bTimestamp = new Date(bTime).getTime()
-
-          return bTimestamp - aTimestamp
-        })
+        const sortedConversations = [...enrichedConversations].sort(sortConversationsPinThenTime)
 
         // Set conversations and clear loading in same tick to prevent flash
         setConversations(sortedConversations)
@@ -270,7 +261,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       const response = await apiClient.getConversations(nextPage, LIMIT, {
         search: debouncedSearch || undefined,
         filter: filterKind,
-        unreadOnly: unreadOnly || undefined
+        unreadOnly: unreadOnly ? false : undefined
       })
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0
@@ -281,11 +272,10 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       // Enrich new conversations
       const enrichedConversations = await enrichConversations(conversationsData)
 
-      // Append to existing conversations, filtering out duplicates
       setConversations(prev => {
         const existingIds = new Set(prev.map(c => c.id))
         const newConversations = enrichedConversations.filter(c => !existingIds.has(c.id))
-        return [...prev, ...newConversations]
+        return [...prev, ...newConversations].sort(sortConversationsPinThenTime)
       })
       setCurrentPage(nextPage)
     } catch (err) {
@@ -310,13 +300,14 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   const updateConversation = useCallback((conversationId: string, updates: Partial<Conversation>) => {
     setConversations(prev => {
       const updated = prev.map(conv => (conv.id === conversationId ? { ...conv, ...updates } : conv))
-      // Re-sort if updatedAt changed
-      if (updates.updatedAt || updates.lastMessage) {
-        return updated.sort((a, b) => {
-          const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-          const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-          return new Date(bTime).getTime() - new Date(aTime).getTime()
-        })
+      const needsResort =
+        updates.updatedAt !== undefined ||
+        updates.lastMessage !== undefined ||
+        updates.lastMessageAt !== undefined ||
+        updates.isPinned !== undefined ||
+        updates.pinnedOrder !== undefined
+      if (needsResort) {
+        return [...updated].sort(sortConversationsPinThenTime)
       }
       return updated
     })
@@ -330,11 +321,12 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         : (await enrichConversations([conversation]))[0] || conversation
 
       setConversations(prev => {
-        // Check if conversation already exists
-        if (prev.some((c: Conversation) => c.id === conversation.id)) {
-          return prev.map((c: Conversation) => (c.id === conversation.id ? enrichedConversation : c))
-        }
-        return [enrichedConversation, ...prev]
+        const existing = prev.findIndex((c: Conversation) => c.id === conversation.id)
+        const next =
+          existing >= 0
+            ? prev.map((c: Conversation) => (c.id === conversation.id ? enrichedConversation : c))
+            : [enrichedConversation, ...prev]
+        return [...next].sort(sortConversationsPinThenTime)
       })
 
       // Return enriched conversation so caller can use it
@@ -372,15 +364,9 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
                 const enriched = await enrichConversations([conversation])
                 const enrichedConv = enriched[0] || conversation
 
-                // Add to top of list with the new message
                 setConversations(currentConvs => {
                   const withNew = [{ ...enrichedConv, lastMessage: message, unreadCount: 1 }, ...currentConvs]
-                  // Sort to ensure correct order
-                  return withNew.sort((a, b) => {
-                    const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-                    const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-                    return new Date(bTime).getTime() - new Date(aTime).getTime()
-                  })
+                  return [...withNew].sort(sortConversationsPinThenTime)
                 })
               })
               .catch(err => {
@@ -398,28 +384,10 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           return prev
         }
 
-        // OPTIMIZATION: Instead of map() + sort(), manually reorder
-        // If conversation is already at top (index 0), just update it - no sorting needed
-        if (convIndex === 0) {
-          const newArray = [...prev]
-          newArray[0] = {
-            ...prev[0],
-            lastMessage: message,
-            updatedAt: new Date().toISOString()
-          }
-          return newArray
-        }
-
-        // Otherwise, move conversation to top (it's the most recent now)
-        const updatedConv = {
-          ...prev[convIndex],
-          lastMessage: message,
-          updatedAt: new Date().toISOString()
-        }
-
-        // Create new array with updated conversation at top, preserving order of others
-        const newArray = [updatedConv, ...prev.slice(0, convIndex), ...prev.slice(convIndex + 1)]
-        return newArray
+        const updated = prev.map((conv, i) =>
+          i === convIndex ? { ...conv, lastMessage: message, updatedAt: new Date().toISOString() } : conv
+        )
+        return [...updated].sort(sortConversationsPinThenTime)
       })
     },
     [apiClient, enrichConversations]
@@ -480,13 +448,9 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   useEffect(() => {
     const currentConversations = conversationsRef.current
     if (currentConversations.length > 0 && cacheVersion > 0) {
-      // Use fast avatar-only enrichment to avoid slow user data fetch
       const enriched = enrichConversationsWithAvatarsOnly(currentConversations)
-
-      // Safety check: ensure no duplicates after enrichment (defensive programming)
       const uniqueEnriched = enriched.filter((conv, index, arr) => arr.findIndex(c => c.id === conv.id) === index)
-
-      setConversations(uniqueEnriched)
+      setConversations([...uniqueEnriched].sort(sortConversationsPinThenTime))
     }
   }, [cacheVersion, enrichConversationsWithAvatarsOnly])
 

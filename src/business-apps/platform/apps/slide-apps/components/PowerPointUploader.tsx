@@ -6,10 +6,11 @@
  */
 
 import React, { useCallback, useState } from 'react'
-import { Button, Card, Spinner } from '@newwork/nw-design-system'
+import { Button, Card, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Upload, CheckCircle, AlertCircle, X, Presentation } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePowerPointParser, type ParsedPowerPointDocument } from '../hooks/usePowerPointParser'
+import translations from '../_i18n'
 
 export interface PowerPointUploaderProps {
   onFileParsed: (parsedDocument: ParsedPowerPointDocument) => void
@@ -40,8 +41,9 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
   maxFileSize = MAX_FILE_SIZE_DEFAULT,
   'data-testid': testId = 'powerpoint-uploader'
 }) => {
+  const { t } = useTranslation(translations)
   const [isDragging, setIsDragging] = useState(false)
-  const { isLoading, progress, error, parsedDocument, parseFile, reset } = usePowerPointParser()
+  const { isLoading, progress, error, parsedDocument, parseFile, reset } = usePowerPointParser({ t })
 
   /**
    * Handle file selection
@@ -50,7 +52,7 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
     async (file: File) => {
       // Validate file size
       if (file.size > maxFileSize) {
-        const errorMsg = `File too large. Maximum size is ${formatFileSize(maxFileSize)}`
+        const errorMsg = t('import-file-too-large', { maxSize: formatFileSize(maxFileSize) })
         toast.error(errorMsg)
         onError?.(errorMsg)
         return
@@ -60,14 +62,14 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
       const result = await parseFile(file)
 
       if (result) {
-        toast.success('PowerPoint imported successfully')
+        toast.success(t('toast-import-success'))
         onFileParsed(result)
       } else if (error) {
-        toast.error('Import failed')
+        toast.error(t('toast-import-failed-generic'))
         onError?.(error)
       }
     },
-    [parseFile, maxFileSize, onFileParsed, onError, error]
+    [parseFile, maxFileSize, onFileParsed, onError, error, t]
   )
 
   /**
@@ -88,12 +90,12 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
       if (pptxFile) {
         handleFile(pptxFile)
       } else {
-        const errorMsg = 'Please drop a PowerPoint (.pptx) file'
+        const errorMsg = t('import-drop-pptx')
         toast.error(errorMsg)
         onError?.(errorMsg)
       }
     },
-    [handleFile, onError]
+    [handleFile, onError, t]
   )
 
   /**
@@ -135,8 +137,8 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
         <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
           <Spinner size="lg" />
           <div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Importing PowerPoint</h3>
-            <p className="gba:text-muted-foreground gba:text-sm">Parsing slides and extracting content...</p>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('import-importing-title')}</h3>
+            <p className="gba:text-muted-foreground gba:text-sm">{t('import-parsing')}</p>
             <div className="gba:mt-4 gba:w-64 gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
               <div
                 className="gba:h-full gba:bg-primary gba:transition-all gba:duration-300"
@@ -159,16 +161,16 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
             <AlertCircle className="gba:w-8 gba:h-8 gba:text-destructive" />
           </div>
           <div>
-            <h3 className="gba:text-lg gba:font-semibold gba:text-destructive gba:mb-2">Import Failed</h3>
-            <p className="gba:text-muted-foreground gba:text-sm">{error}</p>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-destructive gba:mb-2">{t('import-failed-title')}</h3>
+            <p className="gba:text-muted-foreground gba:text-sm">{t(error)}</p>
           </div>
           <div className="gba:flex gba:gap-2">
             <Button variant="outline" size="sm" onClick={handleRetry}>
-              Try Again
+              {t('import-try-again')}
             </Button>
             {onCancel && (
               <Button variant="ghost" size="sm" onClick={onCancel}>
-                Cancel
+                {t('import-cancel')}
               </Button>
             )}
           </div>
@@ -186,9 +188,9 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
             <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
           </div>
           <div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Import Successful</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('import-success-title')}</h3>
             <p className="gba:text-muted-foreground gba:text-sm">
-              Imported {parsedDocument.slideCount} {parsedDocument.slideCount === 1 ? 'slide' : 'slides'}
+              {t('import-imported-count', { count: parsedDocument.slideCount })}
             </p>
             <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
               {parsedDocument.fileName} ({formatFileSize(parsedDocument.fileSize)})
@@ -196,11 +198,11 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
           </div>
           {parsedDocument.messages.length > 0 && (
             <div className="gba:w-full gba:text-left gba:p-4 gba:bg-warning/10 gba:rounded-lg gba:text-sm">
-              <p className="gba:font-medium gba:mb-2">Import Notes:</p>
+              <p className="gba:font-medium gba:mb-2">{t('import-notes')}:</p>
               <ul className="gba:space-y-1">
                 {parsedDocument.messages.map((msg, idx) => (
                   <li key={idx} className="gba:text-xs gba:text-muted-foreground">
-                    • {msg.message}
+                    • {msg.params ? t(msg.message, msg.params) : t(msg.message)}
                   </li>
                 ))}
               </ul>
@@ -230,20 +232,22 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
         </div>
 
         <div>
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Import PowerPoint</h3>
-          <p className="gba:text-muted-foreground gba:text-sm gba:mb-1">Drag and drop a .pptx file here</p>
-          <p className="gba:text-xs gba:text-muted-foreground">Maximum file size: {formatFileSize(maxFileSize)}</p>
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('import-powerpoint-title')}</h3>
+          <p className="gba:text-muted-foreground gba:text-sm gba:mb-1">{t('import-drag-drop')}</p>
+          <p className="gba:text-xs gba:text-muted-foreground">
+            {t('import-max-size', { size: formatFileSize(maxFileSize) })}
+          </p>
         </div>
 
         <div className="gba:flex gba:gap-2">
           <Button variant="default" size="sm" onClick={() => document.getElementById(`${testId}-file-input`)?.click()}>
             <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-            Choose File
+            {t('import-choose-file')}
           </Button>
           {onCancel && (
             <Button variant="ghost" size="sm" onClick={onCancel}>
               <X className="gba:w-4 gba:h-4 gba:mr-2" />
-              Cancel
+              {t('import-cancel')}
             </Button>
           )}
         </div>
@@ -257,12 +261,12 @@ export const PowerPointUploader: React.FC<PowerPointUploaderProps> = ({
         />
 
         <div className="gba:text-xs gba:text-muted-foreground gba:border-t gba:pt-4 gba:w-full">
-          <p className="gba:mb-1">Supported features:</p>
+          <p className="gba:mb-1">{t('import-supported-features')}</p>
           <ul className="gba:space-y-0.5 gba:text-left">
-            <li>• Text boxes and formatting</li>
-            <li>• Images and shapes</li>
-            <li>• Slide layouts</li>
-            <li>• Basic transitions (partial)</li>
+            <li>• {t('import-feature-text')}</li>
+            <li>• {t('import-feature-images')}</li>
+            <li>• {t('import-feature-layouts')}</li>
+            <li>• {t('import-feature-transitions')}</li>
           </ul>
         </div>
       </div>

@@ -16,10 +16,12 @@ import {
   Button,
   Spinner,
   Badge,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Clock, RotateCcw, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import translations from '../_i18n'
 
 export interface SlideVersion {
   id: string
@@ -41,23 +43,23 @@ export interface VersionHistoryPanelProps {
   'data-testid'?: string
 }
 
-/**
- * Format date to readable string
- */
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
+/** Create formatDate using t for relative time strings */
+const createFormatDate = (t: (key: string, vars?: Record<string, unknown>) => string) => {
+  return (dateString: string): string => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    if (diffMins < 1) return t('time-just-now')
+    if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+    if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+    if (diffDays === 1) return t('time-yesterday')
+    if (diffDays < 7) return t('time-days-short-ago', { count: diffDays })
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  }
 }
 
 /**
@@ -71,6 +73,8 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
   onVersionRestored,
   'data-testid': testId = 'version-history-panel'
 }) => {
+  const { t } = useTranslation(translations)
+  const formatDate = createFormatDate(t)
   const [versions, setVersions] = useState<SlideVersion[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -95,36 +99,36 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
           version: 1,
           createdAt: new Date().toISOString(),
           createdBy: 'current',
-          description: 'Current version',
+          description: t('version-current-description'),
           isCheckpoint: true
         }
       ])
     } catch (err) {
       console.error('[VersionHistoryPanel] Failed to load versions:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load versions')
+      setError(err instanceof Error ? err.message : t('version-load-failed'))
     } finally {
       setIsLoading(false)
     }
-  }, [slideId])
+  }, [slideId, t])
 
   const handleRestoreVersion = useCallback(
     async (versionId: string) => {
-      if (!window.confirm('Restore this version? Current changes will be saved as a new version.')) return
+      if (!window.confirm(t('version-restore-confirm'))) return
 
       setRestoringVersionId(versionId)
       try {
         // TODO: Implement restore API when backend supports it
-        toast.success('Version restored')
+        toast.success(t('version-restored'))
         onVersionRestored?.()
         onOpenChange(false)
       } catch (err) {
         console.error('[VersionHistoryPanel] Failed to restore version:', err)
-        toast.error('Failed to restore version')
+        toast.error(t('version-restore-failed'))
       } finally {
         setRestoringVersionId(null)
       }
     },
-    [onVersionRestored, onOpenChange]
+    [onVersionRestored, onOpenChange, t]
   )
 
   return (
@@ -133,9 +137,9 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Clock className="gba:w-5 gba:h-5" />
-            Version History
+            {t('version-history-title')}
           </DialogTitle>
-          <DialogDescription>View and restore previous versions of "{slideTitle}"</DialogDescription>
+          <DialogDescription>{t('version-description', { title: slideTitle })}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:py-4 gba:space-y-4 gba:overflow-y-auto">
@@ -153,7 +157,7 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
           ) : versions.length === 0 ? (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:text-center">
               <Clock className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mb-4" />
-              <p className="gba:text-muted-foreground">No version history available</p>
+              <p className="gba:text-muted-foreground">{t('version-no-history')}</p>
             </div>
           ) : (
             <div className="gba:space-y-3">
@@ -165,9 +169,11 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
                   >
                     <div className="gba:flex-1">
                       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                        <span className="gba:text-sm gba:font-medium">Version {version.version}</span>
-                        {index === 0 && <Badge variant="success">Current</Badge>}
-                        {version.isCheckpoint && <Badge variant="secondary">Checkpoint</Badge>}
+                        <span className="gba:text-sm gba:font-medium">
+                          {t('version-number', { number: version.version })}
+                        </span>
+                        {index === 0 && <Badge variant="success">{t('version-current')}</Badge>}
+                        {version.isCheckpoint && <Badge variant="secondary">{t('version-checkpoint')}</Badge>}
                       </div>
                       {version.description && (
                         <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">{version.description}</p>
@@ -183,8 +189,12 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
                         disabled={restoringVersionId === version.id}
                         data-testid={`${testId}-restore-${version.id}`}
                       >
-                        {restoringVersionId === version.id ? <Spinner size="sm" /> : <RotateCcw className="gba:w-3 gba:h-3 gba:mr-1" />}
-                        Restore
+                        {restoringVersionId === version.id ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          <RotateCcw className="gba:w-3 gba:h-3 gba:mr-1" />
+                        )}
+                        {t('version-restore')}
                       </Button>
                     )}
                   </div>
@@ -197,7 +207,7 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
 
         <DialogFooter>
           <Button variant="default" onClick={() => onOpenChange(false)}>
-            Close
+            {t('version-close')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -342,6 +342,7 @@ hr-analytics-gap-rate-by-organizational-unit = Gap Rate by Organizational Unit
 hr-analytics-probation-rate-by-organizational-unit = Probation Rate by Organizational Unit
 hr-analytics-data-points = { $count } data points
 hr-analytics-employment-error = Error loading employment data. Please try again.
+hr-analytics-compensation-error = Error Loading Compensation Data
 hr-analytics-data-table = Data Table: { $title }
 hr-analytics-total-entries = { $count } entries
 hr-analytics-total-label = Total

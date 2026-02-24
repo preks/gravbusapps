@@ -51,8 +51,8 @@ export interface ResearchOptions {
   slideCount: number
 }
 
-// Progress callback for UI updates
-export type ResearchProgressCallback = (message: string) => void
+// Progress callback for UI updates (message = i18n key, params = optional variables)
+export type ResearchProgressCallback = (message: string, params?: Record<string, string>) => void
 
 /**
  * Build the research prompt that instructs the AI to gather real data
@@ -342,7 +342,7 @@ export async function gatherResearch(
   const baseUrl = resolveFlowbotBaseUrl()
   const url = `${baseUrl}/flowbot/api/agent/v2/chat`
 
-  onProgress?.('Initiating web search...')
+  onProgress?.('progress-initiating-search')
 
   // Build the research prompt
   const prompt = buildResearchPrompt(options)
@@ -355,7 +355,7 @@ export async function gatherResearch(
   form.append('use_web_search_tool', 'true')
   form.append('current_page_context', JSON.stringify({ type: 'unknown' }))
 
-  onProgress?.('Searching the web for information...')
+  onProgress?.('progress-search-info')
 
   const response = await fetch(url, {
     method: 'POST',
@@ -374,7 +374,7 @@ export async function gatherResearch(
     throw new Error('No response body from research API')
   }
 
-  onProgress?.('Processing search results...')
+  onProgress?.('progress-processing')
 
   // Parse SSE stream
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
@@ -415,7 +415,7 @@ export async function gatherResearch(
               }
             }
           } else if (output.type === 'tool') {
-            onProgress?.(`Searching: ${output.name || 'web'}...`)
+            onProgress?.('progress-search-tool', { name: output.name || 'web' })
           }
         } catch {
           // Ignore parse errors for individual frames
@@ -424,7 +424,7 @@ export async function gatherResearch(
     }
   }
 
-  onProgress?.('Analyzing research data...')
+  onProgress?.('progress-analyzing')
 
   // Parse the collected content into structured research
   const result = parseResearchResponse(fullContent, options.topic)
@@ -434,7 +434,7 @@ export async function gatherResearch(
     result.summary = fullContent.substring(0, 500)
   }
 
-  onProgress?.('Research complete!')
+  onProgress?.('progress-research-complete')
 
   return result
 }

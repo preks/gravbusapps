@@ -11,6 +11,7 @@ export interface PhaseTimelineProps {
   currentPhase: BuildPhase | null
   completedPhases: BuildPhase[]
   overallProgress?: number
+  isBuilding?: boolean
   className?: string
   'data-testid'?: string
 }
@@ -53,14 +54,16 @@ export const PhaseTimeline: React.FC<PhaseTimelineProps> = ({
   currentPhase,
   completedPhases,
   overallProgress,
+  isBuilding = false,
   className,
   'data-testid': testId = 'phase-timeline'
 }) => {
   // Get the current stage value or default to first phase
   const currentStage = currentPhase || 'discovery'
 
-  // Calculate progress for active stage (only show progress for current phase)
-  const activeStageProgress = currentPhase ? overallProgress : undefined
+  // In automatic mode (while building) the spinning Loader handles feedback;
+  // only pass activeStageProgress in manual mode (build complete/paused).
+  const activeStageProgress = !isBuilding && currentPhase ? overallProgress : undefined
 
   // Determine if a phase should be disabled (hasn't been reached yet)
   const getPhaseDisabled = (phaseValue: BuildPhase): boolean => {
@@ -76,44 +79,26 @@ export const PhaseTimeline: React.FC<PhaseTimelineProps> = ({
   }
 
   return (
-    <div data-testid={testId} className={cn('gba:relative', className)}>
+    <div data-testid={testId} className={cn(className)}>
       <StageProgression
         currentStage={currentStage}
         orientation="horizontal"
-        variant="default"
-        mode="manual"
+        variant="card"
+        mode={isBuilding ? 'automatic' : 'manual'}
         activeStageProgress={activeStageProgress}
-        className="gba:gap-0 gba:items-center"
       >
-        {phases.map((phase, index) => {
+        {phases.map(phase => {
           const isDisabled = getPhaseDisabled(phase.value)
-          const isCompleted = completedPhases.includes(phase.value)
 
           return (
-            <React.Fragment key={phase.value}>
-              <StageItem
-                value={phase.value}
-                title={phase.title}
-                description={phase.description}
-                disabled={isDisabled}
-                tooltip={phase.tooltip}
-                className={cn(
-                  // Visible border (always gray) and background
-                  'gba:border gba:border-border gba:bg-card',
-                  'gba:min-w-[140px]',
-                  // Lighter green backgrounds only for active/completed states
-                  isCompleted && 'gba:bg-success-secondary/10',
-                  currentPhase === phase.value && 'gba:bg-success-secondary/20'
-                )}
-              />
-
-              {/* Connector line between stages - vertically centered */}
-              {index < phases.length - 1 && (
-                <div className="gba:flex gba:items-center gba:self-center gba:shrink-0 gba:px-2">
-                  <div className="gba:h-0.5 gba:w-8 gba:bg-border" />
-                </div>
-              )}
-            </React.Fragment>
+            <StageItem
+              key={phase.value}
+              value={phase.value}
+              title={phase.title}
+              description={phase.description}
+              disabled={isDisabled}
+              tooltip={phase.tooltip}
+            />
           )
         })}
       </StageProgression>

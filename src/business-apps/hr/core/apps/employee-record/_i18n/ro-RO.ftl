@@ -455,14 +455,37 @@ performance-status-achieved = Atins
 performance-status-not-achieved = Neatins
 performance-error-load = Nu s-au putut încărca datele de performanță
 
+# Performance Evaluation Tab
+performance-evaluation-title = Evaluare performanță
+performance-evaluation-description = Vizualizează istoricul evaluărilor angajatului grupat pe cicluri de performanță
+performance-evaluation-kpi-cycles = Cicluri
+performance-evaluation-kpi-evaluations = Evaluări
+performance-evaluation-kpi-in-progress = În desfășurare
+performance-evaluation-kpi-completed = Finalizate
+performance-evaluation-cycle-total = Evaluări totale
+performance-evaluation-start-date = Data începerii
+performance-evaluation-target-completion-date = Data țintă de finalizare
+performance-evaluation-actual-completion-date = Data efectivă de finalizare
+performance-evaluation-overall-rating = Rating general
+performance-evaluation-view-details = Vezi detalii
+performance-evaluation-empty-title = Nu există evaluări de performanță
+performance-evaluation-empty = Acest angajat nu are încă evaluări de performanță.
+performance-evaluation-load-error = Nu s-au putut încărca evaluările de performanță: { $error }
+performance-evaluation-detail-placeholder = Analiza detaliată pentru evaluarea { $evaluationId } va fi disponibilă în faza următoare.
+performance-evaluation-status-completed = Finalizat
+performance-evaluation-status-in_progress = În desfășurare
+performance-evaluation-status-cancelled = Anulat
+performance-evaluation-status-unknown = Necunoscut
+
 # Feedback Tab - Pagination
 feedback-pagination-per-page = / pagină
 
 employee-record-tab-compensation = Compensații
 employee-record-tab-time-tracking = Pontaj
 employee-record-tab-absences = Absențe
-employee-record-tab-assets = Mijloace
+employee-record-tab-assets = Echipamente
 employee-record-tab-service-requests = Cereri servicii
+employee-record-tab-performance-evaluation = Evaluare performanță
 
 # Profile Header - Detail labels
 profile-header-work-email = E-mail serviciu
@@ -696,5 +719,5 @@ service-requests-status-completed = Finalizat
 service-requests-status-canceled = Anulat
 
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
-change-personal-data-pending-message = Actualizările datelor personale au fost deja trimise spre aprobare departamentului HR. Vă rugăm așteptați aprobarea înainte de a face alte modificări.
+change-personal-data-pending-message = Departamentul HR examinează în prezent actualizările recente. Veți putea efectua modificări suplimentare imediat ce cererea va fi aprobată.
 change-personal-data-pending-ok = OK
