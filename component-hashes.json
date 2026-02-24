@@ -298,6 +298,7 @@
   "mdm/forms/team-form": "0e5cd3b1898de2bcc1f95f22b98b114c",
   "mdm/records/company-record": "64078a0e0f75aad1570b4ca9a07ada6b",
   "platform/apps/agent-mesh": "8956a3a3bae7cda75278cd0f5d0ed05c",
+  "platform/apps/board-apps": "b1633ab4bdeddc5e0b6385f3e00d5dcf",
   "platform/apps/catalog-manager": "083bebeacf6f58a8bb41f504b7e6249e",
   "platform/apps/chat": "f2b37d775cc107bbabb870b59094278c",
   "platform/apps/custom-data-manager": "056227be4d2a2e028452caa6d544dfda",
