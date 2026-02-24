@@ -292,7 +292,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
           } catch {}
         }
       }
-      console.log('i was here')
       const payload =
         isUpdateMode && existingSickLeave
           ? {
