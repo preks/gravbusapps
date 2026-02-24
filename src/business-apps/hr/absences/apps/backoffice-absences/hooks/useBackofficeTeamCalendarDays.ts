@@ -2,11 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_TEAM_CALENDAR_DAYS } from '../queries/CalendarViewQueries'
-import {
-  getAbsenceStatusColor,
-  getAbsenceStatusBadgeVariant,
-  getAbsenceStatusType
-} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { getAbsenceStatusColor, getAbsenceStatusType } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 interface ViewRow {
   employeeId: string
@@ -62,7 +58,6 @@ export function useBackofficeTeamCalendarDays(
           const start = dayjs(r.dayDate).startOf('day').toISOString()
           // Use a minimal non-zero duration so markers remain visible across component versions
           const end = dayjs(start).add(1, 'hour').toISOString()
-          const variant = getAbsenceStatusBadgeVariant(r.status)
           const typeColor = mapType ? mapType(r.typeRef)?.color : undefined
           return {
             id: `${r.employeeId}-${r.dayDate}-${r.typeRef}-${r.status}-${r.employeeAbsenceId || 'x'}`,
