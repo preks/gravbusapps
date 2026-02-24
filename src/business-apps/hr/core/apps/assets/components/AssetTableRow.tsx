@@ -14,6 +14,7 @@ interface AssetTableRowProps {
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
 }
 
 export const AssetTableRow: React.FC<AssetTableRowProps> = ({
@@ -24,7 +25,8 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
-  onRetrieveAsset
+  onRetrieveAsset,
+  onGenerateDocument
 }) => {
   const hasValidWarrantyData =
     asset.acquisitionDate != null &&
@@ -65,6 +67,7 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
             onUpdateAsset={onUpdateAsset}
             onRetireAsset={onRetireAsset}
             onRetrieveAsset={onRetrieveAsset}
+            onGenerateDocument={onGenerateDocument}
           />
         </div>
       </TableCell>
