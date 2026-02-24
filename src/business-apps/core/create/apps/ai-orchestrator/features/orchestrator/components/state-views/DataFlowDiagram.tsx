@@ -10,7 +10,7 @@
  *  5. Detail panel anchored above the legend bar, not over the nodes
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X, CheckCircle2, RotateCcw, XCircle, Clock, Box, GitFork } from 'lucide-react'
 import { ComponentNodeCard } from './dataFlow/ComponentNode'
 import {
@@ -324,6 +324,14 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
     setSelected(prev => (prev?.id === comp.id ? null : comp))
   }, [])
 
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') setSelected(null)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   if (components.length === 0) return <EmptyState />
 
   const { nodes, edges, presentLayers, totalWidth, totalHeight } = layout
@@ -334,16 +342,9 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
   const scaledW = Math.ceil(totalWidth * scale)
   const scaledH = Math.ceil(totalHeight * scale)
 
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      setSelected(null)
-    }
-  }, [])
-
   return (
     <div
       ref={outerRef}
-      onKeyDown={handleKeyDown}
       style={{
         // Absolute inset — fills parent without contributing to parent layout.
         // This prevents the diagram from ever pushing/expanding the parent width.
@@ -358,22 +359,41 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
       }}
     >
       {/* ── Scroll area ── */}
-      <div
-        role="region"
-        aria-label="Data flow diagram"
-        tabIndex={0}
-        style={{ flex: 1, overflow: 'auto' }}
-        onClick={e => {
-          if (e.target === e.currentTarget) setSelected(null)
-        }}
-      >
+      <section aria-label="Data flow diagram" style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
+        {selected && (
+          <button
+            type="button"
+            aria-label="Dismiss selected component"
+            onClick={() => setSelected(null)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'default',
+              padding: 0,
+              zIndex: 0,
+              width: '100%',
+              height: '100%'
+            }}
+          />
+        )}
         {/*
           Wrapper is exactly the VISUAL size of the scaled diagram.
           overflow:hidden clips the inner div whose LAYOUT is totalWidth×totalHeight
           (CSS transforms are visual-only; layout dims stay at native size).
           Without this clip, the native-size layout leaks into the scroll area.
         */}
-        <div style={{ width: scaledW, height: scaledH, position: 'relative', margin: '20px auto', overflow: 'hidden' }}>
+        <div
+          style={{
+            width: scaledW,
+            height: scaledH,
+            position: 'relative',
+            margin: '20px auto',
+            overflow: 'hidden',
+            zIndex: 1
+          }}
+        >
           {/* Inner canvas at native size, CSS-scaled from top-left */}
           <div
             style={{
@@ -504,7 +524,7 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* ── Detail panel: anchored above the legend, never overlapping diagram ── */}
       {selected && (
