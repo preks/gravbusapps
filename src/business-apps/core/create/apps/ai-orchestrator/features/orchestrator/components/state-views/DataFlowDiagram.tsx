@@ -10,7 +10,7 @@
  *  5. Detail panel anchored above the legend bar, not over the nodes
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { X, CheckCircle2, RotateCcw, XCircle, Clock, Box, GitFork } from 'lucide-react'
 import { ComponentNodeCard } from './dataFlow/ComponentNode'
 import {
@@ -61,12 +61,22 @@ function DetailPanel({
   componentsById,
   onClose,
   legendHeight
-}: {
+}: Readonly<{
   component: ComponentSpec
   componentsById: Map<string, ComponentSpec>
   onClose: () => void
   legendHeight: number
-}) {
+}>) {
+  const closeBtnRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    const prevFocus = document.activeElement as HTMLElement | null
+    closeBtnRef.current?.focus()
+    return () => {
+      prevFocus?.focus()
+    }
+  }, [])
+
   const accent = TYPE_COLORS[component.type]
   const TypeIcon = typeIcons[component.type] ?? Box
   const StatusIcon = STATUS_ICON[component.status] ?? Clock
@@ -137,7 +147,9 @@ function DetailPanel({
             </div>
           </div>
           <button
+            ref={closeBtnRef}
             onClick={onClose}
+            aria-label="Close detail panel"
             style={{
               background: 'none',
               border: 'none',
@@ -224,7 +236,7 @@ function DetailPanel({
 
 // ─── Layer header pill ────────────────────────────────────────────────────────
 
-function LayerHeader({ type, x, count }: { type: ComponentType; x: number; count: number }) {
+function LayerHeader({ type, x, count }: Readonly<{ type: ComponentType; x: number; count: number }>) {
   const color = TYPE_COLORS[type]
   const TypeIcon = typeIcons[type] ?? Box
   return (
@@ -322,9 +334,16 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
   const scaledW = Math.ceil(totalWidth * scale)
   const scaledH = Math.ceil(totalHeight * scale)
 
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      setSelected(null)
+    }
+  }, [])
+
   return (
     <div
       ref={outerRef}
+      onKeyDown={handleKeyDown}
       style={{
         // Absolute inset — fills parent without contributing to parent layout.
         // This prevents the diagram from ever pushing/expanding the parent width.
@@ -340,6 +359,9 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
     >
       {/* ── Scroll area ── */}
       <div
+        role="region"
+        aria-label="Data flow diagram"
+        tabIndex={0}
         style={{ flex: 1, overflow: 'auto' }}
         onClick={e => {
           if (e.target === e.currentTarget) setSelected(null)
@@ -381,7 +403,7 @@ export const DataFlowDiagram: React.FC<DataFlowDiagramProps> = ({ components }) 
               <defs>
                 {edges.map((edge, i) => (
                   <marker
-                    key={`mk-${i}`}
+                    key={`mk-${edge.id}`}
                     id={`mk-${i}`}
                     markerWidth="8"
                     markerHeight="8"

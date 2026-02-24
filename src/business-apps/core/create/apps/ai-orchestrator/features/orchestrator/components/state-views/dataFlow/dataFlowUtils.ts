@@ -102,18 +102,21 @@ export interface DiagramLayout {
   totalHeight: number
 }
 
-// ── Builder ───────────────────────────────────────────────────────────────────
+// ── Builder helpers ───────────────────────────────────────────────────────────
 
-export function buildDiagram(components: ComponentSpec[]): DiagramLayout {
-  const presentLayers = TYPE_LAYER_ORDER.filter(t => components.some(c => c.type === t))
-
+function groupByType(components: ComponentSpec[]): Record<string, ComponentSpec[]> {
   const byType: Record<string, ComponentSpec[]> = {}
   for (const comp of components) {
-    ;(byType[comp.type] ??= []).push(comp)
+    if (!byType[comp.type]) byType[comp.type] = []
+    byType[comp.type].push(comp)
   }
-  const byId = new Map(components.map(c => [c.id, c]))
+  return byType
+}
 
-  // Node positions
+function buildNodes(
+  presentLayers: ComponentType[],
+  byType: Record<string, ComponentSpec[]>
+): { nodes: DiagramNode[]; nodeById: Map<string, DiagramNode> } {
   const nodes: DiagramNode[] = []
   const nodeById = new Map<string, DiagramNode>()
   for (const [layerIndex, type] of presentLayers.entries()) {
@@ -126,6 +129,43 @@ export function buildDiagram(components: ComponentSpec[]): DiagramLayout {
       nodeById.set(comp.id, node)
     }
   }
+  return { nodes, nodeById }
+}
+
+function addComponentDependencyEdges(comp: ComponentSpec, tryAddEdge: (srcId: string, tgtId: string) => void): void {
+  for (const depId of comp.dependencies ?? []) tryAddEdge(depId, comp.id)
+  if (comp.type !== 'screen') return
+  const dmIds = comp.metadata?.dataModelIds as string[] | undefined
+  if (Array.isArray(dmIds)) {
+    for (const dmId of dmIds) tryAddEdge(dmId, comp.id)
+  }
+}
+
+function inferMissingEdges(
+  nodes: DiagramNode[],
+  outgoingIds: Set<string>,
+  presentLayers: ComponentType[],
+  tryAddEdge: (srcId: string, tgtId: string) => void
+): void {
+  for (const node of nodes) {
+    if (outgoingIds.has(node.id)) continue
+    const nextLayerIdx = node.layerIndex + 1
+    if (nextLayerIdx >= presentLayers.length) continue
+    const nextLayerType = presentLayers[nextLayerIdx]
+    for (const target of nodes.filter(n => n.component.type === nextLayerType)) {
+      tryAddEdge(node.id, target.id)
+    }
+  }
+}
+
+// ── Builder ───────────────────────────────────────────────────────────────────
+
+export function buildDiagram(components: ComponentSpec[]): DiagramLayout {
+  const presentLayers = TYPE_LAYER_ORDER.filter(t => components.some(c => c.type === t))
+  const byType = groupByType(components)
+  const byId = new Map(components.map(c => [c.id, c]))
+
+  const { nodes, nodeById } = buildNodes(presentLayers, byType)
 
   // Canvas size
   const maxInLayer = Math.max(...presentLayers.map(t => (byType[t] ?? []).length), 1)
@@ -161,26 +201,14 @@ export function buildDiagram(components: ComponentSpec[]): DiagramLayout {
   }
 
   for (const comp of components) {
-    for (const depId of comp.dependencies ?? []) tryAddEdge(depId, comp.id)
-    if (comp.type === 'screen') {
-      const dmIds = comp.metadata?.dataModelIds as string[] | undefined
-      if (Array.isArray(dmIds)) for (const dmId of dmIds) tryAddEdge(dmId, comp.id)
-    }
+    addComponentDependencyEdges(comp, tryAddEdge)
   }
 
   // Structural inference pass: any component with no outgoing edges (i.e. the backend
   // didn't populate dependencies / wiring data) gets connected to all components in
   // the immediately next present layer so the diagram always shows flow.
   const outgoingIds = new Set([...directEdges, ...crossEdges].map(e => e.sourceId))
-  for (const node of nodes) {
-    if (outgoingIds.has(node.id)) continue
-    const nextLayerIdx = node.layerIndex + 1
-    if (nextLayerIdx >= presentLayers.length) continue
-    const nextLayerType = presentLayers[nextLayerIdx]
-    for (const target of nodes.filter(n => n.component.type === nextLayerType)) {
-      tryAddEdge(node.id, target.id)
-    }
-  }
+  inferMissingEdges(nodes, outgoingIds, presentLayers, tryAddEdge)
 
   // Assign arc Y — stagger within the highway zone between header pills and nodes
   // Longer spans get deeper arcs so shorter spans are visually above them
@@ -231,8 +259,8 @@ function orthoPath(waypoints: [number, number][], r: number): string {
     const dx2 = nx - cx,
       dy2 = ny - cy
 
-    const seg1 = Math.sqrt(dx1 * dx1 + dy1 * dy1)
-    const seg2 = Math.sqrt(dx2 * dx2 + dy2 * dy2)
+    const seg1 = Math.hypot(dx1, dy1)
+    const seg2 = Math.hypot(dx2, dy2)
     const ar = Math.min(r, seg1 / 2, seg2 / 2)
 
     if (ar < 1) {
@@ -256,23 +284,7 @@ export function getEdgePath(edge: DiagramEdge, src: DiagramNode, tgt: DiagramNod
   const tx = tgt.x
   const ty = tgt.y + NODE_H / 2
 
-  if (!edge.isCrossLayer) {
-    if (Math.abs(sy - ty) < 1) {
-      // Same row — straight horizontal line
-      return `M ${sx},${sy} L ${tx},${ty}`
-    }
-    // Z-shape: right → down/up → right, split at midpoint
-    const midX = (sx + tx) / 2
-    return orthoPath(
-      [
-        [sx, sy],
-        [midX, sy],
-        [midX, ty],
-        [tx, ty]
-      ],
-      CORNER_R
-    )
-  } else {
+  if (edge.isCrossLayer) {
     // Highway routing: exit right → up to arc zone → across → down → enter
     const arcY = edge.arcY
     return orthoPath(
@@ -287,6 +299,22 @@ export function getEdgePath(edge: DiagramEdge, src: DiagramNode, tgt: DiagramNod
       CORNER_R
     )
   }
+
+  if (Math.abs(sy - ty) < 1) {
+    // Same row — straight horizontal line
+    return `M ${sx},${sy} L ${tx},${ty}`
+  }
+  // Z-shape: right → down/up → right, split at midpoint
+  const midX = (sx + tx) / 2
+  return orthoPath(
+    [
+      [sx, sy],
+      [midX, sy],
+      [midX, ty],
+      [tx, ty]
+    ],
+    CORNER_R
+  )
 }
 
 /** Midpoint of the path for edge label placement */
@@ -296,12 +324,11 @@ export function getEdgeMidpoint(edge: DiagramEdge, src: DiagramNode, tgt: Diagra
   const tx = tgt.x
   const ty = tgt.y + NODE_H / 2
 
-  if (!edge.isCrossLayer) {
-    // Label sits beside the vertical segment
-    const midX = (sx + tx) / 2
-    return { x: midX + 4, y: (sy + ty) / 2 - 10 }
-  } else {
+  if (edge.isCrossLayer) {
     // Label sits just below the horizontal highway segment (clear of header pills)
     return { x: (sx + tx) / 2, y: edge.arcY + 12 }
   }
+  // Label sits beside the vertical segment
+  const midX = (sx + tx) / 2
+  return { x: midX + 4, y: (sy + ty) / 2 - 10 }
 }

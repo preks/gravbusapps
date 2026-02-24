@@ -49,12 +49,13 @@ export const ComponentNodeCard: React.FC<ComponentNodeProps> = memo(({ node, sel
   const statusColor = STATUS_COLORS[component.status] ?? '#9ca3af'
   const description = component.userFriendlyDescription || component.description
 
+  const borderColor = selected ? accent : `${accent}45`
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={() => onClick(component)}
-      onKeyDown={e => e.key === 'Enter' && onClick(component)}
+      className="gba:focus-visible:outline-2 gba:focus-visible:outline-accent gba:focus-visible:outline-offset-2"
       style={{
         position: 'absolute',
         left: x,
@@ -64,7 +65,7 @@ export const ComponentNodeCard: React.FC<ComponentNodeProps> = memo(({ node, sel
         // Solid opaque background — critical so SVG paths beneath don't show through
         backgroundColor: 'hsl(var(--background))',
         backgroundImage: `linear-gradient(135deg, ${accent}0a 0%, transparent 60%)`,
-        border: `1.5px solid ${selected ? accent : `${accent}45`}`,
+        border: `1.5px solid ${borderColor}`,
         borderRadius: 12,
         padding: '0 12px 10px',
         boxShadow: selected ? `0 0 0 3px ${accent}28, 0 4px 20px ${accent}22` : '0 1px 4px rgba(0,0,0,0.07)',
@@ -75,7 +76,11 @@ export const ComponentNodeCard: React.FC<ComponentNodeProps> = memo(({ node, sel
         gap: 5,
         overflow: 'hidden',
         zIndex: 1,
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        textAlign: 'left',
+        fontFamily: 'inherit',
+        fontSize: 'inherit',
+        outline: 'none'
       }}
     >
       {/* Top accent bar */}
@@ -156,7 +161,7 @@ export const ComponentNodeCard: React.FC<ComponentNodeProps> = memo(({ node, sel
           {description}
         </div>
       )}
-    </div>
+    </button>
   )
 })
 
