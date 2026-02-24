@@ -7,15 +7,39 @@ import React from 'react'
 import { Bot, User, Loader2 } from 'lucide-react'
 import type { CreateChatMessage } from '../../types/chat'
 
+export interface UserAvatar {
+  pictureBase64?: string
+  pictureMimeType?: string
+  initials: string
+}
+
 interface CreateAgentChatMessageProps {
   message: CreateChatMessage
   isStreaming?: boolean
+  userAvatar?: UserAvatar
   testId?: string
+}
+
+function renderUserAvatarContent(userAvatar?: UserAvatar): React.ReactNode {
+  if (userAvatar?.pictureBase64) {
+    return (
+      <img
+        src={`data:${userAvatar.pictureMimeType ?? 'image/jpeg'};base64,${userAvatar.pictureBase64}`}
+        alt="You"
+        className="gba:w-full gba:h-full gba:object-cover"
+      />
+    )
+  }
+  if (userAvatar?.initials) {
+    return <span className="gba:text-xs gba:font-semibold gba:text-primary-foreground">{userAvatar.initials}</span>
+  }
+  return <User className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" />
 }
 
 export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
   message,
   isStreaming = false,
+  userAvatar,
   testId = 'create-chat-message'
 }) => {
   const isUser = message.role === 'user'
@@ -38,12 +62,12 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
     >
       {/* Avatar */}
       <div
-        className={`gba:shrink-0 gba:w-7 gba:h-7 gba:rounded-full gba:flex gba:items-center gba:justify-center ${
-          isUser ? 'gba:bg-primary' : 'gba:bg-muted'
+        className={`gba:shrink-0 gba:w-7 gba:h-7 gba:rounded-full gba:overflow-hidden gba:flex gba:items-center gba:justify-center ${
+          isUser && !userAvatar?.pictureBase64 ? 'gba:bg-primary' : 'gba:bg-muted'
         }`}
       >
         {isUser ? (
-          <User className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" />
+          renderUserAvatarContent(userAvatar)
         ) : (
           <Bot className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
         )}
