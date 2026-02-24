@@ -12,7 +12,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { AlertCircle } from 'lucide-react'
-import { Upload } from 'antd'
+import { Upload, notification } from 'antd'
 import type { UploadFile } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
 import { useForm } from 'react-hook-form'
@@ -372,6 +372,22 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
         formData={formValuesState}
         validateForm={validateForm}
         form={form}
+        onProcessCompletion={detail => {
+          if (detail?.resolution === 'failure') {
+            const title = getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.error_title', 'Error')
+            const msg = getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_absences.insufficient_balance',
+              'Insufficient balance'
+            )
+            notification.error({
+              message: title,
+              description: msg,
+              placement: 'bottomRight',
+              duration: 5,
+              className: 'gba:error-toast'
+            })
+          }
+        }}
         businessAppContext={props}
         submitButtonText={
           isUpdateMode
