@@ -61,11 +61,7 @@ export const ResourcePreviewDemo: React.FC<ResourcePreviewDemoProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:min-h-0 gba:flex-1 gba:h-full gba:w-full" data-testid={testId}>
-      <PageHeader
-        icon={FlaskConical}
-        title="Resource Preview Demo"
-        description="Tabs with Flow, Agent, Function, and Data Model previews using demo data."
-      />
+      <PageHeader icon={FlaskConical} title="Resource Preview Demo" />
       <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:w-full gba:px-4 gba:py-4">
         <Tabs
           value={activeTab}

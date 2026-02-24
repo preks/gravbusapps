@@ -66,24 +66,16 @@ export const FlowList: React.FC<FlowListProps> = ({
   const formatDuration = (minutesDuration: number): string => {
     if (minutesDuration < 60) {
       const roundedMinutes = Math.round(minutesDuration)
-      return `${roundedMinutes} minute${roundedMinutes !== 1 ? 's' : ''}`
-    } else if (minutesDuration < 1440) {
+      return `${roundedMinutes} minute${roundedMinutes === 1 ? '' : 's'}`
+    }
+    if (minutesDuration < 1440) {
       const hours = Math.floor(minutesDuration / 60)
       const remainingMinutes = Math.round(minutesDuration % 60)
-      if (remainingMinutes === 0) {
-        return `${hours} hour${hours !== 1 ? 's' : ''}`
-      } else {
-        return `${hours}h ${remainingMinutes}m`
-      }
-    } else {
-      const days = Math.floor(minutesDuration / 1440)
-      const remainingHours = Math.floor((minutesDuration % 1440) / 60)
-      if (remainingHours === 0) {
-        return `${days} day${days !== 1 ? 's' : ''}`
-      } else {
-        return `${days}d ${remainingHours}h`
-      }
+      return remainingMinutes === 0 ? `${hours} hour${hours === 1 ? '' : 's'}` : `${hours}h ${remainingMinutes}m`
     }
+    const days = Math.floor(minutesDuration / 1440)
+    const remainingHours = Math.floor((minutesDuration % 1440) / 60)
+    return remainingHours === 0 ? `${days} day${days === 1 ? '' : 's'}` : `${days}d ${remainingHours}h`
   }
 
   const formatFlowDuration = (flow: any): { label: string; duration: string } => {
@@ -140,123 +132,133 @@ export const FlowList: React.FC<FlowListProps> = ({
         )}
       </CardHeader>
       <CardContent>
-        {flowsLoading ? (
-          <div className="gba:space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg">
-                <div className="gba:w-10 gba:h-10 gba:bg-gray-200 gba:rounded gba:animate-pulse" />
-                <div className="gba:flex-1 gba:space-y-2">
-                  <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:animate-pulse gba:w-2/3" />
-                  <div className="gba:h-3 gba:bg-gray-200 gba:rounded gba:animate-pulse gba:w-1/2" />
-                </div>
-                <div className="gba:w-16 gba:h-6 gba:bg-gray-200 gba:rounded gba:animate-pulse" />
-              </div>
-            ))}
-          </div>
-        ) : flowsError ? (
-          <Alert variant="destructive">
-            <AlertCircle className="gba:h-4 gba:w-4" />
-            <div>
-              <h4 className="gba:font-semibold">Error Loading Flows</h4>
-              <p className="gba:text-sm gba:mt-1">{flowsError ?? 'Failed to load flows'}</p>
-            </div>
-          </Alert>
-        ) : !flows?.length ? (
-          <div className="gba:text-center gba:py-8 gba:text-gray-500">
-            <Workflow className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:text-gray-300" />
-            <p>No flows found</p>
-            {flowsSearch || flowsStatus ? (
-              <p className="gba:text-xs gba:mt-1">Try adjusting your search or filters</p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="gba:space-y-3">
-            {flows.map((flow, index) => (
-              <div
-                key={flow.flowId}
-                className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-gray-200 gba:rounded-xl gba:hover:bg-gray-50 gba:hover:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:bg-white"
-                data-testid={`${prefixDataTestId}-flow-${index}`}
-                onClick={() => onFlowSelect?.(flow.flowId)}
-              >
-                <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:bg-gradient-to-br gba:from-blue-50 gba:to-blue-100 gba:rounded-lg gba:flex-shrink-0 gba:shadow-sm">
-                  <Workflow className="gba:h-6 gba:w-6 gba:text-blue-600" />
-                </div>
-
-                <div className="gba:flex-1 gba:min-w-0">
-                  <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
-                    <h4 className="gba:font-semibold gba:text-base gba:truncate gba:text-gray-900">
-                      {flow.flowName || `Flow ${flow.flowId.slice(-8)}`}
-                    </h4>
-                    <Badge
-                      variant={
-                        flow.status === 'COMPLETED'
-                          ? 'success'
-                          : flow.status === 'RUNNING'
-                            ? 'info'
-                            : flow.status === 'TIMED_OUT'
-                              ? 'warning'
-                              : flow.status === 'FAILED'
-                                ? 'destructive'
-                                : 'outline'
-                      }
-                      className="gba:text-xs gba:font-medium gba:px-3 gba:py-1"
-                    >
-                      {flow.status === 'COMPLETED'
-                        ? 'COMPLETED'
-                        : flow.status === 'RUNNING'
-                          ? 'RUNNING'
-                          : flow.status === 'TIMED_OUT'
-                            ? 'TIMED OUT'
-                            : flow.status}
-                    </Badge>
+        {(() => {
+          if (flowsLoading)
+            return (
+              <div className="gba:space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={`skeleton-${i}`}
+                    className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg"
+                  >
+                    <div className="gba:w-10 gba:h-10 gba:bg-gray-200 gba:rounded gba:animate-pulse" />
+                    <div className="gba:flex-1 gba:space-y-2">
+                      <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:animate-pulse gba:w-2/3" />
+                      <div className="gba:h-3 gba:bg-gray-200 gba:rounded gba:animate-pulse gba:w-1/2" />
+                    </div>
+                    <div className="gba:w-16 gba:h-6 gba:bg-gray-200 gba:rounded gba:animate-pulse" />
                   </div>
+                ))}
+              </div>
+            )
+          if (flowsError)
+            return (
+              <Alert variant="destructive">
+                <AlertCircle className="gba:h-4 gba:w-4" />
+                <div>
+                  <h4 className="gba:font-semibold">Error Loading Flows</h4>
+                  <p className="gba:text-sm gba:mt-1">{flowsError ?? 'Failed to load flows'}</p>
+                </div>
+              </Alert>
+            )
+          if (!flows?.length)
+            return (
+              <div className="gba:text-center gba:py-8 gba:text-gray-500">
+                <Workflow className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:text-gray-300" />
+                <p>No flows found</p>
+                {(flowsSearch || flowsStatus) && (
+                  <p className="gba:text-xs gba:mt-1">Try adjusting your search or filters</p>
+                )}
+              </div>
+            )
+          return (
+            <div className="gba:space-y-3">
+              {flows.map((flow, index) => {
+                const badgeVariant =
+                  flow.status === 'COMPLETED'
+                    ? 'success'
+                    : flow.status === 'RUNNING'
+                      ? 'info'
+                      : flow.status === 'TIMED_OUT'
+                        ? 'warning'
+                        : flow.status === 'FAILED'
+                          ? 'destructive'
+                          : 'outline'
+                const badgeLabel = flow.status === 'TIMED_OUT' ? 'TIMED OUT' : flow.status
+                return (
+                  <div
+                    key={flow.flowId}
+                    role="button"
+                    tabIndex={0}
+                    className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-gray-200 gba:rounded-xl gba:hover:bg-gray-50 gba:hover:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:bg-white"
+                    data-testid={`${prefixDataTestId}-flow-${index}`}
+                    onClick={() => onFlowSelect?.(flow.flowId)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') onFlowSelect?.(flow.flowId)
+                    }}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:bg-gradient-to-br gba:from-blue-50 gba:to-blue-100 gba:rounded-lg gba:flex-shrink-0 gba:shadow-sm">
+                      <Workflow className="gba:h-6 gba:w-6 gba:text-blue-600" />
+                    </div>
 
-                  <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500 gba:mb-2">
-                    <span className="gba:flex gba:items-center gba:gap-1">
-                      <Calendar className="gba:h-3 gba:w-3" />
-                      {formatLastActivity(flow).label}: {formatLastActivity(flow).time}
-                    </span>
-                    {flow.durationMinutes &&
-                      (() => {
-                        const flowDuration = formatFlowDuration(flow)
-                        return (
-                          <span className="gba:flex gba:items-center gba:gap-1">
-                            <Clock className="gba:h-3 gba:w-3" />
-                            {flowDuration.label} {flowDuration.duration}
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
+                        <h4 className="gba:font-semibold gba:text-base gba:truncate gba:text-gray-900">
+                          {flow.flowName || `Flow ${flow.flowId.slice(-8)}`}
+                        </h4>
+                        <Badge variant={badgeVariant} className="gba:text-xs gba:font-medium gba:px-3 gba:py-1">
+                          {badgeLabel}
+                        </Badge>
+                      </div>
+
+                      <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500 gba:mb-2">
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <Calendar className="gba:h-3 gba:w-3" />
+                          {formatLastActivity(flow).label}: {formatLastActivity(flow).time}
+                        </span>
+                        {flow.durationMinutes &&
+                          (() => {
+                            const flowDuration = formatFlowDuration(flow)
+                            return (
+                              <span className="gba:flex gba:items-center gba:gap-1">
+                                <Clock className="gba:h-3 gba:w-3" />
+                                {flowDuration.label} {flowDuration.duration}
+                              </span>
+                            )
+                          })()}
+                        {/* Show end date for completed flows */}
+                        {['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flow.status) && flow.endTime && (
+                          <span className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500">
+                            <CheckCircle className="gba:h-3 gba:w-3" />
+                            Ended:{' '}
+                            {new Date(flow.endTime).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
                           </span>
-                        )
-                      })()}
-                    {/* Show end date for completed flows */}
-                    {['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flow.status) && flow.endTime && (
-                      <span className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500">
-                        <CheckCircle className="gba:h-3 gba:w-3" />
-                        Ended:{' '}
-                        {new Date(flow.endTime).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    )}
-                    {flow.initiatedBy && <span className="gba:text-blue-600">by {flow.initiatedBy}</span>}
-                  </div>
+                        )}
+                        {flow.initiatedBy && <span className="gba:text-blue-600">by {flow.initiatedBy}</span>}
+                      </div>
 
-                  <div className="gba:text-xs gba:text-gray-600">
-                    Progress: {flow.currentStep}/{flow.totalSteps} steps
-                    {flow.progressPercentage !== undefined && (
-                      <span className="gba:ml-2 gba:font-medium">({flow.progressPercentage}%)</span>
-                    )}
-                  </div>
-                </div>
+                      <div className="gba:text-xs gba:text-gray-600">
+                        Progress: {flow.currentStep}/{flow.totalSteps} steps
+                        {flow.progressPercentage !== undefined && (
+                          <span className="gba:ml-2 gba:font-medium">({flow.progressPercentage}%)</span>
+                        )}
+                      </div>
+                    </div>
 
-                <div className="gba:flex gba:items-center">
-                  <ArrowRight className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                    <div className="gba:flex gba:items-center">
+                      <ArrowRight className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
       </CardContent>
     </Card>
   )

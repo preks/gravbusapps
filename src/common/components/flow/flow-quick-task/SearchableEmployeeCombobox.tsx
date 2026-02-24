@@ -104,27 +104,23 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
     })
   }, [options])
 
+  const handleMultiSelect = (selectedValue: string) => {
+    const currentValues = Array.isArray(value) ? value : []
+    const isSelected = currentValues.includes(selectedValue)
+    const newValues = isSelected ? currentValues.filter(v => v !== selectedValue) : [...currentValues, selectedValue]
+    onValueChange?.(newValues)
+    setSearchValue('')
+  }
+
+  const handleSingleSelect = (selectedValue: string) => {
+    const newValue = selectedValue === value ? '' : selectedValue
+    onValueChange?.(newValue)
+    setOpen(false)
+  }
+
   const handleSelect = (selectedValue: string) => {
-    if (multiple) {
-      // Multi-select mode
-      const currentValues = Array.isArray(value) ? value : []
-      const isSelected = currentValues.includes(selectedValue)
-
-      const newValues = isSelected ? currentValues.filter(v => v !== selectedValue) : [...currentValues, selectedValue]
-
-      onValueChange?.(newValues)
-
-      // Clear search after selection to make it easy to type next name
-      setSearchValue('')
-
-      // Don't close popover in multi-select mode - keep it open for more selections
-      // Focus will automatically stay on the search input
-    } else {
-      // Single-select mode
-      const newValue = selectedValue === value ? '' : selectedValue
-      onValueChange?.(newValue)
-      setOpen(false)
-    }
+    if (multiple) handleMultiSelect(selectedValue)
+    else handleSingleSelect(selectedValue)
   }
 
   const selectedOptionsWithAvatar = useMemo(() => {

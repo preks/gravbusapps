@@ -1,5 +1,4 @@
-import type { ComponentSpec } from '../../ai-orchestrator/features/orchestrator/types'
-import type { FlowStepSpec } from '../../ai-orchestrator/features/orchestrator/types'
+import type { ComponentSpec, FlowStepSpec } from '../../ai-orchestrator/features/orchestrator/types'
 
 const DEMO_FLOW_ID = 'demo-flow-001'
 const DEMO_FLOW_BRANCH_ID = 'demo-flow-branch-001'

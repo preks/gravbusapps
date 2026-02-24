@@ -48,7 +48,7 @@ interface FlowStep {
   id: string
   title: string
   status: string
-  assignedTo?: string | 'MULTIPLE' | 'UNASSIGNED' | 'AVAILABLE' | 'PENDING'
+  assignedTo?: string
   completedBy?: string
   totalForks?: number
   completedForks?: number
@@ -88,20 +88,20 @@ const formatRunningTime = (minutesRunning: number): string => {
 
   if (minutesRunning < 60) {
     const roundedMinutes = Math.round(minutesRunning)
-    return `${roundedMinutes} minute${roundedMinutes !== 1 ? 's' : ''}`
+    return `${roundedMinutes} minute${roundedMinutes === 1 ? '' : 's'}`
   } else if (minutesRunning < 1440) {
     // Less than 1 day (1440 minutes)
     const hours = Math.floor(minutesRunning / 60)
     const remainingMinutes = Math.round(minutesRunning % 60)
     if (remainingMinutes === 0) {
-      return `${hours} hour${hours !== 1 ? 's' : ''}`
+      return `${hours} hour${hours === 1 ? '' : 's'}`
     } else {
       return `${hours}h ${remainingMinutes}m`
     }
   } else {
     // For 1+ days, show days
     const days = Math.round(minutesRunning / 1440)
-    return `${days} day${days !== 1 ? 's' : ''}`
+    return `${days} day${days === 1 ? '' : 's'}`
   }
 }
 
@@ -110,7 +110,7 @@ const formatDateTimeWithTime = (dateString: string): string => {
   if (!dateString) return 'N/A'
   try {
     const date = new Date(dateString)
-    if (isNaN(date.getTime())) return 'Invalid Date'
+    if (Number.isNaN(date.getTime())) return 'Invalid Date'
     return (
       date.toLocaleDateString('en-US', {
         month: 'numeric',
@@ -129,60 +129,87 @@ const formatDateTimeWithTime = (dateString: string): string => {
   }
 }
 
+// ASSIGN mode: forks represent parallel assignments to specific users
+const getAssignModeText = (step: FlowStep): string => {
+  switch (step.assignedTo) {
+    case 'MULTIPLE': {
+      const completedCount = step.completedForks || 0
+      const rejectedCount = step.rejectedForks || 0
+      const totalCount = step.totalForks || 0
+      if (step.status === 'COMPLETED') {
+        return rejectedCount > 0
+          ? `${completedCount} approved, ${rejectedCount} rejected of ${totalCount}`
+          : `${completedCount} of ${totalCount} completed`
+      }
+      if (step.status === 'IN_PROGRESS') {
+        return `${step.inProgressForks || 0} of ${totalCount} people`
+      }
+      return `${totalCount} people assigned`
+    }
+    case 'PENDING':
+      return 'Will be assigned'
+    case 'UNASSIGNED':
+      return step.status === 'COMPLETED' ? 'Completed' : 'In Progress'
+    default:
+      return step.assignedTo ?? ''
+  }
+}
+
+// CLAIM mode: multiple tasks represent claimable instances of the same work
+const getClaimModeText = (step: FlowStep): string => {
+  switch (step.assignedTo) {
+    case 'AVAILABLE':
+      return step.totalForks && step.totalForks > 1 ? `${step.totalForks} claimable task actions` : 'Available to claim'
+    case 'PENDING':
+      return step.status === 'SCHEDULED' ? 'Scheduled' : 'Queued'
+    case 'UNASSIGNED':
+      return step.status === 'COMPLETED' ? 'Completed' : 'In Progress'
+    default:
+      if (step.status === 'COMPLETED' && step.totalForks && step.totalForks > 1) {
+        return `Completed by ${step.assignedTo} (${step.totalForks} task actions)`
+      }
+      return step.assignedTo ?? ''
+  }
+}
+
+// Helper to determine background color for a step row
+const getStepBackgroundColor = (status: string): string => {
+  switch (status) {
+    case 'COMPLETED':
+      return 'rgba(16, 185, 129, 0.05)'
+    case 'TIMED_OUT':
+      return 'rgba(245, 158, 11, 0.05)'
+    case 'FAILED':
+      return 'rgba(239, 68, 68, 0.05)'
+    case 'CANCELED':
+      return 'rgba(107, 114, 128, 0.05)'
+    default:
+      return 'transparent'
+  }
+}
+
+// Helper to determine step number circle style
+const getStepNumberColor = (status: string): { backgroundColor: string; color: string } => {
+  switch (status) {
+    case 'COMPLETED':
+      return { backgroundColor: '#10b981', color: 'white' }
+    case 'IN_PROGRESS':
+      return { backgroundColor: '#3b82f6', color: 'white' }
+    case 'TIMED_OUT':
+      return { backgroundColor: '#f59e0b', color: 'white' }
+    case 'FAILED':
+      return { backgroundColor: '#ef4444', color: 'white' }
+    case 'CANCELED':
+      return { backgroundColor: '#6b7280', color: 'white' }
+    default:
+      return { backgroundColor: '#e5e7eb', color: '#6b7280' }
+  }
+}
+
 // Helper function to generate assignment display text based on step data
 const getAssignmentDisplayText = (step: FlowStep): string => {
   if (!step.assignedTo) return ''
-
-  // Handle assignment display based on assignment mode
-  if (step.assignmentMode === 'ASSIGN') {
-    // ASSIGN mode: forks represent parallel assignments to specific users
-    switch (step.assignedTo) {
-      case 'MULTIPLE':
-        if (step.status === 'COMPLETED') {
-          const completedCount = step.completedForks || 0
-          const rejectedCount = step.rejectedForks || 0
-          const totalCount = step.totalForks || 0
-          if (rejectedCount > 0) {
-            return `${completedCount} approved, ${rejectedCount} rejected of ${totalCount}`
-          } else {
-            return `${completedCount} of ${totalCount} completed`
-          }
-        } else if (step.status === 'IN_PROGRESS') {
-          const activeCount = step.inProgressForks || 0
-          const totalCount = step.totalForks || 0
-          return `${activeCount} of ${totalCount} people`
-        } else {
-          const totalCount = step.totalForks || 0
-          return `${totalCount} people assigned`
-        }
-      case 'PENDING':
-        return 'Will be assigned'
-      case 'UNASSIGNED':
-        return step.status === 'COMPLETED' ? 'Completed' : 'In Progress'
-      default:
-        // It's a user ID - single assignment
-        return step.assignedTo
-    }
-  } else {
-    // CLAIM mode: multiple tasks represent claimable instances of the same work
-    switch (step.assignedTo) {
-      case 'AVAILABLE':
-        if (step.totalForks && step.totalForks > 1) {
-          return `${step.totalForks} claimable task actions`
-        }
-        return 'Available to claim'
-      case 'PENDING':
-        return step.status === 'SCHEDULED' ? 'Scheduled' : 'Queued'
-      case 'UNASSIGNED':
-        return step.status === 'COMPLETED' ? 'Completed' : 'In Progress'
-      default:
-        // It's a user ID - someone claimed/completed it
-        if (step.status === 'COMPLETED' && step.totalForks && step.totalForks > 1) {
-          return `Completed by ${step.assignedTo} (${step.totalForks} task actions)`
-        }
-        return step.assignedTo
-    }
-  }
+  return step.assignmentMode === 'ASSIGN' ? getAssignModeText(step) : getClaimModeText(step)
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ flowData, flowSteps }) => {
@@ -338,45 +365,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ flowData, flowSteps })
         <CardContent>
           <div className="gba:space-y-4">
             {flowSteps.map((step, index) => {
-              // Determine background color for the entire step based on status
-              const getStepBackgroundColor = (status: string) => {
-                switch (status) {
-                  case 'COMPLETED':
-                    return 'rgba(16, 185, 129, 0.05)' // Light green background
-                  case 'TIMED_OUT':
-                    return 'rgba(245, 158, 11, 0.05)' // Light orange background
-                  case 'FAILED':
-                    return 'rgba(239, 68, 68, 0.05)' // Light red background
-                  case 'CANCELED':
-                    return 'rgba(107, 114, 128, 0.05)' // Light gray background
-                  default:
-                    return 'transparent'
-                }
-              }
-
-              // Determine step number circle color
-              const getStepNumberColor = (status: string) => {
-                switch (status) {
-                  case 'COMPLETED':
-                    return { backgroundColor: '#10b981', color: 'white' }
-                  case 'IN_PROGRESS':
-                    return { backgroundColor: '#3b82f6', color: 'white' }
-                  case 'TIMED_OUT':
-                    return { backgroundColor: '#f59e0b', color: 'white' }
-                  case 'FAILED':
-                    return { backgroundColor: '#ef4444', color: 'white' }
-                  case 'CANCELED':
-                    return { backgroundColor: '#6b7280', color: 'white' }
-                  default:
-                    return { backgroundColor: '#e5e7eb', color: '#6b7280' }
-                }
-              }
-
               // Compute per-step progress from tasks when available
-              const totalTasks = (step.totalTasks ?? step.totalForks ?? 0) as number
-              const completedTasks = (step.completedTasks ?? step.completedForks ?? 0) as number
-              const stepPercent =
-                step.status === 'COMPLETED' ? 100 : totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+              const totalTasks = step.totalTasks ?? step.totalForks ?? 0
+              const completedTasks = step.completedTasks ?? step.completedForks ?? 0
+              const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+              const stepPercent = step.status === 'COMPLETED' ? 100 : taskProgress
 
               return (
                 <div

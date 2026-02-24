@@ -128,11 +128,11 @@ export const RoutedEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX,
             type="button"
             className={[
               'gba:w-7 gba:h-7 gba:rounded-full gba:border gba:flex gba:items-center gba:justify-center gba:bg-card gba:transition-all gba:cursor-pointer',
-              menuOpen
-                ? 'gba:border-primary gba:text-primary gba:ring-2 gba:ring-primary/30'
-                : isSelected
-                  ? 'gba:border-primary gba:text-primary'
-                  : 'gba:border-border gba:text-muted-foreground gba:hover:border-primary gba:hover:text-primary gba:hover:scale-110'
+              (() => {
+                if (menuOpen) return 'gba:border-primary gba:text-primary gba:ring-2 gba:ring-primary/30'
+                if (isSelected) return 'gba:border-primary gba:text-primary'
+                return 'gba:border-border gba:text-muted-foreground gba:hover:border-primary gba:hover:text-primary gba:hover:scale-110'
+              })()
             ].join(' ')}
             onClick={handlePlusClick}
             onMouseDown={stopPropagation}

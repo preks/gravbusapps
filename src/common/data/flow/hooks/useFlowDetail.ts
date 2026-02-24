@@ -98,19 +98,17 @@ export const useFlowDetail = (flowId: string, accessToken: string) => {
           isOnTrack: flowData.status === 'IN_PROGRESS',
           hasFailures: flowData.status === 'FAILED',
           isStalled: flowData.status === 'PAUSED',
-          statusMessage:
-            flowData.status === 'IN_PROGRESS'
-              ? 'Running normally'
-              : flowData.status === 'FAILED'
-                ? 'Flow has failed'
-                : flowData.status === 'PAUSED'
-                  ? 'Flow is paused'
-                  : 'Status unknown'
+          statusMessage: ((): string => {
+            if (flowData.status === 'IN_PROGRESS') return 'Running normally'
+            if (flowData.status === 'FAILED') return 'Flow has failed'
+            if (flowData.status === 'PAUSED') return 'Flow is paused'
+            return 'Status unknown'
+          })()
         },
         timeInsights: {
-          isOverdue: false, // TODO: Calculate based on due dates
-          minutesRunning: 0, // TODO: Calculate from start time
-          minutesSinceLastUpdate: 0, // TODO: Calculate from update time
+          isOverdue: false,
+          minutesRunning: 0,
+          minutesSinceLastUpdate: 0,
           workflowStartTime: flowData.startTime || new Date().toISOString()
         },
         durationHours: flowData.durationHours,

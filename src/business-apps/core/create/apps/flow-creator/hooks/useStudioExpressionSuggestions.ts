@@ -67,7 +67,7 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
         label: `Trigger — ${labelForField(f)}`,
         path: name,
         kind: 'formData',
-        dataType: mapInputTypeToValueType(f.type as InputType)
+        dataType: mapInputTypeToValueType(f.type)
       })
     }
 
@@ -83,7 +83,7 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
               return {
                 name: fieldName,
                 label: String(f.label ?? '').trim() || undefined,
-                dataType: mapInputTypeToValueType(f.type as InputType)
+                dataType: mapInputTypeToValueType(f.type)
               }
             })
             .filter(Boolean)

@@ -13,9 +13,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
 import { Play, Globe, Zap, Clock } from 'lucide-react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'

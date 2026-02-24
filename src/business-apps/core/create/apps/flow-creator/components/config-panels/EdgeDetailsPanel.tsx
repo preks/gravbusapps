@@ -1,11 +1,8 @@
 import React from 'react'
 import { Input, Label } from '@newwork/nw-design-system'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
-import type { DesignerMode } from '../../types/studioTypes'
-
 interface EdgeDetailsPanelProps {
   edgeId: string
-  mode: DesignerMode
   'data-testid'?: string
 }
 

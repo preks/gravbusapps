@@ -16,20 +16,20 @@ const calculateRunningTimeFromStart = (startTime: string): number => {
 const formatDuration = (minutesDuration: number): string => {
   if (minutesDuration < 60) {
     const roundedMinutes = Math.round(minutesDuration)
-    return `${roundedMinutes} minute${roundedMinutes !== 1 ? 's' : ''}`
+    return `${roundedMinutes} minute${roundedMinutes === 1 ? '' : 's'}`
   } else if (minutesDuration < 1440) {
     // Less than 1 day (1440 minutes)
     const hours = Math.floor(minutesDuration / 60)
     const remainingMinutes = Math.round(minutesDuration % 60)
     if (remainingMinutes === 0) {
-      return `${hours} hour${hours !== 1 ? 's' : ''}`
+      return `${hours} hour${hours === 1 ? '' : 's'}`
     } else {
       return `${hours}h ${remainingMinutes}m`
     }
   } else {
     // For 1+ days, show days
     const days = Math.round(minutesDuration / 1440)
-    return `${days} day${days !== 1 ? 's' : ''}`
+    return `${days} day${days === 1 ? '' : 's'}`
   }
 }
 
@@ -111,12 +111,87 @@ interface HistorySummary {
 
 interface FlowDetailViewProps extends BusinessAppContextProps {
   flowId: string
-  variant?: 'monitoring' | 'inbox' | 'management'
   onBack?: () => void
-  onAction?: (action: string, flowId: string) => void
-  showActions?: boolean
   hiddenTabs?: string[]
   showBackButton?: boolean
+}
+
+function getWorkflowStatusMessage(status: string): string {
+  if (status === 'RUNNING' || status === 'IN_PROGRESS') return 'On Track'
+  if (status === 'COMPLETED') return 'Completed'
+  if (status === 'FAILED') return 'Failed'
+  if (status === 'TIMED_OUT') return 'Timed Out'
+  if (status === 'PAUSED') return 'Paused'
+  if (status === 'TERMINATED') return 'Terminated'
+  return 'Unknown'
+}
+
+function getStatusBadgeColor(status: string): string {
+  if (status === 'COMPLETED') return '#10b981'
+  if (status === 'IN_PROGRESS' || status === 'RUNNING') return '#3b82f6'
+  if (status === 'TIMED_OUT') return '#f59e0b'
+  return '#6b7280'
+}
+
+function getStatusEndLabel(status: string): string {
+  if (status === 'COMPLETED') return 'Completed'
+  if (status === 'TIMED_OUT') return 'Timed out'
+  if (status === 'TERMINATED') return 'Terminated'
+  return 'Failed'
+}
+
+function getTabGridCols(hiddenCount: number): string {
+  if (hiddenCount === 0) return 'gba:grid-cols-4'
+  if (hiddenCount === 1) return 'gba:grid-cols-3'
+  if (hiddenCount === 2) return 'gba:grid-cols-2'
+  return 'gba:grid-cols-1'
+}
+
+function transformAuditEntry(entry: any, index: number): HistoryEvent {
+  let eventType: 'step' | 'assignment' | 'comment' | 'flow' | 'status' = 'step'
+  const stepTitle = entry.taskName || 'Unknown Step'
+  let eventTitle = entry.action || 'Unknown Action'
+  let description = `${entry.userName || entry.userId || 'Unknown User'} performed ${entry.action}`
+  const stepMatch = stepTitle.match(/Step (\d+)/i)
+  let stepIndex = stepMatch ? Number.parseInt(stepMatch[1], 10) - 1 : index
+
+  if (entry.action === 'WORKFLOW_STARTED' || entry.action === 'WORKFLOW_COMPLETED') {
+    eventType = 'flow'
+    stepIndex = entry.action === 'WORKFLOW_STARTED' ? -1 : 999
+    eventTitle = entry.action === 'WORKFLOW_STARTED' ? 'Flow Started' : 'Flow Completed'
+    description =
+      entry.action === 'WORKFLOW_STARTED' ? 'Workflow was initiated by the system' : 'Workflow completed successfully'
+  } else if (entry.action === 'CLAIM') {
+    eventType = 'assignment'
+    eventTitle = `${stepTitle} claimed`
+    description = `${entry.userName || 'User'} claimed the task "${stepTitle}"`
+  } else if (entry.action === 'UNCLAIM') {
+    eventType = 'assignment'
+    eventTitle = `${stepTitle} released`
+    description = `${entry.userName || 'User'} released the task "${stepTitle}" back to available pool`
+  } else if (entry.action === 'COMPLETE') {
+    eventTitle = `${stepTitle} completed`
+    description = `${entry.userName || 'User'} completed the step "${stepTitle}"`
+  } else if (entry.details?.comment) {
+    eventType = 'comment'
+    eventTitle = `Comment on ${stepTitle}`
+    description = entry.details.comment
+  }
+
+  return {
+    type: eventType,
+    timestamp: entry.timestamp,
+    stepIndex,
+    stepTitle:
+      entry.action === 'WORKFLOW_STARTED' || entry.action === 'WORKFLOW_COMPLETED' ? 'Flow Execution' : stepTitle,
+    eventTitle,
+    description,
+    action: entry.action,
+    userId: entry.userId,
+    userName: entry.userName || entry.userId,
+    comment: entry.details?.comment,
+    metadata: entry.details || {}
+  }
 }
 
 export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
@@ -163,66 +238,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
       const auditEntries = auditData.data?.entries || []
 
       // Transform audit entries to HistoryEvent format
-      const transformedEvents: HistoryEvent[] = auditEntries.map((entry: any, index: number) => {
-        // Determine event type based on action and context
-        let eventType: 'step' | 'assignment' | 'comment' | 'flow' | 'status' = 'step' // Default to step
-        let stepIndex = 0
-        let stepTitle = entry.taskName || 'Unknown Step'
-        let eventTitle = entry.action || 'Unknown Action'
-        let description = `${entry.userName || entry.userId || 'Unknown User'} performed ${entry.action}`
-
-        // Extract step index from task name or use order
-        const stepMatch = stepTitle.match(/Step (\d+)/i)
-        if (stepMatch) {
-          stepIndex = parseInt(stepMatch[1], 10) - 1 // Convert to 0-based index
-        } else {
-          stepIndex = index // Fallback to order
-        }
-
-        // Categorize events properly
-        if (entry.action === 'WORKFLOW_STARTED' || entry.action === 'WORKFLOW_COMPLETED') {
-          eventType = 'flow'
-          stepIndex = entry.action === 'WORKFLOW_STARTED' ? -1 : 999
-          stepTitle = 'Flow Execution'
-          eventTitle = entry.action === 'WORKFLOW_STARTED' ? 'Flow Started' : 'Flow Completed'
-          description =
-            entry.action === 'WORKFLOW_STARTED'
-              ? 'Workflow was initiated by the system'
-              : 'Workflow completed successfully'
-        } else if (entry.action === 'CLAIM') {
-          eventType = 'assignment'
-          eventTitle = `${stepTitle} claimed`
-          description = `${entry.userName || 'User'} claimed the task "${stepTitle}"`
-        } else if (entry.action === 'UNCLAIM') {
-          eventType = 'assignment'
-          eventTitle = `${stepTitle} released`
-          description = `${entry.userName || 'User'} released the task "${stepTitle}" back to available pool`
-        } else if (entry.action === 'COMPLETE') {
-          eventType = 'step' // Step completion should be categorized as 'step', not 'assignment'
-          eventTitle = `${stepTitle} completed`
-          description = `${entry.userName || 'User'} completed the step "${stepTitle}"`
-        } else if (entry.details?.comment) {
-          eventType = 'comment'
-          eventTitle = `Comment on ${stepTitle}`
-          description = entry.details.comment
-        }
-
-        const mainEvent: HistoryEvent = {
-          type: eventType,
-          timestamp: entry.timestamp,
-          stepIndex: stepIndex,
-          stepTitle: stepTitle,
-          eventTitle: eventTitle,
-          description: description,
-          action: entry.action,
-          userId: entry.userId,
-          userName: entry.userName || entry.userId,
-          comment: entry.details?.comment,
-          metadata: entry.details || {}
-        }
-
-        return mainEvent
-      })
+      const transformedEvents: HistoryEvent[] = auditEntries.map(transformAuditEntry)
 
       // Create additional comment events for entries that have comments
       const additionalCommentEvents: HistoryEvent[] = []
@@ -230,7 +246,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         if (entry.details?.comment && entry.action !== 'COMMENT') {
           const stepTitle = entry.taskName || 'Unknown Step'
           const stepMatch = stepTitle.match(/Step (\d+)/i)
-          const stepIndex = stepMatch ? parseInt(stepMatch[1], 10) - 1 : index
+          const stepIndex = stepMatch ? Number.parseInt(stepMatch[1], 10) - 1 : index
 
           additionalCommentEvents.push({
             type: 'comment',
@@ -394,20 +410,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             isOnTrack: progress.workflowStatus === 'RUNNING' || progress.workflowStatus === 'IN_PROGRESS',
             hasFailures: progress.workflowStatus === 'FAILED' || progress.workflowStatus === 'TIMED_OUT',
             isStalled: progress.workflowStatus === 'PAUSED' || progress.workflowStatus === 'TERMINATED',
-            statusMessage:
-              progress.workflowStatus === 'RUNNING' || progress.workflowStatus === 'IN_PROGRESS'
-                ? 'On Track'
-                : progress.workflowStatus === 'COMPLETED'
-                  ? 'Completed'
-                  : progress.workflowStatus === 'FAILED'
-                    ? 'Failed'
-                    : progress.workflowStatus === 'TIMED_OUT'
-                      ? 'Timed Out'
-                      : progress.workflowStatus === 'PAUSED'
-                        ? 'Paused'
-                        : progress.workflowStatus === 'TERMINATED'
-                          ? 'Terminated'
-                          : 'Unknown'
+            statusMessage: getWorkflowStatusMessage(progress.workflowStatus)
           },
           timeInsights: progress.timeInsights || {
             avgStepDurationMinutes: undefined,
@@ -465,15 +468,13 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           // Fallback: create steps based on progress data
           const steps = []
           for (let i = 1; i <= flowData.stepStatus.total; i++) {
+            let stepStatus = 'QUEUED'
+            if (i <= flowData.stepStatus.completed) stepStatus = 'COMPLETED'
+            else if (i === flowData.currentStep) stepStatus = 'IN_PROGRESS'
             steps.push({
               id: `step-${i}`,
               title: `Step ${i}`,
-              status:
-                i <= flowData.stepStatus.completed
-                  ? 'COMPLETED'
-                  : i === flowData.currentStep
-                    ? 'IN_PROGRESS'
-                    : 'QUEUED',
+              status: stepStatus,
               stepIndex: i - 1,
               assignedTo: undefined,
               dueDate: undefined,
@@ -557,18 +558,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
               <Badge
                 variant="outline"
                 className="gba:border-0 gba:text-white gba:rounded-full gba:px-4 gba:py-1 gba:text-sm gba:font-semibold"
-                style={{
-                  backgroundColor:
-                    flowData.status === 'COMPLETED'
-                      ? '#10b981'
-                      : flowData.status === 'IN_PROGRESS'
-                        ? '#3b82f6'
-                        : flowData.status === 'RUNNING'
-                          ? '#3b82f6'
-                          : flowData.status === 'TIMED_OUT'
-                            ? '#f59e0b'
-                            : '#6b7280'
-                }}
+                style={{ backgroundColor: getStatusBadgeColor(flowData.status) }}
               >
                 {flowData.status}
               </Badge>
@@ -615,13 +605,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
               {['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flowData.status) && flowData.endTime && (
                 <span className="gba:flex gba:items-center gba:gap-2 gba:text-gray-600">
                   <CheckCircle className="gba:h-4 gba:w-4" />
-                  {flowData.status === 'COMPLETED'
-                    ? 'Completed'
-                    : flowData.status === 'TIMED_OUT'
-                      ? 'Timed out'
-                      : flowData.status === 'TERMINATED'
-                        ? 'Terminated'
-                        : 'Failed'}
+                  {getStatusEndLabel(flowData.status)}
                 </span>
               )}
             </div>
@@ -647,15 +631,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             }}
           >
             <TabsList
-              className={`gba:grid gba:w-full gba:max-w-md ${
-                hiddenTabs.length === 0
-                  ? 'gba:grid-cols-4'
-                  : hiddenTabs.length === 1
-                    ? 'gba:grid-cols-3'
-                    : hiddenTabs.length === 2
-                      ? 'gba:grid-cols-2'
-                      : 'gba:grid-cols-1'
-              }`}
+              className={`gba:grid gba:w-full gba:max-w-md ${getTabGridCols(hiddenTabs.length)}`}
               style={{ backgroundColor: 'transparent' }}
             >
               {!hiddenTabs.includes('overview') && <TabsTrigger value="overview">Overview</TabsTrigger>}

@@ -26,7 +26,7 @@ interface ExpressionPillNodeAttrs {
 }
 
 export const ExpressionPillView: React.FC<{ node: { attrs: ExpressionPillNodeAttrs } }> = ({ node }) => {
-  const source = (node.attrs.mentionType || 'workflow') as ExpressionSourceType
+  const source = node.attrs.mentionType || 'workflow'
   const Icon = ICON_MAP[source] || Workflow
   const colors = SOURCE_COLOR_MAP[source]
 

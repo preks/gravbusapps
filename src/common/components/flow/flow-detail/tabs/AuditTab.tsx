@@ -52,6 +52,102 @@ interface AuditTabProps {
   loadHistoryData: () => void
 }
 
+function getEventIcon(event: HistoryEvent): React.ReactNode {
+  switch (event.type) {
+    case 'flow':
+      if (event.action === 'FLOW_COMPLETED') return <CheckCircle className="gba:h-4 gba:w-4" />
+      if (event.action === 'FLOW_TERMINATED') return <X className="gba:h-4 gba:w-4" />
+      return <Play className="gba:h-4 gba:w-4" />
+    case 'step':
+      return <CheckCircle className="gba:h-4 gba:w-4" />
+    case 'status':
+      return <RefreshCw className="gba:h-4 gba:w-4" />
+    case 'assignment':
+      switch (event.action) {
+        case 'CLAIM':
+          return <UserPlus className="gba:h-4 gba:w-4" />
+        case 'UNCLAIM':
+          return <UserMinus className="gba:h-4 gba:w-4" />
+        case 'REASSIGN':
+          return <RefreshCw className="gba:h-4 gba:w-4" />
+        case 'COMPLETE':
+          return <Check className="gba:h-4 gba:w-4" />
+        case 'REJECT':
+          return <X className="gba:h-4 gba:w-4" />
+        default:
+          return <Play className="gba:h-4 gba:w-4" />
+      }
+    case 'comment':
+      return <MessageSquare className="gba:h-4 gba:w-4" />
+    default:
+      return <Clock className="gba:h-4 gba:w-4" />
+  }
+}
+
+function getEventColor(event: HistoryEvent): string {
+  switch (event.type) {
+    case 'flow':
+      if (event.action === 'FLOW_COMPLETED') return '#10b981'
+      if (event.action === 'FLOW_TERMINATED') return '#ef4444'
+      return '#3b82f6'
+    case 'step':
+      return '#10b981'
+    case 'status':
+      return '#8b5cf6'
+    case 'assignment':
+      switch (event.action) {
+        case 'CLAIM':
+          return '#3b82f6'
+        case 'UNCLAIM':
+          return '#f59e0b'
+        case 'REASSIGN':
+          return '#8b5cf6'
+        case 'COMPLETE':
+          return '#10b981'
+        case 'REJECT':
+          return '#ef4444'
+        default:
+          return '#3b82f6'
+      }
+    case 'comment':
+      return '#06b6d4'
+    default:
+      return '#6b7280'
+  }
+}
+
+function getEventBgColor(event: HistoryEvent): string {
+  switch (event.type) {
+    case 'flow':
+      if (event.action === 'FLOW_COMPLETED') return 'gba:bg-green-50'
+      if (event.action === 'FLOW_TERMINATED') return 'gba:bg-red-50'
+      return 'gba:bg-blue-50'
+    case 'step':
+      return 'gba:bg-green-50'
+    case 'status':
+      return 'gba:bg-purple-50'
+    case 'assignment':
+      switch (event.action) {
+        case 'CLAIM':
+          return 'gba:bg-blue-50'
+        case 'UNCLAIM':
+          return 'gba:bg-orange-50'
+        case 'REASSIGN':
+          return 'gba:bg-purple-50'
+        case 'COMPLETE':
+          return 'gba:bg-green-50'
+        case 'REJECT':
+          return 'gba:bg-red-50'
+        default:
+          return 'gba:bg-blue-50'
+      }
+    case 'comment':
+      return 'gba:bg-cyan-50'
+    default:
+      return 'gba:bg-gray-50'
+  }
+}
+
 export const AuditTab: React.FC<AuditTabProps> = ({
   flowId,
   historyEvents,
@@ -64,124 +160,6 @@ export const AuditTab: React.FC<AuditTabProps> = ({
   clearAllFilters,
   loadHistoryData
 }) => {
-  // Helper functions for history display (from inbox implementation)
-  const getEventIcon = (event: HistoryEvent) => {
-    switch (event.type) {
-      case 'flow':
-        // Handle flow events
-        if (event.action === 'FLOW_START') {
-          return <Play className="gba:h-4 gba:w-4" />
-        } else if (event.action === 'FLOW_COMPLETED') {
-          return <CheckCircle className="gba:h-4 gba:w-4" />
-        } else if (event.action === 'FLOW_TERMINATED') {
-          return <X className="gba:h-4 gba:w-4" />
-        } else {
-          return <Play className="gba:h-4 gba:w-4" />
-        }
-      case 'step':
-        return <CheckCircle className="gba:h-4 gba:w-4" />
-      case 'status':
-        return <RefreshCw className="gba:h-4 gba:w-4" />
-      case 'assignment':
-        switch (event.action) {
-          case 'CLAIM':
-            return <UserPlus className="gba:h-4 gba:w-4" />
-          case 'UNCLAIM':
-            return <UserMinus className="gba:h-4 gba:w-4" />
-          case 'REASSIGN':
-            return <RefreshCw className="gba:h-4 gba:w-4" />
-          case 'COMPLETE':
-            return <Check className="gba:h-4 gba:w-4" />
-          case 'REJECT':
-            return <X className="gba:h-4 gba:w-4" />
-          default:
-            return <Play className="gba:h-4 gba:w-4" />
-        }
-      case 'comment':
-        return <MessageSquare className="gba:h-4 gba:w-4" />
-      default:
-        return <Clock className="gba:h-4 gba:w-4" />
-    }
-  }
-
-  const getEventColor = (event: HistoryEvent) => {
-    switch (event.type) {
-      case 'flow':
-        // Handle flow events
-        if (event.action === 'FLOW_START') {
-          return '#3b82f6' // blue for start
-        } else if (event.action === 'FLOW_COMPLETED') {
-          return '#10b981' // green for success
-        } else if (event.action === 'FLOW_TERMINATED') {
-          return '#ef4444' // red for termination
-        } else {
-          return '#3b82f6' // blue default
-        }
-      case 'step':
-        return '#10b981' // green for regular steps
-      case 'status':
-        return '#8b5cf6' // purple for status changes
-      case 'assignment':
-        switch (event.action) {
-          case 'CLAIM':
-            return '#3b82f6' // blue
-          case 'UNCLAIM':
-            return '#f59e0b' // orange
-          case 'REASSIGN':
-            return '#8b5cf6' // purple
-          case 'COMPLETE':
-            return '#10b981' // green
-          case 'REJECT':
-            return '#ef4444' // red
-          default:
-            return '#3b82f6' // blue
-        }
-      case 'comment':
-        return '#06b6d4' // cyan
-      default:
-        return '#6b7280' // gray
-    }
-  }
-
-  const getEventBgColor = (event: HistoryEvent) => {
-    switch (event.type) {
-      case 'flow':
-        // Handle flow events
-        if (event.action === 'FLOW_START') {
-          return 'gba:bg-blue-50'
-        } else if (event.action === 'FLOW_COMPLETED') {
-          return 'gba:bg-green-50'
-        } else if (event.action === 'FLOW_TERMINATED') {
-          return 'gba:bg-red-50'
-        } else {
-          return 'gba:bg-blue-50'
-        }
-      case 'step':
-        return 'gba:bg-green-50'
-      case 'status':
-        return 'gba:bg-purple-50'
-      case 'assignment':
-        switch (event.action) {
-          case 'CLAIM':
-            return 'gba:bg-blue-50'
-          case 'UNCLAIM':
-            return 'gba:bg-orange-50'
-          case 'REASSIGN':
-            return 'gba:bg-purple-50'
-          case 'COMPLETE':
-            return 'gba:bg-green-50'
-          case 'REJECT':
-            return 'gba:bg-red-50'
-          default:
-            return 'gba:bg-blue-50'
-        }
-      case 'comment':
-        return 'gba:bg-cyan-50'
-      default:
-        return 'gba:bg-gray-50'
-    }
-  }
-
   return (
     <div className="gba:mt-0 gba:space-y-6">
       {/* Real Audit Summary from API */}
@@ -349,84 +327,95 @@ export const AuditTab: React.FC<AuditTabProps> = ({
           )}
         </CardHeader>
         <CardContent>
-          {historyLoading ? (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-              <div className="gba:text-center">
-                <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600 gba:mx-auto gba:mb-4"></div>
-                <p className="gba:text-gray-600">Loading audit trail...</p>
-              </div>
-            </div>
-          ) : historyError ? (
-            <Alert variant="destructive">
-              <AlertCircle className="gba:h-4 gba:w-4" />
-              <div>
-                <h4 className="gba:font-semibold">Error Loading Audit Trail</h4>
-                <p className="gba:text-sm gba:mt-1">{historyError}</p>
-                <Button variant="outline" size="sm" onClick={loadHistoryData} className="gba:mt-2">
-                  Retry
-                </Button>
-              </div>
-            </Alert>
-          ) : filteredEvents.length === 0 ? (
-            <div className="gba:text-center gba:py-12 gba:text-gray-500">
-              <Clock className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4 gba:text-gray-300" />
-              <p>No audit events found{activeFilters.size > 0 ? ' matching the selected filters' : ''}</p>
-            </div>
-          ) : (
-            <div className="gba:space-y-4">
-              {filteredEvents.map((event, index) => (
-                <div
-                  key={`${event.type}-${event.stepIndex}-${index}`}
-                  className={`gba:flex gba:items-start gba:gap-4 gba:p-4 gba:border gba:rounded-lg ${getEventBgColor(event)}`}
-                >
-                  <div
-                    className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-white gba:shadow-sm"
-                    style={{
-                      backgroundColor: getEventColor(event) + '20',
-                      color: getEventColor(event)
-                    }}
-                  >
-                    {getEventIcon(event)}
-                  </div>
-                  <div className="gba:flex-1">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                      <span className="gba:font-medium gba:text-sm">{event.eventTitle}</span>
-                      <Badge
-                        variant="outline"
-                        className="gba:text-xs gba:border-0"
-                        style={{
-                          backgroundColor: getEventColor(event) + '20',
-                          color: getEventColor(event)
-                        }}
-                      >
-                        {event.type ? event.type.toUpperCase() : 'UNKNOWN'}
-                      </Badge>
-                      {event.action && (
-                        <Badge variant="outline" className="gba:text-xs">
-                          {event.action}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="gba:text-sm gba:text-gray-600 gba:mb-2">{event.description}</div>
-                    <div className="gba:text-xs gba:text-gray-500">
-                      {new Date(event.timestamp).toLocaleString()} • {event.stepTitle}
-                      {event.userName && ` • ${event.userName}`}
-                    </div>
-
-                    {/* Show comment if this is a comment event */}
-                    {event.type === 'comment' && event.comment && (
-                      <div className="gba:mt-3 gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-md">
-                        <div className="gba:flex gba:items-start gba:gap-2">
-                          <MessageSquare className="gba:h-4 gba:w-4 gba:text-green-600 gba:mt-0.5 gba:flex-shrink-0" />
-                          <p className="gba:text-sm gba:italic gba:text-green-800">"{event.comment}"</p>
-                        </div>
-                      </div>
-                    )}
+          {(() => {
+            if (historyLoading) {
+              return (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+                  <div className="gba:text-center">
+                    <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600 gba:mx-auto gba:mb-4"></div>
+                    <p className="gba:text-gray-600">Loading audit trail...</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              )
+            }
+            if (historyError != null) {
+              return (
+                <Alert variant="destructive">
+                  <AlertCircle className="gba:h-4 gba:w-4" />
+                  <div>
+                    <h4 className="gba:font-semibold">Error Loading Audit Trail</h4>
+                    <p className="gba:text-sm gba:mt-1">{historyError}</p>
+                    <Button variant="outline" size="sm" onClick={loadHistoryData} className="gba:mt-2">
+                      Retry
+                    </Button>
+                  </div>
+                </Alert>
+              )
+            }
+            if (filteredEvents.length === 0) {
+              return (
+                <div className="gba:text-center gba:py-12 gba:text-gray-500">
+                  <Clock className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4 gba:text-gray-300" />
+                  <p>No audit events found{activeFilters.size > 0 ? ' matching the selected filters' : ''}</p>
+                </div>
+              )
+            }
+            return (
+              <div className="gba:space-y-4">
+                {filteredEvents.map((event, index) => (
+                  <div
+                    key={`${event.type}-${event.stepIndex}-${index}`}
+                    className={`gba:flex gba:items-start gba:gap-4 gba:p-4 gba:border gba:rounded-lg ${getEventBgColor(event)}`}
+                  >
+                    <div
+                      className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-white gba:shadow-sm"
+                      style={{
+                        backgroundColor: getEventColor(event) + '20',
+                        color: getEventColor(event)
+                      }}
+                    >
+                      {getEventIcon(event)}
+                    </div>
+                    <div className="gba:flex-1">
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                        <span className="gba:font-medium gba:text-sm">{event.eventTitle}</span>
+                        <Badge
+                          variant="outline"
+                          className="gba:text-xs gba:border-0"
+                          style={{
+                            backgroundColor: getEventColor(event) + '20',
+                            color: getEventColor(event)
+                          }}
+                        >
+                          {event.type ? event.type.toUpperCase() : 'UNKNOWN'}
+                        </Badge>
+                        {event.action && (
+                          <Badge variant="outline" className="gba:text-xs">
+                            {event.action}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="gba:text-sm gba:text-gray-600 gba:mb-2">{event.description}</div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        {new Date(event.timestamp).toLocaleString()} • {event.stepTitle}
+                        {event.userName && ` • ${event.userName}`}
+                      </div>
+
+                      {/* Show comment if this is a comment event */}
+                      {event.type === 'comment' && event.comment && (
+                        <div className="gba:mt-3 gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-md">
+                          <div className="gba:flex gba:items-start gba:gap-2">
+                            <MessageSquare className="gba:h-4 gba:w-4 gba:text-green-600 gba:mt-0.5 gba:flex-shrink-0" />
+                            <p className="gba:text-sm gba:italic gba:text-green-800">"{event.comment}"</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
         </CardContent>
       </Card>
     </div>

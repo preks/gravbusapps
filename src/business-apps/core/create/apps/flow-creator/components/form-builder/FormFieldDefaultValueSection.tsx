@@ -21,12 +21,11 @@ export const FormFieldDefaultValueSection: React.FC<FormFieldDefaultValueSection
   index,
   testId
 }) => {
-  // Keep existing behavior: default value configuration is an advanced feature,
-  // but make it explicit via a toggle.
-  if (mode !== 'advanced') return null
-
   const enabled = field.value !== undefined
   const suggestions = useStudioExpressionSuggestions()
+
+  // Default value configuration is an advanced feature.
+  if (mode !== 'advanced') return null
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-2">

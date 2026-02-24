@@ -20,10 +20,7 @@ import type { FlowStudioData } from '../../../../hooks/useFlowStudioData'
 import {
   EventHandlerType,
   type EventHandlerConfig,
-  type EventSubscription,
-  type FunctionHandlerConfig,
-  type NotifyHandlerConfig,
-  type TaskExpertHandlerConfig
+  type EventSubscription
 } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import { EVENT_TYPE_OPTIONS } from './eventConstants'
 import { AgentHandlerSection } from './AgentHandlerSection'
@@ -55,18 +52,15 @@ function handlerIcon(type: EventHandlerType) {
 function handlerSummary(handler: EventHandlerConfig, studioData: FlowStudioData): string {
   switch (handler.type) {
     case EventHandlerType.TASK_EXPERT: {
-      const cfg = handler as TaskExpertHandlerConfig
-      const agent = studioData.agents.find(a => a._id === cfg.promptId)
+      const agent = studioData.agents.find(a => a._id === handler.promptId)
       return agent?.name ?? 'Select agent'
     }
     case EventHandlerType.FUNCTION: {
-      const cfg = handler as FunctionHandlerConfig
-      const fn = studioData.functions.find(f => f.id === cfg.functionId)
+      const fn = studioData.functions.find(f => f.id === handler.functionId)
       return fn?.name ?? 'Select function'
     }
     case EventHandlerType.NOTIFY: {
-      const cfg = handler as NotifyHandlerConfig
-      const channels = cfg.channels && cfg.channels.length > 0 ? cfg.channels : undefined
+      const channels = handler.channels && handler.channels.length > 0 ? handler.channels : undefined
       if (!channels) return 'All channels'
       return channels.length === 1 ? channels[0] : `${channels.length} channels`
     }
@@ -206,7 +200,7 @@ export const EventSubscriptionCard: React.FC<EventSubscriptionCardProps> = ({
 
           {subscription.handler.type === EventHandlerType.TASK_EXPERT && (
             <AgentHandlerSection
-              handler={subscription.handler as TaskExpertHandlerConfig}
+              handler={subscription.handler}
               studioData={studioData}
               onChange={next => updateHandler(next)}
               testId={testId}
@@ -216,7 +210,7 @@ export const EventSubscriptionCard: React.FC<EventSubscriptionCardProps> = ({
 
           {subscription.handler.type === EventHandlerType.FUNCTION && (
             <FunctionHandlerSection
-              handler={subscription.handler as FunctionHandlerConfig}
+              handler={subscription.handler}
               studioData={studioData}
               onChange={next => updateHandler(next)}
               testId={testId}
@@ -226,7 +220,7 @@ export const EventSubscriptionCard: React.FC<EventSubscriptionCardProps> = ({
 
           {subscription.handler.type === EventHandlerType.NOTIFY && (
             <NotifyHandlerSection
-              handler={subscription.handler as NotifyHandlerConfig}
+              handler={subscription.handler}
               onChange={next => updateHandler(next)}
               testId={testId}
               subscriptionId={subscription.id}

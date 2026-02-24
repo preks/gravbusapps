@@ -32,7 +32,10 @@ export function useAppCatalogLabels(
   const [labelsByCode, setLabelsByCode] = useState<AppLabelMap>({})
   const [isLoading, setIsLoading] = useState(false)
 
-  const stableCodes = useMemo(() => Array.from(new Set(codes.filter(Boolean))).sort(), [codes])
+  const stableCodes = useMemo(
+    () => Array.from(new Set(codes.filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [codes]
+  )
 
   useEffect(() => {
     let cancelled = false

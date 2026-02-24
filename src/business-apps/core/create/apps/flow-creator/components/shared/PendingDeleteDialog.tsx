@@ -36,12 +36,14 @@ export const PendingDeleteDialog: React.FC<PendingDeleteDialogProps> = ({
     const stepCount = pendingDelete.affectedNodeIds?.length ?? 0
     const stepCopy = stepCount === 1 ? 'step' : 'steps'
     const branchCopy = branchCount === 1 ? 'branch' : 'branches'
+    const labelSuffix = pendingDelete.label ? `(${pendingDelete.label})` : ''
+    const message =
+      stepCount > 0
+        ? `Removing this ${branchCopy} will also remove ${stepCount} ${stepCopy} on that path. Continue?`
+        : `Are you sure you want to remove this ${branchCopy} ${labelSuffix}?`
     return {
       title: branchCount > 1 ? 'Remove branches' : 'Remove branch',
-      message:
-        stepCount > 0
-          ? `Removing this ${branchCopy} will also remove ${stepCount} ${stepCopy} on that path. Continue?`
-          : `Are you sure you want to remove this ${branchCopy} ${pendingDelete.label ? `(${pendingDelete.label})` : ''}?`,
+      message,
       confirm: 'Remove'
     }
   }, [pendingDelete])

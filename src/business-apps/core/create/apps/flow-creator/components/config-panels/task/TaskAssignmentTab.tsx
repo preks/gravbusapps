@@ -1,6 +1,14 @@
 import React from 'react'
-import { Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
+import {
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { AssignmentSelector } from '@/components/assignment-selector/AssignmentSelector'
 import { AssignmentMode, type TaskAssignment } from '@/common/network/flows/FlowTemplateClient'
 import type { DesignerMode, TaskNodeConfig } from '../../../types/studioTypes'
@@ -17,12 +25,11 @@ interface TaskAssignmentTabProps {
 export const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({ mode, config, update, accessToken, testId }) => {
   const { t } = useTranslation(translations)
   const assignmentMode = config.assignment.assignmentMode
-  const modeDescription =
-    assignmentMode === AssignmentMode.ASSIGN
-      ? t('assignment-mode-desc-assign')
-      : assignmentMode === AssignmentMode.ASSIGN_DEFERRED
-        ? t('assignment-mode-desc-deferred')
-        : t('assignment-mode-desc-claim')
+  const modeDescription = (() => {
+    if (assignmentMode === AssignmentMode.ASSIGN) return t('assignment-mode-desc-assign')
+    if (assignmentMode === AssignmentMode.ASSIGN_DEFERRED) return t('assignment-mode-desc-deferred')
+    return t('assignment-mode-desc-claim')
+  })()
 
   type DueUnit = 'minutes' | 'hours' | 'days'
   const minutesPer: Record<DueUnit, number> = { minutes: 1, hours: 60, days: 24 * 60 }

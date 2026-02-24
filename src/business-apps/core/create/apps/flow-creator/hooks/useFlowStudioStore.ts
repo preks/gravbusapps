@@ -136,7 +136,7 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       const now = Date.now()
       // If we just opened the insert panel from the plus button,
       // ignore the next edge click that ReactFlow fires.
-      if (lock && lock.edgeId === edgeId && now < lock.until) {
+      if (lock?.edgeId === edgeId && now < (lock?.until ?? Infinity)) {
         return state
       }
       return {
@@ -287,25 +287,7 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       const isAutomation = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(
         stepType
       )
-      const titleForStepType = (() => {
-        switch (stepType) {
-          case FlowStepType.APPROVAL:
-            return 'New Task'
-          case FlowStepType.INFORMATION:
-            return 'New Task'
-          case FlowStepType.ACKNOWLEDGE:
-            return 'New Task'
-          case FlowStepType.FUNCTION:
-            return 'New Task'
-          case FlowStepType.AI_AGENT:
-            return 'New Task'
-          case FlowStepType.AI_TASK_EXPERT:
-            return 'New Task'
-          case FlowStepType.TASK:
-          default:
-            return node.config.title
-        }
-      })()
+      const titleForStepType = stepType === FlowStepType.TASK ? node.config.title : 'New Task'
       node.config = {
         ...node.config,
         stepType,

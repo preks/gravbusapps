@@ -29,37 +29,37 @@ import { useFlowStudioStore } from './hooks/useFlowStudioStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import type { DesignerMode } from './types/studioTypes'
 import { FlowStudioListView } from './views/FlowStudioListView'
-import type { FlowTags } from '@/business-apps/flow/types'
+
 import { useFlowStudioClient } from './hooks/useFlowStudioClient'
 
 // Video background - same logic as EveryPagesHero and SpaceHero
-const hostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
+const hostedVideoUrl = import.meta?.env?.VITE_SPACE_HERO_VIDEO_URL
 const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
+const useVideo = hostedVideoUrl || (import.meta !== undefined && import.meta.env?.DEV && localVideoUrl)
 const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 const FLOW_ID_PARAM = 'flowId'
 
 function getFlowIdFromUrl(): string | null {
-  if (typeof window === 'undefined') return null
-  const urlParams = new URLSearchParams(window.location.search)
+  if (globalThis.window === undefined) return null
+  const urlParams = new URLSearchParams(globalThis.location.search)
   const id = urlParams.get(FLOW_ID_PARAM)
   return id && id.trim() ? id.trim() : null
 }
 
 function updateUrlWithFlowId(flowId: string | null, push = false): void {
-  if (typeof window === 'undefined') return
-  const urlParams = new URLSearchParams(window.location.search)
+  if (globalThis.window === undefined) return
+  const urlParams = new URLSearchParams(globalThis.location.search)
   if (flowId) {
     urlParams.set(FLOW_ID_PARAM, flowId)
   } else {
     urlParams.delete(FLOW_ID_PARAM)
   }
-  const newUrl = `${window.location.pathname}?${urlParams.toString()}${window.location.hash}`
+  const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}${globalThis.location.hash}`
   if (push) {
-    window.history.pushState({}, '', newUrl)
+    globalThis.history.pushState({}, '', newUrl)
   } else {
-    window.history.replaceState({}, '', newUrl)
+    globalThis.history.replaceState({}, '', newUrl)
   }
 }
 
@@ -113,7 +113,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const tagPills = useMemo(() => {
     const tags = (templateTags || {}) as Record<string, unknown>
     const entries = Object.entries(tags)
-      .map(([k, v]) => ({ k: String(k || '').trim(), v: String(v ?? '').trim() }))
+      .map(([k, v]) => ({ k: String(k || '').trim(), v: (typeof v === 'string' ? v : '').trim() }))
       .filter(e => Boolean(e.k) && Boolean(e.v))
 
     // reserved keys first
@@ -213,8 +213,8 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
         setView('list')
       }
     }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [loadFlow])
 
   return (
@@ -231,7 +231,8 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
             playsInline
             preload="metadata"
             className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden
+            aria-hidden="true"
+            tabIndex={-1}
             data-testid={`${testId}-hero-video`}
           />
         ) : (
@@ -409,7 +410,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
           open={labelsOpen}
           onClose={() => setLabelsOpen(false)}
           accessToken={accessToken}
-          value={templateTags as FlowTags}
+          value={templateTags}
           onChange={setTemplateTags}
           data-testid={`${testId}-labels-dialog`}
         />

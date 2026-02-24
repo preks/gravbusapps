@@ -82,21 +82,22 @@ function buildStepSuggestions(steps: StepInfo[]): ExpressionSuggestionItem[] {
 
   for (const step of steps) {
     // Add common step-level expressions
-    items.push({
-      id: `step-${step.reference}-status`,
-      label: `${step.label} - Status`,
-      expression: `$steps.${step.reference}.status`,
-      source: 'steps',
-      description: `Execution status of "${step.label}"`
-    })
-
-    items.push({
-      id: `step-${step.reference}-completedBy`,
-      label: `${step.label} - Completed By`,
-      expression: `$steps.${step.reference}.completedBy`,
-      source: 'steps',
-      description: `Who completed "${step.label}"`
-    })
+    items.push(
+      {
+        id: `step-${step.reference}-status`,
+        label: `${step.label} - Status`,
+        expression: `$steps.${step.reference}.status`,
+        source: 'steps',
+        description: `Execution status of "${step.label}"`
+      },
+      {
+        id: `step-${step.reference}-completedBy`,
+        label: `${step.label} - Completed By`,
+        expression: `$steps.${step.reference}.completedBy`,
+        source: 'steps',
+        description: `Who completed "${step.label}"`
+      }
+    )
 
     // Add field-level expressions
     if (step.fields) {

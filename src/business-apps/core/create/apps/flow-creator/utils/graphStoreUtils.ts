@@ -78,8 +78,9 @@ export function labelForType(type: FlowNodeType): string {
 }
 
 export function createNode(type: FlowNodeType): StudioNode {
+  const nodeId = type === 'start' ? START_ID : type === 'end' ? END_ID : uuid()
   return {
-    id: type === 'start' ? START_ID : type === 'end' ? END_ID : uuid(),
+    id: nodeId,
     type,
     label: labelForType(type),
     config: createDefaultConfig(type)
@@ -93,6 +94,11 @@ export function createEdge(
   direction: 'forward' | 'backward' = 'forward'
 ): FlowGraphEdge {
   return { id: uuid(), source, target, direction, ...(label ? { label } : {}) }
+}
+
+function normalizeEdgeDirection(value: unknown): 'forward' | 'backward' {
+  const v = (typeof value === 'string' ? value : 'forward').toLowerCase()
+  return v === 'backward' ? 'backward' : 'forward'
 }
 
 function ensureGraphInvariants(
@@ -109,11 +115,6 @@ function ensureGraphInvariants(
   const seenIds = new Set<string>()
   const normalizedEdges: FlowGraphEdge[] = []
 
-  const normalizeDirection = (value: unknown): 'forward' | 'backward' => {
-    const v = String(value ?? 'forward').toLowerCase()
-    return v === 'backward' ? 'backward' : 'forward'
-  }
-
   for (const edge of edges) {
     if (!nodeIdSet.has(edge.source) || !nodeIdSet.has(edge.target)) continue
     if (edge.target === startNode.id || edge.source === endNode.id) continue
@@ -122,7 +123,7 @@ function ensureGraphInvariants(
     seenIds.add(edge.id)
     normalizedEdges.push({
       ...edge,
-      direction: normalizeDirection((edge as any).direction)
+      direction: normalizeEdgeDirection((edge as any).direction)
     })
   }
 

@@ -69,36 +69,42 @@ function getLinearNext(steps: FlowTemplateStepForGraph[], idx: number, branchSta
   return fallback
 }
 
+function findBranchTerminals(
+  steps: FlowTemplateStepForGraph[],
+  gwStep: FlowTemplateStepForGraph,
+  branchStartSet: Set<number>,
+  terminal: Set<number>
+): void {
+  for (const start of getBranchStarts(gwStep)) {
+    let cur = start
+    const seen = new Set<number>()
+    while (!seen.has(cur)) {
+      seen.add(cur)
+      const s = steps[cur]
+      if (!s) break
+      const nextFallback =
+        cur + 1 < steps.length && !branchStartSet.has(cur + 1) && !isGateway(steps[cur + 1]) ? cur + 1 : null
+      const next = s.nextStep ?? nextFallback
+      if (next === null || next >= steps.length) {
+        terminal.add(cur)
+        break
+      }
+      if (isGateway(steps[next])) break
+      cur = next
+    }
+  }
+}
+
 function getTerminalStepIndices(steps: FlowTemplateStepForGraph[], branchStartSet: Set<number>): Set<number> {
   const terminal = new Set<number>()
-  for (let i = 0; i < steps.length; i++) {
-    if (isGateway(steps[i])) continue
+  for (const [i, step] of steps.entries()) {
+    if (isGateway(step)) continue
     const next = getLinearNext(steps, i, branchStartSet)
     if (next === null) terminal.add(i)
   }
-  for (let gwIdx = 0; gwIdx < steps.length; gwIdx++) {
-    if (!isGateway(steps[gwIdx])) continue
-    for (const start of getBranchStarts(steps[gwIdx])) {
-      let cur = start
-      const seen = new Set<number>()
-      while (!seen.has(cur)) {
-        seen.add(cur)
-        const s = steps[cur]
-        if (!s) break
-        const next =
-          s.nextStep !== undefined && s.nextStep !== null
-            ? s.nextStep
-            : cur + 1 < steps.length && !branchStartSet.has(cur + 1) && !isGateway(steps[cur + 1])
-              ? cur + 1
-              : null
-        if (next === null || next >= steps.length) {
-          terminal.add(cur)
-          break
-        }
-        if (isGateway(steps[next])) break
-        cur = next
-      }
-    }
+  for (const gwStep of steps) {
+    if (!isGateway(gwStep)) continue
+    findBranchTerminals(steps, gwStep, branchStartSet, terminal)
   }
   return terminal
 }
@@ -109,9 +115,9 @@ export function templateToFlowGraphDefinition(template: FlowTemplateForGraph): F
   const showStart = !!template.start?.triggers?.length
 
   const branchStartSet = new Set<number>()
-  for (let i = 0; i < steps.length; i++) {
-    if (!isGateway(steps[i])) continue
-    for (const start of getBranchStarts(steps[i])) branchStartSet.add(start)
+  for (const step of steps) {
+    if (!isGateway(step)) continue
+    for (const start of getBranchStarts(step)) branchStartSet.add(start)
   }
 
   const nodes: FlowGraphNode[] = []

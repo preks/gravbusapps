@@ -165,75 +165,81 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
           </div>
         </CardHeader>
       </Card>
-      <FlowCanvasProvider isInteractive onNodeSelect={handleNodeSelect} selectedNodeId={selectedNodeId}>
-        <FlowCanvas
-          definition={definition}
-          rightPanel={
-            selectedNodeId === START_NODE_ID ? (
-              <div
-                className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
-                style={{ width: 320, minWidth: 320 }}
-                data-testid={`${testId}-start-panel`}
-              >
-                <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
-                  <span className="gba:text-sm gba:font-semibold gba:text-foreground">Start</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedNodeId(null)}
-                    aria-label="Close"
-                    data-testid={`${testId}-start-panel-close`}
-                  >
-                    <X className="gba:h-4 gba:w-4" />
-                  </Button>
-                </div>
-                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4">
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    Workflow entry point. Triggers defined in the template.
-                  </p>
-                </div>
+      {(() => {
+        let rightPanelContent: React.ReactNode = null
+        if (selectedNodeId === START_NODE_ID) {
+          rightPanelContent = (
+            <div
+              className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
+              style={{ width: 320, minWidth: 320 }}
+              data-testid={`${testId}-start-panel`}
+            >
+              <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
+                <span className="gba:text-sm gba:font-semibold gba:text-foreground">Start</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedNodeId(null)}
+                  aria-label="Close"
+                  data-testid={`${testId}-start-panel-close`}
+                >
+                  <X className="gba:h-4 gba:w-4" />
+                </Button>
               </div>
-            ) : selectedNodeId === END_NODE_ID ? (
-              <div
-                className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
-                style={{ width: 320, minWidth: 320 }}
-                data-testid={`${testId}-end-panel`}
-              >
-                <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
-                  <span className="gba:text-sm gba:font-semibold gba:text-foreground">Workflow Summary</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedNodeId(null)}
-                    aria-label="Close"
-                    data-testid={`${testId}-end-panel-close`}
-                  >
-                    <X className="gba:h-4 gba:w-4" />
-                  </Button>
-                </div>
-                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4">
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    Final step. Summary fields are shown when the workflow completes.
-                  </p>
-                </div>
+              <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4">
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  Workflow entry point. Triggers defined in the template.
+                </p>
               </div>
-            ) : selectedStep != null && selectedIndex != null ? (
-              <div
-                className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
-                style={{ width: 320, minWidth: 320 }}
-              >
-                <FlowPreviewStepPanel
-                  step={selectedStep}
-                  index={selectedIndex}
-                  onClose={() => setSelectedNodeId(null)}
-                  data-testid={testId}
-                />
+            </div>
+          )
+        } else if (selectedNodeId === END_NODE_ID) {
+          rightPanelContent = (
+            <div
+              className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
+              style={{ width: 320, minWidth: 320 }}
+              data-testid={`${testId}-end-panel`}
+            >
+              <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
+                <span className="gba:text-sm gba:font-semibold gba:text-foreground">Workflow Summary</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedNodeId(null)}
+                  aria-label="Close"
+                  data-testid={`${testId}-end-panel-close`}
+                >
+                  <X className="gba:h-4 gba:w-4" />
+                </Button>
               </div>
-            ) : null
-          }
-          data-testid={`${testId}-graph`}
-        />
-      </FlowCanvasProvider>
+              <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4">
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  Final step. Summary fields are shown when the workflow completes.
+                </p>
+              </div>
+            </div>
+          )
+        } else if (selectedStep != null && selectedIndex != null) {
+          rightPanelContent = (
+            <div
+              className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
+              style={{ width: 320, minWidth: 320 }}
+            >
+              <FlowPreviewStepPanel
+                step={selectedStep}
+                index={selectedIndex}
+                onClose={() => setSelectedNodeId(null)}
+                data-testid={testId}
+              />
+            </div>
+          )
+        }
+        return (
+          <FlowCanvasProvider isInteractive onNodeSelect={handleNodeSelect} selectedNodeId={selectedNodeId}>
+            <FlowCanvas definition={definition} rightPanel={rightPanelContent} data-testid={`${testId}-graph`} />
+          </FlowCanvasProvider>
+        )
+      })()}
     </div>
   )
 }

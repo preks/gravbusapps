@@ -281,11 +281,11 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
           )}
 
           {/* Manual options list */}
-          {(!field.dataSource || field.dataSource.type !== 'CATALOG') && (
+          {field.dataSource?.type !== 'CATALOG' && (
             <>
               <Label className="gba:text-[10px] gba:font-medium gba:text-muted-foreground">Options</Label>
               {(field.options ?? []).map((opt, oi) => (
-                <div key={oi} className="gba:flex gba:items-center gba:gap-1.5">
+                <div key={opt.value || opt.label || `opt-${oi}`} className="gba:flex gba:items-center gba:gap-1.5">
                   <Input
                     value={opt.label}
                     onChange={e => updateOption(oi, { label: e.target.value })}

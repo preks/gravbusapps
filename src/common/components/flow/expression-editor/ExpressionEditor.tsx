@@ -155,14 +155,14 @@ export const ExpressionEditor: React.FC<ExpressionEditorProps> = ({
             label: { default: null },
             mentionType: {
               default: 'workflow',
-              parseHTML: (el: HTMLElement) => el.getAttribute('data-mention-type') || 'workflow',
+              parseHTML: (el: HTMLElement) => el.dataset.mentionType || 'workflow',
               renderHTML: (attrs: Record<string, string>) => ({
                 'data-mention-type': attrs.mentionType
               })
             },
             expression: {
               default: null,
-              parseHTML: (el: HTMLElement) => el.getAttribute('data-expression'),
+              parseHTML: (el: HTMLElement) => el.dataset.expression,
               renderHTML: (attrs: Record<string, string>) => ({
                 'data-expression': attrs.expression
               })
@@ -180,7 +180,7 @@ export const ExpressionEditor: React.FC<ExpressionEditorProps> = ({
           ]
         },
         addNodeView() {
-          return ReactNodeViewRenderer(({ node }: { node: any }) => <ExpressionPillView node={node} />)
+          return ReactNodeViewRenderer(({ node }) => <ExpressionPillView node={node} />)
         }
       }).configure({
         suggestion
@@ -222,7 +222,7 @@ export const ExpressionEditor: React.FC<ExpressionEditorProps> = ({
       if (isUpdatingFromProp.current) return
       const json = ed.getJSON()
       const expressionString = editorJSONToExpression(json as Record<string, unknown>)
-      onChange(isSingleLine ? expressionString.replace(/\n+/g, ' ') : expressionString)
+      onChange(isSingleLine ? expressionString.split(/\n+/).join(' ') : expressionString)
     }
   })
 

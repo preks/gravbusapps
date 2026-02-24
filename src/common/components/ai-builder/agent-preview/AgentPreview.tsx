@@ -47,7 +47,7 @@ export interface AgentPreviewProps {
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
 function friendlyLabel(key: string): string {
-  const lower = key.toLowerCase().replace(/_/g, ' ')
+  const lower = key.toLowerCase().split('_').join(' ')
   return lower.charAt(0).toUpperCase() + lower.slice(1)
 }
 
@@ -73,13 +73,13 @@ const CITATION_MODE_LABELS: Record<string, string> = {
 function resolveSchemaType(schema: Record<string, unknown>): string {
   if (schema.type === 'array') {
     const items = schema.items as Record<string, unknown> | undefined
-    const itemType = items?.type ?? 'any'
+    const itemType = typeof items?.type === 'string' ? items.type : 'any'
     return `${itemType}[]`
   }
   return (schema.type as string) ?? 'any'
 }
 
-function SchemaProperties({ schema }: { schema: Record<string, unknown> }) {
+function SchemaProperties({ schema }: Readonly<{ schema: Record<string, unknown> }>) {
   const properties = schema.properties as Record<string, Record<string, unknown>> | undefined
   const required = (schema.required as string[]) ?? []
   if (!properties || Object.keys(properties).length === 0) return null
@@ -105,6 +105,27 @@ function SchemaProperties({ schema }: { schema: Record<string, unknown> }) {
       ))}
     </div>
   )
+}
+
+function buildRequestFormData(
+  userParams: Record<string, string>,
+  promptProp: PromptODM | null | undefined,
+  agentId: string | undefined,
+  effectiveModelId: string
+): FormData {
+  const fd = new FormData()
+  fd.append('user_params', JSON.stringify(userParams))
+  fd.append('context', JSON.stringify({ executionMode: 'test' }))
+  if (promptProp && !agentId) {
+    fd.append('model_id', effectiveModelId)
+    fd.append('user_content', promptProp.user_content.template ?? '')
+    if (promptProp.system_content?.template) fd.append('system_content', promptProp.system_content.template)
+    if (promptProp.tools) fd.append('tools', promptProp.tools)
+    if (promptProp.model_settings && Object.keys(promptProp.model_settings).length > 0) {
+      fd.append('model_settings', JSON.stringify(promptProp.model_settings))
+    }
+  }
+  return fd
 }
 
 const AGENT_TYPE_LABELS: Record<string, string> = {
@@ -257,29 +278,17 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
     setSendError(null)
     setSending(true)
 
-    const fd = new FormData()
-    fd.append('user_params', JSON.stringify(userParams))
-    fd.append('context', JSON.stringify({ executionMode: 'test' }))
-
-    if (promptProp && !agentId) {
-      fd.append('model_id', effectiveModelId)
-      fd.append('user_content', promptProp.user_content.template ?? '')
-      if (promptProp.system_content?.template) fd.append('system_content', promptProp.system_content.template)
-      if (promptProp.tools) fd.append('tools', promptProp.tools)
-      if (promptProp.model_settings && Object.keys(promptProp.model_settings).length > 0) {
-        fd.append('model_settings', JSON.stringify(promptProp.model_settings))
-      }
-    }
-
     if (!promptProp && !agentId) {
       setSending(false)
       return
     }
 
+    const fd = buildRequestFormData(userParams, promptProp, agentId, effectiveModelId)
+
     try {
       const res = promptProp && !agentId ? await client.executePrompt(fd) : await client.executePromptById(agentId!, fd)
-      const content =
-        typeof res.content === 'string' ? res.content : res.content != null ? JSON.stringify(res.content) : ''
+      const fallbackContent = res.content == null ? '' : JSON.stringify(res.content)
+      const content = typeof res.content === 'string' ? res.content : fallbackContent
       setMessages(prev => [...prev, { role: 'assistant', content: content || '(No response)' }])
     } catch (e) {
       setSendError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
@@ -543,7 +552,7 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
               ) : (
                 messages.map((m, i) => (
                   <div
-                    key={i}
+                    key={`${m.role}-${i}`}
                     className={`gba:flex ${m.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
                     data-testid={`${testId}-msg-${i}`}
                   >

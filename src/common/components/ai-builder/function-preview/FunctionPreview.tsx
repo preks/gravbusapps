@@ -51,7 +51,7 @@ export interface FunctionPreviewProps {
 }
 
 function friendlyLabel(key: string): string {
-  const lower = key.toLowerCase().replace(/_/g, ' ')
+  const lower = key.toLowerCase().split('_').join(' ')
   return lower.charAt(0).toUpperCase() + lower.slice(1)
 }
 
@@ -161,8 +161,8 @@ const FunctionPreviewSingle: React.FC<FunctionPreviewSingleProps> = ({
 
   const schemaProperties = useMemo(() => {
     if (!loaded?.inputSchema) return {}
-    const p = (loaded.inputSchema as { properties?: Record<string, unknown> }).properties
-    return (typeof p === 'object' && p !== null ? p : {}) as Record<string, unknown>
+    const p = loaded.inputSchema['properties']
+    return typeof p === 'object' && p !== null ? (p as Record<string, unknown>) : {}
   }, [loaded?.inputSchema])
 
   const requiredFields = useMemo(() => {
@@ -173,8 +173,8 @@ const FunctionPreviewSingle: React.FC<FunctionPreviewSingleProps> = ({
 
   const outputProperties = useMemo(() => {
     if (!loaded?.outputSchema) return {} as Record<string, unknown>
-    const p = (loaded.outputSchema as { properties?: Record<string, unknown> }).properties
-    return (typeof p === 'object' && p !== null ? p : {}) as Record<string, unknown>
+    const p = loaded.outputSchema['properties']
+    return typeof p === 'object' && p !== null ? (p as Record<string, unknown>) : {}
   }, [loaded?.outputSchema])
 
   const runTest = useCallback(async () => {
@@ -285,54 +285,68 @@ const FunctionPreviewSingle: React.FC<FunctionPreviewSingleProps> = ({
                       {isRequired && <span className="gba:text-destructive gba:ml-0.5">*</span>}
                     </Label>
                     {description && <p className="gba:text-xs gba:text-muted-foreground">{description}</p>}
-                    {type === 'boolean' ? (
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Checkbox
+                    {(() => {
+                      const payloadStringValue = typeof payload[key] === 'string' ? payload[key] : ''
+                      if (type === 'boolean') {
+                        return (
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Checkbox
+                              id={`${testId}-input-${key}`}
+                              checked={!!payload[key]}
+                              onCheckedChange={checked => setPayloadField(key, checked)}
+                              data-testid={`${testId}-input-${key}`}
+                            />
+                            <Label htmlFor={`${testId}-input-${key}`} className="gba:cursor-pointer gba:font-normal">
+                              {payload[key] ? 'Yes' : 'No'}
+                            </Label>
+                          </div>
+                        )
+                      }
+                      if (enumValues && enumValues.length > 0) {
+                        return (
+                          <Select value={payloadStringValue} onValueChange={v => setPayloadField(key, v)}>
+                            <SelectTrigger id={`${testId}-input-${key}`} data-testid={`${testId}-input-${key}`}>
+                              <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {enumValues.map(v => (
+                                <SelectItem key={String(v)} value={String(v)}>
+                                  {String(v)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )
+                      }
+                      if (type === 'number' || type === 'integer') {
+                        return (
+                          <Input
+                            id={`${testId}-input-${key}`}
+                            type="number"
+                            value={payloadStringValue}
+                            onChange={e =>
+                              setPayloadField(
+                                key,
+                                type === 'integer'
+                                  ? Number.parseInt(e.target.value) || 0
+                                  : Number.parseFloat(e.target.value) || 0
+                              )
+                            }
+                            placeholder={description ?? `Enter ${label.toLowerCase()}...`}
+                            data-testid={`${testId}-input-${key}`}
+                          />
+                        )
+                      }
+                      return (
+                        <Input
                           id={`${testId}-input-${key}`}
-                          checked={Boolean(payload[key])}
-                          onCheckedChange={checked => setPayloadField(key, checked)}
+                          value={payloadStringValue}
+                          onChange={e => setPayloadField(key, e.target.value)}
+                          placeholder={description ?? `Enter ${label.toLowerCase()}...`}
                           data-testid={`${testId}-input-${key}`}
                         />
-                        <Label htmlFor={`${testId}-input-${key}`} className="gba:cursor-pointer gba:font-normal">
-                          {Boolean(payload[key]) ? 'Yes' : 'No'}
-                        </Label>
-                      </div>
-                    ) : enumValues && enumValues.length > 0 ? (
-                      <Select value={String(payload[key] ?? '')} onValueChange={v => setPayloadField(key, v)}>
-                        <SelectTrigger id={`${testId}-input-${key}`} data-testid={`${testId}-input-${key}`}>
-                          <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {enumValues.map((v, i) => (
-                            <SelectItem key={i} value={String(v)}>
-                              {String(v)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : type === 'number' || type === 'integer' ? (
-                      <Input
-                        id={`${testId}-input-${key}`}
-                        type="number"
-                        value={String(payload[key] ?? '')}
-                        onChange={e =>
-                          setPayloadField(
-                            key,
-                            type === 'integer' ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0
-                          )
-                        }
-                        placeholder={description ?? `Enter ${label.toLowerCase()}...`}
-                        data-testid={`${testId}-input-${key}`}
-                      />
-                    ) : (
-                      <Input
-                        id={`${testId}-input-${key}`}
-                        value={String(payload[key] ?? '')}
-                        onChange={e => setPayloadField(key, e.target.value)}
-                        placeholder={description ?? `Enter ${label.toLowerCase()}...`}
-                        data-testid={`${testId}-input-${key}`}
-                      />
-                    )}
+                      )
+                    })()}
                   </div>
                 )
               })}

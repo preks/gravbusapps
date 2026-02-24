@@ -19,11 +19,11 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Plus, Trash2, Tags } from 'lucide-react'
 import type { FlowTags } from '@/business-apps/flow/types'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { useCatalogLoader } from '@/business-apps/flow/apps/creator/components/steps/hooks/useCatalogLoader'
 import {

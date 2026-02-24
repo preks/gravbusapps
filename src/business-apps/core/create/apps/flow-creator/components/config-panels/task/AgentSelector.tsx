@@ -10,9 +10,9 @@ import {
   Label,
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
 import { Bot, Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 import translations from '../../../_i18n'
 import type { TaskNodeConfig } from '../../../types/studioTypes'
@@ -69,8 +69,8 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
   useEffect(() => {
     if (!selectedAgent?._id) return
     const current = config.agentConfig ?? { promptId: selectedAgent._id, promptName: selectedAgent.name }
-    const systemMap = { ...(current.systemParamsMap ?? {}) }
-    const userMap = { ...(current.userParamsMap ?? {}) }
+    const systemMap = { ...current.systemParamsMap }
+    const userMap = { ...current.userParamsMap }
 
     let changed = false
     for (const p of params.system) {
@@ -99,7 +99,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
   const updateParam = (type: 'system' | 'user', name: string, expression: string) => {
     const current = config.agentConfig ?? { promptId: selectedAgent?._id ?? '', promptName: selectedAgent?.name }
     const mapKey = type === 'system' ? 'systemParamsMap' : 'userParamsMap'
-    const nextMap = { ...(current?.[mapKey] ?? {}) }
+    const nextMap = { ...current?.[mapKey] }
     nextMap[name] = expression
     update({
       agentConfig: {
@@ -195,90 +195,100 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
           {t('task-input-params')}
         </div>
 
-        {paramsLoading ? (
-          <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-            <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
-            {t('task-input-params-loading')}
-          </div>
-        ) : params.system.length === 0 && params.user.length === 0 ? (
-          <div className="gba:text-xs gba:text-muted-foreground">{t('task-input-params-empty')}</div>
-        ) : (
-          <div className="gba:flex gba:flex-col gba:gap-3">
-            {(
-              [
-                { id: 'system' as const, label: t('task-input-params-system'), params: params.system },
-                { id: 'user' as const, label: t('task-input-params-user'), params: params.user }
-              ] as const
+        {(() => {
+          const hasNoParams = params.system.length === 0 && params.user.length === 0
+          if (paramsLoading) {
+            return (
+              <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+                <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
+                {t('task-input-params-loading')}
+              </div>
             )
-              .filter(group => group.params.length > 0)
-              .map(group => (
-                <div key={group.id} className="gba:flex gba:flex-col gba:gap-2">
-                  <div className="gba:text-[10px] gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wider">
-                    {group.label}
-                  </div>
-                  {group.params.map((paramName, idx) => {
-                    const currentExpr =
-                      group.id === 'system'
-                        ? (config.agentConfig?.systemParamsMap?.[paramName] ?? '')
-                        : (config.agentConfig?.userParamsMap?.[paramName] ?? '')
+          }
+          if (hasNoParams) {
+            return <div className="gba:text-xs gba:text-muted-foreground">{t('task-input-params-empty')}</div>
+          }
+          return (
+            <div className="gba:flex gba:flex-col gba:gap-3">
+              {(
+                [
+                  { id: 'system' as const, label: t('task-input-params-system'), params: params.system },
+                  { id: 'user' as const, label: t('task-input-params-user'), params: params.user }
+                ] as const
+              )
+                .filter(group => group.params.length > 0)
+                .map(group => (
+                  <div key={group.id} className="gba:flex gba:flex-col gba:gap-2">
+                    <div className="gba:text-[10px] gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wider">
+                      {group.label}
+                    </div>
+                    {group.params.map((paramName, idx) => {
+                      const currentExpr =
+                        group.id === 'system'
+                          ? (config.agentConfig?.systemParamsMap?.[paramName] ?? '')
+                          : (config.agentConfig?.userParamsMap?.[paramName] ?? '')
 
-                    const selected = stepValueSuggestions.find(s => `{{${s.expression}}}` === currentExpr)
+                      const selected = stepValueSuggestions.find(s => `{{${s.expression}}}` === currentExpr)
+                      const displayLabel = selected?.label ?? currentExpr ?? t('task-input-params-pick')
 
-                    return (
-                      <div
-                        key={`${group.id}-${paramName}`}
-                        className="gba:grid gba:grid-cols-5 gba:gap-2 gba:items-start"
-                        data-testid={`${testId}-ai-task-expert-param-${group.id}-${idx}`}
-                      >
-                        <Label className="gba:col-span-2 gba:text-xs gba:font-mono gba:pt-2">{paramName}</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="gba:col-span-3 gba:justify-between gba:h-9 gba:text-xs gba:bg-background"
-                              data-testid={`${testId}-ai-task-expert-param-pick-${group.id}-${idx}`}
-                            >
-                              <span className="gba:truncate">
-                                {selected ? selected.label : currentExpr ? currentExpr : t('task-input-params-pick')}
-                              </span>
-                              <ChevronsUpDown className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="gba:p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder={t('logic-field-search')} />
-                              <CommandEmpty>{t('logic-field-empty')}</CommandEmpty>
-                              <CommandList>
-                                <CommandGroup heading={t('logic-field-group-steps')}>
-                                  {stepValueSuggestions.map(item => (
-                                    <CommandItem
-                                      key={item.id}
-                                      onSelect={() => {
+                      return (
+                        <div
+                          key={`${group.id}-${paramName}`}
+                          className="gba:grid gba:grid-cols-5 gba:gap-2 gba:items-start"
+                          data-testid={`${testId}-ai-task-expert-param-${group.id}-${idx}`}
+                        >
+                          <Label className="gba:col-span-2 gba:text-xs gba:font-mono gba:pt-2">{paramName}</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="gba:col-span-3 gba:justify-between gba:h-9 gba:text-xs gba:bg-background"
+                                data-testid={`${testId}-ai-task-expert-param-pick-${group.id}-${idx}`}
+                              >
+                                <span className="gba:truncate">{displayLabel}</span>
+                                <ChevronsUpDown className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="gba:p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder={t('logic-field-search')} />
+                                <CommandEmpty>{t('logic-field-empty')}</CommandEmpty>
+                                <CommandList>
+                                  <CommandGroup heading={t('logic-field-group-steps')}>
+                                    {stepValueSuggestions.map(item => {
+                                      const handleSuggestionSelect = () =>
                                         updateParam(group.id, paramName, `{{${item.expression}}}`)
-                                      }}
-                                      value={`${item.label} ${item.expression}`}
-                                    >
-                                      <span className="gba:flex gba:flex-col gba:min-w-0">
-                                        <span className="gba:text-xs gba:font-medium gba:truncate">{item.label}</span>
-                                        <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate">
-                                          {item.expression}
-                                        </span>
-                                      </span>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
-          </div>
-        )}
+                                      return (
+                                        <CommandItem
+                                          key={item.id}
+                                          onSelect={handleSuggestionSelect}
+                                          value={`${item.label} ${item.expression}`}
+                                        >
+                                          <span className="gba:flex gba:flex-col gba:min-w-0">
+                                            <span className="gba:text-xs gba:font-medium gba:truncate">
+                                              {item.label}
+                                            </span>
+                                            <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate">
+                                              {item.expression}
+                                            </span>
+                                          </span>
+                                        </CommandItem>
+                                      )
+                                    })}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))}
+            </div>
+          )
+        })()}
       </div>
     </div>
   )

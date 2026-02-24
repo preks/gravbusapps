@@ -20,7 +20,7 @@ export const PreviewTemplate: React.FC<PreviewTemplateProps> = ({
   'data-testid': testId
 }) => {
   const [selectedId, setSelectedId] = useState<string>(() => items[0]?.id ?? '')
-  const activeId = items.find(i => i.id === selectedId) ? selectedId : (items[0]?.id ?? '')
+  const activeId = items.some(i => i.id === selectedId) ? selectedId : (items[0]?.id ?? '')
 
   return (
     <div className={`gba:flex gba:flex-col gba:h-full gba:min-h-0 ${className ?? ''}`} data-testid={testId}>

@@ -26,8 +26,6 @@ interface TaskStepTypeSelectorProps {
   onChange: (next: FlowStepType) => void
   title: string
   getLabel: (type: FlowStepType) => string
-  humanGroupLabel?: string
-  aiGroupLabel?: string
   'data-testid'?: string
 }
 
@@ -47,6 +45,14 @@ export const TaskStepTypeSelector: React.FC<TaskStepTypeSelectorProps> = ({
 
   const isAISelected = META[value]?.isAI === true
   const isFunctionSelected = value === FlowStepType.FUNCTION
+  let groupSuffix: string
+  if (isAISelected) {
+    groupSuffix = 'group-ai'
+  } else if (isFunctionSelected) {
+    groupSuffix = 'group-function'
+  } else {
+    groupSuffix = 'group-human'
+  }
 
   const visibleOptions = useMemo(() => {
     if (isAISelected) {
@@ -70,10 +76,7 @@ export const TaskStepTypeSelector: React.FC<TaskStepTypeSelectorProps> = ({
       </div>
 
       {visibleOptions.length > 0 && (
-        <div
-          className="gba:flex gba:flex-col gba:gap-2"
-          data-testid={`${testId}-${isAISelected ? 'group-ai' : isFunctionSelected ? 'group-function' : 'group-human'}`}
-        >
+        <div className="gba:flex gba:flex-col gba:gap-2" data-testid={`${testId}-${groupSuffix}`}>
           <div className="gba:grid gba:grid-cols-2 gba:gap-2">
             {visibleOptions.map(type => {
               const meta = META[type]

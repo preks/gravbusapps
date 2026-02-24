@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button, Badge, ScrollArea } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
-import type { FlowPreviewStep, FlowPreviewInputBlock } from './flowPreviewTypes'
+import type { FlowPreviewStep } from './flowPreviewTypes'
 
 function inputTypeLabel(t: string): string {
   const labels: Record<string, string> = {
@@ -44,7 +44,7 @@ export const FlowPreviewStepPanel: React.FC<FlowPreviewStepPanelProps> = ({
   onClose,
   'data-testid': testId = 'flow-preview-step-panel'
 }) => {
-  const formFields = (step.form ?? step.inputs ?? []) as FlowPreviewInputBlock[]
+  const formFields = step.form ?? step.inputs ?? []
   const assignment = step.assignment
   const isGateway = step.type === 'GATEWAY'
 
@@ -81,7 +81,7 @@ export const FlowPreviewStepPanel: React.FC<FlowPreviewStepPanelProps> = ({
                   <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Conditions</p>
                   <ul className="gba:space-y-1.5">
                     {branches.map((b, i) => (
-                      <li key={i} className="gba:text-sm gba:text-foreground">
+                      <li key={b.condition ?? `branch-${i}`} className="gba:text-sm gba:text-foreground">
                         <span className="gba:font-medium">{b.condition || '(no condition)'}</span>
                         <span className="gba:text-muted-foreground"> → Step {b.nextStep + 1}</span>
                       </li>
@@ -106,7 +106,11 @@ export const FlowPreviewStepPanel: React.FC<FlowPreviewStepPanelProps> = ({
           <span className="gba:text-sm gba:font-semibold gba:text-foreground">
             Step {index + 1}: {step.title || 'Untitled step'}
           </span>
-          <Badge variant="secondary">{String(step.type ?? 'TASK').replace(/_/g, ' ')}</Badge>
+          <Badge variant="secondary">
+            {String(step.type ?? 'TASK')
+              .split('_')
+              .join(' ')}
+          </Badge>
         </div>
         <Button
           variant="ghost"
@@ -149,7 +153,7 @@ export const FlowPreviewStepPanel: React.FC<FlowPreviewStepPanelProps> = ({
                 <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Form fields</p>
                 <ul className="gba:space-y-1.5">
                   {formFields.map((f, i) => (
-                    <li key={i} className="gba:text-sm gba:flex gba:gap-2">
+                    <li key={f.name ?? f.label ?? `field-${i}`} className="gba:text-sm gba:flex gba:gap-2">
                       <span className="gba:font-medium gba:text-foreground">{f.label || f.name}</span>
                       <span className="gba:text-muted-foreground">
                         ({inputTypeLabel(f.type ?? '')}
@@ -165,7 +169,7 @@ export const FlowPreviewStepPanel: React.FC<FlowPreviewStepPanelProps> = ({
                 <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Links</p>
                 <ul className="gba:space-y-1">
                   {step.links.map((l, i) => (
-                    <li key={i} className="gba:text-sm">
+                    <li key={l.url ?? `link-${i}`} className="gba:text-sm">
                       <a
                         href={l.url}
                         target="_blank"

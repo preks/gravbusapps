@@ -11,8 +11,7 @@ import {
 } from '@newwork/nw-design-system'
 import { AssignmentSelector } from '@/components/assignment-selector/AssignmentSelector'
 import { AssignmentMode, type TaskAssignment } from '@/common/network/flows/FlowTemplateClient'
-import type { PermissionContextType, StepPermission } from '../../../types/studioTypes'
-import type { DesignerMode } from '../../../types/studioTypes'
+import type { PermissionContextType, StepPermission, DesignerMode } from '../../../types/studioTypes'
 import { NEUTRAL_SWITCH_CLASSNAME } from '../../../utils/neutralSwitchClassName'
 
 interface PermissionContextValue {

@@ -1,4 +1,4 @@
-﻿import {
+import {
   FlowTemplate,
   FlowStep,
   FlowStepType,
@@ -221,7 +221,7 @@ export class QuickTaskFlowService {
       // Add the group ID, assigned user ID, and entity references to the template tags
       // NOTE: Entity references are stored in BOTH links (for inbox) and tags (for outbox list view)
       const tagsWithGroup = {
-        ...(flowTemplate.tags || {}),
+        ...flowTemplate.tags,
         app: 'quick-task',
         blinkGroupId, // Group ID to link all workflows from the same blink
         assignedUserId: userId, // User ID to identify who this workflow is for

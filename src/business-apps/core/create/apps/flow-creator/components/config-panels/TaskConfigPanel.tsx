@@ -4,9 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Badge } from '@newwork/nw-design-system'
+import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, useTranslation } from '@newwork/nw-design-system'
 import {
   Bot,
   Brain,

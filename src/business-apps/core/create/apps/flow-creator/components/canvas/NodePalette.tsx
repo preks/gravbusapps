@@ -59,6 +59,8 @@ export const NodePalette: React.FC<NodePaletteProps> = ({
         return (
           <div
             key={item.type}
+            role="button"
+            tabIndex={0}
             draggable
             onDragStart={e => onDragStart(e, item.type)}
             data-testid={`${testId}-item-${item.type}`}

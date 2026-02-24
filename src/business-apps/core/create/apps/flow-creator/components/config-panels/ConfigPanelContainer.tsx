@@ -15,15 +15,7 @@ import { ForkConfigPanel, JoinConfigPanel } from './ForkJoinConfigPanel'
 import { EndConfigPanel } from './EndConfigPanel'
 import { EdgeDetailsPanel } from './EdgeDetailsPanel'
 import { AddStepPanel } from './AddStepPanel'
-import type {
-  DesignerMode,
-  StartNodeConfig,
-  TaskNodeConfig,
-  DecisionNodeConfig,
-  EndNodeConfig,
-  ForkNodeConfig,
-  JoinNodeConfig
-} from '../../types/studioTypes'
+import type { DesignerMode } from '../../types/studioTypes'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 
 const DEFAULT_PANEL_WIDTH = 520
@@ -74,33 +66,33 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
 
     switch (config.nodeType) {
       case 'start':
-        return <StartConfigPanel nodeId={selectedNode.id} config={config as StartNodeConfig} mode={mode} />
+        return <StartConfigPanel nodeId={selectedNode.id} config={config} mode={mode} />
       case 'task':
         return (
           <TaskConfigPanel
             nodeId={selectedNode.id}
-            config={config as TaskNodeConfig}
+            config={config}
             mode={mode}
             accessToken={accessToken}
             studioData={studioData}
           />
         )
       case 'end':
-        return <EndConfigPanel nodeId={selectedNode.id} config={config as EndNodeConfig} mode={mode} />
+        return <EndConfigPanel nodeId={selectedNode.id} config={config} mode={mode} />
       case 'decision':
         return (
           <DecisionConfigPanel
             nodeId={selectedNode.id}
-            config={config as DecisionNodeConfig}
+            config={config}
             mode={mode}
             accessToken={accessToken}
             studioData={studioData}
           />
         )
       case 'fork':
-        return <ForkConfigPanel nodeId={selectedNode.id} config={config as ForkNodeConfig} mode={mode} />
+        return <ForkConfigPanel nodeId={selectedNode.id} config={config} mode={mode} />
       case 'join':
-        return <JoinConfigPanel nodeId={selectedNode.id} config={config as JoinNodeConfig} mode={mode} />
+        return <JoinConfigPanel nodeId={selectedNode.id} config={config} mode={mode} />
       default:
         return null
     }

@@ -71,7 +71,9 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
   const bgClass = getStatusBg(data.status, data.isSelected)
   const isAI = meta.isAI === true
   const isFunction = variant === 'FUNCTION'
-  const CategoryIcon = isFunction ? Zap : isAI ? Sparkles : UserCheck
+  let CategoryIcon = UserCheck
+  if (isFunction) CategoryIcon = Zap
+  else if (isAI) CategoryIcon = Sparkles
 
   return (
     <button
@@ -144,11 +146,13 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
               variant="secondary"
               className={[
                 'gba:text-xs gba:flex gba:items-center gba:gap-1 gba:border-none',
-                data.assignmentMode === 'ASSIGN'
-                  ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                  : data.assignmentMode === 'ASSIGN_DEFERRED'
-                    ? 'gba:bg-info-secondary gba:text-info-secondary-foreground'
-                    : 'gba:bg-accent gba:text-accent-foreground'
+                (() => {
+                  if (data.assignmentMode === 'ASSIGN')
+                    return 'gba:bg-success-secondary gba:text-success-secondary-foreground'
+                  if (data.assignmentMode === 'ASSIGN_DEFERRED')
+                    return 'gba:bg-info-secondary gba:text-info-secondary-foreground'
+                  return 'gba:bg-accent gba:text-accent-foreground'
+                })()
               ].join(' ')}
             >
               {data.assignmentMode === 'CLAIM' ? (
@@ -185,13 +189,12 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
       {/* Step number (inside node so it is not clipped by wrapper overflow) */}
       {data.stepNumber != null && (
         <div
-          className={`gba:absolute gba:top-2 gba:left-2 gba:w-6 gba:h-6 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold gba:text-primary-foreground ${
-            data.isSelected
-              ? 'gba:bg-primary'
-              : data.status === 'completed'
-                ? 'gba:bg-success'
-                : 'gba:bg-muted-foreground'
-          }`}
+          className={(() => {
+            let stepBg = 'gba:bg-muted-foreground'
+            if (data.isSelected) stepBg = 'gba:bg-primary'
+            else if (data.status === 'completed') stepBg = 'gba:bg-success'
+            return `gba:absolute gba:top-2 gba:left-2 gba:w-6 gba:h-6 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold gba:text-primary-foreground ${stepBg}`
+          })()}
         >
           {data.stepNumber}
         </div>

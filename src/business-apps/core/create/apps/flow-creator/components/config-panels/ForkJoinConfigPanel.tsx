@@ -13,18 +13,16 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
 import { GitFork, Merge, Plus, Trash2 } from 'lucide-react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
-import type { ForkNodeConfig, JoinNodeConfig, DesignerMode } from '../../types/studioTypes'
+import type { JoinNodeConfig } from '../../types/studioTypes'
 
 interface ForkConfigPanelProps {
   nodeId: string
-  config: ForkNodeConfig
-  mode: DesignerMode
   'data-testid'?: string
 }
 
@@ -129,7 +127,6 @@ export const ForkConfigPanel: React.FC<ForkConfigPanelProps> = ({
 interface JoinConfigPanelProps {
   nodeId: string
   config: JoinNodeConfig
-  mode: DesignerMode
   'data-testid'?: string
 }
 

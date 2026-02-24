@@ -67,7 +67,7 @@ export function createFlowStudioListColumns(params: {
       size: 180,
       cell: ({ row }) => {
         const code = getAppCode(row.original)
-        const label = appLabelByCode[code] || (code ? code : '—')
+        const label = appLabelByCode[code] || code || '—'
         return <div className="gba:text-sm gba:text-muted-foreground gba:truncate">{label}</div>
       }
     },

@@ -40,11 +40,11 @@ export const FunctionHandlerSection: React.FC<FunctionHandlerSectionProps> = ({
           <SelectContent>
             {studioData.functions.length === 0 ? (
               <SelectItem value="__none__" disabled>
-                {studioData.functionsLoading
-                  ? 'Loading…'
-                  : studioData.functionsError
-                    ? 'Failed to load functions'
-                    : 'No functions found'}
+                {(() => {
+                  if (studioData.functionsLoading) return 'Loading…'
+                  if (studioData.functionsError) return 'Failed to load functions'
+                  return 'No functions found'
+                })()}
               </SelectItem>
             ) : (
               studioData.functions.map(fn => (

@@ -56,11 +56,11 @@ export const FlowSummaryCard: React.FC<FlowSummaryCardProps> = ({
   })()
 
   return (
-    <div
-      role="button"
+    <button
+      type="button"
       onClick={() => onClick?.(flow.id)}
       data-testid={dataTestId || `flow-summary-card-${flow.id}`}
-      className="gba:border gba:rounded-lg gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow gba:cursor-pointer gba:border-l-4"
+      className="gba:w-full gba:text-left gba:border gba:rounded-lg gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow gba:cursor-pointer gba:border-l-4"
       style={{
         borderLeftColor: stripeColor
       }}
@@ -154,7 +154,7 @@ export const FlowSummaryCard: React.FC<FlowSummaryCardProps> = ({
           View Details
         </button>
       </div>
-    </div>
+    </button>
   )
 }
 

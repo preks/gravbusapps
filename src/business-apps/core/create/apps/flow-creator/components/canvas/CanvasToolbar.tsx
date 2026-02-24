@@ -4,8 +4,7 @@
  */
 
 import React from 'react'
-import { Button, Separator } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Button, Separator, useTranslation } from '@newwork/nw-design-system'
 import { Undo2, Redo2, Save, Play, Trash2, Copy } from 'lucide-react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'

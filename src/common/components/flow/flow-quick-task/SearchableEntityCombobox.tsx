@@ -209,22 +209,15 @@ export const SearchableEntityCombobox: React.FC<SearchableEntityComboboxProps> =
             </div>
             <div className="gba:flex gba:items-center gba:gap-1 gba:ml-2 gba:shrink-0">
               {selectedEntity && !disabled && (
-                <div
-                  role="button"
-                  tabIndex={0}
+                <button
+                  type="button"
                   className="gba:h-6 gba:w-6 gba:p-0 gba:rounded gba:flex gba:items-center gba:justify-center hover:gba:bg-accent gba:cursor-pointer"
                   onClick={handleClear}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      handleClear(e as any)
-                    }
-                  }}
                   data-testid={`${dataTestId}-clear`}
                   aria-label="Clear selection"
                 >
                   <X className="gba:h-4 gba:w-4" />
-                </div>
+                </button>
               )}
               <ChevronsUpDown className="gba:h-4 gba:w-4 gba:shrink-0 gba:opacity-50" />
             </div>

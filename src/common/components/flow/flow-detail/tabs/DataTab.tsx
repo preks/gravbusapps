@@ -99,6 +99,16 @@ interface DataTabProps {
   accessToken: string
 }
 
+function getStepStatusColor(status: string): string {
+  if (status === 'COMPLETED') return '#10b981'
+  if (status === 'IN_PROGRESS') return '#3b82f6'
+  return '#e5e7eb'
+}
+
+function getStepStatusTextColor(status: string): string {
+  return status === 'COMPLETED' || status === 'IN_PROGRESS' ? 'white' : '#6b7280'
+}
+
 export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessToken }) => {
   const [stepDataMap, setStepDataMap] = useState<Map<number, StepDataResponse>>(new Map())
   const [isLoading, setIsLoading] = useState(false)
@@ -232,7 +242,7 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessTok
     if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
       try {
         const date = new Date(value)
-        if (!isNaN(date.getTime())) {
+        if (!Number.isNaN(date.getTime())) {
           return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
         }
       } catch {
@@ -337,6 +347,8 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessTok
               {flowSteps.map((step, index) => {
                 const stepData = stepDataMap.get(step.stepIndex)
                 const isLast = index === flowSteps.length - 1
+                const stepStatusColor = getStepStatusColor(step.status)
+                const stepTextColor = getStepStatusTextColor(step.status)
 
                 return (
                   <div key={step.id} className="gba:relative gba:py-6">
@@ -348,19 +360,9 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessTok
                       <div
                         className="gba:relative gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-full gba:text-xs gba:font-medium gba:border-2 gba:bg-white"
                         style={{
-                          borderColor:
-                            step.status === 'COMPLETED'
-                              ? '#10b981'
-                              : step.status === 'IN_PROGRESS'
-                                ? '#3b82f6'
-                                : '#e5e7eb',
-                          backgroundColor:
-                            step.status === 'COMPLETED'
-                              ? '#10b981'
-                              : step.status === 'IN_PROGRESS'
-                                ? '#3b82f6'
-                                : '#e5e7eb',
-                          color: step.status === 'COMPLETED' || step.status === 'IN_PROGRESS' ? 'white' : '#6b7280'
+                          borderColor: stepStatusColor,
+                          backgroundColor: stepStatusColor,
+                          color: stepTextColor
                         }}
                       >
                         {index + 1}
@@ -395,49 +397,51 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessTok
                             <Alert variant="default" className="gba:py-2">
                               <AlertCircle className="gba:h-4 gba:w-4" />
                               <div className="gba:text-sm">
-                                Step is {step.status.toLowerCase().replace('_', ' ')} - showing partial data (
+                                Step is {step.status.toLowerCase().split('_').join(' ')} - showing partial data (
                                 {stepData.totalCount} {stepData.totalCount === 1 ? 'submission' : 'submissions'})
                               </div>
                             </Alert>
                           </div>
                         )}
-                        {stepData.totalCount === 1 ? (
-                          // Single data entry - clean layout
-                          <div className="gba:mt-3 gba:ml-9">
-                            {/* Form-like grid layout */}
-                            {stepData.data[0].formData && Object.keys(stepData.data[0].formData).length > 0 ? (
-                              <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-4">
-                                {Object.entries(stepData.data[0].formData).map(([key, value]) => (
-                                  <div key={key} className="gba:space-y-1">
-                                    <label className="gba:text-xs gba:font-medium gba:text-gray-700 gba:uppercase gba:tracking-wide">
-                                      {generateFieldLabel(key)}
-                                    </label>
-                                    <div className="gba:bg-gray-50 gba:rounded gba:px-3 gba:py-2 gba:border gba:border-gray-200 gba:text-sm gba:text-gray-900">
-                                      {formatFieldValue(key, value)}
-                                    </div>
+                        {(() => {
+                          if (stepData.totalCount === 1) {
+                            const firstFormData = stepData.data[0].formData
+                            const hasFormData = firstFormData && Object.keys(firstFormData).length > 0
+                            return (
+                              <div className="gba:mt-3 gba:ml-9">
+                                {hasFormData ? (
+                                  <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-4">
+                                    {Object.entries(firstFormData).map(([key, value]) => (
+                                      <div key={key} className="gba:space-y-1">
+                                        <label className="gba:text-xs gba:font-medium gba:text-gray-700 gba:uppercase gba:tracking-wide">
+                                          {generateFieldLabel(key)}
+                                        </label>
+                                        <div className="gba:bg-gray-50 gba:rounded gba:px-3 gba:py-2 gba:border gba:border-gray-200 gba:text-sm gba:text-gray-900">
+                                          {formatFieldValue(key, value)}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                ) : (
+                                  <div className="gba:text-center gba:py-6 gba:text-gray-500 gba:text-sm">
+                                    No form data submitted
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <div className="gba:text-center gba:py-6 gba:text-gray-500 gba:text-sm">
-                                No form data submitted
-                              </div>
-                            )}
-                          </div>
-                        ) : stepData.totalCount > 1 ? (
-                          // Multiple data entries - table layout
-                          <div className="gba:mt-3 gba:ml-9">
-                            {(() => {
-                              // Get all unique field keys from all data rows
-                              const allFields = new Set<string>()
-                              stepData.data.forEach(dataRow => {
-                                if (dataRow.formData) {
-                                  Object.keys(dataRow.formData).forEach(key => allFields.add(key))
+                            )
+                          }
+                          if (stepData.totalCount > 1) {
+                            const allFields = new Set<string>()
+                            for (const dataRow of stepData.data) {
+                              if (dataRow.formData) {
+                                for (const key of Object.keys(dataRow.formData)) {
+                                  allFields.add(key)
                                 }
-                              })
-                              const fieldKeys = Array.from(allFields)
-
-                              return (
+                              }
+                            }
+                            const fieldKeys = Array.from(allFields)
+                            return (
+                              <div className="gba:mt-3 gba:ml-9">
                                 <div className="gba:rounded-lg gba:border gba:border-gray-200 gba:overflow-hidden">
                                   <TableComponent>
                                     <TableHeader>
@@ -451,73 +455,80 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessTok
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {stepData.data.map(dataRow => (
-                                        <TableRow key={dataRow.taskId}>
-                                          <TableCell>
-                                            <div className="gba:flex gba:items-center gba:gap-2">
-                                              <div className="gba:w-6 gba:h-6 gba:bg-gray-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-gray-600 gba:text-xs gba:font-medium">
-                                                {dataRow.userName.charAt(0).toUpperCase()}
-                                              </div>
-                                              <div className="gba:flex gba:flex-col">
-                                                <span className="gba:font-medium gba:text-sm">{dataRow.userName}</span>
-                                                <span className="gba:text-xs gba:text-gray-500">{dataRow.userId}</span>
-                                              </div>
-                                            </div>
-                                          </TableCell>
-                                          <TableCell>
-                                            <div className="gba:flex gba:flex-col">
-                                              <span className="gba:text-sm">
-                                                {new Date(dataRow.timestamp).toLocaleDateString()}
-                                              </span>
-                                              <span className="gba:text-xs gba:text-gray-500">
-                                                {new Date(dataRow.timestamp).toLocaleTimeString()}
-                                              </span>
-                                            </div>
-                                          </TableCell>
-                                          {fieldKeys.map(key => (
-                                            <TableCell key={key}>
-                                              <div
-                                                className="gba:text-sm gba:max-w-[300px] gba:truncate"
-                                                title={formatFieldValue(key, dataRow.formData?.[key])}
-                                              >
-                                                {formatFieldValue(key, dataRow.formData?.[key])}
+                                      {stepData.data.map(dataRow => {
+                                        const handleCopy = () =>
+                                          navigator.clipboard.writeText(JSON.stringify(dataRow, null, 2))
+                                        return (
+                                          <TableRow key={dataRow.taskId}>
+                                            <TableCell>
+                                              <div className="gba:flex gba:items-center gba:gap-2">
+                                                <div className="gba:w-6 gba:h-6 gba:bg-gray-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-gray-600 gba:text-xs gba:font-medium">
+                                                  {dataRow.userName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="gba:flex gba:flex-col">
+                                                  <span className="gba:font-medium gba:text-sm">
+                                                    {dataRow.userName}
+                                                  </span>
+                                                  <span className="gba:text-xs gba:text-gray-500">
+                                                    {dataRow.userId}
+                                                  </span>
+                                                </div>
                                               </div>
                                             </TableCell>
-                                          ))}
-                                          <TableCell>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="gba:h-8 gba:w-8 gba:p-0"
-                                              onClick={() => {
-                                                navigator.clipboard.writeText(JSON.stringify(dataRow, null, 2))
-                                              }}
-                                              title="Copy to clipboard"
-                                            >
-                                              <Copy className="gba:h-4 gba:w-4" />
-                                            </Button>
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
+                                            <TableCell>
+                                              <div className="gba:flex gba:flex-col">
+                                                <span className="gba:text-sm">
+                                                  {new Date(dataRow.timestamp).toLocaleDateString()}
+                                                </span>
+                                                <span className="gba:text-xs gba:text-gray-500">
+                                                  {new Date(dataRow.timestamp).toLocaleTimeString()}
+                                                </span>
+                                              </div>
+                                            </TableCell>
+                                            {fieldKeys.map(key => (
+                                              <TableCell key={key}>
+                                                <div
+                                                  className="gba:text-sm gba:max-w-[300px] gba:truncate"
+                                                  title={formatFieldValue(key, dataRow.formData?.[key])}
+                                                >
+                                                  {formatFieldValue(key, dataRow.formData?.[key])}
+                                                </div>
+                                              </TableCell>
+                                            ))}
+                                            <TableCell>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="gba:h-8 gba:w-8 gba:p-0"
+                                                onClick={handleCopy}
+                                                title="Copy to clipboard"
+                                              >
+                                                <Copy className="gba:h-4 gba:w-4" />
+                                              </Button>
+                                            </TableCell>
+                                          </TableRow>
+                                        )
+                                      })}
                                     </TableBody>
                                   </TableComponent>
                                 </div>
-                              )
-                            })()}
-                            {stepData.hasMore && (
-                              <div className="gba:text-center gba:py-4">
-                                <Button variant="outline" size="sm">
-                                  Load More ({stepData.totalCount - stepData.data.length} remaining)
-                                </Button>
+                                {stepData.hasMore && (
+                                  <div className="gba:text-center gba:py-4">
+                                    <Button variant="outline" size="sm">
+                                      Load More ({stepData.totalCount - stepData.data.length} remaining)
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="gba:ml-9 gba:text-center gba:py-4 gba:text-gray-500 gba:text-sm">
-                            <FileText className="gba:h-6 gba:w-6 gba:mx-auto gba:mb-1 gba:text-gray-400" />
-                            <div>No data available for this step</div>
-                          </div>
-                        )}
+                            )
+                          }
+                          return (
+                            <div className="gba:ml-9 gba:text-center gba:py-4 gba:text-gray-500 gba:text-sm">
+                              <FileText className="gba:h-6 gba:w-6 gba:mx-auto gba:mb-1 gba:text-gray-400" />
+                              <div>No data available for this step</div>
+                            </div>
+                          )
+                        })()}
                       </>
                     ) : (
                       <div className="gba:ml-9 gba:text-center gba:py-4 gba:text-gray-500 gba:text-sm">

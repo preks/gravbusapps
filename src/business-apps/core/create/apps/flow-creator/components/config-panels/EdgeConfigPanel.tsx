@@ -103,42 +103,43 @@ export const EdgeConfigPanel: React.FC<EdgeConfigPanelProps> = ({
               </div>
               <div className="gba:grid gba:grid-cols-2 gba:gap-2">
                 {TASK_INSERT_OPTIONS.filter(opt => mode === 'advanced' || !opt.advancedOnly).map(
-                  ({ id, stepType, label, description, Icon, preset, disabled, badge }) => (
-                    <Button
-                      key={id}
-                      variant="outline"
-                      className={[
-                        'gba:bg-background gba:h-auto gba:py-4 gba:px-3 gba:flex gba:items-center gba:justify-between gba:gap-3',
-                        disabled ? 'gba:opacity-60' : ''
-                      ].join(' ')}
-                      onClick={() =>
-                        disabled
-                          ? undefined
-                          : insertNodeOnEdge(edge.id, 'task', preset ? { stepType, preset } : stepType)
-                      }
-                      disabled={disabled}
-                      data-testid={`${testId}-insert-task-${id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <div className="gba:flex gba:items-center gba:justify-center gba:w-9 gba:h-9 gba:rounded-lg gba:bg-muted gba:text-foreground">
-                          <Icon className="gba:h-4 gba:w-4" />
+                  ({ id, stepType, label, description, Icon, preset, disabled, badge }) => {
+                    const insertArg = preset ? { stepType, preset } : stepType
+                    return (
+                      <Button
+                        key={id}
+                        variant="outline"
+                        className={[
+                          'gba:bg-background gba:h-auto gba:py-4 gba:px-3 gba:flex gba:items-center gba:justify-between gba:gap-3',
+                          disabled ? 'gba:opacity-60' : ''
+                        ].join(' ')}
+                        onClick={() => {
+                          if (!disabled) insertNodeOnEdge(edge.id, 'task', insertArg)
+                        }}
+                        disabled={disabled}
+                        data-testid={`${testId}-insert-task-${id}`}
+                      >
+                        <div className="gba:flex gba:items-center gba:gap-3">
+                          <div className="gba:flex gba:items-center gba:justify-center gba:w-9 gba:h-9 gba:rounded-lg gba:bg-muted gba:text-foreground">
+                            <Icon className="gba:h-4 gba:w-4" />
+                          </div>
+                          <div className="gba:flex gba:flex-col gba:items-start gba:leading-tight">
+                            <span className="gba:text-xs gba:font-semibold gba:text-foreground">{label}</span>
+                            <span className="gba:text-[11px] gba:text-muted-foreground">{description}</span>
+                          </div>
                         </div>
-                        <div className="gba:flex gba:flex-col gba:items-start gba:leading-tight">
-                          <span className="gba:text-xs gba:font-semibold gba:text-foreground">{label}</span>
-                          <span className="gba:text-[11px] gba:text-muted-foreground">{description}</span>
-                        </div>
-                      </div>
-                      {badge && (
-                        <Badge
-                          variant="secondary"
-                          className="gba:whitespace-nowrap"
-                          data-testid={`${testId}-insert-task-badge-${id}`}
-                        >
-                          {badge}
-                        </Badge>
-                      )}
-                    </Button>
-                  )
+                        {badge && (
+                          <Badge
+                            variant="secondary"
+                            className="gba:whitespace-nowrap"
+                            data-testid={`${testId}-insert-task-badge-${id}`}
+                          >
+                            {badge}
+                          </Badge>
+                        )}
+                      </Button>
+                    )
+                  }
                 )}
               </div>
             </div>

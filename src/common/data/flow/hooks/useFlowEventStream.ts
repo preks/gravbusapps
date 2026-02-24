@@ -50,6 +50,18 @@ interface UseFlowEventStreamOptions {
   maxReconnectAttempts?: number
 }
 
+function parseMessageLines(message: string): { eventData: string; eventType: string } {
+  let eventData = ''
+  let eventType = ''
+  for (const line of message.split('\n')) {
+    if (line.startsWith('data: ')) eventData += line.slice(6)
+    else if (line.startsWith('event: ')) eventType = line.slice(7)
+  }
+  return { eventData, eventType }
+}
+
+const TERMINAL_EVENTS = new Set<FlowEventType>(['flow.completed', 'flow.failed'])
+
 export function useFlowEventStream(options: UseFlowEventStreamOptions) {
   const { url, accessToken, enabled = true, onEvent, onComplete, onError, maxReconnectAttempts = 5 } = options
 
@@ -110,38 +122,21 @@ export function useFlowEventStream(options: UseFlowEventStreamOptions) {
         buffer = messages.pop() ?? ''
 
         for (const message of messages) {
-          const lines = message.split('\n')
-          let eventData = ''
-          let eventType = ''
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              eventData += line.slice(6)
-            } else if (line.startsWith('event: ')) {
-              eventType = line.slice(7)
+          const { eventData, eventType } = parseMessageLines(message)
+          if (!eventData) continue
+          try {
+            const parsed = JSON.parse(eventData) as FlowStreamEvent
+            if (eventType) parsed.event = eventType as FlowEventType
+            setEvents(prev => [...prev, parsed])
+            onEvent?.(parsed)
+            if (TERMINAL_EVENTS.has(parsed.event)) {
+              setStatus('closed')
+              onComplete?.()
+              controller.abort()
+              return
             }
-          }
-
-          if (eventData) {
-            try {
-              const parsed = JSON.parse(eventData) as FlowStreamEvent
-              if (eventType) {
-                parsed.event = eventType as FlowEventType
-              }
-
-              setEvents(prev => [...prev, parsed])
-              onEvent?.(parsed)
-
-              // Auto-close on terminal events
-              if (parsed.event === 'flow.completed' || parsed.event === 'flow.failed') {
-                setStatus('closed')
-                onComplete?.()
-                controller.abort()
-                return
-              }
-            } catch {
-              // Skip malformed events
-            }
+          } catch {
+            // Skip malformed events
           }
         }
       }

@@ -207,14 +207,14 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
       const targetHandle = edge.direction === 'backward' && targetNode?.type === 'task' ? 'left' : undefined
 
       let base: Edge
-      if (sourceNode?.type !== 'decision') {
-        base = toReactFlowEdge(edge, undefined, targetHandle)
-      } else {
+      if (sourceNode?.type === 'decision') {
         const label = (edge.label ?? '').toLowerCase()
         if (label === 'approve') base = toReactFlowEdge(edge, 'right', targetHandle)
         else if (label === 'reject') base = toReactFlowEdge(edge, 'left', targetHandle)
         else if (edge.direction === 'backward') base = toReactFlowEdge(edge, 'left', targetHandle)
         else base = toReactFlowEdge(edge, undefined, targetHandle)
+      } else {
+        base = toReactFlowEdge(edge, undefined, targetHandle)
       }
       const points = layoutEdgePoints[edge.id]
       const edgeActions = getEdgeActions?.(edge.id) ?? {}
@@ -228,7 +228,8 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
       }
       const isSelected = selectedEdgeId === edge.id
       const isBackward = edge.direction === 'backward'
-      const markerEnd = isSelected ? (isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_SELECTED) : base.markerEnd
+      const selectedMarker = isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_SELECTED
+      const markerEnd = isSelected ? selectedMarker : base.markerEnd
       return { ...base, data: edgeData, markerEnd }
     })
   }, [definition.edges, definition.nodes, layoutEdgePoints, selectedEdgeId, selectEdge, getEdgeActions])
@@ -281,9 +282,9 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   // Fit view once when layout is ready and nodes are initialized (orgchart pattern: no defaultViewport, explicit fitView after nodesInitialized)
   useEffect(() => {
     if (!wasInitiallyCentered && layoutReady && definition.nodes.length > 0 && nodesInitialized) {
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         try {
-          fitView({
+          await fitView({
             padding: fitViewOptions.padding,
             minZoom: fitViewOptions.minZoom,
             maxZoom: fitViewOptions.maxZoom,

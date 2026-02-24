@@ -88,7 +88,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
 
   const onEdgeClick = useCallback(
     (event: React.MouseEvent, edge: { id: string }) => {
-      const plus = document.querySelector(`[data-testid="flow-studio-edge-add-${edge.id}"]`) as HTMLElement | null
+      const plus = document.querySelector(`[data-testid="flow-studio-edge-add-${edge.id}"]`)
       if (plus && typeof document !== 'undefined') {
         const rect = plus.getBoundingClientRect()
         const pad = 6
@@ -153,16 +153,21 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
       for (const next of nextBySource.get(current) ?? []) queue.push(next)
     }
     setSimStatuses({})
+    const advanceSimStatus =
+      (nodeId: string) =>
+      (
+        prev: Record<string, 'pending' | 'active' | 'completed'>
+      ): Record<string, 'pending' | 'active' | 'completed'> => {
+        const next = { ...prev }
+        for (const key of Object.keys(next)) {
+          if (next[key] === 'active') next[key] = 'completed'
+        }
+        next[nodeId] = 'active'
+        return next
+      }
     route.forEach((nodeId, index) => {
       setTimeout(() => {
-        setSimStatuses(prev => {
-          const next = { ...prev }
-          for (const key of Object.keys(next)) {
-            if (next[key] === 'active') next[key] = 'completed'
-          }
-          next[nodeId] = 'active'
-          return next
-        })
+        setSimStatuses(advanceSimStatus(nodeId))
         selectNode(nodeId)
       }, index * 600)
     })

@@ -73,7 +73,10 @@ export const TaskReworkTab: React.FC<TaskReworkTabProps> = ({
       {config.reworkConfig?.enabled && (
         <>
           {config.reworkConfig.targets.map((target, index) => (
-            <div key={index} className="gba:flex gba:flex-col gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-muted">
+            <div
+              key={target.targetStepReference || `target-${index}`}
+              className="gba:flex gba:flex-col gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-muted"
+            >
               <div className="gba:flex gba:items-center gba:justify-between">
                 <span className="gba:text-xs gba:font-medium">{onRejectLabel}</span>
                 <Button
@@ -182,7 +185,7 @@ export const TaskReworkTab: React.FC<TaskReworkTabProps> = ({
                   update({
                     reworkConfig: {
                       ...config.reworkConfig!,
-                      maxIterations: parseInt(e.target.value) || 10
+                      maxIterations: Number.parseInt(e.target.value) || 10
                     }
                   })
                 }

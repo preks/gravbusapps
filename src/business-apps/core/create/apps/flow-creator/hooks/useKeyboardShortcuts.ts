@@ -12,6 +12,15 @@ interface UseKeyboardShortcutsOptions {
   enabled?: boolean
 }
 
+function isTypingInInput(target: HTMLElement): boolean {
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT' ||
+    target.isContentEditable
+  )
+}
+
 export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) {
   const { onSave, onSimulate, enabled = true } = options
 
@@ -28,12 +37,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
 
       // Don't capture shortcuts when typing in inputs
       const target = e.target as HTMLElement
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.isContentEditable
-      ) {
+      if (isTypingInInput(target)) {
         return
       }
 
@@ -83,20 +87,18 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions = {}) 
       if (isCtrlOrMeta && e.shiftKey && e.key === 'S') {
         e.preventDefault()
         onSimulate?.()
-        return
       }
 
       // Escape: deselect
       if (e.key === 'Escape') {
         useFlowStudioStore.getState().selectNode(null)
-        return
       }
     },
     [enabled, selectedNodeId, selectedEdgeId, requestDeleteNode, duplicateNode, undo, redo, onSave, onSimulate]
   )
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    globalThis.addEventListener('keydown', handleKeyDown)
+    return () => globalThis.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 }

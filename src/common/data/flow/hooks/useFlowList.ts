@@ -42,6 +42,33 @@ export interface FlowListResponse {
 
 export type FlowListVariant = 'initiated' | 'participated' | 'monitoring' | 'active' | 'completed'
 
+function buildEndpoint(variant: FlowListVariant, userId: string): string {
+  switch (variant) {
+    case 'initiated':
+      return `${API_BASE}/flows/user/${userId}/initiated`
+    case 'participated':
+      return `${API_BASE}/flows/user/${userId}/participated`
+    default:
+      return `${API_BASE}/flows/list`
+  }
+}
+
+function buildQueryParams(variant: FlowListVariant, filters: FlowFilters): URLSearchParams {
+  const params = new URLSearchParams()
+  if (variant === 'completed' && !filters.status) {
+    params.append('status', 'COMPLETED')
+  } else if ((variant === 'active' || variant === 'monitoring') && !filters.status) {
+    params.append('status', 'IN_PROGRESS')
+  }
+  if (filters.status) params.append('status', filters.status)
+  if (filters.searchTerm) params.append('search', filters.searchTerm)
+  if (filters.limit) params.append('limit', filters.limit.toString())
+  if (filters.offset) params.append('offset', filters.offset.toString())
+  if (filters.dateRange?.start) params.append('startDate', filters.dateRange.start)
+  if (filters.dateRange?.end) params.append('endDate', filters.dateRange.end)
+  return params
+}
+
 export const useFlowList = (
   variant: FlowListVariant,
   userId: string,
@@ -65,39 +92,8 @@ export const useFlowList = (
         Authorization: `Bearer ${accessToken}`
       }
 
-      // Use the existing flow/list endpoint with appropriate filters
-      let endpoint = `${API_BASE}/flows/list`
-
-      // Use RESTful endpoints based on variant
-      switch (variant) {
-        case 'initiated':
-          endpoint = `${API_BASE}/flows/user/${userId}/initiated`
-          break
-        case 'participated':
-          endpoint = `${API_BASE}/flows/user/${userId}/participated`
-          break
-        default:
-          // For other variants, use the general list endpoint
-          endpoint = `${API_BASE}/flows/list`
-          break
-      }
-
-      // Build query parameters
-      const params = new URLSearchParams()
-
-      // Add variant-specific status filters for non-user-specific endpoints
-      if (variant === 'completed' && !filters.status) {
-        params.append('status', 'COMPLETED')
-      } else if ((variant === 'active' || variant === 'monitoring') && !filters.status) {
-        params.append('status', 'IN_PROGRESS')
-      }
-      if (filters.status) params.append('status', filters.status)
-      if (filters.searchTerm) params.append('search', filters.searchTerm)
-      if (filters.limit) params.append('limit', filters.limit.toString())
-      if (filters.offset) params.append('offset', filters.offset.toString())
-      if (filters.dateRange?.start) params.append('startDate', filters.dateRange.start)
-      if (filters.dateRange?.end) params.append('endDate', filters.dateRange.end)
-
+      const endpoint = buildEndpoint(variant, userId)
+      const params = buildQueryParams(variant, filters)
       const finalEndpoint = params.toString() ? `${endpoint}?${params}` : endpoint
       const response = await fetch(finalEndpoint, { headers })
 
@@ -135,7 +131,7 @@ export const useFlowList = (
       // For participated flows, show flows where user has participated
       // This includes flows they initiated (because they likely claim tasks in their own flows)
       // For now, we'll show all flows as a user can participate in any flow
-      // TODO: Add proper backend participation tracking once the task API is available
+      // Add proper backend participation tracking once the task API is available
       if (variant === 'participated') {
         // For now, show all flows because:
         // 1. A user who initiated a flow likely has tasks in it (participation)

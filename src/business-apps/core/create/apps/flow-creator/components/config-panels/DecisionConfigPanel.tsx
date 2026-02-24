@@ -29,9 +29,9 @@ import {
   CommandList,
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
 import {
   Bot,
   GitBranch,
@@ -58,7 +58,8 @@ import type {
   DecisionBranch,
   DesignerMode,
   DecisionMode,
-  UserDecisionType
+  UserDecisionType,
+  EscalationConfig
 } from '../../types/studioTypes'
 import { AssignmentMode } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import { AssignmentSelector } from '@/components/assignment-selector/AssignmentSelector'
@@ -162,16 +163,16 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
       const edge = branchEdges.find(item => item.id === edgeId)
       if (!edge) return
       updateEdge(edgeId, {
-        ...(partial.label !== undefined ? { label: partial.label } : {}),
-        ...(partial.targetNodeId !== undefined ? { target: partial.targetNodeId } : {}),
-        ...(partial.condition !== undefined
-          ? {
+        ...(partial.label === undefined ? {} : { label: partial.label }),
+        ...(partial.targetNodeId === undefined ? {} : { target: partial.targetNodeId }),
+        ...(partial.condition === undefined
+          ? {}
+          : {
               metadata: {
-                ...(edge.metadata ?? {}),
+                ...edge.metadata,
                 condition: partial.condition
               }
-            }
-          : {})
+            })
       })
     },
     [branchEdges, updateEdge]
@@ -189,7 +190,7 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
   const branchesLocked = isUserApproval
 
   // Available decision modes for mode toggle
-  const availableModes: DecisionMode[] = mode === 'simple' ? ['USER', 'AI', 'LOGIC'] : ['USER', 'AI', 'LOGIC']
+  const availableModes: DecisionMode[] = ['USER', 'AI', 'LOGIC']
 
   const header = useMemo(() => {
     if (config.decisionMode === 'AI') {
@@ -289,17 +290,7 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
 
           {/* LOGIC Mode */}
           <TabsContent value="LOGIC" className="gba:flex gba:flex-col gba:gap-4 gba:mt-0">
-            <LogicDecisionConfig
-              config={config}
-              update={update}
-              mode={mode}
-              testId={testId}
-              accessToken={accessToken}
-              studioData={studioData}
-              branchEdges={branchEdges}
-              nodeId={nodeId}
-              syncBranches={syncBranches}
-            />
+            <LogicDecisionConfig config={config} update={update} mode={mode} testId={testId} />
           </TabsContent>
         </div>
       </Tabs>
@@ -325,62 +316,64 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
         )}
 
         <div className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[200px] gba:overflow-y-auto">
-          {branchEdges.map((branch, index) => (
-            <div
-              key={branch.id}
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid={`${testId}-branch-${index}`}
-            >
+          {branchEdges.map((branch, index) => {
+            const branchColorClass =
+              branchesLocked && index === 0
+                ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
+                : branchesLocked && index === 1
+                  ? 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
+                  : 'gba:bg-accent gba:text-accent-foreground'
+            return (
               <div
-                className={`gba:w-5 gba:h-5 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-[10px] gba:font-bold gba:flex-shrink-0 ${
-                  branchesLocked && index === 0
-                    ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                    : branchesLocked && index === 1
-                      ? 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
-                      : 'gba:bg-accent gba:text-accent-foreground'
-                }`}
+                key={branch.id}
+                className="gba:flex gba:items-center gba:gap-2"
+                data-testid={`${testId}-branch-${index}`}
               >
-                {index + 1}
-              </div>
-              {branchesLocked ? (
-                <span className="gba:flex-1 gba:text-xs gba:font-medium gba:text-foreground gba:px-2 gba:py-1.5">
-                  {branch.label ?? `Branch ${index + 1}`}
-                </span>
-              ) : (
-                <Input
-                  value={branch.label ?? ''}
-                  onChange={e => updateBranch(branch.id, { label: e.target.value })}
-                  className="gba:flex-1 gba:h-8 gba:text-xs"
-                  data-testid={`${testId}-branch-label-${index}`}
-                />
-              )}
-              <Select value={branch.target} onValueChange={v => updateBranch(branch.id, { targetNodeId: v })}>
-                <SelectTrigger className="gba:w-[120px] gba:h-8 gba:text-xs">
-                  <SelectValue placeholder="Target" />
-                </SelectTrigger>
-                <SelectContent>
-                  {nodes
-                    .filter(n => n.id !== nodeId && n.type !== 'start')
-                    .map(n => (
-                      <SelectItem key={n.id} value={n.id}>
-                        {n.label}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {!branchesLocked && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeBranch(branch.id)}
-                  disabled={branchEdges.length <= 2}
-                  data-testid={`${testId}-branch-remove-${index}`}
+                <div
+                  className={`gba:w-5 gba:h-5 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-[10px] gba:font-bold gba:flex-shrink-0 ${branchColorClass}`}
                 >
-                  <Trash2 className="gba:h-3 gba:w-3" />
-                </Button>
-              )}
-            </div>
-          ))}
+                  {index + 1}
+                </div>
+                {branchesLocked ? (
+                  <span className="gba:flex-1 gba:text-xs gba:font-medium gba:text-foreground gba:px-2 gba:py-1.5">
+                    {branch.label ?? `Branch ${index + 1}`}
+                  </span>
+                ) : (
+                  <Input
+                    value={branch.label ?? ''}
+                    onChange={e => updateBranch(branch.id, { label: e.target.value })}
+                    className="gba:flex-1 gba:h-8 gba:text-xs"
+                    data-testid={`${testId}-branch-label-${index}`}
+                  />
+                )}
+                <Select value={branch.target} onValueChange={v => updateBranch(branch.id, { targetNodeId: v })}>
+                  <SelectTrigger className="gba:w-[120px] gba:h-8 gba:text-xs">
+                    <SelectValue placeholder="Target" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nodes
+                      .filter(n => n.id !== nodeId && n.type !== 'start')
+                      .map(n => (
+                        <SelectItem key={n.id} value={n.id}>
+                          {n.label}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {!branchesLocked && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeBranch(branch.id)}
+                    disabled={branchEdges.length <= 2}
+                    data-testid={`${testId}-branch-remove-${index}`}
+                  >
+                    <Trash2 className="gba:h-3 gba:w-3" />
+                  </Button>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -448,18 +441,19 @@ const UserDecisionConfig: React.FC<ModeConfigProps> = ({
   const applyUserDecisionType = useCallback(
     (value: string) => {
       const userDecisionType = value as UserDecisionType
+      const nonApprovalOptions = config.userConfig?.options?.length
+        ? config.userConfig.options
+        : [
+            { id: uuid(), label: 'Option 1' },
+            { id: uuid(), label: 'Option 2' }
+          ]
       const defaultOptions =
         userDecisionType === 'APPROVAL'
           ? [
               { id: 'approve', label: 'Approve' },
               { id: 'reject', label: 'Reject' }
             ]
-          : config.userConfig?.options?.length
-            ? config.userConfig.options
-            : [
-                { id: uuid(), label: 'Option 1' },
-                { id: uuid(), label: 'Option 2' }
-              ]
+          : nonApprovalOptions
 
       update({
         userConfig: {
@@ -566,7 +560,7 @@ const UserDecisionConfig: React.FC<ModeConfigProps> = ({
 
               if (!nextEnabled) {
                 // Revert Reject branch to a normal forward branch to end.
-                const nextMeta = { ...(rejectEdgeFull?.metadata ?? {}) }
+                const nextMeta = { ...rejectEdgeFull?.metadata }
                 delete (nextMeta as any).rework
                 updateEdge(rejectEdge.id, { direction: 'forward', target: endNodeId, metadata: nextMeta })
                 return
@@ -579,7 +573,7 @@ const UserDecisionConfig: React.FC<ModeConfigProps> = ({
                 direction: 'backward',
                 target,
                 metadata: {
-                  ...(rejectEdgeFull?.metadata ?? {}),
+                  ...rejectEdgeFull?.metadata,
                   reworkReason: 'Rejected',
                   rework: {
                     targetNodeId: target,
@@ -660,71 +654,76 @@ const UserDecisionConfig: React.FC<ModeConfigProps> = ({
                   <p className="gba:text-[11px] gba:text-muted-foreground">
                     Add a task before this decision to enable send-back.
                   </p>
-                ) : enabled ? (
+                ) : (
                   <>
-                    <div className="gba:flex gba:flex-col gba:gap-1.5">
-                      <Label className="gba:text-xs gba:font-medium">Send back to</Label>
-                      <Select
-                        value={selectedTargetId ?? ''}
-                        onValueChange={v => updateRejectRework({ targetNodeId: v })}
-                      >
-                        <SelectTrigger
-                          className="gba:h-8 gba:text-xs gba:bg-background"
-                          data-testid={`${testId}-approval-send-back-target`}
-                        >
-                          <SelectValue placeholder="Select step..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {eligibleSendBackTargets.map(tgt => (
-                            <SelectItem key={tgt.id} value={tgt.id}>
-                              {tgt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {enabled && (
+                      <>
+                        <div className="gba:flex gba:flex-col gba:gap-1.5">
+                          <Label className="gba:text-xs gba:font-medium">Send back to</Label>
+                          <Select
+                            value={selectedTargetId ?? ''}
+                            onValueChange={v => updateRejectRework({ targetNodeId: v })}
+                          >
+                            <SelectTrigger
+                              className="gba:h-8 gba:text-xs gba:bg-background"
+                              data-testid={`${testId}-approval-send-back-target`}
+                            >
+                              <SelectValue placeholder="Select step..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {eligibleSendBackTargets.map(tgt => (
+                                <SelectItem key={tgt.id} value={tgt.id}>
+                                  {tgt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    {mode === 'advanced' && (
-                      <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-                        <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:p-2 gba:rounded-md gba:bg-background gba:border gba:border-border">
-                          <Label className="gba:text-xs gba:font-medium gba:text-foreground">Require reason</Label>
-                          <Switch
-                            checked={rework?.requireReason ?? false}
-                            onCheckedChange={checked => updateRejectRework({ requireReason: checked })}
-                            className={NEUTRAL_SWITCH_CLASSNAME}
-                            data-testid={`${testId}-approval-send-back-reason`}
-                          />
-                        </div>
-                        <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:p-2 gba:rounded-md gba:bg-background gba:border gba:border-border">
-                          <Label className="gba:text-xs gba:font-medium gba:text-foreground">Preserve data</Label>
-                          <Switch
-                            checked={rework?.preserveData ?? true}
-                            onCheckedChange={checked => updateRejectRework({ preserveData: checked })}
-                            className={NEUTRAL_SWITCH_CLASSNAME}
-                            data-testid={`${testId}-approval-send-back-preserve`}
-                          />
-                        </div>
-                        <div className="gba:flex gba:flex-col gba:gap-1.5 gba:col-span-2">
-                          <Label className="gba:text-xs gba:font-medium">Max iterations (optional)</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={rework?.maxIterations ?? ''}
-                            onChange={e => {
-                              const v = e.target.value
-                              updateRejectRework({ maxIterations: v === '' ? undefined : Number(v) })
-                            }}
-                            className="gba:h-8 gba:text-xs gba:bg-background"
-                            data-testid={`${testId}-approval-send-back-max-iterations`}
-                          />
-                        </div>
-                      </div>
+                        {mode === 'advanced' && (
+                          <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                            <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:p-2 gba:rounded-md gba:bg-background gba:border gba:border-border">
+                              <Label className="gba:text-xs gba:font-medium gba:text-foreground">Require reason</Label>
+                              <Switch
+                                checked={rework?.requireReason ?? false}
+                                onCheckedChange={checked => updateRejectRework({ requireReason: checked })}
+                                className={NEUTRAL_SWITCH_CLASSNAME}
+                                data-testid={`${testId}-approval-send-back-reason`}
+                              />
+                            </div>
+                            <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:p-2 gba:rounded-md gba:bg-background gba:border gba:border-border">
+                              <Label className="gba:text-xs gba:font-medium gba:text-foreground">Preserve data</Label>
+                              <Switch
+                                checked={rework?.preserveData ?? true}
+                                onCheckedChange={checked => updateRejectRework({ preserveData: checked })}
+                                className={NEUTRAL_SWITCH_CLASSNAME}
+                                data-testid={`${testId}-approval-send-back-preserve`}
+                              />
+                            </div>
+                            <div className="gba:flex gba:flex-col gba:gap-1.5 gba:col-span-2">
+                              <Label className="gba:text-xs gba:font-medium">Max iterations (optional)</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={rework?.maxIterations ?? ''}
+                                onChange={e => {
+                                  const v = e.target.value
+                                  updateRejectRework({ maxIterations: v === '' ? undefined : Number(v) })
+                                }}
+                                className="gba:h-8 gba:text-xs gba:bg-background"
+                                data-testid={`${testId}-approval-send-back-max-iterations`}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {!enabled && (
+                      <p className="gba:text-[11px] gba:text-muted-foreground">
+                        When enabled, the Reject branch becomes a backward connection.
+                      </p>
                     )}
                   </>
-                ) : (
-                  <p className="gba:text-[11px] gba:text-muted-foreground">
-                    When enabled, the Reject branch becomes a backward connection.
-                  </p>
                 )}
               </div>
             )
@@ -853,22 +852,11 @@ const UserDecisionConfig: React.FC<ModeConfigProps> = ({
       {mode === 'advanced' && (
         <div className="gba:flex gba:flex-col gba:gap-2">
           {(() => {
-            type DueUnit = 'minutes' | 'hours' | 'days'
-            const minutesPer: Record<DueUnit, number> = { minutes: 1, hours: 60, days: 24 * 60 }
-
-            const deriveUnit = (mins?: number): DueUnit => {
-              const m = Number(mins || 0)
-              if (!m) return 'days'
-              if (m % minutesPer.days === 0) return 'days'
-              if (m % minutesPer.hours === 0) return 'hours'
-              return 'minutes'
-            }
-
-            const unit = deriveUnit(config.userConfig?.timeoutMinutes)
+            const unit = deriveTimeUnit(config.userConfig?.timeoutMinutes)
             const amountValue = (() => {
               const mins = Number(config.userConfig?.timeoutMinutes || 0)
               if (!mins) return ''
-              const per = minutesPer[unit]
+              const per = MINUTES_PER[unit]
               const val = Math.round(mins / per)
               return String(val > 0 ? val : '')
             })()
@@ -896,7 +884,7 @@ const UserDecisionConfig: React.FC<ModeConfigProps> = ({
                       update({
                         userConfig: {
                           ...config.userConfig!,
-                          timeoutMinutes: n * minutesPer[unit]
+                          timeoutMinutes: n * MINUTES_PER[unit]
                         }
                       })
                     }}
@@ -911,7 +899,7 @@ const UserDecisionConfig: React.FC<ModeConfigProps> = ({
                       update({
                         userConfig: {
                           ...config.userConfig!,
-                          timeoutMinutes: currentAmount * minutesPer[nextUnit]
+                          timeoutMinutes: currentAmount * MINUTES_PER[nextUnit]
                         }
                       })
                     }}
@@ -935,6 +923,17 @@ const UserDecisionConfig: React.FC<ModeConfigProps> = ({
   )
 }
 
+type DueUnit = 'minutes' | 'hours' | 'days'
+const MINUTES_PER: Record<DueUnit, number> = { minutes: 1, hours: 60, days: 24 * 60 }
+
+function deriveTimeUnit(mins?: number): DueUnit {
+  const m = Number(mins || 0)
+  if (!m) return 'days'
+  if (m % MINUTES_PER.days === 0) return 'days'
+  if (m % MINUTES_PER.hours === 0) return 'hours'
+  return 'minutes'
+}
+
 const POLICY_PICKER_FIELDS: Array<keyof ContentEntry> = [
   'id',
   'title',
@@ -952,34 +951,46 @@ const POLICY_PICKER_FIELDS: Array<keyof ContentEntry> = [
 
 type JsonSchema = Record<string, unknown>
 
+function visitJsonSchemaNode(
+  node: any,
+  prefix: string,
+  out: string[],
+  visited: Set<unknown>,
+  visitFn: (n: any, p: string) => void
+): void {
+  if (!node || typeof node !== 'object') return
+  if (visited.has(node)) return
+  visited.add(node)
+
+  const type = node.type
+  const props = type === 'object' ? node.properties : undefined
+  if (props && typeof props === 'object') {
+    for (const [k, v] of Object.entries(props)) {
+      const key = String(k || '').trim()
+      if (!key) continue
+      const nextPrefix = prefix ? `${prefix}.${key}` : key
+      out.push(nextPrefix)
+      visitFn(v, nextPrefix)
+    }
+  }
+
+  if (type === 'array' && node.items) {
+    visitFn(node.items, prefix ? `${prefix}[]` : '[]')
+  }
+
+  const alts = [...(Array.isArray(node.oneOf) ? node.oneOf : []), ...(Array.isArray(node.anyOf) ? node.anyOf : [])]
+  for (const alt of alts) visitFn(alt, prefix)
+  if (Array.isArray(node.allOf)) {
+    for (const part of node.allOf) visitFn(part, prefix)
+  }
+}
+
 function collectJsonSchemaPaths(schema: unknown): string[] {
   const out: string[] = []
   const visited = new Set<unknown>()
 
   const visit = (node: any, prefix: string) => {
-    if (!node || typeof node !== 'object') return
-    if (visited.has(node)) return
-    visited.add(node)
-
-    const type = node.type
-    const props = type === 'object' ? node.properties : undefined
-    if (props && typeof props === 'object') {
-      for (const [k, v] of Object.entries(props)) {
-        const key = String(k || '').trim()
-        if (!key) continue
-        const nextPrefix = prefix ? `${prefix}.${key}` : key
-        out.push(nextPrefix)
-        visit(v, nextPrefix)
-      }
-    }
-
-    if (type === 'array' && node.items) {
-      visit(node.items, prefix ? `${prefix}[]` : '[]')
-    }
-
-    const alts = [...(Array.isArray(node.oneOf) ? node.oneOf : []), ...(Array.isArray(node.anyOf) ? node.anyOf : [])]
-    for (const alt of alts) visit(alt, prefix)
-    if (Array.isArray(node.allOf)) for (const part of node.allOf) visit(part, prefix)
+    visitJsonSchemaNode(node, prefix, out, visited, visit)
   }
 
   visit(schema as JsonSchema, '')
@@ -1089,9 +1100,9 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
       if (!p || typeof p !== 'object') return false
       if (p.agent_type !== 'decision') return false
       const schema = p.response_schema
-      const props = schema && typeof schema === 'object' ? (schema as any).properties : undefined
-      const dr = props && typeof props === 'object' ? (props as any).decisionResult : undefined
-      const en = dr && typeof dr === 'object' ? (dr as any).enum : undefined
+      const props = schema && typeof schema === 'object' ? (schema as Record<string, unknown>).properties : undefined
+      const dr = props && typeof props === 'object' ? (props as Record<string, unknown>).decisionResult : undefined
+      const en = dr && typeof dr === 'object' ? (dr as Record<string, unknown>).enum : undefined
       return Array.isArray(en) && en.length > 0 && en.every((v: any) => typeof v === 'string' && String(v).trim())
     }
     return (studioData.agents ?? []).filter(isDecisionExpert)
@@ -1113,9 +1124,9 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
 
   const decisionResultEnumOptions = useMemo(() => {
     const schema = selectedTaskExpert?.response_schema
-    const props = schema && typeof schema === 'object' ? (schema as any).properties : undefined
-    const dr = props && typeof props === 'object' ? (props as any).decisionResult : undefined
-    const en = dr && typeof dr === 'object' ? (dr as any).enum : undefined
+    const props = schema && typeof schema === 'object' ? (schema as Record<string, unknown>).properties : undefined
+    const dr = props && typeof props === 'object' ? (props as Record<string, unknown>).decisionResult : undefined
+    const en = dr && typeof dr === 'object' ? (dr as Record<string, unknown>).enum : undefined
     if (!Array.isArray(en)) return []
     return en.map(v => String(v || '').trim()).filter(Boolean)
   }, [selectedTaskExpert])
@@ -1135,36 +1146,28 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
     [getAiConfigOrDefault, update]
   )
 
-  type DueUnit = 'minutes' | 'hours' | 'days'
-  const minutesPer: Record<DueUnit, number> = { minutes: 1, hours: 60, days: 24 * 60 }
-  const deriveUnit = (mins?: number): DueUnit => {
-    const m = Number(mins || 0)
-    if (!m) return 'days'
-    if (m % minutesPer.days === 0) return 'days'
-    if (m % minutesPer.hours === 0) return 'hours'
-    return 'minutes'
-  }
-
   const renderHumanFallback = useCallback(
     (executor: AIExecutor, variant: 'simple' | 'advanced') => {
       const ai = getAiConfigOrDefault(executor)
-      const escalation = ai.escalation ?? {
-        mode: 'USER' as const,
+      const escalation: EscalationConfig = ai.escalation ?? {
+        mode: 'USER',
         assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM }
       }
       const assignmentMode = escalation.assignment.assignmentMode
-      const modeDescription =
-        assignmentMode === AssignmentMode.ASSIGN
-          ? t('assignment-mode-desc-assign')
-          : assignmentMode === AssignmentMode.ASSIGN_DEFERRED
-            ? t('assignment-mode-desc-deferred')
-            : t('assignment-mode-desc-claim')
+      let modeDescription: string
+      if (assignmentMode === AssignmentMode.ASSIGN) {
+        modeDescription = t('assignment-mode-desc-assign')
+      } else if (assignmentMode === AssignmentMode.ASSIGN_DEFERRED) {
+        modeDescription = t('assignment-mode-desc-deferred')
+      } else {
+        modeDescription = t('assignment-mode-desc-claim')
+      }
 
-      const unit = deriveUnit(escalation.timeoutMinutes)
+      const unit = deriveTimeUnit(escalation.timeoutMinutes)
       const amountValue = (() => {
         const mins = Number(escalation.timeoutMinutes || 0)
         if (!mins) return ''
-        const per = minutesPer[unit]
+        const per = MINUTES_PER[unit]
         const val = Math.round(mins / per)
         return String(val > 0 ? val : '')
       })()
@@ -1313,7 +1316,7 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
                     return
                   }
                   update({
-                    aiConfig: { ...ai, executor, escalation: { ...escalation, timeoutMinutes: n * minutesPer[unit] } }
+                    aiConfig: { ...ai, executor, escalation: { ...escalation, timeoutMinutes: n * MINUTES_PER[unit] } }
                   })
                 }}
                 className="gba:flex-1"
@@ -1328,7 +1331,7 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
                     aiConfig: {
                       ...ai,
                       executor,
-                      escalation: { ...escalation, timeoutMinutes: currentAmount * minutesPer[nextUnit] }
+                      escalation: { ...escalation, timeoutMinutes: currentAmount * MINUTES_PER[nextUnit] }
                     }
                   })
                 }}
@@ -1354,7 +1357,7 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
         </div>
       )
     },
-    [accessToken, deriveUnit, expressionSuggestions, getAiConfigOrDefault, minutesPer, t, testId, update]
+    [accessToken, expressionSuggestions, getAiConfigOrDefault, t, testId, update]
   )
 
   const renderPolicyPicker = useCallback(
@@ -1463,6 +1466,13 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
     const prompt = promptId ? studioData.agents.find(a => a._id === promptId) : undefined
     const schema = (prompt?.response_schema ?? null) as any
 
+    const getObjectProperty = (node: any, key: string): any => {
+      if (node?.type === 'object' && node?.properties && typeof node.properties === 'object') {
+        return node.properties[key]
+      }
+      return undefined
+    }
+
     const getSchemaNodeAtPath = (root: any, path: string): any => {
       if (!root || typeof root !== 'object') return null
       const raw = String(path || '').trim()
@@ -1476,22 +1486,12 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
 
         if (part.endsWith('[]')) {
           const key = part.slice(0, -2)
-          if (key) {
-            const next =
-              cur?.type === 'object' && cur?.properties && typeof cur.properties === 'object'
-                ? cur.properties[key]
-                : undefined
-            cur = next
-          }
+          if (key) cur = getObjectProperty(cur, key)
           cur = cur?.items
           continue
         }
 
-        const next =
-          cur?.type === 'object' && cur?.properties && typeof cur.properties === 'object'
-            ? cur.properties[part]
-            : undefined
-        cur = next
+        cur = getObjectProperty(cur, part)
       }
       return cur
     }
@@ -1539,8 +1539,8 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
   const ensureDefaultMapping = useCallback(
     (promptEnum: string[] | undefined) => {
       const branchId = config.branches[0]?.id ?? ''
-      const value = String((promptEnum && promptEnum[0]) || '').trim()
-      const rhs = value ? `'${value.replace(/'/g, "\\'")}'` : "''"
+      const value = String(promptEnum?.[0] ?? '').trim()
+      const rhs = value ? `'${value.split("'").join(String.raw`\'`)}'` : "''"
       return {
         conditions: [
           {
@@ -1700,9 +1700,14 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
                             onSelect={() => {
                               const schema = agent.response_schema
                               const props =
-                                schema && typeof schema === 'object' ? (schema as any).properties : undefined
-                              const dr = props && typeof props === 'object' ? (props as any).decisionResult : undefined
-                              const en = dr && typeof dr === 'object' ? (dr as any).enum : undefined
+                                schema && typeof schema === 'object'
+                                  ? (schema as Record<string, unknown>).properties
+                                  : undefined
+                              const dr =
+                                props && typeof props === 'object'
+                                  ? (props as Record<string, unknown>).decisionResult
+                                  : undefined
+                              const en = dr && typeof dr === 'object' ? (dr as Record<string, unknown>).enum : undefined
                               const enumOpts = Array.isArray(en)
                                 ? en.map((v: any) => String(v || '').trim()).filter(Boolean)
                                 : []
@@ -1963,7 +1968,7 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
                 current && !taskExpertSchemaPaths.includes(current)
                   ? [current, ...taskExpertSchemaPaths]
                   : taskExpertSchemaPaths
-              const value = current ? current : NONE
+              const value = current || NONE
               return (
                 <Select
                   value={value}
@@ -2000,7 +2005,11 @@ const AIDecisionConfig: React.FC<ModeConfigProps> = ({ config, update, mode, tes
   )
 }
 
-type LogicDecisionConfigProps = ModeConfigProps & {
+type LogicDecisionConfigProps = {
+  config: DecisionNodeConfig
+  update: (partial: Partial<DecisionNodeConfig>) => void
+  mode: DesignerMode
+  testId: string
   expressionSuggestionsOverride?: ExpressionSuggestionItem[]
   /** Optional string enum choices for RHS, keyed by LHS expression (without {{ }}). */
   stringEnumOptionsByExpression?: Record<string, string[]>
@@ -2171,7 +2180,7 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
   const quoteSingle = useCallback((v: string): string => {
     const s = String(v ?? '').trim()
     if (!s) return ''
-    return `'${s.replace(/'/g, "\\'")}'`
+    return `'${s.split("'").join(String.raw`\'`)}'`
   }, [])
 
   const buildConditionExpression = useCallback(
@@ -2212,11 +2221,21 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
           const selected = stepValueSuggestions.find(s => s.expression === parsed.lhs)
           const valueType = String(selected?.dataType || 'unknown') as ValueType
           const operators = OPERATORS_BY_TYPE[valueType] ?? OPERATORS_BY_TYPE.unknown
-          const activeOpId = operators.some(o => o.id === parsed.opId) ? parsed.opId : operators[0]!.id
+          const activeOpId = operators.some(o => o.id === parsed.opId) ? parsed.opId : operators[0].id
+
+          const handleSelectField = (item: (typeof stepValueSuggestions)[0]) => {
+            const nextType = String(item.dataType || 'unknown') as ValueType
+            const allowedOps = OPERATORS_BY_TYPE[nextType] ?? OPERATORS_BY_TYPE.unknown
+            const nextOpId = allowedOps.some(o => o.id === parsed.opId) ? parsed.opId : allowedOps[0].id
+            const nextExpr = buildConditionExpression(item.expression, nextOpId, parsed.rhs)
+            const updated = [...conditions]
+            updated[index] = { ...updated[index], expression: nextExpr }
+            update({ logicConfig: { conditions: updated } })
+          }
 
           return (
             <div
-              key={index}
+              key={condition.branchId + '-' + index}
               className="gba:flex gba:flex-col gba:gap-1.5 gba:p-3 gba:rounded-lg gba:bg-muted"
               data-testid={`${testId}-logic-condition-${index}`}
             >
@@ -2263,17 +2282,7 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
                               {stepValueSuggestions.map(item => (
                                 <CommandItem
                                   key={item.id}
-                                  onSelect={() => {
-                                    const nextType = String(item.dataType || 'unknown') as ValueType
-                                    const allowedOps = OPERATORS_BY_TYPE[nextType] ?? OPERATORS_BY_TYPE.unknown
-                                    const nextOpId = allowedOps.some(o => o.id === parsed.opId)
-                                      ? parsed.opId
-                                      : allowedOps[0]!.id
-                                    const nextExpr = buildConditionExpression(item.expression, nextOpId, parsed.rhs)
-                                    const updated = [...conditions]
-                                    updated[index] = { ...updated[index], expression: nextExpr }
-                                    update({ logicConfig: { conditions: updated } })
-                                  }}
+                                  onSelect={() => handleSelectField(item)}
                                   value={`${item.label} ${item.expression}`}
                                 >
                                   <span className="gba:flex gba:flex-col gba:min-w-0">
@@ -2324,125 +2333,123 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
                     <Label className="gba:text-[10px] gba:font-medium gba:text-muted-foreground">
                       {t('logic-value-label')}
                     </Label>
-                    {valueType === 'boolean' ? (
-                      <Select
-                        value={parsed.rhs || 'true'}
-                        onValueChange={v => {
-                          const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, v)
-                          const updated = [...conditions]
-                          updated[index] = { ...updated[index], expression: nextExpr }
-                          update({ logicConfig: { conditions: updated } })
-                        }}
-                      >
-                        <SelectTrigger
-                          className="gba:h-8 gba:text-xs gba:bg-background"
-                          data-testid={`${testId}-logic-value-${index}`}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="true">true</SelectItem>
-                          <SelectItem value="false">false</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : valueType === 'date' ? (
-                      <Input
-                        type="date"
-                        value={stripQuotes(parsed.rhs).slice(0, 10)}
-                        onChange={e => {
-                          const raw = String(e.target.value || '').trim()
-                          const rhs = raw ? quoteSingle(raw) : ''
-                          const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
-                          const updated = [...conditions]
-                          updated[index] = { ...updated[index], expression: nextExpr }
-                          update({ logicConfig: { conditions: updated } })
-                        }}
-                        className="gba:h-8 gba:text-xs gba:bg-background"
-                        data-testid={`${testId}-logic-value-${index}`}
-                      />
-                    ) : valueType === 'datetime' ? (
-                      <Input
-                        type="datetime-local"
-                        value={(() => {
-                          const raw = stripQuotes(parsed.rhs)
-                          if (!raw) return ''
-                          const noZ = raw.endsWith('Z') ? raw.slice(0, -1) : raw
-                          return noZ.length >= 16 ? noZ.slice(0, 16) : noZ
-                        })()}
-                        onChange={e => {
-                          const raw = String(e.target.value || '').trim()
-                          const rhs = raw ? quoteSingle(raw) : ''
-                          const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
-                          const updated = [...conditions]
-                          updated[index] = { ...updated[index], expression: nextExpr }
-                          update({ logicConfig: { conditions: updated } })
-                        }}
-                        className="gba:h-8 gba:text-xs gba:bg-background"
-                        data-testid={`${testId}-logic-value-${index}`}
-                      />
-                    ) : (
-                      (() => {
-                        const enumOptions =
-                          valueType === 'string'
-                            ? stringEnumOptionsByExpression?.[String(parsed.lhs || '').trim()]
-                            : undefined
-                        if (Array.isArray(enumOptions) && enumOptions.length > 0) {
-                          const NONE = '__none__'
-                          const raw = stripQuotes(parsed.rhs)
-                          const value = raw ? raw : NONE
-                          const options = raw && !enumOptions.includes(raw) ? [raw, ...enumOptions] : enumOptions
-                          return (
-                            <Select
-                              value={value}
-                              onValueChange={v => {
-                                const rhs = v === NONE ? '' : quoteSingle(v)
-                                const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
-                                const updated = [...conditions]
-                                updated[index] = { ...updated[index], expression: nextExpr }
-                                update({ logicConfig: { conditions: updated } })
-                              }}
-                            >
-                              <SelectTrigger
-                                className="gba:h-8 gba:text-xs gba:bg-background"
-                                data-testid={`${testId}-logic-value-${index}`}
-                              >
-                                <SelectValue placeholder={t('logic-value-placeholder')} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={NONE}>—</SelectItem>
-                                {options.map(opt => (
-                                  <SelectItem key={opt} value={opt}>
-                                    {opt}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )
-                        }
+                    {(() => {
+                      if (valueType === 'boolean') {
                         return (
-                          <Input
-                            value={parsed.rhs}
-                            onChange={e => {
-                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, e.target.value)
+                          <Select
+                            value={parsed.rhs || 'true'}
+                            onValueChange={v => {
+                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, v)
                               const updated = [...conditions]
                               updated[index] = { ...updated[index], expression: nextExpr }
                               update({ logicConfig: { conditions: updated } })
                             }}
-                            placeholder={
-                              valueType === 'number'
-                                ? 'e.g. 1000'
-                                : valueType === 'date'
-                                  ? "e.g. '2026-02-12'"
-                                  : valueType === 'datetime'
-                                    ? "e.g. '2026-02-12T12:34:56Z'"
-                                    : t('logic-value-placeholder')
-                            }
+                          >
+                            <SelectTrigger
+                              className="gba:h-8 gba:text-xs gba:bg-background"
+                              data-testid={`${testId}-logic-value-${index}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="true">true</SelectItem>
+                              <SelectItem value="false">false</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )
+                      }
+                      if (valueType === 'date') {
+                        return (
+                          <Input
+                            type="date"
+                            value={stripQuotes(parsed.rhs).slice(0, 10)}
+                            onChange={e => {
+                              const raw = String(e.target.value || '').trim()
+                              const rhs = raw ? quoteSingle(raw) : ''
+                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
+                              const updated = [...conditions]
+                              updated[index] = { ...updated[index], expression: nextExpr }
+                              update({ logicConfig: { conditions: updated } })
+                            }}
                             className="gba:h-8 gba:text-xs gba:bg-background"
                             data-testid={`${testId}-logic-value-${index}`}
                           />
                         )
-                      })()
-                    )}
+                      }
+                      if (valueType === 'datetime') {
+                        const rawDt = stripQuotes(parsed.rhs)
+                        const noZ = rawDt.endsWith('Z') ? rawDt.slice(0, -1) : rawDt
+                        const dtValue = rawDt ? (noZ.length >= 16 ? noZ.slice(0, 16) : noZ) : ''
+                        return (
+                          <Input
+                            type="datetime-local"
+                            value={dtValue}
+                            onChange={e => {
+                              const raw = String(e.target.value || '').trim()
+                              const rhs = raw ? quoteSingle(raw) : ''
+                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
+                              const updated = [...conditions]
+                              updated[index] = { ...updated[index], expression: nextExpr }
+                              update({ logicConfig: { conditions: updated } })
+                            }}
+                            className="gba:h-8 gba:text-xs gba:bg-background"
+                            data-testid={`${testId}-logic-value-${index}`}
+                          />
+                        )
+                      }
+                      const enumOptions =
+                        valueType === 'string'
+                          ? stringEnumOptionsByExpression?.[String(parsed.lhs || '').trim()]
+                          : undefined
+                      if (Array.isArray(enumOptions) && enumOptions.length > 0) {
+                        const NONE = '__none__'
+                        const raw = stripQuotes(parsed.rhs)
+                        const value = raw || NONE
+                        const options = raw && !enumOptions.includes(raw) ? [raw, ...enumOptions] : enumOptions
+                        return (
+                          <Select
+                            value={value}
+                            onValueChange={v => {
+                              const rhs = v === NONE ? '' : quoteSingle(v)
+                              const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, rhs)
+                              const updated = [...conditions]
+                              updated[index] = { ...updated[index], expression: nextExpr }
+                              update({ logicConfig: { conditions: updated } })
+                            }}
+                          >
+                            <SelectTrigger
+                              className="gba:h-8 gba:text-xs gba:bg-background"
+                              data-testid={`${testId}-logic-value-${index}`}
+                            >
+                              <SelectValue placeholder={t('logic-value-placeholder')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={NONE}>—</SelectItem>
+                              {options.map(opt => (
+                                <SelectItem key={opt} value={opt}>
+                                  {opt}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )
+                      }
+                      const inputPlaceholder = valueType === 'number' ? 'e.g. 1000' : t('logic-value-placeholder')
+                      return (
+                        <Input
+                          value={parsed.rhs}
+                          onChange={e => {
+                            const nextExpr = buildConditionExpression(parsed.lhs, activeOpId, e.target.value)
+                            const updated = [...conditions]
+                            updated[index] = { ...updated[index], expression: nextExpr }
+                            update({ logicConfig: { conditions: updated } })
+                          }}
+                          placeholder={inputPlaceholder}
+                          className="gba:h-8 gba:text-xs gba:bg-background"
+                          data-testid={`${testId}-logic-value-${index}`}
+                        />
+                      )
+                    })()}
                   </div>
                 </div>
 
