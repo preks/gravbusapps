@@ -37,6 +37,7 @@ interface FeedbackToolbarProps {
   dateToLabel: string
   senderLabel: string
   typeLabel: string
+  showSenderFilter?: boolean
 }
 
 const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
@@ -61,7 +62,8 @@ const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
   dateFromLabel,
   dateToLabel,
   senderLabel,
-  typeLabel
+  typeLabel,
+  showSenderFilter = true
 }) => {
   return (
     <Card data-testid="feedback-hub-filters-card">
@@ -94,19 +96,21 @@ const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
             placeholder={dateFromLabel}
           />
           <Input type="date" value={dateTo} onChange={e => onDateToChange(e.target.value)} placeholder={dateToLabel} />
-          <Select value={senderFilter} onValueChange={onSenderFilterChange}>
-            <SelectTrigger>
-              <SelectValue placeholder={senderLabel} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{senderLabel}</SelectItem>
-              {senderOptions.map(sender => (
-                <SelectItem key={sender} value={sender}>
-                  {sender}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {showSenderFilter && senderOptions.length > 0 && (
+            <Select value={senderFilter} onValueChange={onSenderFilterChange}>
+              <SelectTrigger>
+                <SelectValue placeholder={senderLabel} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{senderLabel}</SelectItem>
+                {senderOptions.map(sender => (
+                  <SelectItem key={sender} value={sender}>
+                    {sender}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={typeFilter} onValueChange={onTypeFilterChange}>
             <SelectTrigger>
               <SelectValue placeholder={typeLabel} />

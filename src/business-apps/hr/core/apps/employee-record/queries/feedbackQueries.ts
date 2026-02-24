@@ -248,6 +248,214 @@ export const employeeFeedbackInsightsQuery = `
   }
 `
 
+/**
+ * KPI + suggested actions data.
+ * Uses only employee_feedback and employee_feedback_request.
+ */
+export const employeeFeedbackHubKpiQuery = `
+  query GetEmployeeFeedbackHubKpis(
+    $employeeId: uuid!
+    $senderEmployeeId: uuid!
+    $last30Start: timestamp!
+    $prev30Start: timestamp!
+    $last30StartTz: timestamptz!
+    $prev30StartTz: timestamptz!
+    $pendingLimit: Int!
+    $pendingOffset: Int!
+  ) {
+    receivedTotal: EmployeeFeedbackAggregate(
+      where: { employeeId: { _eq: $employeeId }, isDeleted: { _neq: true } }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    receivedLast30: EmployeeFeedbackAggregate(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _neq: true }
+        _or: [
+          { feedbackDate: { _gte: $last30Start } }
+          { _and: [{ feedbackDate: { _isNull: true } }, { createdAt: { _gte: $last30StartTz } }] }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    receivedPrev30: EmployeeFeedbackAggregate(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _neq: true }
+        _or: [
+          { _and: [{ feedbackDate: { _gte: $prev30Start } }, { feedbackDate: { _lt: $last30Start } }] }
+          {
+            _and: [
+              { feedbackDate: { _isNull: true } }
+              { createdAt: { _gte: $prev30StartTz } }
+              { createdAt: { _lt: $last30StartTz } }
+            ]
+          }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    givenTotal: EmployeeFeedbackAggregate(
+      where: { senderEmployeeId: { _eq: $senderEmployeeId }, isDeleted: { _neq: true } }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    givenLast30: EmployeeFeedbackAggregate(
+      where: {
+        senderEmployeeId: { _eq: $senderEmployeeId }
+        isDeleted: { _neq: true }
+        _or: [
+          { feedbackDate: { _gte: $last30Start } }
+          { _and: [{ feedbackDate: { _isNull: true } }, { createdAt: { _gte: $last30StartTz } }] }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    givenPrev30: EmployeeFeedbackAggregate(
+      where: {
+        senderEmployeeId: { _eq: $senderEmployeeId }
+        isDeleted: { _neq: true }
+        _or: [
+          { _and: [{ feedbackDate: { _gte: $prev30Start } }, { feedbackDate: { _lt: $last30Start } }] }
+          {
+            _and: [
+              { feedbackDate: { _isNull: true } }
+              { createdAt: { _gte: $prev30StartTz } }
+              { createdAt: { _lt: $last30StartTz } }
+            ]
+          }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    contributorsTotal: EmployeeFeedbackAggregate(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _neq: true }
+      }
+    ) {
+      aggregate {
+        count(columns: [senderEmployeeId], distinct: true)
+      }
+    }
+    contributorsLast30: EmployeeFeedbackAggregate(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _neq: true }
+        _or: [
+          { feedbackDate: { _gte: $last30Start } }
+          { _and: [{ feedbackDate: { _isNull: true } }, { createdAt: { _gte: $last30StartTz } }] }
+        ]
+      }
+    ) {
+      aggregate {
+        count(columns: [senderEmployeeId], distinct: true)
+      }
+    }
+    contributorsPrev30: EmployeeFeedbackAggregate(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _neq: true }
+        _or: [
+          { _and: [{ feedbackDate: { _gte: $prev30Start } }, { feedbackDate: { _lt: $last30Start } }] }
+          {
+            _and: [
+              { feedbackDate: { _isNull: true } }
+              { createdAt: { _gte: $prev30StartTz } }
+              { createdAt: { _lt: $last30StartTz } }
+            ]
+          }
+        ]
+      }
+    ) {
+      aggregate {
+        count(columns: [senderEmployeeId], distinct: true)
+      }
+    }
+    lastReceived: EmployeeFeedback(
+      where: { employeeId: { _eq: $employeeId }, isDeleted: { _neq: true } }
+      orderBy: [{ feedbackDate: DESC }, { createdAt: DESC }]
+      limit: 1
+    ) {
+      feedbackDate
+      createdAt
+    }
+    lastGiven: EmployeeFeedback(
+      where: { senderEmployeeId: { _eq: $senderEmployeeId }, isDeleted: { _neq: true } }
+      orderBy: [{ feedbackDate: DESC }, { createdAt: DESC }]
+      limit: 1
+    ) {
+      feedbackDate
+      createdAt
+    }
+    pendingRequests: EmployeeFeedbackRequest(
+      where: {
+        employeeId: { _eq: $employeeId }
+        _or: [
+          { statusRef: { _eq: "PENDING" } }
+          { statusRef: { _eq: "EmployeeFeedbackRequestStatus:v1:PENDING" } }
+          { statusRef: { _isNull: true } }
+        ]
+        isDeleted: { _neq: true }
+      }
+      orderBy: { createdAt: DESC }
+      limit: $pendingLimit
+      offset: $pendingOffset
+    ) {
+      id
+      createdAt
+      requesterEmployeeId
+      requestedOn
+      dueDate
+      message
+      employeeId
+      requesterEmployee {
+        id
+        displayName
+        firstName
+        lastName
+        employeePosition {
+          employee {
+            pictureThumbnail
+          }
+        }
+      }
+    }
+    pendingRequestsAggregate: EmployeeFeedbackRequestAggregate(
+      where: {
+        employeeId: { _eq: $employeeId }
+        _or: [
+          { statusRef: { _eq: "PENDING" } }
+          { statusRef: { _eq: "EmployeeFeedbackRequestStatus:v1:PENDING" } }
+          { statusRef: { _isNull: true } }
+        ]
+        isDeleted: { _neq: true }
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+  }
+`
+
 // Fetch feedback requests for an employee with reviewers
 export const employeeFeedbackRequestsQuery = `
   query GetEmployeeFeedbackRequests($employeeId: uuid!) {
