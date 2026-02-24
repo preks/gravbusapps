@@ -133,7 +133,11 @@ export function useFortuneSheetCollaboration(
 
       // Only apply operations for this sheet (ignore ops from other sheet tabs)
       const opSheetId = (docOp.data as { sheetId?: string })?.sheetId
-      if (opSheetId && opSheetId !== sheetId) {
+      if (!opSheetId) {
+        console.warn('[useFortuneSheetCollaboration] Ignoring remote op without sheetId:', docOp)
+        return
+      }
+      if (opSheetId !== sheetId) {
         return
       }
 

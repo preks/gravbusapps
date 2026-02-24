@@ -7,7 +7,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import translations from './_i18n'
 import { GET_EMPLOYEE_LIGHT_BY_ID, GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
 import type { SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet } from './types'
@@ -23,6 +25,7 @@ import { useSpreadsheetBulkRows } from './hooks/useSpreadsheetBulkRows'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
 import { useExcelCollectionSummary } from './hooks/useExcelCollectionSummary'
 import { extractCopyAppIdsFromRows } from './utils/collectionSummaryUtils'
+import { indexToExcelColumn, parseA1CellReference } from './utils/fortuneSheetConverter'
 
 import { useVersioning } from '../shared/hooks/useVersioning'
 import { useComments } from '../shared/hooks/useComments'
@@ -57,6 +60,28 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   userId,
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
+  const hasCellFormattingMetadata = (value: unknown): value is Record<string, unknown> => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+    return ['bg', 'fc', 'bl', 'it', 'vt', 'ht', 'tb', 'ff', 'fs', 'cl', 'ul', 'strike', 'mc'].some(
+      key => key in (value as Record<string, unknown>)
+    )
+  }
+
+  const preserveStyledCellOnValueEdit = (currentCell: unknown, nextValue: unknown): unknown => {
+    if (!hasCellFormattingMetadata(currentCell)) return nextValue
+    if (nextValue && typeof nextValue === 'object' && !Array.isArray(nextValue)) return nextValue
+
+    const nextText = nextValue == null ? '' : String(nextValue)
+    const merged = { ...(currentCell as Record<string, unknown>) }
+    merged.v = nextValue == null ? '' : nextValue
+    merged.m = nextText
+    // Plain user edits should replace previous formula text.
+    if (typeof nextValue !== 'string' || !nextValue.trim().startsWith('=')) {
+      delete merged.f
+    }
+    return merged
+  }
+
   const normalizeCellPersistValue = (rawValue: unknown): unknown => {
     if (rawValue === null || rawValue === undefined) return rawValue
     if (typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean') {
@@ -75,6 +100,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
 
     if (hasFormattingMetadata && ('v' in cellObject || 'm' in cellObject)) {
+      // Guard: FortuneSheet bold/italic bug — sometimes v=1 or v=0 is the formatting toggle flag,
+      // not the actual cell text. Use m (display text) as the canonical value in that case.
+      const vVal = cellObject.v
+      if (vVal === 0 || vVal === 1) {
+        if (
+          typeof cellObject.m === 'string' &&
+          cellObject.m !== '0' &&
+          cellObject.m !== '1' &&
+          cellObject.m.trim().length > 0
+        ) {
+          return { ...cellObject, v: cellObject.m }
+        }
+        // m is also corrupted — signal to caller to use local data
+        return '__FORMATTING_CORRUPTION__'
+      }
       // Keep styled FortuneSheet cell objects intact (e.g. background color).
       return rawValue
     }
@@ -244,7 +284,40 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const comments = useComments({
     entityId: app.id,
     entityType: 'spreadsheet_app',
-    apiService: SpreadsheetApiService
+    apiService: SpreadsheetApiService,
+    onCommentCreated: comment => {
+      if (comment.cellReference && comment.sheetId === activeSheetId && comment.content) {
+        const parsed = (() => {
+          const m = comment.cellReference.trim().match(/^([A-Za-z]+)([0-9]+)$/)
+          if (!m) return null
+          const colIndex = (() => {
+            let idx = 0
+            const upper = m[1].toUpperCase()
+            for (let i = 0; i < upper.length; i++) idx = idx * 26 + (upper.charCodeAt(i) - 64)
+            return idx - 1
+          })()
+          const rowNum = parseInt(m[2], 10)
+          if (rowNum < 1) return null
+          const dataRowIndex = rowNum - 1
+          return { dataRowIndex, colIndex }
+        })()
+        if (parsed) {
+          const columns = activeSheet?.columns ?? []
+          const col = columns[parsed.colIndex]
+          const data = localSheetDataRef.current ?? []
+          const row = data[parsed.dataRowIndex]
+          const rowId =
+            (row && typeof row === 'object' && (row._rowUuid ?? row._id ?? row.id)) || `row_${parsed.dataRowIndex}`
+          const columnId = col?.id ?? `col_${parsed.colIndex}`
+          const key = `${rowId}_${columnId}`
+          const cellComments = { ...(activeSheet?.settings?.cellComments ?? {}) }
+          cellComments[key] = { value: comment.content }
+          persistSheetPatch({
+            settings: { ...activeSheet?.settings, cellComments }
+          })
+        }
+      }
+    }
   })
 
   const handleScrollToHighlight = useCallback(
@@ -256,12 +329,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [comments.comments]
   )
 
+  const { t } = useTranslation(translations)
   const fileLock = useFileLock({
     entityId: app.id,
     entityType: 'spreadsheet_app',
     currentUserId: userId,
-    apiService: SpreadsheetApiService
+    apiService: SpreadsheetApiService,
+    t,
+    onLockAcquired: () => toast.success(t('toast-lock-acquired')),
+    onLockReleased: () => toast.success(t('toast-lock-released')),
+    onError: err => toast.error(err.message)
   })
+
+  // Effective editability: permission + not entity-mode. Lock check disabled when lock API
+  // may block edits incorrectly (e.g. during dev); re-enable with: && fileLock.canEdit
+  const effectiveCanEdit = isEditing && !entityEnabled
 
   const publishing = usePublishing({
     entityId: app.id,
@@ -304,6 +386,32 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     },
     [app, activeSheetId, localSheetDataRef, onAppUpdate, onSheetUpdate]
   )
+
+  const getCellReference = useCallback(
+    (rowId: string, columnId: string): string | null => {
+      const columns = activeSheet.columns
+      const colIndex = columns.findIndex(c => c.id === columnId)
+      if (colIndex < 0) return null
+      const data = localSheetDataRef.current ?? []
+      let dataRowIndex: number
+      const rowMatch = rowId.match(/^row_(\d+)$/)
+      if (rowMatch) {
+        dataRowIndex = parseInt(rowMatch[1], 10)
+      } else {
+        const idx = data.findIndex((r: Record<string, unknown>) => String(r._rowUuid ?? r._id ?? r.id ?? '') === rowId)
+        if (idx < 0) return null
+        dataRowIndex = idx
+      }
+      const excelCol = indexToExcelColumn(colIndex)
+      const excelRow = dataRowIndex + 1
+      return `${excelCol}${excelRow}`
+    },
+    [activeSheet.columns]
+  )
+
+  // NOTE: Sync from cellComments -> API was removed. It caused duplicate comments on every refresh
+  // because the effect ran multiple times before API state updated. New comments are created via
+  // handleCommentChange (cell popover) or sidebar; both persist to API directly.
 
   const automations = useSpreadsheetAutomations({
     spreadsheetId: app.id,
@@ -562,13 +670,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // Queue of received operations - prevents dropping ops when multiple arrive rapidly
   const receivedOpsQueueRef = useRef<any[]>([])
   const [processOpsTrigger, setProcessOpsTrigger] = useState(0)
+  const activeSheetIdRef = useRef(activeSheetId)
+
+  useEffect(() => {
+    activeSheetIdRef.current = activeSheetId
+    // Clear stale queued operations when switching sheets to avoid cross-sheet leakage.
+    receivedOpsQueueRef.current = []
+  }, [activeSheetId])
 
   // --- Collaboration (header presence + FortuneSheet operations/cursors) ---
   const handleCollaborationOperation = useCallback((op: any) => {
-    if (op?.operation) {
-      receivedOpsQueueRef.current.push(op.operation)
-      setProcessOpsTrigger(t => t + 1)
-    }
+    if (!op?.operation) return
+    const incomingSheetId = (op.operation?.data as { sheetId?: string } | undefined)?.sheetId
+    if (!incomingSheetId) return
+    if (incomingSheetId !== activeSheetIdRef.current) return
+    receivedOpsQueueRef.current.push(op.operation)
+    setProcessOpsTrigger(t => t + 1)
   }, [])
 
   const collaboration = useSpreadsheetViewerCollaboration({
@@ -642,10 +759,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleCellChange = useCallback(
     async (rowId: string, columnName: string, value: unknown, options?: { fromRemote?: boolean }) => {
       if (entityEnabled) return
-      const normalizedValue = normalizeCellPersistValue(value)
 
       const current = localSheetDataRef.current
-      const idx = current.findIndex(r => String(r._id ?? r._rowUuid ?? r.id ?? '') === String(rowId))
+      const idx = current.findIndex(r => String(r._rowUuid ?? r._id ?? r.id ?? '') === String(rowId))
       if (idx < 0) return
 
       const row = current[idx]
@@ -660,15 +776,42 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               : typeof currentCell === 'object' && !Array.isArray(currentCell) && 'v' in (currentCell as object)
                 ? String((currentCell as { v?: unknown }).v ?? '')
                 : String(currentCell)
-      // FortuneSheet can emit 0/1 as cell value when applying bold/italic. Never overwrite
-      // multi-character text with 0 or 1 — that's the corrupted format flag, not user intent.
-      if (
-        (normalizedValue === 0 || normalizedValue === 1) &&
-        typeof currentDisplay === 'string' &&
-        currentDisplay.trim().length > 1
-      ) {
-        return
+
+      const rawNormalized = normalizeCellPersistValue(value)
+
+      // FortuneSheet bold/italic bug: emits v=0/1 (the toggle flag) as the cell value.
+      // This manifests as a bare 0/1, OR a cell object { v: 1, bl: 1 }.
+      // normalizeCellPersistValue returns '__FORMATTING_CORRUPTION__' when v=0/1 + m is also bad.
+      let normalizedValue: unknown = rawNormalized
+
+      if (rawNormalized === '__FORMATTING_CORRUPTION__') {
+        // Recover: use the existing local cell value + keep incoming formatting fields
+        const incomingObj =
+          value !== null && typeof value === 'object' && !Array.isArray(value)
+            ? (value as Record<string, unknown>)
+            : null
+        const corrected: Record<string, unknown> =
+          currentCell !== null &&
+          currentCell !== undefined &&
+          typeof currentCell === 'object' &&
+          !Array.isArray(currentCell)
+            ? { ...(currentCell as Record<string, unknown>) }
+            : { v: currentCell ?? '', m: String(currentCell ?? '') }
+        if (incomingObj) {
+          for (const k of ['bl', 'it', 'ul', 'strike', 'fc', 'bg', 'ff', 'fs', 'cl', 'vt', 'ht', 'tb']) {
+            if (k in incomingObj) corrected[k] = incomingObj[k]
+          }
+        }
+        normalizedValue = corrected
+      } else if (rawNormalized === 0 || rawNormalized === 1) {
+        // Bare 0/1: only block if the current cell already has meaningful text (len > 1),
+        // so we don't accidentally block a user legitimately setting a cell to 0 or 1.
+        if (typeof currentDisplay === 'string' && currentDisplay.trim().length > 1) return
       }
+
+      // Keep existing style metadata (e.g. background color) when user edits only the value.
+      normalizedValue = preserveStyledCellOnValueEdit(currentCell, normalizedValue)
+
       const backendRowId = (row as any)._rowUuid || (row as any)._id || (row as any).id || rowId
 
       // Update the ref IMMEDIATELY (synchronously) so concurrent calls
@@ -738,6 +881,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             inFlightCellUpdates.current.delete(key)
           } catch (error) {
             console.error('[SpreadsheetAppViewer] Failed to persist cell changes:', error)
+            toast.error(t('toast-cell-save-failed'))
           }
         })
         await Promise.all(patchPromises)
@@ -753,7 +897,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       normalizeCellPersistValue,
       onDataChange,
       onRowUpdate,
-      setLocalSheetData
+      setLocalSheetData,
+      t
     ]
   )
 
@@ -868,12 +1013,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleUpdateRow = useCallback(
     async (values: Record<string, unknown>) => {
       if (!editingRow) return
-      const rowId = String(editingRow._id ?? editingRow._rowUuid ?? editingRow.id ?? '')
+      const rowId = String(editingRow._rowUuid ?? editingRow._id ?? editingRow.id ?? '')
       const backendRowId = String(editingRow._rowUuid ?? editingRow._id ?? editingRow.id ?? '')
       if (!rowId || !backendRowId) return
 
       const next = localSheetDataRef.current.map(r =>
-        String(r._id ?? r._rowUuid ?? r.id ?? '') === rowId ? { ...r, ...values } : r
+        String(r._rowUuid ?? r._id ?? r.id ?? '') === rowId ? { ...r, ...values } : r
       )
       setLocalSheetData(next)
       onDataChange?.(activeSheetId, next)
@@ -894,7 +1039,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleDeleteRow = useCallback(
     async (rowId: string) => {
-      const next = localSheetDataRef.current.filter(r => String(r._id ?? r._rowUuid ?? r.id ?? '') !== String(rowId))
+      const next = localSheetDataRef.current.filter(r => String(r._rowUuid ?? r._id ?? r.id ?? '') !== String(rowId))
       setLocalSheetData(next)
       onDataChange?.(activeSheetId, next)
       try {
@@ -928,6 +1073,83 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       })
     },
     [activeSheet.settings, persistSheetPatch]
+  )
+
+  // --- Delete comment from sidebar: also remove from cellComments so cell indicator is cleared ---
+  const handleDeleteComment = useCallback(
+    async (commentId: string) => {
+      const commentList = comments.comments as Array<{
+        id: string
+        cellReference?: string
+        cell_reference?: string
+        sheetId?: string
+        sheet_id?: string
+        parentId?: string
+        parent_id?: string
+      }>
+      const comment = commentList.find(c => c.id === commentId)
+      const cellRef = comment?.cellReference ?? comment?.cell_reference
+      const sheetId = comment?.sheetId ?? comment?.sheet_id
+      const parentId = comment?.parentId ?? comment?.parent_id
+
+      if (cellRef && sheetId === activeSheetId && !parentId) {
+        const parsed = parseA1CellReference(cellRef)
+        if (parsed) {
+          const dataRowIndex = parsed.row - 1
+          const colIndex = parsed.column
+          const data = localSheetDataRef.current ?? []
+          const rowObj = data[dataRowIndex] as Record<string, unknown> | undefined
+          const rowId = String(rowObj?._rowUuid ?? rowObj?._id ?? rowObj?.id ?? `row_${dataRowIndex}`)
+          const columnId = activeSheet.columns[colIndex]?.id ?? `col_${colIndex}`
+          const key = `${rowId}_${columnId}`
+          const cellComments = { ...(activeSheet.settings?.cellComments ?? {}) }
+          delete cellComments[key]
+          persistSheetPatch({ settings: { ...activeSheet.settings, cellComments } })
+        }
+      }
+      await comments.deleteComment(commentId)
+    },
+    [activeSheet.settings, activeSheet.columns, activeSheetId, persistSheetPatch, comments]
+  )
+
+  // --- Cell comment persistence + Comments sidebar integration ---
+  const handleCommentChange = useCallback(
+    (rowId: string, columnId: string, comment: { value: string } | null) => {
+      const key = `${rowId}_${columnId}`
+      const cellComments = { ...(activeSheet.settings?.cellComments ?? {}) }
+      if (comment?.value) {
+        cellComments[key] = { value: comment.value }
+      } else {
+        delete cellComments[key]
+      }
+      persistSheetPatch({
+        settings: { ...activeSheet.settings, cellComments }
+      })
+
+      // Sync with Comments API so cell comments appear in the sidebar
+      const cellRef = getCellReference(rowId, columnId)
+      if (!cellRef) return
+
+      const existing = (
+        comments.comments as Array<{ id: string; cellReference?: string; sheetId?: string; parentId?: string }>
+      ).find(c => c.cellReference === cellRef && c.sheetId === activeSheetId && !c.parentId)
+
+      if (comment?.value) {
+        if (existing) {
+          void comments.updateComment(existing.id, { content: comment.value })
+        } else {
+          void comments.createComment({
+            type: 'cell',
+            content: comment.value,
+            cellReference: cellRef,
+            sheetId: activeSheetId
+          })
+        }
+      } else if (existing) {
+        void comments.deleteComment(existing.id)
+      }
+    },
+    [activeSheet.settings, activeSheet.columns, activeSheetId, persistSheetPatch, getCellReference, comments]
   )
 
   // --- Column visibility from FortuneSheet context menu ---
@@ -1112,7 +1334,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         activeSheet={activeSheet}
         onBack={onBack}
         isEditing={isEditing}
-        canEdit={isEditing && !entityEnabled}
+        canEdit={effectiveCanEdit}
         headerParticipants={collaboration.headerParticipants}
         isCollaborationConnected={collaboration.isCollaborationConnected}
         isEntityDataLoading={entityState.isLoading}
@@ -1213,6 +1435,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onColumnVisibilityChange={handleColumnVisibilityChange}
             onFilterStateChange={handleFilterStateChange}
             onLayoutStateChange={handleLayoutStateChange}
+            onCommentChange={handleCommentChange}
             onColumnRename={columnsState.handleRenameColumn}
             participants={collaboration.cursorParticipants}
             onOperationEmit={op => collaboration.emitOperation(op as any)}
@@ -1222,7 +1445,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             remoteUpdateKey={remoteUpdateKey}
             receivedOpsQueueRef={receivedOpsQueueRef}
             processOpsTrigger={processOpsTrigger}
-            isReadOnly={!isEditing || entityEnabled}
+            isReadOnly={!effectiveCanEdit}
           />
         )}
 
@@ -1232,6 +1455,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             data={sheetData}
             onEdit={row => setEditingRow(row)}
             onDelete={handleDeleteRow}
+            canEdit={effectiveCanEdit}
             testId={`${testId}-form-view`}
           />
         )}
@@ -1246,6 +1470,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             data={sheetData}
             view={activeView!}
             onEdit={row => setEditingRow(row)}
+            canEdit={effectiveCanEdit}
             testId={`${testId}-kanban-view`}
           />
         )}
@@ -1308,7 +1533,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         setShowComments={setShowComments}
         onScrollToHighlight={handleScrollToHighlight}
         getSelectedCellRef={() => gridRef.current?.getSelectedCellRef() ?? null}
+        activeSheetId={activeSheetId}
         comments={comments as any}
+        onDeleteComment={handleDeleteComment}
         currentUserId={userId}
         currentUserName={collaboration.currentUserName}
         currentUserAvatar={collaboration.currentUserAvatar}

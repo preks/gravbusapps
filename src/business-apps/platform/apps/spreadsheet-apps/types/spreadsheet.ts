@@ -427,6 +427,8 @@ export interface SheetSettings {
     rowlen?: Record<string, number>
     columnlen?: Record<string, number>
   }
+  /** Cell comments keyed by `${rowId}_${columnId}` */
+  cellComments?: Record<string, { value: string }>
 }
 
 /**

@@ -93,12 +93,20 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {isLockedByMe ? (
-            <DropdownMenuItem onClick={onReleaseLock}>
+            <DropdownMenuItem
+              onClick={() => {
+                void onReleaseLock()
+              }}
+            >
               <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
               {t('menu-unlock-spreadsheet')}
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onClick={onAcquireLock}>
+            <DropdownMenuItem
+              onClick={() => {
+                void onAcquireLock()
+              }}
+            >
               <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
               {t('menu-lock-spreadsheet')}
             </DropdownMenuItem>

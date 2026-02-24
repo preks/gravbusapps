@@ -150,6 +150,17 @@ publish-publishing = Se publică...
 
 # Lock status (header)
 lock-status-locked = Blocat
+lock-status-locked-by = Blocat de { $name }
+lock-status-locked-by-unknown = alt utilizator
+
+# Lock toasts
+toast-lock-acquired = Foaia blocată
+toast-lock-released = Foaia deblocată
+toast-lock-acquire-failed = Nu s-a putut bloca foaia
+toast-lock-release-failed = Nu s-a putut debloca foaia
+
+# Cell save toasts
+toast-cell-save-failed = Nu s-au putut salva modificările celulei. Încercați din nou.
 
 # Edit Row Dialog
 edit-row-title = Editează rândul
@@ -365,3 +376,29 @@ excel-sheet-columns = { $count } coloane
 excel-sheet-rows = { $count } rânduri
 excel-columns-label = Coloane
 excel-file-size-exceeds = Dimensiunea fișierului depășește limita de { $maxMb } MB
+
+# Comments (shared - matches document app)
+shared-error-create-comment = Crearea comentariului a eșuat
+shared-error-resolve-comment = Rezolvarea comentariului a eșuat
+shared-comment-panel-title = Comentarii
+shared-comment-unresolved = nerezolvate
+shared-comment-all-caught-up = Totul este în regulă!
+shared-comment-all-resolved = Toate comentariile au fost rezolvate
+shared-comment-no-resolved = Nu există comentarii rezolvate
+shared-comment-resolved-here = Comentariile rezolvate vor apărea aici
+shared-comment-loading = Se încarcă comentariile...
+shared-comment-placeholder = Adăugați un comentariu...
+shared-comment-reply = Răspunde
+shared-comment-edit = Editați
+shared-comment-resolve = Rezolvați
+shared-comment-delete = Ștergeți
+shared-comment-resolved = Rezolvat
+shared-comment-confirm-delete = Sunteți sigur că doriți să ștergeți acest comentariu?
+shared-comment-edit-placeholder = Editați comentariul...
+shared-comment-reply-placeholder = Scrieți un răspuns...
+shared-comment-cancel = Anulare
+shared-comment-send = Trimite
+shared-comment-sending = Se trimite...
+shared-comment-send-hint = ⌘+Enter pentru trimitere
+shared-comment-unresolved-tab = Nerezolvate
+shared-comment-resolved-tab = Rezolvate

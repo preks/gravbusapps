@@ -1222,13 +1222,13 @@ export const SpreadsheetApiService = {
         type: c.type as Comment['type'],
         content: c.content as string,
         createdBy: c.createdBy as string,
-        createdByName: c.createdByName as string | undefined,
-        createdByAvatar: c.createdByAvatar as string | undefined,
+        createdByName: (c.createdByName ?? c.created_by_name) as string | undefined,
+        createdByAvatar: (c.createdByAvatar ?? c.created_by_avatar) as string | undefined,
         createdAt: c.createdAt as string,
-        resolvedAt: c.resolvedAt as string | undefined,
-        cellReference: c.cellReference as string | undefined,
-        sheetId: c.sheetId as string | undefined,
-        parentId: c.parentId as string | undefined,
+        resolvedAt: (c.resolvedAt ?? c.resolved_at) as string | undefined,
+        cellReference: (c.cellReference ?? c.cell_reference) as string | undefined,
+        sheetId: (c.sheetId ?? c.sheet_id) as string | undefined,
+        parentId: (c.parentId ?? c.parent_id) as string | undefined,
         replies: (c.replies as Record<string, unknown>[] | undefined)?.map(r => ({
           id: r.id as string,
           entityId: appId,
@@ -1236,11 +1236,11 @@ export const SpreadsheetApiService = {
           type: r.type as Comment['type'],
           content: r.content as string,
           createdBy: r.createdBy as string,
-          createdByName: r.createdByName as string | undefined,
-          createdByAvatar: r.createdByAvatar as string | undefined,
+          createdByName: (r.createdByName ?? r.created_by_name) as string | undefined,
+          createdByAvatar: (r.createdByAvatar ?? r.created_by_avatar) as string | undefined,
           createdAt: r.createdAt as string,
-          cellReference: r.cellReference as string | undefined,
-          sheetId: r.sheetId as string | undefined,
+          cellReference: (r.cellReference ?? r.cell_reference) as string | undefined,
+          sheetId: (r.sheetId ?? r.sheet_id) as string | undefined,
           parentId: c.id as string
         }))
       }))
@@ -1353,34 +1353,24 @@ export const SpreadsheetApiService = {
   // ============ Locks ============
 
   async lockFile(appId: string, input?: LockFileInput): Promise<FileLock | null> {
-    try {
-      const response = await apiRequest<Record<string, unknown>>(`/locks/spreadsheet_app/${appId}`, {
-        method: 'POST',
-        body: JSON.stringify(input || {})
-      })
+    const response = await apiRequest<Record<string, unknown>>(`/locks/spreadsheet_app/${appId}`, {
+      method: 'POST',
+      body: JSON.stringify(input || {})
+    })
 
-      return {
-        isLocked: true,
-        lockedBy: response.lockedBy as string,
-        lockedByName: response.lockedByName as string | undefined,
-        lockedAt: response.lockedAt as string,
-        lockExpiry: response.lockExpiry as string | undefined,
-        lockReason: response.lockReason as string | undefined
-      }
-    } catch (error) {
-      console.error('Failed to lock file:', error)
-      return null
+    return {
+      isLocked: true,
+      lockedBy: response.lockedBy as string,
+      lockedByName: response.lockedByName as string | undefined,
+      lockedAt: response.lockedAt as string,
+      lockExpiry: response.lockExpiry as string | undefined,
+      lockReason: response.lockReason as string | undefined
     }
   },
 
   async unlockFile(appId: string): Promise<boolean> {
-    try {
-      await apiRequest(`/locks/spreadsheet_app/${appId}`, { method: 'DELETE' })
-      return true
-    } catch (error) {
-      console.error('Failed to unlock file:', error)
-      return false
-    }
+    await apiRequest(`/locks/spreadsheet_app/${appId}`, { method: 'DELETE' })
+    return true
   },
 
   async getLockStatus(appId: string): Promise<FileLock | null> {

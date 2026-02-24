@@ -232,7 +232,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
               <MoreVertical className="gba:h-4 gba:w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="gba:w-48">
+          <DropdownMenuContent align="end" side="left" className="gba:w-48" style={{ zIndex: 1100 }}>
             {!isResolved && (
               <DropdownMenuItem onClick={() => setShowReplyInput(!showReplyInput)}>
                 <Reply className="gba:h-4 gba:w-4 gba:mr-2" />

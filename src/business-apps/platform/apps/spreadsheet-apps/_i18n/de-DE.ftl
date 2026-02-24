@@ -150,6 +150,17 @@ publish-publishing = Wird veröffentlicht...
 
 # Lock status (header)
 lock-status-locked = Gesperrt
+lock-status-locked-by = Gesperrt von { $name }
+lock-status-locked-by-unknown = ein anderer Benutzer
+
+# Lock toasts
+toast-lock-acquired = Tabelle gesperrt
+toast-lock-released = Tabelle entsperrt
+toast-lock-acquire-failed = Tabelle konnte nicht gesperrt werden
+toast-lock-release-failed = Tabelle konnte nicht entsperrt werden
+
+# Cell save toasts
+toast-cell-save-failed = Zellenänderungen konnten nicht gespeichert werden. Bitte erneut versuchen.
 
 # Edit Row Dialog
 edit-row-title = Zeile bearbeiten
@@ -365,3 +376,29 @@ excel-sheet-columns = { $count } Spalten
 excel-sheet-rows = { $count } Zeilen
 excel-columns-label = Spalten
 excel-file-size-exceeds = Dateigröße überschreitet das Limit von { $maxMb } MB
+
+# Comments (shared - matches document app)
+shared-error-create-comment = Kommentar konnte nicht erstellt werden
+shared-error-resolve-comment = Kommentar konnte nicht gelöst werden
+shared-comment-panel-title = Kommentare
+shared-comment-unresolved = ungelöst
+shared-comment-unresolved-tab = Ungelöst
+shared-comment-resolved-tab = Gelöst
+shared-comment-all-caught-up = Alles erledigt!
+shared-comment-all-resolved = Alle Kommentare wurden gelöst
+shared-comment-no-resolved = Keine gelösten Kommentare
+shared-comment-resolved-here = Gelöste Kommentare werden hier angezeigt
+shared-comment-loading = Kommentare werden geladen...
+shared-comment-placeholder = Kommentar hinzufügen...
+shared-comment-reply = Antworten
+shared-comment-edit = Bearbeiten
+shared-comment-resolve = Lösen
+shared-comment-delete = Löschen
+shared-comment-resolved = Gelöst
+shared-comment-confirm-delete = Möchten Sie diesen Kommentar wirklich löschen?
+shared-comment-edit-placeholder = Kommentar bearbeiten...
+shared-comment-reply-placeholder = Antwort schreiben...
+shared-comment-cancel = Abbrechen
+shared-comment-send = Senden
+shared-comment-sending = Wird gesendet...
+shared-comment-send-hint = ⌘+Enter zum Senden

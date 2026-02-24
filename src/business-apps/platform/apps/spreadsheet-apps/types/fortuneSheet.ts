@@ -46,6 +46,15 @@ export interface FortuneSheetCell {
     rs: number // Row span
     cs: number // Column span
   }
+  /** Comment/note (FortuneSheet native) */
+  ps?: {
+    left?: number | null
+    top?: number | null
+    width?: number | null
+    height?: number | null
+    value: string
+    isShow?: boolean
+  }
 }
 
 /**

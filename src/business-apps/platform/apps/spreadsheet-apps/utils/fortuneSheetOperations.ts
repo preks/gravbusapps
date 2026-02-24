@@ -9,6 +9,23 @@ import type { FortuneSheetOp, ConversionContext, CellReference } from '../types/
 import type { DocumentOperation } from '../../shared/services/CollaborationClient'
 import { parseCellReferenceFromPath, HEADER_ROW_OFFSET } from './fortuneSheetConverter'
 
+function inferCellPropertyFromPath(path: Array<string | number>): string {
+  if (path.length < 4) return 'v'
+  const tail = path.slice(3).map(segment => String(segment))
+  // FortuneSheet may emit nested value-property paths (e.g. [..., 'v', 'ff']).
+  // The leaf segment is the actual edited property.
+  return tail[tail.length - 1] || tail[0] || 'v'
+}
+
+function shouldSyncCellProperty(property: string, path: Array<string | number>): boolean {
+  // Cell-level replace/add/remove with no explicit property means the value changed.
+  if (path.length < 4) return true
+  // Sync formula/value/display text + background fill only.
+  // Ignore typography/style properties (e.g. ff='Arial') to avoid persisting style payload
+  // as data and overwriting formulas/values on collaborators.
+  return property === 'v' || property === 'f' || property === 'm' || property === 'bg'
+}
+
 /**
  * Convert FortuneSheet operation to our DocumentOperation format
  */
@@ -27,7 +44,10 @@ export function convertFortuneSheetOpToDocumentOp(
 
       // Detect which property is being changed (e.g., 'v', 'f', 'm')
       // Path format: ['data', rowIndex, colIndex, property?]
-      const property = fortuneOp.path.length >= 4 ? String(fortuneOp.path[3]) : 'v'
+      const property = inferCellPropertyFromPath(fortuneOp.path)
+      if (!shouldSyncCellProperty(property, fortuneOp.path)) {
+        return null
+      }
       const columnName = context.columnIdToName.get(cellRef.columnId) ?? cellRef.columnId
 
       return {
@@ -106,6 +126,10 @@ export function convertFortuneSheetOpToDocumentOp(
       // Generic add operation (cell addition)
       const cellRef = parseCellReferenceFromPath(fortuneOp.path, context)
       if (cellRef) {
+        const property = inferCellPropertyFromPath(fortuneOp.path)
+        if (!shouldSyncCellProperty(property, fortuneOp.path)) {
+          return null
+        }
         const columnName = context.columnIdToName.get(cellRef.columnId) ?? cellRef.columnId
         return {
           type: 'cell_change',
@@ -117,6 +141,7 @@ export function convertFortuneSheetOpToDocumentOp(
             rowIndex: cellRef.rowIndex,
             columnIndex: cellRef.columnIndex,
             value: fortuneOp.value,
+            property,
             path: fortuneOp.path
           }
         }
@@ -128,6 +153,10 @@ export function convertFortuneSheetOpToDocumentOp(
       // Cell removal (set to null/empty) - e.g. multi-cell backspace/delete
       const cellRef = parseCellReferenceFromPath(fortuneOp.path, context)
       if (cellRef) {
+        const property = inferCellPropertyFromPath(fortuneOp.path)
+        if (!shouldSyncCellProperty(property, fortuneOp.path)) {
+          return null
+        }
         const columnName = context.columnIdToName.get(cellRef.columnId) ?? cellRef.columnId
         return {
           type: 'cell_change',
@@ -139,6 +168,7 @@ export function convertFortuneSheetOpToDocumentOp(
             rowIndex: cellRef.rowIndex,
             columnIndex: cellRef.columnIndex,
             value: null,
+            property,
             path: fortuneOp.path
           }
         }
@@ -172,17 +202,26 @@ export function convertDocumentOpToFortuneSheetOp(
   switch (opType) {
     case 'cell_change': {
       // Cell value change from remote user
-      const { rowIndex, columnIndex, value, property } = opData
+      const { rowId, columnId, rowIndex, columnIndex, value, property } = opData
 
-      if (rowIndex === undefined || columnIndex === undefined) {
+      // Prefer stable identity mapping to avoid cross-row corruption when local
+      // row ordering differs between collaborators (sorting/filtering/reordering).
+      const resolvedRowIndex = typeof rowId === 'string' ? context.rowIdToIndex.get(rowId) : undefined
+      const resolvedColumnIndex = typeof columnId === 'string' ? context.columnIdToIndex.get(columnId) : undefined
+
+      const targetRowIndex = typeof resolvedRowIndex === 'number' ? resolvedRowIndex : (rowIndex as number | undefined)
+      const targetColumnIndex =
+        typeof resolvedColumnIndex === 'number' ? resolvedColumnIndex : (columnIndex as number | undefined)
+
+      if (targetRowIndex === undefined || targetColumnIndex === undefined) {
         return null
       }
 
       const cellRef: CellReference = {
-        rowIndex,
-        columnIndex,
-        rowId: context.rowIndexToId.get(rowIndex) || `row_${rowIndex}`,
-        columnId: context.columnIndexToId.get(columnIndex) || `col_${columnIndex}`
+        rowIndex: targetRowIndex,
+        columnIndex: targetColumnIndex,
+        rowId: context.rowIndexToId.get(targetRowIndex) || `row_${targetRowIndex}`,
+        columnId: context.columnIndexToId.get(targetColumnIndex) || `col_${targetColumnIndex}`
       }
 
       // Check if value is a full cell object (has formula or cell type info)
@@ -352,10 +391,14 @@ export function validateOperation(op: DocumentOperation): boolean {
 
   switch (op.type) {
     case 'cell_change': {
-      const { rowIndex, columnIndex } = opData
-      // Accept if indices are valid numbers - don't require context to have them
-      // (context can lag when remote user adds rows/cols before we've applied structural ops)
-      return typeof rowIndex === 'number' && typeof columnIndex === 'number' && rowIndex >= 0 && columnIndex >= 0
+      const { rowIndex, columnIndex, rowId, columnId } = opData
+      const hasIndexAddress =
+        typeof rowIndex === 'number' && typeof columnIndex === 'number' && rowIndex >= 0 && columnIndex >= 0
+      const hasIdAddress =
+        typeof rowId === 'string' && rowId.length > 0 && typeof columnId === 'string' && columnId.length > 0
+      // Accept either index-based or id-based addressing.
+      // id-based addressing is safer when collaborators have different local row ordering.
+      return hasIndexAddress || hasIdAddress
     }
 
     case 'row_add':

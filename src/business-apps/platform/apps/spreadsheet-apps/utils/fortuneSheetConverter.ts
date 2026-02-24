@@ -15,6 +15,8 @@ import type {
 } from '../types/fortuneSheet'
 import { normalizeImageSrc } from './normalizeImageSrc'
 
+const DEFAULT_SHEET_FONT_FAMILY = 'Arial'
+
 /**
  * Convert Excel column letter to index (A=0, B=1, ..., Z=25, AA=26, etc.)
  */
@@ -80,9 +82,9 @@ export function createConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
 
-  // Map rows (prefer stable UI id; fall back to backend UUID/id)
+  // Map rows (prefer backend UUID for cross-client stable collaboration identity)
   data.forEach((row, index) => {
-    const rowId = String(row._id ?? row._rowUuid ?? row.id ?? `row_${index}`)
+    const rowId = String(row._rowUuid ?? row._id ?? row.id ?? `row_${index}`)
     rowIdToIndex.set(rowId, index)
     rowIndexToId.set(index, rowId)
   })
@@ -242,15 +244,29 @@ export const HEADER_ROW_OFFSET = 1
 /**
  * Convert our data format to FortuneSheet format
  */
+/**
+ * Get cellComments key for a cell at FortuneSheet (fsRow, colIndex)
+ */
+function getCellCommentKey(
+  fsRow: number,
+  colIndex: number,
+  context: ConversionContext,
+  columns: SpreadsheetColumn[]
+): string | null {
+  if (fsRow < HEADER_ROW_OFFSET) return null
+  const dataRowIndex = fsRow - HEADER_ROW_OFFSET
+  const rowId = context.rowIndexToId.get(dataRowIndex) ?? `row_${dataRowIndex}`
+  const columnId = context.columnIndexToId.get(colIndex) ?? columns[colIndex]?.id ?? `col_${colIndex}`
+  return `${rowId}_${columnId}`
+}
+
 export function convertToFortuneSheet(
   sheet: SpreadsheetSheet,
   data: Record<string, unknown>[],
   columns: SpreadsheetColumn[]
 ): FortuneSheetConfig {
-  // Context is created but not used in current implementation
-  // It may be needed for future formula or validation conversions
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const context = createConversionContext(columns, data)
+  const cellComments = sheet.settings?.cellComments
   const celldata: Array<{ r: number; c: number; v: FortuneSheetCell }> = []
   const mergeConfig: Record<string, { r: number; c: number; rs: number; cs: number }> = {}
 
@@ -266,6 +282,7 @@ export function convertToFortuneSheet(
       v: column.label || column.name,
       m: column.label || column.name,
       ct: { t: 's' },
+      ff: DEFAULT_SHEET_FONT_FAMILY,
       bl: 1, // bold
       bg: '#f0f0f0' // light gray background
     }
@@ -284,6 +301,9 @@ export function convertToFortuneSheet(
       let cell: FortuneSheetCell
       if (isFortuneSheetCellValue(value)) {
         cell = { ...value, tb: value.tb ?? 2 }
+        if (!cell.ff) {
+          cell.ff = DEFAULT_SHEET_FONT_FAMILY
+        }
         if (cell.mc) {
           const adjustedMerge = {
             ...cell.mc,
@@ -292,8 +312,22 @@ export function convertToFortuneSheet(
           cell.mc = adjustedMerge
           mergeConfig[`${adjustedMerge.r}_${adjustedMerge.c}`] = adjustedMerge
         }
+        const fsRow = rowIndex + HEADER_ROW_OFFSET
+        if (cellComments) {
+          const key = getCellCommentKey(fsRow, colIndex, context, columns)
+          if (key && cellComments[key]?.value) {
+            cell.ps = {
+              value: cellComments[key].value,
+              isShow: false,
+              left: null,
+              top: null,
+              width: null,
+              height: null
+            }
+          }
+        }
         celldata.push({
-          r: rowIndex + HEADER_ROW_OFFSET,
+          r: fsRow,
           c: colIndex,
           v: cell
         })
@@ -302,10 +336,25 @@ export function convertToFortuneSheet(
         cell = {
           f: column.formula.startsWith('=') ? column.formula : `=${column.formula}`,
           ct: getFortuneSheetCellType(column.type),
+          ff: DEFAULT_SHEET_FONT_FAMILY,
           tb: 2
         }
+        const fsRowFormula = rowIndex + HEADER_ROW_OFFSET
+        if (cellComments) {
+          const key = getCellCommentKey(fsRowFormula, colIndex, context, columns)
+          if (key && cellComments[key]?.value) {
+            cell.ps = {
+              value: cellComments[key].value,
+              isShow: false,
+              left: null,
+              top: null,
+              width: null,
+              height: null
+            }
+          }
+        }
         celldata.push({
-          r: rowIndex + HEADER_ROW_OFFSET,
+          r: fsRowFormula,
           c: colIndex,
           v: cell
         })
@@ -322,10 +371,25 @@ export function convertToFortuneSheet(
               v: url,
               m: linkText,
               ct: { t: 's' },
+              ff: DEFAULT_SHEET_FONT_FAMILY,
               tb: 2
             }
+            const fsRowUrl = rowIndex + HEADER_ROW_OFFSET
+            if (cellComments) {
+              const key = getCellCommentKey(fsRowUrl, colIndex, context, columns)
+              if (key && cellComments[key]?.value) {
+                cell.ps = {
+                  value: cellComments[key].value,
+                  isShow: false,
+                  left: null,
+                  top: null,
+                  width: null,
+                  height: null
+                }
+              }
+            }
             celldata.push({
-              r: rowIndex + HEADER_ROW_OFFSET,
+              r: fsRowUrl,
               c: colIndex,
               v: cell
             })
@@ -366,6 +430,7 @@ export function convertToFortuneSheet(
           v: value as any,
           m: displayValue,
           ct: getFortuneSheetCellType(column.type),
+          ff: DEFAULT_SHEET_FONT_FAMILY,
           tb: textWrap
         }
         // Center-align avatar/image cells for consistent layout
@@ -394,8 +459,22 @@ export function convertToFortuneSheet(
             cell.tb = 0 // no wrap - keep badge on one line
           }
         }
+        const fsRowRegular = rowIndex + HEADER_ROW_OFFSET
+        if (cellComments) {
+          const key = getCellCommentKey(fsRowRegular, colIndex, context, columns)
+          if (key && cellComments[key]?.value) {
+            cell.ps = {
+              value: cellComments[key].value,
+              isShow: false,
+              left: null,
+              top: null,
+              width: null,
+              height: null
+            }
+          }
+        }
         celldata.push({
-          r: rowIndex + HEADER_ROW_OFFSET,
+          r: fsRowRegular,
           c: colIndex,
           v: cell
         })

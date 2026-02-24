@@ -15,13 +15,22 @@ export interface FormViewProps {
   data: Record<string, unknown>[]
   onEdit: (row: Record<string, unknown>) => void
   onDelete: (rowId: string) => void
+  /** When false, edit/delete actions are disabled (e.g. when spreadsheet is locked by another user) */
+  canEdit?: boolean
   testId: string
 }
 
 /**
  * FormView - Card-based records view
  */
-export const FormView = memo<FormViewProps>(function FormView({ sheet, data, onEdit, onDelete, testId }) {
+export const FormView = memo<FormViewProps>(function FormView({
+  sheet,
+  data,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  testId
+}) {
   const visibleColumns = sheet.columns.filter(c => c.isVisible)
 
   return (
@@ -36,16 +45,18 @@ export const FormView = memo<FormViewProps>(function FormView({ sheet, data, onE
               </div>
             ))}
           </div>
-          <div className="gba:flex gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t">
-            <Button variant="outline" size="sm" onClick={() => onEdit(row)}>
-              <Pencil className="gba:w-4 gba:h-4 gba:mr-1" />
-              Edit
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onDelete(row._id as string)}>
-              <Trash2 className="gba:w-4 gba:h-4 gba:mr-1 gba:text-destructive" />
-              Delete
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="gba:flex gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t">
+              <Button variant="outline" size="sm" onClick={() => onEdit(row)}>
+                <Pencil className="gba:w-4 gba:h-4 gba:mr-1" />
+                Edit
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => onDelete(row._id as string)}>
+                <Trash2 className="gba:w-4 gba:h-4 gba:mr-1 gba:text-destructive" />
+                Delete
+              </Button>
+            </div>
+          )}
         </Card>
       ))}
     </div>

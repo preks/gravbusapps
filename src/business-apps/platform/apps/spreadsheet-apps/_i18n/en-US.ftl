@@ -150,6 +150,17 @@ publish-publishing = Publishing...
 
 # Lock status (header)
 lock-status-locked = Locked
+lock-status-locked-by = Locked by { $name }
+lock-status-locked-by-unknown = another user
+
+# Lock toasts
+toast-lock-acquired = Spreadsheet locked
+toast-lock-released = Spreadsheet unlocked
+toast-lock-acquire-failed = Failed to lock spreadsheet
+toast-lock-release-failed = Failed to unlock spreadsheet
+
+# Cell save toasts
+toast-cell-save-failed = Failed to save cell changes. Please try again.
 
 # Edit Row Dialog (SpreadsheetDialogsSection)
 edit-row-title = Edit Row
@@ -365,3 +376,29 @@ excel-sheet-columns = { $count } columns
 excel-sheet-rows = { $count } rows
 excel-columns-label = Columns
 excel-file-size-exceeds = File size exceeds { $maxMb }MB limit
+
+# Comments (shared - matches document app)
+shared-error-create-comment = Failed to create comment
+shared-error-resolve-comment = Failed to resolve comment
+shared-comment-panel-title = Comments
+shared-comment-unresolved = unresolved
+shared-comment-unresolved-tab = Unresolved
+shared-comment-resolved-tab = Resolved
+shared-comment-all-caught-up = All caught up!
+shared-comment-all-resolved = All comments have been resolved
+shared-comment-no-resolved = No resolved comments
+shared-comment-resolved-here = Resolved comments will appear here
+shared-comment-loading = Loading comments...
+shared-comment-placeholder = Add a comment...
+shared-comment-reply = Reply
+shared-comment-edit = Edit
+shared-comment-resolve = Resolve
+shared-comment-delete = Delete
+shared-comment-resolved = Resolved
+shared-comment-confirm-delete = Are you sure you want to delete this comment?
+shared-comment-edit-placeholder = Edit comment...
+shared-comment-reply-placeholder = Write a reply...
+shared-comment-cancel = Cancel
+shared-comment-send = Send
+shared-comment-sending = Sending...
+shared-comment-send-hint = ⌘+Enter to send

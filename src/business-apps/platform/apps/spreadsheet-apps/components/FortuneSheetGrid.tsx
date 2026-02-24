@@ -5,7 +5,7 @@
  * Handles data conversion, collaboration, and bidirectional sync.
  */
 
-import { useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
+import { useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef, useState } from 'react'
 import { Workbook } from '@fortune-sheet/react'
 import type { WorkbookInstance } from '@fortune-sheet/react'
 import '@fortune-sheet/react/dist/index.css'
@@ -21,6 +21,7 @@ import {
   parseA1CellReference
 } from '../utils/fortuneSheetConverter'
 import { useFortuneSheetCollaboration, useFortuneSheetCursorTracking } from '../hooks/useFortuneSheetCollaboration'
+import { InlineCommentPopover } from '../../shared/components/InlineCommentPopover'
 
 const DEBUG_INGEST_PREFIX = 'http://127.0.0.1:7244/ingest/'
 const nativeFetch = globalThis.fetch.bind(globalThis)
@@ -89,6 +90,8 @@ export interface FortuneSheetGridProps {
   }) => void
   /** Called when FortuneSheet row/column size state changes (for persistence across refreshes) */
   onLayoutStateChange?: (layoutState: { rowlen?: Record<string, number>; columnlen?: Record<string, number> }) => void
+  /** Called when a cell comment is added, updated, or removed */
+  onCommentChange?: (rowId: string, columnId: string, comment: { value: string } | null) => void
 }
 
 /** Ref handle for imperative actions */
@@ -165,7 +168,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       receivedOpsQueueRef,
       processOpsTrigger,
       onFilterStateChange,
-      onLayoutStateChange
+      onLayoutStateChange,
+      onCommentChange
     } = props
 
     // Track if we're currently processing a local edit (to prevent feedback loops)
@@ -208,6 +212,21 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
      */
     const lastKnownSelectionRef = useRef<{ fortuneSheetRow: number; colIndex: number } | null>(null)
 
+    /** Comment popover from context menu workaround (FortuneSheet doesn't support "comment" in cellContextMenu) */
+    const [commentPopover, setCommentPopover] = useState<{
+      row: number
+      col: number
+      rowId: string
+      columnId: string
+      existingValue?: string
+      position: { top: number; left: number }
+    } | null>(null)
+    const lastCommentClickPositionRef = useRef<{ top: number; left: number } | null>(null)
+    /** Right-click position when context menu opened — use this so popover appears near the cell, not the menu */
+    const contextMenuOpenPositionRef = useRef<{ top: number; left: number } | null>(null)
+    /** Skip onCommentChange in handleOp when we just submitted from popover (avoids duplicate) */
+    const lastCommentSubmitRef = useRef<{ row: number; col: number; at: number } | null>(null)
+
     const scheduleLayoutStateCapture = useCallback(() => {
       if (!onLayoutStateChange) return
       if (layoutPersistTimerRef.current) {
@@ -239,6 +258,54 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     const context = useMemo(() => {
       return createConversionContext(columns, data)
     }, [columns, data])
+
+    /** Ref for context-menu-injected "Comment" click handler - avoids stale closures */
+    const commentMenuHandlerRef = useRef<() => void>(() => {})
+    commentMenuHandlerRef.current = useCallback(() => {
+      if (isReadOnly || !onCommentChange) return
+      const workbook = workbookRef.current as any
+      const sel = workbook?.getSelection?.()
+      if (!sel || !Array.isArray(sel) || sel.length === 0) {
+        const last = lastKnownSelectionRef.current
+        if (!last) return
+        const dataRowIndex = last.fortuneSheetRow - HEADER_ROW_OFFSET
+        const rowId = context.rowIndexToId.get(dataRowIndex) ?? `row_${dataRowIndex}`
+        const columnId =
+          context.columnIndexToId.get(last.colIndex) ?? columns[last.colIndex]?.id ?? `col_${last.colIndex}`
+        const existingKey = `${rowId}_${columnId}`
+        const existing = sheet.settings?.cellComments?.[existingKey]?.value
+        const pos = contextMenuOpenPositionRef.current ??
+          lastCommentClickPositionRef.current ?? {
+            top: Math.max(0, (typeof window !== 'undefined' ? window.innerHeight : 400) / 2 - 120),
+            left: Math.max(0, (typeof window !== 'undefined' ? window.innerWidth : 600) / 2 - 160)
+          }
+        setCommentPopover({
+          row: last.fortuneSheetRow,
+          col: last.colIndex,
+          rowId,
+          columnId,
+          existingValue: existing,
+          position: pos
+        })
+        return
+      }
+      const item = sel[0]
+      const row = item?.row?.[0]
+      const col = item?.column?.[0]
+      if (typeof row !== 'number' || typeof col !== 'number') return
+      if (row < HEADER_ROW_OFFSET) return
+      const dataRowIndex = row - HEADER_ROW_OFFSET
+      const rowId = context.rowIndexToId.get(dataRowIndex) ?? `row_${dataRowIndex}`
+      const columnId = context.columnIndexToId.get(col) ?? columns[col]?.id ?? `col_${col}`
+      const existingKey = `${rowId}_${columnId}`
+      const existing = sheet.settings?.cellComments?.[existingKey]?.value
+      const pos = contextMenuOpenPositionRef.current ??
+        lastCommentClickPositionRef.current ?? {
+          top: Math.max(0, (typeof window !== 'undefined' ? window.innerHeight : 400) / 2 - 120),
+          left: Math.max(0, (typeof window !== 'undefined' ? window.innerWidth : 600) / 2 - 160)
+        }
+      setCommentPopover({ row, col, rowId, columnId, existingValue: existing, position: pos })
+    }, [context, columns, isReadOnly, onCommentChange, sheet.settings?.cellComments])
 
     // Convert data to FortuneSheet format. Re-init when sheet, data, or columns change
     // so that late-arriving data (e.g. bulk collection avatars) is reflected.
@@ -471,6 +538,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         // Check if this is a formula operation (path ends with 'f')
         const property = op.path.length >= 4 ? String(op.path[3]) : 'v'
         const isFormula = property === 'f'
+        const isCellValueProperty = property === 'v' || property === 'm'
+        const isBackgroundProperty = property === 'bg'
 
         let value = op.value
         // Check if value is a full cell object with a formula
@@ -483,9 +552,28 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           value = (value as { v: unknown }).v
         }
 
+        // Defensive guard: ignore style-only remote property ops that should not become cell values
+        // (e.g. ff='Arial' arriving as collaboration op).
+        if (op.path.length >= 4 && !isFormula && !isCellValueProperty && !isBackgroundProperty) {
+          return
+        }
+
         // Path already uses FortuneSheet row; apply directly
         if (isFormula && typeof value === 'string') {
           applyRemoteCellUpdate(fortuneSheetRow, colIndex, { f: value })
+        } else if (isBackgroundProperty) {
+          const workbook = workbookRef.current
+          if (workbook) {
+            try {
+              if (value === null || value === undefined || value === '') {
+                workbook.setCellFormat(fortuneSheetRow, colIndex, 'bg', null as any, { id: sheet.id })
+              } else {
+                workbook.setCellFormat(fortuneSheetRow, colIndex, 'bg', value as any, { id: sheet.id })
+              }
+            } catch {
+              // Ignore formatting apply errors; no data write fallback for style ops.
+            }
+          }
         } else if (isFullCellWithFormula) {
           applyRemoteCellUpdate(fortuneSheetRow, colIndex, value)
         } else {
@@ -500,7 +588,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           if (onCellChange && rowId && columnId) {
             const column = columns.find(c => c.id === columnId)
             const columnName = column?.name ?? columnId
-            const changeValue = isFormulaOnly ? { f: value } : value
+            const changeValue = isFormulaOnly ? { f: value } : isBackgroundProperty ? { bg: value } : value
             onCellChange(rowId, columnName, changeValue, { fromRemote: true })
           }
           // Avoid remount for formula cells to preserve formula state
@@ -1402,13 +1490,40 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         const hasDataRemove = ops.some(op => op.op === 'remove' && op.path?.[0] === 'data')
         const isLikelyDataReorderBatch = hasDataAdd && hasDataRemove && ops.length >= 6
         const shouldSkipCellPersistenceForBatch = hasFilterOrSortOp || isLikelyDataReorderBatch
+        const formulaCellsInBatch = new Set<string>()
+
+        // If a batch contains an explicit formula write for a cell, treat that as source of truth.
+        // FortuneSheet often emits additional derived `v`/`m` ops for the computed display/result;
+        // syncing those can overwrite formula state on collaborators.
+        ops.forEach(op => {
+          if (
+            (op.op === 'replace' || op.op === 'add') &&
+            op.path.length >= 4 &&
+            op.path[0] === 'data' &&
+            String(op.path[3]) === 'f'
+          ) {
+            formulaCellsInBatch.add(`${String(op.path[1])}_${String(op.path[2])}`)
+          }
+        })
 
         const cellsToWrap: Array<{ row: number; col: number; text: string }> = []
 
         // Process each operation
         ops.forEach(op => {
+          const isDataCellOp =
+            (op.op === 'replace' || op.op === 'add' || op.op === 'remove') &&
+            op.path.length >= 3 &&
+            op.path[0] === 'data'
+          const opCellKey = isDataCellOp ? `${String(op.path[1])}_${String(op.path[2])}` : ''
+          const opProperty = op.path.length >= 4 ? String(op.path[3]) : 'v'
+          const isFormulaDerivedValueOp =
+            isDataCellOp &&
+            formulaCellsInBatch.has(opCellKey) &&
+            opProperty !== 'f' &&
+            (opProperty === 'v' || opProperty === 'm')
+
           // Handle collaboration sync - emit to other users
-          if (collaborationEnabled) {
+          if (collaborationEnabled && !isFormulaDerivedValueOp) {
             collaboration.handleFortuneSheetOp(op)
           }
 
@@ -1418,11 +1533,10 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           // Note: FortuneSheet emits 'replace' for overwriting existing cells, 'add' for
           // populating empty/null cells (e.g. during paste), and 'remove' for clearing cells
           // (e.g. Delete key, Clear context menu, or undo of a paste). All must be persisted.
-          if (
-            (op.op === 'replace' || op.op === 'add' || op.op === 'remove') &&
-            op.path.length >= 3 &&
-            op.path[0] === 'data'
-          ) {
+          if (isDataCellOp) {
+            if (isFormulaDerivedValueOp) {
+              return
+            }
             // Sorting/filtering can emit data add/remove operations for row reordering.
             // Persisting those as normal cell edits can wipe/misplace values.
             if (shouldSkipCellPersistenceForBatch) {
@@ -1577,6 +1691,56 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             // Map data row index to row ID (context uses data indices, not FortuneSheet indices)
             const rowId = context.rowIndexToId.get(rowIndex)
             const columnId = context.columnIndexToId.get(colIndex)
+
+            // Handle comment (ps) changes
+            if (onCommentChange && rowId && columnId) {
+              // Skip if we just submitted from the comment popover (avoids duplicate createComment)
+              const recent = lastCommentSubmitRef.current
+              const cellMatches =
+                recent && recent.row === fortuneSheetRowIndex && recent.col === colIndex && Date.now() - recent.at < 500
+              if (cellMatches) {
+                lastCommentSubmitRef.current = null
+                const isPsOp =
+                  (op.path.length >= 4 && op.path[3] === 'ps') ||
+                  (op.path.length === 3 &&
+                    (op.op === 'replace' || op.op === 'add') &&
+                    op.value &&
+                    typeof op.value === 'object' &&
+                    !Array.isArray(op.value) &&
+                    'ps' in (op.value as object))
+                if (isPsOp) return
+              }
+
+              if (op.path.length >= 4 && op.path[3] === 'ps') {
+                if (op.op === 'remove') {
+                  onCommentChange(rowId, columnId, null)
+                } else if (op.op === 'replace' || op.op === 'add') {
+                  const psVal =
+                    op.value && typeof op.value === 'object' && 'value' in (op.value as object)
+                      ? (op.value as { value: string }).value
+                      : null
+                  onCommentChange(rowId, columnId, psVal != null && psVal !== '' ? { value: psVal } : null)
+                }
+                return
+              }
+              if (
+                op.path.length === 3 &&
+                (op.op === 'replace' || op.op === 'add') &&
+                op.value &&
+                typeof op.value === 'object' &&
+                !Array.isArray(op.value)
+              ) {
+                const cellObj = op.value as Record<string, unknown>
+                const ps = cellObj.ps as { value?: string } | undefined
+                if (ps?.value) {
+                  onCommentChange(rowId, columnId, { value: ps.value })
+                } else {
+                  onCommentChange(rowId, columnId, null)
+                }
+              } else if (op.op === 'remove' && op.path.length === 3) {
+                onCommentChange(rowId, columnId, null)
+              }
+            }
 
             // Extract cell value - handle both direct values and cell objects
             // For 'remove' ops (cell clear, undo), the cell should become null
@@ -2210,6 +2374,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         collaboration,
         context,
         onCellChange,
+        onCommentChange,
         onDataChange,
         onColumnAdd,
         onColumnRename,
@@ -2234,6 +2399,54 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       }
     }, [])
 
+    // Sync comment text when popover opens
+    // Inject "Comment" into FortuneSheet's context menu (it doesn't support "comment" in cellContextMenu)
+    useEffect(() => {
+      if (isReadOnly || !onCommentChange) return
+
+      const injectedMarker = 'data-gba-comment-injected'
+      const tryInject = () => {
+        const menu = document.querySelector('.fortune-context-menu')
+        if (!menu || menu.querySelector(`[${injectedMarker}]`)) return
+
+        const divider = document.createElement('div')
+        divider.className = 'fortune-context-menu-divider'
+
+        const item = document.createElement('div')
+        item.className = 'luckysheet-cols-menuitem'
+        item.setAttribute(injectedMarker, '1')
+        item.textContent = 'Comment'
+        item.style.cursor = 'pointer'
+        item.dataset.testid = 'spreadsheet-context-menu-comment'
+        item.addEventListener('click', e => {
+          e.stopPropagation()
+          e.preventDefault()
+          lastCommentClickPositionRef.current = { top: e.clientY + 8, left: e.clientX }
+          // Close context menu: try Escape first (lets FortuneSheet unmount cleanly).
+          // Fallback: hide the menu — never call remove(); React owns the node and
+          // removing it causes "removeChild" errors when React tries to unmount.
+          const menu = document.querySelector('.fortune-context-menu') as HTMLElement | null
+          const escEv = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true })
+          document.dispatchEvent(escEv)
+          if (menu) {
+            menu.style.visibility = 'hidden'
+            menu.style.pointerEvents = 'none'
+          }
+          requestAnimationFrame(() => commentMenuHandlerRef.current())
+        })
+
+        menu.appendChild(divider)
+        menu.appendChild(item)
+      }
+
+      const observer = new MutationObserver(() => {
+        requestAnimationFrame(tryInject)
+      })
+      observer.observe(document.body, { childList: true, subtree: true })
+
+      return () => observer.disconnect()
+    }, [isReadOnly, onCommentChange])
+
     // Render loading state
     if (!initialFortuneSheetData) {
       return (
@@ -2243,10 +2456,79 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       )
     }
 
+    const handleCommentSubmit = useCallback(
+      (content: string) => {
+        if (!commentPopover || !onCommentChange) return
+        const text = content.trim()
+        const { row, col, rowId, columnId } = commentPopover
+        // Mark so handleOp skips duplicate onCommentChange when FortuneSheet emits ps op
+        lastCommentSubmitRef.current = { row, col, at: Date.now() }
+        try {
+          const workbook = workbookRef.current as any
+          if (workbook) {
+            const opts = { id: sheet.id }
+            if (text) {
+              const psValue = { value: text, isShow: false, left: null, top: null, width: null, height: null }
+              try {
+                workbook.setCellFormat?.(row, col, 'ps', psValue, opts)
+              } catch {
+                try {
+                  ;(workbook as any).setCellValue?.(row, col, psValue, { ...opts, type: 'ps' })
+                } catch {
+                  const cell = workbook.getSheet?.()?.data?.[row]?.[col] ?? {}
+                  const nextCell = { ...(typeof cell === 'object' && cell ? cell : {}), ps: psValue }
+                  workbook.setCellValue?.(row, col, nextCell, opts)
+                }
+              }
+              onCommentChange(rowId, columnId, { value: text })
+            } else {
+              try {
+                workbook.setCellFormat?.(row, col, 'ps', null, opts)
+              } catch {
+                const cell = workbook.getSheet?.()?.data?.[row]?.[col]
+                if (cell && typeof cell === 'object') {
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructure to omit ps
+                  const { ps, ...rest } = cell as Record<string, unknown>
+                  workbook.setCellValue?.(row, col, Object.keys(rest).length ? rest : null, opts)
+                }
+              }
+              onCommentChange(rowId, columnId, null)
+            }
+          } else {
+            onCommentChange(rowId, columnId, text ? { value: text } : null)
+          }
+        } finally {
+          setCommentPopover(null)
+        }
+      },
+      [commentPopover, onCommentChange, sheet.id]
+    )
+
     return (
       <div ref={sheetContainerRef} className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:overflow-hidden">
+        {commentPopover && (
+          <>
+            <div
+              className="gba:fixed gba:inset-0 gba:z-[9998]"
+              onClick={() => setCommentPopover(null)}
+              role="presentation"
+              aria-hidden
+            />
+            <InlineCommentPopover
+              isOpen={true}
+              position={commentPopover.position}
+              initialValue={commentPopover.existingValue}
+              onSubmit={handleCommentSubmit}
+              onClose={() => setCommentPopover(null)}
+              data-testid="spreadsheet-cell-comment-popover"
+            />
+          </>
+        )}
         <div
           className="fortunesheet-container"
+          onContextMenuCapture={e => {
+            contextMenuOpenPositionRef.current = { top: e.clientY + 8, left: e.clientX }
+          }}
           onMouseUp={handleContainerMouseUp}
           onKeyDownCapture={handleContainerKeyDown}
           onPasteCapture={handlePasteCapture}
@@ -2305,6 +2587,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               '|',
               'freeze',
               'filter',
+              'comment',
               '|',
               'quick-formula'
             ]}

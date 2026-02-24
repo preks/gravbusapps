@@ -5,6 +5,7 @@
  */
 
 import React, { memo } from 'react'
+import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, useTranslation } from '@newwork/nw-design-system'
 import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicFormGenerator'
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
@@ -65,6 +66,8 @@ export interface SpreadsheetDialogsSectionProps {
   onUnhighlight?: (commentId: string) => void
   /** Get currently selected cell as A1 reference for new comments */
   getSelectedCellRef?: () => string | null
+  /** Active sheet ID for cell comments */
+  activeSheetId?: string
   comments: {
     comments: unknown[]
     unresolvedCount: number
@@ -111,7 +114,9 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
     onScrollToHighlight,
     onUnhighlight,
     getSelectedCellRef,
+    activeSheetId,
     comments,
+    onDeleteComment,
     currentUserId,
     currentUserName,
     currentUserAvatar,
@@ -229,28 +234,78 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
 
         {showComments && (
           <CommentPanel
-            comments={comments.comments}
-            unresolvedCount={comments.unresolvedCount}
+            comments={
+              Array.isArray(comments.comments)
+                ? (comments.comments as Array<{ sheetId?: string }>).filter(
+                    c => !c.sheetId || c.sheetId === activeSheetId
+                  )
+                : []
+            }
+            unresolvedCount={
+              Array.isArray(comments.comments)
+                ? (comments.comments as Array<{ sheetId?: string; parentId?: string; resolvedAt?: string }>).filter(
+                    c => !c.parentId && !c.resolvedAt && (!c.sheetId || c.sheetId === activeSheetId)
+                  ).length
+                : comments.unresolvedCount
+            }
             isLoading={comments.isLoading}
+            messages={{
+              title: t('shared-comment-panel-title'),
+              unresolvedCount: t('shared-comment-unresolved'),
+              unresolvedTab: t('shared-comment-unresolved-tab'),
+              resolvedTab: t('shared-comment-resolved-tab'),
+              allCaughtUp: t('shared-comment-all-caught-up'),
+              allResolved: t('shared-comment-all-resolved'),
+              noResolved: t('shared-comment-no-resolved'),
+              resolvedHere: t('shared-comment-resolved-here'),
+              loading: t('shared-comment-loading'),
+              addPlaceholder: t('shared-comment-placeholder')
+            }}
+            threadMessages={{
+              reply: t('shared-comment-reply'),
+              edit: t('shared-comment-edit'),
+              resolve: t('shared-comment-resolve'),
+              delete: t('shared-comment-delete'),
+              resolved: t('shared-comment-resolved'),
+              confirmDelete: t('shared-comment-confirm-delete'),
+              editPlaceholder: t('shared-comment-edit-placeholder'),
+              replyPlaceholder: t('shared-comment-reply-placeholder')
+            }}
+            editorMessages={{
+              cancel: t('shared-comment-cancel'),
+              send: t('shared-comment-send'),
+              sending: t('shared-comment-sending'),
+              sendHint: t('shared-comment-send-hint')
+            }}
             onCreateComment={async (content, parentId, userName, userAvatar) => {
               const cellRef = !parentId ? getSelectedCellRef?.() : undefined
-              await comments.createComment({
+              const result = await comments.createComment({
                 type: parentId ? 'document' : 'cell',
                 content,
                 parentId,
                 cellReference: cellRef ?? undefined,
+                sheetId: cellRef ? activeSheetId : undefined,
                 createdByName: userName,
                 createdByAvatar: userAvatar
               })
+              if (!result) {
+                toast.error(t('shared-error-create-comment'))
+                throw new Error('Failed to create comment')
+              }
             }}
             onUpdateComment={async (commentId, content) => {
               await comments.updateComment(commentId, { content })
             }}
             onResolveComment={async commentId => {
-              await comments.resolveComment(commentId)
+              const ok = await comments.resolveComment(commentId)
+              if (!ok) toast.error(t('shared-error-resolve-comment'))
             }}
             onDeleteComment={async commentId => {
-              await comments.deleteComment(commentId)
+              if (onDeleteComment) {
+                await onDeleteComment(commentId)
+              } else {
+                await comments.deleteComment(commentId)
+              }
             }}
             onClose={() => setShowComments(false)}
             currentUserId={currentUserId}

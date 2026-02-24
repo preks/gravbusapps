@@ -59,6 +59,8 @@ export interface TableViewProps {
   }) => void
   /** Called when FortuneSheet row/column size state changes (for persistence) */
   onLayoutStateChange?: (layoutState: { rowlen?: Record<string, number>; columnlen?: Record<string, number> }) => void
+  /** Called when a cell comment is added, updated, or removed */
+  onCommentChange?: (rowId: string, columnId: string, comment: { value: string } | null) => void
 }
 
 /**
@@ -96,7 +98,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   receivedOpsQueueRef,
   processOpsTrigger,
   onFilterStateChange,
-  onLayoutStateChange
+  onLayoutStateChange,
+  onCommentChange
 }) {
   const handleCellChange = useCallback(
     (rowId: string, columnId: string, value: unknown, options?: { fromRemote?: boolean }) => {
@@ -145,6 +148,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         processOpsTrigger={processOpsTrigger}
         onFilterStateChange={onFilterStateChange}
         onLayoutStateChange={onLayoutStateChange}
+        onCommentChange={onCommentChange}
         height="100%"
         width="100%"
       />

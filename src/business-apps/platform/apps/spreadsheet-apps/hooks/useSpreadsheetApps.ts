@@ -437,14 +437,23 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       try {
         const updatedSheet = await SpreadsheetApiService.updateSheet(appId, sheetId, updates)
 
-        // Update local state
+        // Update local state. Preserve existing sheet.data when the API returns empty
+        // (PATCH only updates metadata; sheet data lives in rows and is fetched separately).
         if (state.currentApp?.id === appId) {
           setState(prev => ({
             ...prev,
             currentApp: prev.currentApp
               ? {
                   ...prev.currentApp,
-                  sheets: prev.currentApp.sheets.map(s => (s.id === sheetId ? { ...s, ...updatedSheet } : s))
+                  sheets: prev.currentApp.sheets.map(s => {
+                    if (s.id !== sheetId) return s
+                    const merged = { ...s, ...updatedSheet }
+                    const hasData = Array.isArray(updatedSheet.data) && updatedSheet.data.length > 0
+                    if (!hasData && Array.isArray(s.data)) {
+                      merged.data = s.data
+                    }
+                    return merged
+                  })
                 }
               : null
           }))

@@ -13,13 +13,22 @@ export interface KanbanViewProps {
   data: Record<string, unknown>[]
   view: SheetView
   onEdit: (row: Record<string, unknown>) => void
+  /** When false, cards are not clickable for editing (e.g. when spreadsheet is locked by another user) */
+  canEdit?: boolean
   testId: string
 }
 
 /**
  * KanbanView - Kanban board grouped by status column
  */
-export const KanbanView = memo<KanbanViewProps>(function KanbanView({ sheet, data, view, onEdit, testId }) {
+export const KanbanView = memo<KanbanViewProps>(function KanbanView({
+  sheet,
+  data,
+  view,
+  onEdit,
+  canEdit = true,
+  testId
+}) {
   if (view.config.type !== 'kanban') {
     return null
   }
@@ -72,8 +81,8 @@ export const KanbanView = memo<KanbanViewProps>(function KanbanView({ sheet, dat
               {items.map(row => (
                 <Card
                   key={row._id as string}
-                  className="gba:p-4 gba:cursor-pointer gba:hover:shadow-md gba:transition-shadow"
-                  onClick={() => onEdit(row)}
+                  className={`gba:p-4 gba:transition-shadow ${canEdit ? 'gba:cursor-pointer gba:hover:shadow-md' : ''}`}
+                  onClick={canEdit ? () => onEdit(row) : undefined}
                 >
                   <p className="gba:font-medium gba:text-foreground gba:mb-1">
                     {String(row[titleColumn] || 'Untitled')}

@@ -96,6 +96,10 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
   })
 
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const onLockExpiredRef = useRef(onLockExpired)
+  const onErrorRef = useRef(onError)
+  onLockExpiredRef.current = onLockExpired
+  onErrorRef.current = onError
 
   /**
    * Check current lock status
@@ -111,7 +115,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     try {
       const lock = await apiService.getLockStatus(entityId)
       if (isExpired(lock)) {
-        onLockExpired?.()
+        onLockExpiredRef.current?.()
         setState(prev => ({
           ...prev,
           lock: markUnlocked(lock),
@@ -139,11 +143,12 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
         isChecking: false
       }))
 
-      if (onError) {
-        onError(error instanceof Error ? error : new Error(errorMessage))
+      const errFn = onErrorRef.current
+      if (errFn) {
+        errFn(error instanceof Error ? error : new Error(errorMessage))
       }
     }
-  }, [entityId, currentUserId, apiService, onLockExpired, onError, t])
+  }, [entityId, currentUserId, apiService, t])
 
   /**
    * Acquire a lock on the file

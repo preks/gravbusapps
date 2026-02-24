@@ -36,6 +36,7 @@ import { StatusIndicators } from './StatusIndicators'
 import { SpreadsheetActionsMenu } from './SpreadsheetActionsMenu'
 import { AutoSaveIndicator } from '../../shared/components/AutoSaveIndicator'
 import { StatusBadge } from '../../shared/components/StatusBadge'
+import type { FileLock } from '../../shared/types/versioning'
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
 import type { CursorParticipant } from '../hooks/useSpreadsheetCellSelection'
 import translations from '../_i18n'
@@ -78,7 +79,7 @@ export interface SpreadsheetHeaderProps {
 
   // File lock
   fileLock: {
-    lock: { isLocked: boolean } | null
+    lock: FileLock | null
     isLockedByMe: boolean
     acquireLock: () => void
     releaseLock: () => void
@@ -192,7 +193,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
     <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
       <div className="gba:flex gba:items-center gba:justify-between gba:min-w-0 gba:w-full">
         {/* Left: Breadcrumb Navigation */}
-        <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
+        <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0 gba:flex-1">
           {onBack && (
             <Button
               variant="ghost"
@@ -205,7 +206,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             </Button>
           )}
           {onBack && <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/50 gba:flex-shrink-0" />}
-          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:flex-1">
             <div className="gba:relative gba:flex-shrink-0">
               <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-primary/70 gba:flex gba:items-center gba:justify-center gba:shadow-sm">
                 {(() => {
@@ -226,7 +227,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                   onBlur={handleNameBlur}
                   onKeyDown={handleNameKeyDown}
                   placeholder="Spreadsheet name"
-                  className="gba:text-base gba:font-semibold gba:border-0 gba:px-0 gba:h-auto gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0 gba:rounded-none"
+                  className="gba:w-full gba:text-base gba:font-semibold gba:border-0 gba:px-0 gba:h-auto gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0 gba:rounded-none"
                   data-testid={`${testId}-name-input`}
                 />
               ) : (
@@ -338,6 +339,14 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                 <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
                   <Lock className="gba:h-3 gba:w-3" />
                   {t('lock-status-locked')}
+                </Badge>
+              )}
+              {fileLock.lock?.isLocked && !fileLock.isLockedByMe && (
+                <Badge variant="muted" className="gba:flex gba:items-center gba:gap-1">
+                  <Lock className="gba:h-3 gba:w-3" />
+                  {t('lock-status-locked-by', {
+                    name: fileLock.lock.lockedByName || t('lock-status-locked-by-unknown')
+                  })}
                 </Badge>
               )}
 
