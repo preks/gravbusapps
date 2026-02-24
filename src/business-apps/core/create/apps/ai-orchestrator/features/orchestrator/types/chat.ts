@@ -38,6 +38,6 @@ export const CANVAS_TABS: CanvasTabInfo[] = [
   { id: 'functions', label: 'Functions' },
   { id: 'task-expert', label: 'Task Expert' },
   { id: 'flow', label: 'Flow' },
-  { id: 'data-flow', label: 'App Diagram' },
+  { id: 'data-flow', label: 'Architecture' },
   { id: 'about', label: 'About' }
 ]

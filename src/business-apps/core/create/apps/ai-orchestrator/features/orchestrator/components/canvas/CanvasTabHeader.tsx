@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { cn } from '@newwork/nw-design-system'
-import { Monitor, Database, Code2, Bot, Workflow, Info, ClipboardList, GitFork } from 'lucide-react'
+import { Monitor, Database, Code2, Bot, Workflow, Info, ClipboardList, Layers } from 'lucide-react'
 import type { CanvasTab } from '../../types/chat'
 import { CANVAS_TABS } from '../../types/chat'
 
@@ -17,7 +17,7 @@ interface CanvasTabHeaderProps {
 
 const TAB_ICONS: Record<CanvasTab, React.ElementType> = {
   'build-plan': ClipboardList,
-  'data-flow': GitFork,
+  'data-flow': Layers,
   screen: Monitor,
   'data-model': Database,
   functions: Code2,
