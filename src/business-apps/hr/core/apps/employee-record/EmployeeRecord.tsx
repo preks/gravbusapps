@@ -37,6 +37,7 @@ import HrAdminTab from './components/tabs/HrAdminTab'
 import HrGrowthTab from './components/tabs/HrGrowthTab'
 import CompensationTab from './components/tabs/CompensationTab'
 import AssetsTab from './components/tabs/AssetsTab'
+import PerformanceEvaluationTab from './components/tabs/performance-evaluation/PerformanceEvaluationTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import translations from './_i18n'
@@ -53,7 +54,8 @@ const TAB_KEYS = {
   hrAdmin: 'hrAdmin',
   hrGrowth: 'hrGrowth',
   compensation: 'compensation',
-  serviceRequests: 'serviceRequests'
+  serviceRequests: 'serviceRequests',
+  performanceEvaluation: 'performanceEvaluation'
 }
 
 const getUrlParams = () => {
@@ -533,6 +535,24 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           </div>
         )
       },
+      ...(devFeatureFlag
+        ? [
+            {
+              value: TAB_KEYS.performanceEvaluation,
+              label: t('employee-record-tab-performance-evaluation'),
+              icon: <ChartBarIcon className="gba:mr-2" size={20} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <PerformanceEvaluationTab
+                    employee={employee}
+                    accessToken={accessToken}
+                    employeeId={employeeIdToShow}
+                  />
+                </div>
+              )
+            }
+          ]
+        : []),
       ...(compensationFeatureFlag
         ? [
             {
@@ -678,6 +698,28 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
 
       if (tabKey === TAB_KEYS.hrGrowth) {
+        const hasSkillsAccess =
+          isDirectManagerWithPermission ||
+          tabPermissions?.['skills']?.hasAccess !== false ||
+          employeeRecordAllEmployees?.hasPermission === true ||
+          isManagerWithPermissionButNotDirect
+        const hasFeedbackAccess =
+          isDirectManagerWithPermission ||
+          (devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true) ||
+          employeeRecordAllEmployees?.hasPermission === true ||
+          isManagerWithPermissionButNotDirect
+        const hasPerformanceAccess =
+          isSelfView || isDirectManagerWithPermission || employeeRecordAllHrBackoffice?.hasPermission === true
+        const visible =
+          employeeRecordAllEmployees?.hasPermission === true ||
+          hasSkillsAccess ||
+          hasFeedbackAccess ||
+          hasPerformanceAccess ||
+          devFeatureFlag
+        return visible
+      }
+
+      if (tabKey === TAB_KEYS.performanceEvaluation) {
         const hasSkillsAccess =
           isDirectManagerWithPermission ||
           tabPermissions?.['skills']?.hasAccess !== false ||
