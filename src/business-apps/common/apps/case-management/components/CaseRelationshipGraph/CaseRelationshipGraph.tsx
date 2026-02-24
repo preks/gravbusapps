@@ -6,7 +6,8 @@
  */
 
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
-import ReactFlow, {
+import {
+  ReactFlow,
   Background,
   Controls,
   MiniMap,
@@ -16,8 +17,8 @@ import ReactFlow, {
   useReactFlow,
   Node,
   Edge
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import { AlertCircle, FileText, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@newwork/nw-design-system'
 

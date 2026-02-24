@@ -4,7 +4,7 @@ import { PerformanceEvaluationPeerApproveFormValues, NominatedPeer } from '../ty
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useNominatedPeersFromProcess } from '../hooks/useNominatedPeersFromProcess'
 import { useEmployeeDisplayNames } from '../hooks/useEmployeeDisplayNames'
-import { useEmployeeByUserId } from '../../performance-evaluation-form/hooks/useEmployeeByUserId'
+import { useEmployeeForPeerApproveHeader } from '../hooks/useEmployeeForPeerApproveHeader'
 
 export interface EmployeeForHeader {
   firstName: string
@@ -77,21 +77,12 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
   const [error, setError] = useState<string | null>(null)
 
   const ad = businessAppContext?.additionalData as Record<string, unknown> | undefined
-  const taskPayload = ad?.psi_taskPayload as Record<string, unknown> | undefined
-  const creatorUserId = taskPayload?.creatorUserId as string | undefined
-  const { employee: employeeByUserId, loading: employeeForHeaderLoading } = useEmployeeByUserId({
-    accessToken: businessAppContext?.accessToken ?? '',
-    userId: creatorUserId
-  })
-  const employeeForHeader = useMemo((): EmployeeForHeader | null => {
-    if (!employeeByUserId) return null
-    return {
-      firstName: employeeByUserId.firstName ?? '',
-      lastName: employeeByUserId.lastName ?? '',
-      pictureThumbnail: employeeByUserId.employee?.pictureThumbnail ?? undefined,
-      jobTitle: employeeByUserId.jobPosition?.name ?? undefined
-    }
-  }, [employeeByUserId])
+
+  const {
+    employeeForHeader,
+    loading: employeeForHeaderLoading,
+    error: employeeForHeaderError
+  } = useEmployeeForPeerApproveHeader(businessAppContext?.accessToken, ad)
 
   const {
     peers: peersFromProcess,
@@ -115,7 +106,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       })),
     [nominatedPeersRaw, displayNames]
   )
-  const resolvedError = error ?? peersError
+  const resolvedError = error ?? peersError ?? employeeForHeaderError
   const peersLoadingResolved = peersLoading || (peerIds.length > 0 && namesLoading)
 
   const clearError = useCallback(() => setError(null), [])
