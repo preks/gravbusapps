@@ -489,19 +489,20 @@ export function convertToFortuneSheet(
   data.forEach((_, rowIndex) => {
     rowlen[String(rowIndex + HEADER_ROW_OFFSET)] = DATA_ROW_HEIGHT
   })
+  const persistedRowlen = sheet.settings?.fortuneSheetLayoutState?.rowlen ?? {}
+  const persistedColumnlen = sheet.settings?.fortuneSheetLayoutState?.columnlen ?? {}
+  const mergedRowlen = { ...rowlen, ...persistedRowlen }
+  const mergedColumnlen = { ...columnlen, ...persistedColumnlen }
 
   // Ensure config is always a valid object (FortuneSheet expects `{}` not null/undefined)
   const safeConfig: NonNullable<FortuneSheetConfig['config']> = {
     merge: Object.keys(mergeConfig).length > 0 ? mergeConfig : {},
-    rowlen: Object.keys(rowlen).length > 0 ? rowlen : {},
-    columnlen: {},
+    rowlen: Object.keys(mergedRowlen).length > 0 ? mergedRowlen : {},
+    columnlen: Object.keys(mergedColumnlen).length > 0 ? mergedColumnlen : {},
     rowhidden: sheet.settings?.fortuneSheetFilterState?.rowhidden ?? {},
     colhidden: {},
     borderInfo: [],
     authority: {}
-  }
-  if (Object.keys(columnlen).length > 0) {
-    safeConfig.columnlen = columnlen
   }
 
   // CRITICAL: Based on FortuneSheet documentation and the error we're seeing,

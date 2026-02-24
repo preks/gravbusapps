@@ -77,6 +77,8 @@ export interface FortuneSheetGridProps {
     filter_select?: Record<string, unknown>
     rowhidden?: Record<string, number>
   }) => void
+  /** Called when FortuneSheet row/column size state changes (for persistence across refreshes) */
+  onLayoutStateChange?: (layoutState: { rowlen?: Record<string, number>; columnlen?: Record<string, number> }) => void
 }
 
 /** Ref handle for imperative actions */
@@ -97,6 +99,19 @@ function openSafeHttpUrl(rawUrl: string): void {
   if (typeof globalThis.window === 'undefined' || !rawUrl) return
   if (!(rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) return
   globalThis.window.open(rawUrl, '_blank', 'noopener,noreferrer')
+}
+
+function areNumericRecordEqual(
+  left: Record<string, number> | undefined,
+  right: Record<string, number> | undefined
+): boolean {
+  const leftEntries = Object.entries(left ?? {})
+  const rightEntries = Object.entries(right ?? {})
+  if (leftEntries.length !== rightEntries.length) return false
+  for (const [key, value] of leftEntries) {
+    if (right?.[key] !== value) return false
+  }
+  return true
 }
 
 const EURO_CURRENCY_FORMAT = '€#,##0.00'
@@ -128,7 +143,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       remoteUpdateKey = 0,
       receivedOpsQueueRef,
       processOpsTrigger,
-      onFilterStateChange
+      onFilterStateChange,
+      onLayoutStateChange
     } = props
 
     // Track if we're currently processing a local edit (to prevent feedback loops)
@@ -144,6 +160,11 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
     // Track the previous colhidden state to diff when FortuneSheet replaces the full config
     const prevColHiddenRef = useRef<Record<string, number>>({})
+    const layoutPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const lastEmittedLayoutRef = useRef<{
+      rowlen?: Record<string, number>
+      columnlen?: Record<string, number>
+    } | null>(null)
 
     const workbookRef = useRef<WorkbookInstance | null>(null)
     const sheetContainerRef = useRef<HTMLDivElement>(null)
@@ -160,6 +181,33 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
      * fallback to identify the target cell even when getSelection() fails.
      */
     const lastKnownSelectionRef = useRef<{ fortuneSheetRow: number; colIndex: number } | null>(null)
+
+    const scheduleLayoutStateCapture = useCallback(() => {
+      if (!onLayoutStateChange) return
+      if (layoutPersistTimerRef.current) {
+        clearTimeout(layoutPersistTimerRef.current)
+      }
+      layoutPersistTimerRef.current = setTimeout(() => {
+        try {
+          const currentSheet = workbookRef.current?.getSheet()
+          const config = currentSheet?.config
+          const nextLayoutState = {
+            rowlen: config?.rowlen ?? {},
+            columnlen: config?.columnlen ?? {}
+          }
+          const previous = lastEmittedLayoutRef.current
+          const hasChanged =
+            !previous ||
+            !areNumericRecordEqual(previous.rowlen, nextLayoutState.rowlen) ||
+            !areNumericRecordEqual(previous.columnlen, nextLayoutState.columnlen)
+          if (!hasChanged) return
+          lastEmittedLayoutRef.current = nextLayoutState
+          onLayoutStateChange(nextLayoutState)
+        } catch {
+          // Workbook not ready yet
+        }
+      }, 250)
+    }, [onLayoutStateChange])
 
     useEditorKeyboardIsolation(sheetContainerRef)
 
@@ -1901,6 +1949,10 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             }
           }
         }
+
+        if (ops.some(op => op.path[0] === 'config')) {
+          scheduleLayoutStateCapture()
+        }
       },
       [
         applyTextWrapAndExpand,
@@ -1917,10 +1969,19 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         onRowsDelete,
         onColumnVisibilityChange,
         onFilterStateChange,
+        scheduleLayoutStateCapture,
         columns,
         data
       ]
     )
+
+    useEffect(() => {
+      return () => {
+        if (layoutPersistTimerRef.current) {
+          clearTimeout(layoutPersistTimerRef.current)
+        }
+      }
+    }, [])
 
     // Render loading state
     if (!initialFortuneSheetData) {

@@ -56,6 +56,8 @@ export interface TableViewProps {
     filter_select?: Record<string, unknown>
     rowhidden?: Record<string, number>
   }) => void
+  /** Called when FortuneSheet row/column size state changes (for persistence) */
+  onLayoutStateChange?: (layoutState: { rowlen?: Record<string, number>; columnlen?: Record<string, number> }) => void
 }
 
 /**
@@ -91,7 +93,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   remoteUpdateKey,
   receivedOpsQueueRef,
   processOpsTrigger,
-  onFilterStateChange
+  onFilterStateChange,
+  onLayoutStateChange
 }) {
   const handleCellChange = useCallback(
     (rowId: string, columnId: string, value: unknown, options?: { fromRemote?: boolean }) => {
@@ -138,6 +141,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         receivedOpsQueueRef={receivedOpsQueueRef}
         processOpsTrigger={processOpsTrigger}
         onFilterStateChange={onFilterStateChange}
+        onLayoutStateChange={onLayoutStateChange}
         height="100%"
         width="100%"
       />

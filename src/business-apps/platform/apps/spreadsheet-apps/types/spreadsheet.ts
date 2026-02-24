@@ -422,6 +422,11 @@ export interface SheetSettings {
     filter_select?: Record<string, unknown>
     rowhidden?: Record<string, number>
   }
+  /** Persisted FortuneSheet row/column sizing state (restored on reload after manual resize). */
+  fortuneSheetLayoutState?: {
+    rowlen?: Record<string, number>
+    columnlen?: Record<string, number>
+  }
 }
 
 /**

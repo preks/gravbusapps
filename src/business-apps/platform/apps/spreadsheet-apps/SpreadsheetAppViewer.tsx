@@ -1035,6 +1035,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheet.settings, persistSheetPatch]
   )
 
+  // --- Layout state persistence (FortuneSheet row/column resize survives refresh) ---
+  const handleLayoutStateChange = useCallback(
+    (layoutState: { rowlen?: Record<string, number>; columnlen?: Record<string, number> }) => {
+      persistSheetPatch({
+        settings: { ...activeSheet.settings, fortuneSheetLayoutState: layoutState }
+      })
+    },
+    [activeSheet.settings, persistSheetPatch]
+  )
+
   // --- Column visibility from FortuneSheet context menu ---
   const handleColumnVisibilityChange = useCallback(
     (columnIndices: number[], visible: boolean) => {
@@ -1317,6 +1327,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onRowsDelete={handleRowsDelete}
             onColumnVisibilityChange={handleColumnVisibilityChange}
             onFilterStateChange={handleFilterStateChange}
+            onLayoutStateChange={handleLayoutStateChange}
             onColumnRename={columnsState.handleRenameColumn}
             participants={collaboration.cursorParticipants}
             onOperationEmit={op => collaboration.emitOperation(op as any)}
