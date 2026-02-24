@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_TEAM_CALENDAR_DAYS } from '../queries/CalendarViewQueries'
-import { getAbsenceStatusColor, getAbsenceStatusType } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import {
+  getAbsenceStatusColor,
+  getAbsenceStatusType,
+  getAbsenceStatusBadgeVariant
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 interface ViewRow {
   employeeId: string
@@ -56,8 +60,8 @@ export function useBackofficeTeamCalendarDays(
           const label = mapType ? mapType(r.typeRef)?.label || r.typeRef : r.typeRef
           // Represent each day as an event from day start to day start (CalendarTimeline will render a marker)
           const start = dayjs(r.dayDate).startOf('day').toISOString()
-          // Use a minimal non-zero duration so markers remain visible across component versions
-          const end = dayjs(start).add(1, 'hour').toISOString()
+          // Render as a full-day span to ensure pill coloring follows visualization patterns
+          const end = dayjs(start).add(1, 'day').toISOString()
           const typeColor = mapType ? mapType(r.typeRef)?.color : undefined
           return {
             id: `${r.employeeId}-${r.dayDate}-${r.typeRef}-${r.status}-${r.employeeAbsenceId || 'x'}`,
@@ -67,7 +71,7 @@ export function useBackofficeTeamCalendarDays(
             endDate: end,
             color: typeColor || getAbsenceStatusColor(r.status),
             status: r.status,
-            // Use status "type" as used elsewhere; CalendarTimeline styles can key off this
+            // Use the same semantic type strings as Manager calendar ('approved' | 'pending' | 'rejected' | 'cancelled')
             type: getAbsenceStatusType(r.status),
             note: label
           }
