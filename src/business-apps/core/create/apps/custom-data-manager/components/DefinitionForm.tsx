@@ -170,16 +170,13 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
           className="gba:flex-1 gba:overflow-hidden gba:flex gba:flex-col"
         >
           <TabsList className="gba:grid gba:grid-cols-3">
-            <TabsTrigger value="general" className="gba:flex gba:items-center gba:gap-1">
-              <Settings className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="general" startIcon={<Settings className="gba:h-4 gba:w-4" />}>
               General
             </TabsTrigger>
-            <TabsTrigger value="columns" className="gba:flex gba:items-center gba:gap-1">
-              <Database className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="columns" startIcon={<Database className="gba:h-4 gba:w-4" />}>
               Columns ({columns.length})
             </TabsTrigger>
-            <TabsTrigger value="preview" className="gba:flex gba:items-center gba:gap-1">
-              <Eye className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="preview" startIcon={<Eye className="gba:h-4 gba:w-4" />}>
               Preview
             </TabsTrigger>
           </TabsList>
