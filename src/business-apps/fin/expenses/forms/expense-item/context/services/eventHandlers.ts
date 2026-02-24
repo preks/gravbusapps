@@ -16,6 +16,271 @@ import {
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { FLOW_DOMAIN, FLOW_PROCESS_NAME } from '../constants'
 
+let positionIdFallbackCounter = 0
+
+const createPositionId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `position-${crypto.randomUUID()}`
+  }
+
+  positionIdFallbackCounter += 1
+  return `position-${Date.now()}-${positionIdFallbackCounter}`
+}
+
+const coerceRequestId = (id?: string) => (id && id !== '0' ? id : undefined)
+
+const uploadReceiptAndSupportingFiles = async ({
+  fileList,
+  supportingFileList,
+  accessToken,
+  employeeId,
+  t
+}: {
+  fileList?: any[]
+  supportingFileList?: any[]
+  accessToken?: string
+  employeeId?: string
+  t: (key: string, fallback: string) => string
+}) => {
+  let receiptUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
+  let supportingUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
+
+  if (accessToken && employeeId) {
+    if (fileList && fileList.length > 0) {
+      receiptUploadedFiles = await uploadDocuments(fileList, accessToken, employeeId, t)
+    }
+    if (supportingFileList && supportingFileList.length > 0) {
+      supportingUploadedFiles = await uploadDocuments(supportingFileList, accessToken, employeeId, t)
+    }
+  }
+
+  return { receiptUploadedFiles, supportingUploadedFiles }
+}
+
+const resolveFlowContext = async ({
+  accessToken,
+  employeeId,
+  hasExpenseRequest,
+  userInfo,
+  getIsProcessEventDispatched,
+  t
+}: {
+  accessToken?: string
+  employeeId?: string
+  hasExpenseRequest: any
+  userInfo?: any
+  getIsProcessEventDispatched?: () => boolean
+  t: (key: string, fallback: string) => string
+}) => {
+  let flowProcessId: string | null = null
+  let taskId: string | null = null
+  let taskName: string | null = null
+
+  if (!accessToken || !employeeId || !hasExpenseRequest) {
+    return { flowProcessId, taskId, taskName }
+  }
+
+  try {
+    if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
+      return { flowProcessId, taskId, taskName }
+    }
+
+    const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
+    if (!flowResult?.id) {
+      return { flowProcessId, taskId, taskName }
+    }
+
+    flowProcessId = flowResult.id
+    const userId = userInfo?.id || ''
+
+    const tasksResult = await getOpenedTaskFlow(accessToken, userId, flowProcessId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
+    const firstTask = Array.isArray(tasksResult) ? tasksResult[0] : null
+
+    if (firstTask && typeof firstTask.id === 'string' && typeof firstTask.name === 'string') {
+      taskId = firstTask.id
+      taskName = firstTask.name
+    }
+  } catch {
+    showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
+  }
+
+  return { flowProcessId, taskId, taskName }
+}
+
+const formatExpensePositions = ({
+  positions,
+  customFields,
+  itemValues,
+  employeeRuleId
+}: {
+  positions: any[]
+  customFields: { [expenseTypeId: string]: any[] }
+  itemValues?: { id: string; version: string | number }
+  employeeRuleId: string | null | object
+}) => {
+  return positions.map((position, index) => {
+    const customFieldsArray = []
+    if (position.expenseType && customFields[position.expenseType] && position.customField) {
+      const customFieldData = customFields[position.expenseType][0]
+      if (customFieldData) {
+        customFieldsArray.push({
+          id: customFieldData.id,
+          infoValue: customFieldData.infoValue,
+          mandatory: customFieldData.mandatory || false,
+          value: position.customField
+        })
+      }
+    }
+
+    return {
+      ...(itemValues?.id && { expenseItem: itemValues.id }),
+      ...(position.persistedId && { id: position.persistedId }),
+      ...(position.persistedId && { version: position.persistedVersion }),
+      expenseGroupRef: position.expenseGroup,
+      expenseTypeRef: position.expenseType,
+      totalAmount: position.amount || 0,
+      positionOrder: index + 1,
+      expenseRuleGeneralExpense: position.expenseType,
+      costCenter: position.costCenter,
+      reimbursable: position.isReimbursable,
+      additionalProperties: {
+        customFields: customFieldsArray
+      },
+      source: DEFAULT_EXPENSE_SOURCE,
+      expenseRule: employeeRuleId as string
+    }
+  })
+}
+
+const buildSubmitData = ({
+  values,
+  positions,
+  itemValues,
+  computedExpenseRequestId,
+  generalDataResponse,
+  employeeId,
+  employeeRuleId,
+  multiPosition,
+  formattedPositions,
+  receiptUploadedFiles,
+  supportingUploadedFiles
+}: {
+  values: any
+  positions: any[]
+  itemValues?: { id: string; version: string | number }
+  computedExpenseRequestId: string | null
+  generalDataResponse: any
+  employeeId?: string
+  employeeRuleId: string | null | object
+  multiPosition: boolean
+  formattedPositions: any[]
+  receiptUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }>
+  supportingUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }>
+}) => {
+  return {
+    expenseItem: {
+      ...(itemValues?.id && { id: itemValues.id }),
+      ...(itemValues?.id && { version: itemValues.version }),
+      title: values.title,
+      expenseDate: values.date ? formatDateToISOString(values.date) : formatDateToISOString(new Date()),
+      totalAmount: calculateTotalAmount(positions),
+      source: DEFAULT_EXPENSE_SOURCE,
+      currencyRef: values.currency || DEFAULT_CURRENCY_ID,
+      ...(positions[0]?.costCenter ? { costCenter: positions[0].costCenter } : {}),
+      reimbursable: positions[0]?.isReimbursable || false,
+      expenseClassRef: DEFAULT_EXPENSE_CLASS_ID,
+      status: computedExpenseRequestId ? REQUEST_STATUS.ASSIGNED : DEFAULT_EXPENSE_STATUS,
+      multiplePositions: multiPosition,
+      expenseRequest: computedExpenseRequestId,
+      employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || '',
+      expenseRule: employeeRuleId as string
+    },
+    event: EVENTS.SUBMIT,
+    expensePositions: {
+      expensePositions: formattedPositions
+    },
+    expenseItemFiles: {
+      expenseFiles: [
+        ...receiptUploadedFiles.map(element => ({
+          fileType: element.fileType,
+          fileUrl: element.fileUrl,
+          fileName: element.fileName
+        })),
+        ...supportingUploadedFiles.map(element => ({
+          // Explicit marker so backend/parser can treat this as non-receipt attachment.
+          fileType: 'SUPPORTING_DOCUMENT',
+          fileUrl: element.fileUrl,
+          fileName: element.fileName
+        }))
+      ].map(element => ({
+        fileType: element.fileType,
+        fileUrl: element.fileUrl,
+        fileName: element.fileName
+      }))
+    }
+  }
+}
+
+const submitExpenseItem = async ({
+  flowProcessId,
+  taskId,
+  taskName,
+  hasExpenseRequest,
+  accessToken,
+  employeeId,
+  userInfo,
+  submitData,
+  dispatchProcessContinueEventIfEnabled,
+  t
+}: {
+  flowProcessId: string | null
+  taskId: string | null
+  taskName: string | null
+  hasExpenseRequest: any
+  accessToken?: string
+  employeeId?: string
+  userInfo?: any
+  submitData: any
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
+  t: (key: string, fallback: string) => string
+}) => {
+  let operationSuccessful = false
+
+  if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {
+    try {
+      const userId = userInfo?.id || ''
+      await completeTaskFlow(
+        accessToken,
+        userId,
+        flowProcessId,
+        taskName,
+        taskId,
+        submitData,
+        FLOW_DOMAIN,
+        FLOW_PROCESS_NAME
+      )
+      operationSuccessful = true
+    } catch {
+      showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
+    }
+  }
+
+  if (accessToken && employeeId && !hasExpenseRequest) {
+    try {
+      if (dispatchProcessContinueEventIfEnabled) {
+        dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
+      } else {
+        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
+      }
+      // operationSuccessful = true;
+    } catch {
+      showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in expense approval process'), 'error')
+    }
+  }
+
+  return operationSuccessful
+}
+
 /**
  * Uploads documents to the file server
  * @param fileList Array of file objects to upload
@@ -205,7 +470,7 @@ export const handleAddPosition = (
 ) => {
   const newPosition = {
     ...DEFAULT_POSITION,
-    id: `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    id: createPositionId(),
     costCenter: defaultCostCenter || '',
     amount: 0
   }
@@ -274,179 +539,72 @@ export const handleSubmit = async (
 ) => {
   try {
     setLoading(true)
-
     await form.validateFields()
 
     const values = form.getFieldsValue()
     const rawExpenseRequestId: string | undefined = form.getFieldValue('expenseRequestId')
-    const coerceRequestId = (id?: string) => (id && id !== '0' ? id : undefined)
     const normalizedExpenseRequestId = coerceRequestId(rawExpenseRequestId)
 
-    let receiptUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
-    let supportingUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
-    if (accessToken && employeeId) {
-      if (fileList && fileList.length > 0) {
-        receiptUploadedFiles = await uploadDocuments(fileList, accessToken, employeeId, t)
-      }
-      if (supportingFileList && supportingFileList.length > 0) {
-        supportingUploadedFiles = await uploadDocuments(supportingFileList, accessToken, employeeId, t)
-      }
-    }
+    const { receiptUploadedFiles, supportingUploadedFiles } = await uploadReceiptAndSupportingFiles({
+      fileList,
+      supportingFileList,
+      accessToken,
+      employeeId,
+      t
+    })
 
     // Check if we have an expense request from either the wizard or task payload
     const hasExpenseRequest =
       additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest
 
-    let flowProcessId: string | null = null
-    let taskId: string | null = null
-    let taskName: string | null = null
-
-    if (accessToken && employeeId && hasExpenseRequest) {
-      try {
-        // Check if process event is already dispatched
-        if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
-          return
-        }
-
-        const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
-        if (flowResult && flowResult.id) {
-          flowProcessId = flowResult.id
-          const userId = userInfo?.id || ''
-
-          const tasksResult = await getOpenedTaskFlow(
-            accessToken,
-            userId,
-            flowProcessId as string,
-            FLOW_DOMAIN,
-            FLOW_PROCESS_NAME
-          )
-
-          if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
-            const firstTask = tasksResult[0]
-            if (firstTask && typeof firstTask.id === 'string' && typeof firstTask.name === 'string') {
-              taskId = firstTask.id
-              taskName = firstTask.name
-            }
-          }
-        }
-      } catch {
-        showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
-      }
-    }
-
-    const formattedPositions = positions.map((position, index) => {
-      const customFieldsArray = []
-      if (position.expenseType && customFields[position.expenseType] && position.customField) {
-        const customFieldData = customFields[position.expenseType][0]
-        if (customFieldData) {
-          customFieldsArray.push({
-            id: customFieldData.id,
-            infoValue: customFieldData.infoValue,
-            mandatory: customFieldData.mandatory || false,
-            value: position.customField
-          })
-        }
-      }
-
-      return {
-        ...(itemValues?.id && { expenseItem: itemValues.id }),
-        ...(position.persistedId && { id: position.persistedId }),
-        ...(position.persistedId && { version: position.persistedVersion }),
-        expenseGroupRef: position.expenseGroup,
-        expenseTypeRef: position.expenseType,
-        totalAmount: position.amount || 0,
-        positionOrder: index + 1,
-        expenseRuleGeneralExpense: position.expenseType,
-        costCenter: position.costCenter,
-        reimbursable: position.isReimbursable,
-        additionalProperties: {
-          customFields: customFieldsArray
-        },
-        source: DEFAULT_EXPENSE_SOURCE,
-        expenseRule: employeeRuleId as string
-      }
+    const { flowProcessId, taskId, taskName } = await resolveFlowContext({
+      accessToken,
+      employeeId,
+      hasExpenseRequest,
+      userInfo,
+      getIsProcessEventDispatched,
+      t
     })
+
+    const formattedPositions = formatExpensePositions({
+      positions,
+      customFields,
+      itemValues,
+      employeeRuleId
+    })
+
     const computedExpenseRequestId =
       normalizedExpenseRequestId ??
       coerceRequestId(values?.expenseRequestId) ??
       additionalData?.expenseRequestId ??
       null
 
-    const submitData = {
-      expenseItem: {
-        ...(itemValues?.id && { id: itemValues.id }),
-        ...(itemValues?.id && { version: itemValues.version }),
-        title: values.title,
-        expenseDate: values.date ? formatDateToISOString(values.date) : formatDateToISOString(new Date()),
-        totalAmount: calculateTotalAmount(positions),
-        source: DEFAULT_EXPENSE_SOURCE,
-        currencyRef: values.currency || DEFAULT_CURRENCY_ID,
-        ...(positions[0]?.costCenter ? { costCenter: positions[0].costCenter } : {}),
-        reimbursable: positions[0]?.isReimbursable || false,
-        expenseClassRef: DEFAULT_EXPENSE_CLASS_ID,
-        status: computedExpenseRequestId ? REQUEST_STATUS.ASSIGNED : DEFAULT_EXPENSE_STATUS,
-        multiplePositions: multiPosition,
-        expenseRequest: computedExpenseRequestId,
-        employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || '',
-        expenseRule: employeeRuleId as string
-      },
-      event: EVENTS.SUBMIT,
-      expensePositions: {
-        expensePositions: formattedPositions
-      },
-      expenseItemFiles: {
-        expenseFiles: [
-          ...receiptUploadedFiles.map(element => ({
-            fileType: element.fileType,
-            fileUrl: element.fileUrl,
-            fileName: element.fileName
-          })),
-          ...supportingUploadedFiles.map(element => ({
-            // Explicit marker so backend/parser can treat this as non-receipt attachment.
-            fileType: 'SUPPORTING_DOCUMENT',
-            fileUrl: element.fileUrl,
-            fileName: element.fileName
-          }))
-        ].map(element => ({
-          fileType: element.fileType,
-          fileUrl: element.fileUrl,
-          fileName: element.fileName
-        }))
-      }
-    }
-    let operationSuccessful = false
+    const submitData = buildSubmitData({
+      values,
+      positions,
+      itemValues,
+      computedExpenseRequestId,
+      generalDataResponse,
+      employeeId,
+      employeeRuleId,
+      multiPosition,
+      formattedPositions,
+      receiptUploadedFiles,
+      supportingUploadedFiles
+    })
 
-    if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {
-      try {
-        const userId = userInfo?.id || ''
-        await completeTaskFlow(
-          accessToken,
-          userId,
-          flowProcessId as string,
-          taskName as string,
-          taskId as string,
-          submitData,
-          FLOW_DOMAIN,
-          FLOW_PROCESS_NAME
-        )
-        operationSuccessful = true
-      } catch {
-        showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
-      }
-    }
-
-    if (accessToken && employeeId && !hasExpenseRequest) {
-      try {
-        if (dispatchProcessContinueEventIfEnabled) {
-          dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
-        } else {
-          dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
-        }
-        // operationSuccessful = true;
-      } catch {
-        showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in expense approval process'), 'error')
-      }
-    }
+    const operationSuccessful = await submitExpenseItem({
+      flowProcessId,
+      taskId,
+      taskName,
+      hasExpenseRequest,
+      accessToken,
+      employeeId,
+      userInfo,
+      submitData,
+      dispatchProcessContinueEventIfEnabled,
+      t
+    })
 
     if (operationSuccessful) {
       showToast(

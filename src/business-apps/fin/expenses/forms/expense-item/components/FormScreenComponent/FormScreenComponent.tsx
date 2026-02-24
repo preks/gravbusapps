@@ -89,7 +89,17 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   const hadBackendRequestRef = useRef(false)
   const prevPositionsLengthRef = useRef(positions.length)
   const lastPositionCardRef = useRef<HTMLDivElement | null>(null)
+  const supportingUploadUidRef = useRef(0)
   const requiresSupportingDocument = requiredAttachmentInstructions.length > 0
+
+  const createSupportingUploadUid = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+
+    supportingUploadUidRef.current += 1
+    return `supporting-upload-${Date.now()}-${supportingUploadUidRef.current}`
+  }
 
   const validateSupportingFileType = (file: File) => {
     const isValidType = ALLOWED_FILE_TYPES.some(type => {
@@ -118,7 +128,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     setSupportingFileList([
       ...supportingFileList,
       {
-        uid: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        uid: createSupportingUploadUid(),
         name: file.name,
         status: 'done',
         originFileObj: file
