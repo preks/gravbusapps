@@ -69,16 +69,13 @@ export const CustomDataManagerDetailView: React.FC<CustomDataManagerDetailViewPr
         <Tabs value={detailTab} onValueChange={val => onChangeTab(val as any)}>
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
             <TabsList>
-              <TabsTrigger value="schema" className="gba:flex gba:items-center gba:gap-1">
-                <Database className="gba:h-4 gba:w-4" />
+              <TabsTrigger value="schema" startIcon={<Database className="gba:h-4 gba:w-4" />}>
                 Schema
               </TabsTrigger>
-              <TabsTrigger value="relationships" className="gba:flex gba:items-center gba:gap-1">
-                <LinkIcon className="gba:h-4 gba:w-4" />
+              <TabsTrigger value="relationships" startIcon={<LinkIcon className="gba:h-4 gba:w-4" />}>
                 Relationships
               </TabsTrigger>
-              <TabsTrigger value="settings" className="gba:flex gba:items-center gba:gap-1">
-                <Settings className="gba:h-4 gba:w-4" />
+              <TabsTrigger value="settings" startIcon={<Settings className="gba:h-4 gba:w-4" />}>
                 Settings
               </TabsTrigger>
             </TabsList>

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import {
   CustomDataDefinition,
   CustomDataNamespace,
@@ -36,9 +36,7 @@ interface CustomDataClient {
  * Hook to create a client for custom-data API calls
  */
 export const useCustomDataClient = (accessToken: string): CustomDataClient => {
-  const baseUrl = useMemo(() => {
-    return env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-  }, [])
+  const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
 
   const fetchWithAuth = useCallback(
     async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
@@ -67,18 +65,18 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
       const params = new URLSearchParams()
       if (namespace) params.set('namespace', namespace)
       const queryString = params.toString() ? `?${params.toString()}` : ''
-      return fetchWithAuth<CustomDataDefinition[]>(`/api/custom-data/definitions${queryString}`)
+      return fetchWithAuth<CustomDataDefinition[]>(`/custom-data/definitions${queryString}`)
     },
     [fetchWithAuth]
   )
 
   const listNamespaces = useCallback(async (): Promise<CustomDataNamespace[]> => {
-    return fetchWithAuth<CustomDataNamespace[]>('/api/custom-data/namespaces')
+    return fetchWithAuth<CustomDataNamespace[]>('/custom-data/namespaces')
   }, [fetchWithAuth])
 
   const createNamespace = useCallback(
     async (dto: CreateNamespaceDto): Promise<CustomDataNamespace> => {
-      return fetchWithAuth<CustomDataNamespace>('/api/custom-data/namespaces', {
+      return fetchWithAuth<CustomDataNamespace>('/custom-data/namespaces', {
         method: 'POST',
         body: JSON.stringify(dto)
       })
@@ -88,14 +86,14 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
 
   const getDefinition = useCallback(
     async (id: string): Promise<CustomDataDefinition> => {
-      return fetchWithAuth<CustomDataDefinition>(`/api/custom-data/definitions/${id}`)
+      return fetchWithAuth<CustomDataDefinition>(`/custom-data/definitions/${id}`)
     },
     [fetchWithAuth]
   )
 
   const createDefinition = useCallback(
     async (dto: CreateDefinitionDto): Promise<CustomDataDefinition> => {
-      return fetchWithAuth<CustomDataDefinition>('/api/custom-data/definitions', {
+      return fetchWithAuth<CustomDataDefinition>('/custom-data/definitions', {
         method: 'POST',
         body: JSON.stringify(dto)
       })
@@ -105,7 +103,7 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
 
   const updateDefinition = useCallback(
     async (id: string, dto: UpdateDefinitionDto): Promise<CustomDataDefinition> => {
-      return fetchWithAuth<CustomDataDefinition>(`/api/custom-data/definitions/${id}`, {
+      return fetchWithAuth<CustomDataDefinition>(`/custom-data/definitions/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(dto)
       })
@@ -115,7 +113,7 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
 
   const deleteDefinition = useCallback(
     async (id: string): Promise<{ success: boolean }> => {
-      return fetchWithAuth<{ success: boolean }>(`/api/custom-data/definitions/${id}`, {
+      return fetchWithAuth<{ success: boolean }>(`/custom-data/definitions/${id}`, {
         method: 'DELETE'
       })
     },
@@ -124,7 +122,7 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
 
   const promoteEntity = useCallback(
     async (definitionId: string): Promise<CustomDataDefinition> => {
-      return fetchWithAuth<CustomDataDefinition>('/api/custom-data/entities/promote', {
+      return fetchWithAuth<CustomDataDefinition>('/custom-data/entities/promote', {
         method: 'POST',
         body: JSON.stringify({ definitionId })
       })
@@ -134,7 +132,7 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
 
   const generateSchemaFromNaturalLanguage = useCallback(
     async (description: string): Promise<EntitySchemaProposal> => {
-      return fetchWithAuth<EntitySchemaProposal>('/api/custom-data/ai/generate-schema', {
+      return fetchWithAuth<EntitySchemaProposal>('/custom-data/ai/generate-schema', {
         method: 'POST',
         body: JSON.stringify({ description })
       })
@@ -144,7 +142,7 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
 
   const createEntitiesFromProposal = useCallback(
     async (proposal: EntitySchemaProposal, createdBy?: string): Promise<BatchCreationResult> => {
-      return fetchWithAuth<BatchCreationResult>('/api/custom-data/ai/create-entities-batch', {
+      return fetchWithAuth<BatchCreationResult>('/custom-data/ai/create-entities-batch', {
         method: 'POST',
         body: JSON.stringify({ proposal, createdBy })
       })
@@ -154,7 +152,7 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
 
   const createRelationship = useCallback(
     async (relationship: EntityRelationship, createdBy?: string): Promise<{ success: boolean }> => {
-      return fetchWithAuth<{ success: boolean }>('/api/custom-data/relationships', {
+      return fetchWithAuth<{ success: boolean }>('/custom-data/relationships', {
         method: 'POST',
         body: JSON.stringify({ relationship, createdBy })
       })

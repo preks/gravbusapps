@@ -192,12 +192,10 @@ export const AiSchemaGeneratorDialog: React.FC<AiSchemaGeneratorDialogProps> = (
 
         <Tabs defaultValue="entities" className="gba:w-full">
           <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
-            <TabsTrigger value="entities">
-              <Database className="gba:mr-2 gba:h-4 gba:w-4" />
+            <TabsTrigger value="entities" startIcon={<Database className="gba:h-4 gba:w-4" />}>
               Entities ({proposal.entities.length})
             </TabsTrigger>
-            <TabsTrigger value="relationships">
-              <LinkIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+            <TabsTrigger value="relationships" startIcon={<LinkIcon className="gba:h-4 gba:w-4" />}>
               Relationships ({proposal.relationships.length})
             </TabsTrigger>
           </TabsList>

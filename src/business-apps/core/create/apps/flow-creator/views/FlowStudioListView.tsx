@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   AlertDescription,
@@ -9,7 +9,6 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { RefreshCw } from 'lucide-react'
-import type { SortingState } from '@tanstack/react-table'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import type { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import translations from '../_i18n'
@@ -36,9 +35,9 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
 
   const [search, setSearch] = useState<string>('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE })
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'updatedAt', desc: true }])
 
   const [isLoading, setIsLoading] = useState(false)
+  const initialLoadDoneRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [templates, setTemplates] = useState<FlowTemplate[]>([])
   const [totalCount, setTotalCount] = useState(0)
@@ -57,6 +56,7 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
       })
       setTemplates(res.templates || [])
       setTotalCount(res.totalCount || 0)
+      initialLoadDoneRef.current = true
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load templates')
       setTemplates([])
@@ -168,15 +168,12 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
             setSearch(value)
             setPagination(prev => ({ ...prev, pageIndex: 0 }))
           }}
-          sorting={sorting}
-          onSortingChange={setSorting}
-          sortableColumns={columns}
           toolbarDensity="default"
         >
           <DataTable<FlowTemplateRow>
             data={data}
             columns={columns}
-            loading={isLoading}
+            loading={isLoading && !initialLoadDoneRef.current}
             error={null}
             tableLayout="fixed"
             enablePagination
@@ -184,9 +181,7 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
             onPaginationChange={setPagination}
             totalCount={totalCount}
             rowsPerPageOptions={[10, 20, 50, 100]}
-            enableSorting
-            sorting={sorting}
-            onSortingChange={setSorting}
+            enableSorting={false}
             emptyMessage={t('list-empty-title')}
             onRowClick={row => {
               const tplId = String(row.templateId || '').trim()

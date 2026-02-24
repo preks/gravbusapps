@@ -52,3 +52,8 @@ export const ORGCHART_API_URL = resolveServiceUrl('NEXT_PUBLIC_REST_ENDPOINT_ORG
 export const GRAPHQL_API_URL = resolveServiceUrl('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK', '/v1/graphql')
 
 export const CATALOG_API_URL = resolveServiceUrl('NEXT_PUBLIC_CATALOG_API', '/catalog-manager')
+
+export const CUSTOM_FLOW_ENGINE_API_URL = resolveServiceUrl(
+  'NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL',
+  '/flow-engine/api'
+)
