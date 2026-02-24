@@ -462,6 +462,28 @@ performance-status-achieved = Achieved
 performance-status-not-achieved = Not Achieved
 performance-error-load = Failed to load performance data
 
+# Performance Evaluation Tab
+performance-evaluation-title = Performance Evaluation
+performance-evaluation-description = Review employee evaluation history grouped by performance cycle
+performance-evaluation-kpi-cycles = Cycles
+performance-evaluation-kpi-evaluations = Evaluations
+performance-evaluation-kpi-in-progress = In Progress
+performance-evaluation-kpi-completed = Completed
+performance-evaluation-cycle-total = Total evaluations
+performance-evaluation-start-date = Start date
+performance-evaluation-target-completion-date = Target completion date
+performance-evaluation-actual-completion-date = Actual completion date
+performance-evaluation-overall-rating = Overall rating
+performance-evaluation-view-details = View details
+performance-evaluation-empty-title = No performance evaluations
+performance-evaluation-empty = This employee does not have performance evaluations yet.
+performance-evaluation-load-error = Failed to load performance evaluations: { $error }
+performance-evaluation-detail-placeholder = Detailed analysis for evaluation { $evaluationId } will be available in the next phase.
+performance-evaluation-status-completed = Completed
+performance-evaluation-status-in_progress = In progress
+performance-evaluation-status-cancelled = Cancelled
+performance-evaluation-status-unknown = Unknown
+
 # Feedback Tab - Pagination
 feedback-pagination-per-page = / page
 
@@ -470,6 +492,7 @@ employee-record-tab-time-tracking = Time Tracking
 employee-record-tab-absences = Absences
 employee-record-tab-assets = Assets
 employee-record-tab-service-requests = Service Requests
+employee-record-tab-performance-evaluation = Performance Evaluation
 
 # Profile Header - Detail labels
 profile-header-work-email = Work Email
