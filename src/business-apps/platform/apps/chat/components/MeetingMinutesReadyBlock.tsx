@@ -10,12 +10,14 @@ export interface MeetingMinutesReadyBlockProps {
   message: Message
   formattedTime: string
   navigateTo: (path: string) => void
+  t: (key: string) => string
 }
 
 export const MeetingMinutesReadyBlock: React.FC<MeetingMinutesReadyBlockProps> = ({
   message,
   formattedTime,
-  navigateTo
+  navigateTo,
+  t
 }) => {
   const noteId = message.metadata?.noteId
   const sessionName = message.metadata?.sessionName
@@ -30,12 +32,12 @@ export const MeetingMinutesReadyBlock: React.FC<MeetingMinutesReadyBlockProps> =
         </div>
         {!aiSummary ? (
           <p className="gba:text-xs gba:text-muted-foreground gba:text-left">
-            AI-generated meeting minutes have been created and shared with all participants
+            {t('chat-meeting-minutes-created-shared')}
           </p>
         ) : null}
         {aiSummary ? (
           <div className="gba:w-full gba:rounded-md gba:bg-muted/50 gba:px-3 gba:py-2 gba:text-xs gba:border gba:border-border">
-            <p className="gba:font-medium gba:text-foreground gba:mb-1">AI Summary</p>
+            <p className="gba:font-medium gba:text-foreground gba:mb-1">{t('chat-meeting-minutes-ai-summary')}</p>
             <p className="gba:text-muted-foreground gba:whitespace-pre-wrap">{aiSummary}</p>
           </div>
         ) : null}
@@ -48,7 +50,7 @@ export const MeetingMinutesReadyBlock: React.FC<MeetingMinutesReadyBlockProps> =
             }}
             data-testid={`meeting-minutes-view-btn-${message.id}`}
           >
-            Open meeting minutes
+            {t('chat-meeting-minutes-open')}
           </Button>
           <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
         </div>

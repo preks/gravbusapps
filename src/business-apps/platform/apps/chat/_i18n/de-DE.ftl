@@ -439,6 +439,11 @@ chat-transcript-generating-minutes-status = Besprechungsnotizen werden erstellt.
 chat-transcript-failed-create-minutes = Fehler beim Erstellen der Besprechungsnotizen
 chat-transcript-retry = Wiederholen
 
+# Meeting minutes ready (block in chat)
+chat-meeting-minutes-created-shared = KI-generierte Besprechungsnotizen wurden erstellt und mit allen Teilnehmern geteilt.
+chat-meeting-minutes-ai-summary = KI-Zusammenfassung
+chat-meeting-minutes-open = Besprechungsnotizen öffnen
+
 # Notifications
 notifications-title = Benachrichtigungen
 notifications-empty = Derzeit keine Benachrichtigungen

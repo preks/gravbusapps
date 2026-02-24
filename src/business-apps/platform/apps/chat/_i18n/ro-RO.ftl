@@ -439,6 +439,11 @@ chat-transcript-generating-minutes-status = Se generează notițele de întâlni
 chat-transcript-failed-create-minutes = Eroare la crearea notițelor de întâlnire
 chat-transcript-retry = Reîncearcă
 
+# Meeting minutes ready (block in chat)
+chat-meeting-minutes-created-shared = Notițele de întâlnire generate de AI au fost create și partajate cu toți participanții.
+chat-meeting-minutes-ai-summary = Rezumat AI
+chat-meeting-minutes-open = Deschide notițele de întâlnire
+
 # Notifications
 notifications-title = Notificări
 notifications-empty = Nu există notificări momentan

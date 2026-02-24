@@ -439,6 +439,11 @@ chat-transcript-generating-minutes-status = Generating meeting minutes...
 chat-transcript-failed-create-minutes = Failed to create meeting minutes
 chat-transcript-retry = Retry
 
+# Meeting minutes ready (block in chat)
+chat-meeting-minutes-created-shared = AI-generated meeting minutes have been created and shared with all participants
+chat-meeting-minutes-ai-summary = AI Summary
+chat-meeting-minutes-open = Open meeting minutes
+
 # Notifications
 notifications-title = Notifications
 notifications-empty = No notifications at the moment
