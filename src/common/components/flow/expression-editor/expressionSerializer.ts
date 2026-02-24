@@ -42,21 +42,27 @@ export function expressionToLabel(expression: string): string {
  */
 export function expressionToEditorJSON(value: string): Record<string, unknown> {
   const content: Array<Record<string, unknown>> = []
-  const regex = /\{\{([^}]*)\}\}/g
   let lastIndex = 0
-  let match: RegExpExecArray | null
+  let searchFrom = 0
 
-  while ((match = regex.exec(value)) !== null) {
-    // Add text before the expression
-    if (match.index > lastIndex) {
-      const textBefore = value.slice(lastIndex, match.index)
+  while (searchFrom <= value.length) {
+    const openIdx = value.indexOf('{{', searchFrom)
+    if (openIdx === -1) break
+
+    if (openIdx > lastIndex) {
+      const textBefore = value.slice(lastIndex, openIdx)
       if (textBefore) {
         content.push({ type: 'text', text: textBefore })
       }
     }
 
-    // Add expression pill mention
-    const expr = match[1]
+    const closeIdx = value.indexOf('}}', openIdx + 2)
+    if (closeIdx === -1) {
+      searchFrom = value.length
+      break
+    }
+
+    const expr = value.slice(openIdx + 2, closeIdx)
     const source = detectSourceType(expr)
     const label = expressionToLabel(expr)
 
@@ -70,7 +76,8 @@ export function expressionToEditorJSON(value: string): Record<string, unknown> {
       }
     })
 
-    lastIndex = regex.lastIndex
+    lastIndex = closeIdx + 2
+    searchFrom = closeIdx + 2
   }
 
   // Add remaining text
@@ -122,16 +129,20 @@ export function editorJSONToExpression(json: Record<string, unknown>): string {
  */
 export function parseExpressionPills(value: string): ExpressionPillData[] {
   const pills: ExpressionPillData[] = []
-  const regex = /\{\{([^}]*)\}\}/g
-  let match: RegExpExecArray | null
+  let searchFrom = 0
 
-  while ((match = regex.exec(value)) !== null) {
-    const expression = match[1]
+  while (searchFrom < value.length) {
+    const openIdx = value.indexOf('{{', searchFrom)
+    if (openIdx === -1) break
+    const closeIdx = value.indexOf('}}', openIdx + 2)
+    if (closeIdx === -1) break
+    const expression = value.slice(openIdx + 2, closeIdx)
     pills.push({
       expression,
       label: expressionToLabel(expression),
       source: detectSourceType(expression)
     })
+    searchFrom = closeIdx + 2
   }
 
   return pills
