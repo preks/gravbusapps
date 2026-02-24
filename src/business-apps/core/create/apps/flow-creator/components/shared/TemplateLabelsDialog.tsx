@@ -46,7 +46,7 @@ const parseCatalogCode = (v: string | undefined): string => {
   return parts[parts.length - 1] || raw
 }
 
-const nextId = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`
+const nextId = () => crypto.randomUUID()
 
 interface TemplateLabelsDialogProps {
   open: boolean
