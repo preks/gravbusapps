@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronUp, Sparkles, Copy, Trash2, Check } from 'lucide-react'
+import translations from '../../_i18n'
 
 export interface SummaryPanelProps {
   summary: string
@@ -20,6 +21,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
   defaultExpanded = true,
   'data-testid': testId = 'summary-panel'
 }) => {
+  const { t } = useTranslation(translations)
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const [copied, setCopied] = useState(false)
 
@@ -71,7 +73,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
 
           {/* Title + collapsed preview */}
           <div className="gba:flex-1 gba:min-w-0 gba:overflow-hidden">
-            <span className="gba:text-sm gba:font-semibold gba:text-foreground">AI Summary</span>
+            <span className="gba:text-sm gba:font-semibold gba:text-foreground">{t('summary-title')}</span>
             {!isExpanded && (
               <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground gba:truncate gba:leading-snug">
                 {collapsedPreview}
@@ -87,7 +89,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
               className="gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-card/80"
               onClick={handleCopy}
               data-testid={`${testId}-copy`}
-              aria-label="Copy summary"
+              aria-label={t('summary-copy-aria')}
             >
               {copied ? <Check className="gba:w-4 gba:h-4 gba:text-success" /> : <Copy className="gba:w-4 gba:h-4" />}
             </Button>
@@ -97,7 +99,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
               className="gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10"
               onClick={handleDelete}
               data-testid={`${testId}-delete`}
-              aria-label="Delete summary"
+              aria-label={t('summary-delete-aria')}
             >
               <Trash2 className="gba:w-4 gba:h-4" />
             </Button>
@@ -111,7 +113,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({
                 setIsExpanded(v => !v)
               }}
               data-testid={`${testId}-toggle`}
-              aria-label={isExpanded ? 'Collapse summary' : 'Expand summary'}
+              aria-label={isExpanded ? t('summary-collapse-aria') : t('summary-expand-aria')}
             >
               {isExpanded ? <ChevronUp className="gba:w-4 gba:h-4" /> : <ChevronDown className="gba:w-4 gba:h-4" />}
             </Button>

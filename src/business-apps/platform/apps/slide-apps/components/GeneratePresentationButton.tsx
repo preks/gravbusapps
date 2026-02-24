@@ -6,11 +6,12 @@
  */
 
 import React, { useState, useCallback } from 'react'
-import { AiButton, Spinner } from '@newwork/nw-design-system'
+import { AiButton, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { GeneratePresentationDialog } from './GeneratePresentationDialog'
 import type { SlideData } from './slideElements'
+import translations from '../_i18n'
 
 export interface GeneratePresentationButtonProps {
   /** Callback when slides are generated */
@@ -32,16 +33,17 @@ export const GeneratePresentationButton: React.FC<GeneratePresentationButtonProp
   isProcessing = false,
   'data-testid': testId = 'generate-presentation-button'
 }) => {
+  const { t } = useTranslation(translations)
   const [showDialog, setShowDialog] = useState(false)
 
   const handleGenerate = useCallback(
     (slides: SlideData[], title: string) => {
       onGenerate(slides, title)
-      toast.success('Presentation generated!', {
-        description: `Created ${slides.length} slides`
+      toast.success(t('generate-toast-success'), {
+        description: t('generate-toast-description', { count: slides.length })
       })
     },
-    [onGenerate]
+    [onGenerate, t]
   )
 
   return (
@@ -55,7 +57,7 @@ export const GeneratePresentationButton: React.FC<GeneratePresentationButtonProp
         iconPosition="before"
         data-testid={testId}
       >
-        Generate
+        {t('generate-button')}
       </AiButton>
 
       <GeneratePresentationDialog

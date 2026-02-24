@@ -4,7 +4,8 @@
  */
 
 import React, { useMemo } from 'react'
-import { Button, Input, Badge, Switch } from '@newwork/nw-design-system'
+import { Button, Input, Badge, Switch, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { Eye, EyeOff } from 'lucide-react'
 import type { AdminProviderConfig } from '../services/EmailProviderSettingsApi'
 import type { ProviderKey, ProviderGuide } from './permissionGuideConfig'
@@ -76,6 +77,8 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
   isSaving,
   testId
 }) => {
+  const { t } = useTranslation(translations)
+
   const microsoftAdminConsentUrl = useMemo(() => {
     if (activeProvider !== 'microsoft') return null
 
@@ -108,8 +111,12 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
       {/* Enable toggle */}
       <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:rounded-lg gba:border">
         <div>
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">Enable {guide.name}</p>
-          <p className="gba:text-xs gba:text-muted-foreground">Allow users to connect {guide.name} accounts</p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">
+            {t('provider-admin-enable', { name: guide.name })}
+          </p>
+          <p className="gba:text-xs gba:text-muted-foreground">
+            {t('provider-admin-enable-desc', { name: guide.name })}
+          </p>
         </div>
         <Switch checked={isEnabled} onCheckedChange={setIsEnabled} data-testid={`${testId}-enabled`} />
       </div>
@@ -122,22 +129,22 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
         <>
           <div>
             <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
-              Client ID (Application ID)
+              {t('provider-admin-client-id')}
             </label>
             <Input
               value={clientId}
               onChange={e => setClientId(e.target.value)}
-              placeholder="e.g., 861b3af1-129e-4674-9f0e-4fb4a3091fc0"
+              placeholder={t('provider-admin-client-id-placeholder')}
               data-testid={`${testId}-client-id`}
             />
           </div>
 
           <div>
             <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
-              Client Secret
+              {t('provider-admin-client-secret')}
               {currentConfig?.hasClientSecret && (
                 <Badge variant="success" className="gba:ml-2 gba:text-[10px]">
-                  Configured
+                  {t('provider-admin-client-secret-configured')}
                 </Badge>
               )}
             </label>
@@ -146,7 +153,11 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
                 type={showSecret ? 'text' : 'password'}
                 value={clientSecret}
                 onChange={e => setClientSecret(e.target.value)}
-                placeholder={currentConfig?.hasClientSecret ? '(leave empty to keep existing)' : 'Enter client secret'}
+                placeholder={
+                  currentConfig?.hasClientSecret
+                    ? t('provider-admin-client-secret-keep')
+                    : t('provider-admin-client-secret-placeholder')
+                }
                 data-testid={`${testId}-client-secret`}
               />
               <button
@@ -163,37 +174,35 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
           {activeProvider === 'microsoft' && (
             <div>
               <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
-                Authority (Tenant)
+                {t('provider-admin-authority')}
               </label>
               <Input
                 value={authority}
                 onChange={e => setAuthority(e.target.value)}
-                placeholder="organizations, common, or tenant-id"
+                placeholder={t('provider-admin-authority-placeholder')}
                 data-testid={`${testId}-authority`}
               />
-              <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                Use &quot;organizations&quot; for multi-tenant, &quot;common&quot; for personal + org, or your tenant ID
-              </p>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('provider-admin-authority-hint')}</p>
             </div>
           )}
 
           <div>
-            <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">OAuth Scopes</label>
+            <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
+              {t('provider-admin-scopes')}
+            </label>
             <Input
               value={scopes}
               onChange={e => setScopes(e.target.value)}
               placeholder={guide.defaultScopes}
               data-testid={`${testId}-scopes`}
             />
-            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-              Space-separated list of OAuth scopes. Defaults include email and calendar read.
-            </p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('provider-admin-scopes-hint')}</p>
           </div>
 
           {activeProvider === 'microsoft' && microsoftAdminConsentUrl && (
             <div className="gba:space-y-2">
               <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
-                Admin consent URL (optional)
+                {t('provider-admin-consent-url')}
               </label>
               <div className="gba:flex gba:gap-2">
                 <Input value={microsoftAdminConsentUrl} readOnly data-testid={`${testId}-ms-admin-consent-url`} />
@@ -203,7 +212,7 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
                   onClick={() => window.open(microsoftAdminConsentUrl, '_blank', 'noopener,noreferrer')}
                   data-testid={`${testId}-ms-admin-consent-open`}
                 >
-                  Open
+                  {t('provider-admin-consent-open')}
                 </Button>
                 <Button
                   type="button"
@@ -217,13 +226,10 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
                   }}
                   data-testid={`${testId}-ms-admin-consent-copy`}
                 >
-                  Copy
+                  {t('provider-admin-consent-copy')}
                 </Button>
               </div>
-              <p className="gba:text-xs gba:text-muted-foreground">
-                If users see “Need admin approval”, an admin can open this link to grant consent for the configured
-                scopes in the selected tenant.
-              </p>
+              <p className="gba:text-xs gba:text-muted-foreground">{t('provider-admin-consent-help')}</p>
             </div>
           )}
         </>
@@ -234,45 +240,45 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div>
             <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
-              Default IMAP Host
+              {t('provider-admin-imap-host')}
             </label>
             <Input
               value={defaultImapHost}
               onChange={e => setDefaultImapHost(e.target.value)}
-              placeholder="imap.example.com"
+              placeholder={t('provider-admin-imap-host-placeholder')}
               data-testid={`${testId}-imap-host`}
             />
           </div>
           <div>
             <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
-              Default IMAP Port
+              {t('provider-admin-imap-port')}
             </label>
             <Input
               value={defaultImapPort}
               onChange={e => setDefaultImapPort(e.target.value)}
-              placeholder="993"
+              placeholder={t('provider-admin-imap-port-placeholder')}
               data-testid={`${testId}-imap-port`}
             />
           </div>
           <div>
             <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
-              Default SMTP Host
+              {t('provider-admin-smtp-host')}
             </label>
             <Input
               value={defaultSmtpHost}
               onChange={e => setDefaultSmtpHost(e.target.value)}
-              placeholder="smtp.example.com"
+              placeholder={t('provider-admin-smtp-host-placeholder')}
               data-testid={`${testId}-smtp-host`}
             />
           </div>
           <div>
             <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
-              Default SMTP Port
+              {t('provider-admin-smtp-port')}
             </label>
             <Input
               value={defaultSmtpPort}
               onChange={e => setDefaultSmtpPort(e.target.value)}
-              placeholder="587"
+              placeholder={t('provider-admin-smtp-port-placeholder')}
               data-testid={`${testId}-smtp-port`}
             />
           </div>
@@ -282,7 +288,7 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
       {/* Save button */}
       <div className="gba:flex gba:justify-end gba:pt-2">
         <Button onClick={onSave} disabled={isSaving} data-testid={`${testId}-save`}>
-          {isSaving ? 'Saving...' : 'Save settings'}
+          {isSaving ? t('provider-admin-saving') : t('provider-admin-save')}
         </Button>
       </div>
     </div>

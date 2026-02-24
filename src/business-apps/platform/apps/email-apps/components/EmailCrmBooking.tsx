@@ -8,7 +8,8 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import { Button, Badge, Spinner, Input } from '@newwork/nw-design-system'
+import { Button, Badge, Spinner, Input, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   LinkSimpleIcon,
   CaretDownIcon,
@@ -38,10 +39,11 @@ interface EmailCrmBookingProps {
 /** Build contextData for manual record (no entity pre-selected) */
 const buildManualContextData = (
   message: EmailMessage,
+  noSubjectLabel: string,
   aiSummary?: string | null,
   threadId?: string
 ): Record<string, any> => ({
-  title: message.subject || '(No subject)',
+  title: message.subject || noSubjectLabel,
   description: aiSummary || message.textBody || message.snippet || '',
   occurredAt: message.date,
   emailActivityTypeHint: 'EMAIL',
@@ -58,6 +60,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
   employeeId,
   'data-testid': testId = 'email-crm-booking'
 }) => {
+  const { t } = useTranslation(translations)
   const [isExpanded, setIsExpanded] = useState(false)
   const [showMoreOptions, setShowMoreOptions] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -112,7 +115,8 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
     accessToken,
     activeAccount,
     employeeId,
-    isExpanded
+    isExpanded,
+    t
   })
 
   const handleToggle = useCallback(() => {
@@ -144,7 +148,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
         data-testid={`${testId}-toggle`}
       >
         <LinkSimpleIcon className="gba:w-4 gba:h-4" weight="bold" />
-        <span className="gba:flex-1 gba:text-left gba:font-medium">Record as Activity</span>
+        <span className="gba:flex-1 gba:text-left gba:font-medium">{t('crm-record-activity')}</span>
         {!isExpanded && emailMatchCount > 0 && (
           <Badge variant="info" className="gba:text-xs">
             {emailMatchCount} match{emailMatchCount !== 1 ? 'es' : ''}
@@ -167,7 +171,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
           {summaryLoading && (
             <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
               <SparkleIcon className="gba:w-3 gba:h-3 gba:animate-pulse" weight="fill" />
-              {isThread ? 'Summarizing thread with AI...' : 'Summarizing email with AI...'}
+              {isThread ? t('crm-summarizing-thread') : t('crm-summarizing-email')}
             </div>
           )}
 
@@ -175,11 +179,11 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
           {counterpartyEmails.length > 0 && (
             <div>
               <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1.5">
-                Matches for
+                {t('crm-matches-for')}
                 <span className="gba:font-normal gba:ml-1">{counterpartyEmails.join(', ')}</span>
               </p>
               {emailLoading ? (
-                <LoadingRow label="Searching CRM..." />
+                <LoadingRow label={t('crm-searching')} />
               ) : emailMatches.length > 0 ? (
                 <div className="gba:space-y-1">
                   {emailMatches.map(entity => (
@@ -196,16 +200,14 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                   ))}
                 </div>
               ) : (
-                <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                  No CRM records found for this email address
-                </p>
+                <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('crm-no-records')}</p>
               )}
             </div>
           )}
 
           {/* No counterparty emails at all (e.g. sent-to-self, newsletters) */}
           {counterpartyEmails.length === 0 && !emailLoading && (
-            <p className="gba:text-xs gba:text-muted-foreground gba:italic">No counterparty email to match</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('crm-no-counterparty')}</p>
           )}
 
           {/* "More options" toggle for owned records + search */}
@@ -217,10 +219,10 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                 data-testid={`${testId}-more-toggle`}
               >
                 <DotsThreeIcon className="gba:w-4 gba:h-4" weight="bold" />
-                {showMoreOptions ? 'Hide options' : 'Choose a different record'}
+                {showMoreOptions ? t('crm-hide-options') : t('crm-choose-record')}
                 {!showMoreOptions && filteredOwned.length > 0 && (
                   <span className="gba:text-muted-foreground gba:font-normal gba:ml-0.5">
-                    ({filteredOwned.length} owned)
+                    {t('crm-owned-count', { count: filteredOwned.length })}
                   </span>
                 )}
               </button>
@@ -230,9 +232,11 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                   {/* Owned entities */}
                   {(ownedLoading || filteredOwned.length > 0) && (
                     <div>
-                      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1.5">Your records</p>
+                      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1.5">
+                        {t('crm-your-records')}
+                      </p>
                       {ownedLoading ? (
-                        <LoadingRow label="Loading your records..." />
+                        <LoadingRow label={t('crm-loading-records')} />
                       ) : (
                         <div className="gba:space-y-1">
                           {filteredOwned.map(entity => (
@@ -255,20 +259,20 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                   {/* Search any record */}
                   <div>
                     <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1.5">
-                      Search any record
+                      {t('crm-search-any')}
                     </p>
                     <div className="gba:relative">
                       <MagnifyingGlassIcon className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:pointer-events-none" />
                       <Input
                         ref={searchInputRef}
-                        placeholder="Search by name..."
+                        placeholder={t('crm-search-placeholder')}
                         className="gba:pl-8 gba:h-8 gba:text-sm"
                         value={searchTerm}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearch(e.target.value)}
                         data-testid={`${testId}-search-input`}
                       />
                     </div>
-                    {searchLoading && <LoadingRow label="Searching..." />}
+                    {searchLoading && <LoadingRow label={t('crm-search-loading')} />}
                     {!searchLoading && filteredSearchResults.length > 0 && (
                       <div className="gba:space-y-1 gba:mt-1.5">
                         {filteredSearchResults.map(entity => (
@@ -287,7 +291,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                     )}
                     {!searchLoading && searchTerm.trim() && filteredSearchResults.length === 0 && (
                       <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mt-1">
-                        No results for &quot;{searchTerm}&quot;
+                        {t('crm-no-results', { query: searchTerm })}
                       </p>
                     )}
                   </div>
@@ -298,7 +302,12 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                       contexts={[
                         {
                           context: FlowContextName.customerActivityCreate,
-                          contextData: buildManualContextData(message, aiSummary, isThread ? threadId : undefined)
+                          contextData: buildManualContextData(
+                            message,
+                            t('reader-no-subject'),
+                            aiSummary,
+                            isThread ? threadId : undefined
+                          )
                         }
                       ]}
                       accessToken={accessToken}
@@ -309,7 +318,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                     >
                       <Button variant="outline" size="sm" className="gba:w-full">
                         <PlusIcon className="gba:w-3.5 gba:h-3.5 gba:mr-1.5" />
-                        Record manually (choose entity in form)
+                        {t('crm-record-manually')}
                       </Button>
                     </AppAction>
                   </div>

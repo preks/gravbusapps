@@ -6,7 +6,16 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Card, Button, Badge, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import {
+  useTranslation,
+  Card,
+  Button,
+  Badge,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
+} from '@newwork/nw-design-system'
 import {
   Sparkles,
   Check,
@@ -21,6 +30,7 @@ import {
   Link2
 } from 'lucide-react'
 import type { SpreadsheetAnalysis, SheetAnalysis, ColumnAnalysis, ColumnType, ViewType } from '../types'
+import translations from '../_i18n'
 
 export interface SheetAnalysisPreviewProps {
   analysis: SpreadsheetAnalysis
@@ -92,6 +102,7 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
   isLoading = false,
   'data-testid': testId = 'sheet-analysis-preview'
 }) => {
+  const { t } = useTranslation(translations)
   const [activeSheet, setActiveSheet] = useState(analysis.sheets[0]?.name || '')
 
   const confidenceColor = useMemo(() => {
@@ -110,9 +121,9 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
               <Sparkles className="gba:w-5 gba:h-5 gba:text-primary" />
             </div>
             <div>
-              <h3 className="gba:font-semibold gba:text-foreground">AI Analysis Complete</h3>
+              <h3 className="gba:font-semibold gba:text-foreground">{t('analysis-title')}</h3>
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                <span className="gba:text-muted-foreground">Confidence:</span>
+                <span className="gba:text-muted-foreground">{t('analysis-confidence')}</span>
                 <span className={confidenceColor}>{Math.round(analysis.confidence * 100)}%</span>
               </div>
             </div>
@@ -120,7 +131,7 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
           {onReanalyze && (
             <Button variant="outline" size="sm" onClick={onReanalyze} disabled={isLoading}>
               <RefreshCw className={`gba:w-4 gba:h-4 gba:mr-2 ${isLoading ? 'gba:animate-spin' : ''}`} />
-              Re-analyze
+              {t('analysis-reanalyze')}
             </Button>
           )}
         </div>
@@ -130,7 +141,7 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
       <div className="gba:px-6 gba:py-4 gba:bg-muted/30 gba:border-b">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
-            <p className="gba:text-sm gba:text-muted-foreground">Suggested App Name</p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('analysis-suggested-name')}</p>
             <p className="gba:text-lg gba:font-semibold gba:text-foreground">{analysis.suggestedAppName}</p>
           </div>
           <Badge variant="outline" className="gba:capitalize">
@@ -148,7 +159,7 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
                 {sheet.name}
                 {sheet.isLookupTable && (
                   <Badge variant="secondary" className="gba:ml-2 gba:text-xs">
-                    Lookup
+                    {t('analysis-lookup')}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -169,7 +180,7 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
           <div className="gba:bg-muted/30 gba:rounded-lg gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
               <Link2 className="gba:w-4 gba:h-4 gba:text-primary" />
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">Detected Relationships</span>
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('analysis-relationships')}</span>
             </div>
             <div className="gba:space-y-2">
               {analysis.relationships.map((rel, idx) => (
@@ -191,12 +202,10 @@ export const SheetAnalysisPreview: React.FC<SheetAnalysisPreviewProps> = ({
 
       {/* Actions */}
       <div className="gba:px-6 gba:py-4 gba:border-t gba:bg-muted/20 gba:flex gba:items-center gba:justify-between">
-        <p className="gba:text-sm gba:text-muted-foreground">
-          Review the analysis and click "Generate App" to create your application
-        </p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('analysis-review-hint')}</p>
         <Button onClick={() => onConfirm(analysis)} disabled={isLoading}>
           <Check className="gba:w-4 gba:h-4 gba:mr-2" />
-          Generate App
+          {t('analysis-generate-app')}
           <ArrowRight className="gba:w-4 gba:h-4 gba:ml-2" />
         </Button>
       </div>
@@ -213,17 +222,18 @@ interface SheetAnalysisContentProps {
 }
 
 const SheetAnalysisContent: React.FC<SheetAnalysisContentProps> = ({ sheet, testId }) => {
+  const { t } = useTranslation(translations)
   return (
     <div className="gba:space-y-6" data-testid={`${testId}-sheet-${sheet.name}`}>
       {/* Purpose */}
       <div>
-        <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">Detected Purpose</p>
+        <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('analysis-detected-purpose')}</p>
         <p className="gba:text-foreground">{sheet.purpose}</p>
       </div>
 
       {/* Suggested views */}
       <div>
-        <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">Suggested Views</p>
+        <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">{t('analysis-suggested-views')}</p>
         <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
           {sheet.suggestedViews.map((view, idx) => {
             const ViewIcon = getViewIcon(view.type)
@@ -243,23 +253,23 @@ const SheetAnalysisContent: React.FC<SheetAnalysisContentProps> = ({ sheet, test
       {/* Columns */}
       <div>
         <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">
-          Column Analysis ({sheet.columns.length} columns)
+          {t('analysis-column-analysis', { count: sheet.columns.length })}
         </p>
         <div className="gba:border gba:rounded-lg gba:overflow-hidden">
           <table className="gba:w-full">
             <thead>
               <tr className="gba:bg-muted/50">
                 <th className="gba:px-4 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground">
-                  Column
+                  {t('analysis-column')}
                 </th>
                 <th className="gba:px-4 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground">
-                  Type
+                  {t('analysis-type')}
                 </th>
                 <th className="gba:px-4 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground gba:hidden gba:sm:table-cell">
-                  Attributes
+                  {t('analysis-attributes')}
                 </th>
                 <th className="gba:px-4 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground gba:hidden gba:md:table-cell">
-                  Sample Values
+                  {t('analysis-sample-values')}
                 </th>
               </tr>
             </thead>
@@ -277,7 +287,7 @@ const SheetAnalysisContent: React.FC<SheetAnalysisContentProps> = ({ sheet, test
         <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-info-secondary/30 gba:rounded-lg">
           <AlertCircle className="gba:w-4 gba:h-4 gba:text-info" />
           <span className="gba:text-sm gba:text-foreground">
-            Primary key detected: <strong>{sheet.primaryKeyColumn}</strong>
+            {t('analysis-primary-key')} <strong>{sheet.primaryKeyColumn}</strong>
           </span>
         </div>
       )}
@@ -293,6 +303,7 @@ interface ColumnRowProps {
 }
 
 const ColumnRow: React.FC<ColumnRowProps> = ({ column }) => {
+  const { t } = useTranslation(translations)
   return (
     <tr className="gba:border-t gba:border-border">
       <td className="gba:px-4 gba:py-3">
@@ -306,22 +317,22 @@ const ColumnRow: React.FC<ColumnRowProps> = ({ column }) => {
         <div className="gba:flex gba:gap-1 gba:flex-wrap">
           {column.isRequired && (
             <Badge variant="outline" className="gba:text-xs">
-              Required
+              {t('analysis-required')}
             </Badge>
           )}
           {column.isUnique && (
             <Badge variant="outline" className="gba:text-xs">
-              Unique
+              {t('analysis-unique')}
             </Badge>
           )}
           {column.formula && (
             <Badge variant="outline" className="gba:text-xs">
-              Calculated
+              {t('analysis-calculated')}
             </Badge>
           )}
           {column.selectOptions && column.selectOptions.length > 0 && (
             <Badge variant="outline" className="gba:text-xs">
-              {column.selectOptions.length} options
+              {t('analysis-options', { count: column.selectOptions.length })}
             </Badge>
           )}
         </div>

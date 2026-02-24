@@ -69,7 +69,7 @@ export const CellCollaboratorIndicator: React.FC<CellCollaboratorIndicatorProps>
         >
           <Avatar className="gba:w-4 gba:h-4">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={userName} className="gba:object-cover" />}
-            <AvatarFallback 
+            <AvatarFallback
               className="gba:text-[8px] gba:font-medium"
               style={{ backgroundColor: `${userColor}80`, color: 'white' }}
             >
@@ -82,12 +82,12 @@ export const CellCollaboratorIndicator: React.FC<CellCollaboratorIndicatorProps>
 
       {/* Corner avatar indicator */}
       <div className="gba:absolute gba:-top-2 gba:-right-2 gba:z-10">
-        <Avatar 
+        <Avatar
           className="gba:w-5 gba:h-5 gba:border-2 gba:border-white gba:shadow-sm"
           style={{ borderColor: userColor }}
         >
           {avatarUrl && <AvatarImage src={avatarUrl} alt={userName} className="gba:object-cover" />}
-          <AvatarFallback 
+          <AvatarFallback
             className="gba:text-[8px] gba:font-medium"
             style={{ backgroundColor: userColor, color: 'white' }}
           >

@@ -1,6 +1,7 @@
 import React from 'react'
-import { Card, CardContent, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Button, useTranslation } from '@newwork/nw-design-system'
 import { Plus, ArrowRight, LucideIcon } from 'lucide-react'
+import deskTranslations from '../_i18n'
 
 export interface AppCardProps {
   title: string
@@ -39,6 +40,7 @@ export const AppCard: React.FC<AppCardProps> = ({
   animationDelay = 0,
   isLoading = false
 }) => {
+  const { t } = useTranslation(deskTranslations)
   return (
     <Card
       className={`gba:group gba:relative gba:overflow-hidden gba:border gba:border-border gba:bg-background gba:transition-all gba:duration-300 gba:hover:scale-[1.02] gba:cursor-pointer`}
@@ -78,13 +80,13 @@ export const AppCard: React.FC<AppCardProps> = ({
             <span className="gba:text-2xl gba:font-bold gba:text-foreground">{isLoading ? '—' : count}</span>
             {sharedCount > 0 && (
               <span className="gba:inline-flex gba:items-center gba:px-1.5 gba:py-0 gba:h-5 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-[10px] gba:font-medium gba:flex-shrink-0">
-                {sharedCount} shared
+                {t('app-shared-count', { count: sharedCount })}
               </span>
             )}
           </div>
 
           <div className="gba:flex gba:items-center gba:text-sm gba:font-medium gba:text-muted-foreground group-hover:gba:text-foreground gba:transition-colors gba:flex-shrink-0">
-            <span className="gba:mr-1">Open</span>
+            <span className="gba:mr-1">{t('app-open')}</span>
             <ArrowRight className="gba:h-4 gba:w-4 gba:transition-transform group-hover:gba:translate-x-1" />
           </div>
         </div>

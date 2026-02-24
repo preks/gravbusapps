@@ -105,7 +105,18 @@ export function useSlidesHubFiltering(params: UseSlidesHubFilteringParams): UseS
     const next = applySearchFilter(baseSlides, searchQuery)
     sortSlides(next, sortBy, sortOrder)
     return next
-  }, [activeSection, archivedSlides, slides, favorites, mySlides, recentSlides, searchQuery, sharedSlides, sortBy, sortOrder])
+  }, [
+    activeSection,
+    archivedSlides,
+    slides,
+    favorites,
+    mySlides,
+    recentSlides,
+    searchQuery,
+    sharedSlides,
+    sortBy,
+    sortOrder
+  ])
 
   return { mySlides, sharedSlides, recentSlides, archivedSlides, filteredSlides }
 }

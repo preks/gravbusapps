@@ -5,6 +5,8 @@
 
 import React, { useState } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   Dialog,
   DialogContent,
@@ -26,11 +28,12 @@ import {
 import { Mail, RefreshCw, Trash2, Plus, Calendar, MessageSquare } from 'lucide-react'
 import { MicrosoftOAuthService } from '../services/MicrosoftOAuthService'
 import { GoogleOAuthService } from '../services/GoogleOAuthService'
+import { OAuthConfigError } from '../services/OAuthConfigError'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
 import { SignatureEditor } from './SignatureEditor'
 import { AccountStatusBadge } from './AccountStatusBadge'
-import { formatRelativeTime } from '../utils/emailDisplayUtils'
+import { formatRelativeTimeWithT } from '../utils/emailDisplayUtils'
 import type { EmailAccount } from '../types'
 
 interface AccountManagementDialogProps {
@@ -56,6 +59,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   onToggleThreadView,
   'data-testid': testId = 'account-management'
 }) => {
+  const { t } = useTranslation(translations)
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null)
   const [reconnectingAccountId, setReconnectingAccountId] = useState<string | null>(null)
 
@@ -65,7 +69,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
 
   const handleReconnect = async (account: EmailAccount) => {
     if (account.provider !== 'microsoft' && account.provider !== 'google') {
-      toast.error('Only Microsoft and Google OAuth accounts support reconnection')
+      toast.error(t('account-mgmt-toast-reconnect-oauth-only'))
       return
     }
 
@@ -77,7 +81,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
 
       if (account.provider === 'microsoft') {
         if (!providerConfig?.isEnabled) {
-          toast.error('Microsoft provider is not enabled. Please ask your admin to enable it in provider settings.')
+          toast.error(t('account-mgmt-toast-ms-not-enabled'))
           return
         }
         const config = MicrosoftOAuthService.buildConfig(providerConfig.publicConfig)
@@ -85,7 +89,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
         return await MicrosoftOAuthService.startAuth(config)
       } else {
         if (!providerConfig?.isEnabled) {
-          toast.error('Google provider is not enabled. Please ask your admin to enable it in provider settings.')
+          toast.error(t('account-mgmt-toast-google-not-enabled'))
           return
         }
         const config = GoogleOAuthService.buildConfig(providerConfig.publicConfig)
@@ -94,7 +98,13 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
       }
     } catch (err) {
       console.error('[AccountManagement] Reconnect error:', err)
-      toast.error(err instanceof Error ? err.message : 'Failed to reconnect account')
+      const msg =
+        err instanceof OAuthConfigError
+          ? t(err.code)
+          : err instanceof Error
+            ? err.message
+            : t('account-mgmt-toast-reconnect-failed')
+      toast.error(msg)
     } finally {
       setReconnectingAccountId(null)
     }
@@ -103,12 +113,12 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   const handleDelete = async (accountId: string) => {
     try {
       await EmailApiService.deleteAccount(accountId)
-      toast.success('Account deleted successfully')
+      toast.success(t('account-mgmt-toast-deleted'))
       setDeletingAccountId(null)
       onAccountsChanged()
     } catch (err) {
       console.error('[AccountManagement] Delete error:', err)
-      toast.error(err instanceof Error ? err.message : 'Failed to delete account')
+      toast.error(err instanceof Error ? err.message : t('account-mgmt-toast-delete-failed'))
     }
   }
 
@@ -116,7 +126,11 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
     const key = `email-calendar-sync-${account.id}`
     const current = localStorage.getItem(key) !== 'false'
     localStorage.setItem(key, String(!current))
-    toast.success(`Calendar sync ${!current ? 'enabled' : 'disabled'} for ${account.displayName}`)
+    toast.success(
+      !current
+        ? t('account-mgmt-toast-calendar-enabled', { name: account.displayName })
+        : t('account-mgmt-toast-calendar-disabled', { name: account.displayName })
+    )
     onAccountsChanged()
   }
 
@@ -131,18 +145,16 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="gba:max-w-2xl" data-testid={testId}>
           <DialogHeader>
-            <DialogTitle>Email accounts</DialogTitle>
-            <DialogDescription>
-              Manage your connected email accounts. Reconnect disconnected accounts or remove ones you no longer need.
-            </DialogDescription>
+            <DialogTitle>{t('account-mgmt-title')}</DialogTitle>
+            <DialogDescription>{t('account-mgmt-description')}</DialogDescription>
           </DialogHeader>
 
           {/* Global settings */}
           <div className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4 gba:rounded-lg gba:border gba:bg-card">
             <div className="gba:flex gba:items-center gba:gap-2">
               <MessageSquare className="gba:w-4 gba:h-4 gba:text-info" />
-              <span className="gba:text-sm gba:text-foreground">Conversation view</span>
-              <span className="gba:text-xs gba:text-muted-foreground">Group email replies into threads</span>
+              <span className="gba:text-sm gba:text-foreground">{t('account-mgmt-conversation-view')}</span>
+              <span className="gba:text-xs gba:text-muted-foreground">{t('account-mgmt-conversation-view-desc')}</span>
             </div>
             <Switch
               checked={threadViewEnabled}
@@ -155,7 +167,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
             {accounts.length === 0 ? (
               <div className="gba:text-center gba:py-8">
                 <Mail className="gba:w-12 gba:h-12 gba:mx-auto gba:text-muted-foreground gba:mb-3" />
-                <p className="gba:text-sm gba:text-muted-foreground">No email accounts connected</p>
+                <p className="gba:text-sm gba:text-muted-foreground">{t('account-mgmt-no-accounts')}</p>
               </div>
             ) : (
               accounts.map(account => (
@@ -186,7 +198,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                       <div className="gba:flex gba:items-center gba:gap-3">
                         <AccountStatusBadge status={account.status} />
                         <span className="gba:text-xs gba:text-muted-foreground">
-                          {formatRelativeTime(account.lastSyncAt)}
+                          {formatRelativeTimeWithT(account.lastSyncAt, t)}
                         </span>
                       </div>
                       {account.lastSyncError && (
@@ -210,7 +222,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                             <RefreshCw
                               className={`gba:w-4 gba:h-4 gba:mr-2 ${reconnectingAccountId === account.id ? 'gba:animate-spin' : ''}`}
                             />
-                            Reconnect
+                            {t('account-mgmt-reconnect')}
                           </Button>
                         )}
                       <Button
@@ -220,7 +232,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                         data-testid={`${testId}-delete-${account.id}`}
                       >
                         <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Delete
+                        {t('account-mgmt-delete')}
                       </Button>
                     </div>
                   </div>
@@ -230,9 +242,9 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                     <div className="gba:flex gba:items-center gba:justify-between gba:mt-3 gba:pt-3 gba:border-t">
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Calendar className="gba:w-4 gba:h-4 gba:text-info" />
-                        <span className="gba:text-sm gba:text-foreground">Calendar sync</span>
+                        <span className="gba:text-sm gba:text-foreground">{t('account-mgmt-calendar-sync')}</span>
                         <span className="gba:text-xs gba:text-muted-foreground">
-                          Show calendar events in everyone calendar
+                          {t('account-mgmt-calendar-sync-desc')}
                         </span>
                       </div>
                       <Switch
@@ -269,7 +281,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
               data-testid={`${testId}-add-account`}
             >
               <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add another account
+              {t('account-mgmt-add-account')}
             </Button>
             {onOpenAdminSettings && (
               <Button
@@ -280,7 +292,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                 }}
                 data-testid={`${testId}-admin-settings`}
               >
-                Admin settings
+                {t('account-mgmt-admin-settings')}
               </Button>
             )}
           </div>
@@ -291,20 +303,19 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
       <AlertDialog open={!!deletingAccountId} onOpenChange={() => setDeletingAccountId(null)}>
         <AlertDialogContent data-testid={`${testId}-delete-confirm`}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete email account?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the account and all associated emails from NEWWORK. This action cannot be
-              undone. Your emails on the email provider (Microsoft, Gmail, etc.) will not be affected.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t('account-mgmt-delete-title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('account-mgmt-delete-description')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid={`${testId}-delete-cancel`}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid={`${testId}-delete-cancel`}>
+              {t('account-mgmt-delete-cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingAccountId && handleDelete(deletingAccountId)}
               className="gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90"
               data-testid={`${testId}-delete-confirm-button`}
             >
-              Delete account
+              {t('account-mgmt-delete-confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

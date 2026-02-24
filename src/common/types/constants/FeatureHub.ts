@@ -40,7 +40,8 @@ const HCMFeature = {
 }
 
 const CRMFeature = {
-  Accounts: { Key: 'crm.accounts.enabled' }
+  Accounts: { Key: 'crm.accounts.enabled' },
+  CustomerRelations: { Key: 'customer-relations.enabled' }
 }
 
 const ServicesFeature = {

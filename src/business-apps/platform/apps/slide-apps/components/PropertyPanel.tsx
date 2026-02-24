@@ -17,7 +17,8 @@ import {
   Switch,
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger
+  CollapsibleTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Bold,
@@ -37,9 +38,17 @@ import {
   ChevronDown,
   Palette
 } from 'lucide-react'
-import type { AnySlideElement, TextElement, ShapeElement, ImageElement, VideoElement, GradientConfig } from './slideElements'
+import type {
+  AnySlideElement,
+  TextElement,
+  ShapeElement,
+  ImageElement,
+  VideoElement,
+  GradientConfig
+} from './slideElements'
 import { FONT_FAMILIES, FONT_SIZES, COLOR_PRESETS, PRESET_GRADIENTS, gradientToCss } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
+import translations from '../_i18n'
 
 interface PropertyPanelProps {
   element: AnySlideElement | null
@@ -58,39 +67,44 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onBringForward,
   onSendBackward
 }) => {
+  const { t } = useTranslation(translations)
   const [showGradientBuilder, setShowGradientBuilder] = useState(false)
 
   if (!element) {
     return (
       <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-        <p className="gba:text-sm">Select an element to edit its properties</p>
+        <p className="gba:text-sm">{t('props-select-element')}</p>
       </div>
     )
   }
 
-  const textElement = element.type === 'text' ? element as TextElement : null
-  const shapeElement = element.type === 'shape' ? element as ShapeElement : null
-  const imageElement = element.type === 'image' ? element as ImageElement : null
-  const videoElement = element.type === 'video' ? element as VideoElement : null
+  const textElement = element.type === 'text' ? (element as TextElement) : null
+  const shapeElement = element.type === 'shape' ? (element as ShapeElement) : null
+  const imageElement = element.type === 'image' ? (element as ImageElement) : null
+  const videoElement = element.type === 'video' ? (element as VideoElement) : null
 
-  const ColorPicker = ({ value, onChange, label }: { value: string; onChange: (color: string) => void; label: string }) => (
+  const ColorPicker = ({
+    value,
+    onChange,
+    label
+  }: {
+    value: string
+    onChange: (color: string) => void
+    label: string
+  }) => (
     <div className="gba:space-y-2">
       <Label className="gba:text-xs">{label}</Label>
       <div className="gba:flex gba:gap-2 gba:items-center">
         <input
           type="color"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={e => onChange(e.target.value)}
           className="gba:w-8 gba:h-8 gba:rounded gba:border gba:cursor-pointer"
         />
-        <Input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="gba:flex-1 gba:text-xs"
-        />
+        <Input value={value} onChange={e => onChange(e.target.value)} className="gba:flex-1 gba:text-xs" />
       </div>
       <div className="gba:flex gba:flex-wrap gba:gap-1">
-        {COLOR_PRESETS.slice(0, 12).map((color) => (
+        {COLOR_PRESETS.slice(0, 12).map(color => (
           <button
             key={color}
             onClick={() => onChange(color)}
@@ -103,22 +117,24 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     </div>
   )
 
-  const GradientSection = ({ 
-    gradient, 
-    onChange 
-  }: { 
+  const GradientSection = ({
+    gradient,
+    onChange
+  }: {
     gradient?: GradientConfig
-    onChange: (gradient: GradientConfig | undefined) => void 
+    onChange: (gradient: GradientConfig | undefined) => void
   }) => (
     <Collapsible open={showGradientBuilder} onOpenChange={setShowGradientBuilder}>
       <div className="gba:space-y-2">
         <div className="gba:flex gba:items-center gba:justify-between">
-          <Label className="gba:text-xs gba:font-semibold">Gradient Fill</Label>
+          <Label className="gba:text-xs gba:font-semibold">{t('props-gradient-fill')}</Label>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="gba:h-7">
               <Palette className="gba:w-3 gba:h-3 gba:mr-1" />
-              {showGradientBuilder ? 'Close' : 'Custom'}
-              <ChevronDown className={`gba:w-3 gba:h-3 gba:ml-1 gba:transition-transform ${showGradientBuilder ? 'gba:rotate-180' : ''}`} />
+              {showGradientBuilder ? t('props-close') : t('props-custom')}
+              <ChevronDown
+                className={`gba:w-3 gba:h-3 gba:ml-1 gba:transition-transform ${showGradientBuilder ? 'gba:rotate-180' : ''}`}
+              />
             </Button>
           </CollapsibleTrigger>
         </div>
@@ -128,11 +144,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <button
             onClick={() => onChange(undefined)}
             className={`gba:w-8 gba:h-8 gba:rounded gba:border-2 gba:flex gba:items-center gba:justify-center gba:text-xs ${!gradient ? 'gba:border-primary gba:bg-muted' : 'gba:border-muted'}`}
-            title="No gradient"
+            title={t('props-no-gradient')}
           >
             ✕
           </button>
-          {PRESET_GRADIENTS.map((preset) => (
+          {PRESET_GRADIENTS.map(preset => (
             <button
               key={preset.name}
               onClick={() => onChange(preset.gradient)}
@@ -145,7 +161,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
         {/* Current gradient preview */}
         {gradient && (
-          <div 
+          <div
             className="gba:h-8 gba:rounded gba:border gba:shadow-inner"
             style={{ background: gradientToCss(gradient) }}
           />
@@ -154,11 +170,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
         {/* Custom Gradient Builder */}
         <CollapsibleContent>
           <div className="gba:mt-3 gba:p-3 gba:border gba:rounded-lg gba:bg-muted/30">
-            <GradientBuilder
-              gradient={gradient}
-              onChange={onChange}
-              onClose={() => setShowGradientBuilder(false)}
-            />
+            <GradientBuilder gradient={gradient} onChange={onChange} onClose={() => setShowGradientBuilder(false)} />
           </div>
         </CollapsibleContent>
       </div>
@@ -171,13 +183,24 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       <div className="gba:flex gba:items-center gba:justify-between">
         <span className="gba:font-semibold gba:capitalize">{element.type}</span>
         <div className="gba:flex gba:gap-1">
-          <Button variant="ghost" size="icon-sm" onClick={() => onUpdate({ locked: !element.locked })} title={element.locked ? 'Unlock' : 'Lock'}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onUpdate({ locked: !element.locked })}
+            title={element.locked ? t('props-unlock') : t('props-lock')}
+          >
             {element.locked ? <Lock className="gba:w-4 gba:h-4" /> : <Unlock className="gba:w-4 gba:h-4" />}
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={onDuplicate} title="Duplicate">
+          <Button variant="ghost" size="icon-sm" onClick={onDuplicate} title={t('props-duplicate')}>
             <Copy className="gba:w-4 gba:h-4" />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={onDelete} title="Delete" className="gba:text-destructive">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            title={t('props-delete')}
+            className="gba:text-destructive"
+          >
             <Trash2 className="gba:w-4 gba:h-4" />
           </Button>
         </div>
@@ -187,41 +210,41 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
       {/* Position & Size */}
       <div className="gba:space-y-3">
-        <Label className="gba:text-xs gba:font-semibold">Position & Size</Label>
+        <Label className="gba:text-xs gba:font-semibold">{t('props-position-size')}</Label>
         <div className="gba:grid gba:grid-cols-2 gba:gap-2">
           <div>
-            <Label className="gba:text-xs">X</Label>
+            <Label className="gba:text-xs">{t('props-position-x')}</Label>
             <Input
               type="number"
               value={Math.round(element.position.x)}
-              onChange={(e) => onUpdate({ position: { ...element.position, x: Number(e.target.value) } })}
+              onChange={e => onUpdate({ position: { ...element.position, x: Number(e.target.value) } })}
               className="gba:text-xs"
             />
           </div>
           <div>
-            <Label className="gba:text-xs">Y</Label>
+            <Label className="gba:text-xs">{t('props-position-y')}</Label>
             <Input
               type="number"
               value={Math.round(element.position.y)}
-              onChange={(e) => onUpdate({ position: { ...element.position, y: Number(e.target.value) } })}
+              onChange={e => onUpdate({ position: { ...element.position, y: Number(e.target.value) } })}
               className="gba:text-xs"
             />
           </div>
           <div>
-            <Label className="gba:text-xs">Width</Label>
+            <Label className="gba:text-xs">{t('props-width')}</Label>
             <Input
               type="number"
               value={Math.round(element.size.width)}
-              onChange={(e) => onUpdate({ size: { ...element.size, width: Number(e.target.value) } })}
+              onChange={e => onUpdate({ size: { ...element.size, width: Number(e.target.value) } })}
               className="gba:text-xs"
             />
           </div>
           <div>
-            <Label className="gba:text-xs">Height</Label>
+            <Label className="gba:text-xs">{t('props-height')}</Label>
             <Input
               type="number"
               value={Math.round(element.size.height)}
-              onChange={(e) => onUpdate({ size: { ...element.size, height: Number(e.target.value) } })}
+              onChange={e => onUpdate({ size: { ...element.size, height: Number(e.target.value) } })}
               className="gba:text-xs"
             />
           </div>
@@ -231,21 +254,26 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* Rotation & Opacity */}
       <div className="gba:space-y-3">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Label className="gba:text-xs gba:flex-1">Rotation</Label>
+          <Label className="gba:text-xs gba:flex-1">{t('props-rotation')}</Label>
           <Input
             type="number"
             value={element.rotation}
-            onChange={(e) => onUpdate({ rotation: Number(e.target.value) })}
+            onChange={e => onUpdate({ rotation: Number(e.target.value) })}
             className="gba:w-16 gba:text-xs"
           />
           <span className="gba:text-xs">°</span>
-          <Button variant="ghost" size="icon-sm" onClick={() => onUpdate({ rotation: 0 })} title="Reset rotation">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onUpdate({ rotation: 0 })}
+            title={t('props-reset-rotation')}
+          >
             <RotateCcw className="gba:w-3 gba:h-3" />
           </Button>
         </div>
         <div>
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-            <Label className="gba:text-xs">Opacity</Label>
+            <Label className="gba:text-xs">{t('props-opacity')}</Label>
             <span className="gba:text-xs gba:text-muted-foreground">{Math.round(element.opacity * 100)}%</span>
           </div>
           <Slider
@@ -260,14 +288,14 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
       {/* Layer Order */}
       <div className="gba:flex gba:items-center gba:gap-2">
-        <Label className="gba:text-xs gba:flex-1">Layer</Label>
+        <Label className="gba:text-xs gba:flex-1">{t('props-layer')}</Label>
         <Button variant="outlined" size="sm" onClick={onBringForward}>
           <MoveUp className="gba:w-3 gba:h-3 gba:mr-1" />
-          Forward
+          {t('props-forward')}
         </Button>
         <Button variant="outlined" size="sm" onClick={onSendBackward}>
           <MoveDown className="gba:w-3 gba:h-3 gba:mr-1" />
-          Back
+          {t('props-back')}
         </Button>
       </div>
 
@@ -276,20 +304,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* TEXT PROPERTIES */}
       {textElement && (
         <div className="gba:space-y-4">
-          <Label className="gba:text-xs gba:font-semibold">Text Formatting</Label>
-          
+          <Label className="gba:text-xs gba:font-semibold">{t('props-text-formatting')}</Label>
+
           {/* Font Family */}
           <div>
-            <Label className="gba:text-xs">Font Family</Label>
-            <Select
-              value={textElement.fontFamily}
-              onValueChange={(value) => onUpdate({ fontFamily: value })}
-            >
+            <Label className="gba:text-xs">{t('props-font-family')}</Label>
+            <Select value={textElement.fontFamily} onValueChange={value => onUpdate({ fontFamily: value })}>
               <SelectTrigger className="gba:text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FONT_FAMILIES.map((font) => (
+                {FONT_FAMILIES.map(font => (
                   <SelectItem key={font.value} value={font.value} style={{ fontFamily: font.value }}>
                     {font.label}
                   </SelectItem>
@@ -300,16 +325,13 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
           {/* Font Size */}
           <div>
-            <Label className="gba:text-xs">Font Size</Label>
-            <Select
-              value={String(textElement.fontSize)}
-              onValueChange={(value) => onUpdate({ fontSize: Number(value) })}
-            >
+            <Label className="gba:text-xs">{t('props-font-size')}</Label>
+            <Select value={String(textElement.fontSize)} onValueChange={value => onUpdate({ fontSize: Number(value) })}>
               <SelectTrigger className="gba:text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FONT_SIZES.map((size) => (
+                {FONT_SIZES.map(size => (
                   <SelectItem key={size} value={String(size)}>
                     {size}px
                   </SelectItem>
@@ -337,14 +359,18 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <Button
               variant={textElement.textDecoration === 'underline' ? 'default' : 'outlined'}
               size="icon-sm"
-              onClick={() => onUpdate({ textDecoration: textElement.textDecoration === 'underline' ? 'none' : 'underline' })}
+              onClick={() =>
+                onUpdate({ textDecoration: textElement.textDecoration === 'underline' ? 'none' : 'underline' })
+              }
             >
               <Underline className="gba:w-4 gba:h-4" />
             </Button>
             <Button
               variant={textElement.textDecoration === 'line-through' ? 'default' : 'outlined'}
               size="icon-sm"
-              onClick={() => onUpdate({ textDecoration: textElement.textDecoration === 'line-through' ? 'none' : 'line-through' })}
+              onClick={() =>
+                onUpdate({ textDecoration: textElement.textDecoration === 'line-through' ? 'none' : 'line-through' })
+              }
             >
               <Strikethrough className="gba:w-4 gba:h-4" />
             </Button>
@@ -378,27 +404,24 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {/* Text Color */}
           <ColorPicker
             value={textElement.color}
-            onChange={(color) => onUpdate({ color })}
-            label="Text Color"
+            onChange={color => onUpdate({ color })}
+            label={t('props-text-color')}
           />
 
           {/* Background Color */}
           <ColorPicker
             value={textElement.backgroundColor === 'transparent' ? '#ffffff' : textElement.backgroundColor}
-            onChange={(color) => onUpdate({ backgroundColor: color })}
-            label="Background Color"
+            onChange={color => onUpdate({ backgroundColor: color })}
+            label={t('props-background-color')}
           />
 
           {/* Gradient */}
-          <GradientSection
-            gradient={textElement.gradient}
-            onChange={(gradient) => onUpdate({ gradient })}
-          />
+          <GradientSection gradient={textElement.gradient} onChange={gradient => onUpdate({ gradient })} />
 
           {/* Line Height */}
           <div>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">Line Height</Label>
+              <Label className="gba:text-xs">{t('props-line-height')}</Label>
               <span className="gba:text-xs gba:text-muted-foreground">{textElement.lineHeight}</span>
             </div>
             <Slider
@@ -413,7 +436,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {/* Letter Spacing */}
           <div>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">Letter Spacing</Label>
+              <Label className="gba:text-xs">{t('props-letter-spacing')}</Label>
               <span className="gba:text-xs gba:text-muted-foreground">{textElement.letterSpacing}px</span>
             </div>
             <Slider
@@ -430,32 +453,25 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* SHAPE PROPERTIES */}
       {shapeElement && (
         <div className="gba:space-y-4">
-          <Label className="gba:text-xs gba:font-semibold">Shape Styling</Label>
+          <Label className="gba:text-xs gba:font-semibold">{t('props-shape-styling')}</Label>
 
           {/* Fill Color */}
-          <ColorPicker
-            value={shapeElement.fill}
-            onChange={(fill) => onUpdate({ fill })}
-            label="Fill Color"
-          />
+          <ColorPicker value={shapeElement.fill} onChange={fill => onUpdate({ fill })} label={t('props-fill-color')} />
 
           {/* Gradient */}
-          <GradientSection
-            gradient={shapeElement.gradient}
-            onChange={(gradient) => onUpdate({ gradient })}
-          />
+          <GradientSection gradient={shapeElement.gradient} onChange={gradient => onUpdate({ gradient })} />
 
           {/* Stroke Color */}
           <ColorPicker
             value={shapeElement.strokeColor}
-            onChange={(strokeColor) => onUpdate({ strokeColor })}
-            label="Stroke Color"
+            onChange={strokeColor => onUpdate({ strokeColor })}
+            label={t('props-stroke-color')}
           />
 
           {/* Stroke Width */}
           <div>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">Stroke Width</Label>
+              <Label className="gba:text-xs">{t('props-stroke-width')}</Label>
               <span className="gba:text-xs gba:text-muted-foreground">{shapeElement.strokeWidth}px</span>
             </div>
             <Slider
@@ -469,7 +485,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
           {/* Stroke Style */}
           <div>
-            <Label className="gba:text-xs">Stroke Style</Label>
+            <Label className="gba:text-xs">{t('props-stroke-style')}</Label>
             <Select
               value={shapeElement.strokeStyle}
               onValueChange={(value: 'solid' | 'dashed' | 'dotted') => onUpdate({ strokeStyle: value })}
@@ -478,9 +494,9 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="solid">Solid</SelectItem>
-                <SelectItem value="dashed">Dashed</SelectItem>
-                <SelectItem value="dotted">Dotted</SelectItem>
+                <SelectItem value="solid">{t('props-solid')}</SelectItem>
+                <SelectItem value="dashed">{t('props-dashed')}</SelectItem>
+                <SelectItem value="dotted">{t('props-dotted')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -489,7 +505,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {(shapeElement.shapeType === 'rectangle' || shapeElement.shapeType === 'rounded-rectangle') && (
             <div>
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-                <Label className="gba:text-xs">Corner Radius</Label>
+                <Label className="gba:text-xs">{t('props-corner-radius')}</Label>
                 <span className="gba:text-xs gba:text-muted-foreground">{shapeElement.cornerRadius}px</span>
               </div>
               <Slider
@@ -504,11 +520,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
           {/* Shadow */}
           <div className="gba:flex gba:items-center gba:justify-between">
-            <Label className="gba:text-xs">Drop Shadow</Label>
-            <Switch
-              checked={shapeElement.shadow}
-              onCheckedChange={(shadow) => onUpdate({ shadow })}
-            />
+            <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
+            <Switch checked={shapeElement.shadow} onCheckedChange={shadow => onUpdate({ shadow })} />
           </div>
         </div>
       )}
@@ -516,11 +529,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* IMAGE PROPERTIES */}
       {imageElement && (
         <div className="gba:space-y-4">
-          <Label className="gba:text-xs gba:font-semibold">Image Styling</Label>
+          <Label className="gba:text-xs gba:font-semibold">{t('props-image-styling')}</Label>
 
           {/* Object Fit */}
           <div>
-            <Label className="gba:text-xs">Object Fit</Label>
+            <Label className="gba:text-xs">{t('props-object-fit')}</Label>
             <Select
               value={imageElement.objectFit}
               onValueChange={(value: 'cover' | 'contain' | 'fill' | 'none') => onUpdate({ objectFit: value })}
@@ -529,10 +542,10 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cover">Cover</SelectItem>
-                <SelectItem value="contain">Contain</SelectItem>
-                <SelectItem value="fill">Fill</SelectItem>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="cover">{t('props-cover')}</SelectItem>
+                <SelectItem value="contain">{t('props-contain')}</SelectItem>
+                <SelectItem value="fill">{t('props-fill')}</SelectItem>
+                <SelectItem value="none">{t('props-none')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -540,7 +553,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {/* Border Radius */}
           <div>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">Border Radius</Label>
+              <Label className="gba:text-xs">{t('props-border-radius')}</Label>
               <span className="gba:text-xs gba:text-muted-foreground">{imageElement.borderRadius}px</span>
             </div>
             <Slider
@@ -555,7 +568,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {/* Border Width */}
           <div>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">Border Width</Label>
+              <Label className="gba:text-xs">{t('props-border-width')}</Label>
               <span className="gba:text-xs gba:text-muted-foreground">{imageElement.borderWidth}px</span>
             </div>
             <Slider
@@ -570,17 +583,14 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           {/* Border Color */}
           <ColorPicker
             value={imageElement.borderColor}
-            onChange={(borderColor) => onUpdate({ borderColor })}
-            label="Border Color"
+            onChange={borderColor => onUpdate({ borderColor })}
+            label={t('props-border-color')}
           />
 
           {/* Shadow */}
           <div className="gba:flex gba:items-center gba:justify-between">
-            <Label className="gba:text-xs">Drop Shadow</Label>
-            <Switch
-              checked={imageElement.shadow}
-              onCheckedChange={(shadow) => onUpdate({ shadow })}
-            />
+            <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
+            <Switch checked={imageElement.shadow} onCheckedChange={shadow => onUpdate({ shadow })} />
           </div>
         </div>
       )}
@@ -588,11 +598,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* VIDEO PROPERTIES */}
       {videoElement && (
         <div className="gba:space-y-4">
-          <Label className="gba:text-xs gba:font-semibold">Video Styling</Label>
+          <Label className="gba:text-xs gba:font-semibold">{t('props-video-styling')}</Label>
 
           {/* Object Fit */}
           <div>
-            <Label className="gba:text-xs">Object Fit</Label>
+            <Label className="gba:text-xs">{t('props-object-fit')}</Label>
             <Select
               value={videoElement.objectFit}
               onValueChange={(value: 'cover' | 'contain' | 'fill') => onUpdate({ objectFit: value })}
@@ -601,43 +611,34 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cover">Cover</SelectItem>
-                <SelectItem value="contain">Contain</SelectItem>
-                <SelectItem value="fill">Fill</SelectItem>
+                <SelectItem value="cover">{t('props-cover')}</SelectItem>
+                <SelectItem value="contain">{t('props-contain')}</SelectItem>
+                <SelectItem value="fill">{t('props-fill')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Playback Options */}
           <div className="gba:space-y-2">
-            <Label className="gba:text-xs gba:font-semibold">Playback</Label>
+            <Label className="gba:text-xs gba:font-semibold">{t('props-playback')}</Label>
             <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">Autoplay</Label>
-              <Switch
-                checked={videoElement.autoplay}
-                onCheckedChange={(autoplay) => onUpdate({ autoplay })}
-              />
+              <Label className="gba:text-xs">{t('props-autoplay')}</Label>
+              <Switch checked={videoElement.autoplay} onCheckedChange={autoplay => onUpdate({ autoplay })} />
             </div>
             <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">Loop</Label>
-              <Switch
-                checked={videoElement.loop}
-                onCheckedChange={(loop) => onUpdate({ loop })}
-              />
+              <Label className="gba:text-xs">{t('props-loop')}</Label>
+              <Switch checked={videoElement.loop} onCheckedChange={loop => onUpdate({ loop })} />
             </div>
             <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-xs">Muted</Label>
-              <Switch
-                checked={videoElement.muted}
-                onCheckedChange={(muted) => onUpdate({ muted })}
-              />
+              <Label className="gba:text-xs">{t('props-muted')}</Label>
+              <Switch checked={videoElement.muted} onCheckedChange={muted => onUpdate({ muted })} />
             </div>
           </div>
 
           {/* Border Radius */}
           <div>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-              <Label className="gba:text-xs">Border Radius</Label>
+              <Label className="gba:text-xs">{t('props-border-radius')}</Label>
               <span className="gba:text-xs gba:text-muted-foreground">{videoElement.borderRadius}px</span>
             </div>
             <Slider
@@ -651,11 +652,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
           {/* Shadow */}
           <div className="gba:flex gba:items-center gba:justify-between">
-            <Label className="gba:text-xs">Drop Shadow</Label>
-            <Switch
-              checked={videoElement.shadow}
-              onCheckedChange={(shadow) => onUpdate({ shadow })}
-            />
+            <Label className="gba:text-xs">{t('props-drop-shadow')}</Label>
+            <Switch checked={videoElement.shadow} onCheckedChange={shadow => onUpdate({ shadow })} />
           </div>
         </div>
       )}

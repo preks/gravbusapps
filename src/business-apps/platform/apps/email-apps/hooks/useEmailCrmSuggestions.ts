@@ -91,9 +91,9 @@ const SEARCH_ENTITIES_QUERY = `
 
 const getChannelEmail = (channels?: Array<{ value?: string }>): string | undefined => channels?.[0]?.value || undefined
 
-const mapAccountRow = (a: any, source: CrmEntityMatch['source']): CrmEntityMatch => ({
+const mapAccountRow = (a: any, source: CrmEntityMatch['source'], t?: (key: string) => string): CrmEntityMatch => ({
   id: a.id,
-  name: a.name || a.code || 'Account',
+  name: a.name || a.code || (t ? t(ENTITY_FALLBACK_KEYS.account) : 'Account'),
   type: 'account',
   email: getChannelEmail(a.communicationChannels) || undefined,
   code: a.code,
@@ -101,9 +101,13 @@ const mapAccountRow = (a: any, source: CrmEntityMatch['source']): CrmEntityMatch
   source
 })
 
-const mapContactRow = (c: any, source: CrmEntityMatch['source']): CrmEntityMatch => ({
+const mapContactRow = (c: any, source: CrmEntityMatch['source'], t?: (key: string) => string): CrmEntityMatch => ({
   id: c.id,
-  name: `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.fullName || c.code || 'Contact',
+  name:
+    `${c.firstName || ''} ${c.lastName || ''}`.trim() ||
+    c.fullName ||
+    c.code ||
+    (t ? t(ENTITY_FALLBACK_KEYS.contact) : c.type || c.code || ''),
   type: 'contact',
   email: getChannelEmail(c.communicationChannels) || undefined,
   code: c.code,
@@ -111,29 +115,33 @@ const mapContactRow = (c: any, source: CrmEntityMatch['source']): CrmEntityMatch
   source
 })
 
-const mapOpportunityRow = (o: any, source: CrmEntityMatch['source']): CrmEntityMatch => ({
+const mapOpportunityRow = (o: any, source: CrmEntityMatch['source'], t?: (key: string) => string): CrmEntityMatch => ({
   id: o.id,
-  name: o.name || o.code || 'Opportunity',
+  name: o.name || o.code || (t ? t(ENTITY_FALLBACK_KEYS.opportunity) : o.type || ''),
   type: 'opportunity',
   email: getChannelEmail(o.communicationChannels) || undefined,
   code: o.code,
   source
 })
 
-const mapLeadRow = (l: any, source: CrmEntityMatch['source']): CrmEntityMatch => ({
+const mapLeadRow = (l: any, source: CrmEntityMatch['source'], t?: (key: string) => string): CrmEntityMatch => ({
   id: l.id,
-  name: l.companyName || `${l.firstName || ''} ${l.lastName || ''}`.trim() || l.code || 'Lead',
+  name:
+    l.companyName ||
+    `${l.firstName || ''} ${l.lastName || ''}`.trim() ||
+    l.code ||
+    (t ? t(ENTITY_FALLBACK_KEYS.lead) : l.type || l.code || ''),
   type: 'lead',
   email: l.email || l.companyEmail || undefined,
   code: l.code,
   source
 })
 
-const mapAll = (data: any, source: CrmEntityMatch['source']): CrmEntityMatch[] => [
-  ...(data.Account || []).map((a: any) => mapAccountRow(a, source)),
-  ...(data.Contact || []).map((c: any) => mapContactRow(c, source)),
-  ...(data.Opportunity || []).map((o: any) => mapOpportunityRow(o, source)),
-  ...(data.Lead || []).map((l: any) => mapLeadRow(l, source))
+const mapAll = (data: any, source: CrmEntityMatch['source'], t?: (key: string) => string): CrmEntityMatch[] => [
+  ...(data.Account || []).map((a: any) => mapAccountRow(a, source, t)),
+  ...(data.Contact || []).map((c: any) => mapContactRow(c, source, t)),
+  ...(data.Opportunity || []).map((o: any) => mapOpportunityRow(o, source, t)),
+  ...(data.Lead || []).map((l: any) => mapLeadRow(l, source, t))
 ]
 
 const dedup = (items: CrmEntityMatch[]): CrmEntityMatch[] => {
@@ -147,12 +155,21 @@ const dedup = (items: CrmEntityMatch[]): CrmEntityMatch[] => {
 
 /* ---------- Hook ---------- */
 
+const ENTITY_FALLBACK_KEYS: Record<string, string> = {
+  account: 'crm-entity-account',
+  contact: 'crm-entity-contact',
+  opportunity: 'crm-entity-opportunity',
+  lead: 'crm-entity-lead'
+}
+
 interface UseEmailCrmSuggestionsParams {
   message: EmailMessage | null
   accessToken: string
   activeAccount?: EmailAccount | null
   employeeId?: string
   isExpanded: boolean
+  /** Translation function for entity fallback labels */
+  t?: (key: string) => string
 }
 
 export function useEmailCrmSuggestions({
@@ -160,7 +177,8 @@ export function useEmailCrmSuggestions({
   accessToken,
   activeAccount,
   employeeId,
-  isExpanded
+  isExpanded,
+  t
 }: UseEmailCrmSuggestionsParams) {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -202,7 +220,7 @@ export function useEmailCrmSuggestions({
     graphqlClient
       .request<any>(OWNED_ENTITIES_QUERY, { employeeId, limit: 8 })
       .then(data => {
-        if (!cancelled) setOwnedEntities(mapAll(data, 'owned'))
+        if (!cancelled) setOwnedEntities(mapAll(data, 'owned', t))
       })
       .catch(err => console.error('Owned entities fetch failed:', err))
       .finally(() => {
@@ -212,7 +230,7 @@ export function useEmailCrmSuggestions({
     return () => {
       cancelled = true
     }
-  }, [isExpanded, employeeId, accessToken, graphqlClient])
+  }, [isExpanded, employeeId, accessToken, graphqlClient, t])
 
   // 2) Fetch email-matched entities when panel opens
   useEffect(() => {
@@ -229,7 +247,7 @@ export function useEmailCrmSuggestions({
       for (const email of counterpartyEmails) {
         try {
           const data: any = await graphqlClient.request(EMAIL_MATCH_QUERY, { emailExact: email, limit: 5 })
-          allMatches.push(...mapAll(data, 'email'))
+          allMatches.push(...mapAll(data, 'email', t))
         } catch (err) {
           console.error('CRM email search failed:', err)
         }
@@ -244,7 +262,7 @@ export function useEmailCrmSuggestions({
     return () => {
       cancelled = true
     }
-  }, [isExpanded, counterpartyEmails, accessToken, graphqlClient])
+  }, [isExpanded, counterpartyEmails, accessToken, graphqlClient, t])
 
   // 3) Manual search by name (debounced)
   const handleSearch = useCallback(
@@ -265,7 +283,7 @@ export function useEmailCrmSuggestions({
             searchPattern: `%${term.trim()}%`,
             limit: 10
           })
-          setSearchResults(mapAll(data, 'search'))
+          setSearchResults(mapAll(data, 'search', t))
         } catch (err) {
           console.error('CRM search failed:', err)
         } finally {
@@ -273,7 +291,7 @@ export function useEmailCrmSuggestions({
         }
       }, 300)
     },
-    [graphqlClient]
+    [graphqlClient, t]
   )
 
   // Merge all tiers: owned first, then email matches, then search — deduped

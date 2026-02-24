@@ -4,8 +4,8 @@ export { ShareNoteDialog, type ShareNoteDialogProps, type SharedNoteUser } from 
 export { ManageSharesDialog, type ManageSharesDialogProps } from './ManageSharesDialog'
 export { SearchCommand, type SearchCommandProps } from './SearchCommand'
 export { TemplateGallery, type TemplateGalleryProps } from './TemplateGallery'
-export { 
-  EntityMentionCard, 
+export {
+  EntityMentionCard,
   MentionSuggestionList,
   createMentionSuggestion,
   navigateToEntity,

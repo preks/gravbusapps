@@ -23,6 +23,8 @@ export interface UseNotesOptions {
   userId?: string
   initialQuery?: NoteQueryParams
   autoLoad?: boolean
+  /** Optional i18n translator for user-facing error messages */
+  translate?: (key: string) => string
 }
 
 export interface UseNotesReturn {
@@ -61,7 +63,7 @@ export interface UseNotesReturn {
 }
 
 export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
-  const { accessToken, initialQuery, autoLoad = true } = options
+  const { accessToken, initialQuery, autoLoad = true, translate } = options
 
   // Keep the API service's in-memory token in sync with the prop
   useEffect(() => {
@@ -82,33 +84,36 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   /**
    * Load notes list (paginated fetch, max 100 per request)
    */
-  const loadNotes = useCallback(async (params?: NoteQueryParams): Promise<void> => {
-    setIsLoading(true)
-    setError(null)
-    lastQueryRef.current = params
+  const loadNotes = useCallback(
+    async (params?: NoteQueryParams): Promise<void> => {
+      setIsLoading(true)
+      setError(null)
+      lastQueryRef.current = params
 
-    try {
-      const PAGE_SIZE = 100
-      let allNotes: NoteSummary[] = []
-      let page = 1
-      let hasMore = true
+      try {
+        const PAGE_SIZE = 100
+        let allNotes: NoteSummary[] = []
+        let page = 1
+        let hasMore = true
 
-      while (hasMore) {
-        const result = await NoteApiService.listNotes({ ...params, limit: PAGE_SIZE, page })
-        allNotes = [...allNotes, ...result.items]
-        hasMore = result.items.length === PAGE_SIZE
-        page++
+        while (hasMore) {
+          const result = await NoteApiService.listNotes({ ...params, limit: PAGE_SIZE, page })
+          allNotes = [...allNotes, ...result.items]
+          hasMore = result.items.length === PAGE_SIZE
+          page++
+        }
+
+        setNotes(allNotes)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : translate ? translate('notes-load-failed') : String(err)
+        setError(message)
+        console.error('[useNotes] Failed to load notes:', err)
+      } finally {
+        setIsLoading(false)
       }
-
-      setNotes(allNotes)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load notes'
-      setError(message)
-      console.error('[useNotes] Failed to load notes:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+    },
+    [translate]
+  )
 
   /**
    * Load a single note
@@ -132,7 +137,7 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
       }
       return note
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load note'
+      const message = err instanceof Error ? err.message : translate ? translate('notes-load-note-failed') : String(err)
       setError(message)
       console.error('[useNotes] Failed to load note:', err)
       return null

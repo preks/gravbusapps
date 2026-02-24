@@ -114,8 +114,15 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
     const today = dayjs().startOf('day')
     const startDate = dayjs(asset.startDate).startOf('day')
     const endDate = asset.endDate ? dayjs(asset.endDate).startOf('day') : null
+    const assignmentEnded = !!endDate?.isSameOrBefore(today)
 
-    if (endDate?.isSameOrBefore(today)) {
+    if (assignmentEnded) {
+      if (asset.asset.assetStatus === AssetStatus.UNDER_REPAIR) {
+        return {
+          status: t('assets-status-in-repair-label'),
+          variant: 'warning' as const
+        }
+      }
       return {
         status: t('assets-status-handed-over'),
         variant: 'success' as const
@@ -125,6 +132,12 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       return {
         status: t('assets-status-in-use'),
         variant: 'info' as const
+      }
+    }
+    if (asset.asset.assetStatus === AssetStatus.UNDER_REPAIR && startDate.isSameOrBefore(today)) {
+      return {
+        status: t('assets-status-in-repair-label'),
+        variant: 'warning' as const
       }
     }
     return {
@@ -151,7 +164,11 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   }
 
   const isCurrentlyInUse = (asset: EmployeeAsset) => isAssetActive(asset, AssetStatus.ALLOCATED)
-  const isInRepair = (asset: EmployeeAsset) => isAssetActive(asset, AssetStatus.UNDER_REPAIR)
+  const isInRepair = (asset: EmployeeAsset) => {
+    const today = dayjs().startOf('day')
+    const startDate = dayjs(asset.startDate).startOf('day')
+    return asset.asset.assetStatus === AssetStatus.UNDER_REPAIR && startDate.isSameOrBefore(today)
+  }
 
   const handleSortChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
     setSortField(order === '' ? '' : field)
@@ -256,7 +273,8 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       handedOver: assets.filter(a => {
         const today = dayjs().startOf('day')
         const endDate = a.endDate ? dayjs(a.endDate).startOf('day') : null
-        return endDate?.isSameOrBefore(today)
+        const assignmentEnded = !!endDate?.isSameOrBefore(today)
+        return assignmentEnded && a.asset.assetStatus !== AssetStatus.UNDER_REPAIR
       }).length
     }),
     [assets]

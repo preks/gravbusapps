@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
+  useTranslation,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -33,6 +34,7 @@ import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employ
 import { env } from '@/common/env/EnvUtils'
 import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
 import type { SharePermission } from '../types'
+import translations from '../_i18n'
 
 export interface ShareAppDialogProps {
   open: boolean
@@ -65,24 +67,6 @@ export interface ShareAppDialogProps {
 /**
  * Permission icons and labels
  */
-const PERMISSION_CONFIG: Record<SharePermission, { icon: React.ElementType; label: string; description: string }> = {
-  view: {
-    icon: Eye,
-    label: 'Can View',
-    description: 'Can view data but not make changes'
-  },
-  edit: {
-    icon: Pencil,
-    label: 'Can Edit',
-    description: 'Can view and edit data'
-  },
-  admin: {
-    icon: Shield,
-    label: 'Admin',
-    description: 'Can view, edit, and manage sharing'
-  }
-}
-
 /**
  * Helper function to create standard assignment targets structure
  */
@@ -222,6 +206,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   onUnshare,
   onRefreshShares
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPermission, setSelectedPermission] = useState<SharePermission>('view')
   const [isSharing, setIsSharing] = useState(false)
@@ -238,6 +223,27 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   >([])
   const [sentSuccess, setSentSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const permissionConfig: Record<SharePermission, { icon: React.ElementType; label: string; description: string }> =
+    useMemo(
+      () => ({
+        view: {
+          icon: Eye,
+          label: t('share-perm-view'),
+          description: t('share-perm-view-description')
+        },
+        edit: {
+          icon: Pencil,
+          label: t('share-perm-edit'),
+          description: t('share-perm-edit-description')
+        },
+        admin: {
+          icon: Shield,
+          label: t('share-perm-admin'),
+          description: t('share-perm-admin-description')
+        }
+      }),
+      [t]
+    )
 
   // Employee search - use the same pattern as ShareEntityDialog
   const { employees: searchResults, loading: isSearching, search: searchEmployees } = useEmployeeSearch(accessToken)
@@ -318,7 +324,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
    */
   const handleShare = useCallback(async () => {
     if (selectedUsers.length === 0) {
-      setError('Please select at least one user to share with')
+      setError(t('share-error-select-user'))
       return
     }
 
@@ -365,17 +371,17 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
 
         // Show success toast
         const count = selectedUsers.length
-        toast.success(`Shared "${appName}" with ${count} ${count === 1 ? 'person' : 'people'}!`)
+        toast.success(t('share-toast-success', { appName, count }))
 
         // Close dialog after a short delay
         setTimeout(() => {
           onOpenChange(false)
         }, 1500)
       } else {
-        setError('Failed to share app. Please try again.')
+        setError(t('share-error-failed'))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to share app')
+      setError(err instanceof Error ? err.message : t('share-error-send'))
     } finally {
       setIsSharing(false)
     }
@@ -390,7 +396,8 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
     appFilePath,
     currentUserId,
     currentUserName,
-    onOpenChange
+    onOpenChange,
+    t
   ])
 
   /**
@@ -428,24 +435,22 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            Share "{appName}"
+            {t('share-title', { appName })}
           </DialogTitle>
-          <DialogDescription>
-            Share this app with team members. They'll be able to access it from their dashboard.
-          </DialogDescription>
+          <DialogDescription>{t('share-description')}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:space-y-6 gba:py-4">
           {/* Add People Section */}
           {isOwner && (
             <div className="gba:space-y-3">
-              <Label className="gba:text-sm gba:font-medium">Add People</Label>
+              <Label className="gba:text-sm gba:font-medium">{t('share-add-people')}</Label>
 
               {/* Search Input */}
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                 <Input
-                  placeholder="Search by name or email..."
+                  placeholder={t('share-search-placeholder')}
                   value={searchQuery}
                   onChange={e => {
                     setSearchQuery(e.target.value)
@@ -459,7 +464,9 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
               {searchQuery.length >= 2 && (
                 <div className="gba:border gba:rounded-md gba:max-h-48 gba:overflow-y-auto">
                   {isSearching ? (
-                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">Searching...</div>
+                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">
+                      {t('share-searching')}
+                    </div>
                   ) : filteredResults.length > 0 ? (
                     <div className="gba:divide-y">
                       {filteredResults.map(employee => {
@@ -493,7 +500,9 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                       })}
                     </div>
                   ) : (
-                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">No users found</div>
+                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">
+                      {t('share-no-users-found')}
+                    </div>
                   )}
                 </div>
               )}
@@ -501,7 +510,9 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
               {/* Selected Users & Permission */}
               {selectedUsers.length > 0 && (
                 <div className="gba:space-y-2">
-                  <Label className="gba:text-xs gba:text-muted-foreground">Selected ({selectedUsers.length})</Label>
+                  <Label className="gba:text-xs gba:text-muted-foreground">
+                    {t('share-selected-count', { count: selectedUsers.length })}
+                  </Label>
                   <div className="gba:space-y-2 gba:max-h-32 gba:overflow-y-auto">
                     {selectedUsers.map(user => (
                       <div
@@ -536,7 +547,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                     ))}
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Label className="gba:text-xs">Permission:</Label>
+                    <Label className="gba:text-xs">{t('share-permission')}</Label>
                     <Select
                       value={selectedPermission}
                       onValueChange={val => setSelectedPermission(val as SharePermission)}
@@ -545,7 +556,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(PERMISSION_CONFIG).map(([key, config]) => (
+                        {Object.entries(permissionConfig).map(([key, config]) => (
                           <SelectItem key={key} value={key}>
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <config.icon className="gba:w-4 gba:h-4" />
@@ -563,7 +574,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
               {sentSuccess && (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-success-secondary/20 gba:rounded-lg gba:text-success-foreground">
                   <CheckCircle className="gba:w-5 gba:h-5" />
-                  <p className="gba:text-sm gba:font-medium">Shared successfully! Blink notifications sent.</p>
+                  <p className="gba:text-sm gba:font-medium">{t('share-success-inline')}</p>
                 </div>
               )}
 
@@ -579,9 +590,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                   data-testid="share-confirm-button"
                 >
                   <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isSharing
-                    ? 'Sharing...'
-                    : `Share with ${selectedUsers.length} ${selectedUsers.length === 1 ? 'person' : 'people'}`}
+                  {isSharing ? t('share-sharing') : t('share-with-people', { count: selectedUsers.length })}
                 </Button>
               )}
             </div>
@@ -592,7 +601,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <Label className="gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
                 <Users className="gba:w-4 gba:h-4" />
-                People with access
+                {t('share-people-with-access')}
               </Label>
               <Badge variant="secondary">{(resolvedSharedUsers?.length || 0) + 1}</Badge>
             </div>
@@ -601,19 +610,19 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
               {/* Owner */}
               <div className="gba:p-3 gba:flex gba:items-center gba:gap-3 gba:bg-accent/30">
                 <Avatar className="gba:h-10 gba:w-10">
-                  <AvatarFallback>{getInitials(isOwner ? currentUserName : 'Owner')}</AvatarFallback>
+                  <AvatarFallback>{getInitials(isOwner ? currentUserName : t('share-owner'))}</AvatarFallback>
                 </Avatar>
                 <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:font-medium">{isOwner ? 'You' : 'Owner'}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">Owner</p>
+                  <p className="gba:text-sm gba:font-medium">{isOwner ? t('share-owner-you') : t('share-owner')}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('share-owner')}</p>
                 </div>
-                <Badge variant="outline">Owner</Badge>
+                <Badge variant="outline">{t('share-owner')}</Badge>
               </div>
 
               {/* Shared Users */}
               {Array.isArray(resolvedSharedUsers) &&
                 resolvedSharedUsers.map(user => {
-                  const permConfig = PERMISSION_CONFIG[user.permission]
+                  const permConfig = permissionConfig[user.permission]
                   const PermIcon = permConfig.icon
 
                   return (
@@ -653,8 +662,8 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
               {(!resolvedSharedUsers || resolvedSharedUsers.length === 0) && (
                 <div className="gba:p-6 gba:text-center gba:text-sm gba:text-muted-foreground">
                   <Users className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                  <p>Not shared with anyone yet</p>
-                  {isOwner && <p className="gba:text-xs gba:mt-1">Add people above to share this app</p>}
+                  <p>{t('share-not-shared')}</p>
+                  {isOwner && <p className="gba:text-xs gba:mt-1">{t('share-add-people-hint')}</p>}
                 </div>
               )}
             </div>
@@ -663,7 +672,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Done
+            {t('share-done')}
           </Button>
         </DialogFooter>
       </DialogContent>

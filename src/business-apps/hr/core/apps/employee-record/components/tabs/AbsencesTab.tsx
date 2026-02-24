@@ -413,22 +413,42 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           day_date?: string
           dayFraction?: number | string | null
           day_fraction?: number | string | null
+          signedDayFraction?: number | string | null
+          signed_day_fraction?: number | string | null
         }> = res?.DailyAbsenceFactView || res?.daily_absence_fact_view || []
         const set = new Set<string>()
         let anyDefinedFraction = false
         let weekendEffective = false
+
+        // Aggregate net value per day using signedDayFraction when present
+        const perDayNet: Record<string, number> = {}
         facts.forEach(f => {
           const rawDate = (f.dayDate ?? (f as any).day_date) as string | undefined
+          const rawSigned = (f.signedDayFraction ?? (f as any).signed_day_fraction) as
+            | number
+            | string
+            | null
+            | undefined
           const rawFrac = (f.dayFraction ?? (f as any).day_fraction) as number | string | null | undefined
-          if (rawFrac === null || rawFrac === undefined) {
-            // null/undefined means BE didn’t compute effectiveness for that day
-            return
-          }
+          const value =
+            rawSigned !== null && rawSigned !== undefined
+              ? typeof rawSigned === 'number'
+                ? rawSigned
+                : Number(rawSigned)
+              : rawFrac !== null && rawFrac !== undefined
+                ? typeof rawFrac === 'number'
+                  ? rawFrac
+                  : Number(rawFrac)
+                : null
+          if (value === null || rawDate === undefined) return
           anyDefinedFraction = true
-          const frac = typeof rawFrac === 'number' ? rawFrac : Number(rawFrac)
-          if (frac > 0 && rawDate) {
-            set.add(rawDate)
-            const d = dayjs(rawDate)
+          perDayNet[rawDate] = (perDayNet[rawDate] || 0) + value
+        })
+
+        Object.entries(perDayNet).forEach(([date, sum]) => {
+          if (sum > 0) {
+            set.add(date)
+            const d = dayjs(date)
             if (d.day() === 0 || d.day() === 6) weekendEffective = true
           }
         })

@@ -25,12 +25,14 @@ import {
   TabsTrigger,
   TabsContent,
   Avatar,
-  IconAvatar
+  IconAvatar,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Globe, Lock, Loader2, UserIcon } from 'lucide-react'
 import { Users, Buildings } from '@phosphor-icons/react'
-import { DimensionPicker, useOrganizationalDimensions } from '../../shared'
+import { DimensionPicker, useOrganizationalDimensions, getDimensionPickerTranslations } from '../../shared'
 import type { DimensionType } from '../../shared/types/dimensions'
+import sharedTranslations from '../../shared/_i18n'
 import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
 import type { CreateSpaceInput, SpaceDimension } from '../types/space.types'
 
@@ -53,6 +55,7 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
   currentUserId,
   'data-testid': testId = 'create-space-dialog'
 }) => {
+  const { t } = useTranslation(sharedTranslations)
   // Mode state
   const [creationMode, setCreationMode] = useState<CreationMode>('manual')
   const [showDimensionPicker, setShowDimensionPicker] = useState(false)
@@ -80,7 +83,7 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
     loadDimensions,
     loadMembersByDimension,
     clearMembers
-  } = useOrganizationalDimensions(accessToken || '')
+  } = useOrganizationalDimensions(accessToken || '', { t })
 
   // Load dimensions when modal opens and dimension mode is selected
   useEffect(() => {
@@ -316,6 +319,7 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
               onConfirm={handleDimensionConfirm}
               onCancel={handleCancelDimensionPicker}
               currentUserId={currentUserId}
+              translations={getDimensionPickerTranslations(t)}
               data-testid={`${testId}-dimension-picker`}
             />
           </div>
