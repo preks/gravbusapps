@@ -16,6 +16,8 @@ import {
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { FLOW_DOMAIN, FLOW_PROCESS_NAME } from '../constants'
 
+type EmployeeRuleId = string | null | object
+
 let positionIdFallbackCounter = 0
 
 const createPositionId = () => {
@@ -81,7 +83,7 @@ const resolveFlowContext = async ({
   }
 
   try {
-    if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
+    if (getIsProcessEventDispatched?.()) {
       return { flowProcessId, taskId, taskName }
     }
 
@@ -116,7 +118,7 @@ const formatExpensePositions = ({
   positions: any[]
   customFields: { [expenseTypeId: string]: any[] }
   itemValues?: { id: string; version: string | number }
-  employeeRuleId: string | null | object
+  employeeRuleId: EmployeeRuleId
 }) => {
   return positions.map((position, index) => {
     const customFieldsArray = []
@@ -171,7 +173,7 @@ const buildSubmitData = ({
   computedExpenseRequestId: string | null
   generalDataResponse: any
   employeeId?: string
-  employeeRuleId: string | null | object
+  employeeRuleId: EmployeeRuleId
   multiPosition: boolean
   formattedPositions: any[]
   receiptUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }>
@@ -272,7 +274,6 @@ const submitExpenseItem = async ({
       } else {
         dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
       }
-      // operationSuccessful = true;
     } catch {
       showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in expense approval process'), 'error')
     }
@@ -376,7 +377,7 @@ export const handleExpenseGroupChange = async (
   positions: any[],
   setPositions: (positions: any[]) => void,
   expenseTypes: { [classId: string]: any[] },
-  employeeRuleId: string | null | object,
+  employeeRuleId: EmployeeRuleId,
   graphqlClient: any,
   setExpenseTypes: (types: { [classId: string]: any[] }) => void,
   t: (key: string, fallback: string) => string,
@@ -518,7 +519,7 @@ export const handleSubmit = async (
   form: any,
   positions: any[],
   customFields: { [expenseTypeId: string]: any[] },
-  employeeRuleId: string | null | object,
+  employeeRuleId: EmployeeRuleId,
   generalDataResponse: any,
   multiPosition: boolean,
   setPositions: (positions: any[]) => void,
