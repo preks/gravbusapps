@@ -7,15 +7,22 @@ import React from 'react'
 import { Bot, User, Loader2 } from 'lucide-react'
 import type { CreateChatMessage } from '../../types/chat'
 
+export interface UserAvatar {
+  pictureBase64?: string
+  initials: string
+}
+
 interface CreateAgentChatMessageProps {
   message: CreateChatMessage
   isStreaming?: boolean
+  userAvatar?: UserAvatar
   testId?: string
 }
 
 export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
   message,
   isStreaming = false,
+  userAvatar,
   testId = 'create-chat-message'
 }) => {
   const isUser = message.role === 'user'
@@ -38,12 +45,22 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
     >
       {/* Avatar */}
       <div
-        className={`gba:shrink-0 gba:w-7 gba:h-7 gba:rounded-full gba:flex gba:items-center gba:justify-center ${
-          isUser ? 'gba:bg-primary' : 'gba:bg-muted'
+        className={`gba:shrink-0 gba:w-7 gba:h-7 gba:rounded-full gba:overflow-hidden gba:flex gba:items-center gba:justify-center ${
+          isUser && !userAvatar?.pictureBase64 ? 'gba:bg-primary' : 'gba:bg-muted'
         }`}
       >
         {isUser ? (
-          <User className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" />
+          userAvatar?.pictureBase64 ? (
+            <img
+              src={`data:image/jpeg;base64,${userAvatar.pictureBase64}`}
+              alt="You"
+              className="gba:w-full gba:h-full gba:object-cover"
+            />
+          ) : userAvatar?.initials ? (
+            <span className="gba:text-xs gba:font-semibold gba:text-primary-foreground">{userAvatar.initials}</span>
+          ) : (
+            <User className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" />
+          )
         ) : (
           <Bot className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
         )}
