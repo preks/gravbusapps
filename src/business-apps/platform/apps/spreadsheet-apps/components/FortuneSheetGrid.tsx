@@ -21,7 +21,15 @@ import {
   parseA1CellReference
 } from '../utils/fortuneSheetConverter'
 import { useFortuneSheetCollaboration, useFortuneSheetCursorTracking } from '../hooks/useFortuneSheetCollaboration'
-import { useEditorKeyboardIsolation } from '../../shared/hooks/useEditorKeyboardIsolation'
+
+const DEBUG_INGEST_PREFIX = 'http://127.0.0.1:7244/ingest/'
+const nativeFetch = globalThis.fetch.bind(globalThis)
+const fetch: typeof globalThis.fetch = (input, init) => {
+  if (typeof input === 'string' && input.startsWith(DEBUG_INGEST_PREFIX)) {
+    return Promise.resolve(new Response(null, { status: 204 }))
+  }
+  return nativeFetch(input, init)
+}
 
 export interface FortuneSheetGridProps {
   /** Current sheet configuration */
@@ -54,6 +62,8 @@ export interface FortuneSheetGridProps {
   onFormulaEvaluated?: (rowId: string, columnId: string, result: unknown) => void
   /** Active participants in collaboration */
   participants?: DocumentParticipant[]
+  /** Current user ID - used to avoid rendering own remote cursor presence */
+  currentUserId?: string
   /** Emit operation for collaboration */
   onOperationEmit?: (operation: DocumentOperation) => void
   /** Emit cursor position for collaboration */
@@ -115,6 +125,16 @@ function areNumericRecordEqual(
 }
 
 const EURO_CURRENCY_FORMAT = '€#,##0.00'
+const DEFAULT_GRID_FONT_FAMILY = 'Arial'
+const PRESENCE_COLOR_PALETTE = ['#2563eb', '#7c3aed', '#0f766e', '#c2410c', '#be185d', '#0369a1', '#4d7c0f', '#4338ca']
+
+function getDeterministicPresenceColor(seed: string): string {
+  let hash = 0
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  }
+  return PRESENCE_COLOR_PALETTE[hash % PRESENCE_COLOR_PALETTE.length]
+}
 
 /**
  * FortuneSheetGrid - Main wrapper component
@@ -136,6 +156,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       onColumnVisibilityChange,
       onColumnRename,
       participants = [],
+      currentUserId,
       onOperationEmit = () => {},
       onCursorEmit = () => {},
       collaborationEnabled = false,
@@ -172,6 +193,11 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     /** Track last applied remote cell to suppress duplicate apply to adjacent column (G6 value appearing in H6) */
     const lastRemoteAppliedRef = useRef<{ row: number; col: number; value: unknown; at: number } | null>(null)
     const lastDataOpRef = useRef<{ path: (string | number)[]; op: string; at: number } | null>(null)
+    const lastFormattingShortcutRef = useRef<{
+      key: string
+      at: number
+      ranges: Array<{ rowStart: number; rowEnd: number; colStart: number; colEnd: number }>
+    } | null>(null)
     const REMOTE_APPLY_DEDUPE_MS = 150
     /**
      * Track last known cell selection (FortuneSheet row + col indices).
@@ -208,8 +234,6 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         }
       }, 250)
     }, [onLayoutStateChange])
-
-    useEditorKeyboardIsolation(sheetContainerRef)
 
     // Create conversion context
     const context = useMemo(() => {
@@ -565,6 +589,91 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       [sheet.id]
     )
 
+    const normalizeFontFamilyAtCell = useCallback(
+      (row: number, col: number) => {
+        try {
+          const workbook = workbookRef.current as any
+          if (!workbook) return
+          const options = { id: sheet.id }
+          workbook.setCellFormat(row, col, 'ff', DEFAULT_GRID_FONT_FAMILY, options)
+        } catch {
+          // Ignore normalization errors; workbook may not be ready yet.
+        }
+      },
+      [sheet.id]
+    )
+
+    useEffect(() => {
+      const readCurrentSelectionRanges = (): Array<{
+        rowStart: number
+        rowEnd: number
+        colStart: number
+        colEnd: number
+      }> => {
+        const workbook = workbookRef.current as any
+        const selection = workbook?.getSelection?.()
+        if (!Array.isArray(selection)) {
+          const last = lastKnownSelectionRef.current
+          return last
+            ? [
+                {
+                  rowStart: last.fortuneSheetRow,
+                  rowEnd: last.fortuneSheetRow,
+                  colStart: last.colIndex,
+                  colEnd: last.colIndex
+                }
+              ]
+            : []
+        }
+
+        const ranges = selection
+          .map((range: { row?: [number, number?]; column?: [number, number?] }) => {
+            const rowStart = range?.row?.[0]
+            const rowEnd = range?.row?.[1] ?? rowStart
+            const colStart = range?.column?.[0]
+            const colEnd = range?.column?.[1] ?? colStart
+            if (
+              typeof rowStart !== 'number' ||
+              typeof rowEnd !== 'number' ||
+              typeof colStart !== 'number' ||
+              typeof colEnd !== 'number'
+            ) {
+              return null
+            }
+            return { rowStart, rowEnd, colStart, colEnd }
+          })
+          .filter((r): r is { rowStart: number; rowEnd: number; colStart: number; colEnd: number } => Boolean(r))
+
+        if (ranges.length > 0) return ranges
+        const last = lastKnownSelectionRef.current
+        return last
+          ? [
+              {
+                rowStart: last.fortuneSheetRow,
+                rowEnd: last.fortuneSheetRow,
+                colStart: last.colIndex,
+                colEnd: last.colIndex
+              }
+            ]
+          : []
+      }
+
+      const handleGlobalFormattingShortcut = (event: KeyboardEvent) => {
+        if ((event.metaKey || event.ctrlKey) && !event.altKey && ['b', 'i', 'u'].includes(event.key.toLowerCase())) {
+          lastFormattingShortcutRef.current = {
+            key: event.key.toLowerCase(),
+            at: Date.now(),
+            ranges: readCurrentSelectionRanges()
+          }
+        }
+      }
+
+      document.addEventListener('keydown', handleGlobalFormattingShortcut, true)
+      return () => {
+        document.removeEventListener('keydown', handleGlobalFormattingShortcut, true)
+      }
+    }, [])
+
     useEffect(() => {
       const container = sheetContainerRef.current
       if (!container || typeof MutationObserver === 'undefined') return
@@ -745,6 +854,48 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
     const handleContainerKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && !e.altKey && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
+          const workbook = workbookRef.current as any
+          const selection = workbook?.getSelection?.()
+          const ranges = Array.isArray(selection)
+            ? selection
+                .map((range: { row?: [number, number?]; column?: [number, number?] }) => {
+                  const rowStart = range?.row?.[0]
+                  const rowEnd = range?.row?.[1] ?? rowStart
+                  const colStart = range?.column?.[0]
+                  const colEnd = range?.column?.[1] ?? colStart
+                  if (
+                    typeof rowStart !== 'number' ||
+                    typeof rowEnd !== 'number' ||
+                    typeof colStart !== 'number' ||
+                    typeof colEnd !== 'number'
+                  ) {
+                    return null
+                  }
+                  return { rowStart, rowEnd, colStart, colEnd }
+                })
+                .filter((r): r is { rowStart: number; rowEnd: number; colStart: number; colEnd: number } => Boolean(r))
+            : []
+          const fallback = lastKnownSelectionRef.current
+          const trackedRanges =
+            ranges.length > 0
+              ? ranges
+              : fallback
+                ? [
+                    {
+                      rowStart: fallback.fortuneSheetRow,
+                      rowEnd: fallback.fortuneSheetRow,
+                      colStart: fallback.colIndex,
+                      colEnd: fallback.colIndex
+                    }
+                  ]
+                : []
+
+          // Track native formatting shortcuts so we can ignore malformed value ops
+          // (e.g. 1/0) that FortuneSheet may emit for style toggles.
+          lastFormattingShortcutRef.current = { key: e.key.toLowerCase(), at: Date.now(), ranges: trackedRanges }
+        }
+
         if (e.key === 'Delete' || e.key === 'Backspace') {
           const workbook = workbookRef.current as any
           const selection = workbook?.getSelection?.()
@@ -965,6 +1116,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       const presences =
         participants
           ?.map(participant => {
+            if (currentUserId && participant.userId === currentUserId) return null
             const cursorPath = participant.cursor?.path
             if (!Array.isArray(cursorPath) || cursorPath.length < 3) return null
 
@@ -976,11 +1128,12 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             if (dataRowIndex === undefined || colIndex === undefined) return null
 
             const userName = participant.userName || participant.userId || 'User'
+            const colorSeed = participant.userId || userName
             return {
               sheetId: sheet.id,
               username: userName,
               userId: participant.userId,
-              color: participant.userColor || '#3b82f6',
+              color: participant.userColor || getDeterministicPresenceColor(colorSeed),
               // Add header offset when mapping to FortuneSheet row
               selection: { r: dataRowIndex + HEADER_ROW_OFFSET, c: colIndex }
             }
@@ -1001,6 +1154,17 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         }
       })
 
+      const syncPresenceAccentColors = () => {
+        const container = sheetContainerRef.current
+        if (!container) return
+        const nodes = container.querySelectorAll<HTMLElement>('.fortune-presence-selection')
+        nodes.forEach(node => {
+          const borderColor = node.style.borderColor || globalThis.getComputedStyle(node).borderColor
+          if (!borderColor) return
+          node.style.setProperty('--presence-accent', borderColor)
+        })
+      }
+
       try {
         if (toRemove.length > 0) {
           workbook.removePresences(toRemove)
@@ -1017,13 +1181,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             }>
           )
         }
+        requestAnimationFrame(syncPresenceAccentColors)
       } catch {
         // FortuneSheet not ready yet; skip this tick
         return
       }
 
       presenceUsersRef.current = nextUsers
-    }, [participants, columns, data, sheet.id, collaborationEnabled])
+    }, [participants, currentUserId, columns, data, sheet.id, collaborationEnabled])
 
     /** Apply text wrap + row-height expansion to cells after paste/edit */
     const applyTextWrapAndExpand = useCallback(
@@ -1121,7 +1286,27 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               if (val !== null && val !== undefined && (typeof val !== 'string' || val.trim().length > 0)) {
                 const column = columns.find(c => c.id === columnId)
                 const columnName = column?.name ?? columnId
-                onCellChange(rowId, columnName, val)
+                // FortuneSheet can store bold/italic flags as v:1 in the cell. Never persist that
+                // corrupted value — always use local data + workbook formatting when val is 0/1.
+                const isLikelyFormattingFlag = val === 0 || val === 1 || val === '0' || val === '1'
+                if (isLikelyFormattingFlag) {
+                  // Use correct value from local data + formatting from workbook (bl, it, ul, etc.)
+                  const localValue = data[dataRowIndex]?.[columnName]
+                  const correctValue =
+                    localValue !== null &&
+                    localValue !== undefined &&
+                    typeof localValue === 'object' &&
+                    !Array.isArray(localValue)
+                      ? { ...(localValue as Record<string, unknown>) }
+                      : { v: localValue ?? '', m: String(localValue ?? '') }
+                  const oc = rawCell as Record<string, unknown>
+                  for (const k of ['bg', 'fc', 'bl', 'it', 'vt', 'ht', 'ul', 'strike', 'tb', 'ff', 'fs', 'cl']) {
+                    if (k in oc) (correctValue as Record<string, unknown>)[k] = oc[k]
+                  }
+                  onCellChange(rowId, columnName, correctValue)
+                } else {
+                  onCellChange(rowId, columnName, val)
+                }
               }
             }
           }
@@ -1152,7 +1337,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       return () => {
         document.removeEventListener('visibilitychange', onVisibility)
       }
-    }, [context, columns, onCellChange])
+    }, [context, columns, data, onCellChange])
 
     /**
      * Handle FortuneSheet onOp event
@@ -1377,6 +1562,18 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               }
             }
 
+            // FortuneSheet canvas rendering can fall back to its internal default font
+            // immediately after a value commit. Enforce Arial on value writes so the
+            // committed cell matches the edit box without requiring a page refresh.
+            const isValueWrite = op.op !== 'remove' && op.path.length === 3
+            const valueIncludesFontFamily =
+              op.value && typeof op.value === 'object' && !Array.isArray(op.value) && 'ff' in (op.value as object)
+            if (isValueWrite && !valueIncludesFontFamily) {
+              setTimeout(() => {
+                normalizeFontFamilyAtCell(fortuneSheetRowIndex, colIndex)
+              }, 0)
+            }
+
             // Map data row index to row ID (context uses data indices, not FortuneSheet indices)
             const rowId = context.rowIndexToId.get(rowIndex)
             const columnId = context.columnIndexToId.get(colIndex)
@@ -1396,6 +1593,16 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               const valueObject = cellValue as Record<string, unknown>
               const hasDataField = 'v' in valueObject || 'm' in valueObject || 'f' in valueObject
               if (!hasDataField) {
+                // Formatting-only updates (e.g. bold/italic/underline) must never be
+                // persisted as cell values. Otherwise they can overwrite text with
+                // style marker values (e.g. "1" for bold) after refresh.
+                const objectKeys = Object.keys(valueObject)
+                const canBePasteMetaOnly =
+                  objectKeys.length > 0 && objectKeys.every(key => key === 'ct' || key === 'fs' || key === 'fa')
+                if (!canBePasteMetaOnly) {
+                  return
+                }
+
                 // FortuneSheet can emit paste as a meta-only op (e.g. { ct, fs }) while the actual
                 // text is applied internally. Defer reading the workbook to next tick so FortuneSheet
                 // has finished applying the change, then persist if the cell has data.
@@ -1536,8 +1743,24 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               }
             } else {
               const isCellObject = cellValue && typeof cellValue === 'object' && !Array.isArray(cellValue)
+              const CELL_FORMATTING_KEYS = ['bg', 'fc', 'bl', 'it', 'vt', 'ht', 'ul', 'strike', 'tb', 'ff', 'fs', 'cl']
               if (isCellObject && 'f' in (cellValue as Record<string, unknown>)) {
                 // Preserve full cell object when it includes a formula
+              } else if (
+                isCellObject &&
+                CELL_FORMATTING_KEYS.some(k => k in (cellValue as Record<string, unknown>)) &&
+                ('v' in (cellValue as Record<string, unknown>) || 'm' in (cellValue as Record<string, unknown>))
+              ) {
+                // Cell object with formatting (bold, italic, color, etc.) — e.g. { v: "Mohamed", m: "Mohamed", bl: 1 }
+                // Check for corrupted value: FortuneSheet sometimes sets v=1 or v=0 as the formatting toggle,
+                // instead of the actual text. Skip these ops entirely to avoid overwriting real content.
+                const vVal = (cellValue as Record<string, unknown>).v
+                if (vVal === 0 || vVal === 1) {
+                  // Corrupted bold/italic flag — drop this op, don't overwrite cell text.
+                  return
+                }
+                // Valid value with formatting — keep the full cell object so bold/italic/color persists.
+                // normalizeCellPersistValue preserves objects that have both formatting and data fields.
               } else if (isCellObject && 'v' in (cellValue as Record<string, unknown>)) {
                 const nextValue = (cellValue as { v: unknown }).v
                 if (
@@ -1706,6 +1929,33 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               const column = columns.find(c => c.id === columnId)
               const columnName = column?.name || columnId
               let persistedCellValue = cellValue
+
+              const formattingShortcut = lastFormattingShortcutRef.current
+              const isRecentFormattingShortcut = formattingShortcut && Date.now() - formattingShortcut.at < 5000
+              const looksLikeFormattingMarker =
+                persistedCellValue === 0 ||
+                persistedCellValue === 1 ||
+                persistedCellValue === '0' ||
+                persistedCellValue === '1'
+              const comesFromValuePath = op.path.length === 3 || (op.path.length >= 4 && String(op.path[3]) === 'v')
+              const isInsideFormattingSelection =
+                Boolean(formattingShortcut?.ranges?.length) &&
+                formattingShortcut!.ranges.some(
+                  range =>
+                    fortuneSheetRowIndex >= range.rowStart &&
+                    fortuneSheetRowIndex <= range.rowEnd &&
+                    colIndex >= range.colStart &&
+                    colIndex <= range.colEnd
+                )
+
+              if (
+                isRecentFormattingShortcut &&
+                looksLikeFormattingMarker &&
+                comesFromValuePath &&
+                isInsideFormattingSelection
+              ) {
+                return
+              }
 
               if (cellProp === 'bg') {
                 const existingRaw = data[rowIndex]?.[columnName]
@@ -1970,6 +2220,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         onColumnVisibilityChange,
         onFilterStateChange,
         scheduleLayoutStateCapture,
+        normalizeFontFamilyAtCell,
         columns,
         data
       ]

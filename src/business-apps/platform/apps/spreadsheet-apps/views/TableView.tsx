@@ -36,6 +36,7 @@ export interface TableViewProps {
   /** Callback when a column header is renamed */
   onColumnRename?: (columnId: string, newLabel: string) => void
   participants?: DocumentParticipant[]
+  currentUserId?: string
   onOperationEmit?: (operation: DocumentOperation) => void
   onCursorEmit?: (position: { path: string[] }) => void
   collaborationEnabled?: boolean
@@ -84,6 +85,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   onColumnVisibilityChange,
   onColumnRename,
   participants,
+  currentUserId,
   onOperationEmit,
   onCursorEmit,
   collaborationEnabled,
@@ -133,6 +135,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         onColumnVisibilityChange={onColumnVisibilityChange}
         onColumnRename={onColumnRename}
         participants={participants}
+        currentUserId={currentUserId}
         onOperationEmit={onOperationEmit}
         onCursorEmit={onCursorEmit}
         collaborationEnabled={collaborationEnabled}

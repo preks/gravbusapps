@@ -646,39 +646,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       const current = localSheetDataRef.current
       const idx = current.findIndex(r => String(r._id ?? r._rowUuid ?? r.id ?? '') === String(rowId))
-      // #region agent log
-      const rawLen =
-        typeof value === 'string'
-          ? value.length
-          : value && typeof value === 'object' && 'm' in (value as object)
-            ? String((value as { m: unknown }).m).length
-            : 0
-      const normLen = typeof normalizedValue === 'string' ? normalizedValue.length : 0
-      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          runId: 'long-paste-debug',
-          hypothesisId: idx < 0 ? 'H2' : rawLen > 500 || normLen > 500 ? 'H4' : 'H2',
-          location: 'SpreadsheetAppViewer.tsx:handleCellChange:rowLookup',
-          message: idx < 0 ? 'Row not found - update dropped' : 'Viewer row lookup',
-          data: {
-            rowId,
-            columnName,
-            idx,
-            currentRows: current.length,
-            rawValueLen: rawLen,
-            normalizedLen: normLen,
-            valueType: value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value,
-            fromRemote: Boolean(options?.fromRemote)
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
       if (idx < 0) return
 
       const row = current[idx]
+      const currentCell = (row as Record<string, unknown>)[columnName]
+      const currentDisplay =
+        currentCell == null
+          ? ''
+          : typeof currentCell === 'string'
+            ? currentCell
+            : typeof currentCell === 'object' && !Array.isArray(currentCell) && 'm' in (currentCell as object)
+              ? String((currentCell as { m?: unknown }).m ?? '')
+              : typeof currentCell === 'object' && !Array.isArray(currentCell) && 'v' in (currentCell as object)
+                ? String((currentCell as { v?: unknown }).v ?? '')
+                : String(currentCell)
+      // FortuneSheet can emit 0/1 as cell value when applying bold/italic. Never overwrite
+      // multi-character text with 0 or 1 — that's the corrupted format flag, not user intent.
+      if (
+        (normalizedValue === 0 || normalizedValue === 1) &&
+        typeof currentDisplay === 'string' &&
+        currentDisplay.trim().length > 1
+      ) {
+        return
+      }
       const backendRowId = (row as any)._rowUuid || (row as any)._id || (row as any).id || rowId
 
       // Update the ref IMMEDIATELY (synchronously) so concurrent calls
@@ -730,20 +720,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         const pending = new Map(pendingCellUpdates.current)
         pendingCellUpdates.current.clear()
         cellPersistTimerRef.current = null
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'long-paste-debug',
-            hypothesisId: 'H3',
-            location: 'SpreadsheetAppViewer.tsx:cellPersistTimer:start',
-            message: 'Debounce fired - persisting patch batch',
-            data: { pendingCount: pending.size, pendingRowKeys: [...pending.keys()] },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
 
         // Store in-flight data so beforeunload can re-send with keepalive
         // if the page unloads while these PATCHes are still in progress.
@@ -758,50 +734,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             } else {
               await SpreadsheetApiService.updateRow(app.id, activeSheetId, bid, changes)
             }
-
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                runId: 'long-paste-debug',
-                hypothesisId: 'H3',
-                location: 'SpreadsheetAppViewer.tsx:cellPersistTimer:patchSuccess',
-                message: 'Row patch persisted',
-                data: {
-                  pendingKey: key,
-                  backendRowId: bid,
-                  changeKeys: Object.keys(changes),
-                  maxChangeLen: Object.values(changes).reduce(
-                    (m, v) => Math.max(m, typeof v === 'string' ? v.length : 0),
-                    0
-                  )
-                },
-                timestamp: Date.now()
-              })
-            }).catch(() => {})
-            // #endregion
             // Remove from in-flight tracking once successfully persisted
             inFlightCellUpdates.current.delete(key)
           } catch (error) {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                runId: 'long-paste-debug',
-                hypothesisId: 'H4',
-                location: 'SpreadsheetAppViewer.tsx:cellPersistTimer:patchError',
-                message: 'Row patch failed',
-                data: {
-                  pendingKey: key,
-                  backendRowId: bid,
-                  error: error instanceof Error ? error.message : String(error)
-                },
-                timestamp: Date.now()
-              })
-            }).catch(() => {})
-            // #endregion
             console.error('[SpreadsheetAppViewer] Failed to persist cell changes:', error)
           }
         })
@@ -833,20 +768,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // so the browser completes the requests even during page teardown.
   useEffect(() => {
     const flushPendingOnUnload = () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          runId: 'long-paste-debug',
-          hypothesisId: 'H3',
-          location: 'SpreadsheetAppViewer.tsx:flushPendingOnUnload',
-          message: 'Flush on unload/hidden triggered',
-          data: { pendingCount: pendingCellUpdates.current.size, inFlightCount: inFlightCellUpdates.current.size },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
       // Clear debounce timers — we're sending everything right now
       if (cellPersistTimerRef.current) {
         clearTimeout(cellPersistTimerRef.current)
@@ -867,20 +788,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const allUpdates = new Map([...inFlight, ...pending])
 
       if (allUpdates.size === 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'long-paste-debug',
-            hypothesisId: 'H3',
-            location: 'SpreadsheetAppViewer.tsx:flushPendingOnUnload:empty',
-            message: 'Flush ran but no updates to send',
-            data: {},
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
         return
       }
 
@@ -888,28 +795,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         rowId: backendRowId,
         data: changes
       }))
-
-      // #region agent log
-      const payloads = updates.map(u => ({ rowId: u.rowId, bytes: new Blob([JSON.stringify(u.data)]).size }))
-      const oversize = payloads.filter(p => p.bytes > 60000)
-      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          runId: 'long-paste-debug',
-          hypothesisId: 'H1_H3',
-          location: 'SpreadsheetAppViewer.tsx:flushPendingOnUnload:beforeFlush',
-          message: oversize.length ? 'Payload exceeds 64KB keepalive limit' : 'Flush sending updates',
-          data: {
-            updateCount: updates.length,
-            payloadSizes: payloads,
-            oversizeCount: oversize.length,
-            oversizeRows: oversize.map(p => p.rowId)
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
 
       // Fire-and-forget with keepalive — browser will complete these after unload
       SpreadsheetApiService.flushRowUpdates(app.id, activeSheetId, updates)
