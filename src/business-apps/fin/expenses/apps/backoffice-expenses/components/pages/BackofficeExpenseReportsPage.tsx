@@ -160,6 +160,8 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     switch (selectedReportType) {
       case ReportType.EXPENSE_ITEM:
         return insertCurrencyAfter('amount')
+      case ReportType.EXPENSE_PLAN:
+        return insertCurrencyAfter('totalAmount')
       case ReportType.EXPENSE_REQUEST:
         return insertCurrencyAfter('totalAmount')
       case ReportType.ADVANCE_PAYMENT:
@@ -262,6 +264,27 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
             widthClass: 'gba:w-[13%]'
           },
           {
+            key: 'totalAmount',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.amount',
+              'Total Amount'
+            )
+          },
+          {
+            key: 'advancePaidAmount',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
+              'Advance Payment'
+            )
+          },
+          {
+            key: 'remainingAmount',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
+              'Remaining Amount'
+            )
+          },
+          {
             key: 'startDate',
             title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date')
           },
@@ -315,6 +338,28 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
               'lowcoder:expense_request_list.expense_plan_table.amount',
               'Total Amount'
             )
+          },
+          {
+            key: 'advancePaidAmount',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
+              'Advance Payment'
+            )
+          },
+          {
+            key: 'remainingAmount',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
+              'Remaining Amount'
+            )
+          },
+          {
+            key: 'startDate',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date')
+          },
+          {
+            key: 'endDate',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')
           }
         ]
       case ReportType.ADVANCE_PAYMENT:

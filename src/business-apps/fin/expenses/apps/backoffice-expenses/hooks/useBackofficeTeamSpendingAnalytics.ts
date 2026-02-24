@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from 'react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -234,8 +235,36 @@ export const useBackofficeTeamSpendingAnalytics = (
     const paidClosedExpensePlans = filteredExpensePlans.filter(item => isPaidOrClosedStatus(item?.status))
     const paidClosedAdvancePayments = filteredAdvancePayments.filter(item => isPaidOrClosedStatus(item?.status))
 
+    const paidClosedTravelExpenseItems = paidClosedExpenseItems.filter(
+      item => item?.expenseRequest?.requestTypeRef === 'ExpenseRequestType:v1:TRIP'
+    )
+    const paidClosedTravelExpenseRequests = paidClosedExpenseRequests.filter(
+      item => item?.requestTypeRef === 'ExpenseRequestType:v1:TRIP'
+    )
+    const paidClosedTravelAdvancePayments = paidClosedAdvancePayments.filter(
+      item => item?.expensePlan?.requestTypeRef === 'ExpenseRequestType:v1:TRIP'
+    )
+
     const orgUnitMap = new Map<string, { count: number; amount: number }>()
     const locationMap = new Map<string, { count: number; amount: number }>()
+    const travelOrgUnitMap = new Map<string, { count: number; amount: number }>()
+    const travelLocationMap = new Map<string, { count: number; amount: number }>()
+    const travelDestinationMap = new Map<string, { count: number; amount: number }>()
+
+    const locale = String(getCurrentActiveUserLocale() || 'en-US').toLowerCase()
+    const resolveDestinationPoint = (request: any): string => {
+      const points = Array.isArray(request?.expenseRequestTrip) ? request.expenseRequestTrip : []
+      const destination = points[0]
+      if (!destination) return 'Unknown destination'
+      const translations = Array.isArray(destination?.travelRegion?.translations)
+        ? destination.travelRegion.translations
+        : []
+      const localizedRegion = translations.find(
+        (translation: any) => String(translation?.localeCode || '').toLowerCase() === locale
+      )?.value
+      const regionValue = localizedRegion || destination?.travelRegion?.value
+      return regionValue || destination?.address || destination?.countryRef || 'Unknown destination'
+    }
 
     processOrgUnitData(paidClosedExpenseItems, orgUnitMap)
     processOrgUnitData(paidClosedExpenseRequests, orgUnitMap)
@@ -246,6 +275,21 @@ export const useBackofficeTeamSpendingAnalytics = (
     processLocationData(paidClosedExpenseRequests, locationMap)
     processLocationData(paidClosedExpensePlans, locationMap)
     processLocationData(paidClosedAdvancePayments, locationMap, 'amount')
+    processOrgUnitData(paidClosedTravelExpenseItems, travelOrgUnitMap)
+    processOrgUnitData(paidClosedTravelExpenseRequests, travelOrgUnitMap)
+    processOrgUnitData(paidClosedTravelAdvancePayments, travelOrgUnitMap, 'amount')
+    processLocationData(paidClosedTravelExpenseItems, travelLocationMap)
+    processLocationData(paidClosedTravelExpenseRequests, travelLocationMap)
+    processLocationData(paidClosedTravelAdvancePayments, travelLocationMap, 'amount')
+    for (const request of paidClosedTravelExpenseRequests) {
+      const destinationPoint = resolveDestinationPoint(request)
+      const existing = travelDestinationMap.get(destinationPoint) || { count: 0, amount: 0 }
+      const requestAmount = Number(request?.totalAmount || 0)
+      travelDestinationMap.set(destinationPoint, {
+        count: existing.count + 1,
+        amount: existing.amount + requestAmount
+      })
+    }
 
     return {
       expenseItemsByCategory: processExpenseItemsByCategory(paidClosedExpenseItems),
@@ -262,7 +306,17 @@ export const useBackofficeTeamSpendingAnalytics = (
       totalExpenseAmount: calculateTotalAmount(paidClosedExpenseItems),
       totalRequestAmount: calculateTotalAmount(paidClosedExpenseRequests),
       totalPlanAmount: calculateTotalAmount(paidClosedExpensePlans),
-      totalAdvanceAmount: calculateTotalAmount(paidClosedAdvancePayments, 'amount')
+      totalAdvanceAmount: calculateTotalAmount(paidClosedAdvancePayments, 'amount'),
+      travelExpenseItemsByMonth: processTimeSeriesData(paidClosedTravelExpenseItems, 'totalAmount', 'expenseDate'),
+      travelRequestsByMonth: processTimeSeriesData(paidClosedTravelExpenseRequests, 'totalAmount', 'startDate'),
+      travelAdvancePaymentsByMonth: processTimeSeriesData(paidClosedTravelAdvancePayments, 'amount', 'createdAt'),
+      travelByDepartment: mapToOrgUnitBreakdown(travelOrgUnitMap),
+      travelByLocation: mapToLocationBreakdown(travelLocationMap),
+      totalTravelExpenseAmount: calculateTotalAmount(paidClosedTravelExpenseItems),
+      totalTravelRequestAmount: calculateTotalAmount(paidClosedTravelExpenseRequests),
+      totalTravelAdvancePaidAmount: calculateTotalAmount(paidClosedTravelAdvancePayments, 'amount'),
+      totalTravelCount: paidClosedTravelExpenseRequests.length,
+      travelByDestinationPoint: mapToLocationBreakdown(travelDestinationMap)
     }
   }, [rawData, locationFilters, departmentFilters, dateRange, currencyFilter])
 

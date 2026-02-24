@@ -25,6 +25,25 @@ export class GraphQLClient {
       )
     }
 
+    const operationMatch = query.match(/\b(query|mutation)\s+([A-Za-z0-9_]+)/)
+    const operationType = operationMatch?.[1] ?? 'unknown'
+    const operationName = operationMatch?.[2] ?? 'anonymous'
+    const variableKeys = variables ? Object.keys(variables).sort() : []
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'run-1',
+        hypothesisId: 'H1',
+        location: 'GraphQLClient.ts:32',
+        message: 'GraphQL request start',
+        data: { operationType, operationName, variableKeys },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+
     const response = await fetch(this.endpoint, {
       method: 'POST',
       credentials: 'same-origin',
@@ -49,6 +68,25 @@ export class GraphQLClient {
       try {
         const errorText = await response.text()
         console.error('Error response body:', errorText)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'run-1',
+            hypothesisId: 'H4',
+            location: 'GraphQLClient.ts:57',
+            message: 'GraphQL non-OK response',
+            data: {
+              operationName,
+              status: response.status,
+              statusText: response.statusText,
+              bodyPreview: errorText.slice(0, 180)
+            },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
         throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}\nResponse: ${errorText}`)
       } catch {
         throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`)
@@ -59,7 +97,43 @@ export class GraphQLClient {
 
     if (result.errors) {
       console.error('GraphQL errors:', result.errors)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'run-1',
+          hypothesisId: 'H1',
+          location: 'GraphQLClient.ts:70',
+          message: 'GraphQL result.errors returned',
+          data: {
+            operationName,
+            errorCount: Array.isArray(result.errors) ? result.errors.length : 1,
+            firstError: result.errors?.[0]?.message,
+            firstCode: result.errors?.[0]?.extensions?.code
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
       throw new Error(`GraphQL error: ${JSON.stringify(result.errors)}`)
+    }
+
+    if (['getUserProfile', 'GetOrganizationalUnits', 'GetBackofficeAnalyticsData'].includes(operationName)) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'run-3',
+          hypothesisId: 'H7',
+          location: 'GraphQLClient.ts:78',
+          message: 'Tracked GraphQL operation succeeded',
+          data: { operationName },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
     }
 
     return result.data

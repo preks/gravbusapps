@@ -218,8 +218,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } },
-          { employee: { fullName: { _ilike: $searchTerm } } }
+          { title: { _ilike: $searchTerm } }
         ],
         _and: [ $reqCurrencyWhere, $reqStatusWhere, $reqDateWhere ]
       }
@@ -231,22 +230,24 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } },
-          { employee: { fullName: { _ilike: $searchTerm } } }
+          { title: { _ilike: $searchTerm } }
         ],
         _and: [ $reqCurrencyWhere, $reqStatusWhere, $reqDateWhere ]
       }
     ) {
-      id code title requestDate startDate endDate description
+      id code title employeeId requestDate startDate endDate description
       totalAmount currencyRef status createdAt updatedAt
       requestType { value translations { value localeCode } }
-      expensePlan { code requestType { value translations { value localeCode } } }
-      employeeDocument { file name }
-      employee {
-        id code displayName firstName lastName fullName pictureThumbnail
-        additionalProperties
-        employeePosition { organizationalUnit { id name } siteLocation { id name } }
+      expensePlan {
+        code
+        requestType { value translations { value localeCode } }
+        advancePayment(where: { isDeleted: { _eq: false } }) {
+          id
+          amount
+          status
+        }
       }
+      employeeDocument { file name }
     }
 
     ExpensePlansAggregate: ExpensePlanAggregate(
@@ -254,8 +255,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } },
-          { employee: { fullName: { _ilike: $searchTerm } } }
+          { title: { _ilike: $searchTerm } }
         ],
         _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
@@ -267,21 +267,15 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } },
-          { employee: { fullName: { _ilike: $searchTerm } } }
+          { title: { _ilike: $searchTerm } }
         ],
         _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
     ) {
-      id code title startDate endDate status
+      id code title employeeId startDate endDate status
       activeFrom activeTo totalAmount currencyRef createdAt updatedAt decisionDate planDate
       requestType { value translations { value localeCode } }
       employeeDocument { id file fileSize name mimeType description type }
-      employee {
-        id code displayName firstName lastName fullName pictureThumbnail
-        additionalProperties
-        employeePosition { organizationalUnit { id name } siteLocation { id name } }
-      }
       expenseRequest(where: { isDeleted: { _eq: false } }) {
         id code requestType { value translations { value localeCode } }
       }
@@ -298,8 +292,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
           { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } },
-          { expensePlan: { employee: { fullName: { _ilike: $searchTerm } } } }
+          { expensePlan: { title: { _ilike: $searchTerm } } }
         ],
         _and: [ $payCurrencyWhere, $payStatusWhere ]
       }
@@ -313,8 +306,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
           { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } },
-          { expensePlan: { employee: { fullName: { _ilike: $searchTerm } } } }
+          { expensePlan: { title: { _ilike: $searchTerm } } }
         ],
         _and: [ $payCurrencyWhere, $payStatusWhere ]
       }
@@ -323,14 +315,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
       costCenter { id name code }
       project { id name }
       expensePlan {
-        id code title startDate endDate totalAmount currencyRef
+        id code title employeeId startDate endDate totalAmount currencyRef
         costCenter { id name code }
         project { id name }
-        employee {
-          id code fullName displayName firstName lastName pictureThumbnail
-          additionalProperties
-          employeePosition { organizationalUnit { id name } costCenter { id name code } supervisor { id fullName } }
-        }
       }
     }
 

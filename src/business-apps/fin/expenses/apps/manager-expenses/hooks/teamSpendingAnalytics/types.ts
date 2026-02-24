@@ -51,6 +51,16 @@ export interface ExpenseRequest {
   employee: Employee
   requestTypeRef?: string
   startDate?: string
+  expenseRequestTrip?: Array<{
+    id: string
+    pointType?: string
+    address?: string
+    countryRef?: string
+    travelRegion?: {
+      value?: string
+      translations?: Array<{ value?: string; localeCode?: string }>
+    }
+  }>
 }
 
 export interface ExpensePlan {
@@ -62,6 +72,8 @@ export interface ExpensePlan {
   totalAmount: number
   currencyRef: string
   employee: Employee
+  requestTypeRef?: string
+  startDate?: string
 }
 
 export interface AdvancePayment {
@@ -76,6 +88,8 @@ export interface AdvancePayment {
     id: string
     title: string
     employee: Employee
+    requestTypeRef?: string
+    startDate?: string
   }
 }
 
@@ -131,6 +145,16 @@ export interface ProcessedAnalyticsData {
   totalRequestAmount: number
   totalPlanAmount: number
   totalAdvanceAmount: number
+  travelExpenseItemsByMonth?: TimeSeriesData[]
+  travelRequestsByMonth?: TimeSeriesData[]
+  travelAdvancePaymentsByMonth?: TimeSeriesData[]
+  travelByLocation?: LocationBreakdown[]
+  travelByDepartment?: OrgUnitBreakdown[]
+  totalTravelExpenseAmount?: number
+  totalTravelRequestAmount?: number
+  totalTravelAdvancePaidAmount?: number
+  totalTravelCount?: number
+  travelByDestinationPoint?: LocationBreakdown[]
 }
 
 // Date range types

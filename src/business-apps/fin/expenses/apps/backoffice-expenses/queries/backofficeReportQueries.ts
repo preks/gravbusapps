@@ -15,9 +15,6 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
         _or: [
           {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
-          {employee: {fullName: {_ilike: $searchTerm}}},
-          {employee: {firstName: {_ilike: $searchTerm}}},
-          {employee: {lastName: {_ilike: $searchTerm}}},
           {expenseRequest: {code: {_ilike: $searchTerm}}},
           {expenseRequest: {status: {_ilike: $searchTerm}}}
         ]
@@ -34,15 +31,14 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
         _or: [
           {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
-          {employee: {fullName: {_ilike: $searchTerm}}},
-          {employee: {firstName: {_ilike: $searchTerm}}},
-          {employee: {lastName: {_ilike: $searchTerm}}},
           {expenseRequest: {code: {_ilike: $searchTerm}}},
           {expenseRequest: {status: {_ilike: $searchTerm}}}
         ]
       }
     ) {
       id
+      employeeId
+      createdBy
       title
       expensePosition { expenseGroupRef }
       expenseDate
@@ -51,7 +47,6 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
       expenseRequest {
         id code createdAt startDate requestTypeRef currencyRef status
       }
-      employee { id fullName firstName lastName }
     }
   }
 `
@@ -67,8 +62,7 @@ export const GET_EXPENSE_PLANS_BACKOFFICE = `
         isDeleted: {_eq: false},
         _or: [
           {code: {_ilike: $searchTerm}},
-          {title: {_ilike: $searchTerm}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
+          {title: {_ilike: $searchTerm}}
         ]
       }
     ) { aggregate { count } }
@@ -78,20 +72,20 @@ export const GET_EXPENSE_PLANS_BACKOFFICE = `
         isDeleted: {_eq: false},
         _or: [
           {code: {_ilike: $searchTerm}},
-          {title: {_ilike: $searchTerm}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
+          {title: {_ilike: $searchTerm}}
         ]
       }
     ) {
-      id code title requestType { value translations { value localeCode } }
+      id code title employeeId requestType { value translations { value localeCode } }
       expenseRequest { id code requestType { value translations { value localeCode } } }
+      advancePayment(where: { isDeleted: { _eq: false } }) {
+        id
+        amount
+        status
+      }
       startDate endDate status activeFrom activeTo totalAmount currencyRef
       createdAt updatedAt decisionDate planDate
       employeeDocument { id file fileSize name mimeType }
-      employee {
-        id code displayName fullName pictureThumbnail additionalProperties
-        employeePosition { organizationalUnit { id name } }
-      }
     }
   }
 `
@@ -105,15 +99,19 @@ export const GET_EXPENSE_REQUESTS_BACKOFFICE = `
   ) {
     ExpenseRequestAggregate(where: $where) { aggregate { count } }
     ExpenseRequest(limit: $limit, offset: $offset, orderBy: $orderBy, where: $where) {
-      id code title requestDate startDate endDate description
+      id code title employeeId requestDate startDate endDate description
       totalAmount currencyRef status createdAt updatedAt
       requestType { value translations { value localeCode } }
-      expensePlan { code requestType { value translations { value localeCode } } }
-      employeeDocument { file name }
-      employee {
-        id code displayName firstName lastName fullName pictureThumbnail additionalProperties
-        employeePosition { organizationalUnit { id name } siteLocation { id name } }
+      expensePlan {
+        code
+        requestType { value translations { value localeCode } }
+        advancePayment(where: { isDeleted: { _eq: false } }) {
+          id
+          amount
+          status
+        }
       }
+      employeeDocument { file name }
     }
   }
 `
@@ -131,8 +129,7 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE = `
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
           { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } },
-          { expensePlan: { employee: { fullName: { _ilike: $searchTerm } } } }
+          { expensePlan: { title: { _ilike: $searchTerm } } }
         ]
       }
     ) { aggregate { count } }
@@ -144,20 +141,15 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE = `
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
           { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } },
-          { expensePlan: { employee: { fullName: { _ilike: $searchTerm } } } }
+          { expensePlan: { title: { _ilike: $searchTerm } } }
         ]
       }
     ) {
       id code amount status createdAt paymentMethod currencyRef
       costCenter { id name code }
       expensePlan {
-        code title
+        code title employeeId
         requestType { value translations { value localeCode } }
-        employee {
-          id code fullName firstName lastName displayName additionalProperties
-          employeePosition { organizationalUnit { id name } }
-        }
       }
     }
   }

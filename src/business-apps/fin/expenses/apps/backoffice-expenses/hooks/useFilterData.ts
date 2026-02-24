@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
-import { GET_ORGANIZATIONAL_UNITS, GET_EXPENSE_CURRENCIES } from '../queries/filterData.queries'
+import { GET_EXPENSE_CURRENCIES } from '../queries/filterData.queries'
 
 // ⚡ SECURITY: Hash function for sensitive data in cache keys
 const createHash = (input: string): string => {
@@ -163,15 +163,12 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     setError(null)
 
     try {
-      // Fetch organizational units and currencies in parallel
-      const [orgUnitsResponse, currenciesResponse] = await Promise.all([
-        structureId
-          ? client.request(GET_ORGANIZATIONAL_UNITS, { structureId })
-          : Promise.resolve({ OrganizationalUnit: [] }),
-        client.request(GET_EXPENSE_CURRENCIES, {})
-      ])
+      // Fetch only currencies; OrganizationalUnit query currently fails with backend DB errors.
+      // Keep department filters empty instead of failing the whole page.
+      const orgUnitsResponse = { OrganizationalUnit: [] }
+      const currenciesResponse = await client.request(GET_EXPENSE_CURRENCIES, {})
 
-      // Process organizational units using helper function
+      // Process organizational units using helper function (empty fallback)
       const orgUnits = processOrganizationalUnits(orgUnitsResponse, structureId)
       setOrganizationalUnits(orgUnits)
 

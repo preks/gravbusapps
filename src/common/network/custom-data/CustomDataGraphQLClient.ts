@@ -43,6 +43,23 @@ export class CustomDataGraphQLClient {
       throw new Error('Custom Data GraphQL endpoint is not configured.')
     }
 
+    const operationMatch = query.match(/\b(query|mutation)\s+([A-Za-z0-9_]+)/)
+    const operationName = operationMatch?.[2] ?? 'anonymous'
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'run-3',
+        hypothesisId: 'H6',
+        location: 'CustomDataGraphQLClient.ts:49',
+        message: 'CustomData GraphQL request start',
+        data: { operationName, hasVariables: Boolean(variables && Object.keys(variables).length > 0) },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+
     const response = await fetch(this.endpoint, {
       method: 'POST',
       credentials: 'same-origin',
@@ -77,6 +94,23 @@ export class CustomDataGraphQLClient {
 
     if ((result as any).errors) {
       console.error('Custom Data GraphQL errors:', (result as any).errors)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'run-3',
+          hypothesisId: 'H6',
+          location: 'CustomDataGraphQLClient.ts:88',
+          message: 'CustomData GraphQL errors returned',
+          data: {
+            operationName,
+            errorCount: Array.isArray((result as any).errors) ? (result as any).errors.length : 1
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
       throw new Error(`GraphQL error: ${JSON.stringify((result as any).errors)}`)
     }
 

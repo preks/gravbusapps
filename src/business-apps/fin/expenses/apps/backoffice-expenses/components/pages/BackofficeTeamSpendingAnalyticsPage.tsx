@@ -99,6 +99,15 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
     setDateRange(value as DateRangeOption)
   }
 
+  const travelByDestinationPointChartData = useMemo(
+    () =>
+      (data?.travelByDestinationPoint || []).map(entry => ({
+        name: entry.location,
+        value: entry.amount
+      })),
+    [data?.travelByDestinationPoint]
+  )
+
   const kpiCurrencyCode = (currencyFilter || primaryCurrency || 'EUR').split(':').pop() || 'EUR'
   const formatKpiAmount = (amount: number | null | undefined): string => {
     return formatCurrency(Number(amount ?? 0), kpiCurrencyCode, 2)
@@ -257,7 +266,7 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
 
   const renderExpenseRequestsTab = () => (
     <div className="gba:flex gba:flex-col gba:gap-6">
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
+      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-3 gba:gap-6">
         <Card data-testid="backoffice-analytics-expense-requests-monthly-chart-card">
           <CardHeader className="gba:bg-muted">
             <CardTitle>
@@ -274,6 +283,26 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
               lineColor="var(--nw-chart-2)"
               currency={currencyFilter || primaryCurrency}
               dataTestId="backoffice-analytics-expense-requests-monthly-chart"
+            />
+          </CardContent>
+        </Card>
+
+        <Card data-testid="backoffice-analytics-expense-requests-by-destination-point-chart-card">
+          <CardHeader className="gba:bg-muted">
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.dashboard_tab.destination_spend_distribution',
+                'Destination Spend Distribution'
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PieChartComponent
+              data={travelByDestinationPointChartData}
+              title=""
+              currency={currencyFilter || primaryCurrency}
+              colors={['var(--nw-chart-1)', 'var(--nw-chart-2)', 'var(--nw-chart-3)', 'var(--nw-chart-4)']}
+              dataTestId="backoffice-analytics-expense-requests-destination-point-chart"
             />
           </CardContent>
         </Card>

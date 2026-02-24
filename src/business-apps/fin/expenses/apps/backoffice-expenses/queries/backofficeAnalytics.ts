@@ -30,7 +30,6 @@ export const GET_BACKOFFICE_ANALYTICS_DATA = `
       }
     ) {
       id title expenseDate createdAt status totalAmount currencyRef
-      employee { id fullName employeePosition { organizationalUnit { id name } siteLocation { id name } } }
       expenseRequest { requestTypeRef startDate }
       expensePosition { expenseGroupRef expenseGroup { value translations { value localeCode } } }
     }
@@ -54,7 +53,16 @@ export const GET_BACKOFFICE_ANALYTICS_DATA = `
       }
     ) {
       id title createdAt status totalAmount currencyRef requestTypeRef startDate
-      employee { id fullName employeePosition { organizationalUnit { id name } siteLocation { id name } } }
+      expenseRequestTrip(
+        where: { isDeleted: { _eq: false }, pointType: { _eq: "DESTINATION_POINT" } }
+        orderBy: { tripDateTime: ASC }
+      ) {
+        id
+        pointType
+        address
+        countryRef
+        travelRegion { value translations { value localeCode } }
+      }
     }
 
     expensePlans: ExpensePlan(
@@ -76,7 +84,6 @@ export const GET_BACKOFFICE_ANALYTICS_DATA = `
       }
     ) {
       id title code createdAt status totalAmount currencyRef requestTypeRef startDate planDate
-      employee { id fullName employeePosition { organizationalUnit { id name } siteLocation { id name } } }
     }
 
     advancePayments: AdvancePayment(
@@ -94,7 +101,6 @@ export const GET_BACKOFFICE_ANALYTICS_DATA = `
       id code amount status transactionDate createdAt currencyRef
       expensePlan {
         id title requestTypeRef startDate expensePlanItem { expenseDate }
-        employee { id fullName employeePosition { organizationalUnit { id name } siteLocation { id name } } }
       }
     }
   }

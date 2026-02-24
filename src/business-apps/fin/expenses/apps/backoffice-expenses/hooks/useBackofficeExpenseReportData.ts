@@ -58,6 +58,8 @@ export interface ExpensePlanReport extends ReportItem {
   endDate: string
   status: string
   totalAmount: number
+  advancePaidAmount: number
+  remainingAmount: number
   employeeName: string
   expenseRequestCode?: string
   currency: string
@@ -69,9 +71,13 @@ export interface ExpenseRequestReport extends ReportItem {
   planCode?: string
   title: string
   requestDate: string
+  startDate: string
+  endDate: string
   createdAt: string
   status: string
   totalAmount: number
+  advancePaidAmount: number
+  remainingAmount: number
   employeeName: string
   currency: string
 }
@@ -113,6 +119,38 @@ const buildEmployeeDisplayName = (e: any): string => {
   return `${e.firstName || ''} ${e.lastName || ''}`.trim()
 }
 
+const FORMER_EMPLOYEE_LABEL = 'Former employee'
+
+const GET_EMPLOYEE_POSITIONS_BY_IDENTIFIERS = `
+  query GetEmployeePositionsByIdentifiers($where: EmployeePositionBoolExp!) {
+    EmployeePosition(where: $where) {
+      id
+      userId
+      employeeId
+      firstName
+      lastName
+    }
+  }
+`
+
+const GET_EMPLOYEES_BY_IDS = `
+  query GetEmployeesByIds($ids: [uuid!]) {
+    Employee(where: { id: { _in: $ids }, isDeleted: { _eq: false } }) {
+      id
+      fullName
+      firstName
+      lastName
+      displayName
+    }
+  }
+`
+
+const getSettledAdvancePaidAmount = (advancePayments: any[]): number => {
+  return (Array.isArray(advancePayments) ? advancePayments : [])
+    .filter((payment: any) => ['PAID', 'CLOSED', 'TRANSFERRED'].includes(String(payment?.status || '').toUpperCase()))
+    .reduce((sum: number, payment: any) => sum + Number(payment?.amount || 0), 0)
+}
+
 export const useBackofficeExpenseReportData = ({
   accessToken,
   userInfo
@@ -126,7 +164,7 @@ export const useBackofficeExpenseReportData = ({
   const [pageSize, setPageSize] = useState<number>(10)
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(ReportType.EXPENSE_ITEM)
-
+  const employeeNameCacheRef = useRef<Record<string, string>>({})
   const overview = useBackofficeExpensesOverview(
     { accessToken, userInfo },
     {
@@ -138,101 +176,231 @@ export const useBackofficeExpenseReportData = ({
     }
   )
 
-  const mapRequestsFromOverview = useCallback((rows: any[]): ExpenseRequestReport[] => {
-    return (rows || []).map((request: any) => {
-      const statusDisplay = request.status
-        ? getExpenseRequestStatusDisplay(request.status)
-        : { label: '', type: 'draft' }
-      return {
-        id: request.id,
-        code: request.code || '',
-        planCode: request.expensePlan?.code || '',
-        title: request.title || '',
-        requestDate: request.requestDate || '',
-        createdAt: request.createdAt || '',
-        status: statusDisplay.label,
-        totalAmount: Number(request.totalAmount || 0),
-        currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-        employeeName: buildEmployeeDisplayName(request.employee)
-      } as ExpenseRequestReport
-    })
-  }, [])
+  const resolveEmployeeNamesByIds = useCallback(
+    async (employeeIds: string[]) => {
+      if (!graphqlClient || employeeIds.length === 0) return employeeNameCacheRef.current
 
-  const mapPlansFromOverview = useCallback((rows: any[]): ExpensePlanReport[] => {
-    return (rows || []).map((plan: any) => {
-      const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
-      return {
-        id: plan.id,
-        code: plan.code || '',
-        title: plan.title || '',
-        startDate: plan.startDate || '',
-        endDate: plan.endDate || '',
-        status: statusDisplay.label,
-        totalAmount: Number(plan.totalAmount || 0),
-        currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-        employeeName: buildEmployeeDisplayName(plan.employee),
-        expenseRequestCode:
-          Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0 ? plan.expenseRequest[0].code || '' : '',
-        createdAt: plan.createdAt || ''
-      } as ExpensePlanReport
-    })
-  }, [])
+      const uniqueIds = Array.from(new Set(employeeIds.filter(Boolean)))
+      const unresolvedIds = uniqueIds.filter(id => !employeeNameCacheRef.current[id])
+      if (unresolvedIds.length === 0) return employeeNameCacheRef.current
 
-  const mapPaymentsFromOverview = useCallback((rows: any[]): AdvancePaymentReport[] => {
-    return (rows || []).map((p: any) => {
-      const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
-      return {
-        id: p.id,
-        code: p.expensePlan?.code || p.code || '',
-        title: p.expensePlan?.title || '',
-        requestDate: p.createdAt || '',
-        status: statusDisplay.label,
-        amount: Number(p.amount || 0),
-        employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
-        paymentMethod: p.paymentMethod || undefined,
-        costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
-        currency: p.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
-      } as AdvancePaymentReport
-    })
-  }, [])
+      const chunkSize = 50
+      for (let i = 0; i < unresolvedIds.length; i += chunkSize) {
+        const batchIds = unresolvedIds.slice(i, i + chunkSize)
+        try {
+          const where = {
+            _or: batchIds.flatMap(id => [{ id: { _eq: id } }, { userId: { _eq: id } }, { employeeId: { _eq: id } }])
+          }
+          const result = await graphqlClient.request(GET_EMPLOYEE_POSITIONS_BY_IDENTIFIERS, { where })
+          const rows = Array.isArray(result?.EmployeePosition) ? result.EmployeePosition : []
+
+          rows.forEach((row: any) => {
+            const displayName = `${row?.firstName || ''} ${row?.lastName || ''}`.trim()
+            if (!displayName) return
+            if (row?.id) employeeNameCacheRef.current[String(row.id)] = displayName
+            if (row?.userId) employeeNameCacheRef.current[String(row.userId)] = displayName
+            if (row?.employeeId) employeeNameCacheRef.current[String(row.employeeId)] = displayName
+          })
+        } catch {
+          // Keep unresolved identifiers empty; UI should not display UUID fallback.
+        }
+      }
+
+      const unresolvedAfterPositions = unresolvedIds.filter(id => !employeeNameCacheRef.current[id])
+      if (unresolvedAfterPositions.length > 0) {
+        for (let i = 0; i < unresolvedAfterPositions.length; i += chunkSize) {
+          const batchIds = unresolvedAfterPositions.slice(i, i + chunkSize)
+          try {
+            const result = await graphqlClient.request(GET_EMPLOYEES_BY_IDS, { ids: batchIds })
+            const rows = Array.isArray(result?.Employee) ? result.Employee : []
+            rows.forEach((employee: any) => {
+              const displayName =
+                String(employee?.fullName || '').trim() ||
+                `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() ||
+                String(employee?.displayName || '').trim()
+              if (!displayName) return
+              if (employee?.id) employeeNameCacheRef.current[String(employee.id)] = displayName
+            })
+          } catch {
+            // Keep unresolved IDs as fallback label.
+          }
+        }
+      }
+
+      return employeeNameCacheRef.current
+    },
+    [graphqlClient]
+  )
+
+  const resolveDisplayName = useCallback(
+    (candidates: Array<string | undefined | null>, employeeNameById: Record<string, string>) => {
+      for (const id of candidates) {
+        const key = String(id || '')
+        if (!key) continue
+        const resolved = employeeNameById[key]
+        if (resolved) return resolved
+      }
+      return FORMER_EMPLOYEE_LABEL
+    },
+    []
+  )
+
+  const mapRequestsFromOverview = useCallback(
+    (rows: any[], employeeNameById: Record<string, string>): ExpenseRequestReport[] => {
+      return (rows || []).map((request: any) => {
+        const statusDisplay = request.status
+          ? getExpenseRequestStatusDisplay(request.status)
+          : { label: '', type: 'draft' }
+        return {
+          id: request.id,
+          code: request.code || '',
+          planCode: request.expensePlan?.code || '',
+          title: request.title || '',
+          requestDate: request.requestDate || '',
+          startDate: request.startDate || '',
+          endDate: request.endDate || '',
+          createdAt: request.createdAt || '',
+          status: statusDisplay.label,
+          totalAmount: Number(request.totalAmount || 0),
+          advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
+          remainingAmount: Math.max(
+            Number(request.totalAmount || 0) - getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
+            0
+          ),
+          currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+          employeeName:
+            buildEmployeeDisplayName(request.employee) ||
+            resolveDisplayName([request.employeeId, request.createdBy], employeeNameById)
+        } as ExpenseRequestReport
+      })
+    },
+    [resolveDisplayName]
+  )
+
+  const mapPlansFromOverview = useCallback(
+    (rows: any[], employeeNameById: Record<string, string>): ExpensePlanReport[] => {
+      return (rows || []).map((plan: any) => {
+        const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
+        return {
+          id: plan.id,
+          code: plan.code || '',
+          title: plan.title || '',
+          startDate: plan.startDate || '',
+          endDate: plan.endDate || '',
+          status: statusDisplay.label,
+          totalAmount: Number(plan.totalAmount || 0),
+          advancePaidAmount: getSettledAdvancePaidAmount(plan?.advancePayment),
+          remainingAmount: Math.max(
+            Number(plan.totalAmount || 0) - getSettledAdvancePaidAmount(plan?.advancePayment),
+            0
+          ),
+          currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+          employeeName:
+            buildEmployeeDisplayName(plan.employee) ||
+            resolveDisplayName([plan.employeeId, plan.createdBy], employeeNameById),
+          expenseRequestCode:
+            Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
+              ? plan.expenseRequest[0].code || ''
+              : '',
+          createdAt: plan.createdAt || ''
+        } as ExpensePlanReport
+      })
+    },
+    [resolveDisplayName]
+  )
+
+  const mapPaymentsFromOverview = useCallback(
+    (rows: any[], employeeNameById: Record<string, string>): AdvancePaymentReport[] => {
+      return (rows || []).map((p: any) => {
+        const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
+        return {
+          id: p.id,
+          code: p.expensePlan?.code || p.code || '',
+          title: p.expensePlan?.title || '',
+          requestDate: p.createdAt || '',
+          status: statusDisplay.label,
+          amount: Number(p.amount || 0),
+          employeeName:
+            buildEmployeeDisplayName(p.expensePlan?.employee) ||
+            buildEmployeeDisplayName(p.employee) ||
+            resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
+          paymentMethod: p.paymentMethod || undefined,
+          costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+          currency: p.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
+        } as AdvancePaymentReport
+      })
+    },
+    [resolveDisplayName]
+  )
 
   useEffect(() => {
-    if (!selectedReportType || selectedReportType === ReportType.EXPENSE_ITEM) return
+    if (!selectedReportType || selectedReportType === ReportType.EXPENSE_ITEM) {
+      return
+    }
+
     setIsLoading(overview.isLoading)
     if (overview.error) {
       setError(overview.error)
       return
     }
-    if (!overview.isLoading) {
+    if (overview.isLoading) return
+
+    let cancelled = false
+    const loadRows = async () => {
       switch (selectedReportType) {
         case ReportType.EXPENSE_REQUEST: {
-          const rows = mapRequestsFromOverview(overview.data?.expenseRequests || [])
-          setReportData(rows)
+          const rows = overview.data?.expenseRequests || []
+          const ids = rows
+            .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
+            .filter(Boolean)
+          const employeeNameById = await resolveEmployeeNamesByIds(ids)
+          if (cancelled) return
+          setReportData(mapRequestsFromOverview(rows, employeeNameById))
           setTotalCount(overview.data?.expenseRequestsTotal || 0)
           setError(null)
           break
         }
         case ReportType.EXPENSE_PLAN: {
-          const rows = mapPlansFromOverview(overview.data?.expensePlans || [])
-          setReportData(rows)
+          const rows = overview.data?.expensePlans || []
+          const ids = rows
+            .flatMap((plan: any) => [String(plan?.employeeId || ''), String(plan?.createdBy || '')])
+            .filter(Boolean)
+          const employeeNameById = await resolveEmployeeNamesByIds(ids)
+          if (cancelled) return
+          setReportData(mapPlansFromOverview(rows, employeeNameById))
           setTotalCount(overview.data?.expensePlansTotal || 0)
           setError(null)
           break
         }
         case ReportType.ADVANCE_PAYMENT: {
-          const rows = mapPaymentsFromOverview(overview.data?.advancePayments || [])
-          setReportData(rows)
+          const rows = overview.data?.advancePayments || []
+          const ids = rows
+            .flatMap((payment: any) => [
+              String(payment?.expensePlan?.employeeId || ''),
+              String(payment?.createdBy || ''),
+              String(payment?.expensePlan?.createdBy || '')
+            ])
+            .filter(Boolean)
+          const employeeNameById = await resolveEmployeeNamesByIds(ids)
+          if (cancelled) return
+          setReportData(mapPaymentsFromOverview(rows, employeeNameById))
           setTotalCount(overview.data?.advancePaymentsTotal || 0)
           setError(null)
           break
         }
       }
     }
+
+    void loadRows()
+    return () => {
+      cancelled = true
+    }
   }, [
     selectedReportType,
     overview.data,
     overview.isLoading,
     overview.error,
+    resolveEmployeeNamesByIds,
     mapRequestsFromOverview,
     mapPlansFromOverview,
     mapPaymentsFromOverview
@@ -245,18 +413,13 @@ export const useBackofficeExpenseReportData = ({
       where._or = [
         { code: { _ilike: searchPattern } },
         { title: { _ilike: searchPattern } },
-        { status: { _ilike: searchPattern } },
-        { employee: { fullName: { _ilike: searchPattern } } },
-        { employee: { firstName: { _ilike: searchPattern } } },
-        { employee: { lastName: { _ilike: searchPattern } } },
-        { expensePlan: { code: { _ilike: searchPattern } } },
-        { expensePlan: { title: { _ilike: searchPattern } } }
+        { status: { _ilike: searchPattern } }
       ]
     }
     return where
   }, [])
 
-  const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
+  const processExpenseItemsData = (data: any, employeeNameById: Record<string, string> = {}): ExpenseItemReport[] => {
     if (!data?.ExpenseItem?.length) return []
     return data.ExpenseItem.map((item: any) => {
       const expenseGroup =
@@ -280,13 +443,17 @@ export const useBackofficeExpenseReportData = ({
         description: item.description || '',
         category: expenseGroup,
         amount: item.totalAmount || 0,
-        employeeName: buildEmployeeDisplayName(item.employee),
+        employeeName:
+          buildEmployeeDisplayName(item.employee) ||
+          employeeNameById[item.employeeId] ||
+          employeeNameById[item.createdBy] ||
+          FORMER_EMPLOYEE_LABEL,
         status: statusDisplay.label
       }
     })
   }
 
-  const processExpensePlansData = (data: any): ExpensePlanReport[] => {
+  const processExpensePlansData = (data: any, employeeNameById: Record<string, string> = {}): ExpensePlanReport[] => {
     if (!data?.ExpensePlan?.length) return []
     return data.ExpensePlan.map((plan: any) => {
       const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
@@ -299,7 +466,7 @@ export const useBackofficeExpenseReportData = ({
         status: statusDisplay.label,
         totalAmount: plan.totalAmount || 0,
         currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-        employeeName: buildEmployeeDisplayName(plan.employee),
+        employeeName: resolveDisplayName([plan.employeeId, plan.createdBy], employeeNameById),
         expenseRequestCode:
           Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0 ? plan.expenseRequest[0].code || '' : '',
         createdAt: plan.createdAt || ''
@@ -307,7 +474,10 @@ export const useBackofficeExpenseReportData = ({
     })
   }
 
-  const processExpenseRequestsData = (data: any): ExpenseRequestReport[] => {
+  const processExpenseRequestsData = (
+    data: any,
+    employeeNameById: Record<string, string> = {}
+  ): ExpenseRequestReport[] => {
     if (!data?.ExpenseRequest?.length) return []
     return data.ExpenseRequest.map((request: any) => {
       const statusDisplay = request.status
@@ -319,11 +489,18 @@ export const useBackofficeExpenseReportData = ({
         planCode: request.expensePlan?.code || '',
         title: request.title || '',
         requestDate: request.requestDate || '',
+        startDate: request.startDate || '',
+        endDate: request.endDate || '',
         createdAt: request.createdAt || '',
         status: statusDisplay.label,
-        totalAmount: request.totalAmount || 0,
+        totalAmount: Number(request.totalAmount || 0),
+        advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
+        remainingAmount: Math.max(
+          Number(request.totalAmount || 0) - getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
+          0
+        ),
         currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-        employeeName: buildEmployeeDisplayName(request.employee)
+        employeeName: resolveDisplayName([request.employeeId, request.createdBy], employeeNameById)
       }
     })
   }
@@ -338,7 +515,11 @@ export const useBackofficeExpenseReportData = ({
         offset: (currentPage - 1) * pageSize,
         searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
       })
-      const processedData = processExpenseItemsData(result)
+      const employeeIds = (result?.ExpenseItem || [])
+        .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      const processedData = processExpenseItemsData(result, employeeNameById)
       setReportData(processedData)
       setTotalCount(result?.ExpenseItemAggregate?.aggregate?.count || 0)
     } catch {
@@ -346,24 +527,27 @@ export const useBackofficeExpenseReportData = ({
     } finally {
       setIsLoading(false)
     }
-  }, [graphqlClient, pageSize, currentPage, searchTerm])
+  }, [graphqlClient, pageSize, currentPage, searchTerm, resolveEmployeeNamesByIds])
 
-  const mapAdvancePaymentToReport = useCallback((p: any): AdvancePaymentReport => {
-    const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
-    const currencyCode = p?.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
-    return {
-      id: p.id,
-      code: p.expensePlan?.code || p.code || '',
-      title: p.expensePlan?.title || '',
-      requestDate: p.createdAt || '',
-      status: statusDisplay.label,
-      amount: p.amount || 0,
-      employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
-      paymentMethod: p.paymentMethod || undefined,
-      costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
-      currency: currencyCode
-    }
-  }, [])
+  const mapAdvancePaymentToReport = useCallback(
+    (p: any, employeeNameById: Record<string, string>): AdvancePaymentReport => {
+      const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
+      const currencyCode = p?.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
+      return {
+        id: p.id,
+        code: p.expensePlan?.code || p.code || '',
+        title: p.expensePlan?.title || '',
+        requestDate: p.createdAt || '',
+        status: statusDisplay.label,
+        amount: p.amount || 0,
+        employeeName: resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
+        paymentMethod: p.paymentMethod || undefined,
+        costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+        currency: currencyCode
+      }
+    },
+    [resolveDisplayName]
+  )
 
   const fetchBatchedData = useCallback(
     async <T extends ReportItem>(
@@ -395,9 +579,13 @@ export const useBackofficeExpenseReportData = ({
         offset,
         searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
       })
-      return processExpenseItemsData(result)
+      const employeeIds = (result?.ExpenseItem || [])
+        .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return processExpenseItemsData(result, employeeNameById)
     },
-    [graphqlClient, searchTerm]
+    [graphqlClient, searchTerm, resolveEmployeeNamesByIds]
   )
 
   const fetchExpensePlansForExport = useCallback(
@@ -407,9 +595,13 @@ export const useBackofficeExpenseReportData = ({
         offset,
         searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
       })
-      return processExpensePlansData(result)
+      const employeeIds = (result?.ExpensePlan || [])
+        .flatMap((plan: any) => [String(plan?.employeeId || ''), String(plan?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return processExpensePlansData(result, employeeNameById)
     },
-    [graphqlClient, searchTerm]
+    [graphqlClient, searchTerm, resolveEmployeeNamesByIds]
   )
 
   const fetchExpenseRequestsForExport = useCallback(
@@ -421,9 +613,13 @@ export const useBackofficeExpenseReportData = ({
         offset,
         orderBy: [{ requestDate: 'DESC' }]
       })
-      return processExpenseRequestsData(result)
+      const employeeIds = (result?.ExpenseRequest || [])
+        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return processExpenseRequestsData(result, employeeNameById)
     },
-    [graphqlClient, searchTerm, buildExpenseRequestWhere]
+    [graphqlClient, searchTerm, buildExpenseRequestWhere, resolveEmployeeNamesByIds]
   )
 
   const fetchAdvancePaymentsForExport = useCallback(
@@ -433,9 +629,17 @@ export const useBackofficeExpenseReportData = ({
         offset,
         searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
       })
-      return (result?.AdvancePayment || []).map(mapAdvancePaymentToReport)
+      const employeeIds = (result?.AdvancePayment || [])
+        .flatMap((payment: any) => [
+          String(payment?.expensePlan?.employeeId || ''),
+          String(payment?.createdBy || ''),
+          String(payment?.expensePlan?.createdBy || '')
+        ])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return (result?.AdvancePayment || []).map((payment: any) => mapAdvancePaymentToReport(payment, employeeNameById))
     },
-    [graphqlClient, searchTerm, mapAdvancePaymentToReport]
+    [graphqlClient, searchTerm, mapAdvancePaymentToReport, resolveEmployeeNamesByIds]
   )
 
   const fetchAllForExport = useCallback(async (): Promise<ReportItem[]> => {
@@ -469,8 +673,12 @@ export const useBackofficeExpenseReportData = ({
 
   const fetchReportData = useCallback(async () => {
     if (!selectedReportType) return
-    if (selectedReportType === ReportType.EXPENSE_ITEM) {
-      await fetchExpenseItems()
+    switch (selectedReportType) {
+      case ReportType.EXPENSE_ITEM:
+        await fetchExpenseItems()
+        break
+      default:
+        break
     }
   }, [selectedReportType, fetchExpenseItems])
 
