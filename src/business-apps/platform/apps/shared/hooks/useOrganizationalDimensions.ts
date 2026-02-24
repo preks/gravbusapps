@@ -7,6 +7,11 @@ import { useState, useCallback } from 'react'
 import { OrgDirectoryClient, OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
 import type { DimensionType, DimensionOption } from '../types/dimensions'
 
+export interface UseOrganizationalDimensionsOptions {
+  /** Translation function for user-facing error messages */
+  t?: (key: string, vars?: Record<string, string | number>) => string
+}
+
 export interface UseOrganizationalDimensionsResult {
   // Dimension options
   organizationalUnits: DimensionOption[]
@@ -35,7 +40,11 @@ export interface UseOrganizationalDimensionsResult {
  * Hook to fetch organizational dimensions (org units, matrix teams, locations, legal entities, capabilities)
  * and their members for group chat or space creation
  */
-export const useOrganizationalDimensions = (accessToken: string): UseOrganizationalDimensionsResult => {
+export const useOrganizationalDimensions = (
+  accessToken: string,
+  options: UseOrganizationalDimensionsOptions = {}
+): UseOrganizationalDimensionsResult => {
+  const { t } = options
   const [organizationalUnits, setOrganizationalUnits] = useState<DimensionOption[]>([])
   const [matrixTeams, setMatrixTeams] = useState<DimensionOption[]>([])
   const [locations, setLocations] = useState<DimensionOption[]>([])
@@ -80,11 +89,11 @@ export const useOrganizationalDimensions = (accessToken: string): UseOrganizatio
       setCapabilities(caps.sort(sortByName))
     } catch (err) {
       console.error('Error loading organizational dimensions:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load organizational dimensions')
+      setError(t ? t('shared-error-load-dimensions') : err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoadingDimensions(false)
     }
-  }, [accessToken])
+  }, [accessToken, t])
 
   /**
    * Load members by dimension type and ID
@@ -126,13 +135,13 @@ export const useOrganizationalDimensions = (accessToken: string): UseOrganizatio
         return members
       } catch (err) {
         console.error(`Error loading members for ${type}:`, err)
-        setError(err instanceof Error ? err.message : `Failed to load members for ${type}`)
+        setError(t ? t('shared-error-load-members', { type }) : err instanceof Error ? err.message : String(err))
         return []
       } finally {
         setIsLoadingMembers(false)
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   /**

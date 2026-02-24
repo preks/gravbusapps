@@ -197,10 +197,11 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         setError(null)
         setCurrentPage(1)
 
+        // When Unread filter is on we fetch all and filter client-side so "marked as unread" (dot) conversations are included
         const response = await apiClient.getConversations(1, LIMIT, {
           search: debouncedSearch || undefined,
           filter: filterKind,
-          unreadOnly: unreadOnly || undefined
+          unreadOnly: unreadOnly ? false : undefined
         })
         // Handle both response structures: { data: [...] } or { conversations: [...] }
         const conversationsData = response.data || (response as any).conversations || []
@@ -260,7 +261,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       const response = await apiClient.getConversations(nextPage, LIMIT, {
         search: debouncedSearch || undefined,
         filter: filterKind,
-        unreadOnly: unreadOnly || undefined
+        unreadOnly: unreadOnly ? false : undefined
       })
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0

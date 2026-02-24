@@ -12,6 +12,8 @@ import type { NoteTreeNode, MoveNoteInput } from '../types'
 export interface UseNoteTreeOptions {
   autoLoad?: boolean
   defaultExpandedIds?: string[]
+  /** Optional i18n function for user-facing error messages */
+  t?: (key: string) => string
 }
 
 export interface UseNoteTreeReturn {
@@ -85,7 +87,7 @@ function getParentChainFromTree(nodes: NoteTreeNode[], targetId: string, chain: 
 }
 
 export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn {
-  const { autoLoad = true, defaultExpandedIds = [] } = options
+  const { autoLoad = true, defaultExpandedIds = [], t } = options
 
   // State
   const [tree, setTree] = useState<NoteTreeNode[]>([])
@@ -108,13 +110,13 @@ export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn
       const treeData = await NoteApiService.getNoteTree()
       setTree(treeData)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load note tree'
+      const message = err instanceof Error ? err.message : t?.('note-tree-load-failed') || String(err)
       setError(message)
       console.error('[useNoteTree] Failed to load tree:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [t])
 
   /**
    * Toggle node expansion
@@ -149,50 +151,62 @@ export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn
   /**
    * Move a node to new parent/position
    */
-  const moveNode = useCallback(async (nodeId: string, targetParentId: string | null, position: number): Promise<boolean> => {
-    try {
-      const move: MoveNoteInput = {
-        parentId: targetParentId,
-        position
-      }
+  const moveNode = useCallback(
+    async (nodeId: string, targetParentId: string | null, position: number): Promise<boolean> => {
+      try {
+        const move: MoveNoteInput = {
+          parentId: targetParentId,
+          position
+        }
 
-      const note = await NoteApiService.moveNote(nodeId, move)
-      if (note) {
-        // Reload tree to reflect changes
-        await loadTree()
-        return true
+        const note = await NoteApiService.moveNote(nodeId, move)
+        if (note) {
+          // Reload tree to reflect changes
+          await loadTree()
+          return true
+        }
+        return false
+      } catch (err) {
+        console.error('[useNoteTree] Failed to move node:', err)
+        return false
       }
-      return false
-    } catch (err) {
-      console.error('[useNoteTree] Failed to move node:', err)
-      return false
-    }
-  }, [loadTree])
+    },
+    [loadTree]
+  )
 
   /**
    * Find node by ID
    */
-  const findNode = useCallback((id: string): NoteTreeNode | null => {
-    return findNodeInTree(tree, id)
-  }, [tree])
+  const findNode = useCallback(
+    (id: string): NoteTreeNode | null => {
+      return findNodeInTree(tree, id)
+    },
+    [tree]
+  )
 
   /**
    * Get parent chain for breadcrumbs
    */
-  const getParentChain = useCallback((id: string): NoteTreeNode[] => {
-    return getParentChainFromTree(tree, id)
-  }, [tree])
+  const getParentChain = useCallback(
+    (id: string): NoteTreeNode[] => {
+      return getParentChainFromTree(tree, id)
+    },
+    [tree]
+  )
 
   /**
    * Get direct children of a parent
    */
-  const getChildren = useCallback((parentId: string | null): NoteTreeNode[] => {
-    if (parentId === null) {
-      return tree
-    }
-    const parent = findNodeInTree(tree, parentId)
-    return parent?.children || []
-  }, [tree])
+  const getChildren = useCallback(
+    (parentId: string | null): NoteTreeNode[] => {
+      if (parentId === null) {
+        return tree
+      }
+      const parent = findNodeInTree(tree, parentId)
+      return parent?.children || []
+    },
+    [tree]
+  )
 
   // Auto-load on mount
   useEffect(() => {

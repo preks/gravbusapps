@@ -7,8 +7,11 @@
 
 import React, { useEffect, useState } from 'react'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- OAuthConfigError used in instanceof check
+import { OAuthConfigError } from '../services/OAuthConfigError'
+import translations from '../_i18n'
 
 /** Remove all OAuth-related sessionStorage keys */
 function cleanupOAuthStorage() {
@@ -37,6 +40,7 @@ interface MicrosoftOAuthCallbackProps {
 }
 
 export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ onSuccess, onError, accessToken }) => {
+  const { t } = useTranslation(translations)
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
   const [errorMessage, setErrorMessage] = useState('')
   const [oauthDebug, setOauthDebug] = useState<{ clientId?: string; authority?: string; scopes?: string } | null>(null)
@@ -114,14 +118,14 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
           sessionStorage.getItem('ms_oauth_verifier') || sessionStorage.getItem('google_oauth_verifier')
 
         if (!codeVerifier) {
-          throw new Error('Missing PKCE verifier. Please try signing in again.')
+          throw new Error(t('oauth-missing-pkce'))
         }
 
         // Validate state
         const storedState = sessionStorage.getItem('ms_oauth_state') || sessionStorage.getItem('google_oauth_state')
 
         if (storedState && returnedState && storedState !== returnedState) {
-          throw new Error('Invalid state parameter. Please try signing in again.')
+          throw new Error(t('oauth-invalid-state'))
         }
 
         const redirectUri = `${window.location.origin}/platform/mail/oauth/callback`
@@ -158,7 +162,7 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
           window.history.replaceState({}, '', '/platform/mail')
         }, 1500)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to connect email account'
+        const msg = err instanceof Error ? err.message : t('oauth-connect-failed')
         setStatus('error')
         setErrorMessage(msg)
         onError(msg)
@@ -174,14 +178,14 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
     }
 
     performExchange()
-  }, [onSuccess, onError, accessToken])
+  }, [onSuccess, onError, accessToken, t])
 
   if (status === 'success') {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:min-h-[300px] gba:p-8">
         <CheckCircle className="gba:w-12 gba:h-12 gba:text-success gba:mb-4" />
-        <p className="gba:text-lg gba:font-medium gba:text-foreground">Email account connected!</p>
-        <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">Redirecting to your inbox...</p>
+        <p className="gba:text-lg gba:font-medium gba:text-foreground">{t('oauth-success-title')}</p>
+        <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{t('oauth-success-redirect')}</p>
       </div>
     )
   }
@@ -190,14 +194,14 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:min-h-[300px] gba:p-8">
         <XCircle className="gba:w-12 gba:h-12 gba:text-destructive gba:mb-4" />
-        <p className="gba:text-lg gba:font-medium gba:text-foreground">Sign-in failed</p>
+        <p className="gba:text-lg gba:font-medium gba:text-foreground">{t('oauth-error-title')}</p>
         <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{errorMessage}</p>
         {diagnostics && (diagnostics.correlationId || diagnostics.traceId || diagnostics.errorCodes) && (
           <div
             className="gba:w-full gba:max-w-xl gba:mt-4 gba:p-3 gba:rounded-md gba:border gba:bg-card"
             data-testid="oauth-error-diagnostics"
           >
-            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:mb-2">Diagnostics (share with admin)</p>
+            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:mb-2">{t('oauth-diagnostics-title')}</p>
             <pre className="gba:text-[11px] gba:text-muted-foreground gba:whitespace-pre-wrap gba:break-words">
               {[
                 diagnostics.error ? `error: ${diagnostics.error}` : null,
@@ -214,9 +218,7 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
         )}
         {oauthDebug && (oauthDebug.clientId || oauthDebug.authority || oauthDebug.scopes) && (
           <div className="gba:w-full gba:max-w-xl gba:mt-4 gba:p-3 gba:rounded-md gba:border gba:bg-card">
-            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:mb-2">
-              OAuth request config (share with admin)
-            </p>
+            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:mb-2">{t('oauth-config-title')}</p>
             <pre className="gba:text-[11px] gba:text-muted-foreground gba:whitespace-pre-wrap gba:break-words">
               {[
                 oauthDebug.clientId ? `client_id: ${oauthDebug.clientId}` : null,
@@ -239,12 +241,10 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
             }}
             data-testid="oauth-error-back"
           >
-            Back to mail
+            {t('oauth-back-to-mail')}
           </Button>
         </div>
-        <p className="gba:text-xs gba:text-muted-foreground gba:mt-4">
-          You can return to mail after copying diagnostics.
-        </p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:mt-4">{t('oauth-copy-hint')}</p>
       </div>
     )
   }
@@ -252,8 +252,8 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
   return (
     <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:min-h-[300px] gba:p-8">
       <Loader2 className="gba:w-12 gba:h-12 gba:animate-spin gba:text-primary gba:mb-4" />
-      <p className="gba:text-lg gba:font-medium gba:text-foreground">Connecting your email account...</p>
-      <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">Please wait while we complete the sign-in.</p>
+      <p className="gba:text-lg gba:font-medium gba:text-foreground">{t('oauth-processing-title')}</p>
+      <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{t('oauth-processing-desc')}</p>
     </div>
   )
 }

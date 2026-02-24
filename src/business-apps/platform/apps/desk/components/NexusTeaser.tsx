@@ -7,8 +7,9 @@
 
 import React, { useCallback } from 'react'
 import { Sparkles, ArrowRight } from 'lucide-react'
-import { Card, CardContent } from '@newwork/nw-design-system'
+import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import deskTranslations from '../_i18n'
 
 const NEXUS_URL = '/platform/nexus'
 
@@ -20,6 +21,7 @@ export interface NexusTeaserProps {
  * NexusTeaser - Compact promotional banner linking to Nexus
  */
 const NexusTeaser: React.FC<NexusTeaserProps> = ({ 'data-testid': testId = 'desk-nexus-teaser' }) => {
+  const { t } = useTranslation(deskTranslations)
   const handleClick = useCallback(() => {
     navigateTo(NEXUS_URL)
   }, [])
@@ -47,20 +49,19 @@ const NexusTeaser: React.FC<NexusTeaserProps> = ({ 'data-testid': testId = 'desk
               <div className="gba:flex-1 gba:min-w-0">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <h3 className="gba:font-funnel-display gba:text-base gba:font-semibold gba:tracking-tight gba:text-ai-foreground">
-                    Nexus
+                    {t('nexus-title')}
                   </h3>
                   <span className="gba:text-[9px] gba:font-semibold gba:tracking-[0.15em] gba:uppercase gba:text-ai-foreground/70">
-                    AI-Powered
+                    {t('nexus-badge')}
                   </span>
                 </div>
                 <p className="gba:text-xs gba:text-ai-foreground/90 gba:leading-snug gba:mt-0.5">
-                  Your intelligent content workspace. Generate documents, analyses, and presentations through
-                  conversation.
+                  {t('nexus-description')}
                 </p>
               </div>
 
               <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-ai-foreground gba:font-medium gba:text-sm gba:flex-shrink-0">
-                <span>Try Nexus</span>
+                <span>{t('nexus-try')}</span>
                 <ArrowRight className="gba:h-3.5 gba:w-3.5 gba:transition-transform group-hover:gba:translate-x-1" />
               </div>
             </div>

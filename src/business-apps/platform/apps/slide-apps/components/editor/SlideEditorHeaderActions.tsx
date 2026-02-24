@@ -6,7 +6,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { FileText, History, Lock, Share2, Save, Unlock } from 'lucide-react'
 import type { Version } from '@/business-apps/platform/apps/shared/types/versioning'
@@ -17,6 +18,7 @@ import { CheckpointDialog } from '@/business-apps/platform/apps/shared/component
 import { SlidesApiService } from '../../services/SlidesApiService'
 import { ShareSlideDialog } from '../ShareSlideDialog'
 import { ManageSharesDialog } from '../ManageSharesDialog'
+import translations from '../../_i18n'
 
 export interface SlideEditorHeaderActionsProps {
   slideId: string
@@ -41,6 +43,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
   applyContentJsonSnapshot,
   'data-testid': testId = 'slide-editor-header-actions'
 }) => {
+  const { t } = useTranslation(translations)
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
@@ -98,7 +101,7 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" data-testid={`${testId}-menu-trigger`}>
             <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-            Slide
+            {t('header-slide')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -110,32 +113,32 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
             data-testid={`${testId}-version-history`}
           >
             <History className="gba:w-4 gba:h-4 gba:mr-2" />
-            Version History
+            {t('header-version-history')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)} data-testid={`${testId}-checkpoint`}>
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-            Save Checkpoint
+            {t('header-save-checkpoint')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {fileLock.isLockedByMe ? (
             <DropdownMenuItem onClick={() => fileLock.releaseLock()} data-testid={`${testId}-unlock`}>
               <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
-              Unlock Slide
+              {t('header-unlock-slide')}
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem onClick={() => fileLock.acquireLock()} data-testid={`${testId}-lock`}>
               <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
-              Lock Slide
+              {t('header-lock-slide')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setShowShareDialog(true)} data-testid={`${testId}-share`}>
             <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-            Share...
+            {t('header-share')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setShowManageShares(true)} data-testid={`${testId}-manage-shares`}>
             <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-            Manage access...
+            {t('header-manage-access')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

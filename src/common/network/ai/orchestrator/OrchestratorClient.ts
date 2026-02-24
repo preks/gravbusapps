@@ -148,7 +148,9 @@ export class OrchestratorClient {
   private parseSseLine(line: string, onEvent: (event: BuildProgressEvent) => void) {
     if (!line.startsWith('data:')) return
     const data = line.slice(5).trim()
-    if (!data) return
+    // Skip empty data and SSE comment content that infrastructure (nginx/ingress) may
+    // send as "data: :ping" instead of a proper SSE comment line ":ping".
+    if (!data || data.startsWith(':')) return
     try {
       const raw = JSON.parse(data) as Record<string, unknown>
       const event = normalizeProgressEvent(raw)
@@ -341,6 +343,73 @@ export class OrchestratorClient {
     }
 
     return response.json() as Promise<AnalyzeResponse>
+  }
+
+  /**
+   * Publish the built screens for a job (calls /publish/stream, returns when done)
+   */
+  async publishApp(
+    repoId: string,
+    sessionId: string,
+    onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await fetch(`${this.baseUrl}/publish/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`,
+        Accept: 'text/event-stream'
+      },
+      body: JSON.stringify({ repoId, sessionId })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Publish failed: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('No response body')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let lastResult: { success: boolean; message?: string } = { success: false }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue
+        const data = line.slice(5).trim()
+        if (!data) continue
+        try {
+          const evt = JSON.parse(data) as {
+            type: string
+            message?: string
+            result?: { success: boolean; message?: string }
+          }
+          onEvent?.(evt)
+          if (evt.type === 'done' && evt.result) {
+            lastResult = evt.result as { success: boolean; message?: string }
+          }
+          if (evt.type === 'error') {
+            throw new Error(evt.message || 'Publish failed')
+          }
+        } catch (e) {
+          if (e instanceof Error && e.message !== 'Publish failed') {
+            // JSON parse error – skip
+          } else {
+            throw e
+          }
+        }
+      }
+    }
+
+    return lastResult
   }
 
   /**

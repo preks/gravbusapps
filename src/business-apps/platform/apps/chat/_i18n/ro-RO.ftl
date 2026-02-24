@@ -20,7 +20,7 @@ chat-noConversationsYet = Încă nu există conversații
 chat-filters = Filtre
 chat-filterDirect = Direct
 chat-filterGroup = Grup
-chat-filterMeetingChats = Conversații meeting
+chat-filterMeetingChats = Întâlnire
 chat-filterUnreadOnly = Necitite
 chat-filtersCollapse = Restrânge filtrele
 chat-filtersExpand = Arată toate filtrele
@@ -75,6 +75,25 @@ chat-input-attach = Atașează fișier
 chat-input-emoji = Adaugă emoji
 chat-attach = Atașează fișier
 chat-mention = Menționează pe cineva
+
+# Quoted messages (reply = reply with quote)
+chat-reply = Răspunde
+chat-reply-with-quote = Răspunde cu citat
+chat-quoting-name = Citat de la {$name}
+chat-cancel-quote = Anulează citatul
+chat-quoted-message-unavailable = Mesaj indisponibil
+
+# Edit message
+chat-edit-message = Editează mesajul
+chat-save = Salvează
+chat-cancel = Anulează
+chat-edited = Editat
+chat-edited-at = Editat la { $time }
+
+# Reactions
+chat-reaction-picker-full = Alege o reacție
+chat-reaction-search-placeholder = Caută emoji…
+chat-react-with-emoji = Reacționează cu {$emoji}
 
 # Typing Indicator
 chat-someone = Cineva
@@ -209,6 +228,11 @@ chat-groupCall = Apel de Grup
 chat-endCall = Închide Apel
 chat-mute = Mut
 chat-unmute = Activează Sunet
+chat-pinConversation = Fixează conversația
+chat-unpinConversation = Desfixează conversația
+chat-muteConversation = Dezactivează notificările
+chat-unmuteConversation = Activează notificările
+chat-markAsUnread = Marchează ca necitit
 chat-startVideo = Pornește Video
 chat-stopVideo = Oprește Video
 chat-turnOnCamera = Pornește camera

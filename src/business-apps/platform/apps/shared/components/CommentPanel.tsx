@@ -5,11 +5,25 @@
  */
 
 import React, { useState } from 'react'
-import { Button, Badge, ScrollArea } from '@newwork/nw-design-system'
+import { Button, Badge, ScrollArea, useTranslation } from '@newwork/nw-design-system'
 import { MessageSquare, MessageCircle, CheckCircle, X } from 'lucide-react'
+import sharedTranslations from '../_i18n'
 import type { Comment } from '../types/versioning'
 import { CommentThread } from './CommentThread'
 import { CommentEditor } from './CommentEditor'
+
+export interface CommentPanelMessages {
+  title?: string
+  unresolvedCount?: string
+  unresolvedTab?: string
+  resolvedTab?: string
+  allCaughtUp?: string
+  allResolved?: string
+  noResolved?: string
+  resolvedHere?: string
+  loading?: string
+  addPlaceholder?: string
+}
 
 export interface CommentPanelProps {
   comments: Comment[]
@@ -27,6 +41,9 @@ export interface CommentPanelProps {
   headerHeight?: number
   onUnhighlight?: (commentId: string) => void
   onScrollToHighlight?: (commentId: string) => void
+  messages?: CommentPanelMessages
+  threadMessages?: import('./CommentThread').CommentThreadMessages
+  editorMessages?: import('./CommentEditor').CommentEditorMessages
   'data-testid'?: string
 }
 
@@ -49,8 +66,25 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   headerHeight = 64,
   onUnhighlight,
   onScrollToHighlight,
+  messages: messagesProp,
+  threadMessages,
+  editorMessages,
   'data-testid': testId = 'comment-panel'
 }) => {
+  const { t } = useTranslation(sharedTranslations)
+  const defaultCommentPanelMessages = {
+    title: t('comment-panel-title'),
+    unresolvedCount: t('comment-panel-unresolved'),
+    unresolvedTab: t('comment-panel-unresolved-tab'),
+    resolvedTab: t('comment-panel-resolved-tab'),
+    allCaughtUp: t('comment-panel-all-caught-up'),
+    allResolved: t('comment-panel-all-resolved'),
+    noResolved: t('comment-panel-no-resolved'),
+    resolvedHere: t('comment-panel-resolved-here'),
+    loading: t('comment-panel-loading'),
+    addPlaceholder: t('comment-panel-add-placeholder')
+  }
+  const messages = { ...defaultCommentPanelMessages, ...messagesProp }
   const [activeTab, setActiveTab] = useState<'unresolved' | 'resolved'>('unresolved')
   const [isCreating, setIsCreating] = useState(false)
 
@@ -87,9 +121,11 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
             <MessageSquare className="gba:h-4 gba:w-4 gba:text-primary" />
           </div>
           <div>
-            <h3 className="gba:font-semibold gba:text-sm">Comments</h3>
+            <h3 className="gba:font-semibold gba:text-sm">{messages.title}</h3>
             {unresolvedCount > 0 && (
-              <p className="gba:text-xs gba:text-muted-foreground">{unresolvedCount} unresolved</p>
+              <p className="gba:text-xs gba:text-muted-foreground">
+                {unresolvedCount} {messages.unresolvedCount}
+              </p>
             )}
           </div>
         </div>
@@ -116,7 +152,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
           data-testid="unresolved-tab"
         >
           <MessageCircle className="gba:h-4 gba:w-4" />
-          <span>Unresolved</span>
+          <span>{messages.unresolvedTab}</span>
           {unresolvedCount > 0 && (
             <Badge
               variant={activeTab === 'unresolved' ? 'warning' : 'outline'}
@@ -136,7 +172,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
           data-testid="resolved-comments-tab"
         >
           <CheckCircle className="gba:h-4 gba:w-4" />
-          <span>Resolved</span>
+          <span>{messages.resolvedTab}</span>
           <Badge variant={activeTab === 'resolved' ? 'success' : 'outline'} className="gba:h-5 gba:px-1.5 gba:text-xs">
             {resolvedComments.length}
           </Badge>
@@ -148,7 +184,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
         <ScrollArea className="gba:h-full gba:px-6">
           {isLoading ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-              <p className="gba:text-sm gba:text-muted-foreground">Loading comments...</p>
+              <p className="gba:text-sm gba:text-muted-foreground">{messages.loading}</p>
             </div>
           ) : displayComments.length === 0 ? (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-center">
@@ -160,10 +196,10 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                 )}
               </div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-                {activeTab === 'unresolved' ? 'All caught up!' : 'No resolved comments'}
+                {activeTab === 'unresolved' ? messages.allCaughtUp : messages.noResolved}
               </p>
               <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[200px]">
-                {activeTab === 'unresolved' ? 'All comments have been resolved' : 'Resolved comments will appear here'}
+                {activeTab === 'unresolved' ? messages.allResolved : messages.resolvedHere}
               </p>
             </div>
           ) : (
@@ -181,6 +217,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                   accessToken={accessToken}
                   onUnhighlight={onUnhighlight}
                   onScrollToHighlight={onScrollToHighlight}
+                  messages={threadMessages}
                 />
               ))}
             </div>
@@ -193,7 +230,8 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
         <CommentEditor
           onSubmit={handleCreateComment}
           isSubmitting={isCreating}
-          placeholder="Add a comment..."
+          placeholder={messages.addPlaceholder}
+          messages={editorMessages}
           data-testid="new-comment-editor"
         />
       </div>

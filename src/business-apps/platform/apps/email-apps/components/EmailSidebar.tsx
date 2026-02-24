@@ -4,7 +4,16 @@
  */
 
 import React from 'react'
-import { Button, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
+import {
+  Button,
+  Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   Inbox,
   Send,
@@ -68,6 +77,7 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
   onToggleCollapse,
   'data-testid': testId = 'email-sidebar'
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <aside
       className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${
@@ -88,7 +98,7 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
                     <ChevronLeft className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Back to Desk</TooltipContent>
+                <TooltipContent>{t('sidebar-back')}</TooltipContent>
               </Tooltip>
             )}
             <Tooltip>
@@ -101,7 +111,7 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+              <TooltipContent>{isCollapsed ? t('sidebar-expand') : t('sidebar-collapse')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -113,8 +123,10 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
               <Mail className="gba:w-5 gba:h-5 gba:text-primary-foreground" />
             </div>
             <div>
-              <h1 className="gba:font-semibold gba:text-foreground">Mail</h1>
-              <p className="gba:text-xs gba:text-muted-foreground">{activeAccount?.emailAddress || 'NEWWORK Apps'}</p>
+              <h1 className="gba:font-semibold gba:text-foreground">{t('sidebar-mail')}</h1>
+              <p className="gba:text-xs gba:text-muted-foreground">
+                {activeAccount?.emailAddress || t('sidebar-apps-fallback')}
+              </p>
             </div>
           </div>
         )}
@@ -135,7 +147,7 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
           data-testid={`${testId}-compose`}
         >
           <Plus className="gba:w-4 gba:h-4" />
-          {!isCollapsed && 'Compose'}
+          {!isCollapsed && t('sidebar-compose')}
         </Button>
       </div>
 
@@ -159,10 +171,10 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
                     data-testid={`${testId}-folder-starred`}
                   >
                     <Star className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
-                    {!isCollapsed && <span className="gba:flex-1 gba:text-left">Starred</span>}
+                    {!isCollapsed && <span className="gba:flex-1 gba:text-left">{t('folder-starred')}</span>}
                   </button>
                 </TooltipTrigger>
-                {isCollapsed && <TooltipContent side="right">Starred</TooltipContent>}
+                {isCollapsed && <TooltipContent side="right">{t('folder-starred')}</TooltipContent>}
               </Tooltip>
             )}
 
@@ -222,7 +234,7 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
                   <RefreshCw className="gba:w-4 gba:h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Sync emails</TooltipContent>
+              <TooltipContent>{t('sidebar-sync')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -230,7 +242,7 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
                   <Settings className="gba:w-4 gba:h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Account settings</TooltipContent>
+              <TooltipContent>{t('sidebar-settings')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

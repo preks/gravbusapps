@@ -9,6 +9,7 @@ export const GET_TEAM_ABSENCE_DAILY_FACTS_BY_TYPE = `
       orderBy: [{ typeRef: ASC }]
     ) {
       typeRef
+      signedDayFraction
       dayFraction
     }
   }
@@ -20,6 +21,7 @@ export const GET_TEAM_ABSENCE_DAILY_FACTS_BY_STATUS = `
       where: { employeeId: { _in: $employeeIds }, dayDate: { _gte: $from, _lte: $to } }
     ) {
       status
+      signedDayFraction
       dayFraction
     }
   }
