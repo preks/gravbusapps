@@ -68,6 +68,8 @@ export interface PrintHtmlDocumentOptions {
   htmlContent: string
   includeTitleHeading?: boolean
   extraCss?: string
+  /** If provided (and not closed), use this window instead of opening a new one. Use when opening synchronously on user click to avoid popup blockers. */
+  targetWindow?: Window | null
 }
 
 export function buildPrintHtmlDocument({
@@ -120,14 +122,17 @@ export function buildPrintHtmlDocument({
 }
 
 export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
-  const { title, htmlContent, includeTitleHeading = false, extraCss = '' } = options
+  const { title, htmlContent, includeTitleHeading = false, extraCss = '', targetWindow } = options
   const safeTitleText = title || 'Document'
   const sanitizedBodyHtml = DOMPurify.sanitize(sanitizeHtmlForExport(htmlContent), {
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
     FORBID_ATTR: ['style']
   })
 
-  const printWindow = window.open('about:blank', '_blank', 'noopener,noreferrer')
+  let printWindow: Window | null = targetWindow && !targetWindow.closed ? targetWindow : null
+  if (!printWindow) {
+    printWindow = window.open('about:blank', '_blank', 'noopener,noreferrer')
+  }
   if (!printWindow) {
     console.error('[exportUtils] Print window blocked')
     return
@@ -360,12 +365,13 @@ export async function exportToWord(title: string, htmlContent: string): Promise<
 /**
  * Export document to PDF format
  *
- * Uses browser's print to PDF functionality with proper page breaks
+ * Uses browser's print to PDF functionality with proper page breaks.
+ * Pass targetWindow when opening a window synchronously on user click to avoid popup blockers.
  */
-export async function exportToPDF(title: string, htmlContent: string): Promise<void> {
+export async function exportToPDF(title: string, htmlContent: string, targetWindow?: Window | null): Promise<void> {
   // Convert page breaks for print/PDF
   const pdfContent = htmlContent.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
-  printHtmlDocument({ title, htmlContent: pdfContent })
+  printHtmlDocument({ title, htmlContent: pdfContent, targetWindow })
 }
 
 /**
