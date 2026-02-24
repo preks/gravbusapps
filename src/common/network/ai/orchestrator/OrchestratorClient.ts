@@ -154,17 +154,6 @@ export class OrchestratorClient {
     try {
       const raw = JSON.parse(data) as Record<string, unknown>
       const event = normalizeProgressEvent(raw)
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[OrchestratorClient] Received SSE event:', {
-          type: event.eventType,
-          componentId: event.componentId,
-          componentName: event.componentName,
-          resourceUrl: event.resourceUrl,
-          azureUrl: event.azureUrl,
-          filesPublished: event.filesPublished,
-          message: event.message
-        })
-      }
       onEvent(event)
     } catch (e) {
       console.error('[OrchestratorClient] Failed to parse SSE event:', e, data)
@@ -400,8 +389,9 @@ export class OrchestratorClient {
             throw new Error(evt.message || 'Publish failed')
           }
         } catch (e) {
-          if (e instanceof Error && e.message !== 'Publish failed') {
-            // JSON parse error – skip
+          // Only skip JSON parse errors (invalid SSE line); rethrow publish errors
+          if (e instanceof SyntaxError) {
+            // Skip malformed JSON line
           } else {
             throw e
           }

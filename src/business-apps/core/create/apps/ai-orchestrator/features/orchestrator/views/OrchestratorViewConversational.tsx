@@ -49,6 +49,21 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   // Track which state transitions we already posted chat messages for
   const lastChatStateRef = useRef<string | null>(null)
 
+  // Keep ?jobId= in sync with the active plan so page refresh restores the session
+  useEffect(() => {
+    const jobId = orchestratorClient.currentPlan?.jobId ?? null
+    const urlParams = new URLSearchParams(window.location.search)
+    if (jobId) {
+      urlParams.set('jobId', jobId)
+    } else {
+      urlParams.delete('jobId')
+    }
+    const newUrl = urlParams.toString()
+      ? `${window.location.pathname}?${urlParams.toString()}`
+      : window.location.pathname
+    window.history.replaceState({}, '', newUrl)
+  }, [orchestratorClient.currentPlan?.jobId])
+
   useEffect(() => {
     if (!initialJobId || !accessToken) return
     orchestratorClient
