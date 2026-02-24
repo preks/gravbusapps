@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ import {
 import { Search, FileText, Sparkles } from 'lucide-react'
 import type { NoteTemplate, NoteColor } from '../types'
 import { builtInTemplates, getTemplateCategories } from '../utils/noteTemplates'
+import translations from '../_i18n'
 
 export interface TemplateGalleryProps {
   open: boolean
@@ -53,10 +55,22 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   onSelectTemplate,
   'data-testid': testId = 'template-gallery'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   const categories = getTemplateCategories()
+
+  const getCategoryLabel = (value: string) => {
+    const keyMap: Record<string, string> = {
+      meeting: 'template-category-meetings',
+      project: 'template-category-projects',
+      personal: 'template-category-personal',
+      work: 'template-category-work',
+      other: 'template-category-other'
+    }
+    return t(keyMap[value] ?? 'template-category-other')
+  }
 
   // Filter templates
   const filteredTemplates = useMemo(() => {
@@ -70,16 +84,19 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
     // Filter by search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      templates = templates.filter(
-        t =>
-          t.name.toLowerCase().includes(query) ||
-          t.description?.toLowerCase().includes(query) ||
-          t.category.toLowerCase().includes(query)
-      )
+      templates = templates.filter(tmpl => {
+        const name = tmpl.nameKey ? t(tmpl.nameKey) : tmpl.name
+        const desc = tmpl.descriptionKey ? t(tmpl.descriptionKey) : (tmpl.description ?? '')
+        return (
+          name.toLowerCase().includes(query) ||
+          desc.toLowerCase().includes(query) ||
+          tmpl.category.toLowerCase().includes(query)
+        )
+      })
     }
 
     return templates
-  }, [selectedCategory, searchQuery])
+  }, [selectedCategory, searchQuery, t])
 
   const handleSelect = (template: NoteTemplate) => {
     onSelectTemplate(template)
@@ -92,16 +109,16 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Sparkles className="gba:w-5 gba:h-5 gba:text-primary" />
-            Choose a Template
+            {t('template-title')}
           </DialogTitle>
-          <DialogDescription>Start with a pre-built template to save time</DialogDescription>
+          <DialogDescription>{t('template-description')}</DialogDescription>
         </DialogHeader>
 
         {/* Search */}
         <div className="gba:relative">
           <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
           <Input
-            placeholder="Search templates..."
+            placeholder={t('template-search-placeholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="gba:pl-10"
@@ -109,12 +126,16 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
         </div>
 
         {/* Category Tabs */}
-        <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0">
+        <Tabs
+          value={selectedCategory}
+          onValueChange={setSelectedCategory}
+          className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0"
+        >
           <TabsList className="gba:w-full gba:justify-start gba:flex-wrap gba:h-auto gba:gap-1">
-            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="all">{t('template-tab-all')}</TabsTrigger>
             {categories.map(cat => (
               <TabsTrigger key={cat.value} value={cat.value}>
-                {cat.label}
+                {getCategoryLabel(cat.value)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -124,8 +145,8 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
               {filteredTemplates.length === 0 ? (
                 <div className="gba:py-12 gba:text-center gba:text-muted-foreground">
                   <FileText className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-3 gba:opacity-50" />
-                  <p>No templates found</p>
-                  {searchQuery && <p className="gba:text-sm gba:mt-1">Try a different search term</p>}
+                  <p>{t('template-no-templates')}</p>
+                  {searchQuery && <p className="gba:text-sm gba:mt-1">{t('template-try-different')}</p>}
                 </div>
               ) : (
                 <div className="gba:grid gba:grid-cols-2 gba:gap-4">
@@ -149,21 +170,21 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                         <div className="gba:flex-1 gba:min-w-0">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <h3 className="gba:font-semibold gba:text-foreground group-hover:gba:text-primary gba:transition-colors">
-                              {template.name}
+                              {template.nameKey ? t(template.nameKey) : template.name}
                             </h3>
                             {template.isBuiltIn && (
                               <Badge variant="secondary" className="gba:text-xs">
-                                Built-in
+                                {t('template-built-in')}
                               </Badge>
                             )}
                           </div>
-                          {template.description && (
+                          {(template.descriptionKey || template.description) && (
                             <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:line-clamp-2">
-                              {template.description}
+                              {template.descriptionKey ? t(template.descriptionKey) : template.description}
                             </p>
                           )}
                           <Badge variant="outline" className="gba:mt-2 gba:text-xs gba:capitalize">
-                            {template.category}
+                            {getCategoryLabel(template.category)}
                           </Badge>
                         </div>
                       </div>
@@ -177,13 +198,13 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('template-cancel')}
           </Button>
           <Button
             onClick={() =>
               handleSelect({
                 id: 'blank',
-                name: 'Blank Note',
+                name: t('template-blank-note'),
                 content: '<p></p>',
                 category: 'other',
                 isBuiltIn: true
@@ -191,7 +212,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
             }
           >
             <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-            Start Blank
+            {t('template-start-blank')}
           </Button>
         </DialogFooter>
       </DialogContent>

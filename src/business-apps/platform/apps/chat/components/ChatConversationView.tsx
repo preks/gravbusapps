@@ -23,6 +23,7 @@ export interface ChatConversationViewProps {
   isMuted?: boolean
   onPin?: () => void
   onMute?: (muted: boolean) => void
+  onMarkAsUnread?: () => void
   isSingleViewMode: boolean
   viewMode: 'full' | 'compact' | 'mobile'
   onBack: () => void
@@ -77,6 +78,7 @@ export function ChatConversationView({
   isMuted,
   onPin,
   onMute,
+  onMarkAsUnread,
   isSingleViewMode,
   viewMode,
   onBack,
@@ -208,12 +210,13 @@ export function ChatConversationView({
           isMuted={isMuted}
           onPin={onPin}
           onMute={onMute}
+          onMarkAsUnread={onMarkAsUnread}
           onAudioCall={onAudioCall}
           onVideoCall={onVideoCall}
           onJoinCall={onJoinCall}
           showBackButton={isSingleViewMode}
           currentUserId={currentUserId}
-          compact={viewMode === 'compact'}
+          compact={viewMode !== 'full'}
           otherUserPresence={otherUserPresence}
           isCallEnabled={isCallEnabled}
           isInCall={isInCall}

@@ -17,6 +17,12 @@ interface ConversationListProps {
   activeConversationId: string | null
   onConversationSelect: (conversation: Conversation) => void
   onRemoveConversation?: (conversationId: string) => void
+  onPinChange?: (conversationId: string, isPinned: boolean) => void
+  onMuteChange?: (conversationId: string, isMuted: boolean) => void
+  onNudge?: (conversationId: string, toUserId: string) => void
+  onStartAudioCall?: (conversation: Conversation) => void
+  onStartVideoCall?: (conversation: Conversation) => void
+  isCallEnabled?: boolean
   onCreateConversation?: (user: any) => void
   onCreateGroup?: () => void
   isLoading?: boolean
@@ -39,6 +45,8 @@ interface ConversationListProps {
   onUnreadOnlyChange?: (value: boolean) => void
   onOpenCallHistory?: () => void
   missedCallsCount?: number
+  onMarkAsUnread?: (conversationId: string) => void
+  markedAsUnreadConversationIds?: Set<string>
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -57,6 +65,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   activeConversationId,
   onConversationSelect,
   onRemoveConversation,
+  onPinChange,
+  onMuteChange,
+  onNudge,
+  onStartAudioCall,
+  onStartVideoCall,
+  isCallEnabled = false,
   onCreateConversation,
   onCreateGroup,
   isLoading = false,
@@ -78,7 +92,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   onFilterKindChange,
   onUnreadOnlyChange,
   onOpenCallHistory,
-  missedCallsCount = 0
+  missedCallsCount = 0,
+  onMarkAsUnread,
+  markedAsUnreadConversationIds
 }) => {
   const t = useChatTranslation()
   // Force re-render when presenceVersion changes
@@ -108,6 +124,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
     return [...filtered].sort(sortConversationsPinThenTime)
   }, [conversations])
+
+  // When Unread filter is on, show conversations with unread messages or marked-as-unread (dot)
+  const displayedConversations = useMemo(() => {
+    if (!unreadOnly) return uniqueConversations
+    const marked = markedAsUnreadConversationIds ?? new Set<string>()
+    return uniqueConversations.filter(c => (c.unreadCount ?? 0) > 0 || marked.has(c.id))
+  }, [unreadOnly, uniqueConversations, markedAsUnreadConversationIds])
 
   const hasActiveFilters = (search?.trim()?.length ?? 0) > 0 || filterKind !== 'all' || unreadOnly
 
@@ -316,7 +339,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             )
           }
 
-          if (uniqueConversations.length === 0) {
+          if (displayedConversations.length === 0) {
             return (
               <div className="gba:p-6 gba:text-center">
                 <p className="gba:text-sm gba:text-muted-foreground">
@@ -329,7 +352,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           return (
             <>
               <div className="gba:py-1">
-                {uniqueConversations.map(conversation => {
+                {displayedConversations.map(conversation => {
                   const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
                   // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
                   const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
@@ -341,6 +364,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       conversation={conversation}
                       onClick={() => onConversationSelect(conversation)}
                       onRemove={onRemoveConversation}
+                      onPinChange={onPinChange}
+                      onMuteChange={onMuteChange}
+                      onNudge={onNudge}
+                      onStartAudioCall={onStartAudioCall}
+                      onStartVideoCall={onStartVideoCall}
+                      isCallEnabled={isCallEnabled}
+                      onMarkAsUnread={onMarkAsUnread}
+                      isMarkedAsUnread={markedAsUnreadConversationIds?.has(conversation.id)}
                       isActive={conversation.id === activeConversationId}
                       currentUserId={currentUserId}
                       compact={compact}

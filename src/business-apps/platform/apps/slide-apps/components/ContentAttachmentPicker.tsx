@@ -7,11 +7,20 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { Button, Input, Checkbox, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import {
+  Button,
+  Input,
+  Checkbox,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { FileText, Table2, StickyNote, Presentation, Search, Loader2, X, Plus } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import type { ContentReference, ContentType } from '../services/SlideGenerationService'
+import translations from '../_i18n'
 
 export interface ContentAttachmentPickerProps {
   selectedItems: ContentReference[]
@@ -30,13 +39,6 @@ interface ContentItem {
 
 type TabKey = 'documents' | 'notes' | 'spreadsheets' | 'slides'
 
-const TABS: { key: TabKey; type: ContentType; label: string; icon: typeof FileText }[] = [
-  { key: 'documents', type: 'document', label: 'Documents', icon: FileText },
-  { key: 'notes', type: 'note', label: 'Notes', icon: StickyNote },
-  { key: 'spreadsheets', type: 'spreadsheet', label: 'Spreadsheets', icon: Table2 },
-  { key: 'slides', type: 'slide', label: 'Slides', icon: Presentation }
-]
-
 const API_URL = getDocumentServiceApiUrl()
 
 export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = ({
@@ -46,7 +48,15 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
   accessToken,
   'data-testid': testId = 'content-attachment-picker'
 }) => {
+  const { t } = useTranslation(translations)
   const [isOpen, setIsOpen] = useState(false)
+
+  const TABS: { key: TabKey; type: ContentType; labelKey: string; icon: typeof FileText }[] = [
+    { key: 'documents', type: 'document', labelKey: 'attachment-documents', icon: FileText },
+    { key: 'notes', type: 'note', labelKey: 'attachment-notes', icon: StickyNote },
+    { key: 'spreadsheets', type: 'spreadsheet', labelKey: 'attachment-spreadsheets', icon: Table2 },
+    { key: 'slides', type: 'slide', labelKey: 'attachment-slides', icon: Presentation }
+  ]
   const [activeTab, setActiveTab] = useState<TabKey>('documents')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -103,7 +113,7 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
             return {
               id: i.id as string,
               type,
-              title: (i.title as string) || (i.name as string) || 'Untitled',
+              title: (i.title as string) || (i.name as string) || t('title-untitled'),
               updatedAt: i.updatedAt as string
             }
           })
@@ -198,7 +208,7 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
                 className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-2 gba:py-1 gba:text-xs gba:font-medium gba:rounded-md gba:bg-secondary gba:text-secondary-foreground"
               >
                 <Icon className="gba:w-3 gba:h-3" />
-                <span className="gba:max-w-[150px] gba:truncate">{item.title || 'Untitled'}</span>
+                <span className="gba:max-w-[150px] gba:truncate">{item.title || t('title-untitled')}</span>
                 <button
                   type="button"
                   onClick={e => {
@@ -226,7 +236,7 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
             data-testid={`${testId}-trigger`}
           >
             <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-            Add Reference
+            {t('attachment-add-reference')}
             {selectedItems.length > 0 && (
               <span className="gba:ml-2 gba:px-1.5 gba:py-0.5 gba:text-xs gba:rounded gba:bg-muted gba:text-muted-foreground">
                 {selectedItems.length}/{maxItems}
@@ -241,7 +251,7 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
             <div className="gba:relative">
               <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
               <Input
-                placeholder="Search content..."
+                placeholder={t('attachment-search-placeholder')}
                 value={searchQuery}
                 onChange={e => handleSearch(e.target.value)}
                 className="gba:pl-9 gba:h-9"
@@ -277,7 +287,17 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
               </div>
             ) : activeItems.length === 0 ? (
               <div className="gba:text-center gba:py-8 gba:text-sm gba:text-muted-foreground">
-                {searchQuery ? 'No matching content found' : `No ${activeTab} available`}
+                {searchQuery
+                  ? t('attachment-no-matching')
+                  : t(
+                      activeTab === 'documents'
+                        ? 'attachment-no-documents'
+                        : activeTab === 'notes'
+                          ? 'attachment-no-notes'
+                          : activeTab === 'spreadsheets'
+                            ? 'attachment-no-spreadsheets'
+                            : 'attachment-no-slides'
+                    )}
               </div>
             ) : (
               <div className="gba:space-y-1">
@@ -320,7 +340,7 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
           {selectedItems.length >= maxItems && (
             <div className="gba:px-3 gba:py-2 gba:border-t gba:bg-muted/30">
               <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-                Maximum {maxItems} references allowed
+                {t('attachment-max-references', { count: maxItems })}
               </p>
             </div>
           )}
@@ -328,11 +348,7 @@ export const ContentAttachmentPicker: React.FC<ContentAttachmentPickerProps> = (
       </Popover>
 
       {/* Helper text */}
-      {selectedItems.length === 0 && (
-        <p className="gba:text-xs gba:text-muted-foreground">
-          Optionally attach documents, notes, or other content as reference for the AI
-        </p>
-      )}
+      {selectedItems.length === 0 && <p className="gba:text-xs gba:text-muted-foreground">{t('attachment-helper')}</p>}
     </div>
   )
 }

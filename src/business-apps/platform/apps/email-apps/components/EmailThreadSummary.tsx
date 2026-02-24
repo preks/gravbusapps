@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react'
-import { Button, Card, CardContent } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { SparkleIcon, CaretDownIcon, CaretUpIcon, UsersIcon, LightningIcon } from '@phosphor-icons/react'
 import { Loader2 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
@@ -26,6 +27,7 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
   messageCount,
   'data-testid': testId = 'email-thread-summary'
 }) => {
+  const { t } = useTranslation(translations)
   const cached = summaryCache.get(threadId)
   const isStale = cached && cached.messageCount !== messageCount
   const initialSummary = cached && !isStale ? cached.summary : null
@@ -44,11 +46,11 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
       setSummary(result)
       summaryCache.set(threadId, { summary: result, messageCount })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate summary')
+      setError(err instanceof Error ? err.message : t('thread-summary-error'))
     } finally {
       setIsLoading(false)
     }
-  }, [threadId, messageCount, isLoading])
+  }, [threadId, messageCount, isLoading, t])
 
   // Invalidate cache when a new email arrives in the thread (messageCount increased)
   useEffect(() => {
@@ -73,10 +75,10 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
             </div>
             <div className="gba:flex-1">
               <p className="gba:text-sm gba:font-semibold gba:tracking-tight gba:text-decorative-foreground">
-                Summarize this thread
+                {t('thread-summary-trigger')}
               </p>
               <p className="gba:text-xs gba:text-decorative-foreground/70">
-                AI will analyze {messageCount} message{messageCount !== 1 ? 's' : ''} and extract key points
+                {t('thread-summary-trigger-desc', { count: messageCount })}
               </p>
             </div>
             <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-decorative-foreground/10 gba:flex gba:items-center gba:justify-center">
@@ -102,9 +104,11 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
             </div>
             <div>
               <p className="gba:text-sm gba:font-semibold gba:tracking-tight gba:text-decorative-foreground">
-                Analyzing thread...
+                {t('thread-summary-analyzing')}
               </p>
-              <p className="gba:text-xs gba:text-decorative-foreground/70">Reading through {messageCount} messages</p>
+              <p className="gba:text-xs gba:text-decorative-foreground/70">
+                {t('thread-summary-reading', { count: messageCount })}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -123,10 +127,10 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
           <div className="gba:flex gba:items-center gba:gap-3">
             <SparkleIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="fill" />
             <p className="gba:text-sm gba:text-destructive-secondary-foreground gba:flex-1">
-              Could not generate summary
+              {t('thread-summary-error')}
             </p>
             <Button variant="ghost" size="sm" onClick={generateSummary} data-testid={`${testId}-retry`}>
-              Retry
+              {t('thread-summary-retry')}
             </Button>
           </div>
         </CardContent>
@@ -147,7 +151,9 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
           <SparkleIcon className="gba:w-4 gba:h-4 gba:text-decorative-foreground" weight="fill" />
         </div>
         <div className="gba:flex-1 gba:text-left">
-          <p className="gba:text-sm gba:font-bold gba:tracking-tight gba:text-decorative-foreground">AI Summary</p>
+          <p className="gba:text-sm gba:font-bold gba:tracking-tight gba:text-decorative-foreground">
+            {t('thread-summary-ai-label')}
+          </p>
         </div>
         {isExpanded ? (
           <CaretUpIcon className="gba:w-4 gba:h-4 gba:text-decorative-foreground/60" />
@@ -166,7 +172,7 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
           {summary.keyPoints.length > 0 && (
             <div className="gba:space-y-1.5">
               <p className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-widest gba:text-decorative-foreground/50">
-                Key Points
+                {t('thread-summary-key-points')}
               </p>
               <ul className="gba:space-y-1">
                 {summary.keyPoints.map((point, idx) => (

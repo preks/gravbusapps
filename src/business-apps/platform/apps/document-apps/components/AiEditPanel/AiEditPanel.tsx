@@ -14,10 +14,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Textarea
+  Textarea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Sparkles, X, Brain, Zap, Loader2, Check, Undo2 } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
+import translations from '../../_i18n'
 import { useAiEditProvider } from './useAiEditProvider'
 import { useAiEdit } from './useAiEdit'
 import { AiEditPreview } from './AiEditPreview'
@@ -41,6 +43,7 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
   headerHeight = 120,
   'data-testid': testId = 'ai-edit-panel'
 }) => {
+  const { t } = useTranslation(translations)
   const { llmProvider, setLlmProvider } = useAiEditProvider(currentUserId)
   const ai = useAiEdit({ editor, documentId, documentTitle, llmProvider })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -74,9 +77,9 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
             <Sparkles className="gba:h-4 gba:w-4 gba:text-primary" />
           </div>
           <div>
-            <h3 className="gba:font-semibold gba:text-sm">AI Editor</h3>
+            <h3 className="gba:font-semibold gba:text-sm">{t('ai-edit-title')}</h3>
             <p className="gba:text-xs gba:text-muted-foreground">
-              {ai.mode === 'selection' ? 'Editing selection' : 'Editing entire document'}
+              {ai.mode === 'selection' ? t('ai-edit-mode-selection') : t('ai-edit-mode-document')}
             </p>
           </div>
         </div>
@@ -91,7 +94,7 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
                     : 'gba:bg-info-secondary gba:text-info-secondary-foreground'
                 }`}
                 data-testid="ai-edit-llm-toggle"
-                title={llmProvider === 'groq' ? 'Fast mode (Groq)' : 'Smart mode (OpenAI)'}
+                title={llmProvider === 'groq' ? t('ai-edit-fast-mode') : t('ai-edit-smart-mode')}
               >
                 {llmProvider === 'groq' ? (
                   <Zap className="gba:h-3.5 gba:w-3.5" />
@@ -103,11 +106,11 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setLlmProvider('openai')} data-testid="ai-edit-llm-smart">
                 <Brain className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-info" />
-                Smart {llmProvider === 'openai' ? '(active)' : ''}
+                {t('ai-edit-smart')} {llmProvider === 'openai' ? t('ai-edit-active') : ''}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setLlmProvider('groq')} data-testid="ai-edit-llm-fast">
                 <Zap className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-warning" />
-                Fast {llmProvider === 'groq' ? '(active)' : ''}
+                {t('ai-edit-fast')} {llmProvider === 'groq' ? t('ai-edit-active') : ''}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -127,7 +130,9 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
       {ai.mode === 'selection' && ai.capturedSelection && (
         <div className="gba:flex gba:items-start gba:gap-2 gba:px-4 gba:py-3 gba:bg-info-secondary/30 gba:border-b gba:border-border/50">
           <div className="gba:flex-1 gba:min-w-0">
-            <p className="gba:text-xs gba:font-medium gba:text-info-secondary-foreground gba:mb-0.5">Selected text</p>
+            <p className="gba:text-xs gba:font-medium gba:text-info-secondary-foreground gba:mb-0.5">
+              {t('ai-edit-selected-text')}
+            </p>
             <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">
               &ldquo;{ai.capturedSelection.plainText.slice(0, 150)}
               {ai.capturedSelection.plainText.length > 150 ? '...' : ''}&rdquo;
@@ -136,7 +141,7 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
           <button
             onClick={ai.clearSelection}
             className="gba:flex-shrink-0 gba:mt-0.5 gba:p-1 gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/50 gba:transition-colors"
-            title="Clear selection and edit entire document"
+            title={t('ai-edit-clear-selection-title')}
             data-testid="ai-edit-clear-selection"
           >
             <X className="gba:h-3.5 gba:w-3.5" />
@@ -150,22 +155,20 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
           <div className="gba:px-4 gba:py-4 gba:space-y-4">
             {/* Instruction input */}
             <div className="gba:space-y-2">
-              <label className="gba:text-xs gba:font-medium gba:text-foreground">Instruction</label>
+              <label className="gba:text-xs gba:font-medium gba:text-foreground">
+                {t('ai-edit-instruction-label')}
+              </label>
               <Textarea
                 ref={textareaRef}
                 value={ai.instruction}
                 onChange={e => ai.setInstruction(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={
-                  ai.mode === 'selection'
-                    ? 'e.g. Make this more professional, rewrite in active voice...'
-                    : 'e.g. Remove emojis, add more details to the introduction...'
-                }
+                placeholder={t('ai-edit-placeholder')}
                 className="gba:min-h-[80px] gba:resize-none gba:text-sm"
                 disabled={ai.isProcessing}
                 data-testid="ai-edit-instruction"
               />
-              <p className="gba:text-[10px] gba:text-muted-foreground">Press Ctrl+Enter to generate</p>
+              <p className="gba:text-[10px] gba:text-muted-foreground">{t('ai-edit-ctrl-enter-hint')}</p>
             </div>
 
             {/* Error */}
@@ -201,12 +204,12 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
             {ai.isProcessing ? (
               <>
                 <Loader2 className="gba:h-4 gba:w-4 gba:mr-2 gba:animate-spin" />
-                Generating...
+                {t('ai-edit-generating')}
               </>
             ) : (
               <>
                 <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
-                Generate Preview
+                {t('ai-edit-generate-preview')}
               </>
             )}
           </Button>
@@ -215,11 +218,11 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
         {ai.previewHtml && !ai.isApplied && (
           <div className="gba:flex gba:gap-2">
             <Button variant="outline" onClick={ai.reset} className="gba:flex-1" data-testid="ai-edit-discard">
-              Discard
+              {t('ai-edit-discard')}
             </Button>
             <Button onClick={ai.apply} className="gba:flex-1" data-testid="ai-edit-apply">
               <Check className="gba:h-4 gba:w-4 gba:mr-2" />
-              Apply
+              {t('ai-edit-apply')}
             </Button>
           </div>
         )}

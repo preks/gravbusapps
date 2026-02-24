@@ -12,10 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
   Slider,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Plus, Trash2, RotateCcw } from 'lucide-react'
 import type { GradientConfig, GradientStop } from './slideElements'
+import translations from '../_i18n'
 import { gradientToCss, PRESET_GRADIENTS, COLOR_PRESETS } from './slideElements'
 
 interface GradientBuilderProps {
@@ -33,47 +35,53 @@ const DEFAULT_GRADIENT: GradientConfig = {
   ]
 }
 
-export const GradientBuilder: React.FC<GradientBuilderProps> = ({
-  gradient,
-  onChange,
-  onClose
-}) => {
-  const [localGradient, setLocalGradient] = useState<GradientConfig>(
-    gradient || DEFAULT_GRADIENT
+export const GradientBuilder: React.FC<GradientBuilderProps> = ({ gradient, onChange, onClose }) => {
+  const { t } = useTranslation(translations)
+  const [localGradient, setLocalGradient] = useState<GradientConfig>(gradient || DEFAULT_GRADIENT)
+
+  const updateGradient = useCallback(
+    (updates: Partial<GradientConfig>) => {
+      const newGradient = { ...localGradient, ...updates }
+      setLocalGradient(newGradient)
+      onChange(newGradient)
+    },
+    [localGradient, onChange]
   )
 
-  const updateGradient = useCallback((updates: Partial<GradientConfig>) => {
-    const newGradient = { ...localGradient, ...updates }
-    setLocalGradient(newGradient)
-    onChange(newGradient)
-  }, [localGradient, onChange])
-
-  const updateStop = useCallback((index: number, updates: Partial<GradientStop>) => {
-    const newStops = localGradient.stops.map((stop, i) => 
-      i === index ? { ...stop, ...updates } : stop
-    )
-    updateGradient({ stops: newStops })
-  }, [localGradient.stops, updateGradient])
+  const updateStop = useCallback(
+    (index: number, updates: Partial<GradientStop>) => {
+      const newStops = localGradient.stops.map((stop, i) => (i === index ? { ...stop, ...updates } : stop))
+      updateGradient({ stops: newStops })
+    },
+    [localGradient.stops, updateGradient]
+  )
 
   const addStop = useCallback(() => {
     if (localGradient.stops.length >= 6) return
     const lastStop = localGradient.stops[localGradient.stops.length - 1]
     const newPosition = Math.min(100, lastStop.position + 20)
-    const newStops = [...localGradient.stops, { color: '#ffffff', position: newPosition }]
-      .sort((a, b) => a.position - b.position)
+    const newStops = [...localGradient.stops, { color: '#ffffff', position: newPosition }].sort(
+      (a, b) => a.position - b.position
+    )
     updateGradient({ stops: newStops })
   }, [localGradient.stops, updateGradient])
 
-  const removeStop = useCallback((index: number) => {
-    if (localGradient.stops.length <= 2) return
-    const newStops = localGradient.stops.filter((_, i) => i !== index)
-    updateGradient({ stops: newStops })
-  }, [localGradient.stops, updateGradient])
+  const removeStop = useCallback(
+    (index: number) => {
+      if (localGradient.stops.length <= 2) return
+      const newStops = localGradient.stops.filter((_, i) => i !== index)
+      updateGradient({ stops: newStops })
+    },
+    [localGradient.stops, updateGradient]
+  )
 
-  const applyPreset = useCallback((preset: GradientConfig) => {
-    setLocalGradient(preset)
-    onChange(preset)
-  }, [onChange])
+  const applyPreset = useCallback(
+    (preset: GradientConfig) => {
+      setLocalGradient(preset)
+      onChange(preset)
+    },
+    [onChange]
+  )
 
   const clearGradient = useCallback(() => {
     onChange(undefined)
@@ -83,16 +91,16 @@ export const GradientBuilder: React.FC<GradientBuilderProps> = ({
   return (
     <div className="gba:space-y-4">
       {/* Preview */}
-      <div 
+      <div
         className="gba:h-20 gba:rounded-lg gba:border gba:shadow-inner"
         style={{ background: gradientToCss(localGradient) }}
       />
 
       {/* Presets */}
       <div>
-        <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">Quick Presets</Label>
+        <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">{t('gradient-quick-presets')}</Label>
         <div className="gba:flex gba:flex-wrap gba:gap-2">
-          {PRESET_GRADIENTS.map((preset) => (
+          {PRESET_GRADIENTS.map(preset => (
             <button
               key={preset.name}
               onClick={() => applyPreset(preset.gradient)}
@@ -109,7 +117,7 @@ export const GradientBuilder: React.FC<GradientBuilderProps> = ({
       {/* Gradient Type */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-3">
         <div>
-          <Label className="gba:text-xs">Type</Label>
+          <Label className="gba:text-xs">{t('gradient-type')}</Label>
           <Select
             value={localGradient.type}
             onValueChange={(value: 'linear' | 'radial') => updateGradient({ type: value })}
@@ -118,15 +126,15 @@ export const GradientBuilder: React.FC<GradientBuilderProps> = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="linear">Linear</SelectItem>
-              <SelectItem value="radial">Radial</SelectItem>
+              <SelectItem value="linear">{t('gradient-linear')}</SelectItem>
+              <SelectItem value="radial">{t('gradient-radial')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         {localGradient.type === 'linear' && (
           <div>
-            <Label className="gba:text-xs">Angle: {localGradient.angle}°</Label>
+            <Label className="gba:text-xs">{t('gradient-angle', { angle: localGradient.angle })}</Label>
             <Slider
               value={[localGradient.angle]}
               min={0}
@@ -143,7 +151,7 @@ export const GradientBuilder: React.FC<GradientBuilderProps> = ({
       {/* Color Stops */}
       <div>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <Label className="gba:text-xs gba:font-semibold">Color Stops</Label>
+          <Label className="gba:text-xs gba:font-semibold">{t('gradient-color-stops')}</Label>
           <Button
             variant="ghost"
             size="sm"
@@ -152,7 +160,7 @@ export const GradientBuilder: React.FC<GradientBuilderProps> = ({
             className="gba:h-7"
           >
             <Plus className="gba:w-3 gba:h-3 gba:mr-1" />
-            Add
+            {t('gradient-add')}
           </Button>
         </div>
 
@@ -163,13 +171,13 @@ export const GradientBuilder: React.FC<GradientBuilderProps> = ({
               <input
                 type="color"
                 value={stop.color}
-                onChange={(e) => updateStop(index, { color: e.target.value })}
+                onChange={e => updateStop(index, { color: e.target.value })}
                 className="gba:w-10 gba:h-8 gba:rounded gba:border gba:cursor-pointer"
               />
-              
+
               {/* Quick Colors */}
               <div className="gba:flex gba:gap-1">
-                {COLOR_PRESETS.slice(0, 8).map((color) => (
+                {COLOR_PRESETS.slice(0, 8).map(color => (
                   <button
                     key={color}
                     onClick={() => updateStop(index, { color })}
@@ -213,7 +221,7 @@ export const GradientBuilder: React.FC<GradientBuilderProps> = ({
       <div className="gba:flex gba:justify-between">
         <Button variant="ghost" size="sm" onClick={clearGradient}>
           <RotateCcw className="gba:w-3 gba:h-3 gba:mr-1" />
-          Remove Gradient
+          {t('gradient-remove')}
         </Button>
       </div>
     </div>
