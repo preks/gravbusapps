@@ -25,7 +25,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox
+  Checkbox,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Share2, Users, X, Search, Trash2, Eye, Pencil, MessageSquare, Send, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -34,6 +35,21 @@ import { env } from '@/common/env/EnvUtils'
 import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
 import type { NotePermission } from '../types'
 import { useShareUsersEnrichment } from '../hooks/useShareUsersEnrichment'
+import translations from '../_i18n'
+
+const PERMISSION_KEYS: Record<NotePermission, { labelKey: string; descKey: string }> = {
+  view: { labelKey: 'share-permission-view', descKey: 'share-permission-view-desc' },
+  comment: { labelKey: 'share-permission-comment', descKey: 'share-permission-comment-desc' },
+  edit: { labelKey: 'share-permission-edit', descKey: 'share-permission-edit-desc' },
+  owner: { labelKey: 'share-permission-owner', descKey: 'share-permission-owner-desc' }
+}
+
+const PERMISSION_ICONS: Record<NotePermission, React.ElementType> = {
+  view: Eye,
+  comment: MessageSquare,
+  edit: Pencil,
+  owner: Share2
+}
 
 export interface SharedNoteUser {
   shareId?: string
@@ -59,32 +75,6 @@ export interface ShareNoteDialogProps {
   onUnshare: (userId: string, shareId?: string) => Promise<boolean>
   onRefreshShares: () => Promise<void>
   'data-testid'?: string
-}
-
-/**
- * Permission icons and labels
- */
-const PERMISSION_CONFIG: Record<NotePermission, { icon: React.ElementType; label: string; description: string }> = {
-  view: {
-    icon: Eye,
-    label: 'Can View',
-    description: 'Can view but not make changes'
-  },
-  comment: {
-    icon: MessageSquare,
-    label: 'Can Comment',
-    description: 'Can view and add comments'
-  },
-  edit: {
-    icon: Pencil,
-    label: 'Can Edit',
-    description: 'Can view and edit content'
-  },
-  owner: {
-    icon: Share2,
-    label: 'Owner',
-    description: 'Full access including sharing'
-  }
 }
 
 /**
@@ -200,7 +190,7 @@ const sendBlinkNotifications = async (
 
     return { success: true, count: workflowIds.length }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send blink' }
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
 
@@ -219,6 +209,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
   onRefreshShares,
   'data-testid': testId = 'share-note-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPermission, setSelectedPermission] = useState<NotePermission>('view')
   const [isSharing, setIsSharing] = useState(false)
@@ -302,7 +293,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
    */
   const handleShare = useCallback(async () => {
     if (selectedUsers.length === 0) {
-      setError('Please select at least one user to share with')
+      setError(t('share-error-select'))
       return
     }
 
@@ -317,13 +308,22 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
         // Send Blink notifications
         const assigneeUserIds = selectedUsers.map(u => u.userId || u.id).filter(Boolean) as string[]
         if (assigneeUserIds.length > 0) {
-          const blinkResult = await sendBlinkNotifications(accessToken, {
-            noteTitle: noteTitle || 'Untitled Note',
-            noteId,
-            assigneeUserIds,
-            initiatorId: currentUserId,
-            initiatorName: owner.name
-          })
+          const blinkResult = await sendBlinkNotifications(
+            accessToken,
+            {
+              noteTitle: noteTitle || t('title-untitled-note'),
+              noteId,
+              assigneeUserIds,
+              initiatorId: currentUserId,
+              initiatorName: owner.name
+            },
+            {
+              labelUntitled: t('title-untitled-note'),
+              labelSomeone: t('share-someone'),
+              labelNoteShared: t('share-blink-note-shared'),
+              message: (initiator, title) => t('share-blink-message', { initiator, title })
+            }
+          )
 
           if (!blinkResult.success) {
             console.warn('[ShareNoteDialog] Failed to send Blink notifications:', blinkResult.error)
@@ -336,16 +336,16 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
         await onRefreshShares()
 
         const count = selectedUsers.length
-        toast.success(`Shared "${noteTitle || 'Untitled Note'}" with ${count} ${count === 1 ? 'person' : 'people'}!`)
+        toast.success(t('share-toast-success', { title: noteTitle || t('title-untitled-note'), count }))
 
         setTimeout(() => {
           onOpenChange(false)
         }, 1500)
       } else {
-        setError('Failed to share note. Please try again.')
+        setError(t('share-error-failed'))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to share note')
+      setError(err instanceof Error ? err.message : t('share-error-failed'))
     } finally {
       setIsSharing(false)
     }
@@ -359,7 +359,8 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
     noteId,
     currentUserId,
     currentUserName,
-    onOpenChange
+    onOpenChange,
+    t
   ])
 
   /**
@@ -397,24 +398,22 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            Share "{noteTitle || 'Untitled Note'}"
+            {t('share-title', { title: noteTitle || t('title-untitled-note') })}
           </DialogTitle>
-          <DialogDescription>
-            Share this note with team members. They'll be able to collaborate in real-time.
-          </DialogDescription>
+          <DialogDescription>{t('share-description')}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:space-y-6 gba:py-4">
           {/* Add People Section */}
           {isOwner && (
             <div className="gba:space-y-3">
-              <Label className="gba:text-sm gba:font-medium">Add People</Label>
+              <Label className="gba:text-sm gba:font-medium">{t('share-add-people')}</Label>
 
               {/* Search Input */}
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                 <Input
-                  placeholder="Search by name or email..."
+                  placeholder={t('share-search-placeholder')}
                   value={searchQuery}
                   onChange={e => {
                     setSearchQuery(e.target.value)
@@ -428,7 +427,9 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               {searchQuery.length >= 2 && (
                 <div className="gba:border gba:rounded-md gba:max-h-48 gba:overflow-y-auto">
                   {isSearching ? (
-                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">Searching...</div>
+                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">
+                      {t('share-searching')}
+                    </div>
                   ) : filteredResults.length > 0 ? (
                     <div className="gba:divide-y">
                       {filteredResults.map(employee => {
@@ -462,7 +463,9 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                       })}
                     </div>
                   ) : (
-                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">No users found</div>
+                    <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">
+                      {t('share-no-users')}
+                    </div>
                   )}
                 </div>
               )}
@@ -470,7 +473,9 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               {/* Selected Users & Permission */}
               {selectedUsers.length > 0 && (
                 <div className="gba:space-y-2">
-                  <Label className="gba:text-xs gba:text-muted-foreground">Selected ({selectedUsers.length})</Label>
+                  <Label className="gba:text-xs gba:text-muted-foreground">
+                    {t('share-selected-count', { count: selectedUsers.length })}
+                  </Label>
                   <div className="gba:space-y-2 gba:max-h-32 gba:overflow-y-auto">
                     {selectedUsers.map(user => (
                       <div
@@ -505,7 +510,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                     ))}
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Label className="gba:text-xs">Permission:</Label>
+                    <Label className="gba:text-xs">{t('share-permission-label')}</Label>
                     <Select
                       value={selectedPermission}
                       onValueChange={val => setSelectedPermission(val as NotePermission)}
@@ -514,13 +519,15 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(PERMISSION_CONFIG)
+                        {Object.entries(PERMISSION_KEYS)
                           .filter(([key]) => key !== 'owner')
                           .map(([key, config]) => (
                             <SelectItem key={key} value={key}>
                               <div className="gba:flex gba:items-center gba:gap-2">
-                                <config.icon className="gba:w-4 gba:h-4" />
-                                {config.label}
+                                {React.createElement(PERMISSION_ICONS[key as NotePermission], {
+                                  className: 'gba:w-4 gba:h-4'
+                                })}
+                                {t(config.labelKey)}
                               </div>
                             </SelectItem>
                           ))}
@@ -534,7 +541,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               {sentSuccess && (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-success-secondary/20 gba:rounded-lg gba:text-success-foreground">
                   <CheckCircle className="gba:w-5 gba:h-5" />
-                  <p className="gba:text-sm gba:font-medium">Shared successfully! Blink notifications sent.</p>
+                  <p className="gba:text-sm gba:font-medium">{t('share-success-blink')}</p>
                 </div>
               )}
 
@@ -550,9 +557,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                   data-testid="share-confirm-button"
                 >
                   <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isSharing
-                    ? 'Sharing...'
-                    : `Share with ${selectedUsers.length} ${selectedUsers.length === 1 ? 'person' : 'people'}`}
+                  {isSharing ? t('share-sharing') : t('share-share-with', { count: selectedUsers.length })}
                 </Button>
               )}
             </div>
@@ -563,7 +568,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <Label className="gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
                 <Users className="gba:w-4 gba:h-4" />
-                People with access
+                {t('share-people-with-access')}
               </Label>
               <Badge variant="secondary">{(resolvedSharedUsers?.length || 0) + 1}</Badge>
             </div>
@@ -573,20 +578,20 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               <div className="gba:p-3 gba:flex gba:items-center gba:gap-3 gba:bg-accent/30">
                 <Avatar className="gba:h-10 gba:w-10">
                   {owner.avatarUrl && <AvatarImage src={owner.avatarUrl} alt={owner.name} />}
-                  <AvatarFallback>{getInitials(isOwner ? owner.name : 'Owner')}</AvatarFallback>
+                  <AvatarFallback>{getInitials(isOwner ? owner.name : t('share-label-owner'))}</AvatarFallback>
                 </Avatar>
                 <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:font-medium">{isOwner ? 'You' : 'Owner'}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">Owner</p>
+                  <p className="gba:text-sm gba:font-medium">{isOwner ? t('owner-you') : t('share-label-owner')}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('share-label-owner')}</p>
                 </div>
-                <Badge variant="outline">Owner</Badge>
+                <Badge variant="outline">{t('share-label-owner')}</Badge>
               </div>
 
               {/* Shared Users */}
               {Array.isArray(resolvedSharedUsers) &&
                 resolvedSharedUsers.map(user => {
-                  const permConfig = PERMISSION_CONFIG[user.permission] || PERMISSION_CONFIG.view
-                  const PermIcon = permConfig.icon
+                  const permKeys = PERMISSION_KEYS[user.permission] || PERMISSION_KEYS.view
+                  const PermIcon = PERMISSION_ICONS[user.permission] || PERMISSION_ICONS.view
 
                   return (
                     <div
@@ -604,7 +609,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                       </div>
                       <Badge variant="outline" className="gba:gap-1">
                         <PermIcon className="gba:w-3 gba:h-3" />
-                        {permConfig.label}
+                        {t(permKeys.labelKey)}
                       </Badge>
                       {isOwner && (
                         <Button
@@ -625,8 +630,8 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               {(!resolvedSharedUsers || resolvedSharedUsers.length === 0) && (
                 <div className="gba:p-6 gba:text-center gba:text-sm gba:text-muted-foreground">
                   <Users className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                  <p>Not shared with anyone yet</p>
-                  {isOwner && <p className="gba:text-xs gba:mt-1">Add people above to share this note</p>}
+                  <p>{t('share-not-shared')}</p>
+                  {isOwner && <p className="gba:text-xs gba:mt-1">{t('share-add-above')}</p>}
                 </div>
               )}
             </div>
@@ -635,7 +640,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Done
+            {t('share-done')}
           </Button>
         </DialogFooter>
       </DialogContent>

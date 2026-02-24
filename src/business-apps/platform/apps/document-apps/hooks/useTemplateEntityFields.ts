@@ -8,8 +8,12 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getTemplateEntity } from '../entities'
+import translations from '../_i18n'
+
+type TranslateFn = (key: string, vars?: Record<string, string>) => string
 
 export interface TemplateEntityFieldFromGraphQL {
   key: string
@@ -87,14 +91,16 @@ function isObjectType(type: IntrospectionFieldType): boolean {
 /** Sub-fields we expose for catalog refs (avoid dumping full catalog entry internals) */
 const CATALOG_DISPLAY_FIELDS = new Set(['id', 'code', 'displayName', 'name', 'description', 'value'])
 
-/** Fallback sub-fields for Currency catalog when GraphQL introspection returns no fields (same shape as Country) */
-const CURRENCY_CATALOG_FALLBACK_SUBFIELDS: TemplateEntityFieldFromGraphQL[] = [
-  { key: 'code', displayName: 'Code' },
-  { key: 'description', displayName: 'Description' },
-  { key: 'id', displayName: 'Id' },
-  { key: 'value', displayName: 'Value' },
-  { key: 'displayName', displayName: 'Display name' }
-]
+/** Build fallback sub-fields for Currency catalog when GraphQL introspection returns no fields */
+function getCurrencyCatalogFallbackSubfields(t: TranslateFn): TemplateEntityFieldFromGraphQL[] {
+  return [
+    { key: 'code', displayName: t('template-field-code') },
+    { key: 'description', displayName: t('template-field-description') },
+    { key: 'id', displayName: t('template-field-id') },
+    { key: 'value', displayName: t('template-field-value') },
+    { key: 'displayName', displayName: t('template-field-display-name') }
+  ]
+}
 
 /**
  * Catalog/reference fields shown under "Catalog values" with sub-fields (displayName, code, etc.).
@@ -154,58 +160,77 @@ function filterCatalogSubFields(parentKey: string, nestedType: IntrospectionType
   return result
 }
 
-const CATALOG_PLACEHOLDER_FIELDS: TemplateEntityFieldFromGraphQL[] = [
-  { key: 'value', displayName: 'Value' },
-  { key: 'displayName', displayName: 'Display name' },
-  { key: 'code', displayName: 'Code' }
-]
+function getCatalogPlaceholderFields(t: TranslateFn): TemplateEntityFieldFromGraphQL[] {
+  return [
+    { key: 'value', displayName: t('template-field-value') },
+    { key: 'displayName', displayName: t('template-field-display-name') },
+    { key: 'code', displayName: t('template-field-code') }
+  ]
+}
 
 /** Extra fields for expense entities (adv_payment, expense_plan, expense_request_trip) when GraphQL has no/empty type */
-const EXPENSE_PLACEHOLDER_FIELDS: TemplateEntityFieldFromGraphQL[] = [
-  { key: 'amount', displayName: 'Amount' },
-  { key: 'currency_ref', displayName: 'Currency ref' },
-  ...CATALOG_PLACEHOLDER_FIELDS
-]
+function getExpensePlaceholderFields(t: TranslateFn): TemplateEntityFieldFromGraphQL[] {
+  return [
+    { key: 'amount', displayName: t('template-field-amount') },
+    { key: 'currency_ref', displayName: t('template-field-currency-ref') },
+    ...getCatalogPlaceholderFields(t)
+  ]
+}
 
 const EXPENSE_ENTITY_KEYS = new Set(['adv_payment', 'expense_plan', 'expense_request_trip'])
 
 /** Currency catalog group for fallback (same as Country under Catalog values) */
-const CURRENCY_CATALOG_GROUP_FALLBACK: TemplateCatalogGroup = {
-  fieldKey: 'currency_ref',
-  displayName: 'Currency',
-  subFields: CURRENCY_CATALOG_FALLBACK_SUBFIELDS.map(f => ({
-    key: `currency_ref.${f.key}`,
-    displayName: f.displayName
-  }))
+function getCurrencyCatalogGroupFallback(t: TranslateFn): TemplateCatalogGroup {
+  const subFields = getCurrencyCatalogFallbackSubfields(t)
+  return {
+    fieldKey: 'currency_ref',
+    displayName: t('template-field-currency'),
+    subFields: subFields.map(f => ({
+      key: `currency_ref.${f.key}`,
+      displayName: f.displayName
+    }))
+  }
 }
 
-function getFallbackForMissingType(entityKey: string): {
+function getFallbackForMissingType(
+  entityKey: string,
+  t: TranslateFn
+): {
   direct: TemplateEntityFieldFromGraphQL[]
   catalogs: TemplateCatalogGroup[]
 } {
   const direct: TemplateEntityFieldFromGraphQL[] = []
   const catalogs: TemplateCatalogGroup[] = []
   if (ENTITY_KEYS_WITH_PLACEHOLDER_FALLBACK.has(entityKey)) {
-    direct.push(...(EXPENSE_ENTITY_KEYS.has(entityKey) ? EXPENSE_PLACEHOLDER_FIELDS : CATALOG_PLACEHOLDER_FIELDS))
-    if (EXPENSE_ENTITY_KEYS.has(entityKey)) catalogs.push(CURRENCY_CATALOG_GROUP_FALLBACK)
+    direct.push(
+      ...(EXPENSE_ENTITY_KEYS.has(entityKey) ? getExpensePlaceholderFields(t) : getCatalogPlaceholderFields(t))
+    )
+    if (EXPENSE_ENTITY_KEYS.has(entityKey)) catalogs.push(getCurrencyCatalogGroupFallback(t, 'currency_ref'))
   }
   return { direct, catalogs }
 }
 
-function getEnumFallback(): { direct: TemplateEntityFieldFromGraphQL[]; catalogs: TemplateCatalogGroup[] } {
-  return { direct: [...CATALOG_PLACEHOLDER_FIELDS], catalogs: [] }
-}
-
-function getNoFieldsFallback(entityKey: string): {
+function getEnumFallback(t: TranslateFn): {
   direct: TemplateEntityFieldFromGraphQL[]
   catalogs: TemplateCatalogGroup[]
 } {
-  return getFallbackForMissingType(entityKey)
+  return { direct: [...getCatalogPlaceholderFields(t)], catalogs: [] }
+}
+
+function getNoFieldsFallback(
+  entityKey: string,
+  t: TranslateFn
+): {
+  direct: TemplateEntityFieldFromGraphQL[]
+  catalogs: TemplateCatalogGroup[]
+} {
+  return getFallbackForMissingType(entityKey, t)
 }
 
 async function processTypeFields(
   type: IntrospectionType,
-  graphqlClient: ReturnType<typeof useGraphQLClient>
+  graphqlClient: ReturnType<typeof useGraphQLClient>,
+  t: TranslateFn
 ): Promise<{ direct: TemplateEntityFieldFromGraphQL[]; catalogs: TemplateCatalogGroup[] }> {
   const direct: TemplateEntityFieldFromGraphQL[] = []
   const catalogs: TemplateCatalogGroup[] = []
@@ -220,7 +245,7 @@ async function processTypeFields(
           key: field.name,
           displayName:
             field.name === 'currencyRef' || field.name === 'currency_ref'
-              ? 'Currency ref'
+              ? t('template-field-currency-ref')
               : humanizeFieldName(field.name)
         })
       }
@@ -251,19 +276,12 @@ async function processTypeFields(
               fieldKey: field.name,
               displayName:
                 field.name === 'currencyRef' || field.name === 'currency_ref'
-                  ? 'Currency'
+                  ? t('template-field-currency')
                   : humanizeFieldName(field.name),
               subFields
             })
           } else if (field.name === 'currencyRef' || field.name === 'currency_ref') {
-            catalogs.push({
-              fieldKey: field.name,
-              displayName: 'Currency',
-              subFields: CURRENCY_CATALOG_FALLBACK_SUBFIELDS.map(f => ({
-                key: `${field.name}.${f.key}`,
-                displayName: f.displayName
-              }))
-            })
+            catalogs.push(getCurrencyCatalogGroupFallback(t, field.name))
           }
         }
         if (showAsDirectNested) {
@@ -277,19 +295,12 @@ async function processTypeFields(
           }
         }
         if (field.name === 'currencyRef' || field.name === 'currency_ref') {
-          direct.push({ key: field.name, displayName: 'Currency ref' })
+          direct.push({ key: field.name, displayName: t('template-field-currency-ref') })
         }
       } catch {
         if (field.name === 'currencyRef' || field.name === 'currency_ref') {
-          direct.push({ key: field.name, displayName: 'Currency ref' })
-          catalogs.push({
-            fieldKey: field.name,
-            displayName: 'Currency',
-            subFields: CURRENCY_CATALOG_FALLBACK_SUBFIELDS.map(f => ({
-              key: `${field.name}.${f.key}`,
-              displayName: f.displayName
-            }))
-          })
+          direct.push({ key: field.name, displayName: t('template-field-currency-ref') })
+          catalogs.push(getCurrencyCatalogGroupFallback(t, field.name))
         }
       }
     }
@@ -305,6 +316,7 @@ export function useTemplateEntityFields(
   entityKey: string | null,
   accessToken: string | undefined
 ): UseTemplateEntityFieldsResult {
+  const { t } = useTranslation(translations)
   const graphqlClient = useGraphQLClient(accessToken)
   const [directFields, setDirectFields] = useState<TemplateEntityFieldFromGraphQL[]>([])
   const [catalogGroups, setCatalogGroups] = useState<TemplateCatalogGroup[]>([])
@@ -322,7 +334,7 @@ export function useTemplateEntityFields(
     if (!entity?.graphqlTypeName) {
       setDirectFields([])
       setCatalogGroups([])
-      setError(new Error(`Unknown entity: ${entityKey}`))
+      setError(new Error(t('template-field-unknown-entity', { key: entityKey })))
       return
     }
 
@@ -335,25 +347,25 @@ export function useTemplateEntityFields(
       const type = data?.__type
 
       if (!type) {
-        const { direct, catalogs } = getFallbackForMissingType(entityKey)
+        const { direct, catalogs } = getFallbackForMissingType(entityKey, t)
         setDirectFields(direct)
         setCatalogGroups(catalogs)
         return
       }
       if (type.kind === 'ENUM' && type.enumValues?.length) {
-        const { direct, catalogs } = getEnumFallback()
+        const { direct, catalogs } = getEnumFallback(t)
         setDirectFields(direct)
         setCatalogGroups(catalogs)
         return
       }
       if (!type.fields?.length) {
-        const { direct, catalogs } = getNoFieldsFallback(entityKey)
+        const { direct, catalogs } = getNoFieldsFallback(entityKey, t)
         setDirectFields(direct)
         setCatalogGroups(catalogs)
         return
       }
 
-      const { direct, catalogs } = await processTypeFields(type, graphqlClient)
+      const { direct, catalogs } = await processTypeFields(type, graphqlClient, t)
 
       // Add synthetic fields for specific entities
       const syntheticFields: TemplateEntityFieldFromGraphQL[] = []
@@ -362,11 +374,11 @@ export function useTemplateEntityFields(
         syntheticFields.push(
           {
             key: 'approvedBy',
-            displayName: 'Approved by'
+            displayName: t('template-field-approved-by')
           },
           {
             key: 'approvalDate',
-            displayName: 'Approval date'
+            displayName: t('template-field-approval-date')
           }
         )
       }
@@ -374,20 +386,20 @@ export function useTemplateEntityFields(
       if (entityKey === 'employee_position') {
         syntheticFields.push({
           key: 'supervisorName',
-          displayName: 'Supervisor name'
+          displayName: t('template-field-supervisor-name')
         })
       }
 
       setDirectFields([...direct, ...syntheticFields])
       setCatalogGroups(catalogs)
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error'))
+      setError(err instanceof Error ? err : new Error(t('template-field-unknown-error')))
       setDirectFields([])
       setCatalogGroups([])
     } finally {
       setIsLoading(false)
     }
-  }, [entityKey, accessToken, graphqlClient])
+  }, [entityKey, accessToken, graphqlClient, t])
 
   useEffect(() => {
     fetchFields()

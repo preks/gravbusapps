@@ -7,8 +7,10 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { SlideGenerationService, type GenerationOptions } from '../services'
 import type { SlideData } from '../components/slideElements'
+import translations from '../_i18n'
 
 export type GenerationPhase = 'idle' | 'research' | 'generation' | 'validation' | 'complete'
 
@@ -40,6 +42,7 @@ export function useSlideGeneration({
   onSuccess,
   onError
 }: UseSlideGenerationOptions): UseSlideGenerationResult {
+  const { t } = useTranslation(translations)
   const [isGenerating, setIsGenerating] = useState(false)
   const [phase, setPhase] = useState<GenerationPhase>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +52,7 @@ export function useSlideGeneration({
   const generate = useCallback(
     async (options: GenerationOptions) => {
       if (!accessToken) {
-        const errMsg = 'Authentication required'
+        const errMsg = t('progress-auth-required')
         setError(errMsg)
         onError?.(errMsg)
         return
@@ -59,16 +62,27 @@ export function useSlideGeneration({
       setError(null)
       setSources(null)
       setPhase('idle')
-      setProgressMessage('Preparing your presentation...')
+      setProgressMessage(t('progress-preparing'))
 
       try {
-        // Progress callback from the service
-        const onProgress = (phaseType: 'research' | 'generation' | 'validation', message: string) => {
+        // Progress callback from the service (message = i18n key)
+        const onProgress = (
+          phaseType: 'research' | 'generation' | 'validation',
+          message: string,
+          params?: Record<string, string>
+        ) => {
           setPhase(phaseType)
-          setProgressMessage(message)
+          setProgressMessage(params ? t(message, params) : t(message))
         }
 
-        const result = await SlideGenerationService.generateSlides(options, accessToken, onProgress)
+        const result = await SlideGenerationService.generateSlides(
+          {
+            ...options,
+            getMessage: (key, params) => (params ? t(key, params) : t(key))
+          },
+          accessToken,
+          onProgress
+        )
 
         // Store sources if found
         if (result.sources && result.sources.length > 0) {
@@ -76,7 +90,7 @@ export function useSlideGeneration({
         }
 
         setPhase('complete')
-        setProgressMessage('Presentation ready!')
+        setProgressMessage(t('progress-ready'))
 
         // Brief delay to show completion state
         await new Promise(resolve => setTimeout(resolve, 300))
@@ -86,7 +100,7 @@ export function useSlideGeneration({
 
         onSuccess?.(result.slides, result.title, result.sources)
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to generate slides'
+        const errorMessage = err instanceof Error ? err.message : t('progress-generate-failed')
         console.error('[useSlideGeneration] Generation failed:', err)
 
         setError(errorMessage)
@@ -97,7 +111,7 @@ export function useSlideGeneration({
         onError?.(errorMessage)
       }
     },
-    [accessToken, onSuccess, onError]
+    [accessToken, onSuccess, onError, t]
   )
 
   const reset = useCallback(() => {

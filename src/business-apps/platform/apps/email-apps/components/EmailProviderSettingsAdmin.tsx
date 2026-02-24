@@ -12,8 +12,10 @@ import {
   DialogTitle,
   DialogDescription,
   Button,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { Settings, CheckCircle } from 'lucide-react'
 import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
 import type { AdminProviderConfig, UpsertProviderSettingsRequest } from '../services/EmailProviderSettingsApi'
@@ -33,6 +35,7 @@ export const EmailProviderSettingsAdmin: React.FC<EmailProviderSettingsAdminProp
   accessToken,
   'data-testid': testId = 'provider-settings-admin'
 }) => {
+  const { t } = useTranslation(translations)
   const [settings, setSettings] = useState<AdminProviderConfig[]>([])
   const [activeProvider, setActiveProvider] = useState<ProviderKey>('microsoft')
   const [isLoading, setIsLoading] = useState(false)
@@ -101,16 +104,16 @@ export const EmailProviderSettingsAdmin: React.FC<EmailProviderSettingsAdminProp
     if (activeProvider !== 'imap_smtp' && isEnabled) {
       const missing: string[] = []
 
-      if (!clientId.trim()) missing.push('Client ID')
-      if (activeProvider === 'microsoft' && !authority.trim()) missing.push('Authority (Tenant)')
-      if (!scopes.trim()) missing.push('OAuth scopes')
+      if (!clientId.trim()) missing.push(t('provider-admin-client-id'))
+      if (activeProvider === 'microsoft' && !authority.trim()) missing.push(t('provider-admin-authority'))
+      if (!scopes.trim()) missing.push(t('provider-admin-scopes'))
 
       const existing = settings.find(s => s.provider === activeProvider)
       const hasSecret = !!existing?.hasClientSecret
-      if (!hasSecret && !clientSecret.trim()) missing.push('Client Secret')
+      if (!hasSecret && !clientSecret.trim()) missing.push(t('provider-admin-client-secret'))
 
       if (missing.length > 0) {
-        toast.error(`Missing required settings: ${missing.join(', ')}`)
+        toast.error(t('provider-admin-toast-missing', { fields: missing.join(', ') }))
         return
       }
     }
@@ -143,19 +146,20 @@ export const EmailProviderSettingsAdmin: React.FC<EmailProviderSettingsAdminProp
       }
 
       await EmailProviderSettingsApi.upsertSettings(request)
-      toast.success(`${PERMISSION_GUIDE[activeProvider].name} settings saved`)
+      toast.success(t('provider-admin-toast-saved', { name: PERMISSION_GUIDE[activeProvider].name }))
 
       // Reload settings
       const data = await EmailProviderSettingsApi.getAdminSettings()
       setSettings(data)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save settings')
+      toast.error(err instanceof Error ? err.message : t('provider-admin-toast-save-failed'))
     } finally {
       setIsSaving(false)
     }
   }, [
     activeProvider,
     clientId,
+    t,
     clientSecret,
     authority,
     scopes,
@@ -175,11 +179,9 @@ export const EmailProviderSettingsAdmin: React.FC<EmailProviderSettingsAdminProp
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Settings className="gba:w-5 gba:h-5" />
-            Email Provider Settings
+            {t('provider-admin-title')}
           </DialogTitle>
-          <DialogDescription>
-            Configure OAuth credentials and permissions for email providers. Users need these to connect their accounts.
-          </DialogDescription>
+          <DialogDescription>{t('provider-admin-description')}</DialogDescription>
         </DialogHeader>
 
         {/* Provider tabs */}

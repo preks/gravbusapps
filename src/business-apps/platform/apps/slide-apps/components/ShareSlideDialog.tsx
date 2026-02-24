@@ -27,13 +27,15 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Share2, Search, X, CheckCircle, AlertCircle, Eye, Pencil, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
 import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
+import translations from '../_i18n'
 
 export interface ShareSlideDialogProps {
   open: boolean
@@ -183,7 +185,7 @@ const sendShareNotification = async (
     return { success: true }
   } catch (err) {
     console.error('[ShareSlide] Error sending notifications:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send notifications' }
+    return { success: false, error: err instanceof Error ? err.message : 'share-notifications-failed' }
   }
 }
 
@@ -202,6 +204,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
   onShareComplete,
   'data-testid': testId = 'share-slide-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([])
   const [defaultPermission, setDefaultPermission] = useState<Permission>('view')
@@ -260,7 +263,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
 
   const handleShare = useCallback(async () => {
     if (selectedUsers.length === 0) {
-      setError('Please select at least one user')
+      setError(t('share-select-one'))
       return
     }
 
@@ -283,7 +286,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
       }
 
       if (!allSucceeded) {
-        throw new Error('Some shares failed')
+        throw new Error(t('share-some-failed'))
       }
 
       const notificationResult = await sendShareNotification(accessToken, {
@@ -304,8 +307,8 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
       }
 
       setSentSuccess(true)
-      toast.success('Slide shared', {
-        description: `Shared with ${selectedUsers.length} ${selectedUsers.length === 1 ? 'person' : 'people'}`
+      toast.success(t('share-success-toast'), {
+        description: t('share-success-description', { count: selectedUsers.length })
       })
 
       onShareComplete?.()
@@ -314,9 +317,9 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
         onOpenChange(false)
       }, 1500)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to share slide'
+      const message = err instanceof Error ? err.message : t('share-failed')
       setError(message)
-      toast.error('Share failed', { description: message })
+      toast.error(t('share-failed'), { description: message })
     } finally {
       setIsSubmitting(false)
     }
@@ -330,7 +333,8 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
     accessToken,
     shareSlide,
     onShareComplete,
-    onOpenChange
+    onOpenChange,
+    t
   ])
 
   return (
@@ -339,9 +343,9 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            Share Slide
+            {t('share-title')}
           </DialogTitle>
-          <DialogDescription>Share "{slideTitle}" with others and set their access level.</DialogDescription>
+          <DialogDescription>{t('share-description', { title: slideTitle })}</DialogDescription>
         </DialogHeader>
 
         {sentSuccess ? (
@@ -349,18 +353,18 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
             <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
               <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Slide Shared!</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('share-success-title')}</h3>
             <p className="gba:text-muted-foreground">
               {selectedUsers.length === 1
-                ? `${selectedUsers[0].displayName} has been notified and can now access this slide.`
-                : `${selectedUsers.length} people have been notified and can now access this slide.`}
+                ? t('share-notified-single', { name: selectedUsers[0].displayName })
+                : t('share-notified-multiple', { count: selectedUsers.length })}
             </p>
           </div>
         ) : (
           <div className="gba:space-y-6 gba:py-4">
             {/* Default permission selector */}
             <div className="gba:space-y-2">
-              <Label>Default permission for new users</Label>
+              <Label>{t('share-default-permission')}</Label>
               <Select value={defaultPermission} onValueChange={v => setDefaultPermission(v as Permission)}>
                 <SelectTrigger className="gba:w-full">
                   <SelectValue />
@@ -369,19 +373,19 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
                   <SelectItem value="view">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Eye className="gba:w-4 gba:h-4" />
-                      <span>Can view</span>
+                      <span>{t('share-can-view')}</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="comment">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <MessageSquare className="gba:w-4 gba:h-4" />
-                      <span>Can comment</span>
+                      <span>{t('share-can-comment')}</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="edit">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Pencil className="gba:w-4 gba:h-4" />
-                      <span>Can edit</span>
+                      <span>{t('share-can-edit')}</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -390,11 +394,11 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
 
             {/* Search input */}
             <div className="gba:space-y-2">
-              <Label>Add people</Label>
+              <Label>{t('share-add-people')}</Label>
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                 <Input
-                  placeholder="Search for people..."
+                  placeholder={t('share-search-placeholder')}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="gba:pl-10"
@@ -449,7 +453,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
               {/* No results message */}
               {searchQuery.length >= 2 && !isSearching && filteredResults.length === 0 && (
                 <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
-                  No people found matching "{searchQuery}"
+                  {t('share-no-results', { query: searchQuery })}
                 </p>
               )}
             </div>
@@ -457,7 +461,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
             {/* Selected users list */}
             {selectedUsers.length > 0 && (
               <div className="gba:space-y-2">
-                <Label>People with access ({selectedUsers.length})</Label>
+                <Label>{t('share-people-with-access', { count: selectedUsers.length })}</Label>
                 <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-48 gba:overflow-y-auto">
                   {selectedUsers.map(user => (
                     <div key={user.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3">
@@ -493,19 +497,19 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
                           <SelectItem value="view">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <Eye className="gba:w-3 gba:h-3" />
-                              <span>View</span>
+                              <span>{t('share-can-view')}</span>
                             </div>
                           </SelectItem>
                           <SelectItem value="comment">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <MessageSquare className="gba:w-3 gba:h-3" />
-                              <span>Comment</span>
+                              <span>{t('share-can-comment')}</span>
                             </div>
                           </SelectItem>
                           <SelectItem value="edit">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <Pencil className="gba:w-3 gba:h-3" />
-                              <span>Edit</span>
+                              <span>{t('share-can-edit')}</span>
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -527,10 +531,10 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
 
             {/* Message section */}
             <div className="gba:space-y-2">
-              <Label htmlFor="share-message">Message (optional)</Label>
+              <Label htmlFor="share-message">{t('share-message-optional')}</Label>
               <Textarea
                 id="share-message"
-                placeholder="Add a message for the recipients..."
+                placeholder={t('share-message-placeholder')}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 rows={2}
@@ -550,10 +554,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
             <div className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:bg-primary/5 gba:rounded-md gba:text-sm">
               <Share2 className="gba:w-4 gba:h-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
               <div className="gba:text-muted-foreground">
-                <p>
-                  People you share with will receive a notification and can access the slide based on their permission
-                  level.
-                </p>
+                <p>{t('share-info')}</p>
               </div>
             </div>
           </div>
@@ -562,18 +563,18 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
         {!sentSuccess && (
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              Cancel
+              {t('share-cancel')}
             </Button>
             <Button onClick={handleShare} disabled={isSubmitting || selectedUsers.length === 0}>
               {isSubmitting ? (
                 <>
                   <Spinner size="sm" className="gba:mr-2" />
-                  Sharing...
+                  {t('share-sharing')}
                 </>
               ) : (
                 <>
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Share
+                  {t('share-button')}
                 </>
               )}
             </Button>

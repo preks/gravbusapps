@@ -72,6 +72,8 @@ export interface UseVersioningOptions {
   onVersionCreated?: (version: Version) => void
   onVersionRestored?: (version: Version) => void
   onError?: (error: Error) => void
+  /** Translation function for user-facing error messages */
+  t?: (key: string, vars?: Record<string, string | number>) => string
 }
 
 export interface UseVersioningState {
@@ -132,7 +134,8 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
     maxAutoSaveVersions = 10,
     onVersionCreated,
     onVersionRestored,
-    onError
+    onError,
+    t
   } = options
 
   // State
@@ -169,7 +172,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         isLoading: false
       }))
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load versions'
+      const errorMessage = t ? t('shared-error-load-versions') : error instanceof Error ? error.message : String(error)
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -180,7 +183,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         onError(error instanceof Error ? error : new Error(errorMessage))
       }
     }
-  }, [entityId, apiService, onError])
+  }, [entityId, apiService, onError, t])
 
   /**
    * Create a manual checkpoint version
@@ -214,7 +217,11 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
 
         return version
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to create checkpoint'
+        const errorMessage = t
+          ? t('shared-error-create-checkpoint')
+          : error instanceof Error
+            ? error.message
+            : String(error)
         setState(prev => ({
           ...prev,
           error: errorMessage,
@@ -228,7 +235,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         return null
       }
     },
-    [entityId, apiService, onVersionCreated, onError]
+    [entityId, apiService, onVersionCreated, onError, t]
   )
 
   /**
@@ -271,7 +278,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
       onVersionCreated?.(version)
       return version
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to auto-save'
+      const errorMessage = t ? t('shared-error-auto-save') : error instanceof Error ? error.message : String(error)
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -284,7 +291,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
 
       return null
     }
-  }, [entityId, apiService, state.hasUnsavedChanges, state.versions, maxAutoSaveVersions, onVersionCreated, onError])
+  }, [entityId, apiService, state.hasUnsavedChanges, state.versions, maxAutoSaveVersions, onVersionCreated, onError, t])
 
   /**
    * Restore to a previous version
@@ -326,7 +333,11 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         setState(prev => ({ ...prev, isRestoring: false }))
         return success
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to restore version'
+        const errorMessage = t
+          ? t('shared-error-restore-version')
+          : error instanceof Error
+            ? error.message
+            : String(error)
         setState(prev => ({
           ...prev,
           error: errorMessage,
@@ -340,7 +351,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         return false
       }
     },
-    [entityId, apiService, loadVersions, state.versions, onVersionRestored, onError]
+    [entityId, apiService, loadVersions, state.versions, onVersionRestored, onError, t]
   )
 
   /**
@@ -365,7 +376,11 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
 
         return success
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to delete version'
+        const errorMessage = t
+          ? t('shared-error-delete-version')
+          : error instanceof Error
+            ? error.message
+            : String(error)
         setState(prev => ({
           ...prev,
           error: errorMessage
@@ -378,7 +393,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         return false
       }
     },
-    [entityId, apiService, onError]
+    [entityId, apiService, onError, t]
   )
 
   /**
@@ -390,12 +405,13 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         return await apiService.compareVersions(entityId, versionA, versionB)
       } catch (error) {
         if (onError) {
-          onError(error instanceof Error ? error : new Error('Failed to compare versions'))
+          const msg = t ? t('shared-error-compare-versions') : error instanceof Error ? error.message : String(error)
+          onError(error instanceof Error ? error : new Error(msg))
         }
         return null
       }
     },
-    [entityId, apiService, onError]
+    [entityId, apiService, onError, t]
   )
 
   /**

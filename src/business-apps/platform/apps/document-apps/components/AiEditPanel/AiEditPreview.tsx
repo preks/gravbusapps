@@ -6,7 +6,8 @@
  */
 
 import React from 'react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { Check, FileText, TextSelect } from 'lucide-react'
 
 export interface AiEditPreviewProps {
@@ -24,12 +25,15 @@ export const AiEditPreview: React.FC<AiEditPreviewProps> = ({
   isApplied,
   'data-testid': testId = 'ai-edit-preview'
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <div className="gba:space-y-3" data-testid={testId}>
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-xs gba:font-medium gba:text-foreground">{isApplied ? 'Applied' : 'Preview'}</span>
+          <span className="gba:text-xs gba:font-medium gba:text-foreground">
+            {isApplied ? t('ai-preview-applied') : t('ai-preview-preview')}
+          </span>
           <Badge
             variant={mode === 'selection' ? 'secondary' : 'outline'}
             className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4"
@@ -37,12 +41,12 @@ export const AiEditPreview: React.FC<AiEditPreviewProps> = ({
             {mode === 'selection' ? (
               <>
                 <TextSelect className="gba:h-2.5 gba:w-2.5 gba:mr-0.5" />
-                Selection
+                {t('ai-preview-selection')}
               </>
             ) : (
               <>
                 <FileText className="gba:h-2.5 gba:w-2.5 gba:mr-0.5" />
-                Full Document
+                {t('ai-preview-full-document')}
               </>
             )}
           </Badge>
@@ -50,7 +54,7 @@ export const AiEditPreview: React.FC<AiEditPreviewProps> = ({
         {isApplied && (
           <Badge variant="success" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4">
             <Check className="gba:h-2.5 gba:w-2.5 gba:mr-0.5" />
-            Applied
+            {t('ai-preview-applied')}
           </Badge>
         )}
       </div>

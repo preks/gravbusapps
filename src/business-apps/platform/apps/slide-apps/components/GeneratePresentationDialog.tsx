@@ -18,13 +18,15 @@ import {
   Label,
   Spinner,
   Switch,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { AlertCircle, Globe, Search, Layers, Check, Wand2 } from 'lucide-react'
 import { ContentAttachmentPicker } from './ContentAttachmentPicker'
 import { useSlideGeneration } from '../hooks/useSlideGeneration'
 import type { SlideData } from './slideElements'
 import type { ContentReference, GenerationOptions } from '../services/SlideGenerationService'
+import translations from '../_i18n'
 
 export interface GeneratePresentationDialogProps {
   open: boolean
@@ -49,6 +51,7 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
   accessToken,
   'data-testid': testId = 'generate-presentation-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   // Form state
   const [description, setDescription] = useState('')
   const [length, setLength] = useState<PresentationLength>('medium')
@@ -57,7 +60,7 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
   const [useWebSearch, setUseWebSearch] = useState(false)
 
   // Generation hook
-  const { isGenerating, error, progressMessage, generate, reset } = useSlideGeneration({
+  const { isGenerating, phase, error, progressMessage, generate, reset } = useSlideGeneration({
     accessToken,
     onSuccess: (slides, title) => {
       onGenerate(slides, title)
@@ -94,23 +97,13 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
 
   const isValid = description.trim().length > 0
 
-  // Determine current phase for progress
-  const getPhaseStatus = (phase: 'research' | 'generate' | 'validate') => {
-    const msg = progressMessage?.toLowerCase() || ''
-    if (phase === 'research') {
-      if (msg.includes('search') || msg.includes('research')) return 'active'
-      if (msg.includes('generat') || msg.includes('build') || msg.includes('valid')) return 'complete'
-      return 'pending'
-    }
-    if (phase === 'generate') {
-      if (msg.includes('generat') || msg.includes('build') || msg.includes('structure')) return 'active'
-      if (msg.includes('valid')) return 'complete'
-      return 'pending'
-    }
-    if (phase === 'validate') {
-      if (msg.includes('valid')) return 'active'
-      return 'pending'
-    }
+  // Determine phase status for stepper (uses hook phase, locale-independent)
+  const getPhaseStatus = (step: 'research' | 'generate' | 'validate') => {
+    const stepOrder = ['research', 'generation', 'validation', 'complete'] as const
+    const currentIdx = stepOrder.indexOf(phase as (typeof stepOrder)[number])
+    const stepIdx = { research: 0, generate: 1, validate: 2 }[step]
+    if (currentIdx > stepIdx) return 'complete'
+    if (currentIdx === stepIdx) return 'active'
     return 'pending'
   }
 
@@ -119,10 +112,8 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
       <DialogContent className="gba:max-w-xl gba:p-0 gba:gap-0 gba:overflow-hidden" data-testid={testId}>
         {/* Header */}
         <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
-          <DialogTitle className="gba:text-xl gba:font-semibold gba:tracking-tight">Generate Presentation</DialogTitle>
-          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-            Describe what you need and AI will create the slides.
-          </p>
+          <DialogTitle className="gba:text-xl gba:font-semibold gba:tracking-tight">{t('generate-title')}</DialogTitle>
+          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('generate-description')}</p>
         </DialogHeader>
 
         <Separator />
@@ -131,11 +122,11 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
           {/* Description */}
           <div className="gba:space-y-2">
             <Label htmlFor="description" className="gba:text-sm gba:font-medium">
-              Topic
+              {t('generate-topic')}
             </Label>
             <Textarea
               id="description"
-              placeholder="Quarterly business review covering sales metrics, team highlights, and Q2 goals..."
+              placeholder={t('generate-topic-placeholder')}
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
@@ -147,7 +138,7 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
 
           {/* Length selector - horizontal pills */}
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium">Length</Label>
+            <Label className="gba:text-sm gba:font-medium">{t('generate-length')}</Label>
             <div className="gba:flex gba:gap-2">
               {LENGTH_OPTIONS.map(opt => (
                 <button
@@ -162,8 +153,20 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
                   } ${isGenerating ? 'gba:opacity-50 gba:cursor-not-allowed' : 'gba:cursor-pointer'}`}
                   data-testid={`${testId}-length-${opt.value}`}
                 >
-                  <div className="gba:font-medium">{opt.label}</div>
-                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{opt.slides}</div>
+                  <div className="gba:font-medium">
+                    {opt.value === 'short'
+                      ? t('generate-length-short')
+                      : opt.value === 'medium'
+                        ? t('generate-length-medium')
+                        : t('generate-length-long')}
+                  </div>
+                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                    {opt.value === 'short'
+                      ? t('generate-slides-short')
+                      : opt.value === 'medium'
+                        ? t('generate-slides-medium')
+                        : t('generate-slides-long')}
+                  </div>
                 </button>
               ))}
             </div>
@@ -175,9 +178,9 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
               <Globe className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
               <div>
                 <Label htmlFor="web-search" className="gba:text-sm gba:font-medium gba:cursor-pointer">
-                  Web Search
+                  {t('generate-web-search')}
                 </Label>
-                <p className="gba:text-xs gba:text-muted-foreground">Include real-time data and sources</p>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('generate-web-search-desc')}</p>
               </div>
             </div>
             <Switch
@@ -192,8 +195,10 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
           {/* Reference materials */}
           <div className="gba:space-y-2">
             <Label className="gba:text-sm gba:font-medium">
-              Reference Materials
-              <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">(optional)</span>
+              {t('generate-references')}
+              <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">
+                {t('generate-references-optional')}
+              </span>
             </Label>
             <ContentAttachmentPicker
               selectedItems={references}
@@ -207,12 +212,14 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
           {/* Additional requirements - collapsible feel */}
           <div className="gba:space-y-2">
             <Label htmlFor="requirements" className="gba:text-sm gba:font-medium">
-              Additional Instructions
-              <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">(optional)</span>
+              {t('generate-additional-instructions')}
+              <span className="gba:text-muted-foreground gba:font-normal gba:ml-1">
+                {t('generate-references-optional')}
+              </span>
             </Label>
             <Textarea
               id="requirements"
-              placeholder="Include a timeline, use minimal text per slide, end with next steps..."
+              placeholder={t('generate-requirements-placeholder')}
               value={additionalRequirements}
               onChange={e => setAdditionalRequirements(e.target.value)}
               rows={2}
@@ -227,7 +234,7 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
             <div className="gba:flex gba:items-start gba:gap-3 gba:p-4 gba:bg-destructive/5 gba:border gba:border-destructive/20 gba:text-destructive gba:rounded-lg">
               <AlertCircle className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:mt-0.5" />
               <div className="gba:text-sm">
-                <p className="gba:font-medium">Generation failed</p>
+                <p className="gba:font-medium">{t('generate-failed')}</p>
                 <p className="gba:text-destructive/80 gba:mt-0.5">{error}</p>
               </div>
             </div>
@@ -241,7 +248,7 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
                 {useWebSearch && (
                   <>
                     <PhaseIndicator
-                      label="Research"
+                      label={t('generate-research')}
                       status={getPhaseStatus('research')}
                       icon={<Search className="gba:w-3.5 gba:h-3.5" />}
                     />
@@ -249,13 +256,13 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
                   </>
                 )}
                 <PhaseIndicator
-                  label="Generate"
+                  label={t('generate-generate')}
                   status={getPhaseStatus('generate')}
                   icon={<Layers className="gba:w-3.5 gba:h-3.5" />}
                 />
                 <div className="gba:flex-1 gba:h-px gba:bg-border gba:mx-3" />
                 <PhaseIndicator
-                  label="Validate"
+                  label={t('generate-validate')}
                   status={getPhaseStatus('validate')}
                   icon={<Check className="gba:w-3.5 gba:h-3.5" />}
                 />
@@ -274,7 +281,7 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
         {/* Footer */}
         <DialogFooter className="gba:px-6 gba:py-4 gba:bg-muted/30">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isGenerating}>
-            Cancel
+            {t('generate-cancel')}
           </Button>
           <AiButton
             onClick={handleGenerate}
@@ -284,7 +291,7 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
             iconPosition="before"
             data-testid={`${testId}-submit`}
           >
-            {isGenerating ? 'Generating...' : 'Generate'}
+            {isGenerating ? t('generate-generating') : t('generate-button')}
           </AiButton>
         </DialogFooter>
       </DialogContent>
