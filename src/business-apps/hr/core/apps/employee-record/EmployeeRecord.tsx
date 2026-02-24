@@ -199,6 +199,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const assetsFeatureFlag = useFeature(Feature.HCM.Assets.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
+  const performanceEvaluationFeatureFlag = useFeature('dev.employee-record.performance-evaluation.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
   const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
@@ -535,16 +536,24 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           </div>
         )
       },
-      {
-        value: TAB_KEYS.performanceEvaluation,
-        label: t('employee-record-tab-performance-evaluation'),
-        icon: <ChartBarIcon className="gba:mr-2" size={20} />,
-        content: (
-          <div className="gba:col-span-full">
-            <PerformanceEvaluationTab employee={employee} accessToken={accessToken} employeeId={employeeIdToShow} />
-          </div>
-        )
-      },
+      ...(performanceEvaluationFeatureFlag
+        ? [
+            {
+              value: TAB_KEYS.performanceEvaluation,
+              label: t('employee-record-tab-performance-evaluation'),
+              icon: <ChartBarIcon className="gba:mr-2" size={20} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <PerformanceEvaluationTab
+                    employee={employee}
+                    accessToken={accessToken}
+                    employeeId={employeeIdToShow}
+                  />
+                </div>
+              )
+            }
+          ]
+        : []),
       ...(compensationFeatureFlag
         ? [
             {
