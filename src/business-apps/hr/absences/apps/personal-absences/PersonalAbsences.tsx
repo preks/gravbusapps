@@ -21,7 +21,7 @@ import {
   SelectValue,
   Skeleton
 } from '@newwork/nw-design-system'
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, AlertCircle } from 'lucide-react'
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, AlertCircle, Sparkles } from 'lucide-react'
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
@@ -59,6 +59,7 @@ interface AbsenceRow {
   id: string
   type: string
   typeColor: string
+  typeParentEntryId: string
   startDate: string
   endDate: string
   status: string
@@ -195,6 +196,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
           id: a.id,
           type: a.type ? getCatalogValue(a.type) || '' : '',
           typeColor: a.type?.objectValue?.color || '6366f1',
+          typeParentEntryId: a.type?.parentEntryId || '',
           startDate: a.startDate,
           endDate: a.endDate,
           status: getAbsenceStatusLabel(a.status),
@@ -313,6 +315,139 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
       workingHours: workingHours
     })
   }, [publicHolidays, workingHours])
+
+  const [wellnessInsight, setWellnessInsight] = useState<string | null>(null)
+  const [wellnessLoading, setWellnessLoading] = useState(false)
+  const [wellnessRequested, setWellnessRequested] = useState(false)
+
+  const wellnessDataSummary = useMemo(() => {
+    if (absences.length === 0) return null
+    const year = dayjs().year()
+    const yearAbsences = absences.filter(a => a.originalStatus === 'APPROVED' && dayjs(a.startDate).year() === year)
+
+    const sickDays = yearAbsences
+      .filter(a => a.typeParentEntryId?.includes('HEALTH'))
+      .reduce((sum, a) => sum + (a.workingDays || 0), 0)
+
+    const vacationDays = yearAbsences
+      .filter(a => !a.typeParentEntryId?.includes('HEALTH'))
+      .reduce((sum, a) => sum + (a.workingDays || 0), 0)
+
+    const vacationEntitlement = displayEntitlements.reduce((sum, e) => sum + e.total, 0)
+    const vacationUsed = displayEntitlements.reduce((sum, e) => sum + e.used, 0)
+
+    const sortedAbsences = [...yearAbsences].sort((a, b) => dayjs(a.startDate).diff(dayjs(b.startDate)))
+    let longestWorkStreak = 0
+    let lastEnd = dayjs().startOf('year')
+    for (const a of sortedAbsences) {
+      const gap = dayjs(a.startDate).diff(lastEnd, 'day')
+      if (gap > longestWorkStreak) longestWorkStreak = gap
+      const end = dayjs(a.endDate)
+      if (end.isAfter(lastEnd)) lastEnd = end
+    }
+    const gapToToday = dayjs().diff(lastEnd, 'day')
+    if (gapToToday > longestWorkStreak) longestWorkStreak = gapToToday
+
+    return {
+      totalAbsentDays: ytdAbsentDays,
+      totalWorkingDays: ytdTotalWorkingDays,
+      sickDays,
+      vacationDays,
+      vacationEntitlement,
+      vacationUsed,
+      vacationRemaining: Math.max(0, vacationEntitlement - vacationUsed),
+      absenceCount: yearAbsences.length,
+      longestWorkStreak,
+      monthsElapsed: dayjs().month() + 1
+    }
+  }, [absences, ytdAbsentDays, ytdTotalWorkingDays, displayEntitlements])
+
+  const requestWellnessAnalysis = useCallback(async () => {
+    if (!wellnessDataSummary || !accessToken || wellnessLoading) return
+    setWellnessLoading(true)
+    setWellnessRequested(true)
+
+    const d = wellnessDataSummary
+    const prompt = `You are a workplace wellness advisor. Analyze this employee's absence data for the current year and provide a brief work-life balance insight.
+
+Data:
+- ${d.monthsElapsed} months into the year
+- ${d.totalAbsentDays} total absent days out of ${d.totalWorkingDays} working days (${d.totalWorkingDays > 0 ? ((d.totalAbsentDays / d.totalWorkingDays) * 100).toFixed(1) : 0}% absence rate)
+- ${d.sickDays} sick leave days
+- ${d.vacationDays} vacation/leave days used
+- ${d.vacationEntitlement} total vacation entitlement, ${d.vacationRemaining} remaining
+- ${d.absenceCount} separate absence periods
+- Longest uninterrupted work streak: ${d.longestWorkStreak} days
+
+Based on the flight risk wellness methodology:
+- >20 sick days/year = very high burnout risk
+- >15 sick days/year = high risk
+- >10 sick days/year = medium risk
+- >5 sick days/year = low risk
+- Work streaks >40 days without breaks need attention
+
+Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest. If vacation entitlement is significantly underused, suggest planning time off. If sick days are elevated, gently recommend attention to wellbeing. Keep the tone supportive and empathetic. Output ONLY the insight text, no JSON, no headers.`
+
+    try {
+      const form = new FormData()
+      form.append('session_id', '')
+      form.append('user_input_text', prompt)
+      form.append('llm_model', 'gpt-4.1')
+      form.append('use_web_search_tool', 'false')
+      form.append(
+        'current_page_context',
+        JSON.stringify({ type: 'overview', entity_name: 'employee_wellness', url: globalThis.location.href })
+      )
+
+      const response = await fetch(`${globalThis.location.origin}/flowbot/api/agent/v2/chat`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: 'text/event-stream' },
+        body: form
+      })
+
+      if (!response.ok || !response.body) throw new Error('FlowBot request failed')
+
+      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
+      let result = ''
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += value
+        const frames = buffer.split('\n\n')
+        buffer = frames.pop() || ''
+        for (const frame of frames) {
+          const lines = frame.split('\n')
+          let eventType = ''
+          let data = ''
+          for (const line of lines) {
+            if (line.startsWith('event: ')) eventType = line.slice(7)
+            else if (line.startsWith('data: ')) data = line.slice(6)
+          }
+          if (eventType === 'output-item' && data) {
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.type === 'answer' && parsed.displayData) {
+                for (const item of parsed.displayData) {
+                  if (item.type === 'textBlock' && item.text) result += item.text
+                }
+              }
+            } catch {}
+          }
+        }
+      }
+
+      setWellnessInsight(
+        result.trim() || 'Your absence patterns look healthy. Keep maintaining a good work-life balance!'
+      )
+    } catch {
+      setWellnessInsight(null)
+      setWellnessRequested(false)
+    } finally {
+      setWellnessLoading(false)
+    }
+  }, [wellnessDataSummary, accessToken, wellnessLoading])
 
   const {
     absenceList: calendarAbsenceList,
@@ -458,21 +593,23 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
                     style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
                   >
                     {displayEntitlements.map((ent, i) => (
-                      <div
-                        key={`display-${i}`}
-                        className="gba:flex gba:items-center gba:justify-between gba:rounded gba:border gba:px-3 gba:py-2"
-                      >
-                        <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">{ent.type}</span>
-                        <span className="gba:font-semibold gba:whitespace-nowrap">
-                          {ent.used}{' '}
-                          <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">/ {ent.total}</span>{' '}
-                          <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:absence_module.limited_pending_days_text.days',
-                              'days'
-                            )}
+                      <div key={`display-${i}`} className="gba:rounded gba:border gba:px-3 gba:py-2 gba:space-y-1.5">
+                        <div className="gba:flex gba:items-center gba:justify-between">
+                          <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">
+                            {ent.type}
                           </span>
-                        </span>
+                          <span className="gba:font-semibold gba:whitespace-nowrap">
+                            {ent.used}{' '}
+                            <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">/ {ent.total}</span>{' '}
+                            <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:absence_module.limited_pending_days_text.days',
+                                'days'
+                              )}
+                            </span>
+                          </span>
+                        </div>
+                        <Progress value={ent.total > 0 ? (ent.used / ent.total) * 100 : 0} className="gba:h-1.5" />
                       </div>
                     ))}
                     {otherEntitlements.map((ent, i) => (
@@ -509,6 +646,30 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
                       value={ytdTotalWorkingDays > 0 ? (ytdAbsentDays / ytdTotalWorkingDays) * 100 : 0}
                       className="gba:h-2"
                     />
+                  </div>
+                  <div className="gba:mt-2">
+                    {wellnessInsight ? (
+                      <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
+                        <Sparkles className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:mt-0.5" />
+                        <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{wellnessInsight}</p>
+                      </div>
+                    ) : wellnessLoading ? (
+                      <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
+                        <Sparkles className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:animate-pulse" />
+                        <Skeleton className="gba:h-4 gba:w-full" />
+                      </div>
+                    ) : wellnessDataSummary && !wellnessRequested ? (
+                      <button
+                        onClick={requestWellnessAnalysis}
+                        className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-primary hover:gba:text-primary/80 gba:transition-colors"
+                      >
+                        <Sparkles className="gba:w-3.5 gba:h-3.5" />
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:absence_hub.ai_wellness_insight',
+                          'AI Wellness Insight'
+                        )}
+                      </button>
+                    ) : null}
                   </div>
                 </>
               )}
