@@ -197,6 +197,56 @@ async function executeAgentRequest(
   return extractResponseContent(res.content)
 }
 
+interface SendMessageDeps {
+  client: ReturnType<typeof usePromptManagerClient>
+  promptProp: PromptODM | null | undefined
+  agentId: string | undefined
+  effectiveModelId: string
+  effectiveParamKeys: string[]
+  paramValues: Record<string, string>
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
+  setSending: (v: boolean) => void
+  setSendError: (e: string | null) => void
+}
+
+async function sendAgentMessage(deps: SendMessageDeps): Promise<void> {
+  const {
+    client,
+    promptProp,
+    agentId,
+    effectiveModelId,
+    effectiveParamKeys,
+    paramValues,
+    setMessages,
+    setSending,
+    setSendError
+  } = deps
+  const userParams: Record<string, string> = {}
+  for (const k of effectiveParamKeys) {
+    userParams[k] = (paramValues[k] ?? '').trim()
+  }
+  const userMessageText = formatUserMessage(userParams, effectiveParamKeys)
+  setMessages(prev => [...prev, { role: 'user', content: userMessageText }])
+  setSendError(null)
+  setSending(true)
+
+  if (!promptProp && !agentId) {
+    setSending(false)
+    return
+  }
+
+  const fd = buildRequestFormData(userParams, promptProp, agentId, effectiveModelId)
+  try {
+    const content = await executeAgentRequest(client, promptProp, agentId, fd)
+    setMessages(prev => [...prev, { role: 'assistant', content: content || '(No response)' }])
+  } catch (e) {
+    setSendError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
+    setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, the request failed. Please try again.' }])
+  } finally {
+    setSending(false)
+  }
+}
+
 function useAgentModelLoader(
   client: ReturnType<typeof usePromptManagerClient>,
   needsModelSelection: boolean,
@@ -316,32 +366,17 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
 
   const sendMessage = useCallback(async () => {
     if (!canSend) return
-    const userParams: Record<string, string> = {}
-    effectiveParamKeys.forEach(k => {
-      userParams[k] = (paramValues[k] ?? '').trim()
+    await sendAgentMessage({
+      client,
+      promptProp,
+      agentId,
+      effectiveModelId,
+      effectiveParamKeys,
+      paramValues,
+      setMessages,
+      setSending,
+      setSendError
     })
-
-    const userMessageText = formatUserMessage(userParams, effectiveParamKeys)
-    setMessages(prev => [...prev, { role: 'user', content: userMessageText }])
-    setSendError(null)
-    setSending(true)
-
-    if (!promptProp && !agentId) {
-      setSending(false)
-      return
-    }
-
-    const fd = buildRequestFormData(userParams, promptProp, agentId, effectiveModelId)
-
-    try {
-      const content = await executeAgentRequest(client, promptProp, agentId, fd)
-      setMessages(prev => [...prev, { role: 'assistant', content: content || '(No response)' }])
-    } catch (e) {
-      setSendError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, the request failed. Please try again.' }])
-    } finally {
-      setSending(false)
-    }
   }, [client, agentId, promptProp, paramValues, effectiveParamKeys, effectiveModelId, canSend])
 
   if (loading)
