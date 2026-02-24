@@ -89,12 +89,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
           data-testid="approvals-back-button"
         >
           <PiArrowLeft className="gba:mr-2" />
-          <span>
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
-              'Back to Dashboard'
-            )}
-          </span>
+          <span>{getTranslationFromI18nKeyAndLabel('lowcoder:manager_expenses.navigation.back', 'Back')}</span>
         </button>
       </div>
 

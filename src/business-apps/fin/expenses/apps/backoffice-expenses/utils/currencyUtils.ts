@@ -5,6 +5,17 @@
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 /**
+ * Helper function to standardize currency reference format
+ * @param currencyCode - Currency code or reference
+ * @returns Standardized currency reference
+ */
+export const standardizeCurrencyRef = (currencyCode: string): string => {
+  if (!currencyCode) return ''
+  if (currencyCode.startsWith('Currency:v1:')) return currencyCode
+  return `Currency:v1:${currencyCode}`
+}
+
+/**
  * Helper function to extract currency code from currency reference
  * @param currencyRef - Currency reference string (e.g., 'Currency:v1:EUR')
  * @returns The extracted currency code or null if invalid format

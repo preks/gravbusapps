@@ -17,15 +17,31 @@ import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab/Expense
 import ExpenseRequestTab from './components/tabs/expence-requests-tab/ExpenseRequestTab'
 import AdvancePaymentTab from './components/tabs/advance-payments-tab/AdvancePaymentTab'
 import PlanVsRequestTab from './components/tabs/plan-vs-request-tab/PlanVsRequestTab'
+import BackofficeExpenseReportsPage from './components/pages/BackofficeExpenseReportsPage'
+import BackofficeTeamSpendingAnalyticsPage from './components/pages/BackofficeTeamSpendingAnalyticsPage'
 
 import { MODULE_COLORS } from '@/common/constants/ui'
 
 const moduleColor = MODULE_COLORS.FIN
+const BACKOFFICE_VIEW_KEYS = ['tabs', 'reports', 'analytics'] as const
+type BackofficeView = (typeof BACKOFFICE_VIEW_KEYS)[number]
+const isValidView = (value?: string | null): value is BackofficeView =>
+  Boolean(value && (BACKOFFICE_VIEW_KEYS as readonly string[]).includes(value))
+
 const BACKOFFICE_TAB_KEYS = ['dashboard', 'expense-requests', 'advance-payments', 'plan-vs-request'] as const
 type BackofficeTabKey = (typeof BACKOFFICE_TAB_KEYS)[number]
 
 const isValidBackofficeTab = (value?: string | null): value is BackofficeTabKey =>
   Boolean(value && (BACKOFFICE_TAB_KEYS as readonly string[]).includes(value))
+
+const getViewFromUrl = (): BackofficeView => {
+  if (typeof window === 'undefined') {
+    return 'tabs'
+  }
+  const params = new URLSearchParams(window.location.search)
+  const viewFromUrl = params.get('view')
+  return isValidView(viewFromUrl) && viewFromUrl !== 'tabs' ? viewFromUrl : 'tabs'
+}
 
 const getTabFromUrl = (): BackofficeTabKey | null => {
   if (typeof window === 'undefined') {
@@ -92,6 +108,7 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
     initialTabRef.current = getInitialTab()
   }
 
+  const [currentView, setCurrentView] = useState<BackofficeView>(() => getViewFromUrl())
   const [activeTab, setActiveTab] = useState<BackofficeTabKey>(initialTabRef.current)
 
   // ⚡ PERFORMANCE: Lazy tab mounting - only mount tabs once visited
@@ -99,19 +116,50 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
     () => new Set<BackofficeTabKey>([initialTabRef.current!])
   )
 
-  const updateUrl = useCallback((tab: BackofficeTabKey, mode: 'push' | 'replace' = 'replace') => {
-    if (typeof window === 'undefined') {
-      return
-    }
-    const url = new URL(window.location.href)
-    const current = url.searchParams.get('tab')
-    if (current === tab) {
-      return
-    }
-    url.searchParams.set('tab', tab)
-    const historyMethod = mode === 'push' ? window.history.pushState : window.history.replaceState
-    historyMethod.call(window.history, {}, '', url.toString())
-  }, [])
+  const updateUrl = useCallback(
+    (view: BackofficeView, tab?: BackofficeTabKey, mode: 'push' | 'replace' = 'replace') => {
+      if (typeof window === 'undefined') {
+        return
+      }
+      const url = new URL(window.location.href)
+      const currentViewParam = url.searchParams.get('view')
+      const currentTabParam = url.searchParams.get('tab')
+      let changed = false
+
+      if (view === 'tabs') {
+        if (currentViewParam) {
+          url.searchParams.delete('view')
+          changed = true
+        }
+        if (tab) {
+          if (currentTabParam !== tab) {
+            url.searchParams.set('tab', tab)
+            changed = true
+          }
+        } else if (currentTabParam) {
+          url.searchParams.delete('tab')
+          changed = true
+        }
+      } else {
+        if (currentViewParam !== view) {
+          url.searchParams.set('view', view)
+          changed = true
+        }
+        if (currentTabParam) {
+          url.searchParams.delete('tab')
+          changed = true
+        }
+      }
+
+      if (!changed) {
+        return
+      }
+
+      const historyMethod = mode === 'push' ? window.history.pushState : window.history.replaceState
+      historyMethod.call(window.history, {}, '', url.toString())
+    },
+    []
+  )
 
   // ⚡ CRITICAL: Don't render until accessToken is valid (prevents 401 errors)
   // Must be AFTER all hooks to comply with Rules of Hooks
@@ -135,23 +183,28 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
         next.add(key)
         return next
       })
-      updateUrl(key, 'push')
+      setCurrentView('tabs')
+      updateUrl('tabs', key, 'push')
     },
     [activeTab, updateUrl]
   )
 
   useEffect(() => {
     const handlePopState = () => {
-      const newTab = getTabFromUrl() ?? BACKOFFICE_TAB_KEYS[0]
-      setActiveTab(newTab)
-      setMountedTabs(prev => {
-        if (prev.has(newTab)) {
-          return prev
-        }
-        const next = new Set(prev)
-        next.add(newTab)
-        return next
-      })
+      const nextView = getViewFromUrl()
+      setCurrentView(nextView)
+      if (nextView === 'tabs') {
+        const newTab = getTabFromUrl() ?? BACKOFFICE_TAB_KEYS[0]
+        setActiveTab(newTab)
+        setMountedTabs(prev => {
+          if (prev.has(newTab)) {
+            return prev
+          }
+          const next = new Set(prev)
+          next.add(newTab)
+          return next
+        })
+      }
     }
 
     window.addEventListener('popstate', handlePopState)
@@ -163,13 +216,18 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
       return
     }
     const params = new URLSearchParams(window.location.search)
-    if (!params.has('tab')) {
-      updateUrl(activeTab, 'replace')
+    if (currentView === 'tabs' && !params.has('tab')) {
+      updateUrl('tabs', activeTab, 'replace')
     }
-  }, [activeTab, updateUrl])
+    if (currentView !== 'tabs') {
+      updateUrl(currentView, undefined, 'replace')
+    }
+  }, [activeTab, currentView, updateUrl])
 
   useEffect(() => {
-    if (!contextTab) {
+    // Respect explicit deep links like ?view=reports / ?view=analytics.
+    // Host-provided context tab should only drive state while we are in tabs view.
+    if (!contextTab || currentView !== 'tabs') {
       return
     }
     setActiveTab(previous => {
@@ -184,14 +242,47 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
         next.add(contextTab)
         return next
       })
-      updateUrl(contextTab)
+      setCurrentView('tabs')
+      updateUrl('tabs', contextTab)
       return contextTab
     })
-  }, [contextTab, updateUrl])
+  }, [contextTab, currentView, updateUrl])
+
+  const handleNavigateToReports = useCallback(() => {
+    setCurrentView('reports')
+    updateUrl('reports', undefined, 'push')
+  }, [updateUrl])
+  const handleNavigateToAnalytics = useCallback(() => {
+    setCurrentView('analytics')
+    updateUrl('analytics', undefined, 'push')
+  }, [updateUrl])
+  const handleNavigateBackToDashboard = useCallback(() => {
+    setCurrentView('tabs')
+    setActiveTab('dashboard')
+    setMountedTabs(prev => {
+      if (prev.has('dashboard')) {
+        return prev
+      }
+      const next = new Set(prev)
+      next.add('dashboard')
+      return next
+    })
+    updateUrl('tabs', 'dashboard', 'push')
+  }, [updateUrl])
 
   const tabProps = {
     ...props,
-    moduleColor: moduleColor
+    moduleColor: moduleColor,
+    onNavigateToReports: handleNavigateToReports,
+    onNavigateToAnalytics: handleNavigateToAnalytics
+  }
+
+  if (currentView === 'reports') {
+    return <BackofficeExpenseReportsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+  }
+
+  if (currentView === 'analytics') {
+    return <BackofficeTeamSpendingAnalyticsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
   }
 
   return (

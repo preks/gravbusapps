@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Alert, Spinner, SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import { Alert, Spinner, SectionKpiCards, KpiCardData, Card, CardContent, IconAvatar } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDashboardStats } from '../../../hooks/useDashboardStats'
 import MonthlyExpenseTrendsCard from '../../cards/MonthlyExpenseTrendsCard'
@@ -17,11 +17,14 @@ import { ExpenseFilterBar, FilterOptions } from '../../filter-bar'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../../../utils/currencyUtils'
 import { useFilterData } from '../../../hooks/useFilterData'
+import { PiChartLineUp, PiFileText } from 'react-icons/pi'
 
 interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   moduleColor?: string
   isActive?: boolean // ⚡ PERFORMANCE: Only fetch data when tab is active
+  onNavigateToReports?: () => void
+  onNavigateToAnalytics?: () => void
 }
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
@@ -485,6 +488,39 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   }
 
   const isRefreshing = loading && !isCurrencyLoading
+  const quickActions = useMemo(
+    () => [
+      {
+        key: 'analytics',
+        icon: PiChartLineUp,
+        iconColor: 'gba:text-success',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:backoffice_expenses.analytics.spending_analysis',
+          'Spending Analysis'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:backoffice_expenses.analytics.spending_analysis_cta',
+          'View spending trends and reports.'
+        ),
+        onClick: props.onNavigateToAnalytics
+      },
+      {
+        key: 'reports',
+        icon: PiFileText,
+        iconColor: 'gba:text-accent',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
+          'Expense Reports'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:backoffice_expenses.generate_or_view_expense_reports',
+          'Generate or view expense reports.'
+        ),
+        onClick: props.onNavigateToReports
+      }
+    ],
+    [props.onNavigateToAnalytics, props.onNavigateToReports]
+  )
 
   return (
     <div className="gba:space-y-6 gba:relative" data-testid={prefixDataTestId}>
@@ -519,6 +555,38 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       <div data-testid={`${prefixDataTestId}-kpi-section`}>
         <SectionKpiCards cards={kpiCards} data-testid={`${prefixDataTestId}-kpi-cards`} />
         {/* CSV export toolbar removed */}
+      </div>
+
+      <div className="gba:space-y-3" data-testid="backoffice-dashboard-quick-actions">
+        <h3 className="gba:text-lg gba:font-semibold">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.quick_actions',
+            'Quick Actions'
+          )}
+        </h3>
+        <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+          {quickActions.map(action => (
+            <Card
+              key={action.key}
+              className="gba:cursor-pointer gba:transition-colors"
+              onClick={action.onClick}
+              data-testid={`backoffice-quick-action-${action.key}`}
+            >
+              <CardContent className="gba:p-4">
+                <div className="gba:flex gba:items-center gba:mb-2">
+                  <IconAvatar
+                    icon={action.icon as any}
+                    className={`gba:text-xl ${action.iconColor} gba:mr-2`}
+                    variant="default"
+                    size="md"
+                  />
+                  <h4 className="gba:text-sm gba:font-semibold">{action.title}</h4>
+                </div>
+                <p className="gba:text-sm gba:text-muted-foreground">{action.description}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       {/* Monthly Expense Trends Chart */}

@@ -1,0 +1,546 @@
+/**
+ * Backoffice Expense Report Data hook - global data (no supervisor/manager filter).
+ * Adapted from manager useExpenseReportData; removes managerId from all queries.
+ */
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  GET_EXPENSE_ITEMS_BACKOFFICE,
+  GET_EXPENSE_PLANS_BACKOFFICE,
+  GET_EXPENSE_REQUESTS_BACKOFFICE,
+  GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE
+} from '../queries/backofficeReportQueries'
+import {
+  getExpenseRequestStatusDisplay,
+  getExpensePlanStatusDisplay,
+  getAdvancePaymentStatusDisplay
+} from '../../manager-expenses/utils'
+import { useBackofficeExpensesOverview } from './useBackofficeExpensesOverview'
+
+export enum ReportType {
+  EXPENSE_ITEM = 'expense_item',
+  EXPENSE_PLAN = 'expense_plan',
+  EXPENSE_REQUEST = 'expense_request',
+  ADVANCE_PAYMENT = 'advance_payment'
+}
+
+export interface ReportMetadata {
+  id: string
+  name: string
+  type: ReportType
+  description?: string
+  selected?: boolean
+}
+
+export interface ReportItem {
+  id: string
+  [key: string]: any
+}
+
+export interface ExpenseItemReport extends ReportItem {
+  date: string
+  title: string
+  description: string
+  category: string
+  amount: number
+  employeeName: string
+  status: string
+  code?: string
+  currency?: string
+}
+
+export interface ExpensePlanReport extends ReportItem {
+  code: string
+  title: string
+  startDate: string
+  endDate: string
+  status: string
+  totalAmount: number
+  employeeName: string
+  expenseRequestCode?: string
+  currency: string
+  createdAt?: string
+}
+
+export interface ExpenseRequestReport extends ReportItem {
+  code: string
+  planCode?: string
+  title: string
+  requestDate: string
+  createdAt: string
+  status: string
+  totalAmount: number
+  employeeName: string
+  currency: string
+}
+
+export interface AdvancePaymentReport extends ReportItem {
+  code: string
+  title: string
+  requestDate: string
+  status: string
+  amount: number
+  employeeName: string
+  paymentMethod?: string
+  costCenter?: string
+  currency?: string
+}
+
+export interface UseBackofficeExpenseReportDataReturn {
+  reportTypes: ReportMetadata[]
+  selectedReportType: ReportType | null
+  setSelectedReportType: (type: ReportType) => void
+  reportData: ReportItem[]
+  isLoading: boolean
+  error: string | null
+  totalCount: number
+  currentPage: number
+  setCurrentPage: (page: number) => void
+  pageSize: number
+  setPageSize: (size: number) => void
+  searchTerm: string
+  setSearchTerm: (term: string) => void
+  fetchReportData: () => Promise<void>
+  fetchAllForExport: () => Promise<ReportItem[]>
+}
+
+const buildEmployeeDisplayName = (e: any): string => {
+  if (!e) return ''
+  const full = (e.fullName || '').trim()
+  if (full) return full
+  return `${e.firstName || ''} ${e.lastName || ''}`.trim()
+}
+
+export const useBackofficeExpenseReportData = ({
+  accessToken,
+  userInfo
+}: BusinessAppContextProps): UseBackofficeExpenseReportDataReturn => {
+  const graphqlClient = useGraphQLClient(accessToken)
+  const [reportData, setReportData] = useState<ReportItem[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [totalCount, setTotalCount] = useState<number>(0)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(10)
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(ReportType.EXPENSE_ITEM)
+
+  const overview = useBackofficeExpensesOverview(
+    { accessToken, userInfo },
+    {
+      currencyRef: undefined,
+      searchTerm,
+      requests: { limit: pageSize, offset: (currentPage - 1) * pageSize },
+      plans: { limit: pageSize, offset: (currentPage - 1) * pageSize },
+      payments: { limit: pageSize, offset: (currentPage - 1) * pageSize }
+    }
+  )
+
+  const mapRequestsFromOverview = useCallback((rows: any[]): ExpenseRequestReport[] => {
+    return (rows || []).map((request: any) => {
+      const statusDisplay = request.status
+        ? getExpenseRequestStatusDisplay(request.status)
+        : { label: '', type: 'draft' }
+      return {
+        id: request.id,
+        code: request.code || '',
+        planCode: request.expensePlan?.code || '',
+        title: request.title || '',
+        requestDate: request.requestDate || '',
+        createdAt: request.createdAt || '',
+        status: statusDisplay.label,
+        totalAmount: Number(request.totalAmount || 0),
+        currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+        employeeName: buildEmployeeDisplayName(request.employee)
+      } as ExpenseRequestReport
+    })
+  }, [])
+
+  const mapPlansFromOverview = useCallback((rows: any[]): ExpensePlanReport[] => {
+    return (rows || []).map((plan: any) => {
+      const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
+      return {
+        id: plan.id,
+        code: plan.code || '',
+        title: plan.title || '',
+        startDate: plan.startDate || '',
+        endDate: plan.endDate || '',
+        status: statusDisplay.label,
+        totalAmount: Number(plan.totalAmount || 0),
+        currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+        employeeName: buildEmployeeDisplayName(plan.employee),
+        expenseRequestCode:
+          Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0 ? plan.expenseRequest[0].code || '' : '',
+        createdAt: plan.createdAt || ''
+      } as ExpensePlanReport
+    })
+  }, [])
+
+  const mapPaymentsFromOverview = useCallback((rows: any[]): AdvancePaymentReport[] => {
+    return (rows || []).map((p: any) => {
+      const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
+      return {
+        id: p.id,
+        code: p.expensePlan?.code || p.code || '',
+        title: p.expensePlan?.title || '',
+        requestDate: p.createdAt || '',
+        status: statusDisplay.label,
+        amount: Number(p.amount || 0),
+        employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
+        paymentMethod: p.paymentMethod || undefined,
+        costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+        currency: p.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
+      } as AdvancePaymentReport
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!selectedReportType || selectedReportType === ReportType.EXPENSE_ITEM) return
+    setIsLoading(overview.isLoading)
+    if (overview.error) {
+      setError(overview.error)
+      return
+    }
+    if (!overview.isLoading) {
+      switch (selectedReportType) {
+        case ReportType.EXPENSE_REQUEST: {
+          const rows = mapRequestsFromOverview(overview.data?.expenseRequests || [])
+          setReportData(rows)
+          setTotalCount(overview.data?.expenseRequestsTotal || 0)
+          setError(null)
+          break
+        }
+        case ReportType.EXPENSE_PLAN: {
+          const rows = mapPlansFromOverview(overview.data?.expensePlans || [])
+          setReportData(rows)
+          setTotalCount(overview.data?.expensePlansTotal || 0)
+          setError(null)
+          break
+        }
+        case ReportType.ADVANCE_PAYMENT: {
+          const rows = mapPaymentsFromOverview(overview.data?.advancePayments || [])
+          setReportData(rows)
+          setTotalCount(overview.data?.advancePaymentsTotal || 0)
+          setError(null)
+          break
+        }
+      }
+    }
+  }, [
+    selectedReportType,
+    overview.data,
+    overview.isLoading,
+    overview.error,
+    mapRequestsFromOverview,
+    mapPlansFromOverview,
+    mapPaymentsFromOverview
+  ])
+
+  const buildExpenseRequestWhere = useCallback((search: string) => {
+    const where: any = { isDeleted: { _eq: false } }
+    if (search?.trim()) {
+      const searchPattern = `%${search.trim()}%`
+      where._or = [
+        { code: { _ilike: searchPattern } },
+        { title: { _ilike: searchPattern } },
+        { status: { _ilike: searchPattern } },
+        { employee: { fullName: { _ilike: searchPattern } } },
+        { employee: { firstName: { _ilike: searchPattern } } },
+        { employee: { lastName: { _ilike: searchPattern } } },
+        { expensePlan: { code: { _ilike: searchPattern } } },
+        { expensePlan: { title: { _ilike: searchPattern } } }
+      ]
+    }
+    return where
+  }, [])
+
+  const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
+    if (!data?.ExpenseItem?.length) return []
+    return data.ExpenseItem.map((item: any) => {
+      const expenseGroup =
+        item.expensePosition && item.expensePosition.length > 0 && item.expensePosition[0].expenseGroupRef
+          ? item.expensePosition[0].expenseGroupRef.replaceAll('ExpenseGroup:v1:', '')
+          : 'Uncategorized'
+      const statusDisplay = item.expenseRequest?.status
+        ? getExpenseRequestStatusDisplay(item.expenseRequest.status)
+        : { label: '', type: 'draft' }
+      return {
+        id: item.id,
+        code: item.expenseRequest?.code || '',
+        currency: item.expenseRequest?.currencyRef
+          ? String(item.expenseRequest.currencyRef).split(':').pop() || 'EUR'
+          : 'EUR',
+        date:
+          item.expenseRequest?.requestTypeRef === 'ExpenseRequestType:v1:TRIP'
+            ? item.expenseRequest?.startDate || ''
+            : item.expenseDate || '',
+        title: item.title || '',
+        description: item.description || '',
+        category: expenseGroup,
+        amount: item.totalAmount || 0,
+        employeeName: buildEmployeeDisplayName(item.employee),
+        status: statusDisplay.label
+      }
+    })
+  }
+
+  const processExpensePlansData = (data: any): ExpensePlanReport[] => {
+    if (!data?.ExpensePlan?.length) return []
+    return data.ExpensePlan.map((plan: any) => {
+      const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
+      return {
+        id: plan.id,
+        code: plan.code || '',
+        title: plan.title || '',
+        startDate: plan.startDate || '',
+        endDate: plan.endDate || '',
+        status: statusDisplay.label,
+        totalAmount: plan.totalAmount || 0,
+        currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+        employeeName: buildEmployeeDisplayName(plan.employee),
+        expenseRequestCode:
+          Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0 ? plan.expenseRequest[0].code || '' : '',
+        createdAt: plan.createdAt || ''
+      }
+    })
+  }
+
+  const processExpenseRequestsData = (data: any): ExpenseRequestReport[] => {
+    if (!data?.ExpenseRequest?.length) return []
+    return data.ExpenseRequest.map((request: any) => {
+      const statusDisplay = request.status
+        ? getExpenseRequestStatusDisplay(request.status)
+        : { label: '', type: 'draft' }
+      return {
+        id: request.id,
+        code: request.code || '',
+        planCode: request.expensePlan?.code || '',
+        title: request.title || '',
+        requestDate: request.requestDate || '',
+        createdAt: request.createdAt || '',
+        status: statusDisplay.label,
+        totalAmount: request.totalAmount || 0,
+        currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+        employeeName: buildEmployeeDisplayName(request.employee)
+      }
+    })
+  }
+
+  const fetchExpenseItems = useCallback(async () => {
+    if (!graphqlClient) return
+    try {
+      setIsLoading(true)
+      setError(null)
+      const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize,
+        searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
+      })
+      const processedData = processExpenseItemsData(result)
+      setReportData(processedData)
+      setTotalCount(result?.ExpenseItemAggregate?.aggregate?.count || 0)
+    } catch {
+      setError('Failed to load expense items data')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [graphqlClient, pageSize, currentPage, searchTerm])
+
+  const mapAdvancePaymentToReport = useCallback((p: any): AdvancePaymentReport => {
+    const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
+    const currencyCode = p?.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
+    return {
+      id: p.id,
+      code: p.expensePlan?.code || p.code || '',
+      title: p.expensePlan?.title || '',
+      requestDate: p.createdAt || '',
+      status: statusDisplay.label,
+      amount: p.amount || 0,
+      employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
+      paymentMethod: p.paymentMethod || undefined,
+      costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+      currency: currencyCode
+    }
+  }, [])
+
+  const fetchBatchedData = useCallback(
+    async <T extends ReportItem>(
+      fetchFn: (offset: number, limit: number) => Promise<T[]>,
+      errorContext: string
+    ): Promise<T[]> => {
+      const batchLimit = 1000
+      const all: T[] = []
+      let offset = 0
+      try {
+        while (true) {
+          const processed = await fetchFn(offset, batchLimit)
+          all.push(...processed)
+          if (!Array.isArray(processed) || processed.length < batchLimit) break
+          offset += batchLimit
+        }
+      } catch {
+        setError(`Partial export: some ${errorContext} could not be fetched`)
+      }
+      return all
+    },
+    []
+  )
+
+  const fetchExpenseItemsForExport = useCallback(
+    async (offset: number, limit: number) => {
+      const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
+        limit,
+        offset,
+        searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
+      })
+      return processExpenseItemsData(result)
+    },
+    [graphqlClient, searchTerm]
+  )
+
+  const fetchExpensePlansForExport = useCallback(
+    async (offset: number, limit: number) => {
+      const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
+        limit,
+        offset,
+        searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
+      })
+      return processExpensePlansData(result)
+    },
+    [graphqlClient, searchTerm]
+  )
+
+  const fetchExpenseRequestsForExport = useCallback(
+    async (offset: number, limit: number) => {
+      const where = buildExpenseRequestWhere(searchTerm)
+      const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BACKOFFICE, {
+        where,
+        limit,
+        offset,
+        orderBy: [{ requestDate: 'DESC' }]
+      })
+      return processExpenseRequestsData(result)
+    },
+    [graphqlClient, searchTerm, buildExpenseRequestWhere]
+  )
+
+  const fetchAdvancePaymentsForExport = useCallback(
+    async (offset: number, limit: number) => {
+      const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
+        limit,
+        offset,
+        searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
+      })
+      return (result?.AdvancePayment || []).map(mapAdvancePaymentToReport)
+    },
+    [graphqlClient, searchTerm, mapAdvancePaymentToReport]
+  )
+
+  const fetchAllForExport = useCallback(async (): Promise<ReportItem[]> => {
+    if (!graphqlClient || !selectedReportType) return []
+    try {
+      switch (selectedReportType) {
+        case ReportType.EXPENSE_ITEM:
+          return await fetchBatchedData(fetchExpenseItemsForExport, 'items')
+        case ReportType.EXPENSE_PLAN:
+          return await fetchBatchedData(fetchExpensePlansForExport, 'plans')
+        case ReportType.EXPENSE_REQUEST:
+          return await fetchBatchedData(fetchExpenseRequestsForExport, 'requests')
+        case ReportType.ADVANCE_PAYMENT:
+          return await fetchBatchedData(fetchAdvancePaymentsForExport, 'advance payments')
+        default:
+          return []
+      }
+    } catch {
+      setError('Failed to export report data')
+      return []
+    }
+  }, [
+    graphqlClient,
+    selectedReportType,
+    fetchBatchedData,
+    fetchExpenseItemsForExport,
+    fetchExpensePlansForExport,
+    fetchExpenseRequestsForExport,
+    fetchAdvancePaymentsForExport
+  ])
+
+  const fetchReportData = useCallback(async () => {
+    if (!selectedReportType) return
+    if (selectedReportType === ReportType.EXPENSE_ITEM) {
+      await fetchExpenseItems()
+    }
+  }, [selectedReportType, fetchExpenseItems])
+
+  const lastFetchSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify({
+      selectedReportType,
+      currentPage,
+      pageSize,
+      searchTerm
+    })
+    if (lastFetchSignatureRef.current === signature) return
+    lastFetchSignatureRef.current = signature
+    void fetchReportData()
+  }, [selectedReportType, currentPage, pageSize, searchTerm, fetchReportData])
+
+  const reportTypes: ReportMetadata[] = [
+    {
+      id: 'report-1',
+      name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.expense_item_report',
+        'Expense Item Report'
+      ),
+      type: ReportType.EXPENSE_ITEM,
+      selected: selectedReportType === ReportType.EXPENSE_ITEM
+    },
+    {
+      id: 'report-2',
+      name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.expense_plan_report',
+        'Expense Plan Report'
+      ),
+      type: ReportType.EXPENSE_PLAN,
+      selected: selectedReportType === ReportType.EXPENSE_PLAN
+    },
+    {
+      id: 'report-3',
+      name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.expense_request_report',
+        'Expense Request Report'
+      ),
+      type: ReportType.EXPENSE_REQUEST,
+      selected: selectedReportType === ReportType.EXPENSE_REQUEST
+    },
+    {
+      id: 'report-4',
+      name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:advance_payment_report.search_module',
+        'Advance Payment Report'
+      ),
+      type: ReportType.ADVANCE_PAYMENT,
+      selected: selectedReportType === ReportType.ADVANCE_PAYMENT
+    }
+  ]
+
+  return {
+    reportTypes,
+    selectedReportType,
+    setSelectedReportType,
+    reportData,
+    isLoading,
+    error,
+    totalCount,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    searchTerm,
+    setSearchTerm,
+    fetchReportData,
+    fetchAllForExport
+  }
+}

@@ -14,7 +14,7 @@ import {
   CardContent,
   PageLayout
 } from '@newwork/nw-design-system'
-import { PiMagnifyingGlass, PiDownload, PiArrowLeft, PiFileText } from 'react-icons/pi'
+import { PiMagnifyingGlass, PiDownload, PiFileText } from 'react-icons/pi'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseReportData, ReportType } from '../../hooks/useExpenseReportData'
@@ -65,7 +65,7 @@ interface ExpenseReportsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void
 }
 
-const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack, accessToken, userInfo }) => {
+const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
   // State
   // search term handled by hook; keep local for type search only
   const [reportTypeSearchTerm, setReportTypeSearchTerm] = useState('')
@@ -472,23 +472,8 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
 
   return (
     <div data-testid="expense-reports-page-container">
-      {/* Back Button Above Everything */}
       <div className="gba:px-6 gba:pt-6 gba:pb-0">
         <div className="gba:flex gba:items-center gba:justify-between">
-          <button
-            onClick={onNavigateBack}
-            className="gba:flex gba:items-center gba:text-foreground gba:hover:text-primary"
-            data-testid="expense-reports-back-button"
-          >
-            <PiArrowLeft className="gba:mr-2" />
-            <span>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
-                'Back to Dashboard'
-              )}
-            </span>
-          </button>
-
           <div className="gba:flex gba:items-center gba:gap-2">
             <Button
               variant="outline"

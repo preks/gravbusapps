@@ -236,7 +236,7 @@ export const useTeamSpendingAnalytics = (accessToken: string, managerId: string,
     const selectedDepartmentIds = departmentFilters.filter(d => d.selected).map(d => d.id)
 
     const { filteredExpenseItems, filteredExpenseRequests, filteredExpensePlans, filteredAdvancePayments } =
-      filterAllData(rawData, selectedLocationIds, selectedDepartmentIds, currencyFilter)
+      filterAllData(rawData, selectedLocationIds, selectedDepartmentIds)
 
     // Process data using utility functions
     const orgUnitMap = new Map<string, { count: number; amount: number }>()
