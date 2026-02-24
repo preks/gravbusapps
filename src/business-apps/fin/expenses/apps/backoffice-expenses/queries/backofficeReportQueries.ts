@@ -25,7 +25,7 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
     ExpenseItem(
       limit: $limit,
       offset: $offset,
-      orderBy: {expenseDate: DESC},
+      orderBy: {createdAt: DESC},
       where: {
         isDeleted: {_eq: false},
         _or: [
@@ -67,7 +67,7 @@ export const GET_EXPENSE_PLANS_BACKOFFICE = `
       }
     ) { aggregate { count } }
     ExpensePlan(
-      limit: $limit, offset: $offset, orderBy: {planDate: DESC},
+      limit: $limit, offset: $offset, orderBy: {createdAt: DESC},
       where: {
         isDeleted: {_eq: false},
         _or: [

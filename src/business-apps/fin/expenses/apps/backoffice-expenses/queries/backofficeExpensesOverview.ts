@@ -6,8 +6,8 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
   query BackofficeExpensesOverview(
     $currencyRef: String,
     $searchTerm: String,
-    $reqLimit: Int! = 20, $reqOffset: Int! = 0, $reqOrderBy: [ExpenseRequestOrderBy!] = [{ requestDate: DESC }],
-    $planLimit: Int! = 20, $planOffset: Int! = 0, $planOrderBy: [ExpensePlanOrderBy!] = [{ planDate: DESC }],
+    $reqLimit: Int! = 20, $reqOffset: Int! = 0, $reqOrderBy: [ExpenseRequestOrderBy!] = [{ createdAt: DESC }],
+    $planLimit: Int! = 20, $planOffset: Int! = 0, $planOrderBy: [ExpensePlanOrderBy!] = [{ createdAt: DESC }],
     $payLimit: Int! = 20, $payOffset: Int! = 0, $payOrderBy: [AdvancePaymentOrderBy!] = [{ createdAt: DESC }],
     $monthStart: timestamp, $monthEnd: timestamp, $yearStart: timestamp,
     $reqCurrencyWhere: ExpenseRequestBoolExp = {},

@@ -609,20 +609,26 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                       <Table data-testid="backoffice-expense-reports-table" className="gba:w-full">
                         <TableHeader className="gba:sticky gba:top-0 gba:bg-background gba:z-10 gba:border-b gba:border-border">
                           <TableRow>
-                            {columns.map(column => (
-                              <TableHead
-                                key={column.key}
-                                className={`${column.widthClass ?? ''} gba:bg-muted gba:font-semibold`}
-                              >
-                                {column.title}
-                              </TableHead>
-                            ))}
+                            {columns.map(column =>
+                              (() => {
+                                const isTitleColumn = column.key === 'title'
+                                const headClass = `${column.widthClass ?? ''} gba:bg-muted gba:font-semibold ${
+                                  isTitleColumn ? 'gba:sticky gba:left-0 gba:z-20' : ''
+                                }`
+                                return (
+                                  <TableHead key={column.key} className={headClass}>
+                                    {column.title}
+                                  </TableHead>
+                                )
+                              })()
+                            )}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {reportData.map((row: any, index: number) => (
                             <TableRow key={`${selectedReportType}-${index}`}>
                               {columns.map(column => {
+                                const isTitleColumn = column.key === 'title'
                                 let cellContent: React.ReactNode
                                 if (column.key.includes('amount') || column.key.includes('Amount')) {
                                   cellContent = (
@@ -646,12 +652,23 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                                       {row[column.key] ? ensureShortDateFormat(row[column.key]) : '-'}
                                     </span>
                                   )
+                                } else if (isTitleColumn) {
+                                  const titleValue = row[column.key] || '-'
+                                  cellContent = (
+                                    <span
+                                      className="gba:block gba:max-w-[280px] gba:truncate gba:text-sm"
+                                      title={titleValue}
+                                    >
+                                      {titleValue}
+                                    </span>
+                                  )
                                 } else {
                                   cellContent = <span className="gba:text-sm">{row[column.key] || '-'}</span>
                                 }
                                 return (
                                   <TableCell
                                     key={column.key}
+                                    className={isTitleColumn ? 'gba:sticky gba:left-0 gba:z-10 gba:bg-background' : ''}
                                     data-testid={`backoffice-expense-reports-cell-${column.key}`}
                                   >
                                     {cellContent}

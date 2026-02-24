@@ -611,7 +611,7 @@ export const useBackofficeExpenseReportData = ({
         where,
         limit,
         offset,
-        orderBy: [{ requestDate: 'DESC' }]
+        orderBy: [{ createdAt: 'DESC' }]
       })
       const employeeIds = (result?.ExpenseRequest || [])
         .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
