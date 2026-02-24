@@ -2128,7 +2128,7 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
       if (!raw) return { lhs: '', opId: 'eq', rhs: '' }
 
       // Basic comparisons: {{lhs}} <op> rhs
-      const cmp = /^\s*\{\{\s*([^}]+?)\s*\}\}\s*(==|!=|>=|<=|>|<)\s*(.*?)\s*$/.exec(raw)
+      const cmp = /^\s*\{\{([^}]*)\}\}\s*(==|!=|>=|<=|>|<)\s*(.*)/.exec(raw)
       if (cmp) {
         return {
           lhs: (cmp[1] || '').trim(),
@@ -2138,18 +2138,18 @@ const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
       }
 
       // String contains / startsWith / endsWith
-      const contains = /^String\(\s*\{\{\s*([^}]+?)\s*\}\}\s*\|\|\s*''\s*\)\.includes\(\s*(.*?)\s*\)\s*$/.exec(raw)
+      const contains = /^String\(\s*\{\{([^}]*)\}\}\s*\|\|\s*''\s*\)\.includes\(([^)]*)\)\s*$/.exec(raw)
       if (contains) return { lhs: (contains[1] || '').trim(), opId: 'contains', rhs: (contains[2] || '').trim() }
 
-      const notContains = /^!String\(\s*\{\{\s*([^}]+?)\s*\}\}\s*\|\|\s*''\s*\)\.includes\(\s*(.*?)\s*\)\s*$/.exec(raw)
+      const notContains = /^!String\(\s*\{\{([^}]*)\}\}\s*\|\|\s*''\s*\)\.includes\(([^)]*)\)\s*$/.exec(raw)
       if (notContains)
         return { lhs: (notContains[1] || '').trim(), opId: 'not_contains', rhs: (notContains[2] || '').trim() }
 
-      const startsWith = /^String\(\s*\{\{\s*([^}]+?)\s*\}\}\s*\|\|\s*''\s*\)\.startsWith\(\s*(.*?)\s*\)\s*$/.exec(raw)
+      const startsWith = /^String\(\s*\{\{([^}]*)\}\}\s*\|\|\s*''\s*\)\.startsWith\(([^)]*)\)\s*$/.exec(raw)
       if (startsWith)
         return { lhs: (startsWith[1] || '').trim(), opId: 'starts_with', rhs: (startsWith[2] || '').trim() }
 
-      const endsWith = /^String\(\s*\{\{\s*([^}]+?)\s*\}\}\s*\|\|\s*''\s*\)\.endsWith\(\s*(.*?)\s*\)\s*$/.exec(raw)
+      const endsWith = /^String\(\s*\{\{([^}]*)\}\}\s*\|\|\s*''\s*\)\.endsWith\(([^)]*)\)\s*$/.exec(raw)
       if (endsWith) return { lhs: (endsWith[1] || '').trim(), opId: 'ends_with', rhs: (endsWith[2] || '').trim() }
 
       return { lhs: '', opId: 'eq', rhs: '' }

@@ -42,7 +42,7 @@ export function expressionToLabel(expression: string): string {
  */
 export function expressionToEditorJSON(value: string): Record<string, unknown> {
   const content: Array<Record<string, unknown>> = []
-  const regex = /\{\{(.*?)\}\}/g
+  const regex = /\{\{([^}]*)\}\}/g
   let lastIndex = 0
   let match: RegExpExecArray | null
 
@@ -122,7 +122,7 @@ export function editorJSONToExpression(json: Record<string, unknown>): string {
  */
 export function parseExpressionPills(value: string): ExpressionPillData[] {
   const pills: ExpressionPillData[] = []
-  const regex = /\{\{(.*?)\}\}/g
+  const regex = /\{\{([^}]*)\}\}/g
   let match: RegExpExecArray | null
 
   while ((match = regex.exec(value)) !== null) {
