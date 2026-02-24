@@ -172,14 +172,19 @@ function buildRequestTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
 }
 
 function buildStatusWhere(statuses?: string[]): GqlBoolExp {
+  const excludedStatuses = ['CREATED', 'DISCARDED']
   if (Array.isArray(statuses) && statuses.length > 0) {
-    return { status: { _in: statuses } } as unknown as GqlBoolExp
+    const allowedStatuses = statuses.filter(status => !excludedStatuses.includes(status))
+    if (allowedStatuses.length > 0) {
+      return { status: { _in: allowedStatuses } } as unknown as GqlBoolExp
+    }
+    return { status: { _nin: excludedStatuses } } as unknown as GqlBoolExp
   }
-  return { status: { _neq: 'CREATED' } } as unknown as GqlBoolExp
+  return { status: { _nin: excludedStatuses } } as unknown as GqlBoolExp
 }
 
 function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
-  const excluded: readonly string[] = Array.isArray(exclude) && exclude.length > 0 ? exclude : ['CREATED']
+  const excluded: readonly string[] = Array.isArray(exclude) && exclude.length > 0 ? exclude : ['CREATED', 'DISCARDED']
   const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
   const allowed = selected.filter(s => !excluded.includes(s))
   if (allowed.length > 0) {

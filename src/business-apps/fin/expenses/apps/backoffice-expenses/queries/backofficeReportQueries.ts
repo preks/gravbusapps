@@ -12,6 +12,8 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
     ExpenseItemAggregate(
       where: {
         isDeleted: {_eq: false},
+        status: {_nin: ["CREATED", "DISCARDED"]},
+        expenseRequest: {isDeleted: {_eq: false}, status: {_nin: ["CREATED", "DISCARDED"]}},
         _or: [
           {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
@@ -28,6 +30,8 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
       orderBy: {createdAt: DESC},
       where: {
         isDeleted: {_eq: false},
+        status: {_nin: ["CREATED", "DISCARDED"]},
+        expenseRequest: {isDeleted: {_eq: false}, status: {_nin: ["CREATED", "DISCARDED"]}},
         _or: [
           {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
@@ -60,6 +64,7 @@ export const GET_EXPENSE_PLANS_BACKOFFICE = `
     ExpensePlanAggregate(
       where: {
         isDeleted: {_eq: false},
+        status: {_nin: ["CREATED", "DISCARDED"]},
         _or: [
           {code: {_ilike: $searchTerm}},
           {title: {_ilike: $searchTerm}}
@@ -70,6 +75,7 @@ export const GET_EXPENSE_PLANS_BACKOFFICE = `
       limit: $limit, offset: $offset, orderBy: {createdAt: DESC},
       where: {
         isDeleted: {_eq: false},
+        status: {_nin: ["CREATED", "DISCARDED"]},
         _or: [
           {code: {_ilike: $searchTerm}},
           {title: {_ilike: $searchTerm}}
@@ -125,6 +131,7 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE = `
     AdvancePaymentAggregate(
       where: {
         isDeleted: { _eq: false },
+        status: { _nin: ["CREATED", "DISCARDED"] },
         _or: [
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
@@ -137,6 +144,7 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE = `
       limit: $limit, offset: $offset, orderBy: { createdAt: DESC },
       where: {
         isDeleted: { _eq: false },
+        status: { _nin: ["CREATED", "DISCARDED"] },
         _or: [
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
@@ -150,6 +158,49 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE = `
       expensePlan {
         code title employeeId
         requestType { value translations { value localeCode } }
+      }
+    }
+  }
+`
+
+export const GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE = `
+  query GetApprovalPayoutCycleBackoffice(
+    $where: ExpenseRequestBoolExp,
+    $limit: Int!,
+    $offset: Int!,
+    $orderBy: [ExpenseRequestOrderBy!]
+  ) {
+    ExpenseRequestAggregate(where: $where) { aggregate { count } }
+    ExpenseRequest(limit: $limit, offset: $offset, orderBy: $orderBy, where: $where) {
+      id
+      code
+      title
+      employeeId
+      createdBy
+      createdAt
+      decisionDate
+      status
+      totalAmount
+      currencyRef
+      expenseRequestComment(where: { isDeleted: { _eq: false } }, orderBy: { commentDate: ASC }) {
+        commentDate
+        commentType
+        comment
+      }
+      expensePlan {
+        id
+        advancePayment(where: { isDeleted: { _eq: false } }) {
+          id
+          status
+          createdAt
+          decisionDate
+          transactionDate
+          advancePaymentComment(where: { isDeleted: { _eq: false } }, orderBy: { commentDate: ASC }) {
+            commentDate
+            commentType
+            comment
+          }
+        }
       }
     }
   }

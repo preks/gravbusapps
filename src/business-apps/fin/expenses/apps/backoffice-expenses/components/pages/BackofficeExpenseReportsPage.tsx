@@ -23,7 +23,18 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../personal-expenses/utils'
 import { sanitizeFilename } from '@/common/utils/textUtils'
 
-const dateKeys = new Set(['date', 'startDate', 'endDate', 'submissionDate', 'requestDate', 'createdAt', 'planDate'])
+const dateKeys = new Set([
+  'date',
+  'startDate',
+  'endDate',
+  'submissionDate',
+  'requestDate',
+  'createdAt',
+  'planDate',
+  'pendingAt',
+  'approvedAt',
+  'paidAt'
+])
 
 const formatCellValue = (key: string, raw: any): string => {
   if (raw == null) return ''
@@ -132,6 +143,17 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
         'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
         'Cash advances and prepayments'
       )
+    },
+    {
+      key: ReportType.APPROVAL_PAYOUT_CYCLE,
+      name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
+        'Approval & Payout Cycle'
+      ),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle_subheader',
+        'Pending to approved to paid cycle durations'
+      )
     }
   ]
 
@@ -166,6 +188,8 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
         return insertCurrencyAfter('totalAmount')
       case ReportType.ADVANCE_PAYMENT:
         return insertCurrencyAfter('amount')
+      case ReportType.APPROVAL_PAYOUT_CYCLE:
+        return insertCurrencyAfter('totalAmount')
       default:
         return uiCols
     }
@@ -415,6 +439,70 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
             widthClass: 'gba:w-[8%]'
           }
         ]
+      case ReportType.APPROVAL_PAYOUT_CYCLE:
+        return [
+          {
+            key: 'title',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
+            widthClass: 'gba:w-[20%]'
+          },
+          {
+            key: 'code',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+              'Request Code'
+            )
+          },
+          {
+            key: 'employeeName',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
+          },
+          {
+            key: 'pendingAt',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.submitted_label',
+              'Pending At'
+            )
+          },
+          {
+            key: 'approvedAt',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_date', 'Approved At')
+          },
+          {
+            key: 'paidAt',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:payment_date', 'Paid At')
+          },
+          {
+            key: 'approvalDays',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_days', 'Approval Days')
+          },
+          {
+            key: 'payoutDays',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_days', 'Payout Days')
+          },
+          {
+            key: 'totalCycleDays',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_days', 'Total Cycle Days')
+          },
+          {
+            key: 'bottleneckStage',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:bottleneck_stage', 'Bottleneck Stage')
+          },
+          {
+            key: 'status',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.status',
+              'Status'
+            )
+          },
+          {
+            key: 'totalAmount',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.amount',
+              'Total Amount'
+            )
+          }
+        ]
       default:
         return []
     }
@@ -479,37 +567,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
 
   return (
     <div data-testid="backoffice-expense-reports-page-container">
-      <div className="gba:px-6 gba:pt-6 gba:pb-0">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Button
-              variant="outline"
-              onClick={handleDownload}
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid="backoffice-expense-reports-download-button"
-            >
-              <PiDownload className="gba:text-sm" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.download_report',
-                'Download CSV'
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleDownloadExcel}
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid="backoffice-expense-reports-download-excel-button"
-            >
-              <PiDownload className="gba:text-sm" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
-                'Download Excel'
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
@@ -576,21 +633,49 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
             )}
 
             <div className="gba:mb-4">
-              <div className="gba:relative gba:w-64">
-                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-                <DebouncedInput
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
-                    'Search report data...'
-                  )}
-                  onChange={val => {
-                    setSearchTerm(val)
-                    setCurrentPage(1)
-                  }}
-                  value={searchTerm}
-                  className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
-                  data-testid="backoffice-expense-reports-data-search-input"
-                />
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+                <div className="gba:relative gba:w-64">
+                  <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+                  <DebouncedInput
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
+                      'Search report data...'
+                    )}
+                    onChange={val => {
+                      setSearchTerm(val)
+                      setCurrentPage(1)
+                    }}
+                    value={searchTerm}
+                    className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
+                    data-testid="backoffice-expense-reports-data-search-input"
+                  />
+                </div>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleDownload}
+                    className="gba:flex gba:items-center gba:gap-2"
+                    data-testid="backoffice-expense-reports-download-button"
+                  >
+                    <PiDownload className="gba:text-sm" />
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:team_expenses_page.dashboard_tab.download_report',
+                      'Download CSV'
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleDownloadExcel}
+                    className="gba:flex gba:items-center gba:gap-2"
+                    data-testid="backoffice-expense-reports-download-excel-button"
+                  >
+                    <PiDownload className="gba:text-sm" />
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
+                      'Download Excel'
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -644,7 +729,10 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                                     'submissionDate',
                                     'requestDate',
                                     'createdAt',
-                                    'planDate'
+                                    'planDate',
+                                    'pendingAt',
+                                    'approvedAt',
+                                    'paidAt'
                                   ].includes(column.key)
                                 ) {
                                   cellContent = (
@@ -663,7 +751,10 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                                     </span>
                                   )
                                 } else {
-                                  cellContent = <span className="gba:text-sm">{row[column.key] || '-'}</span>
+                                  const value = row[column.key]
+                                  const displayValue =
+                                    value === null || value === undefined || value === '' ? '-' : String(value)
+                                  cellContent = <span className="gba:text-sm">{displayValue}</span>
                                 }
                                 return (
                                   <TableCell

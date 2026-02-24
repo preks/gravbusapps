@@ -10,7 +10,8 @@ import {
   GET_EXPENSE_ITEMS_BACKOFFICE,
   GET_EXPENSE_PLANS_BACKOFFICE,
   GET_EXPENSE_REQUESTS_BACKOFFICE,
-  GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE
+  GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE,
+  GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE
 } from '../queries/backofficeReportQueries'
 import {
   getExpenseRequestStatusDisplay,
@@ -23,7 +24,8 @@ export enum ReportType {
   EXPENSE_ITEM = 'expense_item',
   EXPENSE_PLAN = 'expense_plan',
   EXPENSE_REQUEST = 'expense_request',
-  ADVANCE_PAYMENT = 'advance_payment'
+  ADVANCE_PAYMENT = 'advance_payment',
+  APPROVAL_PAYOUT_CYCLE = 'approval_payout_cycle'
 }
 
 export interface ReportMetadata {
@@ -94,6 +96,23 @@ export interface AdvancePaymentReport extends ReportItem {
   currency?: string
 }
 
+export interface ApprovalPayoutCycleReport extends ReportItem {
+  code: string
+  title: string
+  employeeName: string
+  createdAt: string
+  pendingAt: string
+  approvedAt: string
+  paidAt: string
+  approvalDays: number | null
+  payoutDays: number | null
+  totalCycleDays: number | null
+  bottleneckStage: string
+  status: string
+  totalAmount: number
+  currency: string
+}
+
 export interface UseBackofficeExpenseReportDataReturn {
   reportTypes: ReportMetadata[]
   selectedReportType: ReportType | null
@@ -149,6 +168,48 @@ const getSettledAdvancePaidAmount = (advancePayments: any[]): number => {
   return (Array.isArray(advancePayments) ? advancePayments : [])
     .filter((payment: any) => ['PAID', 'CLOSED', 'TRANSFERRED'].includes(String(payment?.status || '').toUpperCase()))
     .reduce((sum: number, payment: any) => sum + Number(payment?.amount || 0), 0)
+}
+
+const parseDateOrNull = (value: unknown): Date | null => {
+  if (!value) return null
+  const d = new Date(String(value))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+const isPaidLikeStatus = (value: unknown): boolean =>
+  ['PAID', 'CLOSED', 'TRANSFERRED', 'VERIFIED', 'BOOKED'].includes(String(value || '').toUpperCase())
+
+const toUpperText = (value: unknown): string => String(value || '').toUpperCase()
+
+const hasStatusTransition = (text: string, statuses: string[]): boolean => {
+  const normalized = toUpperText(text)
+  return statuses.some(status => {
+    if (!status) return false
+    return (
+      normalized.includes(`TO: ${status}`) ||
+      normalized.includes(`TO ${status}`) ||
+      normalized.includes(`STATUS: ${status}`) ||
+      normalized.includes(`STATUS ${status}`) ||
+      normalized.includes(status)
+    )
+  })
+}
+
+const pickEarliest = (values: Array<unknown>): string => {
+  const sorted = values
+    .map(v => String(v || '').trim())
+    .filter(Boolean)
+    .map(v => ({ raw: v, date: parseDateOrNull(v) }))
+    .filter(v => v.date)
+    .sort((a, b) => a.date!.getTime() - b.date!.getTime())
+  return sorted[0]?.raw || ''
+}
+
+const daysDiff = (from: string, to: string): number | null => {
+  const a = parseDateOrNull(from)
+  const b = parseDateOrNull(to)
+  if (!a || !b) return null
+  return Number(((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)).toFixed(2))
 }
 
 export const useBackofficeExpenseReportData = ({
@@ -334,7 +395,11 @@ export const useBackofficeExpenseReportData = ({
   )
 
   useEffect(() => {
-    if (!selectedReportType || selectedReportType === ReportType.EXPENSE_ITEM) {
+    if (
+      !selectedReportType ||
+      selectedReportType === ReportType.EXPENSE_ITEM ||
+      selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
+    ) {
       return
     }
 
@@ -407,7 +472,10 @@ export const useBackofficeExpenseReportData = ({
   ])
 
   const buildExpenseRequestWhere = useCallback((search: string) => {
-    const where: any = { isDeleted: { _eq: false } }
+    const where: any = {
+      isDeleted: { _eq: false },
+      status: { _nin: ['CREATED', 'DISCARDED'] }
+    }
     if (search?.trim()) {
       const searchPattern = `%${search.trim()}%`
       where._or = [
@@ -505,6 +573,92 @@ export const useBackofficeExpenseReportData = ({
     })
   }
 
+  const processApprovalPayoutCycleData = (
+    data: any,
+    employeeNameById: Record<string, string> = {}
+  ): ApprovalPayoutCycleReport[] => {
+    const rows = Array.isArray(data?.ExpenseRequest) ? data.ExpenseRequest : []
+    return rows.map((request: any) => {
+      const comments = Array.isArray(request?.expenseRequestComment) ? request.expenseRequestComment : []
+      const paymentRows = Array.isArray(request?.expensePlan?.advancePayment) ? request.expensePlan.advancePayment : []
+      const paymentComments = paymentRows.flatMap((p: any) =>
+        Array.isArray(p?.advancePaymentComment) ? p.advancePaymentComment : []
+      )
+
+      const pendingFromComments = comments
+        .filter((c: any) => {
+          const text = String(c?.comment || '')
+          const type = toUpperText(c?.commentType)
+          return (
+            type === 'SYSTEM_COMMENT' &&
+            (hasStatusTransition(text, ['PENDING']) || toUpperText(text).includes('SUBMIT'))
+          )
+        })
+        .map((c: any) => c?.commentDate)
+      const pendingAt = pickEarliest([...pendingFromComments, request?.createdAt])
+
+      const approvedFromComments = comments
+        .filter((c: any) => {
+          const text = String(c?.comment || '')
+          const type = toUpperText(c?.commentType)
+          return (
+            type === 'APPROVE_COMMENT' || hasStatusTransition(text, ['APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'])
+          )
+        })
+        .map((c: any) => c?.commentDate)
+      const approvedAt = pickEarliest([...approvedFromComments, request?.decisionDate, request?.updatedAt, pendingAt])
+
+      const paidFromPayments = paymentRows
+        .filter((p: any) => isPaidLikeStatus(p?.status))
+        .map((p: any) => p?.transactionDate || p?.decisionDate || p?.createdAt)
+      const paidFromComments = paymentComments
+        .filter((c: any) => {
+          const text = String(c?.comment || '')
+          return (
+            hasStatusTransition(text, ['PAID', 'TRANSFERRED', 'VERIFIED', 'BOOKED']) ||
+            toUpperText(text).includes('PAY')
+          )
+        })
+        .map((c: any) => c?.commentDate)
+      const paidAt =
+        pickEarliest([...paidFromPayments, ...paidFromComments]) ||
+        (isPaidLikeStatus(request?.status) ? pickEarliest([request?.updatedAt, request?.decisionDate, approvedAt]) : '')
+
+      const approvalDays = daysDiff(pendingAt, approvedAt)
+      const payoutDays = daysDiff(approvedAt, paidAt)
+      const totalCycleDays = daysDiff(pendingAt, paidAt)
+
+      const bottleneckStage = paidAt
+        ? (approvalDays || 0) >= (payoutDays || 0)
+          ? 'Approval'
+          : 'Payout'
+        : approvedAt
+          ? 'Payout'
+          : 'Approval'
+
+      const statusDisplay = request?.status
+        ? getExpenseRequestStatusDisplay(request.status)
+        : { label: '', type: 'draft' }
+      return {
+        id: request.id,
+        code: request.code || '',
+        title: request.title || '',
+        employeeName: resolveDisplayName([request.employeeId, request.createdBy], employeeNameById),
+        createdAt: request.createdAt || '',
+        pendingAt,
+        approvedAt,
+        paidAt,
+        approvalDays,
+        payoutDays,
+        totalCycleDays,
+        bottleneckStage,
+        status: statusDisplay.label,
+        totalAmount: Number(request.totalAmount || 0),
+        currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR'
+      } as ApprovalPayoutCycleReport
+    })
+  }
+
   const fetchExpenseItems = useCallback(async () => {
     if (!graphqlClient) return
     try {
@@ -528,6 +682,31 @@ export const useBackofficeExpenseReportData = ({
       setIsLoading(false)
     }
   }, [graphqlClient, pageSize, currentPage, searchTerm, resolveEmployeeNamesByIds])
+
+  const fetchApprovalPayoutCycle = useCallback(async () => {
+    if (!graphqlClient) return
+    try {
+      setIsLoading(true)
+      setError(null)
+      const where = buildExpenseRequestWhere(searchTerm)
+      const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
+        where,
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize,
+        orderBy: [{ createdAt: 'DESC' }]
+      })
+      const employeeIds = (result?.ExpenseRequest || [])
+        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      setReportData(processApprovalPayoutCycleData(result, employeeNameById))
+      setTotalCount(result?.ExpenseRequestAggregate?.aggregate?.count || 0)
+    } catch {
+      setError('Failed to load approval and payout cycle data')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [graphqlClient, pageSize, currentPage, searchTerm, buildExpenseRequestWhere, resolveEmployeeNamesByIds])
 
   const mapAdvancePaymentToReport = useCallback(
     (p: any, employeeNameById: Record<string, string>): AdvancePaymentReport => {
@@ -642,6 +821,24 @@ export const useBackofficeExpenseReportData = ({
     [graphqlClient, searchTerm, mapAdvancePaymentToReport, resolveEmployeeNamesByIds]
   )
 
+  const fetchApprovalPayoutCycleForExport = useCallback(
+    async (offset: number, limit: number) => {
+      const where = buildExpenseRequestWhere(searchTerm)
+      const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
+        where,
+        limit,
+        offset,
+        orderBy: [{ createdAt: 'DESC' }]
+      })
+      const employeeIds = (result?.ExpenseRequest || [])
+        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return processApprovalPayoutCycleData(result, employeeNameById)
+    },
+    [graphqlClient, searchTerm, buildExpenseRequestWhere, resolveEmployeeNamesByIds]
+  )
+
   const fetchAllForExport = useCallback(async (): Promise<ReportItem[]> => {
     if (!graphqlClient || !selectedReportType) return []
     try {
@@ -654,6 +851,8 @@ export const useBackofficeExpenseReportData = ({
           return await fetchBatchedData(fetchExpenseRequestsForExport, 'requests')
         case ReportType.ADVANCE_PAYMENT:
           return await fetchBatchedData(fetchAdvancePaymentsForExport, 'advance payments')
+        case ReportType.APPROVAL_PAYOUT_CYCLE:
+          return await fetchBatchedData(fetchApprovalPayoutCycleForExport, 'approval and payout cycle')
         default:
           return []
       }
@@ -668,7 +867,8 @@ export const useBackofficeExpenseReportData = ({
     fetchExpenseItemsForExport,
     fetchExpensePlansForExport,
     fetchExpenseRequestsForExport,
-    fetchAdvancePaymentsForExport
+    fetchAdvancePaymentsForExport,
+    fetchApprovalPayoutCycleForExport
   ])
 
   const fetchReportData = useCallback(async () => {
@@ -677,10 +877,13 @@ export const useBackofficeExpenseReportData = ({
       case ReportType.EXPENSE_ITEM:
         await fetchExpenseItems()
         break
+      case ReportType.APPROVAL_PAYOUT_CYCLE:
+        await fetchApprovalPayoutCycle()
+        break
       default:
         break
     }
-  }, [selectedReportType, fetchExpenseItems])
+  }, [selectedReportType, fetchExpenseItems, fetchApprovalPayoutCycle])
 
   const lastFetchSignatureRef = useRef<string | null>(null)
   useEffect(() => {
@@ -731,6 +934,15 @@ export const useBackofficeExpenseReportData = ({
       ),
       type: ReportType.ADVANCE_PAYMENT,
       selected: selectedReportType === ReportType.ADVANCE_PAYMENT
+    },
+    {
+      id: 'report-5',
+      name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
+        'Approval & Payout Cycle'
+      ),
+      type: ReportType.APPROVAL_PAYOUT_CYCLE,
+      selected: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
     }
   ]
 
