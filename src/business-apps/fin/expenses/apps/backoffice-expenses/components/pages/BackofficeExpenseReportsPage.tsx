@@ -104,6 +104,17 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
 
   const reportTypes: Array<{ key: ReportType; name: string; description: string }> = [
     {
+      key: ReportType.APPROVAL_PAYOUT_CYCLE,
+      name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
+        'Approval & Payout Cycle'
+      ),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle_subheader',
+        'Pending to approved to paid cycle durations'
+      )
+    },
+    {
       key: ReportType.EXPENSE_ITEM,
       name: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items'),
       description: getTranslationFromI18nKeyAndLabel(
@@ -142,17 +153,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
         'Cash advances and prepayments'
-      )
-    },
-    {
-      key: ReportType.APPROVAL_PAYOUT_CYCLE,
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
-        'Approval & Payout Cycle'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle_subheader',
-        'Pending to approved to paid cycle durations'
       )
     }
   ]

@@ -176,10 +176,16 @@ const parseDateOrNull = (value: unknown): Date | null => {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-const isPaidLikeStatus = (value: unknown): boolean =>
-  ['PAID', 'CLOSED', 'TRANSFERRED', 'VERIFIED', 'BOOKED'].includes(String(value || '').toUpperCase())
+const isPaidLikeStatus = (value: unknown): boolean => ['PAID', 'CLOSED'].includes(String(value || '').toUpperCase())
 
 const toUpperText = (value: unknown): string => String(value || '').toUpperCase()
+
+const normalizeStatusToken = (value: string): string => {
+  const token = toUpperText(value).replace(/[^A-Z]/g, '')
+  if (token === 'APPROVAL') return 'APPROVED'
+  if (token === 'DRAFT') return 'CREATED'
+  return token
+}
 
 const hasStatusTransition = (text: string, statuses: string[]): boolean => {
   const normalized = toUpperText(text)
@@ -193,6 +199,23 @@ const hasStatusTransition = (text: string, statuses: string[]): boolean => {
       normalized.includes(status)
     )
   })
+}
+
+const hasFromToTransition = (text: string, fromStatuses: string[], toStatuses: string[]): boolean => {
+  const normalized = toUpperText(text)
+  const fromNormalized = fromStatuses.map(normalizeStatusToken)
+  const toNormalized = toStatuses.map(normalizeStatusToken)
+
+  const fromMatch = fromNormalized.some(
+    from => normalized.includes(`FROM ${from}`) || normalized.includes(`FROM: ${from}`)
+  )
+  const toMatch = toNormalized.some(to => normalized.includes(`TO ${to}`) || normalized.includes(`TO: ${to}`))
+  if (fromMatch && toMatch) return true
+
+  const compact = normalized.replace(/\s+/g, ' ')
+  return fromNormalized.some(from =>
+    toNormalized.some(to => compact.includes(`FROM ${from} TO ${to}`) || compact.includes(`${from} TO ${to}`))
+  )
 }
 
 const pickEarliest = (values: Array<unknown>): string => {
@@ -589,24 +612,19 @@ export const useBackofficeExpenseReportData = ({
         .filter((c: any) => {
           const text = String(c?.comment || '')
           const type = toUpperText(c?.commentType)
-          return (
-            type === 'SYSTEM_COMMENT' &&
-            (hasStatusTransition(text, ['PENDING']) || toUpperText(text).includes('SUBMIT'))
-          )
+          return type === 'SYSTEM_COMMENT' && hasFromToTransition(text, ['DRAFT', 'CREATED'], ['PENDING'])
         })
         .map((c: any) => c?.commentDate)
-      const pendingAt = pickEarliest([...pendingFromComments, request?.createdAt])
+      const pendingAt = pickEarliest(pendingFromComments)
 
       const approvedFromComments = comments
         .filter((c: any) => {
           const text = String(c?.comment || '')
           const type = toUpperText(c?.commentType)
-          return (
-            type === 'APPROVE_COMMENT' || hasStatusTransition(text, ['APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'])
-          )
+          return type === 'SYSTEM_COMMENT' && hasFromToTransition(text, ['PENDING'], ['APPROVED', 'APPROVAL'])
         })
         .map((c: any) => c?.commentDate)
-      const approvedAt = pickEarliest([...approvedFromComments, request?.decisionDate, request?.updatedAt, pendingAt])
+      const approvedAt = pickEarliest(approvedFromComments)
 
       const paidFromPayments = paymentRows
         .filter((p: any) => isPaidLikeStatus(p?.status))
@@ -614,27 +632,43 @@ export const useBackofficeExpenseReportData = ({
       const paidFromComments = paymentComments
         .filter((c: any) => {
           const text = String(c?.comment || '')
-          return (
-            hasStatusTransition(text, ['PAID', 'TRANSFERRED', 'VERIFIED', 'BOOKED']) ||
-            toUpperText(text).includes('PAY')
-          )
+          return hasStatusTransition(text, ['PAID', 'CLOSED'])
         })
         .map((c: any) => c?.commentDate)
       const paidAt =
-        pickEarliest([...paidFromPayments, ...paidFromComments]) ||
-        (isPaidLikeStatus(request?.status) ? pickEarliest([request?.updatedAt, request?.decisionDate, approvedAt]) : '')
+        pickEarliest([
+          ...paidFromPayments,
+          ...paidFromComments,
+          ...comments
+            .filter((c: any) => {
+              const text = String(c?.comment || '')
+              const type = toUpperText(c?.commentType)
+              return (
+                type === 'SYSTEM_COMMENT' &&
+                hasFromToTransition(text, ['APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'], ['PAID', 'CLOSED'])
+              )
+            })
+            .map((c: any) => c?.commentDate)
+        ]) || ''
 
       const approvalDays = daysDiff(pendingAt, approvedAt)
       const payoutDays = daysDiff(approvedAt, paidAt)
       const totalCycleDays = daysDiff(pendingAt, paidAt)
 
-      const bottleneckStage = paidAt
-        ? (approvalDays || 0) >= (payoutDays || 0)
-          ? 'Approval'
-          : 'Payout'
-        : approvedAt
-          ? 'Payout'
-          : 'Approval'
+      const requestStatus = toUpperText(request?.status)
+      const hasFullCycle = Boolean(pendingAt && approvedAt && paidAt)
+      const isSameDayCycle = hasFullCycle && approvalDays === 0 && payoutDays === 0
+      const bottleneckStage = isSameDayCycle
+        ? ''
+        : approvalDays !== null && payoutDays !== null
+          ? approvalDays >= payoutDays
+            ? 'Approval'
+            : 'Payout'
+          : ['PAID', 'CLOSED'].includes(requestStatus)
+            ? ''
+            : approvedAt
+              ? 'Payout'
+              : 'Approval'
 
       const statusDisplay = request?.status
         ? getExpenseRequestStatusDisplay(request.status)
@@ -902,6 +936,15 @@ export const useBackofficeExpenseReportData = ({
     {
       id: 'report-1',
       name: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
+        'Approval & Payout Cycle'
+      ),
+      type: ReportType.APPROVAL_PAYOUT_CYCLE,
+      selected: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
+    },
+    {
+      id: 'report-2',
+      name: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.expense_item_report',
         'Expense Item Report'
       ),
@@ -909,7 +952,7 @@ export const useBackofficeExpenseReportData = ({
       selected: selectedReportType === ReportType.EXPENSE_ITEM
     },
     {
-      id: 'report-2',
+      id: 'report-3',
       name: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.expense_plan_report',
         'Expense Plan Report'
@@ -918,7 +961,7 @@ export const useBackofficeExpenseReportData = ({
       selected: selectedReportType === ReportType.EXPENSE_PLAN
     },
     {
-      id: 'report-3',
+      id: 'report-4',
       name: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.expense_request_report',
         'Expense Request Report'
@@ -927,22 +970,13 @@ export const useBackofficeExpenseReportData = ({
       selected: selectedReportType === ReportType.EXPENSE_REQUEST
     },
     {
-      id: 'report-4',
+      id: 'report-5',
       name: getTranslationFromI18nKeyAndLabel(
         'lowcoder:advance_payment_report.search_module',
         'Advance Payment Report'
       ),
       type: ReportType.ADVANCE_PAYMENT,
       selected: selectedReportType === ReportType.ADVANCE_PAYMENT
-    },
-    {
-      id: 'report-5',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
-        'Approval & Payout Cycle'
-      ),
-      type: ReportType.APPROVAL_PAYOUT_CYCLE,
-      selected: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
     }
   ]
 
