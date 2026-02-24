@@ -643,17 +643,6 @@ export class ChatApiClient {
     const response = await this.client.get<TranscriptDataResponse>(`/call-sessions/${sessionId}/transcript-data`)
     return response.data
   }
-
-  /**
-   * Create meeting minutes from call transcript
-   * Backend fetches CSV, parses, calls document-service, stores noteId, and sends system message
-   */
-  async createMeetingMinutes(sessionId: string): Promise<CreateMeetingMinutesResponse> {
-    const response = await this.client.post<CreateMeetingMinutesResponse>(
-      `/call-sessions/${sessionId}/create-meeting-minutes`
-    )
-    return response.data
-  }
 }
 
 export interface UploadedAttachment {
@@ -761,12 +750,4 @@ export interface TranscriptDataResponse {
   durationSeconds: number
   participants: TranscriptParticipant[]
   transcriptEntries: TranscriptEntry[]
-}
-
-export interface CreateMeetingMinutesResponse {
-  sessionId: string
-  noteId: string
-  transcriptId: string
-  transcriptionStatus: 'COMPLETED' | 'PROCESSING' | 'FAILED'
-  message: string
 }
