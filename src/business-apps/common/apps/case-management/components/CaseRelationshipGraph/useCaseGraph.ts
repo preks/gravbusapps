@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Node, Edge, MarkerType, Position } from 'reactflow'
+import { Node, Edge, MarkerType, Position } from '@xyflow/react'
 import dagre from 'dagre'
 import { CaseApiClient } from '../../services/caseApiClient'
 import { Case, LinkedCase, CaseStatus, CasePriority, LinkedFlow, CaseNote } from '../../types'
