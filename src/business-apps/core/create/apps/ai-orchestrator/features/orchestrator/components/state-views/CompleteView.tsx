@@ -14,6 +14,12 @@ import { BuildPlanTab } from './BuildPlanTab'
 import { DataFlowDiagram } from './DataFlowDiagram'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import { AppAboutView } from './AppAboutView'
+import { DataModelPreview } from '@/common/components/ai-builder/data-model-preview/DataModelPreview'
+import { FunctionPreview } from '@/common/components/ai-builder/function-preview/FunctionPreview'
+import { FlowPreview } from '@/common/components/ai-builder/flow-preview/FlowPreview'
+import { AgentPreview } from '@/common/components/ai-builder/agent-preview/AgentPreview'
+import { PreviewTemplate } from '@/common/components/ai-builder/preview-template/PreviewTemplate'
+import { mapDataModelSpec, mapFunctionSpec, mapFlowSpec, mapAgentSpec } from './componentSpecPreviewMappers'
 import type { ComponentSpec, CanvasTab } from '../../types'
 import type { AppMetadata, BuildAnalysis, UserSummary } from '../../types/build'
 
@@ -84,41 +90,135 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
           </div>
         )
 
-      case 'data-model':
-        return (
-          <ComponentPlaceholderList
-            components={components.filter(c => c.type === 'data_model')}
-            typeLabel="Data Model"
-            emptyMessage="No data models were built."
-          />
+      case 'data-model': {
+        const built = components.filter(
+          c => c.type === 'data_model' && (c.status === 'completed' || c.status === 'reused') && c.dataModelSpec
         )
+        if (built.length === 0) {
+          return (
+            <ComponentPlaceholderList
+              components={components.filter(c => c.type === 'data_model')}
+              typeLabel="Data Model"
+              emptyMessage="No data models were built."
+            />
+          )
+        }
+        const items = built.map(c => ({
+          id: c.id,
+          label: c.dataModelSpec!.name,
+          definition: mapDataModelSpec(c.dataModelSpec!)
+        }))
+        return (
+          <div className="gba:h-full gba:overflow-y-auto gba:p-4">
+            <DataModelPreview items={items} accessToken={accessToken} />
+          </div>
+        )
+      }
 
-      case 'functions':
-        return (
-          <ComponentPlaceholderList
-            components={components.filter(c => c.type === 'function')}
-            typeLabel="Function"
-            emptyMessage="No functions were built."
-          />
+      case 'functions': {
+        const eligible = components.filter(
+          c =>
+            c.type === 'function' &&
+            (c.status === 'completed' || c.status === 'reused') &&
+            (c.functionSpec || c.existingId || c.createdId)
         )
+        if (eligible.length === 0) {
+          return (
+            <ComponentPlaceholderList
+              components={components.filter(c => c.type === 'function')}
+              typeLabel="Function"
+              emptyMessage="No functions were built."
+            />
+          )
+        }
+        return (
+          <div className="gba:h-full gba:overflow-y-auto gba:p-4">
+            <PreviewTemplate items={eligible.map(c => ({ id: c.id, label: c.functionSpec?.name ?? c.name }))}>
+              {selectedId => {
+                const comp = eligible.find(c => c.id === selectedId) ?? eligible[0]
+                const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
+                if (comp.functionSpec) {
+                  return (
+                    <FunctionPreview
+                      key={comp.id}
+                      accessToken={accessToken ?? ''}
+                      definition={mapFunctionSpec(comp.functionSpec, effectiveId)}
+                    />
+                  )
+                }
+                return <FunctionPreview key={comp.id} accessToken={accessToken ?? ''} functionId={effectiveId} />
+              }}
+            </PreviewTemplate>
+          </div>
+        )
+      }
 
-      case 'task-expert':
-        return (
-          <ComponentPlaceholderList
-            components={components.filter(c => c.type === 'agent')}
-            typeLabel="Task Expert"
-            emptyMessage="No task experts were built."
-          />
+      case 'task-expert': {
+        const eligible = components.filter(
+          c =>
+            c.type === 'agent' &&
+            (c.status === 'completed' || c.status === 'reused') &&
+            (c.agentSpec || c.existingId || c.createdId)
         )
+        if (eligible.length === 0) {
+          return (
+            <ComponentPlaceholderList
+              components={components.filter(c => c.type === 'agent')}
+              typeLabel="Task Expert"
+              emptyMessage="No task experts were built."
+            />
+          )
+        }
+        return (
+          <div className="gba:h-full gba:overflow-y-auto gba:p-4">
+            <PreviewTemplate items={eligible.map(c => ({ id: c.id, label: c.agentSpec?.name ?? c.name }))}>
+              {selectedId => {
+                const comp = eligible.find(c => c.id === selectedId) ?? eligible[0]
+                const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
+                if (comp.agentSpec) {
+                  return (
+                    <AgentPreview key={comp.id} accessToken={accessToken ?? ''} prompt={mapAgentSpec(comp.agentSpec)} />
+                  )
+                }
+                return <AgentPreview key={comp.id} accessToken={accessToken ?? ''} agentId={effectiveId} />
+              }}
+            </PreviewTemplate>
+          </div>
+        )
+      }
 
-      case 'flow':
-        return (
-          <ComponentPlaceholderList
-            components={components.filter(c => c.type === 'flow')}
-            typeLabel="Flow"
-            emptyMessage="No flows were built."
-          />
+      case 'flow': {
+        const eligible = components.filter(
+          c =>
+            c.type === 'flow' &&
+            (c.status === 'completed' || c.status === 'reused') &&
+            (c.flowSpec || c.existingId || c.createdId)
         )
+        if (eligible.length === 0) {
+          return (
+            <ComponentPlaceholderList
+              components={components.filter(c => c.type === 'flow')}
+              typeLabel="Flow"
+              emptyMessage="No flows were built."
+            />
+          )
+        }
+        return (
+          <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col">
+            <PreviewTemplate items={eligible.map(c => ({ id: c.id, label: c.flowSpec?.name ?? c.name }))}>
+              {selectedId => {
+                const comp = eligible.find(c => c.id === selectedId) ?? eligible[0]
+                const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
+                if (comp.flowSpec) {
+                  const specTemplate = { ...mapFlowSpec(comp.flowSpec), id: effectiveId }
+                  return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} template={specTemplate} />
+                }
+                return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} flowId={effectiveId} />
+              }}
+            </PreviewTemplate>
+          </div>
+        )
+      }
 
       case 'about':
         return (
