@@ -53,8 +53,6 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     clearTextTransformationError
   } = usePerformanceEvaluationForm()
 
-  console.log('formValues', formValues)
-
   const handleEmployeeChange = (employeeId: string) => {
     const employee = getEmployeeById(employeeId)
     if (employee) {
@@ -354,7 +352,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
 
         {/* General Comments */}
         <div className="gba:space-y-2">
-          <Label htmlFor="general-comments" className="gba:text-sm gba:font-medium">
+          <Label htmlFor="general-comments" className="gba:text-lg gba:font-semibold gba:text-foreground">
             {t('general-comments-label')}
           </Label>
           <Textarea
