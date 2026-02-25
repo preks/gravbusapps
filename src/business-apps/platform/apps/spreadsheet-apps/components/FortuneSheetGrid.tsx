@@ -940,6 +940,171 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       })
     }, [context, columns, onCellChange, isReadOnly])
 
+    const getCurrentSelectionRanges = useCallback(() => {
+      const workbook = workbookRef.current as any
+      try {
+        const selection = workbook?.getSelection?.()
+        if (Array.isArray(selection) && selection.length > 0) {
+          const ranges = selection
+            .map((range: { row?: [number, number?]; column?: [number, number?] }) => {
+              const rowStart = range?.row?.[0]
+              const rowEnd = range?.row?.[1] ?? rowStart
+              const colStart = range?.column?.[0]
+              const colEnd = range?.column?.[1] ?? colStart
+              if (
+                typeof rowStart !== 'number' ||
+                typeof rowEnd !== 'number' ||
+                typeof colStart !== 'number' ||
+                typeof colEnd !== 'number'
+              ) {
+                return null
+              }
+              return { rowStart, rowEnd, colStart, colEnd }
+            })
+            .filter((r): r is { rowStart: number; rowEnd: number; colStart: number; colEnd: number } => Boolean(r))
+          if (ranges.length > 0) return ranges
+        }
+      } catch {
+        // Selection may be temporarily unavailable
+      }
+      const last = lastKnownSelectionRef.current
+      return last
+        ? [
+            {
+              rowStart: last.fortuneSheetRow,
+              rowEnd: last.fortuneSheetRow,
+              colStart: last.colIndex,
+              colEnd: last.colIndex
+            }
+          ]
+        : []
+    }, [])
+
+    const toggleBoldForSelection = useCallback(() => {
+      if (!onCellChange || isReadOnly) return
+
+      const workbook = workbookRef.current as any
+      if (!workbook?.setCellFormat) return
+
+      const ranges = getCurrentSelectionRanges()
+      if (ranges.length === 0) return
+
+      // Suppress FortuneSheet ops emitted by programmatic formatting changes.
+      // We persist via onCellChange directly with correct values + formatting.
+      const previousLocalEdit = isLocalEditRef.current
+      isLocalEditRef.current = true
+      setTimeout(() => {
+        isLocalEditRef.current = previousLocalEdit
+      }, 50)
+
+      let allBold = true
+      try {
+        const currentSheet = workbookRef.current?.getSheet?.() as any
+        const workbookData = currentSheet?.data
+        if (Array.isArray(workbookData)) {
+          outer: for (const range of ranges) {
+            for (let row = range.rowStart; row <= range.rowEnd; row += 1) {
+              for (let col = range.colStart; col <= range.colEnd; col += 1) {
+                const rawCell = workbookData?.[row]?.[col] ?? null
+                const bl =
+                  rawCell && typeof rawCell === 'object' && !Array.isArray(rawCell) && 'bl' in rawCell
+                    ? (rawCell as { bl?: unknown }).bl
+                    : 0
+                if (bl !== 1) {
+                  allBold = false
+                  break outer
+                }
+              }
+            }
+          }
+        } else {
+          allBold = false
+        }
+      } catch {
+        allBold = false
+      }
+
+      const nextBold = allBold ? 0 : 1
+      const MAX_CELLS = 2000
+      let processed = 0
+
+      for (const range of ranges) {
+        for (let row = range.rowStart; row <= range.rowEnd; row += 1) {
+          for (let col = range.colStart; col <= range.colEnd; col += 1) {
+            if (processed >= MAX_CELLS) return
+            processed += 1
+
+            try {
+              workbook.setCellFormat(row, col, 'bl', nextBold, { id: sheet.id })
+            } catch {
+              // Ignore if FortuneSheet not ready for this cell
+            }
+
+            // Persist only data rows (skip header row)
+            if (row < HEADER_ROW_OFFSET) continue
+            const dataRowIndex = row - HEADER_ROW_OFFSET
+            const rowId = context.rowIndexToId.get(dataRowIndex)
+            const columnId = context.columnIndexToId.get(col)
+            if (!rowId || !columnId) continue
+
+            const column = columns.find(c => c.id === columnId)
+            const columnName = column?.name ?? columnId
+
+            const existingRaw = data[dataRowIndex]?.[columnName]
+            let baseCell: Record<string, unknown>
+            if (existingRaw && typeof existingRaw === 'object' && !Array.isArray(existingRaw)) {
+              const existingObject = existingRaw as Record<string, unknown>
+              if ('v' in existingObject || 'm' in existingObject || 'f' in existingObject) {
+                baseCell = { ...existingObject }
+              } else {
+                baseCell = { v: '', m: '' }
+              }
+            } else if (
+              typeof existingRaw === 'string' ||
+              typeof existingRaw === 'number' ||
+              typeof existingRaw === 'boolean'
+            ) {
+              baseCell = { v: existingRaw, m: String(existingRaw) }
+            } else {
+              baseCell = { v: '', m: '' }
+            }
+
+            baseCell.bl = nextBold
+            onCellChange(rowId, columnName, baseCell)
+          }
+        }
+      }
+    }, [columns, context, data, getCurrentSelectionRanges, isReadOnly, onCellChange, sheet.id])
+
+    useEffect(() => {
+      if (typeof globalThis.window === 'undefined') return
+
+      const handleBoldShortcutCapture = (event: KeyboardEvent) => {
+        if (isReadOnly) return
+        if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+        if (event.key.toLowerCase() !== 'b') return
+
+        const container = sheetContainerRef.current
+        if (!container) return
+        const active = document.activeElement as HTMLElement | null
+        if (active && !container.contains(active)) return
+
+        // Capture at window so published platform/global shortcuts don't win.
+        event.preventDefault()
+        event.stopPropagation()
+        if (typeof event.stopImmediatePropagation === 'function') {
+          event.stopImmediatePropagation()
+        }
+
+        toggleBoldForSelection()
+      }
+
+      globalThis.window.addEventListener('keydown', handleBoldShortcutCapture, true)
+      return () => {
+        globalThis.window.removeEventListener('keydown', handleBoldShortcutCapture, true)
+      }
+    }, [isReadOnly, toggleBoldForSelection])
+
     const handleContainerKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && !e.altKey && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
