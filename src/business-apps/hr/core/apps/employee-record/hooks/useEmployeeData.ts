@@ -397,6 +397,24 @@ export const useEmployeeData = (
     }
   }, [accessToken, client, employeeId, structureId, skipRequest, setData, setIsLoading, setError]) // Added state setters to dependencies as they are used, though stable
 
+  // Same as fetchData but skips the loading state — used for background refreshes after
+  // process completions so the UI doesn't flash a spinner unnecessarily.
+  const silentFetchData = useCallback(async () => {
+    if (skipRequest || !accessToken || !employeeId) return
+    try {
+      const variables = {
+        employeeId,
+        structureId: structureId ?? '',
+        hasStructureId: !!structureId,
+        activeUserLocale: getCurrentActiveUserLocale()
+      }
+      const result = await client.request<EmployeeData>(GET_EMPLOYEE_DATA, variables)
+      setData(result)
+    } catch {
+      // silently swallow — the UI already shows the latest optimistic data
+    }
+  }, [accessToken, client, employeeId, structureId, skipRequest, setData])
+
   useEffect(() => {
     fetchData()
   }, [fetchData])
@@ -435,7 +453,8 @@ export const useEmployeeData = (
     performanceGoals: data?.EmployeePerformanceGoal || [],
     loading: isLoading,
     error,
-    refetch: fetchData
+    refetch: fetchData,
+    silentRefetch: silentFetchData
   }
 }
 
