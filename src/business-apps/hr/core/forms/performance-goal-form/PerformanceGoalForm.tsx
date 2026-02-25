@@ -1,16 +1,20 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef } from 'react'
 import { message } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
-import FormScreenComponent from './components/FormScreenComponent'
+import FormScreenComponent, { type MilestoneItem } from './components/FormScreenComponent'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import FormHeader from '../components/FormHeader'
 import { Employee } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData'
+import { startProcess } from '@/common/utils/start-process'
+import { beginSilentSave } from '@/common/utils/silent-processes'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { latestGoalByEmployeeAndTitleQuery } from '@/business-apps/hr/core/apps/employee-record/queries/performanceQueries'
 
 interface PerformanceGoalFormProps {
   onClose: () => void
@@ -18,6 +22,7 @@ interface PerformanceGoalFormProps {
   prefixDataTestId?: string
   additionalData: Record<string, unknown>
   employee: Employee
+  accessToken: string
 }
 
 interface PerformanceGoalFormData {
@@ -27,15 +32,12 @@ interface PerformanceGoalFormData {
   status: string
   progressPercent: number
   completionDate?: Date
+  objectiveType: string
+  startValue?: number
+  targetValue?: number
+  note?: string
+  milestones?: MilestoneItem[]
 }
-
-const statusOptions = [
-  { value: 'ON_TRACK', label: 'On Track' },
-  { value: 'BEHIND_TARGET', label: 'Behind Target' },
-  { value: 'AT_RISK', label: 'At Risk' },
-  { value: 'ACHIEVED', label: 'Achieved' },
-  { value: 'NOT_ACHIEVED', label: 'Not Achieved' }
-]
 
 /**
  * Performance Goal Form Component
@@ -46,12 +48,35 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   onSuccess,
   prefixDataTestId = 'performance-goal-form',
   additionalData,
-  employee
+  employee,
+  accessToken
 }) => {
   const { t } = useTranslation()
+  const graphQLClient = useGraphqlClient(accessToken)
   const isEditMode = !!additionalData?.goalId
   const cycleStartDate = additionalData?.cycleStartDate as string | undefined
   const cycleEndDate = additionalData?.cycleEndDate as string | undefined
+
+  // Guard: AppActionForm listens to ALL processCompletion events while mounted.
+  // If the note fires saveEmployeePerformanceGoalUpdate and it completes before unmount,
+  // AppActionForm would call onSuccess again. This ref prevents that double-fire.
+  const successHandledRef = useRef(false)
+
+  // Snapshot of milestones that existed when the edit form opened — used to compute diffs
+  const initialMilestonesRef = useRef<MilestoneItem[]>(
+    isEditMode ? (additionalData?.existingMilestones as MilestoneItem[]) || [] : []
+  )
+
+  // Pending operations that need the backend-assigned goal ID to execute
+  const pendingOpsRef = useRef<{
+    employeeId: string
+    title: string // used to look up the new goal for INSERT
+    goalId?: string // provided directly for UPDATE
+    milestones?: MilestoneItem[] // create: all milestones to INSERT
+    milestonesToAdd?: MilestoneItem[] // edit: new milestones to INSERT
+    milestonesToDelete?: MilestoneItem[] // edit: removed milestones to DELETE
+    note?: string
+  } | null>(null)
 
   // Helper function to safely convert date strings to Date objects
   const safeDateConversion = (dateString: string | undefined): Date => {
@@ -77,7 +102,25 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 
   // Prepare initial form data
   const getInitialFormData = (): PerformanceGoalFormData => {
-    if (additionalData) {
+    const additionalProps = (additionalData?.additionalProperties as Record<string, unknown>) || {}
+
+    // Resolve objectiveType: prefer the proper DB column, fall back to legacy additionalProperties.goalType
+    const resolveObjectiveType = (): string => {
+      const dbType = additionalData?.objectiveType as string | undefined
+      if (
+        dbType === 'NUMERIC_PERFORMANCE_GOAL' ||
+        dbType === 'MILESTONE_PERFORMANCE_GOAL' ||
+        dbType === 'PERCENTAGE_PERFORMANCE_GOAL'
+      ) {
+        return dbType
+      }
+      const rawGoalType = additionalProps?.goalType as string | undefined
+      if (rawGoalType === 'NUMERIC') return 'NUMERIC_PERFORMANCE_GOAL'
+      if (rawGoalType === 'MILESTONE') return 'MILESTONE_PERFORMANCE_GOAL'
+      return 'PERCENTAGE_PERFORMANCE_GOAL'
+    }
+
+    if (additionalData?.goalId) {
       const dueDate = dayjs(additionalData.dueDate as string).add(5, 'day')
       return {
         title: (additionalData.title as string) || '',
@@ -87,18 +130,26 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
         progressPercent: (additionalData.progressPercent as number) || 0,
         completionDate: additionalData.completionDate
           ? safeDateConversion(additionalData.completionDate as string)
-          : undefined
+          : undefined,
+        objectiveType: resolveObjectiveType(),
+        // Prefer proper DB columns, fall back to legacy additionalProperties for old data
+        startValue: (additionalData.startValue as number) ?? (additionalProps?.numeric as any)?.current ?? undefined,
+        targetValue: (additionalData.targetValue as number) ?? (additionalProps?.numeric as any)?.target ?? undefined,
+        note: '',
+        milestones: (additionalData.existingMilestones as MilestoneItem[]) || []
       }
     } else {
-      // For create mode, set start date to today and due date to 5 days from today
       const today = dayjs().startOf('day')
       const dueDate = today.add(5, 'day')
       return {
         title: '',
         startDate: clampDateToCycle(today.toDate()),
         dueDate: clampDateToCycle(dueDate.toDate()),
-        status: 'ON_TRACK',
-        progressPercent: 0
+        status: '',
+        progressPercent: 0,
+        objectiveType: 'PERCENTAGE_PERFORMANCE_GOAL',
+        note: '',
+        milestones: []
       }
     }
   }
@@ -126,22 +177,61 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 
   const handleFormSubmit = async (formData: PerformanceGoalFormData) => {
     try {
-      // Validate that we have the required data for edit mode
       if (isEditMode && !additionalData?.goalId) {
-        console.error('Edit mode enabled but no goal ID found:', additionalData)
         throw new Error('Cannot edit goal: Goal ID not found')
       }
 
-      // Transform dates to ISO string format as required by API
+      const isNumeric = formData.objectiveType === 'NUMERIC_PERFORMANCE_GOAL'
+      const isMilestone = formData.objectiveType === 'MILESTONE_PERFORMANCE_GOAL'
+
+      // Compute milestone diffs for edit mode
+      let milestonesToAdd: MilestoneItem[] = []
+      let milestonesToDelete: MilestoneItem[] = []
+      if (isEditMode && isMilestone) {
+        const currentIds = new Set((formData.milestones || []).map(m => m.id))
+        milestonesToAdd = (formData.milestones || []).filter(m => m.id.startsWith('ms-'))
+        milestonesToDelete = initialMilestonesRef.current.filter(m => !currentIds.has(m.id))
+      }
+
+      // Queue after-save operations that need the goal ID.
+      // Notes in either mode are saved as comments via saveEmployeePerformanceGoalUpdate.
+      const hasPendingOps =
+        (!isEditMode && isMilestone && !!formData.milestones?.length) ||
+        (isEditMode && isMilestone && (milestonesToAdd.length > 0 || milestonesToDelete.length > 0)) ||
+        !!formData.note?.trim()
+
+      if (hasPendingOps) {
+        pendingOpsRef.current = {
+          employeeId: additionalData?.employeeId as string,
+          title: formData.title,
+          ...(isEditMode ? { goalId: additionalData.goalId as string } : {}),
+          // Create: all milestones | Edit: only diffs
+          ...(!isEditMode && isMilestone && formData.milestones?.length ? { milestones: formData.milestones } : {}),
+          ...(isEditMode && isMilestone ? { milestonesToAdd, milestonesToDelete } : {}),
+          ...(formData.note?.trim() ? { note: formData.note.trim() } : {})
+        }
+      } else {
+        pendingOpsRef.current = null
+      }
+
+      // Only truly custom data goes in additionalProperties — numeric tracking state only
+      const additionalProperties: Record<string, unknown> = {
+        ...(isNumeric ? { numeric: { current: formData.startValue ?? 0, unit: '' } } : {})
+      }
+
       const payload = {
         employeePerformanceGoal: {
-          ...(isEditMode ? { id: additionalData.goalId } : {}),
+          // Only include id for UPDATE — INSERT lets the backend generate it
+          ...(isEditMode ? { id: additionalData.goalId as string } : {}),
           title: formData.title,
           startDate: dateToISOString(formData.startDate),
           dueDate: dateToISOString(formData.dueDate),
-          status: formData.status || 'ON_TRACK',
+          ...(isEditMode ? {} : { status: null }),
           progressPercent: formData.progressPercent || 0,
+          objectiveType: formData.objectiveType,
+          ...(isNumeric ? { startValue: formData.startValue ?? 0, targetValue: formData.targetValue ?? 0 } : {}),
           employee: additionalData?.employeeId,
+          ...(Object.keys(additionalProperties).length > 0 ? { additionalProperties } : {}),
           ...(formData.progressPercent === 100 && formData.completionDate
             ? { completionDate: dateToISOString(formData.completionDate) }
             : {}),
@@ -150,7 +240,6 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
         changeMode: isEditMode ? 'UPDATE' : 'INSERT'
       }
 
-      // Return the payload for AppActionForm to handle the process event
       return payload
     } catch (error) {
       console.error('Error preparing performance goal data:', error)
@@ -158,7 +247,97 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
     }
   }
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = async () => {
+    if (successHandledRef.current) return
+    successHandledRef.current = true
+
+    if (pendingOpsRef.current) {
+      const {
+        employeeId,
+        title,
+        goalId: knownGoalId,
+        milestones,
+        milestonesToAdd,
+        milestonesToDelete,
+        note
+      } = pendingOpsRef.current
+      try {
+        // For INSERT: resolve the backend-assigned goal ID via GraphQL.
+        // For UPDATE: we already know the goal ID.
+        let goalId = knownGoalId
+        if (!goalId) {
+          const response = await graphQLClient.request(latestGoalByEmployeeAndTitleQuery, { employeeId, title })
+          goalId = (response as any)?.EmployeePerformanceGoal?.[0]?.id
+        }
+
+        if (goalId) {
+          // INSERT new milestones (create: all | edit: only newly added ones)
+          const toInsert = milestones || milestonesToAdd || []
+          const existingCount = initialMilestonesRef.current.length
+          toInsert.forEach((milestone, index) => {
+            beginSilentSave()
+            startProcess({
+              domain: 'employee',
+              processName: 'saveEmployeePerformanceGoalMilestone',
+              payload: {
+                changeMode: 'INSERT',
+                employeePerformanceGoalMilestone: {
+                  title: milestone.title,
+                  done: false,
+                  sortOrder: isEditMode ? existingCount + index : index,
+                  performanceGoal: goalId
+                }
+              },
+              skipScreen: true
+            })
+          })
+
+          // DELETE removed milestones (edit mode only)
+          milestonesToDelete?.forEach(milestone => {
+            beginSilentSave()
+            startProcess({
+              domain: 'employee',
+              processName: 'saveEmployeePerformanceGoalMilestone',
+              payload: {
+                changeMode: 'DELETE',
+                employeePerformanceGoalMilestone: {
+                  id: milestone.id,
+                  version: milestone.version ?? 0,
+                  performanceGoal: goalId
+                }
+              },
+              skipScreen: true
+            })
+          })
+
+          // Save the note as a goal update comment — not in additionalProperties
+          if (note) {
+            beginSilentSave()
+            startProcess({
+              domain: 'employee',
+              processName: 'saveEmployeePerformanceGoalUpdate',
+              payload: {
+                changeMode: 'INSERT',
+                employeePerformanceGoalUpdate: {
+                  comment: note,
+                  progressPercent: 0,
+                  updateTime: new Date().toISOString(),
+                  performanceGoal: goalId,
+                  employee: employeeId
+                }
+              },
+              skipScreen: true
+            })
+          }
+        } else {
+          console.error('[PerformanceGoalForm] Could not resolve goal ID for post-save operations')
+        }
+      } catch (e) {
+        console.error('[PerformanceGoalForm] Failed to execute post-save operations:', e)
+      }
+      pendingOpsRef.current = null
+    }
+
     const successMessage = isEditMode
       ? 'Performance goal was successfully updated'
       : 'Performance goal was successfully created'
@@ -213,12 +392,12 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           isSubmitDisabled={!isFormValid}
         >
           <FormScreenComponent
-            statusOptions={statusOptions}
             prefixDataTestId={prefixDataTestId}
             dataTestId={`${prefixDataTestId}-form`}
             form={form}
             cycleStartDate={cycleStartDate}
             cycleEndDate={cycleEndDate}
+            isEditMode={isEditMode}
           />
         </AppActionForm>
       </div>
@@ -232,7 +411,7 @@ const PerformanceGoalForm: React.FC<
     onClose?: () => void
     onSuccess?: () => void
   }
-> = ({ onClose = () => {}, onSuccess, additionalData }) => {
+> = ({ onClose = () => {}, onSuccess, additionalData, accessToken }) => {
   // Extract initial parameters from the flow payload
   const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
 
@@ -244,6 +423,7 @@ const PerformanceGoalForm: React.FC<
       onClose={onClose}
       onSuccess={onSuccess}
       additionalData={initialParameters}
+      accessToken={accessToken}
     />
   )
 }

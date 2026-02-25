@@ -227,7 +227,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     globalThis.history.replaceState({}, '', newUrl)
   }, [activeTab, employeeIdToShow, currentUserEmployeeId])
 
-  const { loading, error, employee, feedback, absenceEntitlements, performanceGoals, refetch } = useEmployeeData(
+  const { loading, error, employee, feedback, absenceEntitlements, performanceGoals, silentRefetch } = useEmployeeData(
     accessToken,
     activeStructureId,
     employeeIdToShow
@@ -238,7 +238,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
       const resolution = customEvent.detail.resolution
       if (resolution === 'success') {
-        refetch()
+        // Use silent refetch — avoids the full-page loading spinner for background saves
+        silentRefetch()
       }
     }
 
@@ -247,7 +248,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     return () => {
       globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
-  }, [refetch])
+  }, [silentRefetch])
 
   // Use the hook to fetch employee work communications
   const { employee: employeeWithComms, loading: commsLoading } = useEmployeeWorkCommunications({
