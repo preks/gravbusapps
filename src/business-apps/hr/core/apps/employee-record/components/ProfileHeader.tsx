@@ -31,6 +31,8 @@ import {
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { StarIcon } from 'lucide-react'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -88,27 +90,31 @@ export const ProfileHeaderActions: React.FC<ProfileHeaderActionsProps> = ({
   onVideoCall
 }) => {
   const { t } = useTranslation(translations)
+  const teamChatEnabled = useFeature<boolean>(Feature.Core.TeamChat.Key)
+
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="gba:inline-flex">
-            <Button
-              size="iconSm"
-              variant="outline"
-              onClick={onChat}
-              disabled={commsLoading || isSelfView}
-              aria-label={t('employee-record-chat-button')}
-              data-testid="employee-chat-button"
-            >
-              <ChatCircleIcon size={16} />
-            </Button>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {isSelfView ? t('employee-record-chat-cannot-self') : t('employee-record-chat-tooltip')}
-        </TooltipContent>
-      </Tooltip>
+      {teamChatEnabled && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="gba:inline-flex">
+              <Button
+                size="iconSm"
+                variant="outline"
+                onClick={onChat}
+                disabled={commsLoading || isSelfView}
+                aria-label={t('employee-record-chat-button')}
+                data-testid="employee-chat-button"
+              >
+                <ChatCircleIcon size={16} />
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isSelfView ? t('employee-record-chat-cannot-self') : t('employee-record-chat-tooltip')}
+          </TooltipContent>
+        </Tooltip>
+      )}
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="gba:inline-flex">
