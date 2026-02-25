@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Card, CardContent } from '@newwork/nw-design-system'
-import { Calendar } from 'lucide-react'
+import { Calendar, Globe, Lock, MessageCircle } from 'lucide-react'
 import { FormattedFeedback } from './types'
 import { toAvatarSrc } from './avatar'
 
@@ -10,9 +10,19 @@ interface FeedbackCardsProps {
   feedbackList: FormattedFeedback[]
   privateBadgeLabel: string
   publicBadgeLabel: string
+  showMoreLabel: string
+  showLessLabel: string
 }
 
-const FeedbackCards: React.FC<FeedbackCardsProps> = ({ feedbackList, privateBadgeLabel, publicBadgeLabel }) => {
+const FeedbackCards: React.FC<FeedbackCardsProps> = ({
+  feedbackList,
+  privateBadgeLabel,
+  publicBadgeLabel,
+  showMoreLabel,
+  showLessLabel
+}) => {
+  const [expandedByKey, setExpandedByKey] = React.useState<Record<string, boolean>>({})
+
   return (
     <div className="gba:space-y-4" data-testid="feedback-list">
       {feedbackList.map((feedback, index) => {
@@ -39,17 +49,26 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({ feedbackList, privateBadg
                     </span>
                     {feedback.type && (
                       <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
-                        {feedback.type}
+                        <span className="gba:inline-flex gba:items-center gba:gap-1">
+                          <MessageCircle className="gba:h-3 gba:w-3" />
+                          {feedback.type}
+                        </span>
                       </Badge>
                     )}
                     {feedback.private && (
                       <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
-                        {privateBadgeLabel}
+                        <span className="gba:inline-flex gba:items-center gba:gap-1">
+                          <Lock className="gba:h-3 gba:w-3" />
+                          {privateBadgeLabel}
+                        </span>
                       </Badge>
                     )}
                     {!feedback.private && (
                       <Badge variant="secondary" data-testid={`feedback-privacy-${index}`}>
-                        {publicBadgeLabel}
+                        <span className="gba:inline-flex gba:items-center gba:gap-1">
+                          <Globe className="gba:h-3 gba:w-3" />
+                          {publicBadgeLabel}
+                        </span>
                       </Badge>
                     )}
                   </div>
@@ -72,11 +91,27 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({ feedbackList, privateBadg
                     </div>
                   )}
                   <div
-                    className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
+                    className={`gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3 ${
+                      expandedByKey[feedbackKey] ? '' : 'gba:line-clamp-4'
+                    }`}
                     data-testid={`feedback-content-${index}`}
                   >
                     {feedback.content}
                   </div>
+                  {feedback.content && feedback.content.length > 180 && (
+                    <button
+                      type="button"
+                      className="gba:mt-2 gba:text-xs gba:font-medium gba:text-primary hover:gba:underline"
+                      onClick={() =>
+                        setExpandedByKey(prev => ({
+                          ...prev,
+                          [feedbackKey]: !prev[feedbackKey]
+                        }))
+                      }
+                    >
+                      {expandedByKey[feedbackKey] ? showLessLabel : showMoreLabel}
+                    </button>
+                  )}
                 </div>
               </div>
             </CardContent>
