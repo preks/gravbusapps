@@ -73,7 +73,7 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
       description: t('hr-analytics-employee-tenure-description'),
       exportColumns: [
         { key: 'period', header: t('hr-analytics-tenure-range') },
-        { key: 'value', header: t('hr-analytics-employees') }
+        { key: 'value', header: t('hr-analytics-employees'), badge: HIGHLIGHT_BADGE }
       ]
     },
     {

@@ -16,7 +16,15 @@ export interface CreateChatMessage {
   isStreaming?: boolean
 }
 
-export type CanvasTab = 'screen' | 'data-model' | 'functions' | 'task-expert' | 'flow' | 'about'
+export type CanvasTab =
+  | 'build-plan'
+  | 'data-flow'
+  | 'screen'
+  | 'data-model'
+  | 'functions'
+  | 'task-expert'
+  | 'flow'
+  | 'about'
 
 export interface CanvasTabInfo {
   id: CanvasTab
@@ -24,10 +32,12 @@ export interface CanvasTabInfo {
 }
 
 export const CANVAS_TABS: CanvasTabInfo[] = [
+  { id: 'build-plan', label: 'Build Plan' },
   { id: 'screen', label: 'Screen' },
   { id: 'data-model', label: 'Data Model' },
   { id: 'functions', label: 'Functions' },
   { id: 'task-expert', label: 'Task Expert' },
   { id: 'flow', label: 'Flow' },
+  { id: 'data-flow', label: 'Architecture' },
   { id: 'about', label: 'About' }
 ]

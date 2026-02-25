@@ -10,6 +10,8 @@ import { Upload, Loader2, CheckCircle2 } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
+import { BuildPlanTab } from './BuildPlanTab'
+import { DataFlowDiagram } from './DataFlowDiagram'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import { AppAboutView } from './AppAboutView'
 import type { ComponentSpec, CanvasTab } from '../../types'
@@ -59,6 +61,12 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'build-plan':
+        return <BuildPlanTab components={components} userSummary={userSummary} prompt={prompt} />
+
+      case 'data-flow':
+        return <DataFlowDiagram components={components} />
+
       case 'screen':
         if (previewComponent && accessToken) {
           return (
@@ -174,8 +182,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
         <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      {/* Tab Content */}
-      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto">{renderTabContent()}</div>
+      {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0 */}
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden gba:relative">{renderTabContent()}</div>
     </div>
   )
 }

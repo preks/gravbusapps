@@ -1,7 +1,42 @@
 import React, { useMemo } from 'react'
 import { AssetStatus } from '../types'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+
+type ActionLabelKey = 'actions' | 'update_asset' | 'allocate_asset' | 'retrieve_asset' | 'retire_asset' | 'export_pdf'
+
+/** Action dropdown labels by locale (matches assets _i18n FTL). Fallback to en-US. */
+const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = {
+  'en-US': {
+    actions: 'Actions',
+    update_asset: 'Update Asset',
+    allocate_asset: 'Allocate Asset',
+    retrieve_asset: 'Retrieve Asset',
+    retire_asset: 'Retire Asset',
+    export_pdf: 'Export PDF'
+  },
+  'de-DE': {
+    actions: 'Aktionen',
+    update_asset: 'Gerät aktualisieren',
+    allocate_asset: 'Gerät zuweisen',
+    retrieve_asset: 'Gerät zurücknehmen',
+    retire_asset: 'Gerät außer Betrieb nehmen',
+    export_pdf: 'Als PDF exportieren'
+  },
+  'ro-RO': {
+    actions: 'Acțiuni',
+    update_asset: 'Actualizează activ',
+    allocate_asset: 'Alocă activ',
+    retrieve_asset: 'Reia activul',
+    retire_asset: 'Retrage activul',
+    export_pdf: 'Exportă PDF'
+  }
+}
+
+function getActionLabels(): Record<ActionLabelKey, string> {
+  const locale = getCurrentActiveUserLocale()
+  return ACTION_LABELS_BY_LOCALE[locale] ?? ACTION_LABELS_BY_LOCALE['en-US']!
+}
 
 interface AssetTableActionButtonProps {
   assetId: string
@@ -12,6 +47,7 @@ interface AssetTableActionButtonProps {
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
 }
 
 export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
@@ -22,19 +58,22 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
-  onRetrieveAsset
+  onRetrieveAsset,
+  onGenerateDocument
 }) => {
   const isAllocated = assetStatus === AssetStatus.ALLOCATED
   const isRetired = assetStatus === AssetStatus.RETIRED
+  const locale = getCurrentActiveUserLocale()
 
   const staticFlowData = useMemo(() => {
+    const labels = getActionLabels()
     const actions: any[] = []
 
     if (!isRetired && onUpdateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'update-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_asset', 'Update Asset'),
+        label: labels.update_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onUpdateAsset(assetId)
@@ -44,9 +83,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (!isAllocated && !isRetired && onAllocateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'allocate-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
+        label: labels.allocate_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onAllocateAsset(assetId)
@@ -56,9 +95,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (isAllocated && !isRetired && onRetrieveAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'retrieve-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retrieve_asset', 'Retrieve Asset'),
+        label: labels.retrieve_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetrieveAsset(assetId)
@@ -68,9 +107,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (!isRetired && onRetireAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        category: labels.actions,
         key: 'retire-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retire_asset', 'Retire Asset'),
+        label: labels.retire_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetireAsset(assetId)
@@ -78,8 +117,30 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
       })
     }
 
+    if (onGenerateDocument) {
+      actions.push({
+        category: labels.actions,
+        key: 'generate-document',
+        label: labels.export_pdf,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onGenerateDocument(assetId)
+        }
+      })
+    }
+
     return actions
-  }, [assetId, isAllocated, isRetired, onAllocateAsset, onUpdateAsset, onRetireAsset, onRetrieveAsset])
+  }, [
+    locale,
+    assetId,
+    isAllocated,
+    isRetired,
+    onAllocateAsset,
+    onUpdateAsset,
+    onRetireAsset,
+    onRetrieveAsset,
+    onGenerateDocument
+  ])
 
   return (
     <AppActionButton

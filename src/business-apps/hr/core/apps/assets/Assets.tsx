@@ -16,6 +16,7 @@ import { ReturnAsset } from '../../forms/return-asset/ReturnAsset'
 import { Asset, AssetStatus } from './types'
 import { useAssetService } from './services/useAssetService'
 import { AssetProcessClient } from './services/AssetProcessClient'
+import { generateAssetDocumentPdf } from './utils/assetDocumentPdf'
 
 const moduleColor = MODULE_COLORS.HR
 
@@ -76,6 +77,20 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   )
 
   const { getAllocationsForAsset, getAssetById, deallocateAsset } = useAssetService(props)
+
+  const handleGenerateDocument = useCallback(
+    async (assetId: string) => {
+      try {
+        const asset = assets.find(a => a.id === assetId) ?? (await getAssetById(assetId))
+        if (!asset) return
+        const allocations = await getAllocationsForAsset(assetId)
+        await generateAssetDocumentPdf(asset, allocations)
+      } catch (error) {
+        console.error('Error generating asset document:', error)
+      }
+    },
+    [assets, getAssetById, getAllocationsForAsset]
+  )
   const [selectedAssetAllocations, setSelectedAssetAllocations] = useState<any[]>([])
 
   const getAssetIdFromUrl = useCallback((): string | null => {
@@ -422,6 +437,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               onUpdateAsset={handleUpdateAsset}
               onRetireAsset={handleRetireAsset}
               onRetrieveAsset={handleRetrieveAsset}
+              onGenerateDocument={handleGenerateDocument}
             />
           </div>
         </div>

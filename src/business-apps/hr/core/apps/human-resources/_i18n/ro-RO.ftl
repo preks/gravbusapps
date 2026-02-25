@@ -48,6 +48,7 @@ hr-analytics-vs-last-month = față de luna trecută
 # Analytics - Common chart labels
 hr-analytics-data-error = Nu s-au putut încărca datele
 hr-analytics-chart-year = An
+hr-analytics-year = An
 hr-analytics-chart-employees = Angajați
 hr-analytics-chart-hires = Angajări
 hr-analytics-trend = Trend
@@ -394,6 +395,7 @@ hr-analytics-health-insurance-type-distribution-description = Distribuția angaj
 hr-analytics-data-error = Nu s-au putut încărca datele
 hr-analytics-no-data = Nu sunt disponibile date
 hr-analytics-chart-year = An
+hr-analytics-year = An
 hr-analytics-chart-employees = Angajați
 hr-analytics-chart-hires = Angajări
 hr-analytics-trend = Trend

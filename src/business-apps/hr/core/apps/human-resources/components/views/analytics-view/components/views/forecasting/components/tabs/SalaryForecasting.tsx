@@ -14,7 +14,7 @@ import DepartmentContributionAnalysis from '../DepartmentContributionAnalysis'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
-import { formatTableCell } from '../../../../../utils/valueDisplayUtils'
+import { formatTableCell, formatMonthPeriod } from '../../../../../utils/valueDisplayUtils'
 import { useAnalyticsTableExport } from '../../../../../hooks/useAnalyticsTableExport'
 import { useChartTableSelection } from '../../../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, {
@@ -73,6 +73,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   }, [fullYearData, nextMonthStart, sixMonthsEnd])
 
   const loading = fullYearLoading
+  const locale = getCurrentActiveUserLocale() ?? 'en-US'
 
   // Calculate Salary-related KPI metrics
   const salaryKpiCards: KpiCardData[] = useMemo(() => {
@@ -181,7 +182,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   const transformSalaryForecastData = (): TableDataRow[] => {
     if (!monthlyData?.length) return []
     return monthlyData.map(item => ({
-      period: item.month,
+      period: formatMonthPeriod(item.month, locale),
       value: item.totalSalary,
       headcount: item.headcount,
       newHires: item.newHires
@@ -191,7 +192,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   const transformSalaryChangesData = (): TableDataRow[] => {
     if (!salaryChangesData?.length) return []
     return salaryChangesData.map(item => ({
-      period: item.month,
+      period: formatMonthPeriod(item.month, locale),
       value: item.change
     }))
   }
@@ -200,7 +201,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     if (!departmentSalaryData?.length) return []
     return departmentSalaryData.flatMap(month =>
       month.departments.map(department => ({
-        period: month.month,
+        period: formatMonthPeriod(month.month, locale),
         department: department.name,
         value: department.salary,
         percentage: `${department.percent.toFixed(1)}%`,
@@ -223,7 +224,6 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     }))
   }
 
-  const locale = getCurrentActiveUserLocale() ?? 'en-US'
   const formatCell = (value: unknown) => formatTableCell(value, locale)
   const transformRowsForExport = (
     data: TableDataRow[],

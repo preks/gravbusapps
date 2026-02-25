@@ -52,10 +52,10 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
-      {/* Two-column layout for What You're Getting and What You Can Do */}
+      {/* Two-column layout for Features & Capabilities and Your App Can */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <div className="gba:space-y-1.5">
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You're Getting</h3>
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Features & Capabilities</h3>
           <ul className="gba:space-y-1">
             {userSummary.whatYouGet.map(item => (
               <li
@@ -70,7 +70,7 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
         </div>
 
         <div className="gba:space-y-1.5">
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You Can Do</h3>
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Your App Can</h3>
           <ul className="gba:space-y-1">
             {userSummary.whatYouCanDo.map(item => (
               <li
@@ -85,9 +85,9 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
         </div>
       </div>
 
-      {/* Why This Matters */}
+      {/* Business Impact */}
       <div className="gba:space-y-1.5">
-        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Why This Matters</h3>
+        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Business Impact</h3>
         <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">{userSummary.businessValue}</p>
       </div>
 

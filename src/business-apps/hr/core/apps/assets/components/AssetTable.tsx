@@ -28,6 +28,7 @@ interface AssetTableProps extends BusinessAppContextProps {
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
 }
 
 export const AssetTable: React.FC<AssetTableProps> = ({
@@ -50,6 +51,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   onUpdateAsset,
   onRetireAsset,
   onRetrieveAsset,
+  onGenerateDocument,
   accessToken
 }) => {
   const DATA_TEST_ID_PREFIX = 'asset-table'
@@ -175,6 +177,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                   onUpdateAsset={onUpdateAsset}
                   onRetireAsset={onRetireAsset}
                   onRetrieveAsset={onRetrieveAsset}
+                  onGenerateDocument={onGenerateDocument}
                 />
               ))
             )}
