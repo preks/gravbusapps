@@ -1,7 +1,7 @@
 # Functions Manager Translations (English)
 
 # Page Header
-page-title = NEWWORK Functions
+page-title = Functions
 page-description = Manage versioned functions for agents and flows
 
 # Section
@@ -18,6 +18,7 @@ search-placeholder = Search by name, description, version...
 column-name = Name
 column-description = Description
 column-version = Version
+column-last-version = Last updated
 column-agent = Agent
 column-workflow = Workflow
 

@@ -5,6 +5,19 @@ import type { LatestFunctionItem } from '@/common/network/functions/FunctionsSer
 
 type TranslationFn = (key: string) => string
 
+const formatDateTime = (iso: string | undefined): string => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(d)
+}
+
 const BooleanCell: React.FC<{ value?: boolean }> = ({ value }) => (
   <div className="gba:flex gba:items-center gba:justify-center">
     {value ? (
@@ -50,6 +63,16 @@ export const createFunctionsColumns = (t: TranslationFn): ColumnDef<LatestFuncti
     size: 120,
     meta: { align: 'right' },
     cell: ({ row }) => <div className="gba:text-right">v{row.original.latestVersion?.version ?? '-'}</div>
+  },
+  {
+    id: 'lastVersionAt',
+    header: t('column-last-version'),
+    size: 180,
+    meta: { align: 'right' },
+    accessorFn: row => row.latestVersion?.createdAt || '',
+    cell: ({ row }) => (
+      <div className="gba:text-right gba:text-sm">{formatDateTime(row.original.latestVersion?.createdAt)}</div>
+    )
   }
 ]
 
@@ -58,7 +81,8 @@ export const functionsSortableColumns = [
   { id: 'description', label: 'Description' },
   { id: 'agentEnabled', label: 'Agent' },
   { id: 'workflowEnabled', label: 'Workflow' },
-  { id: 'version', label: 'Version' }
+  { id: 'version', label: 'Version' },
+  { id: 'lastVersionAt', label: 'Last updated' }
 ]
 
 export const getDefaultVisibleColumns = (): string[] => [
@@ -66,5 +90,6 @@ export const getDefaultVisibleColumns = (): string[] => [
   'description',
   'agentEnabled',
   'workflowEnabled',
-  'version'
+  'version',
+  'lastVersionAt'
 ]
