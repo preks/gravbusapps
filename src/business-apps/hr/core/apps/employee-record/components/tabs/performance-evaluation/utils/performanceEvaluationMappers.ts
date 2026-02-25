@@ -88,11 +88,12 @@ export const findLatestPerformanceEvaluationId = (
   const flattenedItems = flattenPerformanceEvaluations(overview)
   if (!flattenedItems.length) return null
 
-  const latestEvaluation = flattenedItems.reduce((currentLatest, currentItem) => {
+  const [firstItem, ...remainingItems] = flattenedItems
+  const latestEvaluation = remainingItems.reduce((currentLatest, currentItem) => {
     const currentLatestTimestamp = getLatestComparableTimestamp(currentLatest)
     const currentItemTimestamp = getLatestComparableTimestamp(currentItem)
     return currentItemTimestamp > currentLatestTimestamp ? currentItem : currentLatest
-  })
+  }, firstItem)
 
   return latestEvaluation.evaluation.evaluationId
 }
@@ -102,13 +103,14 @@ export const getLatestEvaluationForCycle = (
 ): PerformanceEvaluationOverviewItem | null => {
   if (!cycle.evaluations.length) return null
 
-  return cycle.evaluations.reduce((currentLatest, currentItem) => {
+  const [firstEvaluation, ...remainingEvaluations] = cycle.evaluations
+  return remainingEvaluations.reduce((currentLatest, currentItem) => {
     const currentLatestTimestamp =
       toComparableTimestamp(currentLatest.actualCompletionDate) ?? toComparableTimestamp(currentLatest.startDate) ?? -1
     const currentItemTimestamp =
       toComparableTimestamp(currentItem.actualCompletionDate) ?? toComparableTimestamp(currentItem.startDate) ?? -1
     return currentItemTimestamp > currentLatestTimestamp ? currentItem : currentLatest
-  })
+  }, firstEvaluation)
 }
 
 export const findLatestPerformanceCycleId = (
@@ -116,7 +118,8 @@ export const findLatestPerformanceCycleId = (
 ): string | null => {
   if (!overview?.performanceCycles?.length) return null
 
-  const cycleWithLatestEvaluation = overview.performanceCycles.reduce((currentLatest, currentCycle) => {
+  const [firstCycle, ...remainingCycles] = overview.performanceCycles
+  const cycleWithLatestEvaluation = remainingCycles.reduce((currentLatest, currentCycle) => {
     const currentLatestEvaluation = getLatestEvaluationForCycle(currentLatest)
     const currentCycleEvaluation = getLatestEvaluationForCycle(currentCycle)
     const currentLatestTimestamp =
@@ -129,7 +132,7 @@ export const findLatestPerformanceCycleId = (
       -1
 
     return currentCycleTimestamp > currentLatestTimestamp ? currentCycle : currentLatest
-  })
+  }, firstCycle)
 
   return cycleWithLatestEvaluation.performanceCycleId
 }
