@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { Card, CardContent, Badge } from '@newwork/nw-design-system'
-import { CheckCircle2, Recycle, XCircle, SkipForward, Package } from 'lucide-react'
+import { CheckCircle2, Recycle, XCircle, SkipForward, Package, Clock, AlertCircle } from 'lucide-react'
 import type { ComponentSpec } from '../../types'
 
 interface ComponentPlaceholderListProps {
@@ -19,8 +19,16 @@ const STATUS_CONFIG: Record<string, { icon: React.ElementType; label: string; cl
   completed: { icon: CheckCircle2, label: 'Created', className: 'gba:text-success' },
   reused: { icon: Recycle, label: 'Reused', className: 'gba:text-info' },
   error: { icon: XCircle, label: 'Failed', className: 'gba:text-destructive' },
-  skipped: { icon: SkipForward, label: 'Skipped', className: 'gba:text-muted-foreground' }
+  skipped: { icon: SkipForward, label: 'Skipped', className: 'gba:text-muted-foreground' },
+  cancelled: { icon: SkipForward, label: 'Cancelled', className: 'gba:text-muted-foreground' },
+  pending: { icon: Clock, label: 'Pending', className: 'gba:text-muted-foreground' },
+  building: { icon: Clock, label: 'Building', className: 'gba:text-warning' },
+  analyzing: { icon: Clock, label: 'Analyzing', className: 'gba:text-muted-foreground' },
+  discovering: { icon: Clock, label: 'Discovering', className: 'gba:text-muted-foreground' },
+  wiring: { icon: Clock, label: 'Wiring', className: 'gba:text-muted-foreground' }
 }
+
+const DEFAULT_STATUS = { icon: AlertCircle, label: 'Unknown', className: 'gba:text-muted-foreground' }
 
 export const ComponentPlaceholderList: React.FC<ComponentPlaceholderListProps> = ({
   components,
@@ -46,10 +54,11 @@ export const ComponentPlaceholderList: React.FC<ComponentPlaceholderListProps> =
         {typeLabel}s ({components.length})
       </h3>
       {components.map(component => {
-        const statusInfo = STATUS_CONFIG[component.status] || STATUS_CONFIG.completed
+        const statusInfo = STATUS_CONFIG[component.status] ?? DEFAULT_STATUS
         const StatusIcon = statusInfo.icon
+        const isError = component.status === 'error'
         return (
-          <Card key={component.id} className="gba:border-border/60">
+          <Card key={component.id} className={`gba:border-border/60 ${isError ? 'gba:border-destructive/40' : ''}`}>
             <CardContent className="gba:p-3">
               <div className="gba:flex gba:items-start gba:gap-3">
                 <div className="gba:flex-1 gba:min-w-0">
@@ -63,6 +72,11 @@ export const ComponentPlaceholderList: React.FC<ComponentPlaceholderListProps> =
                   <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">
                     {component.userFriendlyDescription || component.description}
                   </p>
+                  {isError && component.errorMessage && (
+                    <p className="gba:mt-1.5 gba:text-xs gba:text-destructive gba:bg-destructive/8 gba:rounded gba:px-2 gba:py-1 gba:line-clamp-3">
+                      {component.errorMessage}
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

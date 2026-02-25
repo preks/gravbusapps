@@ -1,8 +1,42 @@
 import React, { useMemo } from 'react'
 import { AssetStatus } from '../types'
-import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import assetsTranslations from '../_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+
+type ActionLabelKey = 'actions' | 'update_asset' | 'allocate_asset' | 'retrieve_asset' | 'retire_asset' | 'export_pdf'
+
+/** Action dropdown labels by locale (matches assets _i18n FTL). Fallback to en-US. */
+const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = {
+  'en-US': {
+    actions: 'Actions',
+    update_asset: 'Update Asset',
+    allocate_asset: 'Allocate Asset',
+    retrieve_asset: 'Retrieve Asset',
+    retire_asset: 'Retire Asset',
+    export_pdf: 'Export PDF'
+  },
+  'de-DE': {
+    actions: 'Aktionen',
+    update_asset: 'Gerät aktualisieren',
+    allocate_asset: 'Gerät zuweisen',
+    retrieve_asset: 'Gerät zurücknehmen',
+    retire_asset: 'Gerät außer Betrieb nehmen',
+    export_pdf: 'Als PDF exportieren'
+  },
+  'ro-RO': {
+    actions: 'Acțiuni',
+    update_asset: 'Actualizează activ',
+    allocate_asset: 'Alocă activ',
+    retrieve_asset: 'Reia activul',
+    retire_asset: 'Retrage activul',
+    export_pdf: 'Exportă PDF'
+  }
+}
+
+function getActionLabels(): Record<ActionLabelKey, string> {
+  const locale = getCurrentActiveUserLocale()
+  return ACTION_LABELS_BY_LOCALE[locale] ?? ACTION_LABELS_BY_LOCALE['en-US']!
+}
 
 interface AssetTableActionButtonProps {
   assetId: string
@@ -27,18 +61,19 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
   onRetrieveAsset,
   onGenerateDocument
 }) => {
-  const { t } = useTranslation(assetsTranslations)
   const isAllocated = assetStatus === AssetStatus.ALLOCATED
   const isRetired = assetStatus === AssetStatus.RETIRED
+  const locale = getCurrentActiveUserLocale()
 
   const staticFlowData = useMemo(() => {
+    const labels = getActionLabels()
     const actions: any[] = []
 
     if (!isRetired && onUpdateAsset) {
       actions.push({
-        category: t('actions'),
+        category: labels.actions,
         key: 'update-asset',
-        label: t('update_asset'),
+        label: labels.update_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onUpdateAsset(assetId)
@@ -48,9 +83,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (!isAllocated && !isRetired && onAllocateAsset) {
       actions.push({
-        category: t('actions'),
+        category: labels.actions,
         key: 'allocate-asset',
-        label: t('allocate_asset'),
+        label: labels.allocate_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onAllocateAsset(assetId)
@@ -60,9 +95,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (isAllocated && !isRetired && onRetrieveAsset) {
       actions.push({
-        category: t('actions'),
+        category: labels.actions,
         key: 'retrieve-asset',
-        label: t('retrieve_asset'),
+        label: labels.retrieve_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetrieveAsset(assetId)
@@ -72,9 +107,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (!isRetired && onRetireAsset) {
       actions.push({
-        category: t('actions'),
+        category: labels.actions,
         key: 'retire-asset',
-        label: t('retire_asset'),
+        label: labels.retire_asset,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetireAsset(assetId)
@@ -84,9 +119,9 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     if (onGenerateDocument) {
       actions.push({
-        category: t('actions'),
+        category: labels.actions,
         key: 'generate-document',
-        label: t('export_pdf'),
+        label: labels.export_pdf,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onGenerateDocument(assetId)
@@ -96,7 +131,7 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
 
     return actions
   }, [
-    t,
+    locale,
     assetId,
     isAllocated,
     isRetired,

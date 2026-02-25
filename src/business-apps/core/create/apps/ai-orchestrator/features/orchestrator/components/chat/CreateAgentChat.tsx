@@ -1,9 +1,12 @@
 import { Button } from '@newwork/nw-design-system'
 import { History, Plus, MessageSquare, Sparkles } from 'lucide-react'
+import { useMemo } from 'react'
 import { useChatScroll } from '../../hooks/useChatScroll'
 import { CreateAgentChatMessage } from './CreateAgentChatMessage'
 import { CreateAgentChatInput } from './CreateAgentChatInput'
+import { useCurrentUserPicture } from '@/business-apps/platform/apps/every-ai/hooks/useCurrentUserPicture'
 import type { CreateChatMessage } from '../../types/chat'
+import type { UserInfoProps } from '@/common/BusinessAppContext'
 
 interface CreateAgentChatProps {
   messages: CreateChatMessage[]
@@ -11,6 +14,8 @@ interface CreateAgentChatProps {
   onSend: (message: string) => void
   onNewSession: () => void
   onOpenHistory: () => void
+  userInfo?: UserInfoProps
+  accessToken?: string
   testId?: string
 }
 
@@ -20,9 +25,21 @@ export const CreateAgentChat = ({
   onSend,
   onNewSession,
   onOpenHistory,
+  userInfo,
+  accessToken,
   testId = 'create-agent-chat'
 }: CreateAgentChatProps) => {
   const { messagesEndRef, scrollContainerRef, handleScroll } = useChatScroll(messages.length)
+
+  const employeeId = userInfo?.employeeDetails?.employeeId || undefined
+  const { pictureThumbnail } = useCurrentUserPicture(employeeId, accessToken ?? '')
+
+  const userAvatar = useMemo(() => {
+    const firstName = userInfo?.givenName || userInfo?.employeeDetails?.firstName || ''
+    const lastName = userInfo?.familyName || userInfo?.employeeDetails?.lastName || ''
+    const initials = [firstName[0], lastName[0]].filter(Boolean).join('').toUpperCase() || '?'
+    return { pictureBase64: pictureThumbnail ?? undefined, initials }
+  }, [pictureThumbnail, userInfo])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
@@ -61,7 +78,12 @@ export const CreateAgentChat = ({
         {messages.length === 0 && <EmptyState />}
 
         {messages.map(message => (
-          <CreateAgentChatMessage key={message.id} message={message} isStreaming={!!message.isStreaming} />
+          <CreateAgentChatMessage
+            key={message.id}
+            message={message}
+            isStreaming={!!message.isStreaming}
+            userAvatar={userAvatar}
+          />
         ))}
 
         <div ref={messagesEndRef} />

@@ -97,6 +97,44 @@ function parseErrorResponse(errorData: any, fallbackMessage: string): string {
   return fallbackMessage
 }
 
+type PublishSSEEvent = {
+  type: string
+  message?: string
+  result?: { success: boolean; message?: string }
+}
+
+type PublishResult = { success: boolean; message?: string }
+
+function handlePublishSSEEvent(
+  data: string,
+  onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+): PublishResult | null {
+  const evt = JSON.parse(data) as PublishSSEEvent
+  onEvent?.(evt)
+  if (evt.type === 'done' && evt.result) {
+    return evt.result
+  }
+  if (evt.type === 'error') {
+    throw new Error(evt.message || 'Publish failed')
+  }
+  return null
+}
+
+function processPublishSSELine(
+  line: string,
+  onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+): PublishResult | null {
+  if (!line.startsWith('data:')) return null
+  const data = line.slice(5).trim()
+  if (!data) return null
+  try {
+    return handlePublishSSEEvent(data, onEvent)
+  } catch (e) {
+    if (!(e instanceof SyntaxError)) throw e
+    return null
+  }
+}
+
 /**
  * Client for the AI Orchestrator API
  */
@@ -154,17 +192,6 @@ export class OrchestratorClient {
     try {
       const raw = JSON.parse(data) as Record<string, unknown>
       const event = normalizeProgressEvent(raw)
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[OrchestratorClient] Received SSE event:', {
-          type: event.eventType,
-          componentId: event.componentId,
-          componentName: event.componentName,
-          resourceUrl: event.resourceUrl,
-          azureUrl: event.azureUrl,
-          filesPublished: event.filesPublished,
-          message: event.message
-        })
-      }
       onEvent(event)
     } catch (e) {
       console.error('[OrchestratorClient] Failed to parse SSE event:', e, data)
@@ -374,7 +401,7 @@ export class OrchestratorClient {
 
     const decoder = new TextDecoder()
     let buffer = ''
-    let lastResult: { success: boolean; message?: string } = { success: false }
+    let lastResult: PublishResult = { success: false }
 
     while (true) {
       const { done, value } = await reader.read()
@@ -383,29 +410,8 @@ export class OrchestratorClient {
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
       for (const line of lines) {
-        if (!line.startsWith('data:')) continue
-        const data = line.slice(5).trim()
-        if (!data) continue
-        try {
-          const evt = JSON.parse(data) as {
-            type: string
-            message?: string
-            result?: { success: boolean; message?: string }
-          }
-          onEvent?.(evt)
-          if (evt.type === 'done' && evt.result) {
-            lastResult = evt.result as { success: boolean; message?: string }
-          }
-          if (evt.type === 'error') {
-            throw new Error(evt.message || 'Publish failed')
-          }
-        } catch (e) {
-          if (e instanceof Error && e.message !== 'Publish failed') {
-            // JSON parse error – skip
-          } else {
-            throw e
-          }
-        }
+        const result = processPublishSSELine(line, onEvent)
+        if (result) lastResult = result
       }
     }
 

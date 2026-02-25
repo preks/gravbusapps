@@ -66,7 +66,7 @@ export const AppAboutView: React.FC<AppAboutViewProps> = ({
   const features = [...(userSummary?.whatYouGet ?? []), ...(userSummary?.whatYouCanDo ?? [])]
 
   return (
-    <div className="gba:max-w-xl gba:mx-auto gba:px-8 gba:py-8 gba:space-y-6">
+    <div className="no-scrollbar gba:h-full gba:overflow-y-auto gba:max-w-3xl gba:mx-auto gba:px-6 gba:py-6 gba:space-y-5">
       {/* ── Identity ── */}
       <div className="gba:flex gba:items-start gba:gap-5">
         <AppIconBadge iconName={appMetadata?.icon} size="lg" className="gba:shrink-0 gba:mt-0.5" />

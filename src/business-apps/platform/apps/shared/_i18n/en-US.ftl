@@ -144,10 +144,10 @@ dimension-legal-entity = Legal Entity
 dimension-capability = Capability
 
 # Synced missing keys
-status-badge-archived = Arhivat
-status-badge-draft = Ciornă
-status-badge-in-review = În revizuire
-status-badge-published = Publicat
+status-badge-archived = Archived
+status-badge-draft = Draft
+status-badge-in-review = In review
+status-badge-published = Published
 
 # Pagination labels
 pagination-prev = Previous
