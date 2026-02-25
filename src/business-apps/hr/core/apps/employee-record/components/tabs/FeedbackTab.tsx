@@ -9,12 +9,6 @@ import {
   Button,
   Card,
   CardContent,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   EmptyState,
   Pagination,
   PaginationContent,
@@ -41,7 +35,6 @@ import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUti
 import { getTranslatedValue } from '../../utils/formatters'
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { PiPencilSimple } from 'react-icons/pi'
 import { AlertCircle, ChevronRight, MessageSquare, Send, TrendingUp, Users } from 'lucide-react'
 import translations from '../../_i18n'
@@ -113,17 +106,6 @@ interface FeedbackHubKpiResponse {
   } | null
 }
 
-interface AiInsightResult {
-  raw?: string
-  overallSentiment?: string
-  commonPositiveThemes?: string[]
-  constructiveThemes?: string[]
-  reflectionSummary?: string
-  toneAnalysis?: string
-  recurrentThemes?: string[]
-  growthSuggestion?: string
-}
-
 interface FeedbackHubKpis {
   receivedTotal: number
   receivedTrend: number
@@ -177,12 +159,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const [pendingRequestsPage, setPendingRequestsPage] = useState(1)
   const [showPendingPanel, setShowPendingPanel] = useState(false)
-
-  const [aiModalOpen, setAiModalOpen] = useState(false)
-  const [aiTarget, setAiTarget] = useState<FeedbackStream>('received')
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiError, setAiError] = useState<string | null>(null)
-  const [aiResult, setAiResult] = useState<AiInsightResult | null>(null)
 
   const buildFeedbackWhere = useCallback(
     (mode: FeedbackStream, withFilters = true) => {
@@ -398,161 +374,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   const trendLabel = (value: number) => (value > 0 ? `+${value}` : String(value))
 
-  const extractJsonObjectString = (response: string): string | null => {
-    const trimmed = response.trim()
-    if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed
-    const first = response.indexOf('{')
-    const last = response.lastIndexOf('}')
-    return first >= 0 && last > first ? response.slice(first, last + 1) : null
-  }
-
-  const readFlowBotResponseText = async (response: Response): Promise<string> => {
-    if (!response.body) throw new Error('No response body')
-    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
-    let text = ''
-    let frames = ''
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        frames += value
-        const chunks = frames.split('\n\n')
-        frames = chunks.pop() || ''
-        for (const frame of chunks) {
-          const lines = frame.split('\n')
-          let eventType = ''
-          let data = ''
-          for (const line of lines) {
-            if (line.startsWith('event: ')) eventType = line.slice(7)
-            if (line.startsWith('data: ')) data = line.slice(6)
-          }
-          if (eventType !== 'output-item' || !data) continue
-          try {
-            const parsed = JSON.parse(data)
-            if (parsed.type === 'answer' && Array.isArray(parsed.displayData)) {
-              for (const item of parsed.displayData) {
-                if (item.type === 'textBlock' && item.text) text += item.text
-              }
-            }
-          } catch {
-            // no-op
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock()
-    }
-    return text
-  }
-
-  const fetchAllFeedbackTexts = useCallback(
-    async (mode: FeedbackStream): Promise<string[]> => {
-      const texts: string[] = []
-      const limit = 200
-      let offset = 0
-      while (true) {
-        const response = await graphQLClient.request<any>(employeeFeedbackListQuery, {
-          where: buildFeedbackWhere(mode, false),
-          limit,
-          offset,
-          activeUserLocale: getCurrentActiveUserLocale()
-        })
-        const rows = (response?.EmployeeFeedback ?? []) as Array<{ feedback?: string | null }>
-        rows.forEach(row => {
-          const value = (row.feedback ?? '').trim()
-          if (value) texts.push(value)
-        })
-        if (rows.length < limit) break
-        offset += limit
-      }
-      return texts
-    },
-    [graphQLClient, buildFeedbackWhere]
-  )
-
-  const runAiInsights = useCallback(
-    async (mode: FeedbackStream) => {
-      setAiTarget(mode)
-      setAiModalOpen(true)
-      setAiLoading(true)
-      setAiError(null)
-      setAiResult(null)
-
-      const cacheKey = `feedback-hub-ai-${mode}-${currentUserEmployeeId}`
-      try {
-        const cached = sessionStorage.getItem(cacheKey)
-        if (cached) {
-          setAiResult(JSON.parse(cached) as AiInsightResult)
-          setAiLoading(false)
-          return
-        }
-      } catch {
-        // no-op
-      }
-
-      try {
-        const feedbackTexts = await fetchAllFeedbackTexts(mode)
-        if (!feedbackTexts.length) {
-          setAiResult({ raw: t('feedback-hub-ai-no-feedback-text') })
-          setAiLoading(false)
-          return
-        }
-
-        const prompt =
-          mode === 'received'
-            ? `Analyze RECEIVED feedback. Return ONLY JSON:
-{"overallSentiment":"...", "commonPositiveThemes":["..."], "constructiveThemes":["..."], "reflectionSummary":"..."}
-Feedback:
-${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
-            : `Analyze GIVEN feedback. Return ONLY JSON:
-{"toneAnalysis":"...", "recurrentThemes":["..."], "growthSuggestion":"..."}
-Feedback:
-${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
-
-        const form = new FormData()
-        form.append('session_id', '')
-        form.append('user_input_text', prompt)
-        form.append('llm_model', 'gpt-4.1')
-        form.append('use_web_search_tool', 'false')
-        form.append(
-          'current_page_context',
-          JSON.stringify({ type: 'overview', entity_name: 'employee_feedback', url: globalThis.location.href })
-        )
-
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 25000)
-        try {
-          const response = await fetch(`${resolveFlowbotBaseUrl()}/flowbot/api/agent/v2/chat`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              Accept: 'text/event-stream'
-            },
-            body: form,
-            signal: controller.signal
-          })
-          if (!response.ok) throw new Error(`AI service returned ${response.status}`)
-          const raw = await readFlowBotResponseText(response)
-          const jsonPayload = extractJsonObjectString(raw)
-          const parsed = jsonPayload ? (JSON.parse(jsonPayload) as AiInsightResult) : ({ raw } as AiInsightResult)
-          setAiResult(parsed)
-          try {
-            sessionStorage.setItem(cacheKey, JSON.stringify(parsed))
-          } catch {
-            // no-op
-          }
-        } finally {
-          clearTimeout(timeout)
-        }
-      } catch (err) {
-        setAiError(err instanceof Error ? err.message : t('feedback-hub-ai-failed'))
-      } finally {
-        setAiLoading(false)
-      }
-    },
-    [accessToken, currentUserEmployeeId, fetchAllFeedbackTexts, t]
-  )
-
   return (
     <div className="gba:space-y-8 gba:pb-6" data-testid="feedback-tab">
       <div className="gba:pb-4">
@@ -577,7 +398,8 @@ ${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
               {t('feedback-hub-request-feedback')}
             </AppAction>
             <AppAction
-              variant="update-primary"
+              variant="update-secondary"
+              buttonSize="default"
               contexts={[{ context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }]}
               prefixDataTestId="add-feedback"
               accessToken={accessToken}
@@ -589,7 +411,7 @@ ${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
         </div>
       </div>
 
-      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-4 gba:gap-4">
+      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-4 gba:gap-4 gba:items-start">
         <Card>
           <CardContent className="gba:p-4">
             <p className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
@@ -631,25 +453,27 @@ ${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
         </Card>
         <Card>
           <CardContent className="gba:p-4">
-            <p className="gba:text-sm gba:font-medium gba:mb-2">{t('feedback-hub-suggested-actions-title')}</p>
-            <div className="gba:space-y-2 gba:text-sm">
+            <p className="gba:text-sm gba:font-medium gba:mb-3">{t('feedback-hub-suggested-actions-title')}</p>
+            <ul className="gba:list-disc gba:pl-5 gba:space-y-3 gba:text-sm gba:text-muted-foreground">
               {pendingRequestsCount > 0 && (
-                <button
-                  type="button"
-                  className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-left gba:text-primary hover:gba:underline gba:font-medium"
-                  onClick={() => {
-                    setPendingRequestsPage(1)
-                    setShowPendingPanel(true)
-                  }}
-                >
-                  <AlertCircle className="gba:h-4 gba:w-4" />
-                  {t('feedback-hub-suggested-pending', { count: pendingRequestsCount })}
-                  <ChevronRight className="gba:h-4 gba:w-4" />
-                </button>
+                <li>
+                  <button
+                    type="button"
+                    className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-left gba:text-primary hover:gba:underline gba:font-medium gba:mt-0.5"
+                    onClick={() => {
+                      setPendingRequestsPage(1)
+                      setShowPendingPanel(true)
+                    }}
+                  >
+                    {t('feedback-hub-suggested-pending', { count: pendingRequestsCount })}
+                    <AlertCircle className="gba:h-4 gba:w-4 gba:shrink-0" />
+                    <ChevronRight className="gba:h-4 gba:w-4 gba:shrink-0" />
+                  </button>
+                </li>
               )}
               {(kpis.daysSinceReceived == null || kpis.daysSinceReceived > 30) && (
-                <div className="gba:space-y-2">
-                  <p className="gba:text-muted-foreground">
+                <li className="gba:space-y-1.5">
+                  <p className="gba:mt-0.5">
                     {t('feedback-hub-suggested-no-received', {
                       days:
                         kpis.daysSinceReceived != null ? String(kpis.daysSinceReceived) : t('feedback-hub-days-never')
@@ -669,13 +493,14 @@ ${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
                   >
                     {t('feedback-hub-request-feedback')}
                   </AppAction>
-                </div>
+                </li>
               )}
               {(kpis.daysSinceGiven == null || kpis.daysSinceGiven > 30) && (
-                <div className="gba:space-y-2">
-                  <p className="gba:text-muted-foreground">{t('feedback-hub-suggested-no-given')}</p>
+                <li className="gba:space-y-1.5">
+                  <p className="gba:mt-0.5">{t('feedback-hub-suggested-no-given')}</p>
                   <AppAction
-                    variant="update-primary"
+                    variant="update-secondary"
+                    buttonSize="default"
                     contexts={[
                       { context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }
                     ]}
@@ -685,16 +510,18 @@ ${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
                   >
                     {t('feedback-hub-give-feedback')}
                   </AppAction>
-                </div>
+                </li>
               )}
               {pendingRequestsCount === 0 &&
                 kpis.daysSinceReceived != null &&
                 kpis.daysSinceReceived <= 30 &&
                 kpis.daysSinceGiven != null &&
                 kpis.daysSinceGiven <= 30 && (
-                  <p className="gba:text-muted-foreground">{t('feedback-hub-suggested-healthy')}</p>
+                  <li>
+                    <p className="gba:mt-0.5">{t('feedback-hub-suggested-healthy')}</p>
+                  </li>
                 )}
-            </div>
+            </ul>
           </CardContent>
         </Card>
       </div>
@@ -737,9 +564,6 @@ ${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
               <h3 className="gba:text-lg gba:font-semibold">
                 {t('feedback-hub-section-received-title', { total: receivedTotal })}
               </h3>
-              <Button size="sm" variant="outline" onClick={() => runAiInsights('received')}>
-                {t('feedback-hub-ai-insights-button')}
-              </Button>
             </div>
             {receivedLoading ? (
               <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
@@ -791,9 +615,6 @@ ${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
               <h3 className="gba:text-lg gba:font-semibold">
                 {t('feedback-hub-section-given-title', { total: givenTotal })}
               </h3>
-              <Button size="sm" variant="outline" onClick={() => runAiInsights('given')}>
-                {t('feedback-hub-ai-insights-button')}
-              </Button>
             </div>
             {givenLoading ? (
               <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
@@ -837,87 +658,6 @@ ${feedbackTexts.map((text, i) => `${i + 1}. "${text}"`).join('\n')}`
           </CardContent>
         </Card>
       </div>
-
-      <Dialog open={aiModalOpen} onOpenChange={setAiModalOpen}>
-        <DialogContent className="gba:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {aiTarget === 'received'
-                ? t('feedback-hub-ai-dialog-title-received')
-                : t('feedback-hub-ai-dialog-title-given')}
-            </DialogTitle>
-            <DialogDescription>{t('feedback-hub-ai-dialog-description')}</DialogDescription>
-          </DialogHeader>
-          {aiLoading ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-              <Spinner size="lg" />
-            </div>
-          ) : aiError ? (
-            <p className="gba:text-sm gba:text-destructive">{aiError}</p>
-          ) : aiResult ? (
-            <div className="gba:space-y-4">
-              {aiTarget === 'received' ? (
-                <>
-                  <div>
-                    <p className="gba:text-sm gba:font-medium">{t('feedback-hub-ai-overall-sentiment')}</p>
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {aiResult.overallSentiment ?? aiResult.raw ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="gba:text-sm gba:font-medium">{t('feedback-hub-ai-common-positive-themes')}</p>
-                    <ul className="gba:list-disc gba:ml-5 gba:text-sm gba:text-muted-foreground">
-                      {(aiResult.commonPositiveThemes ?? []).map((item, idx) => (
-                        <li key={`${item}-${idx}`}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="gba:text-sm gba:font-medium">{t('feedback-hub-ai-constructive-themes')}</p>
-                    <ul className="gba:list-disc gba:ml-5 gba:text-sm gba:text-muted-foreground">
-                      {(aiResult.constructiveThemes ?? []).map((item, idx) => (
-                        <li key={`${item}-${idx}`}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="gba:text-sm gba:font-medium">{t('feedback-hub-ai-reflection-summary')}</p>
-                    <p className="gba:text-sm gba:text-muted-foreground">{aiResult.reflectionSummary ?? '—'}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="gba:text-sm gba:font-medium">{t('feedback-hub-ai-tone-analysis')}</p>
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {aiResult.toneAnalysis ?? aiResult.raw ?? '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="gba:text-sm gba:font-medium">{t('feedback-hub-ai-recurrent-themes')}</p>
-                    <ul className="gba:list-disc gba:ml-5 gba:text-sm gba:text-muted-foreground">
-                      {(aiResult.recurrentThemes ?? []).map((item, idx) => (
-                        <li key={`${item}-${idx}`}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="gba:text-sm gba:font-medium">{t('feedback-hub-ai-growth-suggestion')}</p>
-                    <p className="gba:text-sm gba:text-muted-foreground">{aiResult.growthSuggestion ?? '—'}</p>
-                  </div>
-                </>
-              )}
-            </div>
-          ) : (
-            <p className="gba:text-sm gba:text-muted-foreground">{t('feedback-hub-ai-no-insights')}</p>
-          )}
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setAiModalOpen(false)}>
-              {t('feedback-hub-ai-close')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Sheet open={showPendingPanel} onOpenChange={setShowPendingPanel}>
         <SheetContent
