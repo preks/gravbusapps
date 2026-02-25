@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Card, CardContent } from '@newwork/nw-design-system'
-import { Calendar, Globe, Lock, MessageCircle } from 'lucide-react'
+import { CalendarIcon, ChatCircleIcon, GlobeIcon, LockIcon } from '@phosphor-icons/react'
 import { FormattedFeedback } from './types'
 import { toAvatarSrc } from './avatar'
 
@@ -50,7 +50,7 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
                     {feedback.type && (
                       <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
                         <span className="gba:inline-flex gba:items-center gba:gap-1">
-                          <MessageCircle className="gba:h-3 gba:w-3" />
+                          <ChatCircleIcon className="gba:h-3 gba:w-3" />
                           {feedback.type}
                         </span>
                       </Badge>
@@ -58,7 +58,7 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
                     {feedback.private && (
                       <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
                         <span className="gba:inline-flex gba:items-center gba:gap-1">
-                          <Lock className="gba:h-3 gba:w-3" />
+                          <LockIcon className="gba:h-3 gba:w-3" />
                           {privateBadgeLabel}
                         </span>
                       </Badge>
@@ -66,7 +66,7 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
                     {!feedback.private && (
                       <Badge variant="secondary" data-testid={`feedback-privacy-${index}`}>
                         <span className="gba:inline-flex gba:items-center gba:gap-1">
-                          <Globe className="gba:h-3 gba:w-3" />
+                          <GlobeIcon className="gba:h-3 gba:w-3" />
                           {publicBadgeLabel}
                         </span>
                       </Badge>
@@ -76,7 +76,7 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
                     className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
                     data-testid={`feedback-date-${index}`}
                   >
-                    <Calendar className="gba:h-4 gba:w-4" /> {feedback.date}
+                    <CalendarIcon className="gba:h-4 gba:w-4" /> {feedback.date}
                   </div>
                   {feedback.rating !== undefined && feedback.rating > 0 && (
                     <div className="gba:my-2 gba:flex gba:gap-0.5">

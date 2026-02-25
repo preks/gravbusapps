@@ -12,8 +12,7 @@ import {
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system'
-import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
-import { PiPencilSimple } from 'react-icons/pi'
+import { CaretLeftIcon, CaretRightIcon, PencilSimpleIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { toAvatarSrc } from './avatar'
@@ -89,7 +88,7 @@ const PendingRequestsSheet: React.FC<PendingRequestsSheetProps> = ({
                     })
                   }
                 >
-                  <PiPencilSimple className="gba:mr-1" />
+                  <PencilSimpleIcon className="gba:mr-1 gba:h-4 gba:w-4" />
                   {t('feedback-hub-pending-give-feedback-btn')}
                 </Button>
               </div>

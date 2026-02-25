@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { Search } from 'lucide-react'
+import { MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input'
 
 interface FeedbackToolbarProps {
@@ -75,7 +75,7 @@ const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
             onChange={onSearchChange}
             debounceDelay={300}
             className="gba:w-full gba:h-9"
-            icon={<Search className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+            icon={<MagnifyingGlassIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
             ariaLabel={searchPlaceholder}
             data-testid="feedback-search-input"
           />

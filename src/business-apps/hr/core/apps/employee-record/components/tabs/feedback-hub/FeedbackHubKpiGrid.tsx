@@ -2,7 +2,14 @@
 
 import React from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { AlertCircle, ChevronRight, MessageSquare, Send, TrendingUp, Users } from 'lucide-react'
+import {
+  CaretRightIcon,
+  ChatCircleIcon,
+  PaperPlaneTiltIcon,
+  TrendUpIcon,
+  UsersIcon,
+  WarningCircleIcon
+} from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Employee } from '../../../hooks/useEmployeeData'
@@ -31,12 +38,12 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
     <Card>
       <CardContent className="gba:p-4">
         <p className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
-          <MessageSquare className="gba:h-4 gba:w-4" />
+          <ChatCircleIcon className="gba:h-4 gba:w-4" />
           {t('feedback-hub-kpi-received-title')}
         </p>
         <p className="gba:text-2xl gba:font-semibold">{kpis.receivedTotal}</p>
         <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
-          <TrendingUp className="gba:h-3.5 gba:w-3.5" />
+          <TrendUpIcon className="gba:h-3.5 gba:w-3.5" />
           {t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.receivedTrend) })}
         </p>
       </CardContent>
@@ -44,12 +51,12 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
     <Card>
       <CardContent className="gba:p-4">
         <p className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
-          <Send className="gba:h-4 gba:w-4" />
+          <PaperPlaneTiltIcon className="gba:h-4 gba:w-4" />
           {t('feedback-hub-kpi-given-title')}
         </p>
         <p className="gba:text-2xl gba:font-semibold">{kpis.givenTotal}</p>
         <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
-          <TrendingUp className="gba:h-3.5 gba:w-3.5" />
+          <TrendUpIcon className="gba:h-3.5 gba:w-3.5" />
           {t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.givenTrend) })}
         </p>
       </CardContent>
@@ -57,12 +64,12 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
     <Card>
       <CardContent className="gba:p-4">
         <p className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
-          <Users className="gba:h-4 gba:w-4" />
+          <UsersIcon className="gba:h-4 gba:w-4" />
           {t('feedback-hub-kpi-contributors-title')}
         </p>
         <p className="gba:text-2xl gba:font-semibold">{kpis.distinctContributors}</p>
         <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
-          <TrendingUp className="gba:h-3.5 gba:w-3.5" />
+          <TrendUpIcon className="gba:h-3.5 gba:w-3.5" />
           {t('feedback-hub-kpi-trend-30d', { value: trendLabel(kpis.contributorTrend) })}
         </p>
       </CardContent>
@@ -79,8 +86,8 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
                 onClick={onOpenPendingPanel}
               >
                 {t('feedback-hub-suggested-pending', { count: pendingRequestsCount })}
-                <AlertCircle className="gba:h-4 gba:w-4 gba:shrink-0" />
-                <ChevronRight className="gba:h-4 gba:w-4 gba:shrink-0" />
+                <WarningCircleIcon className="gba:h-4 gba:w-4 gba:shrink-0" />
+                <CaretRightIcon className="gba:h-4 gba:w-4 gba:shrink-0" />
               </button>
             </li>
           )}
