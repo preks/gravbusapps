@@ -238,7 +238,10 @@ export const useFeedbackHubData = ({
   )
 
   const typeOptions = useMemo(
-    () => Array.from(new Set([...receivedList, ...givenList].map(item => item.type || '').filter(Boolean))).sort(),
+    () =>
+      Array.from(new Set([...receivedList, ...givenList].map(item => item.type || '').filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
     [receivedList, givenList]
   )
 

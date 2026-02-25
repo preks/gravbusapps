@@ -44,53 +44,62 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
   publicBadgeLabel,
   showMoreLabel,
   showLessLabel
-}) => (
-  <Card>
-    <CardContent className="gba:p-4 gba:space-y-4">
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-        <h3 className="gba:text-lg gba:font-semibold">{title}</h3>
+}) => {
+  let listContent: React.ReactNode
+  if (loading) {
+    listContent = (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+        <Spinner size="lg" />
       </div>
-      {loading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-          <Spinner size="lg" />
+    )
+  } else if (feedbackList.length > 0) {
+    listContent = (
+      <FeedbackCards
+        feedbackList={feedbackList}
+        privateBadgeLabel={privateBadgeLabel}
+        publicBadgeLabel={publicBadgeLabel}
+        showMoreLabel={showMoreLabel}
+        showLessLabel={showLessLabel}
+      />
+    )
+  } else {
+    listContent = <EmptyState title={emptyLabel} />
+  }
+
+  return (
+    <Card>
+      <CardContent className="gba:p-4 gba:space-y-4">
+        <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+          <h3 className="gba:text-lg gba:font-semibold">{title}</h3>
         </div>
-      ) : feedbackList.length > 0 ? (
-        <FeedbackCards
-          feedbackList={feedbackList}
-          privateBadgeLabel={privateBadgeLabel}
-          publicBadgeLabel={publicBadgeLabel}
-          showMoreLabel={showMoreLabel}
-          showLessLabel={showLessLabel}
-        />
-      ) : (
-        <EmptyState title={emptyLabel} />
-      )}
-      {total > FEEDBACK_LIST_LIMIT && (
-        <div className="gba:mt-4 gba:flex gba:justify-end">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={onPreviousPage}
-                  className={currentPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  onClick={onNextPage}
-                  className={
-                    currentPage >= Math.ceil(total / FEEDBACK_LIST_LIMIT)
-                      ? 'gba:pointer-events-none gba:opacity-50'
-                      : 'gba:cursor-pointer'
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
-    </CardContent>
-  </Card>
-)
+        {listContent}
+        {total > FEEDBACK_LIST_LIMIT && (
+          <div className="gba:mt-4 gba:flex gba:justify-end">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={onPreviousPage}
+                    className={currentPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={onNextPage}
+                    className={
+                      currentPage >= Math.ceil(total / FEEDBACK_LIST_LIMIT)
+                        ? 'gba:pointer-events-none gba:opacity-50'
+                        : 'gba:cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
 
 export default FeedbackListSection

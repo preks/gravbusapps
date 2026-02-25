@@ -84,7 +84,7 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
               </button>
             </li>
           )}
-          {(kpis.daysSinceReceived == null || kpis.daysSinceReceived > 30) && (
+          {!(kpis.daysSinceReceived != null && kpis.daysSinceReceived <= 30) && (
             <li className="gba:space-y-1.5">
               <p className="gba:mt-0.5">
                 {t('feedback-hub-suggested-no-received', {
