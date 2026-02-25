@@ -375,8 +375,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   const trendLabel = (value: number) => (value > 0 ? `+${value}` : String(value))
 
   return (
-    <div className="gba:space-y-8 gba:pb-6" data-testid="feedback-tab">
-      <div className="gba:pb-4">
+    <div className="gba:space-y-6 " data-testid="feedback-tab">
+      <div>
         <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-center gba:gap-4">
           <div className="gba:max-w-2xl">
             <h2 className="gba:font-bold gba:text-2xl">{t('feedback-hub-title')}</h2>
