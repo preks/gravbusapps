@@ -52,3 +52,11 @@ export interface PerformanceCycleOverview {
 export interface EmployeePerformanceEvaluationsOverview {
   performanceCycles: PerformanceCycleOverview[]
 }
+
+export interface PerformanceEvaluationDetailQueryParams {
+  employeeId?: string
+  employeeUserId?: string
+  includePeerReviewerIdentity?: boolean
+}
+
+export type PerformanceEvaluationAnalysisDetailResponse = Record<string, unknown>

@@ -15,6 +15,8 @@ import {
 } from '@newwork/nw-design-system'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { useEmployeePerformanceEvaluations } from './hooks/useEmployeePerformanceEvaluations'
+import { usePerformanceEvaluationDetail } from './hooks/usePerformanceEvaluationDetail'
+import PerformanceEvaluationDetailView from './components/PerformanceEvaluationDetailView'
 import translations from '../../../_i18n'
 
 interface PerformanceEvaluationTabProps {
@@ -45,6 +47,22 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
     accessToken,
     employeeId: effectiveEmployeeId
   })
+  const detailQuery = useMemo(
+    () => ({
+      employeeId: effectiveEmployeeId,
+      includePeerReviewerIdentity: false
+    }),
+    [effectiveEmployeeId]
+  )
+  const {
+    data: detailData,
+    loading: detailLoading,
+    error: detailError
+  } = usePerformanceEvaluationDetail({
+    accessToken,
+    evaluationId: selectedEvaluationId,
+    query: detailQuery
+  })
 
   const summary = useMemo(() => {
     const cycles = data?.performanceCycles ?? []
@@ -60,6 +78,30 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
       totalInProgress
     }
   }, [data])
+
+  if (selectedEvaluationId) {
+    return (
+      <div className="gba:space-y-4" data-testid="employee-performance-evaluation-detail-page">
+        <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            data-testid="employee-performance-evaluation-back-button"
+            onClick={() => setSelectedEvaluationId(null)}
+          >
+            {t('performance-evaluation-go-back')}
+          </Button>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('performance-evaluation-detail-title')}</p>
+        </div>
+        <PerformanceEvaluationDetailView
+          evaluationId={selectedEvaluationId}
+          loading={detailLoading}
+          error={detailError}
+          data={detailData}
+        />
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -194,16 +236,6 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
           </Card>
         ))}
       </div>
-
-      {selectedEvaluationId && (
-        <Card data-testid="employee-performance-evaluation-phase2-placeholder">
-          <CardContent className="gba:py-4">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {t('performance-evaluation-detail-placeholder', { evaluationId: selectedEvaluationId })}
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
