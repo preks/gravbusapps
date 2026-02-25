@@ -9,7 +9,7 @@ import { useHeadcountTrendsData } from '../../../../../hooks/useHeadcountTrendsD
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useAnalyticsTableExport } from '../../../../../hooks/useAnalyticsTableExport'
 import { useChartTableSelection } from '../../../../../hooks/useChartTableSelection'
-import { DIFFERENT_BADGE } from '../../../../shared/AnalyticsDataTable'
+import { DIFFERENT_BADGE, HIGHLIGHT_BADGE } from '../../../../shared/AnalyticsDataTable'
 import type { AnalyticsTableData } from '../../../../shared/analyticsTabTypes'
 import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
 import SelectableChartCard from '../../../../shared/SelectableChartCard'
@@ -108,7 +108,7 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       description: t('hr-analytics-headcount-by-org-unit-description'),
       exportColumns: [
         { key: 'period', header: t('hr-analytics-department') },
-        { key: 'value', header: t('hr-analytics-value') }
+        { key: 'value', header: t('hr-analytics-value'), badge: HIGHLIGHT_BADGE }
       ]
     }
   ]
