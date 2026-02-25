@@ -34,6 +34,8 @@ export interface FlowPreviewTrigger {
 
 export interface FlowPreviewStartConfig {
   triggers: FlowPreviewTrigger[]
+  /** Optional start form — present when the trigger type is MANUAL_FORM */
+  form?: FlowPreviewInputBlock[]
 }
 
 export interface FlowPreviewInputOption {
