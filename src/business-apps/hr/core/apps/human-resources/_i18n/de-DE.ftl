@@ -262,6 +262,7 @@ hr-analytics-bottleneck-managers = Engpass-Manager
 hr-analytics-detailed-reporting-chains = Detaillierte Berichtsketten
 hr-analytics-chain-id = Ketten-ID
 hr-analytics-top-manager = Oberster Manager
+hr-analytics-parent-organizational-unit = Übergeordnete Organisationseinheit
 hr-analytics-top-org-unit = Oberste Organisationseinheit
 hr-analytics-levels-title = Ebenen
 hr-analytics-bottlenecks = Engpässe
