@@ -557,8 +557,8 @@ const RadarComparisonCard: React.FC<{
         return previous.filter(entry => entry !== reviewer)
       }
 
-      const next = [...previous, reviewer]
-      return REVIEWER_KEYS.filter(entry => next.includes(entry))
+      const next = new Set<ReviewerKey>([...previous, reviewer])
+      return REVIEWER_KEYS.filter(entry => next.has(entry))
     })
   }
 
