@@ -107,6 +107,12 @@ export interface ApprovalPayoutCycleReport extends ReportItem {
   approvalDays: number | null
   payoutDays: number | null
   totalCycleDays: number | null
+  approvalSlaLimitDays: number
+  payoutSlaLimitDays: number | null
+  totalCycleSlaLimitDays: number
+  approvalSlaStatus: string
+  payoutSlaStatus: string
+  totalCycleSlaStatus: string
   bottleneckStage: string
   status: string
   totalAmount: number
@@ -116,6 +122,7 @@ export interface ApprovalPayoutCycleReport extends ReportItem {
 export interface UseBackofficeExpenseReportDataReturn {
   reportTypes: ReportMetadata[]
   selectedReportType: ReportType | null
+  reportDataType: ReportType | null
   setSelectedReportType: (type: ReportType) => void
   reportData: ReportItem[]
   isLoading: boolean
@@ -163,6 +170,37 @@ const GET_EMPLOYEES_BY_IDS = `
     }
   }
 `
+
+const GET_EXPENSES_SLA_POLICY = `
+  query GetExpensesSlaPolicy($searchTerm: String!) {
+    ContentEntry(
+      limit: 1
+      orderBy: [{ updatedAt: DESC }]
+      where: {
+        isDeleted: { _eq: false }
+        _or: [{ content: { _ilike: $searchTerm } }, { title: { _ilike: $searchTerm } }]
+      }
+    ) {
+      id
+      additionalProperties
+      content
+      updatedAt
+      createdAt
+    }
+  }
+`
+
+interface ExpensesSlaPolicy {
+  approvalSlaBusinessDays: number
+  payoutRunWeekday: number
+  totalCycleSlaBusinessDays: number
+}
+
+const DEFAULT_EXPENSES_SLA_POLICY: ExpensesSlaPolicy = {
+  approvalSlaBusinessDays: 2,
+  payoutRunWeekday: 1, // Monday (0=Sunday, 1=Monday, ..., 6=Saturday)
+  totalCycleSlaBusinessDays: 5
+}
 
 const getSettledAdvancePaidAmount = (advancePayments: any[]): number => {
   return (Array.isArray(advancePayments) ? advancePayments : [])
@@ -235,6 +273,84 @@ const daysDiff = (from: string, to: string): number | null => {
   return Number(((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)).toFixed(2))
 }
 
+const getObjectPathValue = (source: Record<string, any>, path: string): unknown => {
+  return path.split('.').reduce((acc: any, key) => (acc && typeof acc === 'object' ? acc[key] : undefined), source)
+}
+
+const parsePositiveNumber = (value: unknown): number | null => {
+  const normalized = Number(String(value ?? '').replace(',', '.'))
+  if (!Number.isFinite(normalized)) return null
+  return normalized >= 0 ? normalized : null
+}
+
+const getFirstNumberAtPaths = (source: Record<string, any>, paths: string[]): number | null => {
+  for (const path of paths) {
+    const value = parsePositiveNumber(getObjectPathValue(source, path))
+    if (value !== null) return value
+  }
+  return null
+}
+
+const parseAdditionalProperties = (raw: unknown): Record<string, any> => {
+  if (!raw) return {}
+  if (typeof raw === 'object') return raw as Record<string, any>
+  if (typeof raw !== 'string') return {}
+  try {
+    const parsed = JSON.parse(raw)
+    return typeof parsed === 'object' && parsed ? (parsed as Record<string, any>) : {}
+  } catch {
+    return {}
+  }
+}
+
+const extractBusinessDaysByLabel = (content: string, label: string): number | null => {
+  const normalizedContent = String(content || '')
+  const regex = new RegExp(`${label}[\\s\\S]{0,140}?(\\d+(?:[.,]\\d+)?)\\s*business\\s*days`, 'i')
+  const match = normalizedContent.match(regex)
+  return match ? parsePositiveNumber(match[1]) : null
+}
+
+const buildSlaStatus = (durationDays: number | null, thresholdDays: number): string => {
+  if (durationDays === null) return '-'
+  return durationDays > thresholdDays ? 'Breached' : 'Within SLA'
+}
+
+const getNextOrSameWeekday = (fromDate: Date, targetWeekday: number): Date => {
+  const result = new Date(fromDate)
+  const current = result.getDay()
+  const delta = (targetWeekday - current + 7) % 7
+  result.setDate(result.getDate() + delta)
+  return result
+}
+
+const evaluatePayoutSlaAgainstRunDay = (
+  approvedAt: string,
+  paidAt: string,
+  payoutRunWeekday: number,
+  approvalDays: number | null,
+  totalCycleSlaBusinessDays: number
+): { limitDays: number | null; status: string } => {
+  const approvedDate = parseDateOrNull(approvedAt)
+  if (!approvedDate) return { limitDays: null, status: '-' }
+
+  const mondayDueDate = getNextOrSameWeekday(approvedDate, payoutRunWeekday)
+  const mondayWindowDays = Number(
+    ((mondayDueDate.getTime() - approvedDate.getTime()) / (1000 * 60 * 60 * 24)).toFixed(2)
+  )
+
+  const remainingTotalWindowDays =
+    approvalDays === null ? null : Math.max(Number((totalCycleSlaBusinessDays - approvalDays).toFixed(2)), 0)
+
+  const limitDays =
+    remainingTotalWindowDays === null ? mondayWindowDays : Math.min(mondayWindowDays, remainingTotalWindowDays)
+
+  const paidDate = parseDateOrNull(paidAt)
+  const evaluationDate = paidDate || new Date()
+  const elapsedDays = Number(((evaluationDate.getTime() - approvedDate.getTime()) / (1000 * 60 * 60 * 24)).toFixed(2))
+  const status = elapsedDays <= limitDays ? 'Within SLA' : 'Breached'
+  return { limitDays, status }
+}
+
 export const useBackofficeExpenseReportData = ({
   accessToken,
   userInfo
@@ -245,10 +361,16 @@ export const useBackofficeExpenseReportData = ({
   const [error, setError] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
   const [searchTerm, setSearchTerm] = useState<string>('')
-  const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(ReportType.EXPENSE_ITEM)
+  const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(ReportType.APPROVAL_PAYOUT_CYCLE)
+  const [reportDataType, setReportDataType] = useState<ReportType | null>(ReportType.APPROVAL_PAYOUT_CYCLE)
+  const selectedReportTypeRef = useRef<ReportType | null>(ReportType.APPROVAL_PAYOUT_CYCLE)
   const employeeNameCacheRef = useRef<Record<string, string>>({})
+  const activeFetchTokenRef = useRef(0)
+  const reportCacheRef = useRef<Partial<Record<ReportType, { rows: ReportItem[]; totalCount: number }>>>({})
+  const reportQuerySignatureRef = useRef<Partial<Record<ReportType, string>>>({})
+  const expensesSlaPolicyRef = useRef<ExpensesSlaPolicy>(DEFAULT_EXPENSES_SLA_POLICY)
   const overview = useBackofficeExpensesOverview(
     { accessToken, userInfo },
     {
@@ -259,6 +381,52 @@ export const useBackofficeExpenseReportData = ({
       payments: { limit: pageSize, offset: (currentPage - 1) * pageSize }
     }
   )
+  const handleSelectedReportTypeChange = useCallback((nextType: ReportType) => {
+    const cached = reportCacheRef.current[nextType]
+    const previousType = selectedReportTypeRef.current
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'post-fix-tab-refresh-1',
+        hypothesisId: 'H5',
+        location: 'useBackofficeExpenseReportData.ts:handleSelectedReportTypeChange',
+        message: 'tab setter applying cache before selection',
+        data: {
+          nextType,
+          hasCache: Boolean(cached),
+          cachedRows: cached?.rows?.length ?? 0,
+          cachedTotal: cached?.totalCount ?? 0
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'post-fix-tab-refresh-8',
+        hypothesisId: 'H12',
+        location: 'useBackofficeExpenseReportData.ts:handleSelectedReportTypeChange',
+        message: 'tab setter previous vs next type',
+        data: { previousType, nextType, isSameType: previousType === nextType },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+    setReportDataType(nextType)
+    if (cached) {
+      setReportData(cached.rows)
+      setTotalCount(cached.totalCount)
+    } else {
+      setReportData([])
+      setTotalCount(0)
+    }
+    setSelectedReportType(nextType)
+  }, [])
 
   const resolveEmployeeNamesByIds = useCallback(
     async (employeeIds: string[]) => {
@@ -443,8 +611,15 @@ export const useBackofficeExpenseReportData = ({
             .filter(Boolean)
           const employeeNameById = await resolveEmployeeNamesByIds(ids)
           if (cancelled) return
-          setReportData(mapRequestsFromOverview(rows, employeeNameById))
-          setTotalCount(overview.data?.expenseRequestsTotal || 0)
+          const mappedRows = mapRequestsFromOverview(rows, employeeNameById) as ReportItem[]
+          setReportData(mappedRows)
+          setReportDataType(ReportType.EXPENSE_REQUEST)
+          const mappedTotalCount = overview.data?.expenseRequestsTotal || 0
+          setTotalCount(mappedTotalCount)
+          reportCacheRef.current[ReportType.EXPENSE_REQUEST] = {
+            rows: mappedRows,
+            totalCount: mappedTotalCount
+          }
           setError(null)
           break
         }
@@ -455,8 +630,15 @@ export const useBackofficeExpenseReportData = ({
             .filter(Boolean)
           const employeeNameById = await resolveEmployeeNamesByIds(ids)
           if (cancelled) return
-          setReportData(mapPlansFromOverview(rows, employeeNameById))
-          setTotalCount(overview.data?.expensePlansTotal || 0)
+          const mappedRows = mapPlansFromOverview(rows, employeeNameById) as ReportItem[]
+          setReportData(mappedRows)
+          setReportDataType(ReportType.EXPENSE_PLAN)
+          const mappedTotalCount = overview.data?.expensePlansTotal || 0
+          setTotalCount(mappedTotalCount)
+          reportCacheRef.current[ReportType.EXPENSE_PLAN] = {
+            rows: mappedRows,
+            totalCount: mappedTotalCount
+          }
           setError(null)
           break
         }
@@ -471,8 +653,15 @@ export const useBackofficeExpenseReportData = ({
             .filter(Boolean)
           const employeeNameById = await resolveEmployeeNamesByIds(ids)
           if (cancelled) return
-          setReportData(mapPaymentsFromOverview(rows, employeeNameById))
-          setTotalCount(overview.data?.advancePaymentsTotal || 0)
+          const mappedRows = mapPaymentsFromOverview(rows, employeeNameById) as ReportItem[]
+          setReportData(mappedRows)
+          setReportDataType(ReportType.ADVANCE_PAYMENT)
+          const mappedTotalCount = overview.data?.advancePaymentsTotal || 0
+          setTotalCount(mappedTotalCount)
+          reportCacheRef.current[ReportType.ADVANCE_PAYMENT] = {
+            rows: mappedRows,
+            totalCount: mappedTotalCount
+          }
           setError(null)
           break
         }
@@ -598,7 +787,8 @@ export const useBackofficeExpenseReportData = ({
 
   const processApprovalPayoutCycleData = (
     data: any,
-    employeeNameById: Record<string, string> = {}
+    employeeNameById: Record<string, string> = {},
+    slaPolicy: ExpensesSlaPolicy = DEFAULT_EXPENSES_SLA_POLICY
   ): ApprovalPayoutCycleReport[] => {
     const rows = Array.isArray(data?.ExpenseRequest) ? data.ExpenseRequest : []
     return rows.map((request: any) => {
@@ -654,6 +844,17 @@ export const useBackofficeExpenseReportData = ({
       const approvalDays = daysDiff(pendingAt, approvedAt)
       const payoutDays = daysDiff(approvedAt, paidAt)
       const totalCycleDays = daysDiff(pendingAt, paidAt)
+      const approvalSlaStatus = buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays)
+      const payoutSlaEvaluation = evaluatePayoutSlaAgainstRunDay(
+        approvedAt,
+        paidAt,
+        slaPolicy.payoutRunWeekday,
+        approvalDays,
+        slaPolicy.totalCycleSlaBusinessDays
+      )
+      const payoutSlaLimitDays = payoutSlaEvaluation.limitDays
+      const payoutSlaStatus = payoutSlaEvaluation.status
+      const totalCycleSlaStatus = buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays)
 
       const requestStatus = toUpperText(request?.status)
       const hasFullCycle = Boolean(pendingAt && approvedAt && paidAt)
@@ -685,6 +886,12 @@ export const useBackofficeExpenseReportData = ({
         approvalDays,
         payoutDays,
         totalCycleDays,
+        approvalSlaLimitDays: slaPolicy.approvalSlaBusinessDays,
+        payoutSlaLimitDays,
+        totalCycleSlaLimitDays: slaPolicy.totalCycleSlaBusinessDays,
+        approvalSlaStatus,
+        payoutSlaStatus,
+        totalCycleSlaStatus,
         bottleneckStage,
         status: statusDisplay.label,
         totalAmount: Number(request.totalAmount || 0),
@@ -693,54 +900,220 @@ export const useBackofficeExpenseReportData = ({
     })
   }
 
-  const fetchExpenseItems = useCallback(async () => {
-    if (!graphqlClient) return
+  const loadExpensesSlaPolicy = useCallback(async (): Promise<ExpensesSlaPolicy> => {
+    if (!graphqlClient) return expensesSlaPolicyRef.current
     try {
-      setIsLoading(true)
-      setError(null)
-      const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
-        limit: pageSize,
-        offset: (currentPage - 1) * pageSize,
-        searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
+      const result = await graphqlClient.request(GET_EXPENSES_SLA_POLICY, {
+        searchTerm: '%expenses-approval-payout-sla%'
       })
-      const employeeIds = (result?.ExpenseItem || [])
-        .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      const processedData = processExpenseItemsData(result, employeeNameById)
-      setReportData(processedData)
-      setTotalCount(result?.ExpenseItemAggregate?.aggregate?.count || 0)
-    } catch {
-      setError('Failed to load expense items data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [graphqlClient, pageSize, currentPage, searchTerm, resolveEmployeeNamesByIds])
+      const entry = Array.isArray(result?.ContentEntry) ? result.ContentEntry[0] : null
+      if (!entry) return expensesSlaPolicyRef.current
 
-  const fetchApprovalPayoutCycle = useCallback(async () => {
-    if (!graphqlClient) return
-    try {
-      setIsLoading(true)
-      setError(null)
-      const where = buildExpenseRequestWhere(searchTerm)
-      const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
-        where,
-        limit: pageSize,
-        offset: (currentPage - 1) * pageSize,
-        orderBy: [{ createdAt: 'DESC' }]
-      })
-      const employeeIds = (result?.ExpenseRequest || [])
-        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      setReportData(processApprovalPayoutCycleData(result, employeeNameById))
-      setTotalCount(result?.ExpenseRequestAggregate?.aggregate?.count || 0)
+      const additionalProperties = parseAdditionalProperties(entry.additionalProperties)
+      const content = String(entry.content || '')
+
+      const approval =
+        getFirstNumberAtPaths(additionalProperties, [
+          'approvalSlaBusinessDays',
+          'approvalSla.days',
+          'approval.businessDays',
+          'thresholds.approvalBusinessDays'
+        ]) ?? extractBusinessDaysByLabel(content, 'Approval SLA')
+      const payout =
+        getFirstNumberAtPaths(additionalProperties, [
+          'payoutRunWeekday',
+          'payout.runWeekday',
+          'thresholds.payoutRunWeekday'
+        ]) ?? (toUpperText(content).includes('MONDAY') ? 1 : null)
+      const total =
+        getFirstNumberAtPaths(additionalProperties, [
+          'totalCycleSlaBusinessDays',
+          'totalSlaBusinessDays',
+          'totalCycleSla.days',
+          'totalCycle.businessDays',
+          'thresholds.totalCycleBusinessDays'
+        ]) ?? extractBusinessDaysByLabel(content, 'Total Cycle SLA')
+
+      expensesSlaPolicyRef.current = {
+        approvalSlaBusinessDays: approval ?? DEFAULT_EXPENSES_SLA_POLICY.approvalSlaBusinessDays,
+        payoutRunWeekday:
+          payout !== null ? Math.max(0, Math.min(6, Math.trunc(payout))) : DEFAULT_EXPENSES_SLA_POLICY.payoutRunWeekday,
+        totalCycleSlaBusinessDays: total ?? DEFAULT_EXPENSES_SLA_POLICY.totalCycleSlaBusinessDays
+      }
+      return expensesSlaPolicyRef.current
     } catch {
-      setError('Failed to load approval and payout cycle data')
-    } finally {
-      setIsLoading(false)
+      return expensesSlaPolicyRef.current
     }
-  }, [graphqlClient, pageSize, currentPage, searchTerm, buildExpenseRequestWhere, resolveEmployeeNamesByIds])
+  }, [graphqlClient])
+
+  const fetchExpenseItems = useCallback(
+    async (fetchToken: number, querySignature: string) => {
+      if (!graphqlClient) return
+      const hasCachedRows = Boolean(reportCacheRef.current[ReportType.EXPENSE_ITEM]?.rows?.length)
+      const shouldSetBlockingLoading = !hasCachedRows
+      try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'post-fix-tab-refresh-3',
+            hypothesisId: 'H7',
+            location: 'useBackofficeExpenseReportData.ts:fetchExpenseItems:start',
+            message: 'expense items fetch start',
+            data: {
+              fetchToken,
+              pageSize,
+              currentPage,
+              searchTerm,
+              hasCache: hasCachedRows,
+              cachedRows: reportCacheRef.current[ReportType.EXPENSE_ITEM]?.rows?.length ?? 0,
+              shouldSetBlockingLoading
+            },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+        if (shouldSetBlockingLoading) {
+          setIsLoading(true)
+        }
+        setError(null)
+        const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
+          limit: pageSize,
+          offset: (currentPage - 1) * pageSize,
+          searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
+        })
+        const employeeIds = (result?.ExpenseItem || [])
+          .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
+          .filter(Boolean)
+        const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+        const processedData = processExpenseItemsData(result, employeeNameById)
+        if (fetchToken !== activeFetchTokenRef.current) {
+          return
+        }
+        setReportData(processedData)
+        setReportDataType(ReportType.EXPENSE_ITEM)
+        const mappedTotalCount = result?.ExpenseItemAggregate?.aggregate?.count || 0
+        setTotalCount(mappedTotalCount)
+        reportCacheRef.current[ReportType.EXPENSE_ITEM] = {
+          rows: processedData as ReportItem[],
+          totalCount: mappedTotalCount
+        }
+        reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] = querySignature
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'tab-refresh-debug-1',
+            hypothesisId: 'H2',
+            location: 'useBackofficeExpenseReportData.ts:fetchExpenseItems:end',
+            message: 'expense items fetch end',
+            data: { fetchToken, rows: processedData.length, totalCount: mappedTotalCount },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+      } catch {
+        setError('Failed to load expense items data')
+      } finally {
+        if (shouldSetBlockingLoading) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [graphqlClient, pageSize, currentPage, searchTerm, resolveEmployeeNamesByIds]
+  )
+
+  const fetchApprovalPayoutCycle = useCallback(
+    async (fetchToken: number, querySignature: string) => {
+      if (!graphqlClient) return
+      const hasCachedRows = Boolean(reportCacheRef.current[ReportType.APPROVAL_PAYOUT_CYCLE]?.rows?.length)
+      const shouldSetBlockingLoading = !hasCachedRows
+      try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'post-fix-tab-refresh-3',
+            hypothesisId: 'H7',
+            location: 'useBackofficeExpenseReportData.ts:fetchApprovalPayoutCycle:start',
+            message: 'approval payout fetch start',
+            data: {
+              fetchToken,
+              pageSize,
+              currentPage,
+              searchTerm,
+              hasCache: hasCachedRows,
+              cachedRows: reportCacheRef.current[ReportType.APPROVAL_PAYOUT_CYCLE]?.rows?.length ?? 0,
+              shouldSetBlockingLoading
+            },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+        if (shouldSetBlockingLoading) {
+          setIsLoading(true)
+        }
+        setError(null)
+        const where = buildExpenseRequestWhere(searchTerm)
+        const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
+          where,
+          limit: pageSize,
+          offset: (currentPage - 1) * pageSize,
+          orderBy: [{ createdAt: 'DESC' }]
+        })
+        const employeeIds = (result?.ExpenseRequest || [])
+          .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
+          .filter(Boolean)
+        const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+        const slaPolicy = await loadExpensesSlaPolicy()
+        const processedData = processApprovalPayoutCycleData(result, employeeNameById, slaPolicy)
+        if (fetchToken !== activeFetchTokenRef.current) {
+          return
+        }
+        setReportData(processedData)
+        setReportDataType(ReportType.APPROVAL_PAYOUT_CYCLE)
+        const mappedTotalCount = result?.ExpenseRequestAggregate?.aggregate?.count || 0
+        setTotalCount(mappedTotalCount)
+        reportCacheRef.current[ReportType.APPROVAL_PAYOUT_CYCLE] = {
+          rows: processedData as ReportItem[],
+          totalCount: mappedTotalCount
+        }
+        reportQuerySignatureRef.current[ReportType.APPROVAL_PAYOUT_CYCLE] = querySignature
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'tab-refresh-debug-1',
+            hypothesisId: 'H2',
+            location: 'useBackofficeExpenseReportData.ts:fetchApprovalPayoutCycle:end',
+            message: 'approval payout fetch end',
+            data: { fetchToken, rows: processedData.length, totalCount: mappedTotalCount },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+      } catch {
+        setError('Failed to load approval and payout cycle data')
+      } finally {
+        if (shouldSetBlockingLoading) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [
+      graphqlClient,
+      pageSize,
+      currentPage,
+      searchTerm,
+      buildExpenseRequestWhere,
+      resolveEmployeeNamesByIds,
+      loadExpensesSlaPolicy
+    ]
+  )
 
   const mapAdvancePaymentToReport = useCallback(
     (p: any, employeeNameById: Record<string, string>): AdvancePaymentReport => {
@@ -868,10 +1241,88 @@ export const useBackofficeExpenseReportData = ({
         .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
         .filter(Boolean)
       const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      return processApprovalPayoutCycleData(result, employeeNameById)
+      const slaPolicy = await loadExpensesSlaPolicy()
+      return processApprovalPayoutCycleData(result, employeeNameById, slaPolicy)
     },
-    [graphqlClient, searchTerm, buildExpenseRequestWhere, resolveEmployeeNamesByIds]
+    [graphqlClient, searchTerm, buildExpenseRequestWhere, resolveEmployeeNamesByIds, loadExpensesSlaPolicy]
   )
+
+  useEffect(() => {
+    if (!graphqlClient) return
+    if (searchTerm.trim()) return
+
+    const prefetchSignature = JSON.stringify({
+      selectedReportType: ReportType.EXPENSE_ITEM,
+      currentPage,
+      pageSize,
+      searchTerm
+    })
+
+    if (
+      reportCacheRef.current[ReportType.EXPENSE_ITEM]?.rows?.length &&
+      reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] === prefetchSignature
+    ) {
+      return
+    }
+
+    let cancelled = false
+    const prefetchExpenseItemsCache = async () => {
+      try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'post-fix-tab-refresh-6',
+            hypothesisId: 'H10',
+            location: 'useBackofficeExpenseReportData.ts:prefetchExpenseItemsCache:start',
+            message: 'prefetch expense items cache start',
+            data: { prefetchSignature, currentPage, pageSize, searchTerm },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+        const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
+          limit: pageSize,
+          offset: (currentPage - 1) * pageSize,
+          searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
+        })
+        const employeeIds = (result?.ExpenseItem || [])
+          .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
+          .filter(Boolean)
+        const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+        const processedData = processExpenseItemsData(result, employeeNameById)
+        if (cancelled) return
+        const mappedTotalCount = result?.ExpenseItemAggregate?.aggregate?.count || 0
+        reportCacheRef.current[ReportType.EXPENSE_ITEM] = {
+          rows: processedData as ReportItem[],
+          totalCount: mappedTotalCount
+        }
+        reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] = prefetchSignature
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'post-fix-tab-refresh-6',
+            hypothesisId: 'H10',
+            location: 'useBackofficeExpenseReportData.ts:prefetchExpenseItemsCache:end',
+            message: 'prefetch expense items cache end',
+            data: { prefetchSignature, rows: processedData.length, totalCount: mappedTotalCount },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+      } catch {
+        // no-op prefetch failure
+      }
+    }
+
+    void prefetchExpenseItemsCache()
+    return () => {
+      cancelled = true
+    }
+  }, [graphqlClient, currentPage, pageSize, searchTerm, resolveEmployeeNamesByIds])
 
   const fetchAllForExport = useCallback(async (): Promise<ReportItem[]> => {
     if (!graphqlClient || !selectedReportType) return []
@@ -907,20 +1358,70 @@ export const useBackofficeExpenseReportData = ({
 
   const fetchReportData = useCallback(async () => {
     if (!selectedReportType) return
+    const fetchToken = ++activeFetchTokenRef.current
+    const querySignature = JSON.stringify({
+      selectedReportType,
+      currentPage,
+      pageSize,
+      searchTerm
+    })
+    const hasCachedRows = Boolean(reportCacheRef.current[selectedReportType]?.rows?.length)
+    const previousSignature = reportQuerySignatureRef.current[selectedReportType]
+    const canReuseWithoutRefetch = hasCachedRows && previousSignature === querySignature
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'post-fix-tab-refresh-4',
+        hypothesisId: 'H8',
+        location: 'useBackofficeExpenseReportData.ts:fetchReportData',
+        message: 'decide refetch or reuse',
+        data: { selectedReportType, querySignature, previousSignature, hasCachedRows, canReuseWithoutRefetch },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+    if (
+      canReuseWithoutRefetch &&
+      (selectedReportType === ReportType.EXPENSE_ITEM || selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE)
+    ) {
+      return
+    }
     switch (selectedReportType) {
       case ReportType.EXPENSE_ITEM:
-        await fetchExpenseItems()
+        await fetchExpenseItems(fetchToken, querySignature)
         break
       case ReportType.APPROVAL_PAYOUT_CYCLE:
-        await fetchApprovalPayoutCycle()
+        await fetchApprovalPayoutCycle(fetchToken, querySignature)
         break
       default:
         break
     }
-  }, [selectedReportType, fetchExpenseItems, fetchApprovalPayoutCycle])
+  }, [selectedReportType, currentPage, pageSize, searchTerm, fetchExpenseItems, fetchApprovalPayoutCycle])
 
   const lastFetchSignatureRef = useRef<string | null>(null)
+  const lastSelectedReportTypeRef = useRef<ReportType | null>(selectedReportType)
   useEffect(() => {
+    selectedReportTypeRef.current = selectedReportType
+    if (lastSelectedReportTypeRef.current !== selectedReportType) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'post-fix-tab-refresh-1',
+          hypothesisId: 'H3',
+          location: 'useBackofficeExpenseReportData.ts:tabSwitchEffect',
+          message: 'tab switch observed',
+          data: { previousType: lastSelectedReportTypeRef.current, nextType: selectedReportType },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
+    }
+    lastSelectedReportTypeRef.current = selectedReportType
+
     const signature = JSON.stringify({
       selectedReportType,
       currentPage,
@@ -983,7 +1484,8 @@ export const useBackofficeExpenseReportData = ({
   return {
     reportTypes,
     selectedReportType,
-    setSelectedReportType,
+    reportDataType,
+    setSelectedReportType: handleSelectedReportTypeChange,
     reportData,
     isLoading,
     error,

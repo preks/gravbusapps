@@ -1,21 +1,24 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Spinner,
+  DataDisplay,
+  type FilterConfiguration,
+  DataTable,
   Alert,
   AlertDescription,
   Button,
   Card,
   CardContent,
-  PageLayout
+  PageLayout,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system'
-import { PiMagnifyingGlass, PiDownload, PiFileText } from 'react-icons/pi'
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import type { ColumnDef as TanstackColumnDef, SortingState } from '@tanstack/react-table'
+import { PiDownload, PiFileText, PiInfo } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBackofficeExpenseReportData, ReportType } from '../../hooks/useBackofficeExpenseReportData'
 import { ensureShortDateFormat } from '../../../manager-expenses/utils/dateUtils'
@@ -71,7 +74,18 @@ interface BackofficeExpenseReportsPageProps extends BusinessAppContextProps {
 }
 
 const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
-  const [reportTypeSearchTerm, setReportTypeSearchTerm] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [fixedApprovalPayoutKpis, setFixedApprovalPayoutKpis] = useState({
+    approvalBreachedLabel: '0/0',
+    approvalBreachedRate: '0.0%',
+    payoutBreachedLabel: '0/0',
+    payoutBreachedRate: '0.0%',
+    totalBreachedLabel: '0/0',
+    totalBreachedRate: '0.0%',
+    withinTotalLabel: '0/0',
+    withinTotalRate: '0.0%'
+  })
 
   const contextProps = useMemo(
     () => ({
@@ -93,14 +107,10 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     searchTerm,
     setSearchTerm,
     selectedReportType,
+    reportDataType,
     setSelectedReportType,
-    fetchReportData,
     fetchAllForExport
   } = useBackofficeExpenseReportData(contextProps)
-
-  useEffect(() => {
-    fetchReportData()
-  }, [selectedReportType, currentPage, pageSize, searchTerm, fetchReportData])
 
   const reportTypes: Array<{ key: ReportType; name: string; description: string }> = [
     {
@@ -157,21 +167,15 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     }
   ]
 
-  const filteredReportTypes = reportTypes.filter(
-    type =>
-      type.name.toLowerCase().includes(reportTypeSearchTerm.toLowerCase()) ||
-      type.description.toLowerCase().includes(reportTypeSearchTerm.toLowerCase())
-  )
-
-  type ColumnDef = { key: string; title: React.ReactNode; widthClass?: string }
-  const getExportColumns = (): ColumnDef[] => {
+  type ReportColumnDef = { key: string; title: React.ReactNode; widthClass?: string }
+  const getExportColumns = (): ReportColumnDef[] => {
     const uiCols = getColumns()
     const insertCurrencyAfter = (afterKey: string) => {
       const alreadyHasCurrency = uiCols.some(c => c.key === 'currency')
       if (alreadyHasCurrency) return uiCols
       const idx = uiCols.findIndex(c => c.key === afterKey)
       if (idx === -1) return uiCols
-      const currencyCol: ColumnDef = {
+      const currencyCol: ReportColumnDef = {
         key: 'currency',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.currency', 'Currency')
       }
@@ -195,7 +199,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     }
   }
 
-  const getColumns = (): ColumnDef[] => {
+  const getColumns = (): ReportColumnDef[] => {
     switch (selectedReportType) {
       case ReportType.EXPENSE_ITEM:
         return [
@@ -485,6 +489,33 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
             title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_days', 'Total Cycle Days')
           },
           {
+            key: 'approvalSlaLimitDays',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_limit_days', 'Approval SLA Limit (Days)')
+          },
+          {
+            key: 'payoutSlaLimitDays',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_limit_days', 'Payout SLA Limit (Days)')
+          },
+          {
+            key: 'totalCycleSlaLimitDays',
+            title: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:total_cycle_sla_limit_days',
+              'Total Cycle SLA Limit (Days)'
+            )
+          },
+          {
+            key: 'approvalSlaStatus',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_status', 'Approval SLA Status')
+          },
+          {
+            key: 'payoutSlaStatus',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_status', 'Payout SLA Status')
+          },
+          {
+            key: 'totalCycleSlaStatus',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_sla_status', 'Total Cycle SLA Status')
+          },
+          {
             key: 'bottleneckStage',
             title: getTranslationFromI18nKeyAndLabel('lowcoder:bottleneck_stage', 'Bottleneck Stage')
           },
@@ -563,7 +594,364 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     URL.revokeObjectURL(url)
   }
 
-  const columns = getColumns()
+  const columns = useMemo(() => getColumns(), [selectedReportType])
+  const isDataAlignedWithSelectedType = reportDataType === selectedReportType
+  const hasReportRows = isDataAlignedWithSelectedType && Array.isArray(reportData) && reportData.length > 0
+  const displayTotalCount = isDataAlignedWithSelectedType ? totalCount : 0
+  const tableLoading = isLoading && !hasReportRows
+
+  const selectedReportMeta = reportTypes.find(type => type.key === selectedReportType)
+  const tabsValue = selectedReportType || ReportType.APPROVAL_PAYOUT_CYCLE
+  const handleReportTypeChange = (value: string) => {
+    const nextReportType = reportTypes.find(type => type.key === value)?.key
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'post-fix-tab-refresh-8',
+        hypothesisId: 'H13',
+        location: 'BackofficeExpenseReportsPage.tsx:handleReportTypeChange',
+        message: 'tab ui value change event',
+        data: {
+          currentType: selectedReportType,
+          nextType: nextReportType,
+          rawValue: value,
+          isSameType: selectedReportType === nextReportType
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+    if (nextReportType) {
+      setSelectedReportType(nextReportType)
+    }
+  }
+  const approvalPayoutKpiTooltips = {
+    approvalBreached:
+      'Share of requests where Approval SLA Status is Breached. Formula: breached approval rows / evaluable approval rows. Rows with missing approval timeline are excluded.',
+    payoutBreached:
+      'Share of requests where Payout SLA Status is Breached. Payout SLA limit is dynamic per request: min(next or same Monday after approval, remaining total SLA window = total SLA - approval days).',
+    totalBreached:
+      'Share of requests where Total Cycle SLA Status is Breached. Formula: breached total-cycle rows / evaluable total-cycle rows. Total cycle compares pending-to-paid duration against total SLA limit.',
+    totalWithin:
+      'Share of requests where Total Cycle SLA Status is Within SLA. Formula: within-SLA total-cycle rows / evaluable total-cycle rows.'
+  }
+  const approvalPayoutSlaKpis = useMemo(() => {
+    if (selectedReportType !== ReportType.APPROVAL_PAYOUT_CYCLE) return null
+    const rows = Array.isArray(reportData) ? (reportData as any[]) : []
+    const evaluatedApproval = rows.filter(row => row?.approvalSlaStatus !== '-')
+    const evaluatedPayout = rows.filter(row => row?.payoutSlaStatus !== '-')
+    const evaluatedTotal = rows.filter(row => row?.totalCycleSlaStatus !== '-')
+
+    const approvalBreached = evaluatedApproval.filter(row => row?.approvalSlaStatus === 'Breached').length
+    const payoutBreached = evaluatedPayout.filter(row => row?.payoutSlaStatus === 'Breached').length
+    const totalBreached = evaluatedTotal.filter(row => row?.totalCycleSlaStatus === 'Breached').length
+    const withinTotal = evaluatedTotal.filter(row => row?.totalCycleSlaStatus === 'Within SLA').length
+
+    const formatRate = (count: number, total: number) => (total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0.0%')
+
+    return {
+      approvalBreachedLabel: `${approvalBreached}/${evaluatedApproval.length}`,
+      approvalBreachedRate: formatRate(approvalBreached, evaluatedApproval.length),
+      payoutBreachedLabel: `${payoutBreached}/${evaluatedPayout.length}`,
+      payoutBreachedRate: formatRate(payoutBreached, evaluatedPayout.length),
+      totalBreachedLabel: `${totalBreached}/${evaluatedTotal.length}`,
+      totalBreachedRate: formatRate(totalBreached, evaluatedTotal.length),
+      withinTotalLabel: `${withinTotal}/${evaluatedTotal.length}`,
+      withinTotalRate: formatRate(withinTotal, evaluatedTotal.length)
+    }
+  }, [selectedReportType, reportData])
+  useEffect(() => {
+    if (approvalPayoutSlaKpis) {
+      setFixedApprovalPayoutKpis(approvalPayoutSlaKpis)
+    }
+  }, [approvalPayoutSlaKpis])
+  const approvalPayoutSlaKpiValues = fixedApprovalPayoutKpis
+  const dataTableColumns = useMemo<TanstackColumnDef<any>[]>(() => {
+    return columns.map(column => ({
+      id: column.key,
+      header: () => <>{column.title ?? ''}</>,
+      accessorFn: (row: any) => row?.[column.key],
+      cell: ({ row }: any) => {
+        const value = row?.original?.[column.key]
+        if (column.key.includes('amount') || column.key.includes('Amount')) {
+          return (
+            <span className="gba:text-sm">{formatCurrencyDisplay(value || 0, row?.original?.currency || 'EUR')}</span>
+          )
+        }
+        if (dateKeys.has(column.key)) {
+          return <span className="gba:text-sm">{value ? ensureShortDateFormat(value) : '-'}</span>
+        }
+        if (column.key === 'title') {
+          const titleValue = value || '-'
+          return (
+            <span className="gba:block gba:max-w-[280px] gba:truncate gba:text-sm" title={titleValue}>
+              {titleValue}
+            </span>
+          )
+        }
+        return (
+          <span className="gba:text-sm">
+            {value === null || value === undefined || value === '' ? '-' : String(value)}
+          </span>
+        )
+      }
+    }))
+  }, [columns])
+  const alignedReportRows = useMemo<any[]>(
+    () => (isDataAlignedWithSelectedType && Array.isArray(reportData) ? (reportData as any[]) : []),
+    [isDataAlignedWithSelectedType, reportData]
+  )
+  const statusFilterOptions = useMemo(() => {
+    return Array.from(new Set(alignedReportRows.map(row => String(row?.status || '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b))
+      .map(value => ({ id: value, label: value }))
+  }, [alignedReportRows])
+  const employeeFilterOptions = useMemo(() => {
+    return Array.from(new Set(alignedReportRows.map(row => String(row?.employeeName || '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b))
+      .map(value => ({ id: value, label: value }))
+  }, [alignedReportRows])
+  const filterConfiguration = useMemo<FilterConfiguration>(
+    () => ({
+      id: 'backoffice-expense-reports-filters',
+      name: 'Report Filters',
+      groups: [
+        {
+          id: 'status-group',
+          label: 'Status',
+          collapsible: true,
+          defaultExpanded: true,
+          filters: [
+            {
+              id: 'status',
+              field: 'status',
+              label: 'Status',
+              type: 'multi-select',
+              config: {
+                options: statusFilterOptions,
+                searchPlaceholder: 'Search status...',
+                totalCount: statusFilterOptions.length,
+                hasMore: false
+              }
+            }
+          ]
+        },
+        {
+          id: 'employee-group',
+          label: 'Employee',
+          collapsible: true,
+          defaultExpanded: false,
+          filters: [
+            {
+              id: 'employeeName',
+              field: 'employeeName',
+              label: 'Employee',
+              type: 'multi-select',
+              config: {
+                options: employeeFilterOptions,
+                searchPlaceholder: 'Search employee...',
+                totalCount: employeeFilterOptions.length,
+                hasMore: false
+              }
+            }
+          ]
+        }
+      ]
+    }),
+    [statusFilterOptions, employeeFilterOptions]
+  )
+  const filteredReportRows = useMemo(() => {
+    const selectedStatuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
+    const selectedEmployees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
+    if (selectedStatuses.length === 0 && selectedEmployees.length === 0) return alignedReportRows
+    return alignedReportRows.filter(row => {
+      const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(String(row?.status || ''))
+      const employeeMatch =
+        selectedEmployees.length === 0 || selectedEmployees.includes(String(row?.employeeName || ''))
+      return statusMatch && employeeMatch
+    })
+  }, [alignedReportRows, selectedFilters])
+  const hasActiveFilters = useMemo(() => {
+    const selectedStatuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
+    const selectedEmployees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
+    return selectedStatuses.length > 0 || selectedEmployees.length > 0
+  }, [selectedFilters])
+  const sortableColumns = useMemo(
+    () =>
+      columns.map(column => ({
+        id: column.key,
+        label: typeof column.title === 'string' ? column.title : column.key
+      })),
+    [columns]
+  )
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }
+  const handleFilterChange = (filters: Record<string, any>) => {
+    setSelectedFilters(filters || {})
+    setCurrentPage(1)
+  }
+  const tablePagination = useMemo(
+    () => ({
+      pageIndex: Math.max(currentPage - 1, 0),
+      pageSize
+    }),
+    [currentPage, pageSize]
+  )
+  const previousDataTableColumnsRef = useRef<TanstackColumnDef<any>[] | null>(null)
+  const previousFilterConfigurationRef = useRef<FilterConfiguration | null>(null)
+  const kpiRowRef = useRef<HTMLDivElement | null>(null)
+  const tabsContainerRef = useRef<HTMLDivElement | null>(null)
+  const toolbarContainerRef = useRef<HTMLDivElement | null>(null)
+  const tableContainerRef = useRef<HTMLDivElement | null>(null)
+  const handleTablePaginationChange = (pagination: { pageIndex: number; pageSize: number }) => {
+    if (pagination.pageSize === pageSize) {
+      setCurrentPage(pagination.pageIndex + 1)
+      return
+    }
+    setPageSize(pagination.pageSize)
+    setCurrentPage(1)
+  }
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'post-fix-tab-refresh-2',
+        hypothesisId: 'H6',
+        location: 'BackofficeExpenseReportsPage.tsx:renderState',
+        message: 'page render state',
+        data: {
+          selectedReportType,
+          reportDataType,
+          isLoading,
+          hasReportRows,
+          tableLoading,
+          reportRows: Array.isArray(reportData) ? reportData.length : 0,
+          alignedRows: alignedReportRows.length,
+          filteredRows: filteredReportRows.length,
+          currentPage,
+          pageSize
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [
+    selectedReportType,
+    reportDataType,
+    isLoading,
+    hasReportRows,
+    tableLoading,
+    reportData,
+    alignedReportRows.length,
+    filteredReportRows.length,
+    currentPage,
+    pageSize
+  ])
+  useEffect(() => {
+    const previousColumns = previousDataTableColumnsRef.current
+    const previousFilters = previousFilterConfigurationRef.current
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'post-fix-tab-refresh-5',
+        hypothesisId: 'H9',
+        location: 'BackofficeExpenseReportsPage.tsx:identityChurn',
+        message: 'toolbar/table identity churn',
+        data: {
+          selectedReportType,
+          columnsChanged: previousColumns !== dataTableColumns,
+          filtersChanged: previousFilters !== filterConfiguration,
+          columnCount: dataTableColumns.length,
+          statusOptionsCount: statusFilterOptions.length,
+          employeeOptionsCount: employeeFilterOptions.length,
+          selectedFilterKeys: Object.keys(selectedFilters || {}).length
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+    previousDataTableColumnsRef.current = dataTableColumns
+    previousFilterConfigurationRef.current = filterConfiguration
+  }, [
+    selectedReportType,
+    dataTableColumns,
+    filterConfiguration,
+    statusFilterOptions.length,
+    employeeFilterOptions.length,
+    selectedFilters
+  ])
+  useEffect(() => {
+    const kpiRect = kpiRowRef.current?.getBoundingClientRect()
+    const tabsRect = tabsContainerRef.current?.getBoundingClientRect()
+    const toolbarRect = toolbarContainerRef.current?.getBoundingClientRect()
+    const tableRect = tableContainerRef.current?.getBoundingClientRect()
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'post-fix-tab-refresh-9',
+        hypothesisId: 'H14',
+        location: 'BackofficeExpenseReportsPage.tsx:layoutMetrics',
+        message: 'reports layout metrics after render',
+        data: {
+          selectedReportType,
+          tableLoading,
+          hasReportRows,
+          kpiTop: kpiRect?.top ?? null,
+          kpiHeight: kpiRect?.height ?? null,
+          tabsTop: tabsRect?.top ?? null,
+          tabsHeight: tabsRect?.height ?? null,
+          toolbarTop: toolbarRect?.top ?? null,
+          toolbarHeight: toolbarRect?.height ?? null,
+          tableTop: tableRect?.top ?? null,
+          tableHeight: tableRect?.height ?? null
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [selectedReportType, tableLoading, hasReportRows, filteredReportRows.length, dataTableColumns.length])
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'post-fix-tab-refresh-7',
+        hypothesisId: 'H11',
+        location: 'BackofficeExpenseReportsPage.tsx:lifecycle',
+        message: 'page component mounted',
+        data: { selectedReportType },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+    return () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'post-fix-tab-refresh-7',
+          hypothesisId: 'H11',
+          location: 'BackofficeExpenseReportsPage.tsx:lifecycle',
+          message: 'page component unmounted',
+          data: { selectedReportType },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
+    }
+  }, [])
 
   return (
     <div data-testid="backoffice-expense-reports-page-container">
@@ -579,304 +967,257 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
         headerIcon={PiFileText as any}
         className="gba:min-h-screen"
       >
-        <div className="gba:px-6 gba:h-full gba:flex gba:gap-6" data-testid="backoffice-expense-reports-page">
-          <div className="gba:w-80 gba:flex gba:flex-col gba:space-y-4">
-            <div>
-              <h3 className="gba:text-lg gba:font-medium gba:mb-4">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.report_types',
-                  'Report Types'
-                )}
-              </h3>
-
-              <div className="gba:relative gba:mb-4">
-                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-                <DebouncedInput
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.search_report_types',
-                    'Search report types...'
-                  )}
-                  onChange={val => setReportTypeSearchTerm(val)}
-                  value={reportTypeSearchTerm}
-                  className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
-                  data-testid="backoffice-expense-reports-type-search-input"
-                />
-              </div>
-
-              <div className="gba:space-y-2">
-                {filteredReportTypes.map(type => (
-                  <Card
-                    key={type.key}
-                    className={`gba:cursor-pointer gba:transition-colors gba:hover:bg-accent ${
-                      selectedReportType === type.key ? 'gba:border-primary gba:bg-accent' : ''
-                    }`}
-                    onClick={() => setSelectedReportType(type.key)}
-                    data-testid={`backoffice-expense-reports-type-${type.key}`}
-                  >
-                    <CardContent className="gba:p-4">
-                      <h4 className="gba:font-medium gba:text-sm">{type.name}</h4>
-                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{type.description}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="gba:flex-1 gba:flex gba:flex-col">
+        <div
+          className="gba:px-6 gba:pb-6 gba:flex gba:flex-col gba:gap-4"
+          data-testid="backoffice-expense-reports-page"
+        >
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-4">
             {error && (
-              <Alert className="gba:mb-4" data-testid="backoffice-expense-reports-error-alert">
+              <Alert data-testid="backoffice-expense-reports-error-alert">
                 <AlertDescription>
                   <strong>{getTranslationFromI18nKeyAndLabel('lowcoder:common.error_title', 'Error')}</strong> {error}
                 </AlertDescription>
               </Alert>
             )}
 
-            <div className="gba:mb-4">
-              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-                <div className="gba:relative gba:w-64">
-                  <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-                  <DebouncedInput
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
-                      'Search report data...'
-                    )}
-                    onChange={val => {
-                      setSearchTerm(val)
-                      setCurrentPage(1)
-                    }}
-                    value={searchTerm}
-                    className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
-                    data-testid="backoffice-expense-reports-data-search-input"
-                  />
+            <div
+              ref={kpiRowRef}
+              className="gba:mb-4 gba:min-h-[140px]"
+              data-testid="backoffice-expense-reports-kpi-row"
+            >
+              <TooltipProvider>
+                <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:md:grid-cols-2 gba:xl:grid-cols-4">
+                  <Card className="gba:min-h-[124px]" data-testid="backoffice-approval-sla-breached-kpi">
+                    <CardContent className="gba:p-4">
+                      <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:approval_sla_breached_rate',
+                          'Approval SLA Breached'
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="gba:inline-flex gba:items-center gba:text-muted-foreground"
+                              aria-label="Approval SLA Breached formula"
+                              data-testid="backoffice-approval-sla-breached-tooltip-trigger"
+                            >
+                              <PiInfo />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="gba:max-w-[320px]">
+                            {approvalPayoutKpiTooltips.approvalBreached}
+                          </TooltipContent>
+                        </Tooltip>
+                      </p>
+                      <p className="gba:text-xl gba:font-semibold">{approvalPayoutSlaKpiValues.approvalBreachedRate}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {approvalPayoutSlaKpiValues.approvalBreachedLabel}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="gba:min-h-[124px]" data-testid="backoffice-payout-sla-breached-kpi">
+                    <CardContent className="gba:p-4">
+                      <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_breached_rate', 'Payout SLA Breached')}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="gba:inline-flex gba:items-center gba:text-muted-foreground"
+                              aria-label="Payout SLA Breached formula"
+                              data-testid="backoffice-payout-sla-breached-tooltip-trigger"
+                            >
+                              <PiInfo />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="gba:max-w-[320px]">
+                            {approvalPayoutKpiTooltips.payoutBreached}
+                          </TooltipContent>
+                        </Tooltip>
+                      </p>
+                      <p className="gba:text-xl gba:font-semibold">{approvalPayoutSlaKpiValues.payoutBreachedRate}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {approvalPayoutSlaKpiValues.payoutBreachedLabel}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="gba:min-h-[124px]" data-testid="backoffice-total-cycle-sla-breached-kpi">
+                    <CardContent className="gba:p-4">
+                      <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:total_cycle_sla_breached_rate',
+                          'Total Cycle SLA Breached'
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="gba:inline-flex gba:items-center gba:text-muted-foreground"
+                              aria-label="Total Cycle SLA Breached formula"
+                              data-testid="backoffice-total-cycle-sla-breached-tooltip-trigger"
+                            >
+                              <PiInfo />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="gba:max-w-[320px]">
+                            {approvalPayoutKpiTooltips.totalBreached}
+                          </TooltipContent>
+                        </Tooltip>
+                      </p>
+                      <p className="gba:text-xl gba:font-semibold">{approvalPayoutSlaKpiValues.totalBreachedRate}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {approvalPayoutSlaKpiValues.totalBreachedLabel}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="gba:min-h-[124px]" data-testid="backoffice-total-cycle-within-sla-kpi">
+                    <CardContent className="gba:p-4">
+                      <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:total_cycle_within_sla_rate',
+                          'Total Cycle Within SLA'
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="gba:inline-flex gba:items-center gba:text-muted-foreground"
+                              aria-label="Total Cycle Within SLA formula"
+                              data-testid="backoffice-total-cycle-within-sla-tooltip-trigger"
+                            >
+                              <PiInfo />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="gba:max-w-[320px]">
+                            {approvalPayoutKpiTooltips.totalWithin}
+                          </TooltipContent>
+                        </Tooltip>
+                      </p>
+                      <p className="gba:text-xl gba:font-semibold">{approvalPayoutSlaKpiValues.withinTotalRate}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {approvalPayoutSlaKpiValues.withinTotalLabel}
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleDownload}
-                    className="gba:flex gba:items-center gba:gap-2"
-                    data-testid="backoffice-expense-reports-download-button"
-                  >
-                    <PiDownload className="gba:text-sm" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.download_report',
-                      'Download CSV'
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleDownloadExcel}
-                    className="gba:flex gba:items-center gba:gap-2"
-                    data-testid="backoffice-expense-reports-download-excel-button"
-                  >
-                    <PiDownload className="gba:text-sm" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
-                      'Download Excel'
-                    )}
-                  </Button>
-                </div>
-              </div>
+              </TooltipProvider>
             </div>
 
-            {(() => {
-              if (isLoading) {
-                return (
-                  <div className="gba:flex gba:justify-center gba:p-8">
-                    <Spinner data-testid="backoffice-expense-reports-loading-spinner" />
+            <div ref={tabsContainerRef}>
+              <Tabs
+                value={tabsValue}
+                onValueChange={handleReportTypeChange}
+                data-testid="backoffice-expense-reports-tabs-card"
+              >
+                <TabsList
+                  className="gba:grid gba:w-full"
+                  style={{ gridTemplateColumns: `repeat(${reportTypes.length}, 1fr)` }}
+                >
+                  {reportTypes.map(type => (
+                    <TabsTrigger
+                      key={type.key}
+                      value={type.key}
+                      data-testid={`backoffice-expense-reports-type-${type.key}`}
+                    >
+                      {type.name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <p
+              className="gba:text-xs gba:text-muted-foreground gba:px-1"
+              data-testid="backoffice-expense-reports-selected-type-description"
+            >
+              {selectedReportMeta?.description}
+            </p>
+
+            <div ref={toolbarContainerRef}>
+              <DataDisplay
+                titleSections={[
+                  {
+                    id: 'results',
+                    label: getTranslationFromI18nKeyAndLabel('lowcoder:common.data', 'Data'),
+                    metadata: {
+                      count: hasActiveFilters ? filteredReportRows.length : displayTotalCount,
+                      isLoading: tableLoading
+                    }
+                  }
+                ]}
+                currentSection="results"
+                searchValue={searchTerm}
+                searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
+                  'Search report data...'
+                )}
+                onSearchChange={handleSearchChange}
+                filters={selectedFilters}
+                filterConfiguration={filterConfiguration}
+                onFilterChange={handleFilterChange}
+                sorting={sorting}
+                sortableColumns={sortableColumns}
+                onSortingChange={setSorting}
+                primaryAction={
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleDownload}
+                      className="gba:flex gba:items-center gba:gap-2"
+                      data-testid="backoffice-expense-reports-download-button"
+                    >
+                      <PiDownload className="gba:text-sm" />
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:team_expenses_page.dashboard_tab.download_report',
+                        'Download CSV'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleDownloadExcel}
+                      className="gba:flex gba:items-center gba:gap-2"
+                      data-testid="backoffice-expense-reports-download-excel-button"
+                    >
+                      <PiDownload className="gba:text-sm" />
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
+                        'Download Excel'
+                      )}
+                    </Button>
                   </div>
-                )
-              }
-              if (reportData && reportData.length > 0) {
-                return (
-                  <div className="gba:border gba:border-border gba:rounded-md gba:bg-background">
-                    <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
-                      <Table data-testid="backoffice-expense-reports-table" className="gba:w-full">
-                        <TableHeader className="gba:sticky gba:top-0 gba:bg-background gba:z-10 gba:border-b gba:border-border">
-                          <TableRow>
-                            {columns.map(column =>
-                              (() => {
-                                const isTitleColumn = column.key === 'title'
-                                const headClass = `${column.widthClass ?? ''} gba:bg-muted gba:font-semibold ${
-                                  isTitleColumn ? 'gba:sticky gba:left-0 gba:z-20' : ''
-                                }`
-                                return (
-                                  <TableHead key={column.key} className={headClass}>
-                                    {column.title}
-                                  </TableHead>
-                                )
-                              })()
-                            )}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {reportData.map((row: any, index: number) => (
-                            <TableRow key={`${selectedReportType}-${index}`}>
-                              {columns.map(column => {
-                                const isTitleColumn = column.key === 'title'
-                                let cellContent: React.ReactNode
-                                if (column.key.includes('amount') || column.key.includes('Amount')) {
-                                  cellContent = (
-                                    <span className="gba:text-sm">
-                                      {formatCurrencyDisplay(row[column.key] || 0, row.currency || 'EUR')}
-                                    </span>
-                                  )
-                                } else if (
-                                  [
-                                    'date',
-                                    'startDate',
-                                    'endDate',
-                                    'submissionDate',
-                                    'requestDate',
-                                    'createdAt',
-                                    'planDate',
-                                    'pendingAt',
-                                    'approvedAt',
-                                    'paidAt'
-                                  ].includes(column.key)
-                                ) {
-                                  cellContent = (
-                                    <span className="gba:text-sm">
-                                      {row[column.key] ? ensureShortDateFormat(row[column.key]) : '-'}
-                                    </span>
-                                  )
-                                } else if (isTitleColumn) {
-                                  const titleValue = row[column.key] || '-'
-                                  cellContent = (
-                                    <span
-                                      className="gba:block gba:max-w-[280px] gba:truncate gba:text-sm"
-                                      title={titleValue}
-                                    >
-                                      {titleValue}
-                                    </span>
-                                  )
-                                } else {
-                                  const value = row[column.key]
-                                  const displayValue =
-                                    value === null || value === undefined || value === '' ? '-' : String(value)
-                                  cellContent = <span className="gba:text-sm">{displayValue}</span>
-                                }
-                                return (
-                                  <TableCell
-                                    key={column.key}
-                                    className={isTitleColumn ? 'gba:sticky gba:left-0 gba:z-10 gba:bg-background' : ''}
-                                    data-testid={`backoffice-expense-reports-cell-${column.key}`}
-                                  >
-                                    {cellContent}
-                                  </TableCell>
-                                )
-                              })}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    {totalCount > 0 && (
-                      <div
-                        className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
-                        data-testid="backoffice-expense-reports-pagination"
-                      >
-                        <div
-                          className="gba:text-sm gba:text-muted-foreground"
-                          data-testid="backoffice-expense-reports-pagination-info"
-                        >
-                          {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount}`}
-                        </div>
-                        <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                          <div className="gba:flex gba:items-center gba:space-x-2">
-                            <p className="gba:text-sm gba:font-medium">
-                              {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:personal_expenses.rows_per_page',
-                                'Rows per page'
-                              )}
-                            </p>
-                            <select
-                              value={pageSize}
-                              onChange={e => {
-                                const size = Number(e.target.value)
-                                setPageSize(size)
-                                setCurrentPage(1)
-                              }}
-                              className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                              data-testid="backoffice-expense-reports-page-size-select"
-                            >
-                              <option value={10}>10</option>
-                              <option value={20}>20</option>
-                              <option value={50}>50</option>
-                              <option value={100}>100</option>
-                            </select>
-                          </div>
-                          <div
-                            className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                            data-testid="backoffice-expense-reports-page-info"
-                          >
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                            {Math.ceil(totalCount / pageSize)}
-                          </div>
-                          <div className="gba:flex gba:items-center gba:space-x-2">
-                            <Button
-                              variant="outline"
-                              className="gba:h-8 gba:w-8 gba:p-0"
-                              onClick={() => setCurrentPage(1)}
-                              disabled={currentPage === 1}
-                              data-testid="backoffice-expense-reports-first-page-button"
-                            >
-                              ⟪⟪
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="gba:h-8 gba:w-8 gba:p-0"
-                              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                              disabled={currentPage === 1}
-                              data-testid="backoffice-expense-reports-previous-page-button"
-                            >
-                              ⟪
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="gba:h-8 gba:w-8 gba:p-0"
-                              onClick={() =>
-                                setCurrentPage(Math.min(Math.ceil(totalCount / pageSize), currentPage + 1))
-                              }
-                              disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                              data-testid="backoffice-expense-reports-next-page-button"
-                            >
-                              ⟫
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="gba:h-8 gba:w-8 gba:p-0"
-                              onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))}
-                              disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                              data-testid="backoffice-expense-reports-last-page-button"
-                            >
-                              ⟫⟫
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              }
-              return (
-                <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-                  <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
-                    {getTranslationFromI18nKeyAndLabel(
+                }
+                toolbarDensity="default"
+                data-testid="backoffice-expense-reports-filters-card"
+              >
+                <div ref={tableContainerRef} className="gba:border gba:border-border gba:rounded-md gba:bg-background">
+                  <DataTable
+                    data={filteredReportRows}
+                    columns={dataTableColumns}
+                    loading={tableLoading}
+                    totalCount={hasActiveFilters ? filteredReportRows.length : displayTotalCount}
+                    pagination={tablePagination}
+                    onPaginationChange={handleTablePaginationChange}
+                    enablePagination
+                    enableSorting
+                    sorting={sorting}
+                    onSortingChange={setSorting}
+                    enableSelection={false}
+                    enableColumnPinning
+                    enableResizing={true}
+                    tableLayout="fixed"
+                    rowsPerPageOptions={[10, 20, 50, 100]}
+                    showPageNumbers
+                    maxVisiblePages={7}
+                    emptyMessage={getTranslationFromI18nKeyAndLabel(
                       'lowcoder:team_expenses_page.dashboard_tab.no_expense_reports_found',
                       'No expense reports found'
                     )}
-                  </div>
-                  <div className="gba:text-muted-foreground gba:opacity-70 gba:mb-4">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.adjust_search',
-                      'Try selecting a different report type or adjusting your search.'
-                    )}
-                  </div>
+                    data-testid="backoffice-expense-reports-table"
+                  />
                 </div>
-              )
-            })()}
+              </DataDisplay>
+            </div>
           </div>
         </div>
       </PageLayout>
