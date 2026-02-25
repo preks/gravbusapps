@@ -53,6 +53,8 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     clearTextTransformationError
   } = usePerformanceEvaluationForm()
 
+  console.log('formValues', formValues)
+
   const handleEmployeeChange = (employeeId: string) => {
     const employee = getEmployeeById(employeeId)
     if (employee) {
@@ -226,100 +228,117 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
           </div>
         )}
 
-        {/* Topics Section */}
-        <div className="gba:space-y-6">
-          {formValues.topics.map(topic => (
-            <div
-              key={topic.id}
-              className="gba:space-y-3 gba:p-4 gba:border gba:border-border gba:rounded-lg"
-              data-testid={formatDataTestId(prefixDataTestId, `Topic-${topic.id}`)}
-            >
-              {/* Topic Header: show topic name (skill/value name) and category in parentheses */}
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Label className="gba:text-base gba:font-semibold">
-                  {topic.name ||
-                    (topic.category === 'skill' ? t('topic-category-skill') : t('topic-category-company-value'))}
-                  <span className="gba:text-xs gba:font-normal gba:text-muted-foreground gba:ml-2">
-                    ({topic.category === 'skill' ? t('topic-category-skill') : t('topic-category-company-value')})
-                  </span>
-                </Label>
-              </div>
+        {/* Topics Section: Skills and Company Values */}
+        <div className="gba:space-y-8">
+          {(() => {
+            const skillTopics = formValues.topics.filter(t => t.category === 'skill')
+            const companyValueTopics = formValues.topics.filter(t => t.category === 'value')
 
-              {/* Rating Section */}
-              <div className="gba:space-y-2">
-                {renderTopicRating(topic.id, topic.rating)}
-                {!topic.rating && <p className="gba:text-xs gba:text-muted-foreground">{t('topic-rating-helper')}</p>}
+            const renderTopicCard = (topic: (typeof formValues.topics)[0]) => (
+              <div
+                key={topic.id}
+                className="gba:space-y-3 gba:p-4 gba:border gba:border-border gba:rounded-lg"
+                data-testid={formatDataTestId(prefixDataTestId, `Topic-${topic.id}`)}
+              >
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Label className="gba:text-base gba:font-semibold">
+                    {topic.name ||
+                      (topic.category === 'skill' ? t('topic-category-skill') : t('topic-category-company-value'))}
+                  </Label>
+                </div>
+                <div className="gba:space-y-2">
+                  {renderTopicRating(topic.id, topic.rating)}
+                  {!topic.rating && <p className="gba:text-xs gba:text-muted-foreground">{t('topic-rating-helper')}</p>}
+                </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor={`${topic.id}-comment`} className="gba:text-sm gba:font-medium">
+                    {t('topic-comment')}
+                  </Label>
+                  <Textarea
+                    id={`${topic.id}-comment`}
+                    value={topic.comment}
+                    onChange={e => {
+                      updateTopic(topic.id, { comment: e.target.value })
+                      clearTextTransformationError()
+                    }}
+                    placeholder={t('topic-comment-placeholder')}
+                    maxLength={PERFORMANCE_VALIDATION.COMMENT_MAX_LENGTH}
+                    data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-CommentInput`)}
+                    className="gba:min-h-[80px] gba:w-full gba:resize-y"
+                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="default"
+                        disabled={!topic.comment?.trim() || textTransformationLoading}
+                        className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
+                        data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-TextTool`)}
+                      >
+                        <span>
+                          {textTransformationLoading ? (
+                            <Spinner size="sm" />
+                          ) : (
+                            t('text-tool', { defaultValue: 'Text Tool' })
+                          )}
+                        </span>
+                        <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
+                      <DropdownMenuItem
+                        className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                        onClick={async () => {
+                          const result = await transformCommentText(topic.comment ?? '', 'formalize')
+                          if (result != null) updateTopic(topic.id, { comment: result })
+                        }}
+                      >
+                        {t('text-tool-formalize', { defaultValue: 'Formalize' })}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                        onClick={async () => {
+                          const result = await transformCommentText(topic.comment ?? '', 'translate', 'en')
+                          if (result != null) updateTopic(topic.id, { comment: result })
+                        }}
+                      >
+                        {t('text-tool-translate', { defaultValue: 'Translate' })}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                        onClick={async () => {
+                          const result = await transformCommentText(topic.comment ?? '', 'shorten')
+                          if (result != null) updateTopic(topic.id, { comment: result })
+                        }}
+                      >
+                        {t('text-tool-shorten', { defaultValue: 'Shorten' })}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
+            )
 
-              {/* Comment Section */}
-              <div className="gba:space-y-2">
-                <Label htmlFor={`${topic.id}-comment`} className="gba:text-sm gba:font-medium">
-                  {t('topic-comment')}
-                </Label>
-                <Textarea
-                  id={`${topic.id}-comment`}
-                  value={topic.comment}
-                  onChange={e => {
-                    updateTopic(topic.id, { comment: e.target.value })
-                    clearTextTransformationError()
-                  }}
-                  placeholder={t('topic-comment-placeholder')}
-                  maxLength={PERFORMANCE_VALIDATION.COMMENT_MAX_LENGTH}
-                  data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-CommentInput`)}
-                  className="gba:min-h-[80px] gba:w-full gba:resize-y"
-                />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="default"
-                      disabled={!topic.comment?.trim() || textTransformationLoading}
-                      className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
-                      data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-TextTool`)}
-                    >
-                      <span>
-                        {textTransformationLoading ? (
-                          <Spinner size="sm" />
-                        ) : (
-                          t('text-tool', { defaultValue: 'Text Tool' })
-                        )}
-                      </span>
-                      <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
-                    <DropdownMenuItem
-                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                      onClick={async () => {
-                        const result = await transformCommentText(topic.comment ?? '', 'formalize')
-                        if (result != null) updateTopic(topic.id, { comment: result })
-                      }}
-                    >
-                      {t('text-tool-formalize', { defaultValue: 'Formalize' })}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                      onClick={async () => {
-                        const result = await transformCommentText(topic.comment ?? '', 'translate', 'en')
-                        if (result != null) updateTopic(topic.id, { comment: result })
-                      }}
-                    >
-                      {t('text-tool-translate', { defaultValue: 'Translate' })}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
-                      onClick={async () => {
-                        const result = await transformCommentText(topic.comment ?? '', 'shorten')
-                        if (result != null) updateTopic(topic.id, { comment: result })
-                      }}
-                    >
-                      {t('text-tool-shorten', { defaultValue: 'Shorten' })}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          ))}
+            return (
+              <>
+                {skillTopics.length > 0 && (
+                  <section className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'Section-Skills')}>
+                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('section-skills')}</h2>
+                    <div className="gba:space-y-4">{skillTopics.map(renderTopicCard)}</div>
+                  </section>
+                )}
+                {companyValueTopics.length > 0 && (
+                  <section
+                    className="gba:space-y-4"
+                    data-testid={formatDataTestId(prefixDataTestId, 'Section-CompanyValues')}
+                  >
+                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('section-company-values')}</h2>
+                    <div className="gba:space-y-4">{companyValueTopics.map(renderTopicCard)}</div>
+                  </section>
+                )}
+              </>
+            )
+          })()}
 
           {/* Employee Skills Loading Indicator */}
           {employeeSkillsLoading && (
