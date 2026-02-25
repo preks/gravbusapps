@@ -52,6 +52,45 @@ export interface FlowPreviewProps {
   'data-testid'?: string
 }
 
+interface StartFormFieldProps {
+  field: FlowPreviewInputBlock
+  value: string
+  onValueChange: (value: string) => void
+  testId: string
+}
+
+const StartFormField: React.FC<StartFormFieldProps> = ({ field, value, onValueChange, testId }) => {
+  return (
+    <div key={field.name} className="gba:space-y-1">
+      <Label htmlFor={`${testId}-start-${field.name}`} className="gba:text-xs">
+        {field.label || field.name}
+        {field.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
+      </Label>
+      {field.options?.length ? (
+        <Select value={value} onValueChange={onValueChange}>
+          <SelectTrigger id={`${testId}-start-${field.name}`}>
+            <SelectValue placeholder="Select…" />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options.map(o => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          id={`${testId}-start-${field.name}`}
+          value={value}
+          onChange={e => onValueChange(e.target.value)}
+          placeholder={field.label}
+        />
+      )}
+    </div>
+  )
+}
+
 export const FlowPreview: React.FC<FlowPreviewProps> = ({
   accessToken,
   items,
@@ -279,41 +318,13 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
                       {startFormFields.length > 0 && (
                         <div className="gba:space-y-3">
                           {startFormFields.map(field => (
-                            <div key={field.name} className="gba:space-y-1">
-                              <Label htmlFor={`${testId}-start-${field.name}`} className="gba:text-xs">
-                                {field.label || field.name}
-                                {field.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
-                              </Label>
-                              {field.options?.length ? (
-                                <Select
-                                  value={startFormValues[field.name] ?? ''}
-                                  onValueChange={v => setStartFormValues(prev => ({ ...prev, [field.name]: v }))}
-                                >
-                                  <SelectTrigger id={`${testId}-start-${field.name}`}>
-                                    <SelectValue placeholder="Select…" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {field.options.map(o => (
-                                      <SelectItem key={o.value} value={o.value}>
-                                        {o.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <Input
-                                  id={`${testId}-start-${field.name}`}
-                                  value={startFormValues[field.name] ?? ''}
-                                  onChange={e =>
-                                    setStartFormValues(prev => ({
-                                      ...prev,
-                                      [field.name]: e.target.value
-                                    }))
-                                  }
-                                  placeholder={field.label}
-                                />
-                              )}
-                            </div>
+                            <StartFormField
+                              key={field.name}
+                              field={field}
+                              value={startFormValues[field.name] ?? ''}
+                              onValueChange={v => setStartFormValues(prev => ({ ...prev, [field.name]: v }))}
+                              testId={testId}
+                            />
                           ))}
                         </div>
                       )}

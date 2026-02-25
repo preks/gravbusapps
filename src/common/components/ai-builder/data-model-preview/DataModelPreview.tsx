@@ -312,8 +312,8 @@ function formatReadValue(value: unknown, type: string): string {
       return String(value)
     }
   }
-  // REFERENCE: value is the referenced entity's ID or a stringified object — show as-is
   if (type === 'REFERENCE' && typeof value === 'object') return JSON.stringify(value)
+  if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
 
@@ -508,20 +508,27 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
                     </td>
                   </tr>
                 )}
-                {existingRows.map((row, i) => (
-                  <tr
-                    key={String(row.id ?? i)}
-                    className="gba:border-b gba:border-border hover:gba:bg-muted/20 gba:transition-colors"
-                    data-testid={`${testId}-existing-row-${i}`}
-                  >
-                    {columns.map(col => (
-                      <td key={col.name} className="gba:px-3 gba:py-2 gba:align-middle gba:text-sm gba:text-foreground">
-                        {formatReadValue(row[col.name], col.type)}
-                      </td>
-                    ))}
-                    <td className="gba:w-16" />
-                  </tr>
-                ))}
+                {existingRows.map((row, i) => {
+                  const rowKey =
+                    row.id != null ? (typeof row.id === 'object' ? JSON.stringify(row.id) : String(row.id)) : String(i)
+                  return (
+                    <tr
+                      key={rowKey}
+                      className="gba:border-b gba:border-border hover:gba:bg-muted/20 gba:transition-colors"
+                      data-testid={`${testId}-existing-row-${i}`}
+                    >
+                      {columns.map(col => (
+                        <td
+                          key={col.name}
+                          className="gba:px-3 gba:py-2 gba:align-middle gba:text-sm gba:text-foreground"
+                        >
+                          {formatReadValue(row[col.name], col.type)}
+                        </td>
+                      ))}
+                      <td className="gba:w-16" />
+                    </tr>
+                  )
+                })}
                 {rows.map((row, i) => (
                   <EditableRow
                     key={row.id}
