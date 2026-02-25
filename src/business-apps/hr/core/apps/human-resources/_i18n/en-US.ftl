@@ -49,6 +49,7 @@ hr-analytics-data-error = Could not load data
 hr-analytics-headcount-changes-chart = Headcount Changes
 hr-analytics-headcount-changes-description = Monthly workforce changes showing new hires versus departures and net headcount impact
 hr-analytics-chart-year = Year
+hr-analytics-year = Year
 hr-analytics-chart-employees = Employees
 hr-analytics-chart-hires = Hires
 hr-analytics-trend = Trend

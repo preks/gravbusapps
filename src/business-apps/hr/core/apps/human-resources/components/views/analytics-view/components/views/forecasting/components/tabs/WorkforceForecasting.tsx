@@ -7,7 +7,9 @@ import { useQueryExecutionClient, QueryType, Services } from '@/common/network/d
 import HeadcountChangesChart from '../HeadcountChangesChart'
 import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
+import { formatMonthPeriod } from '../../../../../utils/valueDisplayUtils'
 import AnalyticsDataTable, { DIFFERENT_BADGE } from '../../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
@@ -171,15 +173,16 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
     ]
   }, [monthlyChanges, monthlyChangesLoading, isLoadingEmployeeCount, totalEmployeeCount, t, currentYear])
 
+  const locale = getCurrentActiveUserLocale() ?? 'en-US'
   const tableData = useMemo(
     () =>
       monthlyChanges.map(item => ({
-        period: item.month,
+        period: formatMonthPeriod(item.month, locale),
         hires: item.newHires,
         departures: item.departures,
         netChange: item.newHires - item.departures
       })),
-    [monthlyChanges]
+    [monthlyChanges, locale]
   )
 
   const exportColumns = [

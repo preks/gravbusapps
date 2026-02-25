@@ -50,6 +50,7 @@ hr-analytics-data-error = Daten konnten nicht geladen werden
 hr-analytics-headcount-changes-chart = Headcount-Veränderungen
 hr-analytics-headcount-changes-description = Monatliche Veränderungen der Belegschaft – Neueinstellungen vs. Abgänge und Nettoeffekt
 hr-analytics-chart-year = Jahr
+hr-analytics-year = Jahr
 hr-analytics-chart-employees = Mitarbeiter
 hr-analytics-chart-hires = Einstellungen
 hr-analytics-trend = Trend
