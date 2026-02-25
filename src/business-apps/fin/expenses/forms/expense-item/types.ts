@@ -48,6 +48,8 @@ export interface ExpenseType {
   name: string
   classId: string
   code?: string
+  additionalProperties?: Record<string, unknown>
+  attachmentInstruction?: string
 }
 
 export interface CustomField {

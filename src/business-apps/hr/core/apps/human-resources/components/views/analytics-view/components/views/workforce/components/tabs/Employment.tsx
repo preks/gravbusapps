@@ -124,16 +124,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
     }))
   }
 
-  const exportColumnsPeriodValue = [
-    { key: 'period', header: t('hr-analytics-period') },
-    { key: 'value', header: t('hr-analytics-value') }
-  ]
-  const exportColumnsPeriodValuePercentage = [
-    { key: 'period', header: t('hr-analytics-period') },
-    { key: 'value', header: t('hr-analytics-percentage'), badge: HIGHLIGHT_BADGE }
-  ]
-
-  // Chart configurations
+  // Chart configurations with chart-specific table column headers
   const chartConfigs = [
     {
       title: t('hr-analytics-employment-type-distribution'),
@@ -142,7 +133,10 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       testId: 'employment-type-chart',
       tag: t('hr-analytics-types', { count: employmentTypeDistribution.length }),
       description: t('hr-analytics-employment-type-description'),
-      exportColumns: exportColumnsPeriodValue
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-employment-type') },
+        { key: 'value', header: t('hr-analytics-employee-count'), badge: HIGHLIGHT_BADGE }
+      ]
     },
     {
       title: t('hr-analytics-contract-type-distribution'),
@@ -151,7 +145,10 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       testId: 'contract-type-chart',
       tag: t('hr-analytics-contract-breakdown'),
       description: t('hr-analytics-contract-types-description'),
-      exportColumns: exportColumnsPeriodValue
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-contract-types') },
+        { key: 'value', header: t('hr-analytics-employee-count'), badge: HIGHLIGHT_BADGE }
+      ]
     },
     {
       title: t('hr-analytics-gap-rate-by-organizational-unit'),
@@ -160,7 +157,10 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       testId: 'gap-rate-org-unit-chart',
       tag: t('hr-analytics-position-gaps'),
       description: t('hr-analytics-gap-rate-description'),
-      exportColumns: exportColumnsPeriodValuePercentage
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-entity-organizational-unit') },
+        { key: 'value', header: t('hr-analytics-gap-rate'), badge: HIGHLIGHT_BADGE }
+      ]
     },
     {
       title: t('hr-analytics-probation-rate-by-organizational-unit'),
@@ -169,7 +169,10 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       testId: 'probation-rate-org-unit-chart',
       tag: t('hr-analytics-probation-status'),
       description: t('hr-analytics-probation-rate-description'),
-      exportColumns: exportColumnsPeriodValuePercentage
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-entity-organizational-unit') },
+        { key: 'value', header: t('hr-analytics-probation-rate'), badge: HIGHLIGHT_BADGE }
+      ]
     },
     {
       title: t('hr-analytics-tenure-distribution-by-organizational-unit'),
@@ -178,7 +181,10 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       testId: 'tenure-heatmap-chart',
       tag: t('hr-analytics-data-points', { count: tenureDistribution.length }),
       description: t('hr-analytics-tenure-chart-description'),
-      exportColumns: exportColumnsPeriodValue
+      exportColumns: [
+        { key: 'period', header: t('common-category') },
+        { key: 'value', header: t('hr-analytics-employee-count'), badge: HIGHLIGHT_BADGE }
+      ]
     }
   ]
 
@@ -227,7 +233,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
 
       {/* Charts Grid */}
       <div className="gba:space-y-6 gba:mt-6">
-        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6 gba:items-start">
           <SelectableChartTile
             testId="employment-type-chart"
             isSelected={selectedChart === 'employment-type-chart'}
@@ -246,7 +252,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
           </SelectableChartTile>
         </div>
 
-        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6 gba:items-start">
           <SelectableChartTile
             testId="gap-rate-org-unit-chart"
             isSelected={selectedChart === 'gap-rate-org-unit-chart'}

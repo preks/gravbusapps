@@ -33,15 +33,27 @@ import {
   SelectTrigger,
   SelectValue,
   Badge,
-  Switch,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { Users, Link as LinkIcon, Trash2, Copy, Eye, Pencil, MessageSquare, AlertCircle, CheckCircle, Plus, Settings2 } from 'lucide-react'
+import {
+  Users,
+  Link as LinkIcon,
+  Trash2,
+  Copy,
+  Eye,
+  Pencil,
+  MessageSquare,
+  AlertCircle,
+  Plus,
+  Settings2
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 import { NoteApiService } from '../services/NoteApiService'
-import type { NotePermission, NoteShare } from '../types'
+import type { NotePermission } from '../types'
+import translations from '../_i18n'
 
 export interface ManageSharesDialogProps {
   open: boolean
@@ -83,6 +95,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   onSharesChanged,
   'data-testid': testId = 'manage-shares-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   // State
   const [shareUsers, setShareUsers] = useState<ShareUser[]>([])
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([])
@@ -171,7 +184,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       setShareLinks(links)
     } catch (err) {
       console.error('[ManageShares] Failed to load data:', err)
-      setError('Failed to load sharing information')
+      setError(t('manage-load-failed'))
     } finally {
       setIsLoading(false)
     }
@@ -194,10 +207,10 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         if (success) {
           setShareUsers(prev => prev.map(u => (u.shareId === shareId ? { ...u, permission } : u)))
           onSharesChanged?.()
-          toast.success('Permission updated')
+          toast.success(t('manage-toast-permission'))
         }
-      } catch (err) {
-        toast.error('Failed to update permission')
+      } catch {
+        toast.error(t('share-error-failed'))
       }
     },
     [onSharesChanged]
@@ -213,10 +226,10 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         if (success) {
           setShareUsers(prev => prev.filter(u => u.shareId !== shareId))
           onSharesChanged?.()
-          toast.success('Access revoked')
+          toast.success(t('manage-toast-revoked'))
         }
-      } catch (err) {
-        toast.error('Failed to revoke access')
+      } catch {
+        toast.error(t('share-error-failed'))
       }
     },
     [onSharesChanged]
@@ -246,7 +259,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       if (result) {
         // Copy link to clipboard
         await navigator.clipboard.writeText(result.url)
-        toast.success('Link created and copied to clipboard!')
+        toast.success(t('manage-toast-link-created'))
 
         // Reload links
         const links = await NoteApiService.getShareLinks(noteId)
@@ -256,8 +269,8 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         setNewLinkExpiry('')
         setNewLinkPassword('')
       }
-    } catch (err) {
-      toast.error('Failed to create share link')
+    } catch {
+      toast.error(t('share-error-failed'))
     } finally {
       setIsCreatingLink(false)
     }
@@ -269,7 +282,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   const handleCopyLink = useCallback(async (token: string) => {
     const url = `${window.location.origin}/notes/shared/${token}`
     await navigator.clipboard.writeText(url)
-    toast.success('Link copied to clipboard!')
+    toast.success(t('manage-toast-link-copied'))
   }, [])
 
   /**
@@ -280,10 +293,10 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       const success = await NoteApiService.deactivateShareLink(linkId)
       if (success) {
         setShareLinks(prev => prev.map(l => (l.id === linkId ? { ...l, isActive: false } : l)))
-        toast.success('Link deactivated')
+        toast.success(t('manage-toast-link-deactivated'))
       }
-    } catch (err) {
-      toast.error('Failed to deactivate link')
+    } catch {
+      toast.error(t('share-error-failed'))
     }
   }, [])
 
@@ -295,10 +308,10 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       const success = await NoteApiService.deleteShareLink(linkId)
       if (success) {
         setShareLinks(prev => prev.filter(l => l.id !== linkId))
-        toast.success('Link deleted')
+        toast.success(t('manage-toast-link-deleted'))
       }
-    } catch (err) {
-      toast.error('Failed to delete link')
+    } catch {
+      toast.error(t('share-error-failed'))
     }
   }, [])
 
@@ -331,9 +344,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Settings2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            Manage Sharing
+            {t('manage-title')}
           </DialogTitle>
-          <DialogDescription>Manage who has access to "{noteTitle || 'Untitled Note'}"</DialogDescription>
+          <DialogDescription>
+            {t('manage-description', { title: noteTitle || t('title-untitled-note') })}
+          </DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
@@ -345,7 +360,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
             <AlertCircle className="gba:w-12 gba:h-12 gba:text-destructive gba:mx-auto gba:mb-4" />
             <p className="gba:text-destructive">{error}</p>
             <Button variant="outline" onClick={loadData} className="gba:mt-4">
-              Retry
+              {t('manage-retry')}
             </Button>
           </div>
         ) : (
@@ -353,11 +368,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
             <TabsList className="gba:w-full">
               <TabsTrigger value="people" className="gba:flex-1">
                 <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                People ({shareUsers.length})
+                {t('manage-people-tab', { count: shareUsers.length })}
               </TabsTrigger>
               <TabsTrigger value="links" className="gba:flex-1">
                 <LinkIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                Share Links ({shareLinks.length})
+                {t('manage-links-tab', { count: shareLinks.length })}
               </TabsTrigger>
             </TabsList>
 
@@ -366,7 +381,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
               {shareUsers.length === 0 ? (
                 <div className="gba:py-8 gba:text-center gba:text-muted-foreground">
                   <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-3 gba:opacity-50" />
-                  <p>This note hasn't been shared with anyone yet.</p>
+                  <p>{t('manage-not-shared')}</p>
                 </div>
               ) : (
                 <div className="gba:space-y-2 gba:max-h-80 gba:overflow-y-auto">
@@ -383,7 +398,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                       <div className="gba:flex-1 gba:min-w-0">
                         <p className="gba:font-medium gba:truncate">{user.userName}</p>
                         <p className="gba:text-xs gba:text-muted-foreground">
-                          Shared {formatDate(user.sharedAt)}
+                          {t('manage-shared-at', { date: formatDate(user.sharedAt) })}
                         </p>
                       </div>
 
@@ -398,19 +413,19 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                           <SelectItem value="view">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <Eye className="gba:w-4 gba:h-4" />
-                              View
+                              {t('manage-permission-view-label')}
                             </div>
                           </SelectItem>
                           <SelectItem value="comment">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <MessageSquare className="gba:w-4 gba:h-4" />
-                              Comment
+                              {t('manage-permission-comment-label')}
                             </div>
                           </SelectItem>
                           <SelectItem value="edit">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <Pencil className="gba:w-4 gba:h-4" />
-                              Edit
+                              {t('manage-permission-edit-label')}
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -436,29 +451,26 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
               <div className="gba:p-4 gba:rounded-lg gba:border gba:bg-muted/20">
                 <h4 className="gba:font-medium gba:mb-3 gba:flex gba:items-center gba:gap-2">
                   <Plus className="gba:w-4 gba:h-4" />
-                  Create Share Link
+                  {t('manage-create-link')}
                 </h4>
 
                 <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                   <div className="gba:space-y-2">
-                    <Label>Permission</Label>
-                    <Select
-                      value={newLinkPermission}
-                      onValueChange={v => setNewLinkPermission(v as NotePermission)}
-                    >
+                    <Label>{t('manage-permission')}</Label>
+                    <Select value={newLinkPermission} onValueChange={v => setNewLinkPermission(v as NotePermission)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="view">Can view</SelectItem>
-                        <SelectItem value="comment">Can comment</SelectItem>
-                        <SelectItem value="edit">Can edit</SelectItem>
+                        <SelectItem value="view">{t('manage-can-view')}</SelectItem>
+                        <SelectItem value="comment">{t('manage-can-comment')}</SelectItem>
+                        <SelectItem value="edit">{t('manage-can-edit')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="gba:space-y-2">
-                    <Label>Expires (optional)</Label>
+                    <Label>{t('manage-expires-optional')}</Label>
                     <Input
                       type="datetime-local"
                       value={newLinkExpiry}
@@ -472,12 +484,12 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                     {isCreatingLink ? (
                       <>
                         <Spinner size="sm" className="gba:mr-2" />
-                        Creating...
+                        {t('manage-creating')}
                       </>
                     ) : (
                       <>
                         <LinkIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Create Link
+                        {t('manage-create-link-btn')}
                       </>
                     )}
                   </Button>
@@ -490,7 +502,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
               {shareLinks.length === 0 ? (
                 <div className="gba:py-8 gba:text-center gba:text-muted-foreground">
                   <LinkIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-3 gba:opacity-50" />
-                  <p>No share links created yet.</p>
+                  <p>{t('manage-no-links')}</p>
                 </div>
               ) : (
                 <div className="gba:space-y-2 gba:max-h-48 gba:overflow-y-auto">
@@ -504,7 +516,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                       <div className="gba:flex-1 gba:min-w-0">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Badge variant={link.isActive ? 'default' : 'secondary'}>
-                            {link.isActive ? 'Active' : 'Inactive'}
+                            {link.isActive ? t('manage-active') : t('manage-inactive')}
                           </Badge>
                           <Badge variant="outline">
                             {link.permission === 'view' && <Eye className="gba:w-3 gba:h-3 gba:mr-1" />}
@@ -514,9 +526,9 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                           </Badge>
                         </div>
                         <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                          Created {formatDate(link.createdAt)}
-                          {link.expiresAt && ` • Expires ${formatDate(link.expiresAt)}`}
-                          {link.useCount > 0 && ` • ${link.useCount} uses`}
+                          {t('manage-created-at', { date: formatDate(link.createdAt) })}
+                          {link.expiresAt && ` • ${t('manage-expires-at', { date: formatDate(link.expiresAt) })}`}
+                          {link.useCount > 0 && ` • ${t('manage-uses-count', { count: link.useCount })}`}
                         </p>
                       </div>
 
@@ -553,7 +565,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Done
+            {t('share-done')}
           </Button>
         </DialogFooter>
       </DialogContent>

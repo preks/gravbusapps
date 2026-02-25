@@ -33,6 +33,7 @@ export const useOrchestratorHandlers = ({
   const handleAnalyze = useCallback(
     async (prompt: string) => {
       state.setUserPrompt(prompt)
+      state.setChatActive(true)
       state.setViewState('analyzing')
 
       const response = await orchestratorClient.analyze(prompt)
@@ -76,7 +77,7 @@ export const useOrchestratorHandlers = ({
       try {
         await orchestratorClient.updatePlan(orchestratorClient.currentPlan.jobId, {
           components: updatedComponents,
-          update_reason: 'User modified plan from UI'
+          updateReason: 'User modified plan from UI'
         })
 
         // Close modal on success
@@ -167,6 +168,7 @@ export const useOrchestratorHandlers = ({
     buildProgress.cancelBuild()
     orchestratorClient.clearPlan()
     state.setViewState('idle')
+    state.setChatActive(false)
     state.setBuildLogs([])
     state.loggedPhasesRef.current.clear()
     state.lastCompletedCountRef.current = 0
@@ -185,6 +187,7 @@ export const useOrchestratorHandlers = ({
     buildProgress.resetProgress()
     orchestratorClient.clearPlan()
     state.setViewState('idle')
+    state.setChatActive(false)
     state.setUserPrompt('')
     state.setBuildLogs([])
     state.setThinkingSteps([])

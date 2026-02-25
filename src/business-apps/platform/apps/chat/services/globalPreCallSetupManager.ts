@@ -35,6 +35,8 @@ export interface PreCallSetupState {
   userName?: string
   userAvatarUrl?: string
   conversationType?: 'direct' | 'group' | 'meeting'
+  /** For direct (1-on-1) calls: display name of the other participant ("Call with ..."). */
+  otherParticipantName?: string
 }
 
 interface StoredPreCallSetupData {
@@ -50,7 +52,8 @@ const initialState: PreCallSetupState = {
   participantCount: 0,
   userName: undefined,
   userAvatarUrl: undefined,
-  conversationType: undefined
+  conversationType: undefined,
+  otherParticipantName: undefined
 }
 
 class GlobalPreCallSetupManager {

@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Asset, AssetFilter, AssetStatus } from '../types'
+import { Asset, AssetFilter } from '../types'
 import { useAssetService } from '../services/useAssetService'
 
 export interface UseAssetsOptions {
@@ -31,7 +31,8 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
     totalAssets: 0,
     availableAssets: 0,
     allocatedAssets: 0,
-    underRepairAssets: 0
+    underRepairAssets: 0,
+    retiredAssets: 0
   })
   const [statisticsLoading, setStatisticsLoading] = useState(false)
   const [statisticsError, setStatisticsError] = useState<Error | null>(null)
@@ -49,7 +50,8 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
           prevStats.totalAssets === stats.totalAssets &&
           prevStats.allocatedAssets === stats.allocatedAssets &&
           prevStats.availableAssets === stats.availableAssets &&
-          prevStats.underRepairAssets === stats.underRepairAssets
+          prevStats.underRepairAssets === stats.underRepairAssets &&
+          prevStats.retiredAssets === stats.retiredAssets
         ) {
           return prevStats // Return same reference if values unchanged
         }
@@ -68,16 +70,14 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
   const buildWhereConditions = useCallback(() => {
     const conditions: any[] = []
 
-    // Always exclude retired assets and deleted assets
-    conditions.push({ assetStatus: { _neq: AssetStatus.RETIRED } })
     conditions.push({ isDeleted: { _eq: false } })
 
-    // Status filter (exclude RETIRED status from filtering)
-    if (statusFilter && statusFilter !== 'all' && statusFilter !== AssetStatus.RETIRED) {
+    // Status filter: all (include retired), retired only, or other status
+    if (statusFilter && statusFilter !== 'all') {
       conditions.push({ assetStatus: { _eq: statusFilter } })
     }
 
-    // Search filter - search across multiple fields
+    // Search filter - search across multiple fields (includes retired assets)
     if (search?.trim()) {
       const searchPattern = { _ilike: `%${search.trim()}%` }
       conditions.push({

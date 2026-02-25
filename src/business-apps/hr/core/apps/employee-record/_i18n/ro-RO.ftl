@@ -547,14 +547,67 @@ performance-status-achieved = Atins
 performance-status-not-achieved = Neatins
 performance-error-load = Nu s-au putut încărca datele de performanță
 
+# Performance Evaluation Tab
+performance-evaluation-title = Evaluare performanță
+performance-evaluation-description = Vizualizează istoricul evaluărilor angajatului grupat pe cicluri de performanță
+performance-evaluation-kpi-cycles = Cicluri
+performance-evaluation-kpi-evaluations = Evaluări
+performance-evaluation-kpi-in-progress = În desfășurare
+performance-evaluation-kpi-completed = Finalizate
+performance-evaluation-cycle-total = Evaluări totale
+performance-evaluation-start-date = Data începerii
+performance-evaluation-target-completion-date = Data țintă de finalizare
+performance-evaluation-actual-completion-date = Data efectivă de finalizare
+performance-evaluation-overall-rating = Rating general
+performance-evaluation-view-details = Vezi detalii
+performance-evaluation-empty-title = Nu există evaluări de performanță
+performance-evaluation-empty = Acest angajat nu are încă evaluări de performanță.
+performance-evaluation-load-error = Nu s-au putut încărca evaluările de performanță: { $error }
+performance-evaluation-hide-details = Ascunde detaliile
+performance-evaluation-go-back = Înapoi
+performance-evaluation-detail-title = Detalii evaluare
+performance-evaluation-detail-subtitle = Vizualizare structurată a rezultatelor și perspectivelor evaluatorilor
+performance-evaluation-summary-cycle = Ciclu de performanță
+performance-evaluation-summary-cycle-range = Perioada ciclului
+performance-evaluation-summary-timeline = Cronologie evaluare
+performance-evaluation-summary-overall = Rezumat general
+performance-evaluation-summary-overall-numeric = Medie numerică
+performance-evaluation-summary-sidebar-title = Schimbare față de ultima evaluare
+performance-evaluation-summary-sidebar-description = Delta față de evaluarea anterioară
+performance-evaluation-additional-data = Date suplimentare
+performance-evaluation-radar-company-values-title = Comparație valori companie
+performance-evaluation-radar-company-values-description = Comparație între autoevaluare, peer și manager pe fiecare valoare
+performance-evaluation-radar-skills-title = Comparație competențe
+performance-evaluation-radar-skills-description = Comparație între autoevaluare, peer și manager pe fiecare competență
+performance-evaluation-radar-average-score = Scor mediu
+performance-evaluation-radar-no-data = Nu sunt suficiente date pentru acest grafic.
+performance-evaluation-company-values = Valori companie
+performance-evaluation-company-value-singular = Valoare companie
+performance-evaluation-skills = Competențe
+performance-evaluation-skill-singular = Competență
+performance-evaluation-self = Autoevaluare
+performance-evaluation-peer = Peer
+performance-evaluation-manager = Manager
+performance-evaluation-reviewer-column = Evaluator
+performance-evaluation-carousel-previous = Anterior
+performance-evaluation-carousel-next = Următor
+performance-evaluation-detail-empty-title = Nu există date detaliate
+performance-evaluation-detail-empty = Nu au fost returnate informații detaliate pentru această evaluare.
+performance-evaluation-detail-load-error = Nu s-au putut încărca detaliile evaluării: { $error }
+performance-evaluation-status-completed = Finalizat
+performance-evaluation-status-in_progress = În desfășurare
+performance-evaluation-status-cancelled = Anulat
+performance-evaluation-status-unknown = Necunoscut
+
 # Feedback Tab - Pagination
 feedback-pagination-per-page = / pagină
 
 employee-record-tab-compensation = Compensații
 employee-record-tab-time-tracking = Pontaj
 employee-record-tab-absences = Absențe
-employee-record-tab-assets = Mijloace
+employee-record-tab-assets = Echipamente
 employee-record-tab-service-requests = Cereri servicii
+employee-record-tab-performance-evaluation = Evaluare performanță
 
 # Profile Header - Detail labels
 profile-header-work-email = E-mail serviciu

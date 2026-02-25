@@ -198,11 +198,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const { handleDownloadAccountingNote, handleTriggerCSV } = useExpenseRequestActions(props)
 
-  const { handleTransferPayment, handleBulkTransferPayment } = useExpenseRequestTransfer(
-    props,
-    () => fetchData(true), // Force refresh after transfer
-    clearSelection
-  )
+  const { handleTransferPayment, handleBulkTransferPayment, isTransferInProgress, isBulkTransferInProgress } =
+    useExpenseRequestTransfer(
+      props,
+      () => fetchData(true), // Force refresh after transfer
+      clearSelection
+    )
 
   const {
     employeeFilter,
@@ -1139,6 +1140,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                         onTransferPayment={handleTransferPayment}
                         isSelected={selectedRowKeys.includes(record.id)}
                         onSelectRecord={handleSelectRecord}
+                        transferInProgress={isTransferInProgress(record.id)}
                       />
                     ))
                   )}
@@ -1176,6 +1178,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     handleTriggerCSV,
     handlePrintExpenseRequest,
     handleTransferPayment,
+    isTransferInProgress,
     selectedRowKeys,
     handleSelectRecord,
     currentPage,
@@ -1310,14 +1313,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             data-testid="bulk-transfer-payment-button"
             variant="outline"
             size="sm"
+            disabled={isBulkTransferInProgress}
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} (
-            {selectedBookableCount}{' '}
+            {isBulkTransferInProgress
+              ? getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment_in_progress', 'Transfer in Progress')
+              : getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')}{' '}
+            ({selectedBookableCount}{' '}
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
           </Button>
         ]
       : []
-  }, [hasBookableSelected, selectedBookableCount])
+  }, [hasBookableSelected, selectedBookableCount, handleBulkTransfer, isBulkTransferInProgress])
 
   // Helper to build search condition (reduces cognitive complexity of buildQueryConditions)
   const buildSearchCondition = useCallback((searchValue: string): any => {

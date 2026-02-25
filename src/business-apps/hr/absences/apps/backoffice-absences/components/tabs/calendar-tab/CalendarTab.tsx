@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react'
+import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient'
 import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
@@ -102,8 +103,10 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
       .filter(Boolean)
   }, [allEmployees, selectedOrgUnits])
 
-  // Fetch view-backed events for current month window
-  const { events: viewEvents } = useBackofficeTeamCalendarDays(accessToken, employeeIds, undefined, undefined, mapType)
+  // Fetch view-backed events for the whole current year to ensure month navigation displays data
+  const yearFrom = dayjs().startOf('year').format('YYYY-MM-DD')
+  const yearTo = dayjs().endOf('year').format('YYYY-MM-DD')
+  const { events: viewEvents } = useBackofficeTeamCalendarDays(accessToken, employeeIds, yearFrom, yearTo, mapType)
 
   const getAbsenceTypeName = (type: EmployeeAbsence['type'], locale = userLocale): string => {
     const translation = type.translations?.find(t => t.localeCode === locale)

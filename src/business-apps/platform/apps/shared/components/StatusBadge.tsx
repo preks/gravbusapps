@@ -5,7 +5,8 @@
  */
 
 import React from 'react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
+import sharedTranslations from '../_i18n'
 import { FileText, Eye, CheckCircle, Archive } from 'lucide-react'
 import type { PublishStatus } from '../types/versioning'
 
@@ -14,47 +15,40 @@ export interface StatusBadgeProps {
   'data-testid'?: string
 }
 
-const statusConfig: Record<
+const STATUS_LABEL_KEYS: Record<PublishStatus, string> = {
+  draft: 'status-badge-draft',
+  in_review: 'status-badge-in-review',
+  published: 'status-badge-published',
+  archived: 'status-badge-archived'
+}
+
+const statusVariant: Record<
   PublishStatus,
-  {
-    label: string
-    variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline'
-    icon: React.ReactNode
-  }
+  'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline'
 > = {
-  draft: {
-    label: 'Draft',
-    variant: 'outline',
-    icon: <FileText className="gba:h-3 gba:w-3" />
-  },
-  in_review: {
-    label: 'In Review',
-    variant: 'warning',
-    icon: <Eye className="gba:h-3 gba:w-3" />
-  },
-  published: {
-    label: 'Published',
-    variant: 'success',
-    icon: <CheckCircle className="gba:h-3 gba:w-3" />
-  },
-  archived: {
-    label: 'Archived',
-    variant: 'secondary',
-    icon: <Archive className="gba:h-3 gba:w-3" />
-  }
+  draft: 'outline',
+  in_review: 'warning',
+  published: 'success',
+  archived: 'secondary'
+}
+
+const statusIcon: Record<PublishStatus, React.ReactNode> = {
+  draft: <FileText className="gba:h-3 gba:w-3" />,
+  in_review: <Eye className="gba:h-3 gba:w-3" />,
+  published: <CheckCircle className="gba:h-3 gba:w-3" />,
+  archived: <Archive className="gba:h-3 gba:w-3" />
 }
 
 /**
  * Badge showing publishing status
  */
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, 'data-testid': testId = 'status-badge' }) => {
-  const config = statusConfig[status]
-
+  const { t } = useTranslation(sharedTranslations)
   return (
-    <Badge variant={config.variant} data-testid={testId}>
+    <Badge variant={statusVariant[status]} data-testid={testId}>
       <span className="gba:flex gba:items-center gba:gap-1">
-        {config.icon}
-        {config.label}
+        {statusIcon[status]}
+        {t(STATUS_LABEL_KEYS[status])}
       </span>
     </Badge>
   )

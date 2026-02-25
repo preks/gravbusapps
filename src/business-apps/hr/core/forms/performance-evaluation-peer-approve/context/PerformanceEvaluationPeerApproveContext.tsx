@@ -4,6 +4,14 @@ import { PerformanceEvaluationPeerApproveFormValues, NominatedPeer } from '../ty
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useNominatedPeersFromProcess } from '../hooks/useNominatedPeersFromProcess'
 import { useEmployeeDisplayNames } from '../hooks/useEmployeeDisplayNames'
+import { useEmployeeForPeerApproveHeader } from '../hooks/useEmployeeForPeerApproveHeader'
+
+export interface EmployeeForHeader {
+  firstName: string
+  lastName: string
+  pictureThumbnail?: string
+  jobTitle?: string
+}
 
 interface PerformanceEvaluationPeerApproveContextType {
   nominatedPeers: NominatedPeer[]
@@ -15,6 +23,8 @@ interface PerformanceEvaluationPeerApproveContextType {
   onReject: (comment?: string) => Promise<void>
   onCancel: () => Promise<void>
   businessAppContext: BusinessAppContextProps
+  employeeForHeader: EmployeeForHeader | null
+  employeeForHeaderLoading: boolean
 }
 
 const PerformanceEvaluationPeerApproveContext = createContext<PerformanceEvaluationPeerApproveContextType | undefined>(
@@ -67,6 +77,13 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
   const [error, setError] = useState<string | null>(null)
 
   const ad = businessAppContext?.additionalData as Record<string, unknown> | undefined
+
+  const {
+    employeeForHeader,
+    loading: employeeForHeaderLoading,
+    error: employeeForHeaderError
+  } = useEmployeeForPeerApproveHeader(businessAppContext?.accessToken, ad)
+
   const {
     peers: peersFromProcess,
     loading: peersLoading,
@@ -89,7 +106,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       })),
     [nominatedPeersRaw, displayNames]
   )
-  const resolvedError = error ?? peersError
+  const resolvedError = error ?? peersError ?? employeeForHeaderError
   const peersLoadingResolved = peersLoading || (peerIds.length > 0 && namesLoading)
 
   const clearError = useCallback(() => setError(null), [])
@@ -161,7 +178,9 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       onApprove: handleApprove,
       onReject: handleReject,
       onCancel: handleCancel,
-      businessAppContext
+      businessAppContext,
+      employeeForHeader,
+      employeeForHeaderLoading
     }),
     [
       nominatedPeers,
@@ -172,7 +191,9 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       handleApprove,
       handleReject,
       handleCancel,
-      businessAppContext
+      businessAppContext,
+      employeeForHeader,
+      employeeForHeaderLoading
     ]
   )
 

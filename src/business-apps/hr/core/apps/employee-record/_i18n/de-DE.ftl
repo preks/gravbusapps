@@ -547,6 +547,58 @@ performance-status-achieved = Erreicht
 performance-status-not-achieved = Nicht erreicht
 performance-error-load = Leistungsdaten konnten nicht geladen werden
 
+# Performance Evaluation Tab
+performance-evaluation-title = Leistungsbewertung
+performance-evaluation-description = Bewertungsverlauf der Mitarbeitenden nach Leistungszyklen anzeigen
+performance-evaluation-kpi-cycles = Zyklen
+performance-evaluation-kpi-evaluations = Bewertungen
+performance-evaluation-kpi-in-progress = In Bearbeitung
+performance-evaluation-kpi-completed = Abgeschlossen
+performance-evaluation-cycle-total = Bewertungen gesamt
+performance-evaluation-start-date = Startdatum
+performance-evaluation-target-completion-date = Geplantes Abschlussdatum
+performance-evaluation-actual-completion-date = Tatsächliches Abschlussdatum
+performance-evaluation-overall-rating = Gesamtbewertung
+performance-evaluation-view-details = Details anzeigen
+performance-evaluation-empty-title = Keine Leistungsbewertungen
+performance-evaluation-empty = Für diese Person sind noch keine Leistungsbewertungen vorhanden.
+performance-evaluation-load-error = Leistungsbewertungen konnten nicht geladen werden: { $error }
+performance-evaluation-hide-details = Details ausblenden
+performance-evaluation-go-back = Zurück
+performance-evaluation-detail-title = Bewertungsdetails
+performance-evaluation-detail-subtitle = Strukturierte Ansicht der Bewertungsergebnisse und Perspektiven
+performance-evaluation-summary-cycle = Leistungszyklus
+performance-evaluation-summary-cycle-range = Zykluszeitraum
+performance-evaluation-summary-timeline = Bewertungszeitplan
+performance-evaluation-summary-overall = Gesamtbewertung
+performance-evaluation-summary-overall-numeric = Numerischer Durchschnitt
+performance-evaluation-summary-sidebar-title = Änderung seit letzter Bewertung
+performance-evaluation-summary-sidebar-description = Delta zur vorherigen Bewertung
+performance-evaluation-additional-data = Zusätzliche Daten
+performance-evaluation-radar-company-values-title = Vergleich der Unternehmenswerte
+performance-evaluation-radar-company-values-description = Vergleich zwischen Selbst-, Peer- und Führungskraft-Bewertung je Wert
+performance-evaluation-radar-skills-title = Kompetenzvergleich
+performance-evaluation-radar-skills-description = Vergleich zwischen Selbst-, Peer- und Führungskraft-Bewertung je Kompetenz
+performance-evaluation-radar-average-score = Durchschnittswert
+performance-evaluation-radar-no-data = Nicht genügend Daten für dieses Diagramm.
+performance-evaluation-company-values = Unternehmenswerte
+performance-evaluation-company-value-singular = Unternehmenswert
+performance-evaluation-skills = Kompetenzen
+performance-evaluation-skill-singular = Kompetenz
+performance-evaluation-self = Selbst
+performance-evaluation-peer = Kolleg:innen
+performance-evaluation-manager = Führungskraft
+performance-evaluation-reviewer-column = Bewertende
+performance-evaluation-carousel-previous = Zurück
+performance-evaluation-carousel-next = Weiter
+performance-evaluation-detail-empty-title = Keine Detaildaten verfügbar
+performance-evaluation-detail-empty = Für diese Bewertung wurden keine Detailinformationen zurückgegeben.
+performance-evaluation-detail-load-error = Bewertungsdetails konnten nicht geladen werden: { $error }
+performance-evaluation-status-completed = Abgeschlossen
+performance-evaluation-status-in_progress = In Bearbeitung
+performance-evaluation-status-cancelled = Abgebrochen
+performance-evaluation-status-unknown = Unbekannt
+
 # Feedback Tab - Pagination
 feedback-pagination-per-page = / Seite
 
@@ -555,6 +607,7 @@ employee-record-tab-time-tracking = Zeiterfassung
 employee-record-tab-absences = Abwesenheiten
 employee-record-tab-assets = Sachmittel
 employee-record-tab-service-requests = Serviceanfragen
+employee-record-tab-performance-evaluation = Leistungsbewertung
 
 # Profile Header - Detail labels
 profile-header-work-email = Arbeit-E-Mail

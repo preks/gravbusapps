@@ -554,6 +554,58 @@ performance-status-achieved = Achieved
 performance-status-not-achieved = Not Achieved
 performance-error-load = Failed to load performance data
 
+# Performance Evaluation Tab
+performance-evaluation-title = Performance Evaluation
+performance-evaluation-description = Review employee evaluation history grouped by performance cycle
+performance-evaluation-kpi-cycles = Cycles
+performance-evaluation-kpi-evaluations = Evaluations
+performance-evaluation-kpi-in-progress = In Progress
+performance-evaluation-kpi-completed = Completed
+performance-evaluation-cycle-total = Total evaluations
+performance-evaluation-start-date = Start date
+performance-evaluation-target-completion-date = Target completion date
+performance-evaluation-actual-completion-date = Actual completion date
+performance-evaluation-overall-rating = Overall rating
+performance-evaluation-view-details = View details
+performance-evaluation-empty-title = No performance evaluations
+performance-evaluation-empty = This employee does not have performance evaluations yet.
+performance-evaluation-load-error = Failed to load performance evaluations: { $error }
+performance-evaluation-hide-details = Hide details
+performance-evaluation-go-back = Go back
+performance-evaluation-detail-title = Evaluation details
+performance-evaluation-detail-subtitle = Structured view of evaluation outcomes and reviewer perspectives
+performance-evaluation-summary-cycle = Performance cycle
+performance-evaluation-summary-cycle-range = Cycle range
+performance-evaluation-summary-timeline = Evaluation timeline
+performance-evaluation-summary-overall = Overall
+performance-evaluation-summary-overall-numeric = Average numeric
+performance-evaluation-summary-sidebar-title = Change since last review
+performance-evaluation-summary-sidebar-description = Delta versus the previous review
+performance-evaluation-additional-data = Additional data
+performance-evaluation-radar-company-values-title = Company Values Comparison
+performance-evaluation-radar-company-values-description = Self, peer, and manager comparison by value
+performance-evaluation-radar-skills-title = Skills Comparison
+performance-evaluation-radar-skills-description = Self, peer, and manager comparison by skill
+performance-evaluation-radar-average-score = Average score
+performance-evaluation-radar-no-data = Not enough data to draw this chart.
+performance-evaluation-company-values = Company values
+performance-evaluation-company-value-singular = Company value
+performance-evaluation-skills = Skills
+performance-evaluation-skill-singular = Skill
+performance-evaluation-self = Self
+performance-evaluation-peer = Peer
+performance-evaluation-manager = Manager
+performance-evaluation-reviewer-column = Reviewer
+performance-evaluation-carousel-previous = Previous
+performance-evaluation-carousel-next = Next
+performance-evaluation-detail-empty-title = No detail data available
+performance-evaluation-detail-empty = No detail information was returned for this evaluation.
+performance-evaluation-detail-load-error = Failed to load evaluation details: { $error }
+performance-evaluation-status-completed = Completed
+performance-evaluation-status-in_progress = In progress
+performance-evaluation-status-cancelled = Cancelled
+performance-evaluation-status-unknown = Unknown
+
 # Feedback Tab - Pagination
 feedback-pagination-per-page = / page
 
@@ -562,6 +614,7 @@ employee-record-tab-time-tracking = Time Tracking
 employee-record-tab-absences = Absences
 employee-record-tab-assets = Assets
 employee-record-tab-service-requests = Service Requests
+employee-record-tab-performance-evaluation = Performance Evaluation
 
 # Profile Header - Detail labels
 profile-header-work-email = Work Email

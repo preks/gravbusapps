@@ -141,7 +141,8 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
         subViewMap: {
           skills: 'skills',
           feedback: 'feedback',
-          performance: 'performance'
+          performance: 'performance',
+          performanceEvaluation: 'performanceEvaluation'
         }
       },
       compensation: {

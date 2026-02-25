@@ -25,7 +25,7 @@ export type RunForOption = 'self' | 'team'
 
 export interface StartCycleConfirmOptions {
   runFor: RunForOption
-  teamIds: string[]
+  teamIds: string[] // Single select: 0 or 1 team id
 }
 
 interface StartCycleConfirmDialogProps {
@@ -45,22 +45,22 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
 }) => {
   const { t } = useTranslation(translations)
   const [runFor, setRunFor] = useState<RunForOption>('self')
-  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { organizationalUnits, loading, error } = useOrganizationalUnits(accessToken, open && runFor === 'team')
 
   // Reset selection when dialog opens
   useEffect(() => {
     if (open) {
       setRunFor('self')
-      setSelectedTeamIds([])
+      setSelectedTeamId('')
     }
   }, [open])
 
   const handleConfirm = () => {
-    onConfirm({ runFor, teamIds: runFor === 'team' ? selectedTeamIds : [] })
+    onConfirm({ runFor, teamIds: runFor === 'team' && selectedTeamId ? [selectedTeamId] : [] })
   }
 
-  const isConfirmDisabled = runFor === 'team' ? selectedTeamIds.length === 0 || loading : false
+  const isConfirmDisabled = runFor === 'team' ? !selectedTeamId || loading : false
 
   return (
     <AlertDialog open={open} onOpenChange={open => !open && onCancel()}>
@@ -99,11 +99,10 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
               <Label>{t('start-confirm-select-teams')}</Label>
               <div className="gba:w-full gba:max-w-full">
                 <Combobox
-                  mode="multiple"
-                  value={selectedTeamIds}
-                  onValueChange={(ids: string[] | string) => {
-                    const next = Array.isArray(ids) ? ids : ids ? [ids] : []
-                    setSelectedTeamIds(next)
+                  value={selectedTeamId}
+                  onValueChange={(id: string[] | string) => {
+                    const next = typeof id === 'string' ? id : Array.isArray(id) ? (id[0] ?? '') : ''
+                    setSelectedTeamId(next)
                   }}
                   options={organizationalUnits.map((unit: OrganizationalUnit) => ({
                     label: unit.name,
@@ -119,7 +118,7 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
                   searchPlaceholder={t('start-confirm-search-teams')}
                   emptyText={t('start-confirm-empty-teams')}
                   disabled={loading || Boolean(error)}
-                  className="gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:gba:max-w-full gba:[&_button]:gba:min-w-0 gba:[&_button]:gba:overflow-hidden gba:[&_button_span]:gba:truncate gba:[&_button]:gba:h-auto gba:[&_button>div]:gba:flex-wrap gba:[&_button>div]:gba:gap-2"
+                  className="gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:gba:max-w-full gba:[&_button]:gba:min-w-0 gba:[&_button]:gba:overflow-hidden gba:[&_button_span]:gba:truncate gba:[&_button]:gba:h-auto"
                 />
               </div>
               {error && (

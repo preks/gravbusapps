@@ -16,7 +16,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ChevronRight,
@@ -36,6 +37,7 @@ import {
   PanelLeftClose
 } from 'lucide-react'
 import type { NoteTreeNode, NoteColor } from '../types'
+import translations from '../_i18n'
 
 export interface FolderTreeSidebarProps {
   tree: NoteTreeNode[]
@@ -61,7 +63,7 @@ interface TreeNodeProps {
   onMove?: (id: string) => void
 }
 
-const TreeNode: React.FC<TreeNodeProps> = ({
+const TreeNode: React.FC<TreeNodeProps & { t: (key: string) => string }> = ({
   node,
   selectedId,
   expandedIds,
@@ -70,7 +72,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   onCreateNote,
   onRename,
   onDelete,
-  onMove
+  onMove,
+  t
 }) => {
   const isExpanded = expandedIds.has(node.id)
   const isSelected = selectedId === node.id
@@ -92,9 +95,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     <div>
       <div
         className={`gba:flex gba:items-center gba:gap-1 gba:py-1.5 gba:px-2 gba:rounded-md gba:cursor-pointer gba:group gba:transition-colors ${
-          isSelected
-            ? 'gba:bg-primary/10 gba:text-primary'
-            : 'hover:gba:bg-muted gba:text-foreground'
+          isSelected ? 'gba:bg-primary/10 gba:text-primary' : 'hover:gba:bg-muted gba:text-foreground'
         }`}
         style={{ paddingLeft: `${paddingLeft}px` }}
         onClick={handleClick}
@@ -113,11 +114,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           }`}
           onClick={handleExpandClick}
         >
-          {isExpanded ? (
-            <ChevronDown className="gba:w-4 gba:h-4" />
-          ) : (
-            <ChevronRight className="gba:w-4 gba:h-4" />
-          )}
+          {isExpanded ? <ChevronDown className="gba:w-4 gba:h-4" /> : <ChevronRight className="gba:w-4 gba:h-4" />}
         </button>
 
         {/* Icon */}
@@ -136,7 +133,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         </span>
 
         {/* Title */}
-        <span className="gba:flex-1 gba:truncate gba:text-sm">{node.title || 'Untitled'}</span>
+        <span className="gba:flex-1 gba:truncate gba:text-sm">{node.title || t('title-untitled')}</span>
 
         {/* Pin indicator */}
         {node.isPinned && <Pin className="gba:w-3 gba:h-3 gba:text-warning gba:fill-current" />}
@@ -155,25 +152,25 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             {onCreateNote && (
               <DropdownMenuItem onClick={() => onCreateNote(node.id)}>
                 <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                Add Note Inside
+                {t('folder-add-note-inside')}
               </DropdownMenuItem>
             )}
             {onRename && (
               <DropdownMenuItem onClick={() => onRename(node.id)}>
                 <Edit3 className="gba:w-4 gba:h-4 gba:mr-2" />
-                Rename
+                {t('folder-rename')}
               </DropdownMenuItem>
             )}
             {onMove && (
               <DropdownMenuItem onClick={() => onMove(node.id)}>
                 <FolderInput className="gba:w-4 gba:h-4 gba:mr-2" />
-                Move to...
+                {t('folder-move-to')}
               </DropdownMenuItem>
             )}
             {onDelete && (
               <DropdownMenuItem onClick={() => onDelete(node.id)} className="gba:text-destructive">
                 <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                Delete
+                {t('menu-delete')}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -195,6 +192,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               onRename={onRename}
               onDelete={onDelete}
               onMove={onMove}
+              t={t}
             />
           ))}
         </div>
@@ -214,6 +212,7 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
   onCollapse,
   'data-testid': testId = 'folder-tree-sidebar'
 }) => {
+  const { t } = useTranslation(translations)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   const handleToggleExpand = useCallback((id: string) => {
@@ -240,28 +239,20 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
   }, [onSelect])
 
   return (
-    <div
-      className="gba:w-64 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col"
-      data-testid={testId}
-    >
+    <div className="gba:w-64 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col" data-testid={testId}>
       {/* Header */}
       <div className="gba:p-3 gba:border-b gba:flex gba:items-center gba:justify-between">
-        <h2 className="gba:font-semibold gba:text-sm gba:text-foreground">Folders</h2>
+        <h2 className="gba:font-semibold gba:text-sm gba:text-foreground">{t('folder-folders')}</h2>
         <div className="gba:flex gba:items-center gba:gap-1">
           {onCreateNote && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="gba:h-7 gba:w-7"
-                    onClick={() => onCreateNote()}
-                  >
+                  <Button variant="ghost" size="icon" className="gba:h-7 gba:w-7" onClick={() => onCreateNote()}>
                     <Plus className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>New Note</TooltipContent>
+                <TooltipContent>{t('folder-new-note')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
@@ -273,7 +264,7 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
                     <PanelLeftClose className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Collapse Sidebar</TooltipContent>
+                <TooltipContent>{t('folder-collapse-sidebar')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
@@ -284,9 +275,7 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
       <div className="gba:p-2 gba:border-b">
         <div
           className={`gba:flex gba:items-center gba:gap-2 gba:py-1.5 gba:px-3 gba:rounded-md gba:cursor-pointer gba:transition-colors ${
-            selectedId === null
-              ? 'gba:bg-primary/10 gba:text-primary'
-              : 'hover:gba:bg-muted gba:text-foreground'
+            selectedId === null ? 'gba:bg-primary/10 gba:text-primary' : 'hover:gba:bg-muted gba:text-foreground'
           }`}
           onClick={handleAllNotes}
           role="button"
@@ -298,17 +287,17 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
           }}
         >
           <FileText className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm gba:font-medium">All Notes</span>
+          <span className="gba:text-sm gba:font-medium">{t('folder-all-notes')}</span>
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-2 gba:py-1.5 gba:px-3 gba:rounded-md gba:cursor-pointer hover:gba:bg-muted gba:text-muted-foreground gba:transition-colors">
           <Star className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm">Favorites</span>
+          <span className="gba:text-sm">{t('folder-favorites')}</span>
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-2 gba:py-1.5 gba:px-3 gba:rounded-md gba:cursor-pointer hover:gba:bg-muted gba:text-muted-foreground gba:transition-colors">
           <Archive className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm">Archive</span>
+          <span className="gba:text-sm">{t('folder-archive')}</span>
         </div>
       </div>
 
@@ -318,8 +307,8 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
           {tree.length === 0 ? (
             <div className="gba:text-center gba:py-8 gba:text-muted-foreground gba:text-sm">
               <Folder className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:text-muted-foreground/50" />
-              <p>No folders yet</p>
-              <p className="gba:text-xs gba:mt-1">Create a note to get started</p>
+              <p>{t('folder-no-folders')}</p>
+              <p className="gba:text-xs gba:mt-1">{t('folder-create-to-start')}</p>
             </div>
           ) : (
             tree.map(node => (
@@ -334,6 +323,7 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
                 onRename={onRename}
                 onDelete={onDelete}
                 onMove={onMove}
+                t={t}
               />
             ))
           )}
@@ -344,7 +334,7 @@ export const FolderTreeSidebar: React.FC<FolderTreeSidebarProps> = ({
       <div className="gba:p-2 gba:border-t">
         <Button variant="ghost" size="sm" className="gba:w-full gba:justify-start gba:text-muted-foreground">
           <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-          Settings
+          {t('folder-settings')}
         </Button>
       </div>
     </div>

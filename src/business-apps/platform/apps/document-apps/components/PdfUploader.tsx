@@ -7,10 +7,11 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react'
-import { Card, Button, Badge, Spinner, Progress } from '@newwork/nw-design-system'
+import { Card, Button, Badge, Spinner, Progress, useTranslation } from '@newwork/nw-design-system'
 import { FileText, Upload, X, Check, AlertCircle, FileUp } from 'lucide-react'
 import type { Document } from '../types'
 import { DocumentApiService } from '../services/DocumentApiService'
+import translations from '../_i18n'
 
 export interface PdfUploaderProps {
   accessToken: string
@@ -41,6 +42,7 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
   maxFileSize = 10,
   'data-testid': testId = 'pdf-uploader'
 }) => {
+  const { t } = useTranslation(translations)
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -57,7 +59,7 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
       // Validate file type
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
       if (!isPdf) {
-        const errorMsg = 'Please select a PDF file'
+        const errorMsg = t('upload-pdf-select-pdf')
         setError(errorMsg)
         onError?.(errorMsg)
         return
@@ -66,7 +68,7 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
       // Validate file size
       const maxBytes = maxFileSize * 1024 * 1024
       if (file.size > maxBytes) {
-        const errorMsg = `File size exceeds ${maxFileSize}MB limit`
+        const errorMsg = t('upload-word-file-size-exceeds', { max: maxFileSize })
         setError(errorMsg)
         onError?.(errorMsg)
         return
@@ -99,12 +101,12 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
       } catch (err) {
         setIsUploading(false)
         setUploadProgress(0)
-        const errorMsg = err instanceof Error ? err.message : 'Failed to upload PDF'
+        const errorMsg = err instanceof Error ? err.message : t('upload-pdf-upload-failed')
         setError(errorMsg)
         onError?.(errorMsg)
       }
     },
-    [accessToken, maxFileSize, onUploadComplete, onError]
+    [accessToken, maxFileSize, onUploadComplete, onError, t]
   )
 
   /**
@@ -185,13 +187,15 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
           </div>
 
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Uploading your PDF...</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('upload-pdf-uploading')}</h3>
             <p className="gba:text-sm gba:text-muted-foreground">{selectedFile?.name}</p>
           </div>
 
           <div className="gba:w-full gba:max-w-xs">
             <Progress value={uploadProgress} className="gba:h-2" />
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{uploadProgress}% complete</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">
+              {t('upload-pdf-progress', { progress: uploadProgress })}
+            </p>
           </div>
         </div>
       </Card>
@@ -211,7 +215,7 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
               <div>
                 <h3 className="gba:font-semibold gba:text-foreground">{uploadedDocument.title}</h3>
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {selectedFile && formatFileSize(selectedFile.size)} - PDF uploaded and indexed
+                  {selectedFile && formatFileSize(selectedFile.size)} - {t('upload-pdf-uploaded-indexed')}
                 </p>
               </div>
             </div>
@@ -224,9 +228,7 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
         <div className="gba:p-6">
           <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:bg-primary/5 gba:rounded-lg">
             <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
-            <p className="gba:text-sm gba:text-foreground">
-              PDF uploaded successfully. The document will be available for search and Q&A once indexing completes.
-            </p>
+            <p className="gba:text-sm gba:text-foreground">{t('upload-pdf-success-message')}</p>
           </div>
         </div>
       </Card>
@@ -242,16 +244,16 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
             <AlertCircle className="gba:w-8 gba:h-8 gba:text-destructive" />
           </div>
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Failed to upload PDF</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('upload-pdf-upload-failed')}</h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">{error}</p>
           </div>
           <div className="gba:flex gba:gap-2">
             <Button variant="outline" onClick={handleClear}>
-              Try Again
+              {t('upload-pdf-try-again')}
             </Button>
             {onCancel && (
               <Button variant="ghost" onClick={onCancel}>
-                Cancel
+                {t('common-cancel')}
               </Button>
             )}
           </div>
@@ -310,24 +312,23 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
           {/* Text */}
           <div className="gba:text-center gba:space-y-2">
             <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {isDragging ? 'Drop your PDF here' : 'Upload a PDF document'}
+              {isDragging ? t('upload-pdf-drop-here') : t('upload-pdf-title-dropzone')}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-sm">
-              Drag and drop your PDF here, or click to browse. We support PDF files up to {maxFileSize}MB. The content
-              will be extracted for search and Q&A.
+              {t('upload-pdf-drag-drop', { max: maxFileSize })}
             </p>
           </div>
 
           {/* Button */}
           <Button variant="outline" className="gba:pointer-events-none">
             <FileUp className="gba:w-4 gba:h-4 gba:mr-2" />
-            Browse Files
+            {t('upload-pdf-browse')}
           </Button>
 
           {/* Supported formats */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:justify-center">
             <Badge variant="secondary" className="gba:text-xs">
-              .pdf (PDF documents)
+              {t('upload-pdf-format')}
             </Badge>
           </div>
         </div>
@@ -340,10 +341,8 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
             <Check className="gba:w-4 gba:h-4 gba:text-primary" />
           </div>
           <div className="gba:flex-1">
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">Searchable & Indexed</p>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              Text is extracted for search and Q&A. PDF remains read-only for viewing.
-            </p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('upload-pdf-searchable')}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('upload-pdf-searchable-description')}</p>
           </div>
         </div>
       </div>
@@ -352,7 +351,7 @@ export const PdfUploader: React.FC<PdfUploaderProps> = ({
       {onCancel && (
         <div className="gba:px-6 gba:pb-4">
           <Button variant="ghost" size="sm" onClick={onCancel} className="gba:w-full">
-            Cancel
+            {t('common-cancel')}
           </Button>
         </div>
       )}

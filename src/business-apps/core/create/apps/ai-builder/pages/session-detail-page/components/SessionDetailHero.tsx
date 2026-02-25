@@ -5,7 +5,6 @@ import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/compon
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SessionDetailHeroProps {
-  sessionId: string
   onBackToSessions: () => void
   'data-testid'?: string
 }
@@ -16,7 +15,6 @@ const useVideo = hostedVideoUrl || (import.meta !== undefined && import.meta.env
 const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 export const SessionDetailHero: React.FC<SessionDetailHeroProps> = ({
-  sessionId,
   onBackToSessions,
   'data-testid': testId = 'session-detail-hero'
 }) => {
@@ -91,19 +89,8 @@ export const SessionDetailHero: React.FC<SessionDetailHeroProps> = ({
               </div>
             </div>
 
-            <p
-              className="gba:text-sm gba:text-white/60 gba:max-w-xl gba:flex gba:items-center gba:gap-2"
-              data-testid={`${testId}-tagline`}
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:ai_builder.subtitle',
-                'Build screens with natural language • Powered by Claude 4.5 Sonnet'
-              )}
-              {sessionId && (
-                <span className="gba:px-2 gba:py-0.5 gba:bg-white/10 gba:rounded gba:font-mono gba:text-[10px] gba:text-white/80 gba:border gba:border-white/20">
-                  {sessionId.split('-').pop()}
-                </span>
-              )}
+            <p className="gba:text-sm gba:text-white/60 gba:max-w-xl" data-testid={`${testId}-tagline`}>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.subtitle', 'Build screens with natural language')}
             </p>
           </div>
         </div>

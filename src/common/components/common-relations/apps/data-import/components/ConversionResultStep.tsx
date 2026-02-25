@@ -76,6 +76,11 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
   const previewEntities = convertedEntities.slice(0, 3)
   const entityLabel = pluralize(entityType)
   const entityLabelSingular = entityType.charAt(0).toUpperCase() + entityType.slice(1)
+  const getRefCode = (ref?: unknown) => {
+    if (typeof ref !== 'string') return undefined
+    const parts = ref.split(':')
+    return parts.length ? parts[parts.length - 1] : undefined
+  }
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -166,11 +171,17 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
                           {/* Name and Position */}
                           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
                             <span className="gba:font-medium">
-                              {entity.firstName} {entity.lastName}
+                              {(entity as any).name ||
+                                [entity.firstName, entity.lastName].filter(Boolean).join(' ') ||
+                                entity.companyName ||
+                                ''}
                             </span>
-                            {(entity.position || entity.jobPosition) && (
+                            {(entity.position || entity.jobPosition || (entity as any).opportunityPipelineStageRef) && (
                               <Badge variant="secondary" size="sm">
-                                {entity.position || entity.jobPosition}
+                                {entity.position ||
+                                  entity.jobPosition ||
+                                  getRefCode((entity as any).salesPipelineStageRef) ||
+                                  getRefCode((entity as any).opportunityPipelineStageRef)}
                               </Badge>
                             )}
                           </div>

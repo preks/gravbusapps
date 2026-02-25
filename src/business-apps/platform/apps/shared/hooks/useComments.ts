@@ -25,6 +25,8 @@ export interface UseCommentsOptions {
   onCommentCreated?: (comment: Comment) => void
   onCommentResolved?: (comment: Comment) => void
   onError?: (error: Error) => void
+  /** Translation function for user-facing error messages */
+  t?: (key: string, vars?: Record<string, string | number>) => string
 }
 
 export interface UseCommentsState {
@@ -59,7 +61,8 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
     autoRefreshInterval = 0, // Disabled by default - use WebSocket events
     onCommentCreated,
     onCommentResolved,
-    onError
+    onError,
+    t
   } = options
 
   // State
@@ -93,7 +96,11 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
           isLoading: false
         }))
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to load comments'
+        const errorMessage = t
+          ? t('shared-error-load-comments')
+          : error instanceof Error
+            ? error.message
+            : String(error)
         setState(prev => ({
           ...prev,
           error: errorMessage,
@@ -105,7 +112,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         }
       }
     },
-    [entityId, apiService, onError]
+    [entityId, apiService, onError, t]
   )
 
   /**
@@ -136,12 +143,16 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return comment
       } catch (error) {
         if (onError) {
-          onError(error instanceof Error ? error : new Error('Failed to create comment'))
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(t ? t('shared-error-create-comment') : error instanceof Error ? error.message : String(error))
+          )
         }
         return null
       }
     },
-    [entityId, apiService, onCommentCreated, onError]
+    [entityId, apiService, onCommentCreated, onError, t]
   )
 
   /**
@@ -167,12 +178,16 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return updated
       } catch (error) {
         if (onError) {
-          onError(error instanceof Error ? error : new Error('Failed to update comment'))
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(t ? t('shared-error-update-comment') : error instanceof Error ? error.message : String(error))
+          )
         }
         return null
       }
     },
-    [apiService, onError]
+    [apiService, onError, t]
   )
 
   /**
@@ -201,12 +216,18 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return success
       } catch (error) {
         if (onError) {
-          onError(error instanceof Error ? error : new Error('Failed to resolve comment'))
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(
+                  t ? t('shared-error-resolve-comment') : error instanceof Error ? error.message : String(error)
+                )
+          )
         }
         return false
       }
     },
-    [apiService, loadComments, state.comments, onCommentResolved, onError]
+    [apiService, loadComments, state.comments, onCommentResolved, onError, t]
   )
 
   /**
@@ -235,12 +256,18 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return false
       } catch (error) {
         if (onError) {
-          onError(error instanceof Error ? error : new Error('Failed to unresolve comment'))
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(
+                  t ? t('shared-error-unresolve-comment') : error instanceof Error ? error.message : String(error)
+                )
+          )
         }
         return false
       }
     },
-    [apiService, onError]
+    [apiService, onError, t]
   )
 
   /**
@@ -269,12 +296,16 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return success
       } catch (error) {
         if (onError) {
-          onError(error instanceof Error ? error : new Error('Failed to delete comment'))
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(t ? t('shared-error-delete-comment') : error instanceof Error ? error.message : String(error))
+          )
         }
         return false
       }
     },
-    [apiService, state.comments, onError]
+    [apiService, state.comments, onError, t]
   )
 
   /**
@@ -300,12 +331,16 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return replyComment
       } catch (error) {
         if (onError) {
-          onError(error instanceof Error ? error : new Error('Failed to reply to comment'))
+          onError(
+            error instanceof Error
+              ? error
+              : new Error(t ? t('shared-error-reply-comment') : error instanceof Error ? error.message : String(error))
+          )
         }
         return null
       }
     },
-    [apiService, onError]
+    [apiService, onError, t]
   )
 
   /**
