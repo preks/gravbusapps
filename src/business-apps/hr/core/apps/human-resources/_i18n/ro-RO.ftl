@@ -146,6 +146,7 @@ hr-analytics-bottleneck-managers = Manageri blocaj
 hr-analytics-detailed-reporting-chains = Lanțuri de raportare detaliate
 hr-analytics-chain-id = ID lanț
 hr-analytics-top-manager = Manager principal
+hr-analytics-parent-organizational-unit = Unitate organizațională părinte
 hr-analytics-top-org-unit = Unitate organizațională principală
 hr-analytics-levels-title = Niveluri
 hr-analytics-bottlenecks = Blocaje

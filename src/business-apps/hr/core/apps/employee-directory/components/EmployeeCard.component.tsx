@@ -10,6 +10,8 @@ import {
 import { Avatar, AvatarImage, AvatarFallback, Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { postToPlatform } from '@/common/utils/postToPlatform'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 /**
  * Employee type definition for the card.
@@ -156,51 +158,57 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
   onVideoCall,
   onProfile,
   hasUserId = false
-}) => (
-  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
-    <div className="gba:flex gba:gap-2">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onChat}
-        disabled={!hasUserId}
-        aria-label="Chat"
-        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
-        data-testid="employee-directory-card-chat"
-      >
-        <PiChatBold size={24} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onCall}
-        disabled={!hasUserId}
-        aria-label="Call"
-        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
-        data-testid="employee-directory-card-audio-call"
-      >
-        <PiPhoneBold size={24} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onVideoCall}
-        disabled={!hasUserId}
-        aria-label="Video Call"
-        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
-        data-testid="employee-directory-card-video-call"
-      >
-        <PiVideoCameraBold size={24} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onProfile}
-        aria-label="Go to Profile"
-        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
-      >
-        <PiUserBold size={24} />
-      </Button>
+}) => {
+  const teamChatEnabled = useFeature<boolean>(Feature.Core.TeamChat.Key)
+
+  return (
+    <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
+      <div className="gba:flex gba:gap-2">
+        {teamChatEnabled && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onChat}
+            disabled={!hasUserId}
+            aria-label="Chat"
+            className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+            data-testid="employee-directory-card-chat"
+          >
+            <PiChatBold size={24} />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onCall}
+          disabled={!hasUserId}
+          aria-label="Call"
+          className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+          data-testid="employee-directory-card-audio-call"
+        >
+          <PiPhoneBold size={24} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onVideoCall}
+          disabled={!hasUserId}
+          aria-label="Video Call"
+          className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+          data-testid="employee-directory-card-video-call"
+        >
+          <PiVideoCameraBold size={24} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onProfile}
+          aria-label="Go to Profile"
+          className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+        >
+          <PiUserBold size={24} />
+        </Button>
+      </div>
     </div>
-  </div>
-)
+  )
+}

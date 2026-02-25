@@ -20,6 +20,8 @@ import {
 } from 'react-icons/pi'
 import { useEmployeeDetailsData } from './hooks/useEmployeeDetailsData'
 import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import {
   useTranslation,
   Button,
@@ -244,6 +246,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
   onCall,
   onVideoCall
 }) => {
+  const teamChatEnabled = useFeature<boolean>(Feature.Core.TeamChat.Key)
   const ChatIcon = PiChat
   const CallIcon = PiPhone
   const VideoCallIcon = PiVideoCamera
@@ -300,16 +303,18 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
             </p>
 
             <div className="gba:flex gba:gap-2">
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={onChat}
-                className="gba:rounded-3xl gba:aspect-square gba:p-2"
-                data-testid="employee-details-chat-button"
-                disabled={!userId}
-              >
-                <ChatIcon />
-              </Button>
+              {teamChatEnabled && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={onChat}
+                  className="gba:rounded-3xl gba:aspect-square gba:p-2"
+                  data-testid="employee-details-chat-button"
+                  disabled={!userId}
+                >
+                  <ChatIcon />
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 size="lg"

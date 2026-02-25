@@ -7,6 +7,21 @@
 import { baseLeadImportFields } from '@/common/data/relations/types/leadImportConfig'
 import { ImportConfig, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
+const investmentBaseLeadImportFields = baseLeadImportFields.map(field => {
+  if (field.type !== 'catalog') return field
+
+  switch (field.value) {
+    case 'leadStatusRef':
+      return { ...field, catalog: 'InvestmentLeadStatus' }
+    case 'leadSourceRef':
+      return { ...field, catalog: 'InvestmentLeadSource' }
+    case 'leadRatingRef':
+      return { ...field, catalog: 'InvestmentLeadRating' }
+    default:
+      return field
+  }
+})
+
 // IRM-specific fields (investment + property + leadSourceType)
 const investmentLeadFields: TargetFieldDefinition[] = [
   { value: 'leadSourceType', label: 'Lead Source Type', type: 'direct' },
@@ -45,5 +60,5 @@ const investmentLeadFields: TargetFieldDefinition[] = [
 export const investmentLeadImportConfig: ImportConfig = {
   entityType: 'lead',
   domain: 'investment',
-  targetFields: [...baseLeadImportFields, ...investmentLeadFields]
+  targetFields: [...investmentBaseLeadImportFields, ...investmentLeadFields]
 }
