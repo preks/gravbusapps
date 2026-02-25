@@ -17,10 +17,15 @@ export function usePeopleColumnOptions(accessToken: string | undefined, columns:
   const [options, setOptions] = useState<SelectOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const hasPeopleColumn = useMemo(() => columns.some(c => c.type === 'people'), [columns])
+  const needsUserLookup = useMemo(() => {
+    const FLOW_USER_COLS = ['initiatedby', 'assignedto', 'assignee', 'claimedby']
+    return columns.some(
+      c => c.type === 'people' || FLOW_USER_COLS.includes(c.name.toLowerCase().replace(/[\s_-]+/g, ''))
+    )
+  }, [columns])
 
   useEffect(() => {
-    if (!accessToken || !hasPeopleColumn) return
+    if (!accessToken || !needsUserLookup) return
 
     let cancelled = false
     setIsLoading(true)
@@ -51,7 +56,7 @@ export function usePeopleColumnOptions(accessToken: string | undefined, columns:
     return () => {
       cancelled = true
     }
-  }, [accessToken, hasPeopleColumn])
+  }, [accessToken, needsUserLookup])
 
   const lookupMap = useMemo(() => {
     const map = new Map<string, SelectOption>()

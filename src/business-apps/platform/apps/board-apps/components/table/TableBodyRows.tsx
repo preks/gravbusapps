@@ -4,8 +4,8 @@
  */
 
 import React from 'react'
-import { toast, Badge, Spinner } from '@newwork/nw-design-system'
-import { Plus, FileText, FilePlus, ChevronRight, ChevronDown, User } from 'lucide-react'
+import { toast, Badge, Spinner, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Plus, FileText, FilePlus, ChevronRight, ChevronDown } from 'lucide-react'
 import type { BoardRow, BoardColumn } from '../../types'
 import type { FlowSubRow } from '../../hooks/useFlowExpandableRows'
 import { RelationPicker } from '../RelationPicker'
@@ -40,6 +40,7 @@ export interface TableBodyRowsProps {
   isFlowExpanded?: (rowId: string) => boolean
   getFlowSubRows?: (rowId: string) => { isLoading: boolean; subRows: FlowSubRow[] } | undefined
   onToggleFlowExpand?: (row: BoardRow) => void
+  peopleLookup?: Map<string, import('../../types/columns').SelectOption>
   testId: string
 }
 
@@ -81,6 +82,7 @@ export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
   isFlowExpanded,
   getFlowSubRows,
   onToggleFlowExpand,
+  peopleLookup,
   testId
 }) => {
   return (
@@ -185,15 +187,23 @@ export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
                             </button>
                           )}
                           <span className={`gba:flex-1 gba:truncate ${colIndex === 0 ? 'gba:font-medium' : ''}`}>
-                            <CellRenderer
-                              value={row.data[col.name]}
-                              type={col.type}
-                              columnName={col.name}
-                              options={col.selectOptions}
-                              isPrimary={!!col.isPrimary}
-                              rowData={row.data}
-                              relationConfig={col.relationConfig}
-                            />
+                            {isUserColumn(col.name) && typeof row.data[col.name] === 'string' && row.data[col.name] ? (
+                              <UserDisplay
+                                userId={row.data[col.name] as string}
+                                lookup={peopleLookup}
+                                fallbackId={row.data[`${col.name}Id`] as string | undefined}
+                              />
+                            ) : (
+                              <CellRenderer
+                                value={row.data[col.name]}
+                                type={col.type}
+                                columnName={col.name}
+                                options={col.selectOptions}
+                                isPrimary={!!col.isPrimary}
+                                rowData={row.data}
+                                relationConfig={col.relationConfig}
+                              />
+                            )}
                           </span>
                           {colIndex === 0 && onRowClick && (
                             <button
@@ -260,16 +270,10 @@ export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
                             >
                               {sub.step.status}
                             </Badge>
-                            {(sub.step.assignedTo || sub.step.claimedBy) && (
-                              <span className="gba:flex gba:items-center gba:gap-0.5 gba:text-[10px] gba:text-muted-foreground gba:flex-shrink-0">
-                                <User className="gba:w-2.5 gba:h-2.5" />
-                                {sub.step.claimedBy ?? sub.step.assignedTo}
-                              </span>
-                            )}
                           </div>
                         ) : (
                           <span className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                            <SubRowCellValue col={col} step={sub.step} />
+                            <SubRowCellValue col={col} step={sub.step} peopleLookup={peopleLookup} />
                           </span>
                         )}
                       </td>
@@ -306,25 +310,74 @@ export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
   )
 }
 
+type PeopleLookup = Map<string, import('../../types/columns').SelectOption>
+
+const USER_COLUMNS = new Set(['initiatedby', 'assignedto', 'assignee', 'claimedby'])
+
+function isUserColumn(colName: string): boolean {
+  return USER_COLUMNS.has(colName.toLowerCase().replace(/[\s_-]+/g, ''))
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+function UserDisplay({
+  userId,
+  lookup,
+  fallbackId,
+  size = 'sm'
+}: {
+  userId: string
+  lookup?: PeopleLookup
+  fallbackId?: string
+  size?: 'sm' | 'xs'
+}) {
+  const entry = lookup?.get(userId) ?? (fallbackId ? lookup?.get(fallbackId) : undefined)
+  const displayName = entry?.label ?? userId
+  const rawAvatar = entry?.avatarUrl
+  const avatarUrl = rawAvatar
+    ? rawAvatar.startsWith('data:')
+      ? rawAvatar
+      : `data:image/png;base64,${rawAvatar}`
+    : undefined
+  const sizeClass = size === 'xs' ? 'gba:h-4 gba:w-4' : 'gba:h-5 gba:w-5'
+  const textSize = size === 'xs' ? 'gba:text-[7px]' : 'gba:text-[8px]'
+  const nameSize = size === 'xs' ? 'gba:text-[10px]' : 'gba:text-xs'
+
+  return (
+    <span className="gba:flex gba:items-center gba:gap-1 gba:truncate">
+      <Avatar size="sm" className={`gba:flex-shrink-0 ${sizeClass}`}>
+        {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+        <AvatarFallback className={textSize}>{getInitials(displayName)}</AvatarFallback>
+      </Avatar>
+      <span className={`${nameSize} gba:truncate`}>{displayName}</span>
+    </span>
+  )
+}
+
 function SubRowCellValue({
   col,
-  step
+  step,
+  peopleLookup
 }: {
   col: BoardColumn
   step: import('../../services/flowEngine').FlowProgressStep
+  peopleLookup?: PeopleLookup
 }) {
   const n = col.name.toLowerCase().replace(/[\s_-]+/g, '')
 
   if (n === 'status') return <>{step.status}</>
 
-  if (n === 'assignedto' || n === 'assignee' || n === 'initiatedby' || n === 'participants') {
-    if (!step.assignedTo && !step.claimedBy) return null
-    return (
-      <span className="gba:flex gba:items-center gba:gap-1">
-        <User className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:inline" />
-        {step.claimedBy ?? step.assignedTo}
-      </span>
-    )
+  if (n === 'assignedto' || n === 'assignee' || n === 'initiatedby' || n === 'claimedby') {
+    const userId = step.claimedBy ?? step.assignedTo
+    if (!userId) return null
+    return <UserDisplay userId={userId} lookup={peopleLookup} size="xs" />
   }
 
   if (n === 'progress') {

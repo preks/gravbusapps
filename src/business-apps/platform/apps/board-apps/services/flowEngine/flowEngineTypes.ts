@@ -64,6 +64,7 @@ export interface FlowSummaryRecord {
   currentStep: number
   totalSteps: number
   initiatedBy: string
+  initiatedById?: string
   participants: string[]
   priority?: string
   isOverdue?: boolean

@@ -196,13 +196,16 @@ function assignColorTokens(options: Array<{ value: string; label: string; colorT
   })
 }
 
-function inferColumnsFromRecords(records: Record<string, unknown>[]): BoardColumn[] {
+const HIDDEN_DATA_COLUMNS = new Set(['initiatedById'])
+
+function inferColumnsFromRecords(records: Record<string, unknown>[], primaryKey?: string): BoardColumn[] {
   const seen = new Map<string, { type: BoardColumnType; order: number }>()
   const valueSets = new Map<string, Set<string>>()
   let order = 0
 
   for (const rec of records) {
     for (const [key, val] of Object.entries(rec)) {
+      if (HIDDEN_DATA_COLUMNS.has(key)) continue
       if (val != null && typeof val !== 'object') {
         if (!seen.has(key)) {
           seen.set(key, { type: inferColumnType(val), order: order++ })
@@ -251,8 +254,9 @@ function inferColumnsFromRecords(records: Record<string, unknown>[]): BoardColum
     }
   })
 
-  const primary =
-    columns.find(c => PRIMARY_COLUMN_NAMES.includes(c.name)) || columns.find(c => c.type === 'text') || columns[0]
+  const primary = primaryKey
+    ? columns.find(c => c.name === primaryKey) || columns[0]
+    : columns.find(c => PRIMARY_COLUMN_NAMES.includes(c.name)) || columns.find(c => c.type === 'text') || columns[0]
   if (primary) {
     const oldOrder = primary.order
     primary.isPrimary = true
@@ -923,12 +927,12 @@ export const BoardApiService = {
           status: f.status,
           progress: f.totalSteps > 0 ? `${f.currentStep}/${f.totalSteps} (${f.progressPercentage}%)` : '',
           initiatedBy: f.initiatedBy,
+          initiatedById: f.initiatedById ?? '',
           startTime: f.startTime,
           updateTime: f.updateTime,
           endTime: f.endTime ?? '',
           priority: f.priority ?? '',
           isOverdue: f.isOverdue ? 'Yes' : 'No',
-          participants: (f.participants ?? []).join(', '),
           templateId: f.templateId
         }))
       } else {
@@ -1005,8 +1009,10 @@ export const BoardApiService = {
 
       if (records.length === 0) return { synced: 0, deleted: 0, fetched: 0 }
 
+      const primaryKey = dto.flowEntity === 'flows' ? 'flowId' : 'taskId'
+
       if (dto.autoColumns) {
-        const newColumns = inferColumnsFromRecords(records)
+        const newColumns = inferColumnsFromRecords(records, primaryKey)
         if (newColumns.length > 0) {
           const currentSheet = await BoardApiService.getSheet(boardId, sheetId)
           const existingNames = new Set((currentSheet?.columns ?? []).map(c => c.name))

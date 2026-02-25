@@ -56,6 +56,7 @@ export interface BoardViewContentProps {
   onAddQuickFilter?: (qf: BoardQuickFilter) => void
   onRenameQuickFilter?: (id: string, name: string) => void
   onDeleteQuickFilter?: (id: string) => void
+  peopleLookup?: Map<string, import('../types/columns').SelectOption>
   testId: string
 }
 
@@ -92,6 +93,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   onAddQuickFilter,
   onRenameQuickFilter,
   onDeleteQuickFilter,
+  peopleLookup,
   testId
 }) => {
   const [kanbanGroupColumn, setKanbanGroupColumn] = useState<string | null>(null)
@@ -175,6 +177,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
             onAddQuickFilter={onAddQuickFilter}
             onRenameQuickFilter={onRenameQuickFilter}
             onDeleteQuickFilter={onDeleteQuickFilter}
+            peopleLookup={peopleLookup}
             testId={testId}
           />
         </>

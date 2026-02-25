@@ -44,6 +44,7 @@ export interface BoardTableViewProps {
   onAddQuickFilter?: (qf: BoardQuickFilter) => void
   onRenameQuickFilter?: (id: string, name: string) => void
   onDeleteQuickFilter?: (id: string) => void
+  peopleLookup?: Map<string, import('../types/columns').SelectOption>
   testId: string
 }
 
@@ -72,6 +73,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   onAddQuickFilter,
   onRenameQuickFilter,
   onDeleteQuickFilter,
+  peopleLookup,
   testId
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -363,6 +365,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
             isFlowExpanded={hasFlowRows ? flowExpand.isExpanded : undefined}
             getFlowSubRows={hasFlowRows ? flowExpand.getSubRows : undefined}
             onToggleFlowExpand={hasFlowRows ? row => void flowExpand.toggleExpand(row) : undefined}
+            peopleLookup={peopleLookup}
             testId={testId}
           />
         </table>

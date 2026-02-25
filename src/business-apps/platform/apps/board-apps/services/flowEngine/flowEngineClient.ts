@@ -176,6 +176,7 @@ export async function listFlows(opts: ListFlowsOpts = {}): Promise<{
     currentStep: f.stepStatus?.completed ?? f.currentStep ?? 0,
     totalSteps: f.stepStatus?.total ?? f.totalSteps ?? 0,
     initiatedBy: f.initiatedBy ?? '',
+    initiatedById: f.initiatedById ?? '',
     participants: f.participants ?? [],
     priority: f.priority,
     isOverdue: f.timeInsights?.isOverdue ?? false,
@@ -263,24 +264,33 @@ export async function getFlowProgressComplete(flowId: string): Promise<FlowProgr
     const raw = await feRequest<any>(`/flows/${flowId}/progress/complete`)
     const data = raw.data ?? raw
 
-    const steps: FlowProgressComplete['steps'] = (data.steps ?? []).map((s: any, idx: number) => ({
-      stepIndex: s.stepIndex ?? idx,
-      stepKey: s.stepKey ?? s.key ?? `step_${idx}`,
-      title: s.title ?? s.name ?? `Step ${idx + 1}`,
-      type: s.type ?? 'TASK',
-      status: s.status ?? 'UNKNOWN',
-      assignedTo: s.assignedTo ?? s.assignment?.assignedTo ?? s.completedBy,
-      claimedBy: s.claimedBy ?? (s.assignment?.assignmentStatus === 'CLAIMED' ? s.assignment?.assignedTo : undefined),
-      startedAt: s.startedAt,
-      completedAt: s.completedAt ?? s.completionAt,
-      dueDate: s.dueDate
-    }))
+    const stepAssignments: Record<string, any> = data.workflow?.workflow_input?.stepAssignments ?? {}
+
+    const steps: FlowProgressComplete['steps'] = (data.steps ?? []).map((s: any, idx: number) => {
+      const sa = stepAssignments[`step_${idx}`]?.assignment
+
+      return {
+        stepIndex: s.stepIndex ?? idx,
+        stepKey: s.stepKey ?? s.key ?? `step_${idx}`,
+        title: s.title ?? s.name ?? `Step ${idx + 1}`,
+        type: s.type ?? 'TASK',
+        status: s.status ?? 'UNKNOWN',
+        assignedTo: s.assignedTo ?? sa?.assignedTo ?? s.assignment?.assignedTo ?? s.completedBy,
+        claimedBy:
+          s.claimedBy ??
+          (sa?.assignmentStatus === 'CLAIMED' ? sa?.assignedTo : undefined) ??
+          (s.assignment?.assignmentStatus === 'CLAIMED' ? s.assignment?.assignedTo : undefined),
+        startedAt: s.startedAt ?? sa?.assignedAt,
+        completedAt: s.completedAt ?? s.completionAt,
+        dueDate: s.dueDate ?? data.workflow?.due_date
+      }
+    })
 
     return {
-      flowId: data.flowId ?? flowId,
-      flowName: data.flowName ?? data.name ?? 'Unknown',
-      status: data.status ?? 'UNKNOWN',
-      progressPercentage: data.progressPercentage ?? 0,
+      flowId: data.flowId ?? data.workflow?.root_workflow_id ?? flowId,
+      flowName: data.flowName ?? data.workflow?.workflow_name ?? data.name ?? 'Unknown',
+      status: data.status ?? data.workflow?.conductor_status ?? 'UNKNOWN',
+      progressPercentage: data.progressPercentage ?? parseFloat(data.workflow?.step_progress_percentage ?? '0') ?? 0,
       steps
     }
   } catch {
