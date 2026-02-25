@@ -19,9 +19,17 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton
+  Skeleton,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, AlertCircle, Sparkles } from 'lucide-react'
+import {
+  CalendarBlankIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  PlusIcon,
+  WarningCircleIcon,
+  SparkleIcon
+} from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
@@ -29,17 +37,11 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
 
-import { CalendarBlankIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_ABSENCES } from './queries/graphql'
 import { getAbsenceGroups } from '@/business-apps/hr/core/forms/create-new-absence/queries/getAbsenceGroups'
-import {
-  getCurrentActiveUserLocale,
-  getTranslationFromI18nKeyAndLabel,
-  getCatalogValue,
-  getCurrentActiveStructureId
-} from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getCatalogValue, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { useEmployeeData } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData'
@@ -55,6 +57,8 @@ import { usePublicHolidays } from '@/business-apps/hr/absences/hooks/usePublicHo
 import { calculateWorkingDays } from '@/business-apps/hr/core/forms/create-new-absence/utils/workingDaysCalculator'
 import { employeeWorkingHoursQuery } from '@/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences'
 
+import personalAbsencesTranslations from './_i18n'
+
 interface AbsenceRow {
   id: string
   type: string
@@ -69,24 +73,33 @@ interface AbsenceRow {
   createdAt: string
 }
 
-const statusVariant = (status: string): 'default' | 'success' | 'destructive' | 'pending' | 'warning' | 'outline' => {
-  switch (status.toUpperCase()) {
-    case 'APPROVED':
-      return 'success'
-    case 'REJECTED':
-      return 'destructive'
-    case 'PENDING':
-      return 'pending'
-    case 'PLANNED':
-      return 'warning'
-    case 'CANCELLED':
-      return 'outline'
-    default:
-      return 'default'
-  }
+const STATUS_VARIANT_MAP: Record<string, 'default' | 'success' | 'destructive' | 'pending' | 'warning' | 'outline'> = {
+  APPROVED: 'success',
+  REJECTED: 'destructive',
+  PENDING: 'pending',
+  PLANNED: 'warning',
+  CANCELLED: 'outline'
 }
 
+function computeLongestWorkStreak(yearAbsences: AbsenceRow[]): number {
+  const sortedAbsences = [...yearAbsences].sort((a, b) => dayjs(a.startDate).diff(dayjs(b.startDate)))
+  let longestWorkStreak = 0
+  let lastEnd = dayjs().startOf('year')
+  for (const a of sortedAbsences) {
+    const gap = dayjs(a.startDate).diff(lastEnd, 'day')
+    if (gap > longestWorkStreak) longestWorkStreak = gap
+    const end = dayjs(a.endDate)
+    if (end.isAfter(lastEnd)) lastEnd = end
+  }
+  const gapToToday = dayjs().diff(lastEnd, 'day')
+  return gapToToday > longestWorkStreak ? gapToToday : longestWorkStreak
+}
+
+const statusVariant = (status: string): 'default' | 'success' | 'destructive' | 'pending' | 'warning' | 'outline' =>
+  STATUS_VARIANT_MAP[status.toUpperCase()] ?? 'default'
+
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
+  const { t } = useTranslation(personalAbsencesTranslations)
   const [showCalendar, setShowCalendar] = useState(false)
   const [absences, setAbsences] = useState<AbsenceRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -335,18 +348,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
     const vacationEntitlement = displayEntitlements.reduce((sum, e) => sum + e.total, 0)
     const vacationUsed = displayEntitlements.reduce((sum, e) => sum + e.used, 0)
-
-    const sortedAbsences = [...yearAbsences].sort((a, b) => dayjs(a.startDate).diff(dayjs(b.startDate)))
-    let longestWorkStreak = 0
-    let lastEnd = dayjs().startOf('year')
-    for (const a of sortedAbsences) {
-      const gap = dayjs(a.startDate).diff(lastEnd, 'day')
-      if (gap > longestWorkStreak) longestWorkStreak = gap
-      const end = dayjs(a.endDate)
-      if (end.isAfter(lastEnd)) lastEnd = end
-    }
-    const gapToToday = dayjs().diff(lastEnd, 'day')
-    if (gapToToday > longestWorkStreak) longestWorkStreak = gapToToday
+    const longestWorkStreak = computeLongestWorkStreak(yearAbsences)
 
     return {
       totalAbsentDays: ytdAbsentDays,
@@ -463,30 +465,26 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
   useEffect(() => {
     if (!employee?.id || !accessToken) return
     const gqlClient = client
-    fetchHolidayDates(gqlClient, employee.id, calendarDate.year(), calendarDate.month(), getCurrentActiveUserLocale())
+    fetchHolidayDates(gqlClient, employee?.id, calendarDate.year(), calendarDate.month(), getCurrentActiveUserLocale())
       .then(dates => setHolidayDates(dates))
       .catch(() => {})
   }, [employee?.id, accessToken, calendarDate])
 
   const startDateFmt = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFmt = selectedEndDate?.format('YYYY-MM-DD') ?? ''
-  const baseRequestText = getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')
+  const baseRequestText = t('request-absence')
   const requestAbsenceLabel =
     startDateFmt && endDateFmt ? `${baseRequestText} (${startDateFmt} - ${endDateFmt})` : baseRequestText
 
   if (showCalendar && employee && absenceEntitlements) {
     return (
       <div data-testid="personal-absences-container">
-        <PageLayout
-          headerIcon={CalendarBlankIcon}
-          headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar')}
-          className="gba:min-h-screen"
-        >
+        <PageLayout headerIcon={CalendarBlankIcon} headerTitle={t('calendar')} className="gba:min-h-screen">
           <div className="gba:p-4 gba:space-y-4">
             <div className="gba:flex gba:justify-between gba:items-center">
               <Button variant="outline" onClick={() => setShowCalendar(false)}>
-                <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.back_to_dashboard', 'Back to Dashboard')}
+                <CaretLeftIcon className="gba:w-4 gba:h-4 gba:mr-1" />
+                {t('back-to-dashboard')}
               </Button>
               <AppAction
                 variant="update-primary"
@@ -537,28 +535,22 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
 
   return (
     <div data-testid="personal-absences-container">
-      <PageLayout
-        headerIcon={CalendarBlankIcon}
-        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_overview', 'Absences')}
-        className="gba:min-h-screen"
-      >
+      <PageLayout headerIcon={CalendarBlankIcon} headerTitle={t('absence-overview')} className="gba:min-h-screen">
         <div className="gba:p-4 gba:space-y-6 gba:max-w-[1400px] gba:mx-auto">
           {/* Top actions */}
           <div className="gba:flex gba:justify-between gba:items-center">
-            <h2 className="gba:text-2xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_overview', 'Absences')}
-            </h2>
+            <h2 className="gba:text-2xl gba:font-semibold">{t('absence-overview')}</h2>
             <div className="gba:flex gba:gap-2">
               <Button variant="outline" onClick={() => setShowCalendar(true)}>
-                <CalendarIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar')}
+                <CalendarBlankIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('calendar')}
               </Button>
               {absenceGroups.length > 0 && (
                 <Select onValueChange={handleCreateAbsence}>
                   <SelectTrigger className="gba:w-auto">
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <Plus className="gba:w-4 gba:h-4" />
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
+                      <PlusIcon className="gba:w-4 gba:h-4" />
+                      {t('request-absence')}
                     </div>
                   </SelectTrigger>
                   <SelectContent>
@@ -576,9 +568,7 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
           {/* My Balance */}
           <Card>
             <CardHeader className="gba:pb-3">
-              <CardTitle className="gba:text-base gba:font-semibold">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.my_balance', 'My Balance')}
-              </CardTitle>
+              <CardTitle className="gba:text-base gba:font-semibold">{t('my-balance')}</CardTitle>
             </CardHeader>
             <CardContent className="gba:space-y-2">
               {isLoading ? (
@@ -592,8 +582,11 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
                     className="gba:grid gba:grid-cols-2 gba:gap-2"
                     style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
                   >
-                    {displayEntitlements.map((ent, i) => (
-                      <div key={`display-${i}`} className="gba:rounded gba:border gba:px-3 gba:py-2 gba:space-y-1.5">
+                    {displayEntitlements.map(ent => (
+                      <div
+                        key={`display-${ent.type}-${ent.used}-${ent.total}`}
+                        className="gba:rounded gba:border gba:px-3 gba:py-2 gba:space-y-1.5"
+                      >
                         <div className="gba:flex gba:items-center gba:justify-between">
                           <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">
                             {ent.type}
@@ -601,45 +594,30 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
                           <span className="gba:font-semibold gba:whitespace-nowrap">
                             {ent.used}{' '}
                             <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">/ {ent.total}</span>{' '}
-                            <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">
-                              {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:absence_module.limited_pending_days_text.days',
-                                'days'
-                              )}
-                            </span>
+                            <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">{t('days')}</span>
                           </span>
                         </div>
                         <Progress value={ent.total > 0 ? (ent.used / ent.total) * 100 : 0} className="gba:h-1.5" />
                       </div>
                     ))}
-                    {otherEntitlements.map((ent, i) => (
+                    {otherEntitlements.map(ent => (
                       <div
-                        key={`other-${i}`}
+                        key={`other-${ent.type}-${ent.used}`}
                         className="gba:flex gba:items-center gba:justify-between gba:rounded gba:border gba:px-3 gba:py-2"
                       >
                         <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">{ent.type}</span>
                         <span className="gba:font-semibold gba:whitespace-nowrap">
                           {ent.used}{' '}
-                          <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:absence_module.limited_pending_days_text.days',
-                              'days'
-                            )}
-                          </span>
+                          <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">{t('days')}</span>
                         </span>
                       </div>
                     ))}
                   </div>
                   <div className="gba:space-y-1">
                     <div className="gba:flex gba:justify-between gba:text-sm">
-                      <span className="gba:text-muted-foreground">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.year_to_date', 'Year to Date')}:
-                      </span>
+                      <span className="gba:text-muted-foreground">{t('year-to-date')}:</span>
                       <span className="gba:font-medium">
-                        {ytdAbsentDays}{' '}
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absent_days', 'Absent')} /{' '}
-                        {ytdTotalWorkingDays}{' '}
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.working_days', 'Working Days')}
+                        {ytdAbsentDays} {t('absent-days')} / {ytdTotalWorkingDays} {t('working-days')}
                       </span>
                     </div>
                     <Progress
@@ -648,28 +626,38 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
                     />
                   </div>
                   <div className="gba:mt-2">
-                    {wellnessInsight ? (
-                      <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
-                        <Sparkles className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:mt-0.5" />
-                        <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{wellnessInsight}</p>
-                      </div>
-                    ) : wellnessLoading ? (
-                      <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
-                        <Sparkles className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:animate-pulse" />
-                        <Skeleton className="gba:h-4 gba:w-full" />
-                      </div>
-                    ) : wellnessDataSummary && !wellnessRequested ? (
-                      <button
-                        onClick={requestWellnessAnalysis}
-                        className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-primary hover:gba:text-primary/80 gba:transition-colors"
-                      >
-                        <Sparkles className="gba:w-3.5 gba:h-3.5" />
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_hub.ai_wellness_insight',
-                          'AI Wellness Insight'
-                        )}
-                      </button>
-                    ) : null}
+                    {(() => {
+                      if (wellnessInsight) {
+                        return (
+                          <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
+                            <SparkleIcon className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:mt-0.5" />
+                            <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">
+                              {wellnessInsight}
+                            </p>
+                          </div>
+                        )
+                      }
+                      if (wellnessLoading) {
+                        return (
+                          <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
+                            <SparkleIcon className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:animate-pulse" />
+                            <Skeleton className="gba:h-4 gba:w-full" />
+                          </div>
+                        )
+                      }
+                      if (wellnessDataSummary && !wellnessRequested) {
+                        return (
+                          <button
+                            onClick={requestWellnessAnalysis}
+                            className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-primary hover:gba:text-primary/80 gba:transition-colors"
+                          >
+                            <SparkleIcon className="gba:w-3.5 gba:h-3.5" />
+                            {t('ai-wellness-insight')}
+                          </button>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 </>
               )}
@@ -681,9 +669,7 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
             {/* Upcoming Absences */}
             <Card>
               <CardHeader className="gba:pb-3">
-                <CardTitle className="gba:text-base gba:font-semibold">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.upcoming_absences', 'Upcoming Absences')}
-                </CardTitle>
+                <CardTitle className="gba:text-base gba:font-semibold">{t('upcoming-absences')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -694,12 +680,7 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
                 ) : (
                   <div className="gba:space-y-2">
                     {upcomingAbsences.length === 0 && !nextHoliday && (
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-                          'No upcoming absences'
-                        )}
-                      </p>
+                      <p className="gba:text-sm gba:text-muted-foreground">{t('no-upcoming-absences')}</p>
                     )}
                     {upcomingAbsences.map(a => (
                       <div
@@ -725,7 +706,7 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
                     {nextHoliday && (
                       <div className="gba:rounded gba:border gba:px-3 gba:py-2 gba:bg-muted/30">
                         <p className="gba:text-xs gba:text-muted-foreground gba:font-medium gba:mb-1">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.company_holiday', 'Company Holiday')}
+                          {t('company-holiday')}
                         </p>
                         <p className="gba:text-sm gba:font-medium">
                           {nextHoliday.name} — {nextHoliday.date.format('MMM D, YYYY')}
@@ -740,9 +721,7 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
             {/* Pending Requests */}
             <Card>
               <CardHeader className="gba:pb-3">
-                <CardTitle className="gba:text-base gba:font-semibold">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.pending_requests', 'Pending Requests')}
-                </CardTitle>
+                <CardTitle className="gba:text-base gba:font-semibold">{t('pending-requests')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -751,12 +730,7 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
                     <Skeleton className="gba:h-6 gba:w-full" />
                   </div>
                 ) : pendingRequests.length === 0 ? (
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-                      'No pending requests'
-                    )}
-                  </p>
+                  <p className="gba:text-sm gba:text-muted-foreground">{t('no-pending-requests')}</p>
                 ) : (
                   <div className="gba:space-y-2">
                     {pendingRequests.slice(0, 4).map(a => (
@@ -781,9 +755,7 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
           <Card>
             <CardHeader>
               <div className="gba:flex gba:flex-col sm:gba:flex-row sm:gba:items-center sm:gba:justify-between gba:gap-3">
-                <CardTitle className="gba:text-base gba:font-semibold">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.my_absence_history', 'My Absence History')}
-                </CardTitle>
+                <CardTitle className="gba:text-base gba:font-semibold">{t('my-absence-history')}</CardTitle>
                 <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
                   <Select
                     value={typeFilter}
@@ -793,17 +765,13 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
                     }}
                   >
                     <SelectTrigger className="gba:w-[140px] gba:h-8 gba:text-sm">
-                      <SelectValue
-                        placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.all_types', 'All Types')}
-                      />
+                      <SelectValue placeholder={t('all-types')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.all_types', 'All Types')}
-                      </SelectItem>
-                      {typeOptions.map(t => (
-                        <SelectItem key={t} value={t}>
-                          {t}
+                      <SelectItem value="all">{t('all-types')}</SelectItem>
+                      {typeOptions.map(typeLabel => (
+                        <SelectItem key={typeLabel} value={typeLabel}>
+                          {typeLabel}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -817,17 +785,10 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
                     }}
                   >
                     <SelectTrigger className="gba:w-[140px] gba:h-8 gba:text-sm">
-                      <SelectValue
-                        placeholder={getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_hub.status_all',
-                          'Status: All'
-                        )}
-                      />
+                      <SelectValue placeholder={t('status-all-placeholder')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.status_all', 'All')}
-                      </SelectItem>
+                      <SelectItem value="all">{t('all')}</SelectItem>
                       <SelectItem value="PENDING">{getAbsenceStatusLabel('PENDING')}</SelectItem>
                       <SelectItem value="APPROVED">{getAbsenceStatusLabel('APPROVED')}</SelectItem>
                       <SelectItem value="REJECTED">{getAbsenceStatusLabel('REJECTED')}</SelectItem>
@@ -838,120 +799,105 @@ Provide a 2-3 sentence personalized wellness insight. Be encouraging but honest.
               </div>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="gba:space-y-2">
-                  {[1, 2, 3].map(i => (
-                    <Skeleton key={i} className="gba:h-10 gba:w-full" />
-                  ))}
-                </div>
-              ) : error ? (
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-destructive gba:py-4">
-                  <AlertCircle className="gba:w-4 gba:h-4" />
-                  <span>{error}</span>
-                </div>
-              ) : filteredAbsences.length === 0 ? (
-                <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-                    'No data found'
-                  )}
-                </p>
-              ) : (
-                <>
-                  <div className="gba:overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Date')}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.type', 'Type')}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:team_expenses_page.plan_details.duration',
-                              'Duration'
-                            )}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.status', 'Status')}
-                          </TableHead>
-                          <TableHead>
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.description', 'Comments')}
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedAbsences.map(a => (
-                          <TableRow key={a.id}>
-                            <TableCell className="gba:whitespace-nowrap">
-                              {dayjs(a.startDate).format('MMM D')}
-                              {a.startDate !== a.endDate && ` – ${dayjs(a.endDate).format('MMM D, YYYY')}`}
-                              {a.startDate === a.endDate && `, ${dayjs(a.startDate).format('YYYY')}`}
-                            </TableCell>
-                            <TableCell>
-                              <div className="gba:flex gba:items-center gba:gap-2">
-                                <div
-                                  className="gba:w-2 gba:h-2 gba:rounded-full gba:shrink-0"
-                                  style={{ backgroundColor: `#${a.typeColor}` }}
-                                />
-                                {a.type}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {a.workingDays}{' '}
-                              {a.workingDays === 1
-                                ? getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:absence_module.limited_pending_days_text.day',
-                                    'day'
-                                  )
-                                : getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:absence_module.limited_pending_days_text.days',
-                                    'days'
-                                  )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={statusVariant(a.originalStatus)}>{a.status}</Badge>
-                            </TableCell>
-                            <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {totalPages > 1 && (
-                    <div className="gba:flex gba:items-center gba:justify-between gba:pt-4">
-                      <span className="gba:text-sm gba:text-muted-foreground">
-                        {filteredAbsences.length}{' '}
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'absences')}
-                      </span>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={currentPage === 1}
-                          onClick={() => setCurrentPage(p => p - 1)}
-                        >
-                          <ChevronLeft className="gba:w-4 gba:h-4" />
-                        </Button>
-                        <span className="gba:text-sm">
-                          {currentPage} / {totalPages}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={currentPage === totalPages}
-                          onClick={() => setCurrentPage(p => p + 1)}
-                        >
-                          <ChevronRight className="gba:w-4 gba:h-4" />
-                        </Button>
-                      </div>
+              {(() => {
+                if (isLoading) {
+                  return (
+                    <div className="gba:space-y-2">
+                      <Skeleton className="gba:h-10 gba:w-full" />
+                      <Skeleton className="gba:h-10 gba:w-full" />
+                      <Skeleton className="gba:h-10 gba:w-full" />
                     </div>
-                  )}
-                </>
-              )}
+                  )
+                }
+                if (error) {
+                  return (
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-destructive gba:py-4">
+                      <WarningCircleIcon className="gba:w-4 gba:h-4" />
+                      <span>{error}</span>
+                    </div>
+                  )
+                }
+                if (filteredAbsences.length === 0) {
+                  return (
+                    <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">
+                      {t('no-data-found')}
+                    </p>
+                  )
+                }
+                return (
+                  <>
+                    <div className="gba:overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t('start-date')}</TableHead>
+                            <TableHead>{t('type')}</TableHead>
+                            <TableHead>{t('duration')}</TableHead>
+                            <TableHead>{t('status')}</TableHead>
+                            <TableHead>{t('description')}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedAbsences.map(a => (
+                            <TableRow key={a.id}>
+                              <TableCell className="gba:whitespace-nowrap">
+                                {dayjs(a.startDate).format('MMM D')}
+                                {a.startDate !== a.endDate && ` – ${dayjs(a.endDate).format('MMM D, YYYY')}`}
+                                {a.startDate === a.endDate && `, ${dayjs(a.startDate).format('YYYY')}`}
+                              </TableCell>
+                              <TableCell>
+                                <div className="gba:flex gba:items-center gba:gap-2">
+                                  <div
+                                    className="gba:w-2 gba:h-2 gba:rounded-full gba:shrink-0"
+                                    style={{ backgroundColor: `#${a.typeColor}` }}
+                                  />
+                                  {a.type}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {a.workingDays} {a.workingDays === 1 ? t('day') : t('days')}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={statusVariant(a.originalStatus)}>{a.status}</Badge>
+                              </TableCell>
+                              <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {totalPages > 1 && (
+                      <div className="gba:flex gba:items-center gba:justify-between gba:pt-4">
+                        <span className="gba:text-sm gba:text-muted-foreground">
+                          {filteredAbsences.length} {t('absences')}
+                        </span>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(p => p - 1)}
+                          >
+                            <CaretLeftIcon className="gba:w-4 gba:h-4" />
+                          </Button>
+                          <span className="gba:text-sm">
+                            {currentPage} / {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(p => p + 1)}
+                          >
+                            <CaretRightIcon className="gba:w-4 gba:h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </CardContent>
           </Card>
         </div>

@@ -1,0 +1,29 @@
+# Personal Absences - German (fallback to English keys)
+
+request-absence = Request Absence
+calendar = Calendar
+back-to-dashboard = Back to Dashboard
+absence-overview = Absences
+my-balance = My Balance
+year-to-date = Year to Date
+absent-days = Absent
+working-days = Working Days
+days = days
+day = day
+ai-wellness-insight = AI Wellness Insight
+upcoming-absences = Upcoming Absences
+no-upcoming-absences = No upcoming absences
+company-holiday = Company Holiday
+pending-requests = Pending Requests
+no-pending-requests = No pending requests
+my-absence-history = My Absence History
+all-types = All Types
+status-all-placeholder = Status: All
+all = All
+no-data-found = No data found
+start-date = Date
+type = Type
+duration = Duration
+status = Status
+description = Comments
+absences = absences
