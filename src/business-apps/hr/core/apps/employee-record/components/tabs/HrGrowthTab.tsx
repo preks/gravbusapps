@@ -6,6 +6,7 @@ import { PiGraduationCap, PiChartBar, PiChatCircle } from 'react-icons/pi'
 import SkillsTab from './SkillsTab'
 import PerformanceTab from './PerformanceTab'
 import FeedbackTab from './FeedbackTab'
+import PerformanceEvaluationTab from './performance-evaluation/PerformanceEvaluationTab'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
@@ -22,7 +23,7 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   feedback?: EmployeeFeedback[]
 }
 
-const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance'] as const
+const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance', 'performanceEvaluation'] as const
 type HrGrowthSubView = (typeof HR_GROWTH_SUBVIEW_VALUES)[number]
 
 const getInitialHrGrowthSubView = (): HrGrowthSubView => {
@@ -102,7 +103,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    if (!devFeatureFlag && activeSubView === 'feedback') {
+    if (!devFeatureFlag && (activeSubView === 'feedback' || activeSubView === 'performanceEvaluation')) {
       const newSubView = 'skills'
       setActiveSubView(newSubView)
       updateUrl(newSubView)
@@ -188,6 +189,18 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               </div>
             </TabsTrigger>
           )}
+          {devFeatureFlag && (
+            <TabsTrigger
+              value="performanceEvaluation"
+              data-testid="hr-growth-performance-evaluation-subtab"
+              className="gba:flex-1"
+            >
+              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                <PiChartBar />
+                <span>{t('employee-record-tab-performance-evaluation')}</span>
+              </div>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
@@ -220,6 +233,16 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               userInfo={userInfo}
               employeePerformanceGoals={employeePerformanceGoals}
             />
+          </TabsContent>
+        )}
+
+        {devFeatureFlag && (
+          <TabsContent
+            value="performanceEvaluation"
+            data-testid="hr-growth-performance-evaluation-content"
+            className="gba:mt-4"
+          >
+            <PerformanceEvaluationTab employee={employee} accessToken={accessToken} employeeId={employeeId} />
           </TabsContent>
         )}
       </Tabs>
