@@ -207,9 +207,12 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
     )
   }, [watchedValues])
 
-  // Dynamic title based on mode
+  // Dynamic title based on mode (with defaultValue so the key is never shown when translations aren't loaded)
   const title = useMemo(
-    () => (formMode === 'assign' ? t('assign-salary-title') : t('adjust-salary-title')),
+    () =>
+      formMode === 'assign'
+        ? t('assign-salary-title', { defaultValue: 'Assign Employee Salary' })
+        : t('adjust-salary-title', { defaultValue: 'Adjust Employee Salary' }),
     [t, formMode]
   )
 
