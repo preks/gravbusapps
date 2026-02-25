@@ -32,7 +32,6 @@ export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
         userInfo={context.userInfo}
         jobId={jobId}
         initialPrompt={initialPrompt ?? undefined}
-        onBack={() => {}}
       />
     </div>
   )
