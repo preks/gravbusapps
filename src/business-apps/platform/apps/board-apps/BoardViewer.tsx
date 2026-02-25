@@ -204,7 +204,10 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     return raw
   }, [board.sheets, activeSheetId, DEFAULT_TABLE_VIEW])
 
-  const { options: peopleOptions } = usePeopleColumnOptions(accessToken, activeSheet?.columns ?? [])
+  const { options: peopleOptions, lookupMap: peopleLookup } = usePeopleColumnOptions(
+    accessToken,
+    activeSheet?.columns ?? []
+  )
 
   const enrichedSheet = useMemo(() => {
     if (!activeSheet || peopleOptions.length === 0) return activeSheet
@@ -713,6 +716,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 onAddQuickFilter={canEdit ? addQuickFilter : undefined}
                 onRenameQuickFilter={canEdit ? renameQuickFilter : undefined}
                 onDeleteQuickFilter={canEdit ? deleteQuickFilter : undefined}
+                peopleLookup={peopleLookup}
                 testId={`${testId}-${viewType}`}
               />
 

@@ -101,22 +101,20 @@ export const ColumnHeaderMenu: React.FC<ColumnHeaderMenuProps> = ({
           <Settings2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
           Column settings
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onHide(column.id)} data-testid={`${testId}-hide`}>
+          <EyeOff className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+          Hide column
+        </DropdownMenuItem>
         {!column.isPrimary && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onHide(column.id)} data-testid={`${testId}-hide`}>
-              <EyeOff className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
-              Hide column
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onDelete(column.id)}
-              className="gba:text-destructive"
-              data-testid={`${testId}-delete`}
-            >
-              <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
-              Delete column
-            </DropdownMenuItem>
-          </>
+          <DropdownMenuItem
+            onClick={() => onDelete(column.id)}
+            className="gba:text-destructive"
+            data-testid={`${testId}-delete`}
+          >
+            <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+            Delete column
+          </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
