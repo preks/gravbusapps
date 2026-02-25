@@ -310,6 +310,10 @@ interface RadarDataPoint {
   manager: number
 }
 
+type ReviewerKey = 'self' | 'peer' | 'manager'
+
+const REVIEWER_KEYS: ReviewerKey[] = ['self', 'peer', 'manager']
+
 const REVIEWER_COLORS = {
   self: 'var(--nw-chart-1)',
   peer: 'var(--nw-chart-2)',
@@ -388,6 +392,32 @@ const EntryCarouselSection: React.FC<{
   )
 }
 
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const getFirstNumericScoreByKeys = (entry: Record<string, unknown>, keys: string[]): number | null => {
+  for (const key of keys) {
+    const score = toFiniteNumber(entry[key])
+    if (score !== null) return score
+  }
+
+  return null
+}
+
+const getFirstVisibleNumericScore = (entry: Record<string, unknown>): number | null => {
+  for (const [key, value] of Object.entries(entry)) {
+    if (shouldHideFieldByKey(key)) continue
+    const score = toFiniteNumber(value)
+    if (score !== null) return score
+  }
+
+  return null
+}
+
 const getNumericScoreFromEntry = (entry: Record<string, unknown>): number | null => {
   const preferredKeys = [
     'ratingNumericEquivalent',
@@ -397,25 +427,7 @@ const getNumericScoreFromEntry = (entry: Record<string, unknown>): number | null
     'level'
   ]
 
-  for (const key of preferredKeys) {
-    const value = entry[key]
-    if (typeof value === 'number' && Number.isFinite(value)) return value
-    if (typeof value === 'string') {
-      const parsed = Number(value)
-      if (Number.isFinite(parsed)) return parsed
-    }
-  }
-
-  for (const [key, value] of Object.entries(entry)) {
-    if (shouldHideFieldByKey(key)) continue
-    if (typeof value === 'number' && Number.isFinite(value)) return value
-    if (typeof value === 'string') {
-      const parsed = Number(value)
-      if (Number.isFinite(parsed)) return parsed
-    }
-  }
-
-  return null
+  return getFirstNumericScoreByKeys(entry, preferredKeys) ?? getFirstVisibleNumericScore(entry)
 }
 
 const getPerspectiveAverageScore = (item: Record<string, unknown>, matcher: (key: string) => boolean): number => {
@@ -456,29 +468,169 @@ const computeSectionAverageScore = (items: Record<string, unknown>[]): string =>
   return Number(avg.toFixed(2)).toString()
 }
 
+const computeRadarAverageScore = (data: RadarDataPoint[], selectedReviewers: ReviewerKey[]): string => {
+  if (!data.length || !selectedReviewers.length) return '--'
+
+  const scores = data.flatMap(point =>
+    selectedReviewers.map(reviewer => point[reviewer]).filter(score => Number.isFinite(score))
+  )
+  if (!scores.length) return '--'
+
+  const average = scores.reduce((acc, score) => acc + score, 0) / scores.length
+  return Number(average.toFixed(2)).toString()
+}
+
 const RadarLegend: React.FC<{
   selfLabel: string
   peerLabel: string
   managerLabel: string
-}> = ({ selfLabel, peerLabel, managerLabel }) => {
+  selectedReviewers: ReviewerKey[]
+  onToggleReviewer: (reviewer: ReviewerKey) => void
+}> = ({ selfLabel, peerLabel, managerLabel, selectedReviewers, onToggleReviewer }) => {
   const entries = [
-    { key: 'self', label: selfLabel, color: REVIEWER_COLORS.self },
-    { key: 'peer', label: peerLabel, color: REVIEWER_COLORS.peer },
-    { key: 'manager', label: managerLabel, color: REVIEWER_COLORS.manager }
+    { key: 'self' as ReviewerKey, label: selfLabel, color: REVIEWER_COLORS.self },
+    { key: 'peer' as ReviewerKey, label: peerLabel, color: REVIEWER_COLORS.peer },
+    { key: 'manager' as ReviewerKey, label: managerLabel, color: REVIEWER_COLORS.manager }
   ]
 
   return (
     <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="employee-performance-evaluation-radar-legend">
-      {entries.map(entry => (
-        <Badge key={entry.key} variant="secondary" className="gba:flex gba:items-center gba:gap-2">
-          <span
-            className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span>{entry.label}</span>
-        </Badge>
-      ))}
+      {entries.map(entry => {
+        const isActive = selectedReviewers.includes(entry.key)
+        return (
+          <button
+            key={entry.key}
+            type="button"
+            className="gba:rounded-full gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-2"
+            data-testid={`employee-performance-evaluation-radar-legend-${entry.key}`}
+            aria-pressed={isActive}
+            onClick={() => onToggleReviewer(entry.key)}
+          >
+            <Badge
+              variant="secondary"
+              className={`gba:flex gba:items-center gba:gap-2 ${isActive ? '' : 'gba:opacity-50'}`}
+            >
+              <span
+                className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span>{entry.label}</span>
+            </Badge>
+          </button>
+        )
+      })}
     </div>
+  )
+}
+
+const RadarComparisonCard: React.FC<{
+  testId: string
+  title: string
+  description: string
+  averageScore: string
+  averageScoreLabel: string
+  data: RadarDataPoint[]
+  noDataLabel: string
+  selfLabel: string
+  peerLabel: string
+  managerLabel: string
+  radarMaxDomain: number
+}> = ({
+  testId,
+  title,
+  description,
+  averageScore,
+  averageScoreLabel,
+  data,
+  noDataLabel,
+  selfLabel,
+  peerLabel,
+  managerLabel,
+  radarMaxDomain
+}) => {
+  const [selectedReviewers, setSelectedReviewers] = useState<ReviewerKey[]>(REVIEWER_KEYS)
+
+  const toggleReviewer = (reviewer: ReviewerKey) => {
+    setSelectedReviewers(previous => {
+      if (previous.includes(reviewer)) {
+        if (previous.length === 1) return previous
+        return previous.filter(entry => entry !== reviewer)
+      }
+
+      const next = [...previous, reviewer]
+      return REVIEWER_KEYS.filter(entry => next.includes(entry))
+    })
+  }
+
+  const displayedAverageScore =
+    selectedReviewers.length === REVIEWER_KEYS.length ? averageScore : computeRadarAverageScore(data, selectedReviewers)
+
+  return (
+    <Card data-testid={testId}>
+      <CardHeader className="gba:pb-2">
+        <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+          <CardTitle>{title}</CardTitle>
+          <div className="gba:text-right">
+            <p className="gba:text-xs gba:text-muted-foreground">{averageScoreLabel}</p>
+            <p className="gba:text-sm gba:font-semibold">{displayedAverageScore}</p>
+          </div>
+        </div>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="gba:space-y-3">
+        <RadarLegend
+          selfLabel={selfLabel}
+          peerLabel={peerLabel}
+          managerLabel={managerLabel}
+          selectedReviewers={selectedReviewers}
+          onToggleReviewer={toggleReviewer}
+        />
+        {data.length > 0 ? (
+          <div className="gba:h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={data} margin={{ top: 16, right: 28, bottom: 8, left: 28 }}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="label" tick={{ fontSize: 12 }} />
+                <PolarRadiusAxis domain={[0, radarMaxDomain]} />
+                <RechartsTooltip />
+                {selectedReviewers.includes('self') ? (
+                  <Radar
+                    name={selfLabel}
+                    dataKey="self"
+                    stroke={REVIEWER_COLORS.self}
+                    fill={REVIEWER_COLORS.self}
+                    fillOpacity={0.14}
+                    strokeWidth={2}
+                  />
+                ) : null}
+                {selectedReviewers.includes('peer') ? (
+                  <Radar
+                    name={peerLabel}
+                    dataKey="peer"
+                    stroke={REVIEWER_COLORS.peer}
+                    fill={REVIEWER_COLORS.peer}
+                    fillOpacity={0.14}
+                    strokeWidth={2}
+                  />
+                ) : null}
+                {selectedReviewers.includes('manager') ? (
+                  <Radar
+                    name={managerLabel}
+                    dataKey="manager"
+                    stroke={REVIEWER_COLORS.manager}
+                    fill={REVIEWER_COLORS.manager}
+                    fillOpacity={0.14}
+                    strokeWidth={2}
+                  />
+                ) : null}
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="gba:text-sm gba:text-muted-foreground">{noDataLabel}</p>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -633,125 +785,33 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
           className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-4"
           data-testid="employee-performance-evaluation-radar-section"
         >
-          <Card data-testid="employee-performance-evaluation-company-values-radar-card">
-            <CardHeader className="gba:pb-2">
-              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-                <CardTitle>{t('performance-evaluation-radar-company-values-title')}</CardTitle>
-                <div className="gba:text-right">
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    {t('performance-evaluation-radar-average-score')}
-                  </p>
-                  <p className="gba:text-sm gba:font-semibold">{companyValuesAverageScore}</p>
-                </div>
-              </div>
-              <CardDescription>{t('performance-evaluation-radar-company-values-description')}</CardDescription>
-            </CardHeader>
-            <CardContent className="gba:space-y-3">
-              <RadarLegend
-                selfLabel={t('performance-evaluation-self')}
-                peerLabel={t('performance-evaluation-peer')}
-                managerLabel={t('performance-evaluation-manager')}
-              />
-              {companyValuesRadarData.length > 0 ? (
-                <div className="gba:h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={companyValuesRadarData} margin={{ top: 16, right: 28, bottom: 8, left: 28 }}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="label" tick={{ fontSize: 12 }} />
-                      <PolarRadiusAxis domain={[0, radarMaxDomain]} />
-                      <RechartsTooltip />
-                      <Radar
-                        name={t('performance-evaluation-self')}
-                        dataKey="self"
-                        stroke={REVIEWER_COLORS.self}
-                        fill={REVIEWER_COLORS.self}
-                        fillOpacity={0.14}
-                        strokeWidth={2}
-                      />
-                      <Radar
-                        name={t('performance-evaluation-peer')}
-                        dataKey="peer"
-                        stroke={REVIEWER_COLORS.peer}
-                        fill={REVIEWER_COLORS.peer}
-                        fillOpacity={0.14}
-                        strokeWidth={2}
-                      />
-                      <Radar
-                        name={t('performance-evaluation-manager')}
-                        dataKey="manager"
-                        stroke={REVIEWER_COLORS.manager}
-                        fill={REVIEWER_COLORS.manager}
-                        fillOpacity={0.14}
-                        strokeWidth={2}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <p className="gba:text-sm gba:text-muted-foreground">{t('performance-evaluation-radar-no-data')}</p>
-              )}
-            </CardContent>
-          </Card>
+          <RadarComparisonCard
+            testId="employee-performance-evaluation-company-values-radar-card"
+            title={t('performance-evaluation-radar-company-values-title')}
+            description={t('performance-evaluation-radar-company-values-description')}
+            averageScore={companyValuesAverageScore}
+            averageScoreLabel={t('performance-evaluation-radar-average-score')}
+            data={companyValuesRadarData}
+            noDataLabel={t('performance-evaluation-radar-no-data')}
+            selfLabel={t('performance-evaluation-self')}
+            peerLabel={t('performance-evaluation-peer')}
+            managerLabel={t('performance-evaluation-manager')}
+            radarMaxDomain={radarMaxDomain}
+          />
 
-          <Card data-testid="employee-performance-evaluation-skills-radar-card">
-            <CardHeader className="gba:pb-2">
-              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-                <CardTitle>{t('performance-evaluation-radar-skills-title')}</CardTitle>
-                <div className="gba:text-right">
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    {t('performance-evaluation-radar-average-score')}
-                  </p>
-                  <p className="gba:text-sm gba:font-semibold">{skillsAverageScore}</p>
-                </div>
-              </div>
-              <CardDescription>{t('performance-evaluation-radar-skills-description')}</CardDescription>
-            </CardHeader>
-            <CardContent className="gba:space-y-3">
-              <RadarLegend
-                selfLabel={t('performance-evaluation-self')}
-                peerLabel={t('performance-evaluation-peer')}
-                managerLabel={t('performance-evaluation-manager')}
-              />
-              {skillsRadarData.length > 0 ? (
-                <div className="gba:h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={skillsRadarData} margin={{ top: 16, right: 28, bottom: 8, left: 28 }}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="label" tick={{ fontSize: 12 }} />
-                      <PolarRadiusAxis domain={[0, radarMaxDomain]} />
-                      <RechartsTooltip />
-                      <Radar
-                        name={t('performance-evaluation-self')}
-                        dataKey="self"
-                        stroke={REVIEWER_COLORS.self}
-                        fill={REVIEWER_COLORS.self}
-                        fillOpacity={0.14}
-                        strokeWidth={2}
-                      />
-                      <Radar
-                        name={t('performance-evaluation-peer')}
-                        dataKey="peer"
-                        stroke={REVIEWER_COLORS.peer}
-                        fill={REVIEWER_COLORS.peer}
-                        fillOpacity={0.14}
-                        strokeWidth={2}
-                      />
-                      <Radar
-                        name={t('performance-evaluation-manager')}
-                        dataKey="manager"
-                        stroke={REVIEWER_COLORS.manager}
-                        fill={REVIEWER_COLORS.manager}
-                        fillOpacity={0.14}
-                        strokeWidth={2}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <p className="gba:text-sm gba:text-muted-foreground">{t('performance-evaluation-radar-no-data')}</p>
-              )}
-            </CardContent>
-          </Card>
+          <RadarComparisonCard
+            testId="employee-performance-evaluation-skills-radar-card"
+            title={t('performance-evaluation-radar-skills-title')}
+            description={t('performance-evaluation-radar-skills-description')}
+            averageScore={skillsAverageScore}
+            averageScoreLabel={t('performance-evaluation-radar-average-score')}
+            data={skillsRadarData}
+            noDataLabel={t('performance-evaluation-radar-no-data')}
+            selfLabel={t('performance-evaluation-self')}
+            peerLabel={t('performance-evaluation-peer')}
+            managerLabel={t('performance-evaluation-manager')}
+            radarMaxDomain={radarMaxDomain}
+          />
         </div>
 
         <EntryCarouselSection
