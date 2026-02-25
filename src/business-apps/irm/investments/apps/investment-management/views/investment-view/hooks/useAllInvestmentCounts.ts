@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { buildWhere } from '@/common/network/graphql/queryHelpers'
-import { INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/investmentTypes.new'
 import { InvestmentGroup } from './useInvestmentGroups'
 
 export interface AllInvestmentCounts {
@@ -11,14 +9,17 @@ export interface AllInvestmentCounts {
 }
 
 /**
- * Fetches counts for overview + all investment groups in a single GraphQL query
- * using aliased InvestmentAggregate calls.
+ * Fetches currency-filtered counts for overview + all investment groups
+ * in a single GraphQL query using aliased InvestmentAggregate calls.
+ *
+ * Re-fires on initial load and whenever the selected currency changes.
+ * After the user applies additional filters, the active tab's count is
+ * sourced from its own list query's totalCount (zero extra requests needed).
  */
 export const useAllInvestmentCounts = (
   context: BusinessAppContextProps,
   investmentGroups: InvestmentGroup[],
   currencyByTab: Record<string, string>,
-  filtersByTab: Record<string, Record<string, any>>,
   filtersReady: boolean
 ) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
@@ -26,9 +27,10 @@ export const useAllInvestmentCounts = (
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Re-fetch when groups or currencies change
   const stableKey = useMemo(
-    () => JSON.stringify({ groups: investmentGroups.map(g => g.code), currencyByTab, filtersByTab }),
-    [investmentGroups, currencyByTab, filtersByTab]
+    () => JSON.stringify({ groups: investmentGroups.map(g => g.code), currencyByTab }),
+    [investmentGroups, currencyByTab]
   )
 
   const fetchAllCounts = useCallback(async () => {
@@ -41,38 +43,6 @@ export const useAllInvestmentCounts = (
     setError(null)
 
     try {
-      const overviewCurrency = currencyByTab.overview || 'EUR'
-      const overviewFilters = filtersByTab.overview || {}
-      const overviewCurrencyConditions: Record<string, any>[] = overviewCurrency
-        ? [{ currency: { code: { _eq: overviewCurrency } } }]
-        : []
-
-      const overviewWhere = buildWhere({
-        variables: overviewFilters,
-        descriptors: INVESTMENT_DESCRIPTORS,
-        customConditions: overviewCurrencyConditions,
-        isDeleted: true
-      })
-
-      const groupWheres: Record<string, any> = {}
-      for (const group of investmentGroups) {
-        const tabCurrency = currencyByTab[group.tabId] || 'EUR'
-        const tabFilters = filtersByTab[group.tabId] || {}
-        const conditions: Record<string, any>[] = [
-          { investmentGroup: { id: { _eq: `InvestmentGroup:v1:${group.code}` } } }
-        ]
-        if (tabCurrency) {
-          conditions.push({ currency: { code: { _eq: tabCurrency } } })
-        }
-
-        groupWheres[group.tabId] = buildWhere({
-          variables: tabFilters,
-          descriptors: INVESTMENT_DESCRIPTORS,
-          customConditions: conditions,
-          isDeleted: true
-        })
-      }
-
       const variableDeclarations = [
         '$overviewWhere: InvestmentBoolExp',
         ...investmentGroups.map((_, i) => `$group${i}Where: InvestmentBoolExp`)
@@ -91,9 +61,20 @@ export const useAllInvestmentCounts = (
         }
       `
 
-      const variables: Record<string, any> = { overviewWhere: overviewWhere }
-      investmentGroups.forEach((g, i) => {
-        variables[`group${i}Where`] = groupWheres[g.tabId]
+      const overviewCurrency = currencyByTab.overview || 'EUR'
+      const variables: Record<string, any> = {
+        overviewWhere: {
+          isDeleted: { _eq: false },
+          currency: { code: { _eq: overviewCurrency } }
+        }
+      }
+      investmentGroups.forEach((group, i) => {
+        const tabCurrency = currencyByTab[group.tabId] || 'EUR'
+        variables[`group${i}Where`] = {
+          isDeleted: { _eq: false },
+          investmentGroup: { id: { _eq: `InvestmentGroup:v1:${group.code}` } },
+          currency: { code: { _eq: tabCurrency } }
+        }
       })
 
       const result = await graphqlClient.request<Record<string, any>>(query, variables)

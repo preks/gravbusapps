@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef } from 'react'
 import {
   DataDisplay,
   Select,
@@ -35,6 +35,7 @@ import { useInvestmentTabsInitialization } from './hooks/useInvestmentTabsInitia
 import { getGroupConfiguration } from './config/groupConfigurations'
 import { aggregateDynamicKPIs, aggregateDynamicStates } from './utils/kpiAggregation'
 import { findCurrencyByCode, buildFilterWithCurrency, buildCurrencyFilter } from './utils/filterHandlers'
+import { useInvestmentAccountFilter } from './hooks/useInvestmentAccountFilter'
 
 // Stable empty object to prevent infinite loops
 const EMPTY_FILTERS = {}
@@ -62,7 +63,13 @@ const useDynamicGroupSlot = ({
   const group = investmentGroups[index]
   const tabId = group?.tabId
   const selectedCurrency = useMemo(() => currencyByTab[tabId || ''] || 'EUR', [currencyByTab, tabId])
+
+  // Full filters for the data list (respects all user-applied filters)
   const selectedFilters = useMemo(() => filtersByTab[tabId || ''] || {}, [filtersByTab, tabId])
+
+  // Currency-only filters for KPIs — prevents KPI re-fetch on non-currency filter changes
+  const currencyId = filtersByTab[tabId || '']?.currencyIds?.[0] as string | undefined
+  const kpiFilters = useMemo(() => (currencyId ? { currencyIds: [currencyId] } : {}), [currencyId])
 
   const stateResult = useGenericInvestmentSectionState({
     accessToken: filtersReady && group && currentSection === tabId ? accessToken || '' : '',
@@ -73,7 +80,7 @@ const useDynamicGroupSlot = ({
     context,
     group?.code || '',
     selectedCurrency,
-    selectedFilters,
+    kpiFilters,
     filtersReady && !!group && !getGroupConfiguration(group.code).kpiHookName && currentSection === tabId
   )
 
@@ -128,8 +135,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     returnFormat: 'full'
   })
 
-  // Fetch all counts (overview + all groups) in a single GraphQL query
-  const allCounts = useAllInvestmentCounts(context, investmentGroups, currencyByTab, filtersByTab, filtersReady)
+  // Fetch all counts (overview + all groups) in a single GraphQL query, filtered by currency.
+  // Active tab count is sourced from the list query's totalCount after filters are applied.
+  const allCounts = useAllInvestmentCounts(context, investmentGroups, currencyByTab, filtersReady)
 
   // Bounded dynamic slots to support scalable groups without fixed group0..group4 wiring
   const groupSlot0 = useDynamicGroupSlot({
@@ -280,10 +288,11 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     [investmentGroups, dynamicGroupSlots]
   )
 
-  // Overview KPIs - only fetch when overview tab is active
+  // Overview KPIs - only fetch when overview tab is active, only react to currency changes
+  const overviewCurrencyId = filtersByTab['overview']?.currencyIds?.[0] as string | undefined
   const overviewKPIFilters = useMemo(
-    () => (shouldFetchOverview ? selectedFilters : EMPTY_FILTERS),
-    [shouldFetchOverview, selectedFilters]
+    () => (overviewCurrencyId ? { currencyIds: [overviewCurrencyId] } : EMPTY_FILTERS),
+    [overviewCurrencyId]
   )
   const overviewKPIs = useInvestmentPortfolioIntegration(
     context,
@@ -297,10 +306,23 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   const liquidFundTabId = useMemo(() => investmentGroups.find(g => g.code === 'LIQUID_FUND')?.tabId, [investmentGroups])
   const realEstateTabId = useMemo(() => investmentGroups.find(g => g.code === 'REAL_ESTATE')?.tabId, [investmentGroups])
 
-  // Stable KPI filter references for specialized hooks
-  const equityKPIFilters = useMemo(() => filtersByTab[equityTabId || ''] || {}, [filtersByTab, equityTabId])
-  const liquidFundKPIFilters = useMemo(() => filtersByTab[liquidFundTabId || ''] || {}, [filtersByTab, liquidFundTabId])
-  const realEstateKPIFilters = useMemo(() => filtersByTab[realEstateTabId || ''] || {}, [filtersByTab, realEstateTabId])
+  // KPI filters scoped to currency only — other filters must not trigger KPI re-fetches
+  const equityCurrencyId = filtersByTab[equityTabId || '']?.currencyIds?.[0] as string | undefined
+  const liquidFundCurrencyId = filtersByTab[liquidFundTabId || '']?.currencyIds?.[0] as string | undefined
+  const realEstateCurrencyId = filtersByTab[realEstateTabId || '']?.currencyIds?.[0] as string | undefined
+
+  const equityKPIFilters = useMemo(
+    () => (equityCurrencyId ? { currencyIds: [equityCurrencyId] } : EMPTY_FILTERS),
+    [equityCurrencyId]
+  )
+  const liquidFundKPIFilters = useMemo(
+    () => (liquidFundCurrencyId ? { currencyIds: [liquidFundCurrencyId] } : EMPTY_FILTERS),
+    [liquidFundCurrencyId]
+  )
+  const realEstateKPIFilters = useMemo(
+    () => (realEstateCurrencyId ? { currencyIds: [realEstateCurrencyId] } : EMPTY_FILTERS),
+    [realEstateCurrencyId]
+  )
 
   // Specialized KPIs - only fetch when the specific group tab is active
   const equityKPIs = useEquityKPIIntegration(
@@ -353,37 +375,73 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     [onSubTabChange]
   )
 
-  // Get current state
-  const getCurrentState = () => {
+  // Get current state - memoized to keep a stable reference
+  const currentState = useMemo(() => {
     if (currentSection === 'overview') return overviewState
     return dynamicStates[currentSection] || overviewState
-  }
+  }, [currentSection, overviewState, dynamicStates])
 
-  const currentState = getCurrentState()
+  // Refs so the filter handler can read the latest values without being recreated
+  const currentSectionRef = useRef(currentSection)
+  currentSectionRef.current = currentSection
+  const availableCurrenciesRef = useRef(availableCurrencies)
+  availableCurrenciesRef.current = availableCurrencies
+  const selectedCurrencyRef = useRef(selectedCurrency)
+  selectedCurrencyRef.current = selectedCurrency
+  const currentStateRef = useRef(currentState)
+  currentStateRef.current = currentState
+
+  // Fetch all accounts linked to any investment — shared across every tab.
+  // No group or currency scoping so the list is fetched exactly once after initialisation.
+  const { accounts: accountOptions } = useInvestmentAccountFilter(context.accessToken, filtersReady)
 
   // Filter configuration
   const filterGroups = useFilterGroups(context, 'Investment', INVESTMENT_DESCRIPTORS)
   const currentFilterConfig = useMemo(() => {
-    if (filterGroups.isLoading || Object.keys(filterGroups.filterData || {}).length === 0)
-      return currentSection === 'overview' ? overviewInvestmentFilterConfig : baseInvestmentFilterConfig
+    const baseConfig = currentSection === 'overview' ? overviewInvestmentFilterConfig : baseInvestmentFilterConfig
+    const builtConfig =
+      filterGroups.isLoading || Object.keys(filterGroups.filterData || {}).length === 0
+        ? baseConfig
+        : buildDynamicFilterConfig(baseConfig, INVESTMENT_DESCRIPTORS, filterGroups)
 
-    if (currentSection === 'overview') {
-      return buildDynamicFilterConfig(overviewInvestmentFilterConfig, INVESTMENT_DESCRIPTORS, filterGroups)
+    // Inject account options into the account-group filter
+    if (accountOptions.length === 0) return builtConfig
+
+    return {
+      ...builtConfig,
+      groups: builtConfig.groups.map(group => {
+        if (group.id !== 'account-group') return group
+        return {
+          ...group,
+          filters: group.filters.map(filter => {
+            if (filter.id !== 'investmentAccountIds') return filter
+            return {
+              ...filter,
+              config: {
+                ...filter.config,
+                options: accountOptions.map(a => ({ id: a.id, label: a.label })),
+                totalCount: accountOptions.length,
+                hasMore: false
+              }
+            }
+          })
+        }
+      })
     }
-    return buildDynamicFilterConfig(baseInvestmentFilterConfig, INVESTMENT_DESCRIPTORS, filterGroups)
-  }, [currentSection, filterGroups])
+  }, [currentSection, filterGroups, accountOptions])
 
-  // Filter change handler
-  const handleFilterChange = useCallback(
-    (newFilters: Record<string, any>) => {
-      const currencyObj = findCurrencyByCode(availableCurrencies, selectedCurrency)
-      const finalFilters = buildFilterWithCurrency(newFilters, currencyObj)
+  // Stable filter change handler — uses refs so it never needs to be recreated.
+  // Matches the AccountLayout pattern (empty deps, functional state updates).
+  const handleFilterChange = useCallback((newFilters: Record<string, any>) => {
+    const section = currentSectionRef.current
+    const currencyObj = findCurrencyByCode(availableCurrenciesRef.current, selectedCurrencyRef.current)
+    const finalFilters = buildFilterWithCurrency(newFilters, currencyObj)
 
-      setFiltersByTab(prev => ({ ...prev, [currentSection]: finalFilters }))
-      currentState.handlePaginationChange({ pageIndex: 0, pageSize: currentState.pageSize })
-    },
-    [currentSection, availableCurrencies, selectedCurrency, currentState]
-  )
+    setFiltersByTab(prev => ({ ...prev, [section]: finalFilters }))
+
+    const state = currentStateRef.current
+    state.handlePaginationChange({ pageIndex: 0, pageSize: state.pageSize })
+  }, [])
 
   // Currency change handler
   const handleCurrencyChange = useCallback(
@@ -505,29 +563,38 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     )
   }, [currentSection, investmentGroups, accessToken])
 
-  // Build title sections dynamically
+  // Normalize active tab count: overviewState uses `totalCount`, group states use `total`
+  const activeTabCount = (currentState as any).totalCount ?? (currentState as any).total ?? 0
+
+  // Build title sections dynamically.
+  // Active tab: count comes from the list query so it reflects applied filters (0 extra requests).
+  // Non-active tabs: count comes from the initial combined query (currency-only, stable).
   const titleSections = useMemo(() => {
     const sections = [
       {
         id: 'overview',
         label: 'Overview',
-        metadata: { count: allCounts.overview.count, isLoading: allCounts.overview.isLoading }
+        metadata: {
+          count: currentSection === 'overview' ? activeTabCount : allCounts.overview.count,
+          isLoading: currentSection === 'overview' ? currentState.loading : allCounts.overview.isLoading
+        }
       }
     ]
 
     investmentGroups.forEach(group => {
+      const isActive = currentSection === group.tabId
       sections.push({
         id: group.tabId,
         label: group.label,
         metadata: {
-          count: allCounts.groups[group.tabId]?.count || 0,
-          isLoading: allCounts.groups[group.tabId]?.isLoading || false
+          count: isActive ? activeTabCount : allCounts.groups[group.tabId]?.count || 0,
+          isLoading: isActive ? currentState.loading : allCounts.groups[group.tabId]?.isLoading || false
         }
       })
     })
 
     return sections
-  }, [investmentGroups, allCounts])
+  }, [investmentGroups, allCounts, currentSection, activeTabCount, currentState.loading])
 
   // Render KPIs for current section
   const renderKPIs = () => {
