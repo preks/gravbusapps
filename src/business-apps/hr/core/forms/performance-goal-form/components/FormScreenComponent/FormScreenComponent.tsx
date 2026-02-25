@@ -458,25 +458,27 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </div>
       )}
 
-      {/* Note */}
-      <FormField
-        control={form.control}
-        name="note"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Note</FormLabel>
-            <FormControl>
-              <textarea
-                rows={3}
-                placeholder="Add any context, links, or notes for this goal…"
-                className="gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:resize-none gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {/* Note — edit mode only; create mode has no comment field on the goal entity */}
+      {isEditMode && (
+        <FormField
+          control={form.control}
+          name="note"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Note</FormLabel>
+              <FormControl>
+                <textarea
+                  rows={3}
+                  placeholder="Add any context, links, or notes for this goal…"
+                  className="gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:resize-none gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
     </div>
   )
 }

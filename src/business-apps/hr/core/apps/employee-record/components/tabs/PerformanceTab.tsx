@@ -43,7 +43,7 @@ interface PerformanceTabProps {
 }
 
 type GoalType = 'PERCENTAGE' | 'NUMERIC' | 'MILESTONE'
-type TrackState = 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET'
+type TrackState = 'ON_TRACK' | 'BEHIND_TARGET'
 
 interface Milestone {
   id: string
@@ -310,8 +310,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       const today = dayjs().startOf('day')
       const actual = getProgressAtDate(events, today)
       const ideal = getIdealProgressAtDate(startDate, dueDate, today)
-      if (actual >= ideal - 5) return 'ON_TRACK'
-      if (actual >= ideal - 15) return 'AT_RISK'
+      if (actual >= ideal - 10) return 'ON_TRACK'
       return 'BEHIND_TARGET'
     },
     [goalEvents, getInitialEvents]
@@ -321,9 +320,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     const total = containedGoals.length
     const achieved = containedGoals.filter(goal => goal.status === 'ACHIEVED' || goal.progressPercent >= 100).length
     const onTrack = containedGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
-    const atRisk = containedGoals.filter(goal => getTrackState(goal) === 'AT_RISK').length
     const behind = containedGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
-    return { total, achieved, onTrack, atRisk, behind }
+    return { total, achieved, onTrack, behind }
   }, [containedGoals, getTrackState])
 
   useEffect(() => {
@@ -480,7 +478,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     const now = new Date().toISOString()
     const currentProgress = selectedGoal.progressPercent || 0
 
-    // Optimistic update — keep current progress, only mark status as ACHIEVED
+    // Optimistic update — keep current progress, mark status as ACHIEVED
     const optimisticUpdate: GoalUpdate = {
       id: `optimistic-${now}`,
       progressPercent: currentProgress,
@@ -496,17 +494,22 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     }))
     setShowCompletedModal(false)
 
+    // Persist status: 'ACHIEVED' on the goal record so it survives a page refresh
     beginSilentSave()
     startProcess({
       domain: 'employee',
-      processName: 'saveEmployeePerformanceGoalUpdate',
+      processName: 'saveEmployeePerformanceGoal',
       payload: {
-        changeMode: 'INSERT',
-        employeePerformanceGoalUpdate: {
+        changeMode: 'UPDATE',
+        employeePerformanceGoal: {
+          id: selectedGoal.id,
+          version: selectedGoal.version ?? 0,
+          title: selectedGoal.title,
+          startDate: selectedGoal.startDate,
+          dueDate: selectedGoal.dueDate,
+          objectiveType: selectedGoal.objectiveType,
+          status: 'ACHIEVED',
           progressPercent: currentProgress,
-          comment: 'Goal marked as completed',
-          updateTime: now,
-          performanceGoal: selectedGoal.id,
           employee: employee.id
         }
       },
@@ -620,7 +623,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
         </div>
       </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-5 gba:gap-3">
+      <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
         <Card>
           <CardContent className="gba:p-4">
             <div className="gba:text-xs gba:text-muted-foreground">Total goals</div>
@@ -631,12 +634,6 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
           <CardContent className="gba:p-4">
             <div className="gba:text-xs gba:text-muted-foreground">On Track</div>
             <div className="gba:text-xl gba:font-semibold">{summary.onTrack}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">At Risk</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.atRisk}</div>
           </CardContent>
         </Card>
         <Card>
@@ -973,7 +970,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                         <YAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 11 }} />
-                        <RechartsTooltip formatter={(value: number) => `${Math.round(value)}%`} />
+                        <RechartsTooltip
+                          formatter={(value: number | undefined) => (value != null ? `${Math.round(value)}%` : '')}
+                        />
                         <Line dataKey="ideal" type="monotone" stroke="var(--nw-chart-2)" dot={false} name="Ideal" />
                         <Line
                           dataKey="actual"

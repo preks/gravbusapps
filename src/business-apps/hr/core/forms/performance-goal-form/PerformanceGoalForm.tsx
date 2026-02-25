@@ -13,8 +13,6 @@ import FormHeader from '../components/FormHeader'
 import { Employee } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData'
 import { startProcess } from '@/common/utils/start-process'
 import { beginSilentSave } from '@/common/utils/silent-processes'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { latestGoalByEmployeeAndTitleQuery } from '@/business-apps/hr/core/apps/employee-record/queries/performanceQueries'
 
 interface PerformanceGoalFormProps {
   onClose: () => void
@@ -22,7 +20,6 @@ interface PerformanceGoalFormProps {
   prefixDataTestId?: string
   additionalData: Record<string, unknown>
   employee: Employee
-  accessToken: string
 }
 
 interface PerformanceGoalFormData {
@@ -48,11 +45,9 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   onSuccess,
   prefixDataTestId = 'performance-goal-form',
   additionalData,
-  employee,
-  accessToken
+  employee
 }) => {
   const { t } = useTranslation()
-  const graphQLClient = useGraphqlClient(accessToken)
   const isEditMode = !!additionalData?.goalId
   const cycleStartDate = additionalData?.cycleStartDate as string | undefined
   const cycleEndDate = additionalData?.cycleEndDate as string | undefined
@@ -70,12 +65,10 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   // Pending operations that need the backend-assigned goal ID to execute
   const pendingOpsRef = useRef<{
     employeeId: string
-    title: string // used to look up the new goal for INSERT
-    goalId?: string // provided directly for UPDATE
-    milestones?: MilestoneItem[] // create: all milestones to INSERT
-    milestonesToAdd?: MilestoneItem[] // edit: new milestones to INSERT
-    milestonesToDelete?: MilestoneItem[] // edit: removed milestones to DELETE
-    note?: string
+    title: string
+    goalId: string
+    milestonesToAdd: MilestoneItem[]
+    milestonesToDelete: MilestoneItem[]
   } | null>(null)
 
   // Helper function to safely convert date strings to Date objects
@@ -185,6 +178,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       const isMilestone = formData.objectiveType === 'MILESTONE_PERFORMANCE_GOAL'
 
       // Compute milestone diffs for edit mode
+      // Backend replaces milestones on UPDATE when milestones array is sent, so adds/deletes use separate calls
       let milestonesToAdd: MilestoneItem[] = []
       let milestonesToDelete: MilestoneItem[] = []
       if (isEditMode && isMilestone) {
@@ -193,30 +187,22 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
         milestonesToDelete = initialMilestonesRef.current.filter(m => !currentIds.has(m.id))
       }
 
-      // Queue after-save operations that need the goal ID.
-      // Notes in either mode are saved as comments via saveEmployeePerformanceGoalUpdate.
-      const hasPendingOps =
-        (!isEditMode && isMilestone && !!formData.milestones?.length) ||
-        (isEditMode && isMilestone && (milestonesToAdd.length > 0 || milestonesToDelete.length > 0)) ||
-        !!formData.note?.trim()
+      // Edit mode: milestone adds and deletes both need separate calls
+      pendingOpsRef.current =
+        isEditMode && (milestonesToAdd.length > 0 || milestonesToDelete.length > 0)
+          ? {
+              employeeId: additionalData?.employeeId as string,
+              title: formData.title,
+              goalId: additionalData.goalId as string,
+              milestonesToAdd,
+              milestonesToDelete
+            }
+          : null
 
-      if (hasPendingOps) {
-        pendingOpsRef.current = {
-          employeeId: additionalData?.employeeId as string,
-          title: formData.title,
-          ...(isEditMode ? { goalId: additionalData.goalId as string } : {}),
-          // Create: all milestones | Edit: only diffs
-          ...(!isEditMode && isMilestone && formData.milestones?.length ? { milestones: formData.milestones } : {}),
-          ...(isEditMode && isMilestone ? { milestonesToAdd, milestonesToDelete } : {}),
-          ...(formData.note?.trim() ? { note: formData.note.trim() } : {})
-        }
-      } else {
-        pendingOpsRef.current = null
-      }
-
-      // Only truly custom data goes in additionalProperties — numeric tracking state only
+      // additionalProperties: numeric state + note (edit mode, stored inline to avoid a second request)
       const additionalProperties: Record<string, unknown> = {
-        ...(isNumeric ? { numeric: { current: formData.startValue ?? 0, unit: '' } } : {})
+        ...(isNumeric ? { numeric: { current: formData.startValue ?? 0, unit: '' } } : {}),
+        ...(isEditMode && formData.note?.trim() ? { note: formData.note.trim() } : {})
       }
 
       const payload = {
@@ -235,7 +221,17 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           ...(formData.progressPercent === 100 && formData.completionDate
             ? { completionDate: dateToISOString(formData.completionDate) }
             : {}),
-          ...(isEditMode ? { version: additionalData.version } : {})
+          ...(isEditMode ? { version: additionalData.version } : {}),
+          // CREATE only: send all milestones inline — backend creates them atomically
+          ...(!isEditMode && isMilestone && formData.milestones?.length
+            ? {
+                milestones: formData.milestones.map((m, i) => ({
+                  title: m.title,
+                  done: false,
+                  sortOrder: i
+                }))
+              }
+            : {})
         },
         changeMode: isEditMode ? 'UPDATE' : 'INSERT'
       }
@@ -252,86 +248,45 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
     successHandledRef.current = true
 
     if (pendingOpsRef.current) {
-      const {
-        employeeId,
-        title,
-        goalId: knownGoalId,
-        milestones,
-        milestonesToAdd,
-        milestonesToDelete,
-        note
-      } = pendingOpsRef.current
+      const { goalId, milestonesToAdd, milestonesToDelete } = pendingOpsRef.current
       try {
-        // For INSERT: resolve the backend-assigned goal ID via GraphQL.
-        // For UPDATE: we already know the goal ID.
-        let goalId = knownGoalId
-        if (!goalId) {
-          const response = await graphQLClient.request(latestGoalByEmployeeAndTitleQuery, { employeeId, title })
-          goalId = (response as any)?.EmployeePerformanceGoal?.[0]?.id
-        }
-
-        if (goalId) {
-          // INSERT new milestones (create: all | edit: only newly added ones)
-          const toInsert = milestones || milestonesToAdd || []
-          const existingCount = initialMilestonesRef.current.length
-          toInsert.forEach((milestone, index) => {
-            beginSilentSave()
-            startProcess({
-              domain: 'employee',
-              processName: 'saveEmployeePerformanceGoalMilestone',
-              payload: {
-                changeMode: 'INSERT',
-                employeePerformanceGoalMilestone: {
-                  title: milestone.title,
-                  done: false,
-                  sortOrder: isEditMode ? existingCount + index : index,
-                  performanceGoal: goalId
-                }
-              },
-              skipScreen: true
-            })
+        // INSERT newly added milestones via separate calls (inline on UPDATE replaces all milestones)
+        const existingCount = initialMilestonesRef.current.length
+        milestonesToAdd?.forEach((milestone, index) => {
+          beginSilentSave()
+          startProcess({
+            domain: 'employee',
+            processName: 'saveEmployeePerformanceGoalMilestone',
+            payload: {
+              changeMode: 'INSERT',
+              employeePerformanceGoalMilestone: {
+                title: milestone.title,
+                done: false,
+                sortOrder: existingCount + index,
+                performanceGoal: goalId
+              }
+            },
+            skipScreen: true
           })
+        })
 
-          // DELETE removed milestones (edit mode only)
-          milestonesToDelete?.forEach(milestone => {
-            beginSilentSave()
-            startProcess({
-              domain: 'employee',
-              processName: 'saveEmployeePerformanceGoalMilestone',
-              payload: {
-                changeMode: 'DELETE',
-                employeePerformanceGoalMilestone: {
-                  id: milestone.id,
-                  version: milestone.version ?? 0,
-                  performanceGoal: goalId
-                }
-              },
-              skipScreen: true
-            })
+        // DELETE removed milestones
+        milestonesToDelete?.forEach(milestone => {
+          beginSilentSave()
+          startProcess({
+            domain: 'employee',
+            processName: 'saveEmployeePerformanceGoalMilestone',
+            payload: {
+              changeMode: 'DELETE',
+              employeePerformanceGoalMilestone: {
+                id: milestone.id,
+                version: milestone.version ?? 0,
+                performanceGoal: goalId
+              }
+            },
+            skipScreen: true
           })
-
-          // Save the note as a goal update comment — not in additionalProperties
-          if (note) {
-            beginSilentSave()
-            startProcess({
-              domain: 'employee',
-              processName: 'saveEmployeePerformanceGoalUpdate',
-              payload: {
-                changeMode: 'INSERT',
-                employeePerformanceGoalUpdate: {
-                  comment: note,
-                  progressPercent: 0,
-                  updateTime: new Date().toISOString(),
-                  performanceGoal: goalId,
-                  employee: employeeId
-                }
-              },
-              skipScreen: true
-            })
-          }
-        } else {
-          console.error('[PerformanceGoalForm] Could not resolve goal ID for post-save operations')
-        }
+        })
       } catch (e) {
         console.error('[PerformanceGoalForm] Failed to execute post-save operations:', e)
       }
@@ -411,7 +366,7 @@ const PerformanceGoalForm: React.FC<
     onClose?: () => void
     onSuccess?: () => void
   }
-> = ({ onClose = () => {}, onSuccess, additionalData, accessToken }) => {
+> = ({ onClose = () => {}, onSuccess, additionalData }) => {
   // Extract initial parameters from the flow payload
   const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
 
@@ -423,7 +378,6 @@ const PerformanceGoalForm: React.FC<
       onClose={onClose}
       onSuccess={onSuccess}
       additionalData={initialParameters}
-      accessToken={accessToken}
     />
   )
 }
