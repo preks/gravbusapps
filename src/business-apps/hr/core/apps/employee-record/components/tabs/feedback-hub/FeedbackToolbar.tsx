@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { CalendarBlank, CaretDown } from '@phosphor-icons/react'
+import { CalendarBlankIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { FilterBar } from '../components/CompactFilterBar'
 
 interface FeedbackToolbarProps {
@@ -72,14 +72,12 @@ const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
   onClearFilters,
   showSenderFilter = true
 }) => {
-  const dateLabel =
-    dateFrom && dateTo
-      ? `${dateFrom} - ${dateTo}`
-      : dateFrom
-        ? `${dateFrom} - ...`
-        : dateTo
-          ? `... - ${dateTo}`
-          : allDatesLabel
+  const dateLabel = ((): string => {
+    if (dateFrom && dateTo) return `${dateFrom} - ${dateTo}`
+    if (dateFrom) return `${dateFrom} - ...`
+    if (dateTo) return `... - ${dateTo}`
+    return allDatesLabel
+  })()
 
   return (
     <FilterBar
@@ -102,9 +100,9 @@ const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
             className="gba:h-9 gba:px-3 gba:flex gba:items-center gba:gap-2 gba:rounded-md gba:hover:bg-accent gba:text-sm"
             data-testid="feedback-date-filter-trigger"
           >
-            <CalendarBlank className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            <CalendarBlankIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
             <span>{dateLabel}</span>
-            <CaretDown className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+            <CaretDownIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="gba:w-72 gba:p-3 gba:space-y-3">

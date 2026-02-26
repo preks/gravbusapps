@@ -225,8 +225,8 @@ const AnalysisContent: React.FC<{ result: FeedbackAnalysisResult }> = ({ result 
       {/* Strengths */}
       {result.strengths.length > 0 && (
         <CollapsibleSection title={t('feedback-hub-ai-panel-strengths')} count={result.strengths.length} defaultOpen>
-          {result.strengths.map((s, i) => (
-            <div key={i} className="gba:flex gba:items-center gba:gap-2 gba:py-1">
+          {result.strengths.map(s => (
+            <div key={s} className="gba:flex gba:items-center gba:gap-2 gba:py-1">
               <span className="gba:inline-flex gba:h-5 gba:w-5 gba:items-center gba:justify-center gba:text-green-500 gba:leading-none gba:shrink-0">
                 &#10003;
               </span>
@@ -239,8 +239,8 @@ const AnalysisContent: React.FC<{ result: FeedbackAnalysisResult }> = ({ result 
       {/* Growth Areas */}
       {result.growth_areas.length > 0 && (
         <CollapsibleSection title={t('feedback-hub-ai-panel-growth-areas')} count={result.growth_areas.length}>
-          {result.growth_areas.map((g, i) => (
-            <div key={i} className="gba:flex gba:items-center gba:gap-2 gba:py-1">
+          {result.growth_areas.map(g => (
+            <div key={g} className="gba:flex gba:items-center gba:gap-2 gba:py-1">
               <span className="gba:inline-flex gba:h-5 gba:w-5 gba:items-center gba:justify-center gba:text-orange-500 gba:leading-none gba:shrink-0">
                 &rarr;
               </span>

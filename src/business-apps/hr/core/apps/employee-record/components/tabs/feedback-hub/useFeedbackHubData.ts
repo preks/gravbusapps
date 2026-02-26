@@ -277,8 +277,8 @@ export const useFeedbackHubData = ({
         const rawMessage = task?.inputs?.feedback?.feedback || task?.description || task?.referenceName || null
         const message = rawMessage
           ? rawMessage
-              .replace(/Enter Requested Employee Feedback/gi, '')
-              .replace(/\s+/g, ' ')
+              .replaceAll(/Enter Requested Employee Feedback/gi, '')
+              .replaceAll(/\s+/g, ' ')
               .trim() || null
           : null
 

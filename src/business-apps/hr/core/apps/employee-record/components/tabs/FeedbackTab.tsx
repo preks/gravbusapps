@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { Sparkle } from '@phosphor-icons/react'
+import { SparkleIcon } from '@phosphor-icons/react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import translations from '../../_i18n'
@@ -249,7 +249,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               {analyzingInsights.received ? (
                 <Spinner size="sm" />
               ) : (
-                <Sparkle className="gba:h-4 gba:w-4" weight="fill" />
+                <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
               )}
               {analyzingInsights.received
                 ? t('feedback-hub-ai-insights-analyzing')
@@ -292,7 +292,11 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               disabled={givenList.length === 0 || analyzingInsights.given}
               onClick={handleOpenGivenInsights}
             >
-              {analyzingInsights.given ? <Spinner size="sm" /> : <Sparkle className="gba:h-4 gba:w-4" weight="fill" />}
+              {analyzingInsights.given ? (
+                <Spinner size="sm" />
+              ) : (
+                <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
+              )}
               {analyzingInsights.given ? t('feedback-hub-ai-insights-analyzing') : t('feedback-hub-ai-insights-button')}
             </Button>
           }

@@ -37,6 +37,36 @@ interface FeedbackListSectionProps {
   showBackContent?: boolean
 }
 
+function getListContent(
+  loading: boolean,
+  feedbackList: FormattedFeedback[],
+  emptyLabel: string,
+  privateBadgeLabel: string,
+  publicBadgeLabel: string,
+  showMoreLabel: string,
+  showLessLabel: string
+): React.ReactNode {
+  if (loading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-40">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+  if (feedbackList.length > 0) {
+    return (
+      <FeedbackCards
+        feedbackList={feedbackList}
+        privateBadgeLabel={privateBadgeLabel}
+        publicBadgeLabel={publicBadgeLabel}
+        showMoreLabel={showMoreLabel}
+        showLessLabel={showLessLabel}
+      />
+    )
+  }
+  return <EmptyState title={emptyLabel} />
+}
+
 const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
   title,
   loading,
@@ -54,27 +84,15 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
   footerContent,
   showBackContent = false
 }) => {
-  let listContent: React.ReactNode
-  if (loading) {
-    listContent = (
-      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-40">
-        <Spinner size="lg" />
-      </div>
-    )
-  } else if (feedbackList.length > 0) {
-    listContent = (
-      <FeedbackCards
-        feedbackList={feedbackList}
-        privateBadgeLabel={privateBadgeLabel}
-        publicBadgeLabel={publicBadgeLabel}
-        showMoreLabel={showMoreLabel}
-        showLessLabel={showLessLabel}
-      />
-    )
-  } else {
-    listContent = <EmptyState title={emptyLabel} />
-  }
-
+  const listContent = getListContent(
+    loading,
+    feedbackList,
+    emptyLabel,
+    privateBadgeLabel,
+    publicBadgeLabel,
+    showMoreLabel,
+    showLessLabel
+  )
   const hasFlip = footerContent != null
   const isFlipped = hasFlip && showBackContent
 
@@ -153,7 +171,7 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
                 {frontFace}
               </div>
               {/* Back: insights panel (constrained height so column stays smaller) */}
-              {backFace != null && (
+              {backFace !== null ? (
                 <div
                   className="gba:absolute gba:inset-0 gba:w-full gba:flex gba:flex-col"
                   style={{
@@ -164,7 +182,7 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
                 >
                   {backFace}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         ) : (

@@ -56,12 +56,31 @@ function parseAnalysisResponse(content: unknown): FeedbackAnalysisResult {
   try {
     return JSON.parse(trimmed) as FeedbackAnalysisResult
   } catch {
-    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
-    if (fencedMatch?.[1]) {
-      return JSON.parse(fencedMatch[1]) as FeedbackAnalysisResult
+    const fenced = extractFencedJson(trimmed)
+    if (fenced) {
+      return JSON.parse(fenced) as FeedbackAnalysisResult
     }
     throw new Error('Invalid analysis response format')
   }
+}
+
+/** Extract content between ``` or ```json and closing ``` without regex backtracking (S5852). */
+function extractFencedJson(text: string): string | null {
+  const open = '```'
+  const openJson = '```json'
+  const idxJson = text.indexOf(openJson)
+  const idxPlain = text.indexOf(open)
+  const startIdx =
+    idxJson >= 0 && (idxPlain < 0 || idxJson <= idxPlain)
+      ? idxJson + openJson.length
+      : idxPlain >= 0
+        ? idxPlain + open.length
+        : -1
+  if (startIdx < 0) return null
+  const afterOpen = text.slice(startIdx).trimStart()
+  const closeIdx = afterOpen.indexOf(open)
+  if (closeIdx < 0) return null
+  return afterOpen.slice(0, closeIdx).trim()
 }
 
 function toErrorMessage(error: unknown): string {
