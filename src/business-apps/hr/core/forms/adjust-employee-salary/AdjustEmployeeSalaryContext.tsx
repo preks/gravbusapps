@@ -22,6 +22,7 @@ import type {
   CurrencyOption
 } from './types'
 import { formatDate } from '@/common/utils/windowUtils'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 
 interface CurrencyCatalogResponse {
   CatalogEntry: Array<{
@@ -63,15 +64,8 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   const employeeId: string | undefined = useMemo(() => {
-    // Extract employeeId with priority: externalContextData (from AppAction) > process payload > direct > userInfo
-    const externalContext = (additionalData as any)?.externalContextData || {}
-    return (
-      externalContext?.employeeId || // From AppAction externalContextData (highest priority)
-      additionalData?.psi_taskPayload?.employeeId ||
-      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
-      additionalData?.employeeId ||
-      userInfo?.employeeDetails?.employeeId
-    )
+    const id = extractEmployeeId(additionalData, userInfo)
+    return id || undefined
   }, [additionalData, userInfo])
 
   const fetchData = useCallback(async () => {

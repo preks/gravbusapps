@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  Progress,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -83,6 +84,20 @@ const getChangeDisplayValue = (data: Record<string, unknown>, candidates: string
   if (typeof value === 'number' && Number.isFinite(value)) return String(value)
   if (typeof value === 'string') return value
   return '--'
+}
+
+const toPositiveFiniteNumber = (value: unknown): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null
+  return value
+}
+
+const DEFAULT_RATING_SCALE_LIMIT = 10
+
+const getRatingScaleLimit = (data: Record<string, unknown>, overall: Record<string, unknown> | null): number => {
+  const ratingScaleLimitCandidates = ['ratingScaleLimit', 'ratingScaleMax', 'ratingScaleUpperLimit', 'maxRatingScale']
+  const limitFromOverall = overall ? toPositiveFiniteNumber(getFieldValue(overall, ratingScaleLimitCandidates)) : null
+  const limitFromRoot = toPositiveFiniteNumber(getFieldValue(data, ratingScaleLimitCandidates))
+  return limitFromOverall ?? limitFromRoot ?? DEFAULT_RATING_SCALE_LIMIT
 }
 
 const getItemTitle = (item: Record<string, unknown>): string => {
@@ -468,6 +483,12 @@ const computeSectionAverageScore = (items: Record<string, unknown>[]): string =>
   return Number(avg.toFixed(2)).toString()
 }
 
+const toScoreNumber = (value: string): number | null => {
+  if (value === '--') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 const computeRadarAverageScore = (data: RadarDataPoint[], selectedReviewers: ReviewerKey[]): string => {
   if (!data.length || !selectedReviewers.length) return '--'
 
@@ -676,15 +697,18 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
   const companyValueItems = companyValuesEntry ? toObjectList(companyValuesEntry[1]) : []
   const skillItems = skillsEntry ? toObjectList(skillsEntry[1]) : []
   const safeData = data as Record<string, unknown>
-  const cycleName = formatLeafValue(getFieldValue(safeData, ['performanceCycleName']))
-  const cycleStart = formatLeafValue(getFieldValue(safeData, ['performanceCycleStartDate']))
-  const cycleEnd = formatLeafValue(getFieldValue(safeData, ['performanceCycleEndDate']))
-  const startDate = formatLeafValue(getFieldValue(safeData, ['startDate']))
-  const targetCompletionDate = formatLeafValue(getFieldValue(safeData, ['targetCompletionDate']))
-  const actualCompletionDate = formatLeafValue(getFieldValue(safeData, ['actualCompletionDate']))
   const overall = isObjectRecord(getFieldValue(safeData, ['overall'])) ? getFieldValue(safeData, ['overall']) : null
-  const overallLabel = overall && isObjectRecord(overall) ? formatLeafValue(overall.mappedRatingScaleValueLabel) : '-'
-  const overallNumeric = overall && isObjectRecord(overall) ? formatLeafValue(overall.averageNumeric) : '-'
+  const overallNumericValue =
+    overall &&
+    isObjectRecord(overall) &&
+    typeof overall.averageNumeric === 'number' &&
+    Number.isFinite(overall.averageNumeric)
+      ? overall.averageNumeric
+      : null
+  const overallNumericDisplay = overallNumericValue !== null ? Number(overallNumericValue.toFixed(2)).toString() : '--'
+  const ratingScaleLimit = getRatingScaleLimit(safeData, overall && isObjectRecord(overall) ? overall : null)
+  const overallProgressPercent =
+    overallNumericValue === null ? 0 : Math.min(100, Math.max(0, (overallNumericValue / ratingScaleLimit) * 100))
   const overallNumericChangeSinceLastReview = getChangeDisplayValue(safeData, [
     'overallRatingNumericChangeSinceLastReview',
     'overallNumericChangeSinceLastReview',
@@ -694,6 +718,14 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
   const skillsRadarData = buildRadarData(skillItems)
   const companyValuesAverageScore = computeSectionAverageScore(companyValueItems)
   const skillsAverageScore = computeSectionAverageScore(skillItems)
+  const companyValuesAverageNumeric = toScoreNumber(companyValuesAverageScore)
+  const skillsAverageNumeric = toScoreNumber(skillsAverageScore)
+  const companyValuesProgressPercent =
+    companyValuesAverageNumeric === null
+      ? 0
+      : Math.min(100, Math.max(0, (companyValuesAverageNumeric / ratingScaleLimit) * 100))
+  const skillsProgressPercent =
+    skillsAverageNumeric === null ? 0 : Math.min(100, Math.max(0, (skillsAverageNumeric / ratingScaleLimit) * 100))
   const points = [...companyValuesRadarData, ...skillsRadarData]
   const maxValue = points.reduce((acc, point) => Math.max(acc, point.self, point.peer, point.manager), 0)
   const radarMaxDomain = maxValue <= 5 ? 5 : Math.ceil(maxValue)
@@ -723,53 +755,52 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
       >
         <Card>
           <CardHeader className="gba:pb-2">
-            <CardTitle>{t('performance-evaluation-summary-cycle')}</CardTitle>
-            <CardDescription>{cycleName}</CardDescription>
+            <CardTitle>{t('performance-evaluation-summary-overall-progress')}</CardTitle>
           </CardHeader>
-          <CardContent className="gba:space-y-2">
-            <div className="gba:text-sm">
-              <p className="gba:text-muted-foreground">{t('performance-evaluation-summary-cycle-range')}</p>
-              <p>
-                {cycleStart} - {cycleEnd}
-              </p>
+          <CardContent className="gba:space-y-3">
+            <div className="gba:flex gba:items-end gba:gap-2">
+              <span className="gba:text-3xl gba:font-bold">{overallNumericDisplay}</span>
+              <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
             </div>
+            <Progress
+              value={overallProgressPercent}
+              data-testid="employee-performance-evaluation-overall-progress-bar"
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="gba:pb-2">
-            <CardTitle>{t('performance-evaluation-summary-timeline')}</CardTitle>
-            <CardDescription>{startDate}</CardDescription>
+            <CardTitle>{t('performance-evaluation-summary-company-values-average')}</CardTitle>
           </CardHeader>
-          <CardContent className="gba:space-y-2">
-            <div className="gba:text-sm">
-              <p className="gba:text-muted-foreground">{t('performance-evaluation-target-completion-date')}</p>
-              <p>{targetCompletionDate}</p>
+          <CardContent className="gba:space-y-3">
+            <div className="gba:flex gba:items-end gba:gap-2">
+              <span className="gba:text-3xl gba:font-bold">{companyValuesAverageScore}</span>
+              <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
             </div>
-            <div className="gba:text-sm">
-              <p className="gba:text-muted-foreground">{t('performance-evaluation-actual-completion-date')}</p>
-              <p>{actualCompletionDate}</p>
-            </div>
+            <Progress
+              value={companyValuesProgressPercent}
+              data-testid="employee-performance-evaluation-company-values-progress-bar"
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="gba:pb-2">
-            <CardTitle>{t('performance-evaluation-summary-overall')}</CardTitle>
-            <CardDescription>{overallLabel}</CardDescription>
+            <CardTitle>{t('performance-evaluation-summary-skills-average')}</CardTitle>
           </CardHeader>
-          <CardContent className="gba:space-y-2">
-            <div className="gba:flex gba:items-center gba:justify-between gba:text-sm">
-              <span className="gba:text-muted-foreground">{t('performance-evaluation-summary-overall-numeric')}</span>
-              <span className="gba:font-semibold">{overallNumeric}</span>
+          <CardContent className="gba:space-y-3">
+            <div className="gba:flex gba:items-end gba:gap-2">
+              <span className="gba:text-3xl gba:font-bold">{skillsAverageScore}</span>
+              <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
             </div>
+            <Progress value={skillsProgressPercent} data-testid="employee-performance-evaluation-skills-progress-bar" />
           </CardContent>
         </Card>
 
         <Card data-testid="employee-performance-evaluation-summary-review-card">
           <CardHeader className="gba:pb-2">
             <CardTitle>{t('performance-evaluation-summary-sidebar-title')}</CardTitle>
-            <CardDescription>{t('performance-evaluation-summary-sidebar-description')}</CardDescription>
           </CardHeader>
           <CardContent className="gba:space-y-2">
             <div className="gba:flex gba:justify-between gba:text-sm">

@@ -30,6 +30,9 @@ import { employeePerformanceQuery } from '../../queries/performanceQueries'
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import translations from '../../_i18n'
+import { Trash } from '@phosphor-icons/react'
+import { startProcess } from '@/common/utils/start-process'
+import { beginSilentSave, tryConsumeSilentSave } from '@/common/utils/silent-processes'
 
 interface PerformanceTabProps {
   employee: Employee
@@ -40,18 +43,37 @@ interface PerformanceTabProps {
 }
 
 type GoalType = 'PERCENTAGE' | 'NUMERIC' | 'MILESTONE'
-type TrackState = 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET'
+type TrackState = 'ON_TRACK' | 'BEHIND_TARGET'
 
 interface Milestone {
   id: string
   title: string
   done: boolean
   doneAt?: string
+  sortOrder?: number
+  version?: number
+}
+
+interface MilestoneDelta {
+  id: string
+  done: boolean
+  doneAt?: string | null
+}
+
+interface GoalUpdate {
+  id: string
+  progressPercent?: number
+  comment?: string
+  updateTime?: string
+  updateDelta?: { milestones?: MilestoneDelta[] } | null
+  employee?: { firstName?: string; lastName?: string }
 }
 
 interface GoalUpdateEvent {
   at: string
   progress: number
+  details?: string
+  author?: string
 }
 
 interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
@@ -59,6 +81,11 @@ interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
   version?: number
   createdAt?: string
   updatedAt?: string
+  objectiveType?: string
+  startValue?: number
+  targetValue?: number
+  employeePerformanceGoalMilestone?: Milestone[]
+  employeePerformanceGoalUpdate?: GoalUpdate[]
   additionalProperties?: {
     goalType?: GoalType
     numeric?: {
@@ -66,18 +93,13 @@ interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
       current?: number
       unit?: string
     }
-    milestones?: Milestone[]
+    note?: string
   }
 }
 
-const normalizeProgress = (value: number) => Math.max(0, Math.min(100, value))
+const normalizeProgress = (value: number) => Math.round(Math.max(0, Math.min(100, value)) * 100) / 100
 
-const PerformanceTab: React.FC<PerformanceTabProps> = ({
-  employee,
-  accessToken,
-  employeePerformanceGoals = [],
-  userInfo
-}) => {
+const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, userInfo }) => {
   const { t } = useTranslation(translations)
   const graphQLClient = useGraphqlClient(accessToken)
   const { cycles, loading: cyclesLoading } = usePerformanceCycles(accessToken)
@@ -94,6 +116,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   const [progressInput, setProgressInput] = useState<number>(0)
   const [numericCurrentInput, setNumericCurrentInput] = useState<number>(0)
   const [milestoneDraft, setMilestoneDraft] = useState<Milestone[]>([])
+  const [detailsInput, setDetailsInput] = useState<string>('')
+  const [showCompletedModal, setShowCompletedModal] = useState(false)
+  const [goalToDelete, setGoalToDelete] = useState<ExtendedEmployeePerformanceGoal | null>(null)
 
   const supervisorId = useMemo(() => employee.employeePosition?.supervisor?.id, [employee])
 
@@ -113,12 +138,23 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   }, [employee?.id, graphQLClient, t])
 
   useEffect(() => {
-    if (employeePerformanceGoals.length) {
-      setLocalPerformanceGoals(employeePerformanceGoals as ExtendedEmployeePerformanceGoal[])
-      return
-    }
+    // Always fetch using the full query (objectiveType, milestones, updates, etc.)
+    // The prop data from useEmployeeData is incomplete and lacks these fields.
     fetchPerformanceData()
-  }, [employeePerformanceGoals, fetchPerformanceData])
+  }, [fetchPerformanceData])
+
+  // Re-fetch when external processes complete (e.g. edit form, goal creation).
+  // Silent saves (Save Update, Mark Completed) are handled optimistically and skip this.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
+      if (customEvent.detail.resolution !== 'success') return
+      if (tryConsumeSilentSave()) return // our own background save — already handled optimistically
+      fetchPerformanceData()
+    }
+    window.addEventListener('com.newwork.process.processCompletion', handler)
+    return () => window.removeEventListener('com.newwork.process.processCompletion', handler)
+  }, [fetchPerformanceData])
 
   useEffect(() => {
     if (!selectedCycleId && cycles.length > 0) {
@@ -128,10 +164,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   }, [cycles, selectedCycleId])
 
   const getGoalType = (goal: ExtendedEmployeePerformanceGoal): GoalType => {
+    // Prefer the proper objectiveType DB column
+    if (goal.objectiveType === 'NUMERIC_PERFORMANCE_GOAL') return 'NUMERIC'
+    if (goal.objectiveType === 'MILESTONE_PERFORMANCE_GOAL') return 'MILESTONE'
+    if (goal.objectiveType === 'PERCENTAGE_PERFORMANCE_GOAL') return 'PERCENTAGE'
+    // Fallback for legacy data stored in additionalProperties
     const rawType = goal.additionalProperties?.goalType
     if (rawType === 'NUMERIC' || rawType === 'MILESTONE' || rawType === 'PERCENTAGE') return rawType
-    if (goal.additionalProperties?.milestones?.length) return 'MILESTONE'
-    if (goal.additionalProperties?.numeric?.target) return 'NUMERIC'
+    if (goal.employeePerformanceGoalMilestone?.length) return 'MILESTONE'
+    if (goal.targetValue) return 'NUMERIC'
     return 'PERCENTAGE'
   }
 
@@ -173,32 +214,39 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
   const getInitialEvents = useCallback((goal: ExtendedEmployeePerformanceGoal): GoalUpdateEvent[] => {
     const startDate = dayjs(goal.startDate).startOf('day')
-    const dueDate = dayjs(goal.dueDate).startOf('day')
     const baselineDate = startDate.isValid() ? startDate : dayjs().startOf('day')
     const events: GoalUpdateEvent[] = [{ at: baselineDate.toISOString(), progress: 0 }]
-    const progress = normalizeProgress(goal.progressPercent || 0)
-    if (progress > 0) {
+
+    // Use real update records from the DB when available
+    if (goal.employeePerformanceGoalUpdate?.length) {
+      goal.employeePerformanceGoalUpdate.forEach(update => {
+        const author = [update.employee?.firstName, update.employee?.lastName].filter(Boolean).join(' ')
+        events.push({
+          at: update.updateTime || baselineDate.toISOString(),
+          progress: normalizeProgress(update.progressPercent ?? 0),
+          details: update.comment || undefined,
+          author: author || undefined
+        })
+      })
+    } else if ((goal.progressPercent || 0) > 0) {
+      // Fallback: synthesize a single event from the goal's current progress
+      const dueDate = dayjs(goal.dueDate).startOf('day')
       const rawDate = dayjs(goal.updatedAt || goal.completionDate || goal.startDate)
-      let boundedDate: dayjs.Dayjs
-      if (!rawDate.isValid()) {
-        boundedDate = dayjs()
-      } else if (rawDate.isBefore(startDate)) {
-        boundedDate = startDate
-      } else if (rawDate.isAfter(dueDate)) {
-        boundedDate = dueDate
-      } else {
-        boundedDate = rawDate
-      }
-      events.push({ at: boundedDate.toISOString(), progress })
+      let boundedDate = rawDate.isValid() ? rawDate : dayjs()
+      if (boundedDate.isBefore(startDate)) boundedDate = startDate
+      if (boundedDate.isAfter(dueDate)) boundedDate = dueDate
+      events.push({ at: boundedDate.toISOString(), progress: normalizeProgress(goal.progressPercent || 0) })
     }
+
     return events.sort((a, b) => dayjs(a.at).valueOf() - dayjs(b.at).valueOf())
   }, [])
 
   useEffect(() => {
-    setGoalEvents(prev => {
-      const next = { ...prev }
+    // Always rebuild from DB data so real persisted updates are shown
+    setGoalEvents(() => {
+      const next: Record<string, GoalUpdateEvent[]> = {}
       localPerformanceGoals.forEach(goal => {
-        if (!next[goal.id]) next[goal.id] = getInitialEvents(goal)
+        next[goal.id] = getInitialEvents(goal)
       })
       return next
     })
@@ -228,7 +276,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       setSelectedGoalId('')
       return
     }
-    if (!selectedGoalId || !visibleGoalIds.includes(selectedGoalId)) setSelectedGoalId(visibleGoalIds[0])
+    if (selectedGoalId && !visibleGoalIds.includes(selectedGoalId)) setSelectedGoalId('')
   }, [containedGoals, outOfCycleGoals, selectedGoalId])
 
   const selectedGoal = useMemo(
@@ -238,10 +286,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
   const getProgressAtDate = (events: GoalUpdateEvent[], pointDate: dayjs.Dayjs) => {
     let current = 0
+    // Compare at day granularity so intra-day events (e.g. 11:42 vs midnight) are included correctly
     ;[...events]
       .sort((a, b) => dayjs(a.at).valueOf() - dayjs(b.at).valueOf())
       .forEach(event => {
-        if (!dayjs(event.at).isAfter(pointDate)) current = normalizeProgress(event.progress)
+        if (!dayjs(event.at).startOf('day').isAfter(pointDate)) current = normalizeProgress(event.progress)
       })
     return current
   }
@@ -261,8 +310,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       const today = dayjs().startOf('day')
       const actual = getProgressAtDate(events, today)
       const ideal = getIdealProgressAtDate(startDate, dueDate, today)
-      if (actual >= ideal - 5) return 'ON_TRACK'
-      if (actual >= ideal - 15) return 'AT_RISK'
+      if (actual >= ideal - 10) return 'ON_TRACK'
       return 'BEHIND_TARGET'
     },
     [goalEvents, getInitialEvents]
@@ -272,16 +320,35 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     const total = containedGoals.length
     const achieved = containedGoals.filter(goal => goal.status === 'ACHIEVED' || goal.progressPercent >= 100).length
     const onTrack = containedGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
-    const atRisk = containedGoals.filter(goal => getTrackState(goal) === 'AT_RISK').length
     const behind = containedGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
-    return { total, achieved, onTrack, atRisk, behind }
+    return { total, achieved, onTrack, behind }
   }, [containedGoals, getTrackState])
 
   useEffect(() => {
     if (!selectedGoal) return
     setProgressInput(normalizeProgress(selectedGoal.progressPercent || 0))
     setNumericCurrentInput(selectedGoal.additionalProperties?.numeric?.current || 0)
-    setMilestoneDraft(selectedGoal.additionalProperties?.milestones || [])
+
+    const baseMilestones: Milestone[] = selectedGoal.employeePerformanceGoalMilestone?.length
+      ? selectedGoal.employeePerformanceGoalMilestone
+      : (selectedGoal.additionalProperties as any)?.milestones || []
+
+    // Restore done states from the most recent update that has milestone snapshot in updateDelta
+    const updates = selectedGoal.employeePerformanceGoalUpdate || []
+    const latestWithDelta = [...updates].reverse().find(u => u.updateDelta?.milestones?.length)
+
+    if (latestWithDelta?.updateDelta?.milestones) {
+      const doneMap = Object.fromEntries(latestWithDelta.updateDelta.milestones.map(m => [m.id, m]))
+      setMilestoneDraft(
+        baseMilestones.map(m => ({
+          ...m,
+          done: doneMap[m.id]?.done ?? m.done,
+          doneAt: doneMap[m.id]?.doneAt ?? m.doneAt
+        }))
+      )
+    } else {
+      setMilestoneDraft(baseMilestones)
+    }
   }, [selectedGoal])
 
   const buildChartData = (goal: ExtendedEmployeePerformanceGoal) => {
@@ -292,13 +359,16 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     const pointCount = Math.min(days + 1, 31)
     const events = goalEvents[goal.id] || getInitialEvents(goal)
 
+    const today = dayjs().startOf('day')
     return Array.from({ length: pointCount }, (_, index) => {
       const ratio = pointCount === 1 ? 0 : index / (pointCount - 1)
       const date = startDate.add(Math.round(days * ratio), 'day')
+      // Don't plot actual progress for future dates — only show what has happened so far
+      const actual = date.isAfter(today) ? null : getProgressAtDate(events, date)
       return {
         label: date.format('MMM D'),
         ideal: getIdealProgressAtDate(startDate, dueDate, date),
-        actual: getProgressAtDate(events, date)
+        actual
       }
     })
   }
@@ -317,14 +387,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     let nextAdditional = selectedGoal.additionalProperties || {}
 
     if (type === 'NUMERIC') {
-      const target = selectedGoal.additionalProperties?.numeric?.target || 0
+      const target = selectedGoal.targetValue ?? selectedGoal.additionalProperties?.numeric?.target ?? 0
       const safeTarget = target <= 0 ? 1 : target
       nextProgress = normalizeProgress((numericCurrentInput / safeTarget) * 100)
       nextAdditional = {
         ...nextAdditional,
-        goalType: 'NUMERIC',
         numeric: {
-          target,
           current: numericCurrentInput,
           unit: selectedGoal.additionalProperties?.numeric?.unit || ''
         }
@@ -335,23 +403,65 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       const total = milestoneDraft.length
       const completed = milestoneDraft.filter(item => item.done).length
       nextProgress = total > 0 ? normalizeProgress((completed / total) * 100) : 0
-      nextAdditional = { ...nextAdditional, goalType: 'MILESTONE', milestones: milestoneDraft }
     }
 
     const now = dayjs().toISOString()
+    const userComment = detailsInput.trim()
+
+    // Backend requires a comment whenever progressPercent changes — auto-generate if empty
+    const autoComment =
+      type === 'MILESTONE'
+        ? `${milestoneDraft.filter(m => m.done).length} of ${milestoneDraft.length} completed`
+        : `Progress updated to ${Math.round(nextProgress)}%`
+    const comment = userComment || autoComment
+
+    // Build milestone snapshot for updateDelta so we can restore done states on reload
+    const milestoneDeltaForUpdate =
+      type === 'MILESTONE'
+        ? milestoneDraft.map(m => ({ id: m.id, done: m.done, doneAt: m.done ? (m.doneAt ?? now) : null }))
+        : undefined
+
+    // Build the optimistic update record so the history panel updates immediately
+    const optimisticUpdate: GoalUpdate = {
+      id: `optimistic-${now}`,
+      progressPercent: nextProgress,
+      comment,
+      updateTime: now,
+      updateDelta: milestoneDeltaForUpdate ? { milestones: milestoneDeltaForUpdate } : null,
+      employee: { firstName: employee.firstName, lastName: employee.lastName }
+    }
+
+    // Optimistic local update — also append the new update record so getInitialEvents
+    // rebuilds the history correctly when localPerformanceGoals changes.
     updateGoal(selectedGoal.id, goal => ({
       ...goal,
       progressPercent: nextProgress,
+      version: (goal.version ?? 0) + 1,
       updatedAt: now,
-      additionalProperties: nextAdditional
+      additionalProperties: nextAdditional,
+      employeePerformanceGoalUpdate: [...(goal.employeePerformanceGoalUpdate || []), optimisticUpdate],
+      ...(type === 'MILESTONE' ? { employeePerformanceGoalMilestone: milestoneDraft } : {})
     }))
-    setGoalEvents(previous => ({
-      ...previous,
-      [selectedGoal.id]: [
-        ...(previous[selectedGoal.id] || getInitialEvents(selectedGoal)),
-        { at: now, progress: nextProgress }
-      ]
-    }))
+    setDetailsInput('')
+    // Persist the progress update record (comment is required by the backend)
+    beginSilentSave()
+    startProcess({
+      domain: 'employee',
+      processName: 'saveEmployeePerformanceGoalUpdate',
+      payload: {
+        changeMode: 'INSERT',
+        employeePerformanceGoalUpdate: {
+          progressPercent: nextProgress,
+          comment,
+          updateTime: now,
+          performanceGoal: selectedGoal.id,
+          employee: employee.id,
+          // Store milestone done states in updateDelta so they survive a page reload
+          ...(milestoneDeltaForUpdate ? { updateDelta: { milestones: milestoneDeltaForUpdate } } : {})
+        }
+      },
+      skipScreen: true
+    })
   }
 
   const toggleMilestone = useCallback((milestoneId: string, checked: boolean) => {
@@ -363,13 +473,78 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     )
   }, [])
 
-  const setGoalStatusLocally = (status: string) => {
+  const markGoalCompleted = () => {
     if (!selectedGoal) return
+    const now = new Date().toISOString()
+    const currentProgress = selectedGoal.progressPercent || 0
+
+    // Optimistic update — keep current progress, mark status as ACHIEVED
+    const optimisticUpdate: GoalUpdate = {
+      id: `optimistic-${now}`,
+      progressPercent: currentProgress,
+      comment: 'Goal marked as completed',
+      updateTime: now,
+      employee: { firstName: employee.firstName, lastName: employee.lastName }
+    }
     updateGoal(selectedGoal.id, goal => ({
       ...goal,
-      status,
-      progressPercent: status === 'ACHIEVED' ? 100 : goal.progressPercent
+      status: 'ACHIEVED',
+      version: (goal.version ?? 0) + 1,
+      employeePerformanceGoalUpdate: [...(goal.employeePerformanceGoalUpdate || []), optimisticUpdate]
     }))
+    setShowCompletedModal(false)
+
+    // Persist status: 'ACHIEVED' on the goal record so it survives a page refresh
+    beginSilentSave()
+    startProcess({
+      domain: 'employee',
+      processName: 'saveEmployeePerformanceGoal',
+      payload: {
+        changeMode: 'UPDATE',
+        employeePerformanceGoal: {
+          id: selectedGoal.id,
+          version: selectedGoal.version ?? 0,
+          title: selectedGoal.title,
+          startDate: selectedGoal.startDate,
+          dueDate: selectedGoal.dueDate,
+          objectiveType: selectedGoal.objectiveType,
+          status: 'ACHIEVED',
+          progressPercent: currentProgress,
+          employee: employee.id
+        }
+      },
+      skipScreen: true
+    })
+  }
+
+  const confirmDeleteGoal = () => {
+    if (!goalToDelete) return
+    const { id, version } = goalToDelete
+
+    // Optimistically remove from local state
+    setLocalPerformanceGoals(prev => prev.filter(g => g.id !== id))
+    if (selectedGoalId === id) setSelectedGoalId('')
+    setGoalToDelete(null)
+
+    beginSilentSave()
+    startProcess({
+      domain: 'employee',
+      processName: 'saveEmployeePerformanceGoal',
+      payload: {
+        changeMode: 'DELETE',
+        employeePerformanceGoal: {
+          id,
+          version: version ?? 0,
+          employee: employee.id
+        }
+      },
+      skipScreen: true
+    })
+  }
+
+  const getGoalLabel = (goal: ExtendedEmployeePerformanceGoal): 'COMPLETED' | 'ON_TRACK' | 'BEHIND_TARGET' => {
+    if (goal.status === 'ACHIEVED' || (goal.progressPercent || 0) >= 100) return 'COMPLETED'
+    return getTrackState(goal) === 'BEHIND_TARGET' ? 'BEHIND_TARGET' : 'ON_TRACK'
   }
 
   const statusMap: Record<string, { label: string; color: string }> = {
@@ -378,9 +553,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       label: t('performance-status-behind-target'),
       color: 'gba:bg-destructive-secondary gba:text-destructive'
     },
-    AT_RISK: { label: t('performance-status-at-risk'), color: 'gba:bg-warning-secondary gba:text-warning' },
-    ACHIEVED: { label: t('performance-status-achieved'), color: 'gba:bg-info-secondary gba:text-info' },
-    NOT_ACHIEVED: { label: t('performance-status-not-achieved'), color: 'gba:bg-muted gba:text-muted-foreground' }
+    COMPLETED: { label: 'Completed', color: 'gba:bg-info-secondary gba:text-info' }
   }
 
   if (loading || cyclesLoading) {
@@ -420,7 +593,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           >
             {cycles.map(cycle => (
               <option value={cycle.id} key={cycle.id}>
-                {cycle.name} ({dayjs(cycle.startDate).format('MMM D')} - {dayjs(cycle.endDate).format('MMM D')})
+                {cycle.name} ({dayjs(cycle.startDate).format('MMM D, YYYY')} -{' '}
+                {dayjs(cycle.endDate).format('MMM D, YYYY')})
               </option>
             ))}
           </select>
@@ -449,7 +623,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         </div>
       </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-5 gba:gap-3">
+      <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
         <Card>
           <CardContent className="gba:p-4">
             <div className="gba:text-xs gba:text-muted-foreground">Total goals</div>
@@ -460,12 +634,6 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           <CardContent className="gba:p-4">
             <div className="gba:text-xs gba:text-muted-foreground">On Track</div>
             <div className="gba:text-xl gba:font-semibold">{summary.onTrack}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">At Risk</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.atRisk}</div>
           </CardContent>
         </Card>
         <Card>
@@ -482,8 +650,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         </Card>
       </div>
 
-      <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-12 gba:gap-6">
-        <section className="gba:xl:col-span-5 gba:space-y-4">
+      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-12 gba:gap-6">
+        <section className="gba:lg:col-span-5 gba:space-y-4">
           <div className="gba:grid gba:grid-cols-3 gba:gap-2">
             <select
               value={statusFilter}
@@ -525,29 +693,66 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               {containedGoals.map(goal => (
                 <Card
                   key={goal.id}
-                  className={`gba:cursor-pointer ${selectedGoalId === goal.id ? 'gba:border-primary' : ''}`}
+                  className={`gba:cursor-pointer gba:transition-colors ${
+                    selectedGoalId === goal.id
+                      ? 'gba:border-primary gba:bg-primary/5'
+                      : 'gba:hover:border-primary/40 gba:hover:bg-muted/40'
+                  }`}
                   onClick={() => setSelectedGoalId(goal.id)}
                 >
                   <CardContent className="gba:p-4">
                     <div className="gba:flex gba:justify-between gba:items-start gba:gap-3">
-                      <div>
-                        <div className="gba:font-medium">{goal.title}</div>
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <div
+                          className={`gba:font-medium gba:truncate ${selectedGoalId === goal.id ? 'gba:text-primary' : ''}`}
+                        >
+                          {goal.title}
+                        </div>
                         <div className="gba:text-xs gba:text-muted-foreground">
                           Due {dayjs(goal.dueDate).format('MMM D, YYYY')}
                         </div>
                       </div>
-                      <div className="gba:text-xs gba:text-muted-foreground">{getGoalType(goal)}</div>
+                      <div className="gba:flex gba:flex-col gba:items-end gba:gap-1 gba:shrink-0">
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <span className="gba:text-xs gba:text-muted-foreground gba:capitalize gba:lowercase">
+                            {getGoalType(goal).charAt(0) + getGoalType(goal).slice(1).toLowerCase()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation()
+                              setGoalToDelete(goal)
+                            }}
+                            className="gba:p-1 gba:rounded gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
+                            aria-label="Delete goal"
+                          >
+                            <Trash className="gba:w-3.5 gba:h-3.5" />
+                          </button>
+                        </div>
+                        {(() => {
+                          const badge = statusMap[getGoalLabel(goal)]
+                          return badge ? (
+                            <span
+                              className={`gba:text-xs gba:font-medium gba:px-2 gba:py-0.5 gba:rounded-full ${badge.color}`}
+                            >
+                              {badge.label}
+                            </span>
+                          ) : null
+                        })()}
+                      </div>
                     </div>
                     <div className="gba:mt-3">
-                      <div className="gba:w-full gba:bg-muted gba:rounded-full gba:h-2.5">
+                      <div className="gba:w-full gba:bg-muted gba:rounded-full gba:h-2">
                         <div
-                          className="gba:bg-primary gba:h-2.5 gba:rounded-full"
+                          className="gba:bg-primary gba:h-2 gba:rounded-full gba:transition-all"
                           style={{ width: `${normalizeProgress(goal.progressPercent || 0)}%` }}
                         />
                       </div>
                       <div className="gba:flex gba:justify-between gba:mt-1 gba:text-xs gba:text-muted-foreground">
                         <span>{t('performance-progress')}</span>
-                        <span>{normalizeProgress(goal.progressPercent || 0)}%</span>
+                        <span className={selectedGoalId === goal.id ? 'gba:text-primary gba:font-medium' : ''}>
+                          {normalizeProgress(goal.progressPercent || 0)}%
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -578,7 +783,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           )}
         </section>
 
-        <section className="gba:xl:col-span-7">
+        <section className="gba:lg:col-span-7">
           {selectedGoal ? (
             <Card>
               <CardHeader>
@@ -590,25 +795,77 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                       {dayjs(selectedGoal.dueDate).format('MMM D, YYYY')}
                     </div>
                   </div>
-                  <div className="gba:text-xs gba:text-muted-foreground">{getGoalType(selectedGoal)}</div>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+                    {selectedGoal.status !== 'ACHIEVED' && (selectedGoal.progressPercent || 0) < 100 && (
+                      <button
+                        type="button"
+                        className="gba:h-8 gba:px-3 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm gba:whitespace-nowrap"
+                        onClick={() => setShowCompletedModal(true)}
+                      >
+                        Mark Completed
+                      </button>
+                    )}
+                    {(userInfo?.employeeDetails?.employeeId === employee.id ||
+                      userInfo?.employeeDetails?.employeeId === supervisorId) &&
+                      selectedGoal.status !== 'ACHIEVED' &&
+                      (selectedGoal.progressPercent || 0) < 100 && (
+                        <AppAction
+                          variant="update-secondary"
+                          data-testid={`employee-goal-edit-button-${selectedGoal.id}`}
+                          contexts={[
+                            {
+                              context: FlowContextName.employeePerformanceGoal,
+                              contextData: {
+                                employeeId: employee.id,
+                                goalId: selectedGoal.id,
+                                title: selectedGoal.title,
+                                startDate: selectedGoal.startDate,
+                                dueDate: selectedGoal.dueDate,
+                                completionDate: selectedGoal.completionDate,
+                                progressPercent: selectedGoal.progressPercent,
+                                status: selectedGoal.status,
+                                objectiveType: selectedGoal.objectiveType,
+                                startValue: selectedGoal.startValue,
+                                targetValue: selectedGoal.targetValue,
+                                version: selectedGoal.version,
+                                cycleStartDate: selectedCycle?.startDate,
+                                cycleEndDate: selectedCycle?.endDate,
+                                cycleName: selectedCycle?.name,
+                                additionalProperties: selectedGoal.additionalProperties,
+                                existingMilestones:
+                                  selectedGoal.employeePerformanceGoalMilestone?.map(m => ({
+                                    id: m.id,
+                                    title: m.title,
+                                    version: m.version ?? 0
+                                  })) || []
+                              }
+                            }
+                          ]}
+                          prefixDataTestId={`employee-goal-edit-${selectedGoal.id}`}
+                          accessToken={accessToken}
+                          autoExecute={true}
+                        />
+                      )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="gba:space-y-6">
                 {selectedCycle &&
                   !isGoalContainedInCycle(selectedGoal, selectedCycle.startDate, selectedCycle.endDate) && (
-                    <div className="gba:text-sm gba:text-warning">
+                    <div className="gba:text-sm gba:text-warning gba:bg-warning/10 gba:rounded-md gba:px-3 gba:py-2">
                       This goal is outside the selected cycle and cannot be edited until dates are corrected.
                     </div>
                   )}
 
                 <div className="gba:space-y-3">
-                  <div className="gba:text-sm gba:font-medium">Progress editor</div>
+                  <div className="gba:text-sm gba:font-medium">Update Progress</div>
                   {getGoalType(selectedGoal) === 'PERCENTAGE' && (
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Input
                         type="number"
                         min={0}
                         max={100}
+                        disabled={selectedGoal.status === 'ACHIEVED' || (selectedGoal.progressPercent || 0) >= 100}
                         value={String(progressInput)}
                         onChange={event => setProgressInput(normalizeProgress(Number(event.target.value) || 0))}
                       />
@@ -617,19 +874,18 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                   )}
 
                   {getGoalType(selectedGoal) === 'NUMERIC' && (
-                    <div className="gba:grid gba:grid-cols-3 gba:gap-3">
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                       <div>
                         <div className="gba:text-xs gba:text-muted-foreground">Target</div>
-                        <div className="gba:text-sm">{selectedGoal.additionalProperties?.numeric?.target || 0}</div>
-                      </div>
-                      <div>
-                        <div className="gba:text-xs gba:text-muted-foreground">Unit</div>
-                        <div className="gba:text-sm">{selectedGoal.additionalProperties?.numeric?.unit || '-'}</div>
+                        <div className="gba:text-sm gba:mt-1">
+                          {selectedGoal.targetValue ?? selectedGoal.additionalProperties?.numeric?.target ?? 0}
+                        </div>
                       </div>
                       <div>
                         <div className="gba:text-xs gba:text-muted-foreground">Current</div>
                         <Input
                           type="number"
+                          disabled={selectedGoal.status === 'ACHIEVED' || (selectedGoal.progressPercent || 0) >= 100}
                           value={String(numericCurrentInput)}
                           onChange={event => setNumericCurrentInput(Number(event.target.value) || 0)}
                         />
@@ -637,101 +893,216 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                     </div>
                   )}
 
-                  {getGoalType(selectedGoal) === 'MILESTONE' && (
-                    <div className="gba:space-y-2">
-                      {milestoneDraft.map(milestone => (
-                        <label key={milestone.id} className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                          <input
-                            type="checkbox"
-                            checked={milestone.done}
-                            onChange={event => toggleMilestone(milestone.id, event.target.checked)}
-                          />
-                          {milestone.title}
-                        </label>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const isCompleted = selectedGoal.status === 'ACHIEVED' || (selectedGoal.progressPercent || 0) >= 100
+                    return (
+                      <>
+                        {getGoalType(selectedGoal) === 'MILESTONE' && (
+                          <div className="gba:space-y-2">
+                            {milestoneDraft.map(milestone => (
+                              <label
+                                key={milestone.id}
+                                className={`gba:flex gba:items-center gba:gap-2 gba:text-sm ${isCompleted ? 'gba:opacity-50 gba:cursor-not-allowed' : ''}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={milestone.done}
+                                  disabled={isCompleted}
+                                  onChange={event => toggleMilestone(milestone.id, event.target.checked)}
+                                />
+                                {milestone.title}
+                              </label>
+                            ))}
+                          </div>
+                        )}
 
-                  <button
-                    type="button"
-                    className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-sm"
-                    onClick={applyProgressUpdate}
-                  >
-                    Update progress
-                  </button>
-                </div>
-
-                <div className="gba:h-64 gba:border gba:border-border gba:rounded-md gba:p-3">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={buildChartData(selectedGoal)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" />
-                      <YAxis domain={[0, 100]} />
-                      <RechartsTooltip formatter={(value: number) => `${Math.round(value)}%`} />
-                      <Line dataKey="ideal" type="monotone" stroke="var(--nw-chart-2)" dot={false} name="Ideal" />
-                      <Line dataKey="actual" type="stepAfter" stroke="var(--nw-chart-1)" dot={false} name="Actual" />
-                      <ReferenceLine x={dayjs().format('MMM D')} stroke="var(--warning)" strokeDasharray="3 3" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-                  <button
-                    type="button"
-                    className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm"
-                    onClick={() => setGoalStatusLocally('ACHIEVED')}
-                  >
-                    Mark achieved
-                  </button>
-                  <button
-                    type="button"
-                    className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm"
-                    onClick={() => setGoalStatusLocally('NOT_ACHIEVED')}
-                  >
-                    Mark not achieved
-                  </button>
-                  {userInfo?.employeeDetails?.employeeId === supervisorId &&
-                    selectedCycle &&
-                    isGoalContainedInCycle(selectedGoal, selectedCycle.startDate, selectedCycle.endDate) && (
-                      <AppAction
-                        variant="update-secondary"
-                        data-testid={`employee-goal-edit-button-${selectedGoal.id}`}
-                        contexts={[
-                          {
-                            context: FlowContextName.employeePerformanceGoal,
-                            contextData: {
-                              employeeId: employee.id,
-                              goalId: selectedGoal.id,
-                              title: selectedGoal.title,
-                              startDate: selectedGoal.startDate,
-                              dueDate: selectedGoal.dueDate,
-                              completionDate: selectedGoal.completionDate,
-                              progressPercent: selectedGoal.progressPercent,
-                              status: selectedGoal.status,
-                              version: selectedGoal.version,
-                              cycleStartDate: selectedCycle.startDate,
-                              cycleEndDate: selectedCycle.endDate,
-                              cycleName: selectedCycle.name
+                        <div>
+                          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">Details / Notes</div>
+                          <textarea
+                            rows={3}
+                            value={detailsInput}
+                            disabled={isCompleted}
+                            onChange={event => setDetailsInput(event.target.value)}
+                            placeholder={
+                              isCompleted
+                                ? 'This goal is completed and can no longer be modified.'
+                                : 'Describe what you accomplished or any blockers…'
                             }
-                          }
-                        ]}
-                        prefixDataTestId={`employee-goal-edit-${selectedGoal.id}`}
-                        accessToken={accessToken}
-                        autoExecute={true}
-                      />
-                    )}
+                            className={`gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:resize-none gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring ${isCompleted ? 'gba:opacity-50 gba:cursor-not-allowed' : ''}`}
+                          />
+                        </div>
+
+                        {!isCompleted && (
+                          <button
+                            type="button"
+                            className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-sm"
+                            onClick={applyProgressUpdate}
+                          >
+                            Save Update
+                          </button>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
+
+                <div className="gba:space-y-2">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <div className="gba:text-sm gba:font-medium">Burnup Chart</div>
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
+                      <span className="gba:flex gba:items-center gba:gap-1">
+                        <span className="gba:inline-block gba:w-4 gba:h-0.5 gba:bg-[var(--nw-chart-2)]" />
+                        Ideal
+                      </span>
+                      <span className="gba:flex gba:items-center gba:gap-1">
+                        <span className="gba:inline-block gba:w-4 gba:h-0.5 gba:bg-[var(--nw-chart-1)]" />
+                        Actual
+                      </span>
+                      <span className="gba:flex gba:items-center gba:gap-1">
+                        <span className="gba:inline-block gba:w-4 gba:h-0.5 gba:border-t gba:border-dashed gba:border-warning" />
+                        Today
+                      </span>
+                    </div>
+                  </div>
+                  <div className="gba:h-56 gba:border gba:border-border gba:rounded-md gba:p-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={buildChartData(selectedGoal)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <YAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 11 }} />
+                        <RechartsTooltip
+                          formatter={(value: number | undefined) => (value != null ? `${Math.round(value)}%` : '')}
+                        />
+                        <Line dataKey="ideal" type="monotone" stroke="var(--nw-chart-2)" dot={false} name="Ideal" />
+                        <Line
+                          dataKey="actual"
+                          type="stepAfter"
+                          stroke="var(--nw-chart-1)"
+                          dot={false}
+                          name="Actual"
+                          strokeWidth={2}
+                          connectNulls={false}
+                        />
+                        <ReferenceLine x={dayjs().format('MMM D')} stroke="var(--warning)" strokeDasharray="3 3" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {(() => {
+                  const events = (goalEvents[selectedGoal.id] || []).filter(
+                    e => e.progress > 0 || e.details || e.author
+                  )
+                  if (events.length === 0) return null
+                  return (
+                    <div className="gba:space-y-2">
+                      <div className="gba:text-sm gba:font-medium">Update History</div>
+                      <div className="gba:space-y-3">
+                        {[...events].reverse().map((event, index) => (
+                          <div key={index} className="gba:flex gba:gap-3">
+                            <div className="gba:flex gba:flex-col gba:items-center">
+                              <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:mt-1 gba:shrink-0" />
+                              {index < events.length - 1 && (
+                                <div className="gba:w-px gba:flex-1 gba:bg-border gba:mt-1" />
+                              )}
+                            </div>
+                            <div className="gba:pb-3">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+                                <span className="gba:text-xs gba:font-medium">
+                                  Progress → {Math.round(event.progress)}%
+                                </span>
+                                <span className="gba:text-xs gba:text-muted-foreground">
+                                  {dayjs(event.at).format('MMM D, YYYY HH:mm')}
+                                </span>
+                                {event.author && (
+                                  <span className="gba:text-xs gba:text-muted-foreground">· {event.author}</span>
+                                )}
+                              </div>
+                              {event.details && (
+                                <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{event.details}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Completed confirmation modal */}
+                {showCompletedModal && (
+                  <div className="gba:fixed gba:inset-0 gba:z-50 gba:flex gba:items-center gba:justify-center gba:bg-black/40">
+                    <div className="gba:bg-background gba:rounded-lg gba:shadow-lg gba:p-6 gba:max-w-sm gba:w-full gba:mx-4 gba:space-y-4">
+                      <div className="gba:text-base gba:font-semibold">Mark as Completed?</div>
+                      <p className="gba:text-sm gba:text-muted-foreground">
+                        You will no longer be able to modify this goal's progress.
+                      </p>
+                      <div className="gba:flex gba:gap-3 gba:justify-end">
+                        <button
+                          type="button"
+                          className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm"
+                          onClick={() => setShowCompletedModal(false)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-sm"
+                          onClick={markGoalCompleted}
+                        >
+                          Confirm
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardContent className="gba:p-6">
-                <EmptyState title="Select a goal to view details" />
+            <Card className="gba:border-dashed">
+              <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:px-6 gba:text-center">
+                <div className="gba:text-3xl gba:mb-4">🎯</div>
+                <div className="gba:text-base gba:font-medium gba:text-foreground gba:mb-1">
+                  Select a goal to view details
+                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  Click on any goal from the list to see progress, chart, and update history.
+                </div>
               </CardContent>
             </Card>
           )}
         </section>
       </div>
+
+      {/* Delete confirmation modal — rendered at top level so it works regardless of selected goal */}
+      {goalToDelete && (
+        <div className="gba:fixed gba:inset-0 gba:z-50 gba:flex gba:items-center gba:justify-center gba:bg-black/40">
+          <div className="gba:bg-background gba:rounded-lg gba:shadow-lg gba:p-6 gba:max-w-sm gba:w-full gba:mx-4 gba:space-y-4">
+            <div className="gba:text-base gba:font-semibold">Delete Goal?</div>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              Are you sure you want to delete{' '}
+              <span className="gba:font-medium gba:text-foreground">"{goalToDelete.title}"</span>? This action cannot be
+              undone.
+            </p>
+            <div className="gba:flex gba:gap-3 gba:justify-end">
+              <button
+                type="button"
+                className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm"
+                onClick={() => setGoalToDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-destructive gba:text-destructive-foreground gba:text-sm"
+                onClick={confirmDeleteGoal}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

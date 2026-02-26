@@ -5,9 +5,11 @@ import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUti
 
 interface LiveClockProps {
   className?: string
+  timeClassName?: string
+  dateClassName?: string
 }
 
-export const LiveClock: React.FC<LiveClockProps> = ({ className }) => {
+export const LiveClock: React.FC<LiveClockProps> = ({ className, timeClassName, dateClassName }) => {
   const [time, setTime] = useState<string>('')
   const [date, setDate] = useState<string>('')
 
@@ -48,10 +50,13 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className }) => {
 
   return (
     <div className={className}>
-      <div className="gba:text-5xl gba:font-bold gba:leading-none gba:mb-1" data-testid="timeclock-time">
+      <div
+        className={`gba:text-5xl gba:font-bold gba:leading-none gba:mb-1 ${timeClassName || ''}`}
+        data-testid="timeclock-time"
+      >
         {time}
       </div>
-      <div className="gba:text-sm" data-testid="timeclock-date">
+      <div className={`gba:text-sm ${dateClassName || ''}`} data-testid="timeclock-date">
         {date}
       </div>
     </div>

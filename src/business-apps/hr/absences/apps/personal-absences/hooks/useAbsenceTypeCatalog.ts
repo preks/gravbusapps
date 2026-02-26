@@ -72,14 +72,32 @@ export function useAbsenceTypeCatalog(accessToken?: string) {
 
   const mapType = useMemo(
     () =>
-      (codeOrId: string): { label?: string; color?: string } => {
+      (codeOrId: string): { label?: string; color?: string; display?: boolean; objectValue?: any } => {
         if (!codeOrId) return { label: codeOrId }
         const byCode = types[codeOrId]
-        if (byCode) return { label: byCode.label, color: byCode.color }
+        if (byCode)
+          return {
+            label: byCode.label,
+            color: byCode.color,
+            display: byCode.objectValue?.display,
+            objectValue: byCode.objectValue
+          }
         const byId = typesById[codeOrId]
-        if (byId) return { label: byId.label, color: byId.color }
+        if (byId)
+          return {
+            label: byId.label,
+            color: byId.color,
+            display: byId.objectValue?.display,
+            objectValue: byId.objectValue
+          }
         const byParent = typesByParentId[codeOrId]
-        if (byParent) return { label: byParent.label, color: byParent.color }
+        if (byParent)
+          return {
+            label: byParent.label,
+            color: byParent.color,
+            display: byParent.objectValue?.display,
+            objectValue: byParent.objectValue
+          }
         return { label: codeOrId }
       },
     [types, typesById, typesByParentId]

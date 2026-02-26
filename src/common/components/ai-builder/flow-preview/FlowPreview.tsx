@@ -1,12 +1,36 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Card, CardHeader, CardTitle, Spinner, Alert, AlertDescription, Badge, Button } from '@newwork/nw-design-system'
-import { Workflow, Play, X } from 'lucide-react'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  Spinner,
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@newwork/nw-design-system'
+import { Workflow, Play, X, CheckCircle2, Loader2 } from 'lucide-react'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import { templateToFlowGraphDefinition, flowNodeIdToStepIndex } from '@/common/data/flow/templateToFlowGraph'
 import { PreviewTemplate } from '../preview-template'
 import { FlowPreviewStepPanel } from './FlowPreviewStepPanel'
-import type { FlowPreviewTemplate } from './flowPreviewTypes'
+import type { FlowPreviewInputBlock, FlowPreviewTemplate } from './flowPreviewTypes'
+
+const TRIGGER_LABEL: Record<string, string> = {
+  MANUAL_FORM: 'Manual form',
+  WEBHOOK: 'Webhook',
+  EVENT: 'Event',
+  SCHEDULE: 'Schedule',
+  API_SCHEMA: 'API'
+}
 
 const START_NODE_ID = 'start'
 const END_NODE_ID = 'end'
@@ -26,6 +50,45 @@ export interface FlowPreviewProps {
   /** Fetch a single template by id (no switcher). */
   flowId?: string
   'data-testid'?: string
+}
+
+interface StartFormFieldProps {
+  field: FlowPreviewInputBlock
+  value: string
+  onValueChange: (value: string) => void
+  testId: string
+}
+
+const StartFormField: React.FC<StartFormFieldProps> = ({ field, value, onValueChange, testId }) => {
+  return (
+    <div key={field.name} className="gba:space-y-1">
+      <Label htmlFor={`${testId}-start-${field.name}`} className="gba:text-xs">
+        {field.label || field.name}
+        {field.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
+      </Label>
+      {field.options?.length ? (
+        <Select value={value} onValueChange={onValueChange}>
+          <SelectTrigger id={`${testId}-start-${field.name}`}>
+            <SelectValue placeholder="Select…" />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options.map(o => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          id={`${testId}-start-${field.name}`}
+          value={value}
+          onChange={e => onValueChange(e.target.value)}
+          placeholder={field.label}
+        />
+      )}
+    </div>
+  )
 }
 
 export const FlowPreview: React.FC<FlowPreviewProps> = ({
@@ -71,6 +134,10 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
   const [loading, setLoading] = useState(resolvedTemplateProp == null && !!flowId)
   const [error, setError] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [startFormValues, setStartFormValues] = useState<Record<string, string>>({})
+  const [executing, setExecuting] = useState(false)
+  const [executionResult, setExecutionResult] = useState<string | null>(null)
+  const [executionError, setExecutionError] = useState<string | null>(null)
 
   useEffect(() => {
     if (resolvedTemplateProp != null) {
@@ -118,6 +185,34 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
     setSelectedNodeId(nodeId)
   }, [])
 
+  const startFormFields: FlowPreviewInputBlock[] = template?.start?.form ?? []
+  const triggerTypes = template?.start?.triggers?.map(t => t.type) ?? []
+  const canExecute = !!template?.id
+
+  const executeFlow = useCallback(async () => {
+    if (!template?.id) return
+    setExecuting(true)
+    setExecutionError(null)
+    setExecutionResult(null)
+    try {
+      const result = await client.executeWorkflow(template.id, {
+        initiator: 'preview',
+        inputValues: Object.keys(startFormValues).length > 0 ? startFormValues : undefined
+      })
+      setExecutionResult(result.workflowId)
+    } catch (e) {
+      setExecutionError(e instanceof Error ? e.message : 'Failed to start workflow')
+    } finally {
+      setExecuting(false)
+    }
+  }, [client, template?.id, startFormValues])
+
+  const resetExecution = useCallback(() => {
+    setExecutionResult(null)
+    setExecutionError(null)
+    setStartFormValues({})
+  }, [])
+
   if (loading)
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:py-12" data-testid={`${testId}-loading`}>
@@ -138,7 +233,7 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
     )
 
   return (
-    <div className="gba:w-full gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:min-h-96" data-testid={testId}>
+    <div className="gba:w-full gba:h-full gba:min-h-96 gba:flex gba:flex-col" data-testid={testId}>
       <Card className="gba:shrink-0 gba:border-border">
         <CardHeader className="gba:border-b gba:border-border">
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -175,7 +270,10 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
               data-testid={`${testId}-start-panel`}
             >
               <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
-                <span className="gba:text-sm gba:font-semibold gba:text-foreground">Start</span>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Play className="gba:h-4 gba:w-4 gba:text-primary" />
+                  <span className="gba:text-sm gba:font-semibold gba:text-foreground">Start Flow</span>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -186,10 +284,86 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
                   <X className="gba:h-4 gba:w-4" />
                 </Button>
               </div>
-              <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4">
-                <p className="gba:text-sm gba:text-muted-foreground">
-                  Workflow entry point. Triggers defined in the template.
-                </p>
+              <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4 gba:pb-4">
+                <div className="gba:space-y-4">
+                  {triggerTypes.length > 0 && (
+                    <div>
+                      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1.5">Triggered by</p>
+                      <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+                        {triggerTypes.map(type => (
+                          <Badge key={type} variant="secondary" className="gba:text-xs">
+                            {TRIGGER_LABEL[type] ?? type}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {executionResult ? (
+                    <div className="gba:space-y-3">
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-green-600">
+                        <CheckCircle2 className="gba:h-4 gba:w-4" />
+                        <span className="gba:font-medium">Flow started!</span>
+                      </div>
+                      <div className="gba:rounded-md gba:border gba:border-border gba:bg-muted/30 gba:px-3 gba:py-2">
+                        <p className="gba:text-xs gba:text-muted-foreground gba:mb-0.5">Instance ID</p>
+                        <p className="gba:text-xs gba:font-mono gba:text-foreground gba:break-all">{executionResult}</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={resetExecution} className="gba:w-full">
+                        Start another
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="gba:space-y-4">
+                      {startFormFields.length > 0 && (
+                        <div className="gba:space-y-3">
+                          {startFormFields.map(field => (
+                            <StartFormField
+                              key={field.name}
+                              field={field}
+                              value={startFormValues[field.name] ?? ''}
+                              onValueChange={v => setStartFormValues(prev => ({ ...prev, [field.name]: v }))}
+                              testId={testId}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {!canExecute && (
+                        <p className="gba:text-xs gba:text-muted-foreground">
+                          This flow can be started once it is deployed.
+                        </p>
+                      )}
+
+                      {executionError && (
+                        <Alert variant="destructive" className="gba:py-2">
+                          <AlertDescription className="gba:text-xs">{executionError}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {canExecute && (
+                        <Button
+                          onClick={executeFlow}
+                          disabled={executing}
+                          className="gba:w-full"
+                          data-testid={`${testId}-start-btn`}
+                        >
+                          {executing ? (
+                            <>
+                              <Loader2 className="gba:h-4 gba:w-4 gba:mr-2 gba:animate-spin" />
+                              Starting…
+                            </>
+                          ) : (
+                            <>
+                              <Play className="gba:h-4 gba:w-4 gba:mr-2" />
+                              Start Flow
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )

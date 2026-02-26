@@ -11,6 +11,7 @@ export interface RatingScaleFromApi {
   version: number
   name: string
   values: string[]
+  scaleType?: string | null
 }
 
 function mapApiScaleToUi(api: RatingScaleApi): RatingScaleFromApi {
@@ -23,7 +24,8 @@ function mapApiScaleToUi(api: RatingScaleApi): RatingScaleFromApi {
     id: api.id,
     version: api.version ?? 0,
     name: api.name ?? '',
-    values
+    values,
+    scaleType: api.scaleType ?? null
   }
 }
 
