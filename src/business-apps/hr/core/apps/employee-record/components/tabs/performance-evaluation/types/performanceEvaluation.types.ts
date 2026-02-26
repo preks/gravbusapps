@@ -53,6 +53,14 @@ export interface EmployeePerformanceEvaluationsOverview {
   performanceCycles: PerformanceCycleOverview[]
 }
 
+export interface FlattenedPerformanceEvaluationItem {
+  performanceCycleId: string
+  performanceCycleName: string
+  performanceCycleStartDate: string | null
+  performanceCycleEndDate: string | null
+  evaluation: PerformanceEvaluationOverviewItem
+}
+
 export interface PerformanceEvaluationDetailQueryParams {
   employeeId?: string
   employeeUserId?: string
