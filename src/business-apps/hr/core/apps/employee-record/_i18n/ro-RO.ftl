@@ -116,6 +116,7 @@ benefit-details-active-period = Perioadă activă
 benefit-details-start-date = Data de început
 benefit-details-end-date = Data de încheiere
 benefit-details-notes = Note
+benefit-details-justification = Justificare
 benefit-details-available-providers = Furnizori disponibili
 benefit-details-additional-info = Informații suplimentare
 benefit-details-value = Valoare

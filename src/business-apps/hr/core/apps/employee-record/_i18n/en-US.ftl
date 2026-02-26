@@ -116,6 +116,7 @@ benefit-details-active-period = Active Period
 benefit-details-start-date = Start Date
 benefit-details-end-date = End Date
 benefit-details-notes = Notes
+benefit-details-justification = Justification
 benefit-details-available-providers = Available Providers
 benefit-details-additional-info = Additional Information
 benefit-details-value = Value

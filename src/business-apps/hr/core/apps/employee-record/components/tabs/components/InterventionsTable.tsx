@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Card, CardContent, Alert, Badge, Icon, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Alert, Badge, Icon, IconAvatar, Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useTimeInterventions } from '../hooks/useTimeInterventions'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -122,23 +122,17 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
             className="gba:flex gba:items-center gba:gap-2 gba:select-none"
             data-testid="time-interventions-toggle-text"
           >
-            <span
-              className={`gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full ${
-                isExpanded ? 'gba:bg-gradient-to-br gba:from-primary gba:to-info' : 'gba:bg-warning'
-              }`}
-            >
-              <Icon
-                icon={isExpanded ? LightningIcon : WarningCircleIcon}
-                className={isExpanded ? 'gba:text-primary-foreground' : 'gba:text-warning-foreground'}
-              />
-            </span>
+            <IconAvatar
+              icon={isExpanded ? LightningIcon : WarningCircleIcon}
+              variant="secondary"
+              size="md"
+              data-testid="time-interventions-assistant-icon"
+            />
             <div className="gba:text-lg gba:font-semibold gba:text-left">
               {isExpanded ? (
                 <>
                   <span>NEWWORK </span>
-                  <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
-                    EveryAI Assistant
-                  </span>
+                  <span className="gba:text-ai">EveryAI Assistant</span>
                   <span>
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:time_tracking.interventions.header_expanded_suffix',
@@ -149,9 +143,7 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
               ) : (
                 <>
                   <span>NEWWORK </span>
-                  <span className="gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
-                    EveryAI Assistant
-                  </span>
+                  <span className="gba:text-ai">EveryAI Assistant</span>
                   <span>
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:time_tracking.interventions.header_collapsed_suffix',
