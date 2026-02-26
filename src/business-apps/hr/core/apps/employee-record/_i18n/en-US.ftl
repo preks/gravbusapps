@@ -329,7 +329,7 @@ employee-record-tab-hr-admin = HR Administration
 employee-record-tab-hr-growth = HR Development
 hr-growth-skills = Skills
 hr-growth-feedback = Feedback Hub
-hr-growth-performance = Performance
+hr-growth-performance = Goals
 
 # Feedback Hub (sub-page under HR Development)
 feedback-hub-title = Feedback Hub

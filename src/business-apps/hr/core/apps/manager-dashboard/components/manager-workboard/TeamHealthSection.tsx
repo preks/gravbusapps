@@ -14,7 +14,7 @@ import {
 import { AlertTriangle, X, TrendingUp, Sparkles } from 'lucide-react'
 import { FlightRiskDetailPanel } from '../FlightRiskDetailPanel'
 
-type RiskBadgeVariant = 'info' | 'warning' | 'destructive'
+type RiskBadgeVariant = 'info' | 'warning' | 'destructive' | 'secondary'
 
 interface FlightRiskEmployee {
   employeeId: string
@@ -77,22 +77,26 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
   const getRiskBadgeVariant = (level: string): RiskBadgeVariant => {
     switch (level) {
       case 'critical':
-      case 'high':
         return 'destructive'
-      case 'medium':
+      case 'high':
         return 'warning'
+      case 'medium':
+        return 'secondary'
       default:
         return 'info'
     }
   }
 
-  const getOverallRiskLevel = (riskSummary: FlightRiskSummary | null): 'low' | 'medium' | 'high' => {
+  const getOverallRiskLevel = (riskSummary: FlightRiskSummary | null): 'low' | 'medium' | 'high' | 'critical' => {
     if (!riskSummary || riskSummary.totalEmployees <= 0) {
       return 'low'
     }
 
-    const computedHighRiskTotal = (riskSummary.highRiskCount || 0) + (riskSummary.criticalCount || 0)
-    if (computedHighRiskTotal > 2) {
+    if ((riskSummary.criticalCount || 0) > 0) {
+      return 'critical'
+    }
+
+    if ((riskSummary.highRiskCount || 0) > 2) {
       return 'high'
     }
 
@@ -103,7 +107,11 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
     return 'low'
   }
 
-  const getOverallRiskLabel = (risk: 'low' | 'medium' | 'high') => {
+  const getOverallRiskLabel = (risk: 'low' | 'medium' | 'high' | 'critical') => {
+    if (risk === 'critical') {
+      return 'Critical Risk'
+    }
+
     if (risk === 'high') {
       return 'High Risk'
     }
@@ -115,7 +123,7 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
     return 'Low Risk'
   }
 
-  const highRiskTotal = (summary?.highRiskCount || 0) + (summary?.criticalCount || 0)
+  const criticalCount = summary?.criticalCount || 0
   const overallRisk = getOverallRiskLevel(summary)
 
   // Extract all risk factors from all employees with their scores
@@ -194,26 +202,33 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
         <CardContent className="gba:space-y-3 gba:flex-1">
           {/* Summary Stats - Clickable to open detail panel */}
           {summary && summary.totalEmployees > 0 && (
-            <div className="gba:grid gba:grid-cols-3 gba:gap-2">
+            <div className="gba:grid gba:grid-cols-4 gba:gap-2">
               <button
                 onClick={openDetailPanel}
                 className="gba:p-2.5 gba:bg-surface gba:rounded-lg gba:hover:bg-muted/40 gba:transition-colors gba:text-center gba:cursor-pointer"
               >
-                <p className="gba:text-xl gba:font-bold gba:text-destructive-on-card">{highRiskTotal}</p>
+                <p className="gba:text-xl gba:font-bold gba:text-destructive-on-card">{criticalCount}</p>
+                <p className="gba:text-xs gba:text-muted-foreground">Critical</p>
+              </button>
+              <button
+                onClick={openDetailPanel}
+                className="gba:p-2.5 gba:bg-surface gba:rounded-lg gba:hover:bg-muted/40 gba:transition-colors gba:text-center gba:cursor-pointer"
+              >
+                <p className="gba:text-xl gba:font-bold gba:text-warning-on-card">{summary.highRiskCount}</p>
                 <p className="gba:text-xs gba:text-muted-foreground">High Risk</p>
               </button>
               <button
                 onClick={openDetailPanel}
                 className="gba:p-2.5 gba:bg-surface gba:rounded-lg gba:hover:bg-muted/40 gba:transition-colors gba:text-center gba:cursor-pointer"
               >
-                <p className="gba:text-xl gba:font-bold gba:text-warning-on-card">{summary.mediumRiskCount}</p>
+                <p className="gba:text-xl gba:font-bold gba:text-muted-foreground">{summary.mediumRiskCount}</p>
                 <p className="gba:text-xs gba:text-muted-foreground">Medium Risk</p>
               </button>
               <button
                 onClick={openDetailPanel}
                 className="gba:p-2.5 gba:bg-surface gba:rounded-lg gba:hover:bg-muted/40 gba:transition-colors gba:text-center gba:cursor-pointer"
               >
-                <p className="gba:text-xl gba:font-bold gba:text-info-on-card">{summary.lowRiskCount}</p>
+                <p className="gba:text-xl gba:font-bold gba:text-success">{summary.lowRiskCount}</p>
                 <p className="gba:text-xs gba:text-muted-foreground">Low Risk</p>
               </button>
             </div>

@@ -623,29 +623,33 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
         </div>
       </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
+      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-4 gba:gap-4">
         <Card>
           <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">Total goals</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.total}</div>
+            <p className="gba:text-sm gba:text-muted-foreground">Total goals</p>
+            <p className="gba:text-2xl gba:font-semibold">{summary.total}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">In selected cycle</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">On Track</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.onTrack}</div>
+            <p className="gba:text-sm gba:text-muted-foreground">On track</p>
+            <p className="gba:text-2xl gba:font-semibold">{summary.onTrack}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">Healthy progress</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">Behind Target</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.behind}</div>
+            <p className="gba:text-sm gba:text-muted-foreground">Behind target</p>
+            <p className="gba:text-2xl gba:font-semibold">{summary.behind}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">Needs attention</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">Achieved</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.achieved}</div>
+            <p className="gba:text-sm gba:text-muted-foreground">Achieved</p>
+            <p className="gba:text-2xl gba:font-semibold">{summary.achieved}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">Completed goals</p>
           </CardContent>
         </Card>
       </div>
