@@ -36,7 +36,8 @@ import {
   handleExpenseTypeChange,
   handleSubmit,
   handleFileUpload,
-  setByEdit
+  setByEdit,
+  normalizeReceiptData
 } from './services'
 import { showToast } from '../../../utils/notificationUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -815,10 +816,13 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   }
 
   const setByReceipts = (receiptData: any): void => {
+    console.log('[Receipt AI] setByReceipts called with receiptData:', receiptData)
     if (!receiptData?.data) return
 
     try {
-      const data = receiptData.data
+      const rawData = receiptData.data
+      const data = normalizeReceiptData(rawData)
+      console.log('[Receipt AI] Extracted receipt data (used for form/positions):', data)
 
       // Ensure we can validate against the configured request currency when provided
       if (
@@ -867,6 +871,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsFormDisabled(true)
 
       const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes)
+      console.log('[Receipt AI] Data received after upload (before setByReceipts):', result)
 
       if (result) {
         setByReceipts(result)
