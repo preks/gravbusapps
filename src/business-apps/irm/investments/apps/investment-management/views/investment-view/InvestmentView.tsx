@@ -397,6 +397,31 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   // Filter configuration
   const filterGroups = useFilterGroups(context, 'Investment', INVESTMENT_DESCRIPTORS)
+
+  const injectAccountFilter = useCallback(
+    (filter: any) => {
+      if (filter.id !== 'investmentAccountIds') return filter
+      return {
+        ...filter,
+        config: {
+          ...filter.config,
+          options: accountOptions.map((a: any) => ({ id: a.id, label: a.label })),
+          totalCount: accountOptions.length,
+          hasMore: false
+        }
+      }
+    },
+    [accountOptions]
+  )
+
+  const injectAccountGroup = useCallback(
+    (group: any) => {
+      if (group.id !== 'account-group') return group
+      return { ...group, filters: group.filters.map(injectAccountFilter) }
+    },
+    [injectAccountFilter]
+  )
+
   const currentFilterConfig = useMemo(() => {
     const baseConfig = currentSection === 'overview' ? overviewInvestmentFilterConfig : baseInvestmentFilterConfig
     const builtConfig =
@@ -404,31 +429,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         ? baseConfig
         : buildDynamicFilterConfig(baseConfig, INVESTMENT_DESCRIPTORS, filterGroups)
 
-    // Inject account options into the account-group filter
     if (accountOptions.length === 0) return builtConfig
 
-    return {
-      ...builtConfig,
-      groups: builtConfig.groups.map(group => {
-        if (group.id !== 'account-group') return group
-        return {
-          ...group,
-          filters: group.filters.map(filter => {
-            if (filter.id !== 'investmentAccountIds') return filter
-            return {
-              ...filter,
-              config: {
-                ...filter.config,
-                options: accountOptions.map(a => ({ id: a.id, label: a.label })),
-                totalCount: accountOptions.length,
-                hasMore: false
-              }
-            }
-          })
-        }
-      })
-    }
-  }, [currentSection, filterGroups, accountOptions])
+    return { ...builtConfig, groups: builtConfig.groups.map(injectAccountGroup) }
+  }, [currentSection, filterGroups, accountOptions, injectAccountGroup])
 
   // Stable filter change handler — uses refs so it never needs to be recreated.
   // Matches the AccountLayout pattern (empty deps, functional state updates).
@@ -564,7 +568,8 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   }, [currentSection, investmentGroups, accessToken])
 
   // Normalize active tab count: overviewState uses `totalCount`, group states use `total`
-  const activeTabCount = (currentState as any).totalCount ?? (currentState as any).total ?? 0
+  const stateWithCount = currentState as { totalCount?: number; total?: number }
+  const activeTabCount = stateWithCount.totalCount ?? stateWithCount.total ?? 0
 
   // Build title sections dynamically.
   // Active tab: count comes from the list query so it reflects applied filters (0 extra requests).

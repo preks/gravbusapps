@@ -132,13 +132,13 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
       const newView = getInitialView()
       setActiveView(newView)
       if (newView === 'investments') {
-        const urlParams = new URLSearchParams(window.location.search)
+        const urlParams = new URLSearchParams(globalThis.location.search)
         setInvestmentsSubTab(urlParams.get('subView') || 'overview')
       }
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
   const renderViewContent = () => {
