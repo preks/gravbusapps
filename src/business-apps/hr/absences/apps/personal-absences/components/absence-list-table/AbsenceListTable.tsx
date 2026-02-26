@@ -8,14 +8,14 @@ import {
   Card,
   CardContent,
   Spinner,
-  Button
+  Button,
+  Badge
 } from '@newwork/nw-design-system'
 import { PiCalendar, PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import {
   getAbsenceStatusLabel,
-  getAbsenceStatusBackgroundClass,
-  getAbsenceStatusTextClass
+  getAbsenceStatusBadgeVariant
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { EnhancedAbsence } from '../../types/enhancedAbsence'
 
@@ -36,8 +36,16 @@ interface AbsenceListTableProps {
   onPaginationChange: (page: number, newPageSize?: number) => void
 }
 
+const getColorForAbsence = (absence: EnhancedAbsence) => {
+  return absence.color || 'var(--nw-muted-foreground)'
+}
+
 const getTranslatedStatus = (status: string) => {
   return getAbsenceStatusLabel(status)
+}
+
+const getStatusBadgeVariant = (status: string) => {
+  return getAbsenceStatusBadgeVariant(status)
 }
 
 const renderSortIcon = (field: string, sortField: string, sortOrder: 'ASC' | 'DESC' | '') => {
@@ -176,9 +184,16 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}
                   >
-                    <span className="gba:inline-flex gba:items-center gba:rounded-full gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium gba:bg-muted gba:text-foreground gba:border gba:border-border">
+                    <Badge
+                      variant="outline"
+                      style={{
+                        backgroundColor: getColorForAbsence(record),
+                        borderColor: getColorForAbsence(record)
+                      }}
+                      className="gba:text-white"
+                    >
                       {record.typeName}
-                    </span>
+                    </Badge>
                   </TableCell>
                   <TableCell
                     className="gba:py-4 gba:px-6"
@@ -210,11 +225,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
                   >
-                    <span
-                      className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium ${getAbsenceStatusBackgroundClass(record.status)} ${getAbsenceStatusTextClass(record.status)}`}
-                    >
-                      {getTranslatedStatus(record.status)}
-                    </span>
+                    <Badge variant={getStatusBadgeVariant(record.status)}>{getTranslatedStatus(record.status)}</Badge>
                   </TableCell>
                   <TableCell
                     className="gba:py-4 gba:px-6"

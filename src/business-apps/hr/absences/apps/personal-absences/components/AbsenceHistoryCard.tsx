@@ -15,15 +15,13 @@ import {
   TableHeader,
   TableRow,
   Button,
-  Skeleton
+  Skeleton,
+  Badge
 } from '@newwork/nw-design-system'
 import { CaretLeftIcon, CaretRightIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import {
-  getAbsenceStatusLabel,
-  getAbsenceStatusBackgroundClass,
-  getAbsenceStatusTextClass
-} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { statusVariant } from '../utils/statusUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
 
 type TFunction = (key: string) => string
@@ -154,11 +152,7 @@ export function AbsenceHistoryCard({
                         {a.workingDays} {a.workingDays === 1 ? t('day') : t('days')}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium ${getAbsenceStatusBackgroundClass(a.originalStatus)} ${getAbsenceStatusTextClass(a.originalStatus)}`}
-                        >
-                          {a.status}
-                        </span>
+                        <Badge variant={statusVariant(a.originalStatus)}>{a.status}</Badge>
                       </TableCell>
                       <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
                     </TableRow>
