@@ -47,11 +47,35 @@ interface FeedbackEntry {
   type?: string
 }
 
+function parseAnalysisResponse(content: unknown): FeedbackAnalysisResult {
+  if (typeof content !== 'string') {
+    return content as FeedbackAnalysisResult
+  }
+
+  const trimmed = content.trim()
+  try {
+    return JSON.parse(trimmed) as FeedbackAnalysisResult
+  } catch {
+    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+    if (fencedMatch?.[1]) {
+      return JSON.parse(fencedMatch[1]) as FeedbackAnalysisResult
+    }
+    throw new Error('Invalid analysis response format')
+  }
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+  return 'Failed to analyze feedback'
+}
+
 function formatFeedbackForAnalyzer(entries: FeedbackEntry[]): string {
   return entries
     .map((entry, i) => {
       const parts: string[] = []
-      if (entry.rating) parts.push(`Rating: ${entry.rating}/5`)
+      if (entry.rating != null) parts.push(`Rating: ${entry.rating}/5`)
       if (entry.type) parts.push(`Type: ${entry.type}`)
       const dateStr = entry.rawDate ?? entry.date
       if (dateStr) {
@@ -93,10 +117,12 @@ export interface FeedbackAnalysisResults {
 
 export const useFeedbackAnalysis = ({ accessToken }: UseFeedbackAnalysisProps) => {
   const [results, setResults] = useState<FeedbackAnalysisResults>({ received: null, given: null })
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [pendingAnalyzes, setPendingAnalyzes] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const client = usePromptManagerClient(accessToken)
   const abortRef = useRef(false)
+  const cancelEpochRef = useRef<{ received: number; given: number }>({ received: 0, given: 0 })
+  const isAnalyzing = pendingAnalyzes > 0
 
   const analyzeStream = async (
     employeeName: string,
@@ -114,9 +140,7 @@ export const useFeedbackAnalysis = ({ accessToken }: UseFeedbackAnalysisProps) =
         feedback_data: feedbackData
       }
     })
-    return (
-      typeof response.content === 'string' ? JSON.parse(response.content) : response.content
-    ) as FeedbackAnalysisResult
+    return parseAnalysisResponse(response.content)
   }
 
   const analyze = useCallback(
@@ -127,47 +151,80 @@ export const useFeedbackAnalysis = ({ accessToken }: UseFeedbackAnalysisProps) =
       }
 
       abortRef.current = false
-      setIsAnalyzing(true)
+      setPendingAnalyzes(count => count + 1)
       setError(null)
-      setResults({ received: null, given: null })
 
       try {
         const allEntries = [...received, ...given]
         const detectedPeriod = period ?? detectPeriod(allEntries)
+        const requestedDirections: Array<'received' | 'given'> = []
+        if (received.length > 0) requestedDirections.push('received')
+        if (given.length > 0) requestedDirections.push('given')
+        const startEpoch = {
+          received: cancelEpochRef.current.received,
+          given: cancelEpochRef.current.given
+        }
 
-        const promises: Promise<void>[] = []
-        const partial: FeedbackAnalysisResults = { received: null, given: null }
-
+        const analysisTasks: Array<
+          Promise<{ direction: 'received' | 'given'; result: FeedbackAnalysisResult | null }>
+        > = []
         if (received.length > 0) {
-          promises.push(
-            analyzeStream(employeeName, received, 'received', detectedPeriod).then(r => {
-              partial.received = r
-            })
+          analysisTasks.push(
+            analyzeStream(employeeName, received, 'received', detectedPeriod).then(result => ({
+              direction: 'received',
+              result
+            }))
           )
         }
         if (given.length > 0) {
-          promises.push(
-            analyzeStream(employeeName, given, 'given', detectedPeriod).then(r => {
-              partial.given = r
-            })
+          analysisTasks.push(
+            analyzeStream(employeeName, given, 'given', detectedPeriod).then(result => ({
+              direction: 'given',
+              result
+            }))
           )
         }
 
-        await Promise.all(promises)
+        const settled = await Promise.allSettled(analysisTasks)
+        const partial: FeedbackAnalysisResults = { received: null, given: null }
+        const taskErrors: string[] = []
+
+        settled.forEach(task => {
+          if (task.status === 'fulfilled') {
+            partial[task.value.direction] = task.value.result
+            return
+          }
+          taskErrors.push(toErrorMessage(task.reason))
+        })
 
         if (abortRef.current) return null
-        setResults(partial)
+        requestedDirections.forEach(direction => {
+          if (startEpoch[direction] !== cancelEpochRef.current[direction]) {
+            partial[direction] = null
+          }
+        })
+        if (!partial.received && !partial.given) {
+          setError(taskErrors[0] ?? 'Failed to analyze feedback')
+          return null
+        }
+        setResults(prev => ({
+          received: partial.received ?? prev.received,
+          given: partial.given ?? prev.given
+        }))
+        if (taskErrors.length > 0) {
+          console.warn('Partial feedback analysis failure:', taskErrors)
+        }
         return partial
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!abortRef.current) {
-          const message = err?.message || 'Failed to analyze feedback'
+          const message = toErrorMessage(err)
           setError(message)
           console.error('Feedback analysis error:', err)
         }
         return null
       } finally {
         if (!abortRef.current) {
-          setIsAnalyzing(false)
+          setPendingAnalyzes(count => Math.max(0, count - 1))
         }
       }
     },
@@ -178,8 +235,14 @@ export const useFeedbackAnalysis = ({ accessToken }: UseFeedbackAnalysisProps) =
     abortRef.current = true
     setResults({ received: null, given: null })
     setError(null)
-    setIsAnalyzing(false)
+    setPendingAnalyzes(0)
   }, [])
 
-  return { results, isAnalyzing, error, analyze, clear }
+  const cancelAnalyzingForDirection = useCallback((direction: 'received' | 'given') => {
+    // Invalidate in-flight results only for this direction.
+    cancelEpochRef.current[direction] += 1
+    setError(null)
+  }, [])
+
+  return { results, isAnalyzing, error, analyze, clear, cancelAnalyzingForDirection }
 }
