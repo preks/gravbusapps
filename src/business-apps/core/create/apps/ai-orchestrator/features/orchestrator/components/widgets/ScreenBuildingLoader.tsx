@@ -23,8 +23,8 @@ export const ScreenBuildingLoader: React.FC<ScreenBuildingLoaderProps> = ({ mess
 
       {/* Stats Cards Row */}
       <div className="gba:grid gba:grid-cols-4 gba:gap-6">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="gba:border gba:border-border gba:rounded-lg gba:p-6 gba:space-y-4">
+        {['skeleton-card-1', 'skeleton-card-2', 'skeleton-card-3', 'skeleton-card-4'].map(key => (
+          <div key={key} className="gba:border gba:border-border gba:rounded-lg gba:p-6 gba:space-y-4">
             <Skeleton className="gba:h-5 gba:w-24" />
             <Skeleton className="gba:h-10 gba:w-32" />
             <Skeleton className="gba:h-4 gba:w-40" />
@@ -49,8 +49,16 @@ export const ScreenBuildingLoader: React.FC<ScreenBuildingLoaderProps> = ({ mess
         <div className="gba:border gba:border-border gba:rounded-lg gba:p-6 gba:space-y-6">
           <Skeleton className="gba:h-7 gba:w-40" />
           <div className="gba:space-y-4">
-            {Array.from({ length: 7 }).map((_, index) => (
-              <div key={index} className="gba:flex gba:items-center gba:gap-4">
+            {[
+              'skeleton-activity-1',
+              'skeleton-activity-2',
+              'skeleton-activity-3',
+              'skeleton-activity-4',
+              'skeleton-activity-5',
+              'skeleton-activity-6',
+              'skeleton-activity-7'
+            ].map(key => (
+              <div key={key} className="gba:flex gba:items-center gba:gap-4">
                 <Skeleton className="gba:h-12 gba:w-12 gba:rounded-full gba:shrink-0" />
                 <div className="gba:flex-1 gba:space-y-2">
                   <Skeleton className="gba:h-4 gba:w-full" />

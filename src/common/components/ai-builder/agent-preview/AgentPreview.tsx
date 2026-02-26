@@ -149,7 +149,7 @@ function extractParametersFromTemplate(content: string): string[] {
   while ((match = pattern.exec(content)) !== null) {
     params.add(match[1])
   }
-  return Array.from(params).sort()
+  return Array.from(params).sort((a, b) => a.localeCompare(b))
 }
 
 function useAgentPromptLoader(

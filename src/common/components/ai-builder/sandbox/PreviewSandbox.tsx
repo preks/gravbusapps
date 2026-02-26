@@ -294,27 +294,25 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
       {/* Preview Content */}
       <div className="gba:flex-1 gba:relative">
         {previewUrl && (
-          <>
-            <iframe
-              key={previewUrl}
-              ref={iframeRef}
-              src={previewUrl}
-              className="gba:w-full gba:h-full gba:border-0 gba:transition-[opacity,filter] gba:duration-300 gba:ease-out"
-              sandbox="allow-scripts allow-same-origin allow-forms"
-              title="Preview Sandbox"
-              onLoad={handleIframeLoad}
-              onError={handleIframeError}
-              style={{
-                visibility: previewReady ? 'visible' : 'hidden',
-                position: previewReady ? 'relative' : 'absolute',
-                opacity: previewReady ? 1 : 0,
-                filter: previewReady ? 'blur(0)' : 'blur(4px)',
-                colorScheme: 'normal',
-                background: 'transparent',
-                pointerEvents: previewReady ? 'auto' : 'none'
-              }}
-            />
-          </>
+          <iframe
+            key={previewUrl}
+            ref={iframeRef}
+            src={previewUrl}
+            className="gba:w-full gba:h-full gba:border-0 gba:transition-[opacity,filter] gba:duration-300 gba:ease-out"
+            sandbox="allow-scripts allow-same-origin allow-forms"
+            title="Preview Sandbox"
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
+            style={{
+              visibility: previewReady ? 'visible' : 'hidden',
+              position: previewReady ? 'relative' : 'absolute',
+              opacity: previewReady ? 1 : 0,
+              filter: previewReady ? 'blur(0)' : 'blur(4px)',
+              colorScheme: 'normal',
+              background: 'transparent',
+              pointerEvents: previewReady ? 'auto' : 'none'
+            }}
+          />
         )}
         {previewUrl && !buildStatus?.active && (
           <div
