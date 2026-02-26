@@ -145,10 +145,13 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           return null
         }
 
-        // Load row data for each sheet
+        // Load row data for each sheet (only if not already included in the app payload).
+        // Note: Backend `GET /spreadsheets/:id` currently returns `sheets.rows` (full dataset).
+        // Fetching `/rows` without pagination would overwrite the full dataset with only the first page (default limit=100).
         for (const sheet of app.sheets) {
-          const rows = await SpreadsheetApiService.getRows(id, sheet.id)
-          sheet.data = rows
+          if (!sheet.data || sheet.data.length === 0) {
+            sheet.data = await SpreadsheetApiService.getAllRows(id, sheet.id)
+          }
         }
 
         // Use permission from API response (already mapped: admin -> owner)
@@ -403,7 +406,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         }
 
         // Refresh the sheet data
-        const updatedRows = await SpreadsheetApiService.getRows(appId, sheetId)
+        const updatedRows = await SpreadsheetApiService.getAllRows(appId, sheetId)
         const updatedSheet = { ...sheet, data: updatedRows }
 
         if (state.currentApp?.id === appId) {

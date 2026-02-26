@@ -7,10 +7,11 @@
 
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
 
-/** Conversion context for mapping row/column indices to our rowId/columnId (used by collaboration). */
+/** Conversion context for mapping row/column indices to our rowId/columnId/name (used by collaboration and persist). */
 export interface ConversionContext {
   columnIdToIndex: Map<string, number>
   columnIndexToId: Map<number, string>
+  columnIndexToName: Map<number, string>
   rowIdToIndex: Map<string, number>
   rowIndexToId: Map<number, string>
   excelColToIndex: Map<string, number>
@@ -67,16 +68,15 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
   if (value === undefined) {
     const rowKeys = Object.keys(row)
     const matchingKey = rowKeys.find(
-      (key) =>
-        key.toLowerCase() === column.name.toLowerCase() ||
-        key.toLowerCase() === column.id.toLowerCase()
+      key => key.toLowerCase() === column.name.toLowerCase() || key.toLowerCase() === column.id.toLowerCase()
     )
     if (matchingKey) value = row[matchingKey]
   }
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'v' in (value as Record<string, unknown>)) {
-    return (value as Record<string, unknown>).v
-  }
   if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const cellObject = value as Record<string, unknown>
+    if ('v' in cellObject || 'f' in cellObject || 'm' in cellObject || 'ct' in cellObject) {
+      return cellObject
+    }
     return ''
   }
   return value
@@ -91,7 +91,7 @@ export function buildWorkbookSnapshot(
   data: Record<string, unknown>[],
   columns: SpreadsheetColumn[]
 ): UniverWorkbookSnapshot {
-  const visibleColumns = columns.filter((c) => c.isVisible !== false)
+  const visibleColumns = columns.filter(c => c.isVisible !== false)
   const cellData: UniverSheetCellData = {}
 
   data.forEach((row, rowIndex) => {
@@ -99,7 +99,11 @@ export function buildWorkbookSnapshot(
     visibleColumns.forEach((col, colIndex) => {
       const raw = getCellValue(row, col)
       if (raw !== undefined && raw !== null && raw !== '') {
-        rowCells[colIndex] = { v: raw as string | number | boolean }
+        if (typeof raw === 'object' && !Array.isArray(raw)) {
+          rowCells[colIndex] = raw as UniverCellData
+        } else {
+          rowCells[colIndex] = { v: raw as string | number | boolean }
+        }
       }
     })
     if (Object.keys(rowCells).length > 0) {
@@ -107,11 +111,12 @@ export function buildWorkbookSnapshot(
     }
   })
 
+  const DEFAULT_MIN_ROWS = 1000
   const worksheet: UniverWorksheetData = {
     id: sheet.id,
     name: sheet.name,
     cellData,
-    rowCount: Math.max(data.length, 1),
+    rowCount: Math.max(data.length, DEFAULT_MIN_ROWS),
     columnCount: Math.max(visibleColumns.length, 1)
   }
 
@@ -135,15 +140,18 @@ export function createUniverConversionContext(
   columns: SpreadsheetColumn[],
   data: Record<string, unknown>[]
 ): ConversionContext {
+  const visibleColumns = columns.filter(col => col.isVisible !== false)
   const columnIdToIndex = new Map<string, number>()
   const columnIndexToId = new Map<number, string>()
+  const columnIndexToName = new Map<number, string>()
   const rowIdToIndex = new Map<string, number>()
   const rowIndexToId = new Map<number, string>()
   const excelColToIndex = new Map<string, number>()
   const indexToExcelCol = new Map<number, string>()
-  columns.forEach((col, index) => {
+  visibleColumns.forEach((col, index) => {
     columnIdToIndex.set(col.id, index)
     columnIndexToId.set(index, col.id)
+    columnIndexToName.set(index, col.name)
     const excelCol = indexToExcelColumn(index)
     excelColToIndex.set(excelCol, index)
     indexToExcelCol.set(index, excelCol)
@@ -156,6 +164,7 @@ export function createUniverConversionContext(
   return {
     columnIdToIndex,
     columnIndexToId,
+    columnIndexToName,
     rowIdToIndex,
     rowIndexToId,
     excelColToIndex,

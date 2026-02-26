@@ -13,10 +13,14 @@ import { UniverSheetGrid, type UniverSheetGridHandle } from '../components/Unive
 export interface TableViewProps {
   sheet: SpreadsheetSheet
   data: Record<string, unknown>[]
+  initialSnapshot?: Record<string, unknown> | null
+  snapshotSeed?: string
   columns: ColumnDef<Record<string, unknown>>[]
   spreadsheetColumns: SpreadsheetColumn[]
   testId: string
   onCellChange?: (rowId: string, columnName: string, value: unknown) => void
+  onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => void
+  onSnapshotRequested?: () => Promise<void> | void
   isEditable?: boolean
   onAddRow?: () => void
   showAddRow?: boolean
@@ -38,6 +42,8 @@ export interface TableViewProps {
 export const TableView = memo<TableViewProps>(function TableView({
   sheet,
   data,
+  initialSnapshot,
+  snapshotSeed,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   columns,
   spreadsheetColumns,
@@ -47,6 +53,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   showAddRow,
   onCellChange,
+  onCellsChange,
+  onSnapshotRequested,
   onDataChange,
   onColumnAdd,
   participants,
@@ -66,6 +74,19 @@ export const TableView = memo<TableViewProps>(function TableView({
     [onCellChange]
   )
 
+  const handleCellsChange = useCallback(
+    (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => {
+      if (onCellsChange) {
+        onCellsChange(cells)
+      }
+    },
+    [onCellsChange]
+  )
+
+  const handleSnapshotRequested = useCallback(() => {
+    return onSnapshotRequested?.()
+  }, [onSnapshotRequested])
+
   // Handle data change from Univer
   const handleDataChange = useCallback(
     (newData: Record<string, unknown>[]) => {
@@ -82,9 +103,13 @@ export const TableView = memo<TableViewProps>(function TableView({
         ref={gridRef}
         sheet={sheet}
         data={data}
+        initialSnapshot={initialSnapshot}
+        snapshotSeed={snapshotSeed}
         columns={spreadsheetColumns}
         isReadOnly={isReadOnly || false}
         onCellChange={handleCellChange}
+        onCellsChange={handleCellsChange}
+        onSnapshotRequested={handleSnapshotRequested}
         onDataChange={handleDataChange}
         onColumnAdd={onColumnAdd}
         participants={participants}

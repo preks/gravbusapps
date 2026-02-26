@@ -306,6 +306,7 @@ export interface SpreadsheetSheet {
   id: string
   name: string
   description?: string
+  version?: number
   viewType: ViewType
   columns: SpreadsheetColumn[]
   views: SheetView[]

@@ -24,14 +24,6 @@ import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/u
 
 const API_URL = getDocumentServiceApiUrl()
 
-/**
- * Per-sheet request queue. Ensures only one updateSheet PATCH request is
- * in-flight per sheet at a time. This prevents race conditions where rapid
- * column operations fire overlapping PATCHes whose responses arrive out of
- * order and corrupt the stored column state.
- */
-const _sheetUpdateQueue = new Map<string, Promise<unknown>>()
-
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {
     return (
@@ -50,6 +42,18 @@ const debugLog = (...args: unknown[]) => {
   }
 }
 
+export class SpreadsheetApiRequestError extends Error {
+  status: number
+  details?: unknown
+
+  constructor(message: string, status: number, details?: unknown) {
+    super(message)
+    this.name = 'SpreadsheetApiRequestError'
+    this.status = status
+    this.details = details
+  }
+}
+
 /**
  * Optional external auth token provider.
  * This is required for published screens where the access token may not be in localStorage,
@@ -61,10 +65,38 @@ export function setSpreadsheetApiAuthTokenProvider(provider: (() => string | nul
   externalAuthTokenProvider = provider
 }
 
-// Get auth token from the in-memory provider
+// Get auth token - check multiple storage locations
 const getAuthToken = (): string | null => {
   try {
-    return externalAuthTokenProvider?.() || null
+    // Prefer external token provider (e.g., BusinessAppContext accessToken)
+    const externalToken = externalAuthTokenProvider?.()
+    if (externalToken) return externalToken
+
+    // First check the IDE's storage key (Business App IDE)
+    const ideToken = localStorage.getItem('business-app-ide-access-token')
+    if (ideToken) return ideToken
+
+    // Check keycloak token format
+    const authData = localStorage.getItem('keycloak-token')
+    if (authData) {
+      try {
+        const parsed = JSON.parse(authData)
+        return parsed.token || parsed.access_token || null
+      } catch {
+        return authData // Return as-is if not JSON
+      }
+    }
+
+    // Check session storage
+    const sessionToken = sessionStorage.getItem('auth_token')
+    if (sessionToken) return sessionToken
+
+    // Check window global
+    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
+      return (window as unknown as { authToken: string }).authToken
+    }
+
+    return null
   } catch {
     return null
   }
@@ -87,7 +119,11 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))
-    throw new Error(error.message || `API Error: ${response.status}`)
+    throw new SpreadsheetApiRequestError(
+      (error as { message?: string }).message || `API Error: ${response.status}`,
+      response.status,
+      error
+    )
   }
 
   const text = await response.text()
@@ -103,22 +139,48 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
-/**
- * Cell value stored in a spreadsheet row.
- * Plain scalars (string, number, boolean, null) represent regular values.
- * Objects with `f` represent formula cells that preserve formula metadata.
- */
-type SpreadsheetCellObject = {
-  v?: unknown
-  f?: string
-  m?: string
-  ct?: Record<string, unknown>
+type SpreadsheetRowData = Record<string, unknown> & {
+  _clientRowId?: string
 }
 
-type SpreadsheetCellValue = string | number | boolean | null | SpreadsheetCellObject
+function mapApiRowToFrontendRow(row: Record<string, unknown>): Record<string, unknown> {
+  const rowData = (((row as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
+  const clientRowId = rowData._clientRowId
+  const backendId = String((row as Record<string, unknown>).id || '')
 
-type SpreadsheetRowData = Record<string, SpreadsheetCellValue> & {
-  _clientRowId?: string
+  if (clientRowId) {
+    return {
+      ...rowData,
+      _id: clientRowId,
+      _rowUuid: backendId
+    }
+  }
+
+  return {
+    ...rowData,
+    _id: backendId
+  }
+}
+
+export interface SpreadsheetBatchOperation {
+  operationId: string
+  type: 'set_cell' | 'set_range' | 'add_rows' | 'delete_rows' | 'clear_cell'
+  data: Record<string, unknown>
+}
+
+export interface SpreadsheetBatchOperationResponse {
+  sheetId: string
+  newVersion: number
+  appliedOperations: Array<{
+    operationId: string
+    type: SpreadsheetBatchOperation['type']
+  }>
+  operationResults: Array<{
+    operationId: string
+    type: SpreadsheetBatchOperation['type']
+    result: Record<string, unknown>
+  }>
+  idempotentReplay: boolean
 }
 
 // Map backend permission to frontend permission
@@ -168,6 +230,7 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
         id: sheet.id as string,
         name: sheet.name as string,
         description: sheet.description as string | undefined,
+        version: (sheet.version as number | undefined) ?? 0,
         viewType:
           (sheet.viewType as SpreadsheetSheet['viewType'] | undefined) ||
           ((sheet.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
@@ -180,8 +243,8 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
         entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
         chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
         data,
-        automations: (sheet.automations as SpreadsheetSheet['automations']) || [],
-        workflowLinks: (sheet.workflowLinks as SpreadsheetSheet['workflowLinks']) || []
+        automations: [],
+        workflowLinks: []
       }
     }),
     sharedWith: [],
@@ -196,40 +259,6 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
  * Spreadsheet API Service
  */
 export const SpreadsheetApiService = {
-  /**
-   * Emergency flush: persist row updates with `keepalive: true` so the browser
-   * completes the requests even during page unload (beforeunload / visibilitychange).
-   * Fire-and-forget — callers should NOT await this.
-   */
-  flushRowUpdates(
-    appId: string,
-    sheetId: string,
-    updates: Array<{ rowId: string; data: Record<string, unknown> }>
-  ): void {
-    if (updates.length === 0) return
-    const token = getAuthToken()
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    }
-    // Browsers enforce a hard 64 KB limit on fetch requests with keepalive:true.
-    // Payloads that exceed this limit are silently dropped, which causes large
-    // text values to be lost when the user refreshes before the normal debounce
-    // completes. For oversized payloads we still fire the request without
-    // keepalive so the browser at least attempts it during the unload window.
-    const KEEPALIVE_LIMIT = 60 * 1024 // 60 KB — leave a small safety margin
-    for (const { rowId, data } of updates) {
-      const body = JSON.stringify(data)
-      const useKeepalive = new Blob([body]).size < KEEPALIVE_LIMIT
-      fetch(`${API_URL}/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`, {
-        method: 'PATCH',
-        headers,
-        body,
-        ...(useKeepalive ? { keepalive: true } : {})
-      }).catch(() => {})
-    }
-  },
-
   // ============ Apps ============
 
   /**
@@ -275,8 +304,7 @@ export const SpreadsheetApiService = {
         permission: mapPermission(app.permission as string | undefined),
         isShared: app.isShared as boolean | undefined,
         isOwner: !app.isShared,
-        sharedBy: app.sharedBy as string | undefined,
-        settings: app.settings as Record<string, unknown> | undefined
+        sharedBy: app.sharedBy as string | undefined
       }
     })
   },
@@ -406,6 +434,7 @@ export const SpreadsheetApiService = {
         id: sheet.id as string,
         name: sheet.name as string,
         description: sheet.description as string | undefined,
+        version: (sheet.version as number | undefined) ?? 0,
         viewType:
           (sheet.viewType as SpreadsheetSheet['viewType'] | undefined) ||
           ((sheet.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
@@ -418,8 +447,8 @@ export const SpreadsheetApiService = {
         entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
         chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
         data: [],
-        automations: (sheet.automations as SpreadsheetSheet['automations']) || [],
-        workflowLinks: (sheet.workflowLinks as SpreadsheetSheet['workflowLinks']) || []
+        automations: [],
+        workflowLinks: []
       }
     } catch (error) {
       console.error('Failed to get sheet:', error)
@@ -451,6 +480,7 @@ export const SpreadsheetApiService = {
       id: created.id as string,
       name: created.name as string,
       description: created.description as string | undefined,
+      version: (created.version as number | undefined) ?? 0,
       viewType:
         (created.viewType as SpreadsheetSheet['viewType'] | undefined) ||
         ((created.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
@@ -461,93 +491,42 @@ export const SpreadsheetApiService = {
       views: (created.views as SpreadsheetSheet['views']) || [],
       settings: (created.settings as SpreadsheetSheet['settings']) || {},
       data: [],
-      automations: (created.automations as SpreadsheetSheet['automations']) || [],
-      workflowLinks: (created.workflowLinks as SpreadsheetSheet['workflowLinks']) || []
+      automations: [],
+      workflowLinks: []
     }
   },
 
   /**
    * Update a sheet
-   *
-   * Requests are serialized per sheet to prevent concurrent PATCH race
-   * conditions. If the backend responds with column orders that differ from
-   * what was sent (a known JSONB merge bug in TypeORM), a single correction
-   * PATCH is automatically retried.
    */
   async updateSheet(appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet> {
-    const queueKey = `${appId}/${sheetId}`
-
-    // Chain onto any pending request for the same sheet so they execute
-    // sequentially. If the previous request failed we still proceed.
-    const prev = _sheetUpdateQueue.get(queueKey) ?? Promise.resolve()
-    const next = prev
-      .catch(() => {
-        /* swallow – we still want to run */
-      })
-      .then(() => this._doUpdateSheet(appId, sheetId, updates))
-
-    _sheetUpdateQueue.set(queueKey, next)
-
-    // Clean up the queue entry once settled to avoid memory leaks.
-    next.finally(() => {
-      if (_sheetUpdateQueue.get(queueKey) === next) {
-        _sheetUpdateQueue.delete(queueKey)
-      }
-    })
-
-    return next
-  },
-
-  /** @internal Actual update logic (called via the serialization queue). */
-  async _doUpdateSheet(appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet> {
     debugLog('updateSheet', appId, sheetId, updates)
 
-    const payload: Record<string, unknown> = {
+    const payload = {
       name: updates.name,
       description: updates.description,
       columns: updates.columns,
       views: updates.views,
-      settings: updates.settings,
-      automations: updates.automations,
-      workflowLinks: updates.workflowLinks
+      settings: updates.settings
     }
 
     // Remove undefined
     Object.keys(payload).forEach(key => {
-      if (payload[key] === undefined) {
-        delete payload[key]
+      if (payload[key as keyof typeof payload] === undefined) {
+        delete payload[key as keyof typeof payload]
       }
     })
 
-    const sentColumns = payload.columns as SpreadsheetSheet['columns'] | undefined
-
-    let updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
+    const updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
       method: 'PATCH',
       body: JSON.stringify(payload)
     })
-
-    // ── Correction retry ──────────────────────────────────────────────
-    // The remote backend may merge JSONB arrays instead of replacing them,
-    // which causes new columns to be appended at the end with stale order
-    // values on existing columns. When that happens, re-sending the same
-    // payload corrects the stored orders because all columns now exist in
-    // the backend (the merge updates properties instead of appending).
-    if (sentColumns && Array.isArray(updated.columns)) {
-      const sentOrder = sentColumns.map(c => c.name).join(',')
-      const returnedOrder = (updated.columns as Array<{ name: string }>).map(c => c.name).join(',')
-
-      if (sentOrder !== returnedOrder) {
-        updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload)
-        })
-      }
-    }
 
     return {
       id: updated.id as string,
       name: updated.name as string,
       description: updated.description as string | undefined,
+      version: (updated.version as number | undefined) ?? 0,
       viewType:
         (updated.viewType as SpreadsheetSheet['viewType'] | undefined) ||
         ((updated.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
@@ -558,8 +537,8 @@ export const SpreadsheetApiService = {
       views: (updated.views as SpreadsheetSheet['views']) || [],
       settings: (updated.settings as SpreadsheetSheet['settings']) || {},
       data: [],
-      automations: (updated.automations as SpreadsheetSheet['automations']) || [],
-      workflowLinks: (updated.workflowLinks as SpreadsheetSheet['workflowLinks']) || []
+      automations: [],
+      workflowLinks: []
     }
   },
 
@@ -580,8 +559,7 @@ export const SpreadsheetApiService = {
   // ============ Rows ============
 
   /**
-   * Get rows for a sheet.
-   * Automatically paginates through all pages to ensure every row is loaded.
+   * Get rows for a sheet
    */
   async getRows(
     appId: string,
@@ -589,56 +567,58 @@ export const SpreadsheetApiService = {
     options?: { page?: number; limit?: number }
   ): Promise<Array<Record<string, unknown>>> {
     try {
-      const pageSize = options?.limit ?? 100
-      let currentPage = options?.page ?? 1
-      const allRows: Array<Record<string, unknown>> = []
+      const params = new URLSearchParams()
+      if (options?.page) params.set('page', options.page.toString())
+      if (options?.limit) params.set('limit', options.limit.toString())
 
-      // Fetch pages until all rows are loaded
+      const queryString = params.toString()
+      const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows${queryString ? `?${queryString}` : ''}`
 
-      while (true) {
-        const params = new URLSearchParams()
-        params.set('page', currentPage.toString())
-        params.set('limit', pageSize.toString())
+      debugLog('getRows', endpoint)
 
-        const queryString = params.toString()
-        const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows?${queryString}`
-
-        debugLog('getRows', endpoint)
-
-        const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
-
-        const pageRows = response.items.map(row => {
-          const rowData = (((row as Record<string, unknown>).data as Record<string, unknown>) ||
-            {}) as SpreadsheetRowData
-          const clientRowId = rowData._clientRowId
-          if (clientRowId) {
-            return {
-              ...rowData,
-              _id: clientRowId,
-              _rowUuid: (row as Record<string, unknown>).id as string
-            }
-          }
-          return {
-            ...rowData,
-            _id: (row as Record<string, unknown>).id as string
-          }
-        })
-
-        allRows.push(...pageRows)
-
-        // If we fetched a specific page (caller passed page option), return just that page
-        if (options?.page) break
-
-        // Otherwise, keep fetching until we have all pages
-        if (currentPage >= (response.totalPages || 1)) break
-        currentPage++
-      }
-
-      return allRows
+      const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
+      return response.items.map(mapApiRowToFrontendRow)
     } catch (error) {
       console.error('Failed to get rows:', error)
       return []
     }
+  },
+
+  /**
+   * Fetch ALL rows for a sheet (auto-paginates).
+   *
+   * Use this when you need a complete dataset (e.g. Univer snapshot bootstrap),
+   * not just the default first page (backend default limit is 100).
+   */
+  async getAllRows(
+    appId: string,
+    sheetId: string,
+    options?: {
+      pageSize?: number
+      maxPages?: number
+    }
+  ): Promise<Array<Record<string, unknown>>> {
+    const pageSize = Math.max(1, Math.min(options?.pageSize ?? 1000, 5000))
+    const maxPages = Math.max(1, options?.maxPages ?? 250)
+    const all: Array<Record<string, unknown>> = []
+
+    for (let page = 1; page <= maxPages; page++) {
+      const params = new URLSearchParams()
+      params.set('page', page.toString())
+      params.set('limit', pageSize.toString())
+
+      const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows?${params.toString()}`
+      debugLog('getAllRows', endpoint)
+
+      const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
+      all.push(...response.items.map(mapApiRowToFrontendRow))
+
+      if (response.items.length === 0) break
+      if (response.items.length < pageSize) break
+      if (response.totalPages && page >= response.totalPages) break
+    }
+
+    return all
   },
 
   /**
@@ -724,23 +704,6 @@ export const SpreadsheetApiService = {
   },
 
   /**
-   * Reorder rows by updating their positions
-   */
-  async reorderRows(appId: string, sheetId: string, rowIds: string[]): Promise<boolean> {
-    try {
-      debugLog('reorderRows', appId, sheetId, rowIds.length, 'rows')
-      await apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/rows/reorder`, {
-        method: 'PATCH',
-        body: JSON.stringify({ rowIds })
-      })
-      return true
-    } catch (error) {
-      console.error('Failed to reorder rows:', error)
-      return false
-    }
-  },
-
-  /**
    * Bulk add rows
    */
   async bulkAddRows(
@@ -762,6 +725,77 @@ export const SpreadsheetApiService = {
       _id: row.id,
       ...(row.data as Record<string, unknown>)
     }))
+  },
+
+  async applyOperationBatch(
+    appId: string,
+    sheetId: string,
+    payload: {
+      baseVersion: number
+      operations: SpreadsheetBatchOperation[]
+      batchId?: string
+    }
+  ): Promise<SpreadsheetBatchOperationResponse> {
+    debugLog('applyOperationBatch', appId, sheetId, {
+      baseVersion: payload.baseVersion,
+      operationCount: payload.operations.length
+    })
+
+    return apiRequest<SpreadsheetBatchOperationResponse>(`/spreadsheets/${appId}/sheets/${sheetId}/operations/batch`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  },
+
+  async getSheetSnapshot(
+    appId: string,
+    sheetId: string
+  ): Promise<{
+    sheet: Record<string, unknown>
+    rows: Array<Record<string, unknown>>
+    version: number
+  }> {
+    return apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/snapshot`)
+  },
+
+  async getSheetChangesSince(
+    appId: string,
+    sheetId: string,
+    sinceVersion: number
+  ): Promise<{
+    sheetId: string
+    currentVersion: number
+    changes: Array<Record<string, unknown>>
+    requiresSnapshot: boolean
+  }> {
+    return apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/changes?sinceVersion=${sinceVersion}`)
+  },
+
+  async saveUniverSnapshot(
+    appId: string,
+    sheetId: string,
+    payload: {
+      version: number
+      snapshot: Record<string, unknown>
+    }
+  ): Promise<{ sheetId: string; version: number; saved: boolean }> {
+    debugLog('saveUniverSnapshot', appId, sheetId, { version: payload.version })
+    return apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/univer-snapshot`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  },
+
+  async getUniverSnapshot(
+    appId: string,
+    sheetId: string
+  ): Promise<{
+    sheetId: string
+    version: number
+    updatedAt: string | null
+    snapshot: Record<string, unknown> | null
+  }> {
+    return apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/univer-snapshot`)
   },
 
   // ============ File Parsing ============
@@ -1222,13 +1256,13 @@ export const SpreadsheetApiService = {
         type: c.type as Comment['type'],
         content: c.content as string,
         createdBy: c.createdBy as string,
-        createdByName: (c.createdByName ?? c.created_by_name) as string | undefined,
-        createdByAvatar: (c.createdByAvatar ?? c.created_by_avatar) as string | undefined,
+        createdByName: c.createdByName as string | undefined,
+        createdByAvatar: c.createdByAvatar as string | undefined,
         createdAt: c.createdAt as string,
-        resolvedAt: (c.resolvedAt ?? c.resolved_at) as string | undefined,
-        cellReference: (c.cellReference ?? c.cell_reference) as string | undefined,
-        sheetId: (c.sheetId ?? c.sheet_id) as string | undefined,
-        parentId: (c.parentId ?? c.parent_id) as string | undefined,
+        resolvedAt: c.resolvedAt as string | undefined,
+        cellReference: c.cellReference as string | undefined,
+        sheetId: c.sheetId as string | undefined,
+        parentId: c.parentId as string | undefined,
         replies: (c.replies as Record<string, unknown>[] | undefined)?.map(r => ({
           id: r.id as string,
           entityId: appId,
@@ -1236,11 +1270,11 @@ export const SpreadsheetApiService = {
           type: r.type as Comment['type'],
           content: r.content as string,
           createdBy: r.createdBy as string,
-          createdByName: (r.createdByName ?? r.created_by_name) as string | undefined,
-          createdByAvatar: (r.createdByAvatar ?? r.created_by_avatar) as string | undefined,
+          createdByName: r.createdByName as string | undefined,
+          createdByAvatar: r.createdByAvatar as string | undefined,
           createdAt: r.createdAt as string,
-          cellReference: (r.cellReference ?? r.cell_reference) as string | undefined,
-          sheetId: (r.sheetId ?? r.sheet_id) as string | undefined,
+          cellReference: r.cellReference as string | undefined,
+          sheetId: r.sheetId as string | undefined,
           parentId: c.id as string
         }))
       }))
@@ -1353,24 +1387,34 @@ export const SpreadsheetApiService = {
   // ============ Locks ============
 
   async lockFile(appId: string, input?: LockFileInput): Promise<FileLock | null> {
-    const response = await apiRequest<Record<string, unknown>>(`/locks/spreadsheet_app/${appId}`, {
-      method: 'POST',
-      body: JSON.stringify(input || {})
-    })
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/locks/spreadsheet_app/${appId}`, {
+        method: 'POST',
+        body: JSON.stringify(input || {})
+      })
 
-    return {
-      isLocked: true,
-      lockedBy: response.lockedBy as string,
-      lockedByName: response.lockedByName as string | undefined,
-      lockedAt: response.lockedAt as string,
-      lockExpiry: response.lockExpiry as string | undefined,
-      lockReason: response.lockReason as string | undefined
+      return {
+        isLocked: true,
+        lockedBy: response.lockedBy as string,
+        lockedByName: response.lockedByName as string | undefined,
+        lockedAt: response.lockedAt as string,
+        lockExpiry: response.lockExpiry as string | undefined,
+        lockReason: response.lockReason as string | undefined
+      }
+    } catch (error) {
+      console.error('Failed to lock file:', error)
+      return null
     }
   },
 
   async unlockFile(appId: string): Promise<boolean> {
-    await apiRequest(`/locks/spreadsheet_app/${appId}`, { method: 'DELETE' })
-    return true
+    try {
+      await apiRequest(`/locks/spreadsheet_app/${appId}`, { method: 'DELETE' })
+      return true
+    } catch (error) {
+      console.error('Failed to unlock file:', error)
+      return false
+    }
   },
 
   async getLockStatus(appId: string): Promise<FileLock | null> {
