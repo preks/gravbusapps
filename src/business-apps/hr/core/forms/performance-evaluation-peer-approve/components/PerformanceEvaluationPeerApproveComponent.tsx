@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Button,
   Alert,
@@ -8,8 +8,11 @@ import {
   CardHeader,
   CardTitle,
   Spinner,
+  Label,
   useTranslation
 } from '@newwork/nw-design-system'
+import { EmployeeSelect } from '@/components/employee-select'
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import { usePerformanceEvaluationPeerApprove } from '../context/PerformanceEvaluationPeerApproveContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import FormHeader from '../../components/FormHeader'
@@ -20,8 +23,37 @@ const prefixDataTestId = 'PerformanceEvaluationPeerApprove'
 
 const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
   const { t } = useTranslation(translations)
-  const { nominatedPeers, peersLoading, isLoading, error, onApprove, employeeForHeader, employeeForHeaderLoading } =
-    usePerformanceEvaluationPeerApprove()
+  const {
+    nominatedPeers,
+    peersLoading,
+    isLoading,
+    error,
+    onApprove,
+    employeeForHeader,
+    employeeForHeaderLoading,
+    peerReplacements,
+    setPeerReplacement,
+    replacementEmployees,
+    replacementEmployeesLoading,
+    searchReplacementEmployees
+  } = usePerformanceEvaluationPeerApprove()
+
+  const employeeOptionsForSelect = useMemo<Employee[]>(
+    () =>
+      replacementEmployees.map(emp => ({
+        id: emp.id,
+        displayName: emp.name,
+        firstName: emp.name.split(' ')[0] || '',
+        lastName: emp.name.split(' ').slice(1).join(' ') || '',
+        pictureThumbnail: emp.pictureThumbnail,
+        userId: emp.userId,
+        employeePosition: {
+          jobPosition: emp.jobTitle ? { name: emp.jobTitle } : undefined,
+          organizationalUnit: emp.department ? { name: emp.department } : undefined
+        }
+      })),
+    [replacementEmployees]
+  )
 
   const [approving, setApproving] = useState(false)
 
@@ -70,16 +102,31 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
               <p className="gba:text-sm gba:text-muted-foreground">{t('no-peers')}</p>
             ) : (
               <ul
-                className="gba:space-y-2 gba:list-none gba:pl-0"
+                className="gba:space-y-4 gba:list-none gba:pl-0"
                 data-testid={formatDataTestId(prefixDataTestId, 'PeerList')}
               >
                 {nominatedPeers.map((peer, index) => (
                   <li
                     key={peer.id}
-                    className="gba:py-2 gba:px-3 gba:rounded-md gba:bg-muted gba:text-foreground gba:text-sm"
+                    className="gba:space-y-2 gba:py-2 gba:px-3 gba:rounded-md gba:bg-muted gba:border gba:border-border"
                     data-testid={formatDataTestId(prefixDataTestId, 'PeerItem', String(index))}
                   >
-                    {peer.name}
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">{peer.name}</div>
+                    <div className="gba:space-y-1">
+                      <Label className="gba:text-xs gba:font-normal gba:text-muted-foreground">
+                        {t('replace-with-label')}
+                      </Label>
+                      <EmployeeSelect
+                        value={peerReplacements[peer.id] ?? null}
+                        onValueChange={value => setPeerReplacement(peer.id, value ?? null)}
+                        placeholder={t('replace-with-placeholder')}
+                        employees={employeeOptionsForSelect}
+                        loading={replacementEmployeesLoading}
+                        onSearch={searchReplacementEmployees}
+                        data-testid={formatDataTestId(prefixDataTestId, 'ReplaceSelect', peer.id)}
+                        className="gba:w-full"
+                      />
+                    </div>
                   </li>
                 ))}
               </ul>
