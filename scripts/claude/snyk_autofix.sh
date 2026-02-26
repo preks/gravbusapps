@@ -116,7 +116,7 @@ def summarize(payload):
                     codeflow_summary = f" | flow: {head} -> {tail}"
                 else:
                     codeflow_summary = f" | flow: {head}"
-        lines.append(f"- {severity.upper()}: {title} — {message} [{file_path}{line}]{codeflow_summary}")
+        lines.append(f"- {severity.upper()}: {title} - {message} [{file_path}{line}]{codeflow_summary}")
     return "\n".join(lines)
 
 summary = summarize(data)
