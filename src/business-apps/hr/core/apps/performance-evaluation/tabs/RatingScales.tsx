@@ -17,6 +17,7 @@ import {
 import { PencilSimple, Plus, Trash } from '@phosphor-icons/react'
 import type { RatingScale } from '../types'
 import RatingScaleEditorModal, { RatingScaleValues } from '../RatingScaleEditorModal'
+import { scaleTypeToDisplayMode } from '../hooks/useInsertRatingScale'
 import translations from '../_i18n'
 
 /** Display "1 star"/"2 stars" etc. as ★, ★★, … in the Rating Scales table. */
@@ -28,6 +29,22 @@ function formatRatingScaleValueForDisplay(value: string): string {
     return '★'.repeat(n)
   }
   return value
+}
+
+/** For STAR_RATING_SCALE_TYPE, API stores "1 star", "2 stars" – convert to ★, ★★ for edit modal preview. */
+function valuesForEditModal(scale: RatingScale): string[] {
+  if (scale.scaleType === 'STAR_RATING_SCALE_TYPE') {
+    return scale.values.map((label, i) => {
+      const re = /^(\d+)\s+stars?$/i
+      const match = re.exec(label.trim())
+      if (match) {
+        const n = Math.max(0, Math.min(parseInt(match[1], 10), 10))
+        return '★'.repeat(n)
+      }
+      return '★'.repeat(i + 1)
+    })
+  }
+  return scale.values
 }
 
 export interface RatingScalesProps {
@@ -156,8 +173,11 @@ export const RatingScales: React.FC<RatingScalesProps> = ({
           editingScale
             ? {
                 id: editingScale.id,
+                version: editingScale.version,
                 name: editingScale.name,
-                values: editingScale.values
+                values: valuesForEditModal(editingScale),
+                numValues: editingScale.values.length,
+                displayMode: scaleTypeToDisplayMode(editingScale.scaleType)
               }
             : undefined
         }

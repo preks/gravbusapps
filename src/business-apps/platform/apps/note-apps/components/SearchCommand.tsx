@@ -6,32 +6,11 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  Input,
-  Spinner,
-  Badge,
-  ScrollArea
-} from '@newwork/nw-design-system'
-import {
-  Search,
-  FileText,
-  Plus,
-  Pin,
-  Archive,
-  Trash2,
-  Share2,
-  Folder,
-  Clock,
-  Star,
-  Hash,
-  ArrowRight,
-  Command,
-  CornerDownLeft
-} from 'lucide-react'
+import { Dialog, DialogContent, Input, Spinner, Badge, ScrollArea, useTranslation } from '@newwork/nw-design-system'
+import { Search, FileText, Plus, Pin, Archive, Share2, Folder, Command, CornerDownLeft } from 'lucide-react'
 import type { NoteSummary, NoteColor } from '../types'
 import { NoteApiService } from '../services/NoteApiService'
+import translations from '../_i18n'
 
 export interface SearchCommandProps {
   open: boolean
@@ -65,12 +44,9 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
   onOpenChange,
   onCreateNote,
   onOpenNote,
-  onTogglePin,
-  onArchiveNote,
-  onShareNote,
-  onDeleteNote,
   'data-testid': testId = 'search-command'
 }) => {
+  const { t } = useTranslation(translations)
   // State
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -110,7 +86,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
         try {
           const result = await NoteApiService.listNotes({ search: query, limit: 10 })
           setSearchResults(result.items)
-        } catch (e) {
+        } catch {
           setSearchResults([])
         } finally {
           setIsSearching(false)
@@ -135,8 +111,8 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
   const createActions: CommandItem[] = [
     {
       id: 'create-note',
-      label: 'New Note',
-      description: 'Create a blank note',
+      label: t('search-new-note'),
+      description: t('search-new-note-desc'),
       icon: <Plus className="gba:w-4 gba:h-4" />,
       category: 'create',
       action: () => {
@@ -147,8 +123,8 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     },
     {
       id: 'create-folder',
-      label: 'New Folder',
-      description: 'Create a new folder',
+      label: t('search-new-folder'),
+      description: t('search-new-folder-desc'),
       icon: <Folder className="gba:w-4 gba:h-4" />,
       category: 'create',
       action: () => {
@@ -163,8 +139,8 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
   const quickActions: CommandItem[] = [
     {
       id: 'action-pinned',
-      label: 'Go to Pinned',
-      description: 'View pinned notes',
+      label: t('search-go-pinned'),
+      description: t('search-go-pinned-desc'),
       icon: <Pin className="gba:w-4 gba:h-4" />,
       category: 'actions',
       action: () => {
@@ -175,8 +151,8 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     },
     {
       id: 'action-archived',
-      label: 'Go to Archive',
-      description: 'View archived notes',
+      label: t('search-go-archive'),
+      description: t('search-go-archive-desc'),
       icon: <Archive className="gba:w-4 gba:h-4" />,
       category: 'actions',
       action: () => {
@@ -187,8 +163,8 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     },
     {
       id: 'action-shared',
-      label: 'Go to Shared',
-      description: 'View shared notes',
+      label: t('search-go-shared'),
+      description: t('search-go-shared-desc'),
       icon: <Share2 className="gba:w-4 gba:h-4" />,
       category: 'actions',
       action: () => {
@@ -208,7 +184,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     recentNotes.forEach(note => {
       commandItems.push({
         id: `recent-${note.id}`,
-        label: note.title || 'Untitled',
+        label: note.title || t('title-untitled'),
         description: note.preview?.slice(0, 50),
         icon: note.icon ? <span>{note.icon}</span> : <FileText className="gba:w-4 gba:h-4" />,
         category: 'recent',
@@ -216,7 +192,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
           onOpenNote(note.id)
           onOpenChange(false)
         },
-        badge: note.isPinned ? 'Pinned' : undefined
+        badge: note.isPinned ? t('sidebar-pinned') : undefined
       })
     })
 
@@ -227,7 +203,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     searchResults.forEach(note => {
       commandItems.push({
         id: `search-${note.id}`,
-        label: note.title || 'Untitled',
+        label: note.title || t('title-untitled'),
         description: note.preview?.slice(0, 50),
         icon: note.icon ? <span>{note.icon}</span> : <FileText className="gba:w-4 gba:h-4" />,
         category: 'notes',
@@ -235,7 +211,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
           onOpenNote(note.id)
           onOpenChange(false)
         },
-        badge: note.isPinned ? 'Pinned' : note.isShared ? 'Shared' : undefined
+        badge: note.isPinned ? t('sidebar-pinned') : note.isShared ? t('label-shared') : undefined
       })
     })
 
@@ -243,8 +219,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     const queryLower = query.toLowerCase()
     createActions.forEach(action => {
       const matches =
-        action.label.toLowerCase().includes(queryLower) ||
-        action.keywords?.some(k => k.includes(queryLower))
+        action.label.toLowerCase().includes(queryLower) || action.keywords?.some(k => k.includes(queryLower))
       if (matches) {
         commandItems.push(action)
       }
@@ -253,8 +228,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     // Add matching quick actions
     quickActions.forEach(action => {
       const matches =
-        action.label.toLowerCase().includes(queryLower) ||
-        action.keywords?.some(k => k.includes(queryLower))
+        action.label.toLowerCase().includes(queryLower) || action.keywords?.some(k => k.includes(queryLower))
       if (matches) {
         commandItems.push(action)
       }
@@ -306,10 +280,10 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
   })
 
   const categoryLabels: Record<CommandCategory, string> = {
-    recent: 'Recent',
-    notes: 'Notes',
-    actions: 'Quick Actions',
-    create: 'Create'
+    recent: t('search-category-recent'),
+    notes: t('search-category-notes'),
+    actions: t('search-category-actions'),
+    create: t('search-category-create')
   }
 
   // Calculate item index for selection
@@ -317,17 +291,14 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="gba:max-w-xl gba:p-0 gba:overflow-hidden"
-        data-testid={testId}
-      >
+      <DialogContent className="gba:max-w-xl gba:p-0 gba:overflow-hidden" data-testid={testId}>
         {/* Search Input */}
         <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:border-b">
           <Search className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:flex-shrink-0" />
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Search notes or type a command..."
+            placeholder={t('search-placeholder')}
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -336,8 +307,8 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
           />
           {isSearching && <Spinner size="sm" />}
           <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-            <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono">esc</kbd>
-            <span>to close</span>
+            <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono">{t('search-key-esc')}</kbd>
+            <span>{t('search-to-close')}</span>
           </div>
         </div>
 
@@ -347,17 +318,17 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
             {commandItems.length === 0 ? (
               <div className="gba:py-8 gba:text-center gba:text-muted-foreground">
                 {isSearching ? (
-                  <p>Searching...</p>
+                  <p>{t('search-searching')}</p>
                 ) : query.length >= 2 ? (
                   <>
                     <Search className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                    <p>No results found for "{query}"</p>
-                    <p className="gba:text-sm gba:mt-1">Try a different search term</p>
+                    <p>{t('search-no-results', { query })}</p>
+                    <p className="gba:text-sm gba:mt-1">{t('search-try-different')}</p>
                   </>
                 ) : (
                   <>
                     <FileText className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                    <p>Start typing to search notes</p>
+                    <p>{t('search-start-typing')}</p>
                   </>
                 )}
               </div>
@@ -379,9 +350,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
                         <button
                           key={item.id}
                           className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:text-left gba:transition-colors ${
-                            isSelected
-                              ? 'gba:bg-primary/10 gba:text-primary'
-                              : 'hover:gba:bg-muted'
+                            isSelected ? 'gba:bg-primary/10 gba:text-primary' : 'hover:gba:bg-muted'
                           }`}
                           onClick={item.action}
                           onMouseEnter={() => setSelectedIndex(itemIndex)}
@@ -397,9 +366,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
                           <div className="gba:flex-1 gba:min-w-0">
                             <p className="gba:font-medium gba:truncate">{item.label}</p>
                             {item.description && (
-                              <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                                {item.description}
-                              </p>
+                              <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{item.description}</p>
                             )}
                           </div>
                           {item.badge && (
@@ -427,16 +394,16 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
               <span className="gba:flex gba:items-center gba:gap-1">
                 <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono">↑</kbd>
                 <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono">↓</kbd>
-                <span>to navigate</span>
+                <span>{t('search-to-navigate')}</span>
               </span>
               <span className="gba:flex gba:items-center gba:gap-1">
                 <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono">↵</kbd>
-                <span>to select</span>
+                <span>{t('search-to-select')}</span>
               </span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
               <Command className="gba:w-3 gba:h-3" />
-              <span>K to open</span>
+              <span>{t('search-k-to-open')}</span>
             </div>
           </div>
         </div>

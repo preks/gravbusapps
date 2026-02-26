@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
-import { PaperPlaneTilt, Paperclip, At, X, File } from '@phosphor-icons/react'
+import { PaperPlaneTilt, Paperclip, At, XIcon, File } from '@phosphor-icons/react'
 import { useEntityMentions, type EntityReference, type MessageEntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
+import type { Message } from '../types'
 
 // Persist focus state across unmounts caused by parent re-renders
 let lastHadFocus = false
@@ -16,7 +17,13 @@ interface Attachment {
 }
 
 interface MessageInputProps {
-  onSend: (content: string, entityReferences?: MessageEntityReference[], attachments?: Attachment[]) => void
+  onSend: (
+    content: string,
+    entityReferences?: MessageEntityReference[],
+    attachments?: Attachment[],
+    parentId?: string,
+    quotedMessageId?: string
+  ) => void
   onTypingStart: () => void
   onTypingStop: () => void
   disabled?: boolean
@@ -34,6 +41,8 @@ interface MessageInputProps {
   // Every Experts active in conversation
   activeExperts?: ActiveExpert[]
   t: (key: string, params?: Record<string, any>) => string
+  quotedMessage?: Message | null
+  onCancelQuote?: () => void
 }
 
 export const MessageInput: React.FC<MessageInputProps> = memo(
@@ -50,7 +59,9 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     onRegisterMentionReady,
     onFocusReady,
     activeExperts = [],
-    t
+    t,
+    quotedMessage,
+    onCancelQuote
   }) => {
     const placeholderText = placeholder || t('chat-input-placeholder')
     const [uncontrolledValue, setUncontrolledValue] = useState('')
@@ -194,10 +205,13 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
           }
         }
 
+        const quotedMessageId = quotedMessage?.id
         onSend(
           trimmedValue,
           entitiesToSend.length > 0 ? entitiesToSend : undefined,
-          attachments.length > 0 ? attachments : undefined
+          attachments.length > 0 ? attachments : undefined,
+          undefined,
+          quotedMessageId
         )
         if (controlledValue !== undefined) {
           onChange?.('')
@@ -208,6 +222,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
         setIsTyping(false)
         onTypingStop()
         clearMentions()
+        onCancelQuote?.()
 
         // Clear timers
         if (typingTimerRef.current) {
@@ -969,11 +984,44 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
 
     const hasContent = value.trim() || attachments.length > 0
 
+    const quotedName =
+      quotedMessage?.sender?.displayName ||
+      [quotedMessage?.sender?.firstName, quotedMessage?.sender?.lastName].filter(Boolean).join(' ').trim() ||
+      quotedMessage?.sender?.username ||
+      t('chat-user')
+
     return (
       <div
         className="gba:flex gba:flex-col gba:border-t gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0"
         data-testid="message-input"
       >
+        {/* Quoting strip */}
+        {quotedMessage && (
+          <div
+            className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:border-b gba:border-border/50 gba:bg-muted/30"
+            data-testid="message-input-quoting"
+          >
+            <span className="gba:text-xs gba:text-muted-foreground">
+              {t('chat-quoting-name', { name: quotedName })}
+            </span>
+            {quotedMessage.content && (
+              <span className="gba:text-xs gba:text-foreground/80 gba:truncate gba:max-w-[200px]">
+                {quotedMessage.content.length > 60 ? `${quotedMessage.content.slice(0, 60)}…` : quotedMessage.content}
+              </span>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="gba:ml-auto gba:flex-shrink-0 gba:h-6 gba:w-6"
+              onClick={onCancelQuote}
+              aria-label={t('chat-cancel-quote')}
+              data-testid="message-input-quoting-cancel"
+            >
+              <XIcon className="gba:w-3.5 gba:h-3.5" />
+            </Button>
+          </div>
+        )}
         {/* Attachment Preview */}
         {attachments.length > 0 && (
           <div className="gba:flex gba:gap-2 gba:p-2 gba:pb-0 gba:flex-wrap">

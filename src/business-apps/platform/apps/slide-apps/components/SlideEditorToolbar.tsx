@@ -11,7 +11,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Bold,
@@ -28,6 +29,7 @@ import {
   Layout,
   ChevronDown
 } from 'lucide-react'
+import translations from '../_i18n'
 
 export interface SlideEditorToolbarProps {
   onFormatBold?: () => void
@@ -45,21 +47,23 @@ export interface SlideEditorToolbarProps {
   'data-testid'?: string
 }
 
-const LAYOUTS = [
-  { id: 'title', label: 'Title Slide', icon: '📄' },
-  { id: 'title-content', label: 'Title & Content', icon: '📋' },
-  { id: 'two-column', label: 'Two Columns', icon: '📊' },
-  { id: 'content-image', label: 'Content & Image', icon: '🖼️' },
-  { id: 'blank', label: 'Blank', icon: '⬜' }
-]
+const LAYOUT_IDS = ['title', 'title-content', 'two-column', 'content-image', 'blank'] as const
+const LAYOUT_ICONS: Record<(typeof LAYOUT_IDS)[number], string> = {
+  title: '📄',
+  'title-content': '📋',
+  'two-column': '📊',
+  'content-image': '🖼️',
+  blank: '⬜'
+}
 
-const THEMES = [
-  { id: 'default', label: 'Default', colors: ['#3b82f6', '#ffffff'] },
-  { id: 'dark', label: 'Dark', colors: ['#1e293b', '#f1f5f9'] },
-  { id: 'nature', label: 'Nature', colors: ['#16a34a', '#f0fdf4'] },
-  { id: 'sunset', label: 'Sunset', colors: ['#ea580c', '#fff7ed'] },
-  { id: 'ocean', label: 'Ocean', colors: ['#0ea5e9', '#f0f9ff'] }
-]
+const THEME_IDS = ['default', 'dark', 'nature', 'sunset', 'ocean'] as const
+const THEME_COLORS: Record<(typeof THEME_IDS)[number], string[]> = {
+  default: ['#3b82f6', '#ffffff'],
+  dark: ['#1e293b', '#f1f5f9'],
+  nature: ['#16a34a', '#f0fdf4'],
+  sunset: ['#ea580c', '#fff7ed'],
+  ocean: ['#0ea5e9', '#f0f9ff']
+}
 
 const FONT_SIZES = ['12px', '14px', '16px', '18px', '24px', '32px', '48px', '64px']
 
@@ -78,6 +82,7 @@ export const SlideEditorToolbar: React.FC<SlideEditorToolbarProps> = ({
   onChangeFontSize,
   'data-testid': testId = 'slide-editor-toolbar'
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <div
       className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:bg-card gba:flex-wrap"
@@ -147,7 +152,7 @@ export const SlideEditorToolbar: React.FC<SlideEditorToolbarProps> = ({
       {/* Insert Image */}
       <Button variant="ghost" size="sm" onClick={onInsertImage} data-testid={`${testId}-insert-image`}>
         <Image className="gba:w-4 gba:h-4 gba:mr-1" />
-        Image
+        {t('toolbar-image')}
       </Button>
 
       <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
@@ -157,15 +162,15 @@ export const SlideEditorToolbar: React.FC<SlideEditorToolbarProps> = ({
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" data-testid={`${testId}-layout`}>
             <Layout className="gba:w-4 gba:h-4 gba:mr-1" />
-            Layout
+            {t('toolbar-layout')}
             <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          {LAYOUTS.map(layout => (
-            <DropdownMenuItem key={layout.id} onClick={() => onChangeLayout?.(layout.id)}>
-              <span className="gba:mr-2">{layout.icon}</span>
-              {layout.label}
+          {LAYOUT_IDS.map(id => (
+            <DropdownMenuItem key={id} onClick={() => onChangeLayout?.(id)}>
+              <span className="gba:mr-2">{LAYOUT_ICONS[id]}</span>
+              {t(`toolbar-layout-${id.replace(/-/g, '-')}` as 'toolbar-layout-title')}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -176,16 +181,16 @@ export const SlideEditorToolbar: React.FC<SlideEditorToolbarProps> = ({
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" data-testid={`${testId}-theme`}>
             <Palette className="gba:w-4 gba:h-4 gba:mr-1" />
-            Theme
+            {t('toolbar-theme')}
             <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          {THEMES.map(theme => (
-            <DropdownMenuItem key={theme.id} onClick={() => onChangeTheme?.(theme.id)}>
+          {THEME_IDS.map(id => (
+            <DropdownMenuItem key={id} onClick={() => onChangeTheme?.(id)}>
               <div className="gba:flex gba:items-center gba:gap-2">
                 <div className="gba:flex gba:gap-1">
-                  {theme.colors.map(color => (
+                  {THEME_COLORS[id].map(color => (
                     <div
                       key={color}
                       className="gba:w-4 gba:h-4 gba:rounded gba:border"
@@ -193,7 +198,7 @@ export const SlideEditorToolbar: React.FC<SlideEditorToolbarProps> = ({
                     />
                   ))}
                 </div>
-                <span>{theme.label}</span>
+                <span>{t(`toolbar-theme-${id}` as 'toolbar-theme-default')}</span>
               </div>
             </DropdownMenuItem>
           ))}

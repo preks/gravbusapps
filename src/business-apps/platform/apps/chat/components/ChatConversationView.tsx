@@ -3,7 +3,7 @@
  * empty state, and message input.
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { ConversationHeader, type ActiveCallInfo } from './ConversationHeader'
 import { useMessageSearch } from '../hooks/useMessageSearch'
 import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
@@ -23,6 +23,7 @@ export interface ChatConversationViewProps {
   isMuted?: boolean
   onPin?: () => void
   onMute?: (muted: boolean) => void
+  onMarkAsUnread?: () => void
   isSingleViewMode: boolean
   viewMode: 'full' | 'compact' | 'mobile'
   onBack: () => void
@@ -67,6 +68,7 @@ export interface ChatConversationViewProps {
     registerFn: (entity: EntityReference, text: string, startIndex: number) => MessageEntityReference
   ) => void
   onFocusReady: (fn: () => void) => void
+  ensureMessageInList?: (messageId: string) => Promise<boolean>
 }
 
 export function ChatConversationView({
@@ -76,6 +78,7 @@ export function ChatConversationView({
   isMuted,
   onPin,
   onMute,
+  onMarkAsUnread,
   isSingleViewMode,
   viewMode,
   onBack,
@@ -117,13 +120,38 @@ export function ChatConversationView({
   draftMessage,
   onDraftChange,
   onRegisterMentionReady,
-  onFocusReady
+  onFocusReady,
+  ensureMessageInList
 }: Readonly<ChatConversationViewProps>) {
   const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(null)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchResultAvatarMap, setSearchResultAvatarMap] = useState<Map<string, string>>(new Map())
+  const [quotedMessage, setQuotedMessage] = useState<Message | null>(null)
+  const onCancelQuote = () => setQuotedMessage(null)
+  const onReplyWithQuote = (msg: Message) => setQuotedMessage(msg)
+
+  const navigateToMessage = useCallback(
+    async (messageId: string) => {
+      if (!activeConversationId || !ensureMessageInList) return
+      const found = await ensureMessageInList(messageId)
+      if (!found) return
+      // Defer scroll/highlight until after React has committed the new messages to the DOM
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setScrollToMessageId(messageId)
+          setHighlightedMessageId(messageId)
+          if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedMessageId(null)
+            highlightTimeoutRef.current = null
+          }, 5000)
+        })
+      })
+    },
+    [activeConversationId, ensureMessageInList]
+  )
   const { fetchAvatars } = useEmployeeAvatars(accessToken ?? '')
   const messageSearch = useMessageSearch({
     apiClient,
@@ -154,6 +182,7 @@ export function ChatConversationView({
   useEffect(() => {
     setIsSearchOpen(false)
     setHighlightedMessageId(null)
+    setQuotedMessage(null)
     if (highlightTimeoutRef.current) {
       clearTimeout(highlightTimeoutRef.current)
       highlightTimeoutRef.current = null
@@ -181,12 +210,13 @@ export function ChatConversationView({
           isMuted={isMuted}
           onPin={onPin}
           onMute={onMute}
+          onMarkAsUnread={onMarkAsUnread}
           onAudioCall={onAudioCall}
           onVideoCall={onVideoCall}
           onJoinCall={onJoinCall}
           showBackButton={isSingleViewMode}
           currentUserId={currentUserId}
-          compact={viewMode === 'compact'}
+          compact={viewMode !== 'full'}
           otherUserPresence={otherUserPresence}
           isCallEnabled={isCallEnabled}
           isInCall={isInCall}
@@ -203,15 +233,7 @@ export function ChatConversationView({
           searchResults={messageSearch.results}
           searchResultAvatarMap={searchResultAvatarMap}
           searchLoading={messageSearch.isLoading}
-          onSearchResultSelect={id => {
-            setScrollToMessageId(id)
-            setHighlightedMessageId(id)
-            if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
-            highlightTimeoutRef.current = setTimeout(() => {
-              setHighlightedMessageId(null)
-              highlightTimeoutRef.current = null
-            }, 5000)
-          }}
+          onSearchResultSelect={id => void navigateToMessage(id)}
           onSearchClear={messageSearch.clearSearch}
         />
         {activeExperts.length > 0 && (
@@ -239,6 +261,10 @@ export function ChatConversationView({
           scrollToMessageId={scrollToMessageId}
           onScrollToMessageDone={() => setScrollToMessageId(null)}
           highlightedMessageId={highlightedMessageId}
+          onReplyWithQuote={onReplyWithQuote}
+          onNavigateToQuotedMessage={
+            ensureMessageInList ? quotedMessageId => void navigateToMessage(quotedMessageId) : undefined
+          }
         />
         {isAIProcessing && (
           <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border/30 gba:bg-muted/20">
@@ -278,7 +304,11 @@ export function ChatConversationView({
           </div>
         )}
         <MessageInput
-          onSend={onSendMessageInput}
+          onSend={(content, entityRefs?, attachments?, parentId?, quotedMessageId?) => {
+            const qId = quotedMessage?.id ?? quotedMessageId
+            setQuotedMessage(null)
+            onSendMessageInput(content, entityRefs, attachments, parentId, qId)
+          }}
           onTypingStart={onTypingStart}
           onTypingStop={onTypingStop}
           disabled={false}
@@ -290,6 +320,8 @@ export function ChatConversationView({
           onFocusReady={onFocusReady}
           activeExperts={activeExperts}
           t={t}
+          quotedMessage={quotedMessage}
+          onCancelQuote={onCancelQuote}
         />
       </>
     )

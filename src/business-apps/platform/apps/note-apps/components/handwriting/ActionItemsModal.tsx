@@ -17,13 +17,15 @@ import {
   AvatarImage,
   AvatarFallback,
   Checkbox,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { ListTodo, Send, X, Search, User, Pencil, Trash2, Plus, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
 import type { NoteActionItemFlow } from '../../types'
+import translations from '../../_i18n'
 
 function toAvatarDataUrl(pictureThumbnail?: string): string | undefined {
   if (!pictureThumbnail) return undefined
@@ -74,7 +76,8 @@ const sendBlink = async (
     initiatorId: string
     noteId: string
     noteTitle: string
-  }
+  },
+  errorFallback: string
 ): Promise<{ success: boolean; workflowId?: string; error?: string }> => {
   try {
     const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
@@ -142,7 +145,7 @@ const sendBlink = async (
 
     return { success: true, workflowId }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send blink' }
+    return { success: false, error: err instanceof Error ? err.message : errorFallback }
   }
 }
 
@@ -157,6 +160,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
   onFlowsCreated,
   'data-testid': testId = 'action-items-modal'
 }) => {
+  const { t } = useTranslation(translations)
   // Convert raw action items to structured format
   const [items, setItems] = useState<ActionItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -285,7 +289,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
     const selectedItems = items.filter(item => item.selected && item.assignee && (item.text || '').trim().length > 0)
 
     if (selectedItems.length === 0) {
-      toast.error('Select at least one action item with text + assignee')
+      toast.error(t('action-items-toast-select'))
       return
     }
 
@@ -302,14 +306,18 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
         const text = (item.text || '').trim()
         if (!text) continue
 
-        const result = await sendBlink(accessToken, {
-          title: text.length > 80 ? text.substring(0, 77) + '...' : text,
-          message: `Action item from handwriting note "${noteTitle}":\n\n${text}`,
-          assigneeUserId: item.assignee.userId,
-          initiatorId: currentUserId,
-          noteId,
-          noteTitle
-        })
+        const result = await sendBlink(
+          accessToken,
+          {
+            title: text.length > 80 ? text.substring(0, 77) + '...' : text,
+            message: `Action item from handwriting note "${noteTitle}":\n\n${text}`,
+            assigneeUserId: item.assignee.userId,
+            initiatorId: currentUserId,
+            noteId,
+            noteTitle
+          },
+          t('action-items-blink-failed')
+        )
 
         if (result.success) {
           successCount++
@@ -332,10 +340,14 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
       }
 
       if (successCount > 0) {
-        toast.success(`Sent ${successCount} action item${successCount > 1 ? 's' : ''} as blinks`)
+        toast.success(t('action-items-toast-sent', { count: successCount }))
       }
       if (failCount > 0) {
-        toast.error(`Failed to send ${failCount} action item${failCount > 1 ? 's' : ''}`)
+        toast.error(
+          failCount === 1
+            ? t('action-items-toast-failed-single', { count: 1 })
+            : t('action-items-toast-failed-plural', { count: failCount })
+        )
       }
 
       if (createdFlows.length > 0) {
@@ -344,7 +356,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
       }
     } catch (error) {
       console.error('Failed to submit action items:', error)
-      toast.error('Failed to send action items')
+      toast.error(t('action-items-toast-error'))
     } finally {
       setIsSubmitting(false)
     }
@@ -360,18 +372,14 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
             <div className="gba:p-1.5 gba:rounded-md gba:bg-primary/10">
               <ListTodo className="gba:w-5 gba:h-5 gba:text-primary" />
             </div>
-            Action Items
+            {t('action-items-title')}
           </DialogTitle>
-          <DialogDescription>
-            Assign action items to team members. Selected items will be sent as blinks.
-          </DialogDescription>
+          <DialogDescription>{t('action-items-desc')}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:flex-1 gba:overflow-y-auto gba:py-4 gba:space-y-3">
           <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-            <div className="gba:text-xs gba:text-muted-foreground">
-              Tip: edit wording, remove items you don’t want, then assign.
-            </div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('action-items-tip')}</div>
             <Button
               variant="outline"
               size="sm"
@@ -380,7 +388,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
               data-testid={`${testId}-add-item`}
             >
               <Plus className="gba:w-4 gba:h-4" />
-              Add
+              {t('action-items-add')}
             </Button>
           </div>
 
@@ -388,10 +396,8 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
           <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:p-3 gba:space-y-2">
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
               <div className="gba:min-w-0">
-                <div className="gba:text-sm gba:font-medium gba:text-foreground">Assign all</div>
-                <div className="gba:text-xs gba:text-muted-foreground">
-                  Apply one assignee to all action items (you can still change per item).
-                </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('action-items-assign-all')}</div>
+                <div className="gba:text-xs gba:text-muted-foreground">{t('action-items-assign-all-desc')}</div>
               </div>
 
               {bulkAssignee ? (
@@ -413,7 +419,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                     className="gba:h-8 gba:w-8 gba:p-0"
                     onClick={clearAllAssignees}
                     data-testid={`${testId}-assign-all-clear`}
-                    title="Clear all assignees"
+                    title={t('action-items-clear-all')}
                   >
                     <X className="gba:w-4 gba:h-4" />
                   </Button>
@@ -427,7 +433,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                   data-testid={`${testId}-assign-all-open`}
                 >
                   <User className="gba:w-4 gba:h-4" />
-                  Assign all to…
+                  {t('action-items-assign-all-to')}
                 </Button>
               )}
             </div>
@@ -438,7 +444,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                   <Search className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Search employees..."
+                    placeholder={t('action-items-search')}
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     className="gba:w-full gba:pl-8 gba:pr-3 gba:py-1.5 gba:text-sm gba:rounded-md gba:border gba:border-border gba:bg-background gba:outline-none gba:focus:ring-1 gba:focus:ring-primary"
@@ -454,7 +460,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                     </div>
                   ) : employees.length === 0 ? (
                     <div className="gba:text-center gba:py-3 gba:text-sm gba:text-muted-foreground">
-                      No employees found
+                      {t('action-items-no-employees')}
                     </div>
                   ) : (
                     <>
@@ -488,7 +494,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                           disabled={employeesLoading}
                           data-testid={`${testId}-assign-all-load-more`}
                         >
-                          {employeesLoading ? 'Loading...' : 'Load more'}
+                          {employeesLoading ? t('action-items-loading') : t('action-items-load-more')}
                         </button>
                       )}
                     </>
@@ -500,14 +506,14 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                   className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground"
                   data-testid={`${testId}-assign-all-cancel`}
                 >
-                  Cancel
+                  {t('action-items-cancel')}
                 </button>
               </div>
             )}
           </div>
 
           {items.length === 0 ? (
-            <div className="gba:text-center gba:py-8 gba:text-muted-foreground">No action items found</div>
+            <div className="gba:text-center gba:py-8 gba:text-muted-foreground">{t('action-items-no-items')}</div>
           ) : (
             items.map(item => (
               <div
@@ -532,7 +538,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                             <Textarea
                               value={editingText}
                               onChange={e => setEditingText(e.target.value)}
-                              placeholder="Write an action item..."
+                              placeholder={t('action-items-placeholder')}
                               className="gba:min-h-[70px]"
                               data-testid={`${testId}-edit-textarea-${item.id}`}
                             />
@@ -545,7 +551,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                                 data-testid={`${testId}-edit-save-${item.id}`}
                               >
                                 <Check className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Save
+                                {t('action-items-save')}
                               </Button>
                               <Button
                                 variant="outline"
@@ -553,13 +559,13 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                                 onClick={cancelEditing}
                                 data-testid={`${testId}-edit-cancel-${item.id}`}
                               >
-                                Cancel
+                                {t('action-items-cancel')}
                               </Button>
                             </div>
                           </div>
                         ) : (
                           <p className="gba:text-sm gba:text-foreground gba:leading-relaxed gba:break-words">
-                            {item.text || <span className="gba:text-muted-foreground">Empty action item</span>}
+                            {item.text || <span className="gba:text-muted-foreground">{t('action-items-empty')}</span>}
                           </p>
                         )}
                       </div>
@@ -614,7 +620,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                             <Search className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                             <input
                               type="text"
-                              placeholder="Search employees..."
+                              placeholder={t('action-items-search')}
                               value={searchTerm}
                               onChange={e => setSearchTerm(e.target.value)}
                               className="gba:w-full gba:pl-8 gba:pr-3 gba:py-1.5 gba:text-sm gba:rounded-md gba:border gba:border-border gba:bg-background gba:outline-none gba:focus:ring-1 gba:focus:ring-primary"
@@ -628,7 +634,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                               </div>
                             ) : employees.length === 0 ? (
                               <div className="gba:text-center gba:py-3 gba:text-sm gba:text-muted-foreground">
-                                No employees found
+                                {t('action-items-no-employees')}
                               </div>
                             ) : (
                               <>
@@ -660,7 +666,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                                     className="gba:w-full gba:py-2 gba:text-xs gba:text-primary gba:hover:underline"
                                     disabled={employeesLoading}
                                   >
-                                    {employeesLoading ? 'Loading...' : 'Load more'}
+                                    {employeesLoading ? t('action-items-loading') : t('action-items-load-more')}
                                   </button>
                                 )}
                               </>
@@ -670,7 +676,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                             onClick={() => setActiveItemId(null)}
                             className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground"
                           >
-                            Cancel
+                            {t('action-items-cancel')}
                           </button>
                         </div>
                       ) : (
@@ -687,7 +693,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                           }`}
                         >
                           <User className="gba:w-3 gba:h-3" />
-                          Assign to...
+                          {t('action-items-assign-to')}
                         </button>
                       )}
                     </div>
@@ -700,7 +706,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
 
         <DialogFooter className="gba:border-t gba:pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Cancel
+            {t('action-items-cancel')}
           </Button>
           <Button
             onClick={handleSubmit}
@@ -710,13 +716,12 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
             {isSubmitting ? (
               <>
                 <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
-                Sending...
+                {t('action-items-sending')}
               </>
             ) : (
               <>
                 <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                Send {selectedWithAssigneeCount > 0 ? `${selectedWithAssigneeCount} ` : ''}Blink
-                {selectedWithAssigneeCount !== 1 ? 's' : ''}
+                {t('action-items-send-blinks', { count: selectedWithAssigneeCount })}
               </>
             )}
           </Button>

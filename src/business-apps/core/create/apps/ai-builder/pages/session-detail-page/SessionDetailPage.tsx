@@ -1288,7 +1288,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background">
-      <SessionDetailHero sessionId={sessionId} onBackToSessions={backToSessionList} />
+      <SessionDetailHero onBackToSessions={backToSessionList} />
 
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
         {fileExplorerEnabled && showFileExplorer && sessionId && (
@@ -1505,8 +1505,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
             <CardContent className="gba:space-y-4">
               <div className="gba:text-sm gba:text-foreground gba:space-y-2">
                 <p>
-                  You are about to restore to this chat message. Any publish you did after the restore point is
-                  still deployed.
+                  You are about to restore to this chat message. Any publish you did after the restore point is still
+                  deployed.
                 </p>
                 {restoreMessageTimestamp && (
                   <p className="gba:text-xs gba:text-muted-foreground">{restoreMessageTimestamp}</p>

@@ -13,6 +13,8 @@ interface UseExternalCalendarEventsOptions {
   startDate: Date | null
   endDate: Date | null
   enabled?: boolean
+  /** Translation function for user-facing error messages */
+  t?: (key: string, vars?: Record<string, string | number>) => string
 }
 
 export function useExternalCalendarEvents({
@@ -20,7 +22,8 @@ export function useExternalCalendarEvents({
   accounts,
   startDate,
   endDate,
-  enabled = true
+  enabled = true,
+  t
 }: UseExternalCalendarEventsOptions) {
   const [events, setEvents] = useState<ExternalCalendarEvent[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -83,12 +86,12 @@ export function useExternalCalendarEvents({
 
       setEvents(deduped)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch calendar events')
+      setError(t ? t('calendar-fetch-failed') : err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
       fetchingRef.current = false
     }
-  }, [accessToken, accounts, startDate, endDate, enabled])
+  }, [accessToken, accounts, startDate, endDate, enabled, t])
 
   // Fetch on mount and when date range changes
   useEffect(() => {

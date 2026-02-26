@@ -6,10 +6,11 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react'
-import { Card, Button, Badge, Spinner, Progress } from '@newwork/nw-design-system'
+import { useTranslation, Card, Button, Badge, Spinner, Progress } from '@newwork/nw-design-system'
 import { FileSpreadsheet, Upload, X, Check, Table2, AlertCircle, Sparkles, ArrowRight, FileUp } from 'lucide-react'
 import { useExcelParser } from '../hooks/useExcelParser'
 import type { ParsedExcelFile, ParsedSheet } from '../types'
+import translations from '../_i18n'
 
 export interface ExcelUploaderProps {
   onFileParsed: (parsedFile: ParsedExcelFile) => void
@@ -36,6 +37,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
   maxFileSize = 10,
   'data-testid': testId = 'excel-uploader'
 }) => {
+  const { t } = useTranslation(translations)
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -50,7 +52,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
       // Validate file size
       const maxBytes = maxFileSize * 1024 * 1024
       if (file.size > maxBytes) {
-        const errorMsg = `File size exceeds ${maxFileSize}MB limit`
+        const errorMsg = t('upload-error-file-size', { max: maxFileSize })
         onError?.(errorMsg)
         return
       }
@@ -64,7 +66,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
         onError?.(error)
       }
     },
-    [maxFileSize, parseFile, onFileParsed, onError, error]
+    [maxFileSize, parseFile, onFileParsed, onError, error, t]
   )
 
   /**
@@ -142,13 +144,15 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
           </div>
 
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Analyzing your spreadsheet...</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('upload-analyzing-title')}</h3>
             <p className="gba:text-sm gba:text-muted-foreground">{selectedFile?.name}</p>
           </div>
 
           <div className="gba:w-full gba:max-w-xs">
             <Progress value={progress} className="gba:h-2" />
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{progress}% complete</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">
+              {t('upload-progress-complete', { progress })}
+            </p>
           </div>
         </div>
       </Card>
@@ -169,8 +173,11 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
               <div>
                 <h3 className="gba:font-semibold gba:text-foreground">{parsedFile.fileName}</h3>
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {formatFileSize(parsedFile.fileSize)} • {parsedFile.sheets.length} sheet
-                  {parsedFile.sheets.length !== 1 ? 's' : ''}
+                  {t('upload-sheet-label', {
+                    size: formatFileSize(parsedFile.fileSize),
+                    count: parsedFile.sheets.length,
+                    plural: parsedFile.sheets.length !== 1 ? 's' : ''
+                  })}
                 </p>
               </div>
             </div>
@@ -184,7 +191,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
         <div className="gba:p-6 gba:space-y-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
             <Table2 className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-            <span className="gba:text-sm gba:font-medium gba:text-foreground">Detected Sheets</span>
+            <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('upload-detected-sheets')}</span>
           </div>
 
           <div className="gba:grid gba:gap-3">
@@ -196,9 +203,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
           {/* AI hint */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:bg-primary/5 gba:rounded-lg gba:mt-6">
             <Sparkles className="gba:w-5 gba:h-5 gba:text-primary" />
-            <p className="gba:text-sm gba:text-foreground">
-              AI will analyze your data and suggest the best app structure
-            </p>
+            <p className="gba:text-sm gba:text-foreground">{t('upload-ai-hint')}</p>
             <ArrowRight className="gba:w-4 gba:h-4 gba:text-primary gba:ml-auto" />
           </div>
         </div>
@@ -215,11 +220,11 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             <AlertCircle className="gba:w-8 gba:h-8 gba:text-destructive" />
           </div>
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Failed to parse file</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('upload-parse-failed-title')}</h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">{error}</p>
           </div>
           <Button variant="outline" onClick={handleClear}>
-            Try Again
+            {t('upload-try-again')}
           </Button>
         </div>
       </Card>
@@ -276,19 +281,17 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
           {/* Text */}
           <div className="gba:text-center gba:space-y-2">
             <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {isDragging ? 'Drop your file here' : 'Upload your Excel file'}
+              {isDragging ? t('upload-drop-here') : t('upload-file-title')}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-sm">
-              Drag and drop your spreadsheet here, or click to browse. We support .xlsx and .csv files up to{' '}
-              {maxFileSize}
-              MB.
+              {t('upload-file-description', { max: maxFileSize })}
             </p>
           </div>
 
           {/* Button */}
           <Button variant="outline" className="gba:pointer-events-none">
             <FileUp className="gba:w-4 gba:h-4 gba:mr-2" />
-            Browse Files
+            {t('upload-browse-files')}
           </Button>
 
           {/* Supported formats */}
@@ -310,10 +313,8 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             <Sparkles className="gba:w-4 gba:h-4 gba:text-primary" />
           </div>
           <div className="gba:flex-1">
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">AI-Powered Analysis</p>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              We'll automatically detect data types, relationships, and suggest the best app structure
-            </p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('upload-ai-powered-title')}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('upload-ai-powered-description')}</p>
           </div>
         </div>
       </div>
@@ -330,6 +331,7 @@ interface SheetPreviewCardProps {
 }
 
 const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) => {
+  const { t } = useTranslation(translations)
   const [isExpanded, setIsExpanded] = useState(false)
 
   if (sheet.isEmpty) {
@@ -344,7 +346,7 @@ const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) =>
             <span className="gba:font-medium gba:text-foreground">{sheet.name}</span>
           </div>
           <Badge variant="secondary" className="gba:text-xs">
-            Empty
+            {t('upload-empty')}
           </Badge>
         </div>
       </div>
@@ -368,10 +370,10 @@ const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) =>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
           <Badge variant="outline" className="gba:text-xs">
-            {sheet.columns.length} columns
+            {t('upload-columns', { count: sheet.columns.length })}
           </Badge>
           <Badge variant="outline" className="gba:text-xs">
-            {sheet.rowCount} rows
+            {t('upload-rows', { count: sheet.rowCount })}
           </Badge>
         </div>
       </button>
@@ -380,7 +382,9 @@ const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) =>
       {isExpanded && (
         <div className="gba:px-4 gba:pb-4 gba:pt-0">
           <div className="gba:bg-muted/30 gba:rounded-lg gba:p-3">
-            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Columns</p>
+            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
+              {t('upload-column-list-title')}
+            </p>
             <div className="gba:flex gba:flex-wrap gba:gap-1">
               {sheet.columns.map((col, idx) => (
                 <Badge key={idx} variant="secondary" className="gba:text-xs gba:font-normal">

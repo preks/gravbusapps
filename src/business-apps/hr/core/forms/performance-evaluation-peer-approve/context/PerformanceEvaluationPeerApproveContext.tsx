@@ -4,6 +4,19 @@ import { PerformanceEvaluationPeerApproveFormValues, NominatedPeer } from '../ty
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useNominatedPeersFromProcess } from '../hooks/useNominatedPeersFromProcess'
 import { useEmployeeDisplayNames } from '../hooks/useEmployeeDisplayNames'
+import { useEmployeeForPeerApproveHeader } from '../hooks/useEmployeeForPeerApproveHeader'
+
+import { useStructureEmployees } from '../../performance-evaluation-form/hooks/useStructureEmployees'
+
+export interface EmployeeForHeader {
+  firstName: string
+  lastName: string
+  pictureThumbnail?: string
+  jobTitle?: string
+}
+
+/** Map peer id -> replacement employee id when manager chooses a different employee. */
+export type PeerReplacements = Record<string, string | null>
 
 interface PerformanceEvaluationPeerApproveContextType {
   nominatedPeers: NominatedPeer[]
@@ -15,6 +28,27 @@ interface PerformanceEvaluationPeerApproveContextType {
   onReject: (comment?: string) => Promise<void>
   onCancel: () => Promise<void>
   businessAppContext: BusinessAppContextProps
+  employeeForHeader: EmployeeForHeader | null
+  employeeForHeaderLoading: boolean
+  /** Manager can replace a nominated peer with another employee; key = peer id, value = replacement employee id */
+  peerReplacements: PeerReplacements
+  setPeerReplacement: (peerId: string, replacementEmployeeId: string | null) => void
+  /** For replacement dropdown: employees from structure, search, loading */
+  replacementEmployees: Array<{
+    id: string
+    name: string
+    jobTitle?: string
+    department?: string
+    pictureThumbnail?: string
+    userId?: string
+  }>
+  replacementEmployeesLoading: boolean
+  searchReplacementEmployees: (search: string) => Promise<void>
+  getReplacementEmployeeById: (
+    employeeId: string
+  ) =>
+    | { id: string; name: string; jobTitle?: string; department?: string; pictureThumbnail?: string; userId?: string }
+    | undefined
 }
 
 const PerformanceEvaluationPeerApproveContext = createContext<PerformanceEvaluationPeerApproveContextType | undefined>(
@@ -65,14 +99,29 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
 }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [peerReplacements, setPeerReplacements] = useState<PeerReplacements>({})
 
   const ad = businessAppContext?.additionalData as Record<string, unknown> | undefined
+
+  const {
+    employeeForHeader,
+    loading: employeeForHeaderLoading,
+    error: employeeForHeaderError
+  } = useEmployeeForPeerApproveHeader(businessAppContext?.accessToken, ad)
+
   const {
     peers: peersFromProcess,
     loading: peersLoading,
     error: peersError
   } = useNominatedPeersFromProcess(businessAppContext?.accessToken, ad)
   const peersFromPayload = useMemo(() => getNominatedPeersFromPayload(ad), [ad])
+
+  const {
+    employees: structureEmployees,
+    isLoading: replacementEmployeesLoading,
+    fetchStructureEmployees,
+    getEmployeeById: getStructureEmployeeById
+  } = useStructureEmployees(businessAppContext?.accessToken ?? '', true)
 
   const nominatedPeersRaw = useMemo(
     () => (peersFromProcess.length > 0 ? peersFromProcess : peersFromPayload),
@@ -89,21 +138,37 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       })),
     [nominatedPeersRaw, displayNames]
   )
-  const resolvedError = error ?? peersError
+  const resolvedError = error ?? peersError ?? employeeForHeaderError
   const peersLoadingResolved = peersLoading || (peerIds.length > 0 && namesLoading)
 
   const clearError = useCallback(() => setError(null), [])
 
+  const setPeerReplacement = useCallback((peerId: string, replacementEmployeeId: string | null) => {
+    setPeerReplacements(prev => {
+      const next = { ...prev }
+      if (replacementEmployeeId == null) {
+        delete next[peerId]
+      } else {
+        next[peerId] = replacementEmployeeId
+      }
+      return next
+    })
+  }, [])
+
   const buildPeerApprovalPayload = useCallback(
     (approved: boolean) => ({
       peerApprovalRequest: {
-        decisions: nominatedPeers.map(p => ({
-          employeeId: p.id,
-          approved
-        }))
+        decisions: nominatedPeers.map(p => {
+          const replacementId = peerReplacements[p.id]
+          return {
+            employeeId: p.id,
+            approved,
+            ...(replacementId ? { replacementEmployeeId: replacementId } : {})
+          }
+        })
       }
     }),
-    [nominatedPeers]
+    [nominatedPeers, peerReplacements]
   )
 
   const handleApprove = useCallback(async () => {
@@ -151,6 +216,29 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
     }
   }, [onCancel])
 
+  const searchReplacementEmployees = useCallback(
+    async (search: string) => {
+      await fetchStructureEmployees(search)
+    },
+    [fetchStructureEmployees]
+  )
+
+  const getReplacementEmployeeById = useCallback(
+    (employeeId: string) => {
+      const emp = getStructureEmployeeById(employeeId)
+      if (!emp) return undefined
+      return {
+        id: emp.id,
+        name: emp.name,
+        jobTitle: emp.jobTitle,
+        department: emp.department,
+        pictureThumbnail: emp.pictureThumbnail,
+        userId: emp.userId
+      }
+    },
+    [getStructureEmployeeById]
+  )
+
   const value = useMemo<PerformanceEvaluationPeerApproveContextType>(
     () => ({
       nominatedPeers,
@@ -161,7 +249,15 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       onApprove: handleApprove,
       onReject: handleReject,
       onCancel: handleCancel,
-      businessAppContext
+      businessAppContext,
+      employeeForHeader,
+      employeeForHeaderLoading,
+      peerReplacements,
+      setPeerReplacement,
+      replacementEmployees: structureEmployees,
+      replacementEmployeesLoading,
+      searchReplacementEmployees,
+      getReplacementEmployeeById
     }),
     [
       nominatedPeers,
@@ -172,7 +268,15 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
       handleApprove,
       handleReject,
       handleCancel,
-      businessAppContext
+      businessAppContext,
+      employeeForHeader,
+      employeeForHeaderLoading,
+      peerReplacements,
+      setPeerReplacement,
+      structureEmployees,
+      replacementEmployeesLoading,
+      searchReplacementEmployees,
+      getReplacementEmployeeById
     ]
   )
 

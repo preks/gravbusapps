@@ -19,6 +19,7 @@ export {
 export { useCollaboration, type UseCollaborationOptions, type UseCollaborationReturn } from './hooks/useCollaboration'
 export {
   useOrganizationalDimensions,
+  type UseOrganizationalDimensionsOptions,
   type UseOrganizationalDimensionsResult
 } from './hooks/useOrganizationalDimensions'
 export { useHubPagination } from './hooks/useHubPagination'
@@ -42,7 +43,9 @@ export {
   type DimensionWithMembers,
   type SelectedDimension,
   type DimensionPickerTranslations,
-  DEFAULT_DIMENSION_TRANSLATIONS
+  type DimensionTranslateFn,
+  DEFAULT_DIMENSION_TRANSLATIONS,
+  getDimensionPickerTranslations
 } from './types/dimensions'
 
 /**

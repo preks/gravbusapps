@@ -145,7 +145,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
 
   const exportColumnsDemographics = [
     { key: 'category', header: t('common-category') },
-    { key: 'value', header: t('hr-analytics-value') },
+    { key: 'value', header: t('hr-analytics-employee-count') },
     { key: 'percentage', header: t('hr-analytics-percentage'), badge: HIGHLIGHT_BADGE }
   ]
 

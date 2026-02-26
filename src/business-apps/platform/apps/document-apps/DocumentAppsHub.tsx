@@ -25,7 +25,8 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-  Checkbox
+  Checkbox,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   FileText,
@@ -94,6 +95,7 @@ import { extractEntityKeysFromContent } from './utils/templatePlaceholders'
 
 // Types
 import type { DocumentTemplate, ParsedWordDocument, DocumentSummary } from './types'
+import translations from './_i18n'
 
 export interface DocumentAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -113,9 +115,9 @@ function getInitials(name: string): string {
 }
 
 /**
- * Format relative time
+ * Format relative time (requires t from useTranslation)
  */
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(dateString: string, t: (k: string, vars?: Record<string, number>) => string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -123,17 +125,17 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
   return date.toLocaleDateString()
 }
 
 /**
- * Format date for table display
+ * Format date for table display (requires t from useTranslation)
  */
-function formatDate(dateString: string): string {
+function formatDate(dateString: string, t: (k: string, vars?: Record<string, number>) => string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -142,8 +144,8 @@ function formatDate(dateString: string): string {
   if (diffDays === 0) {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   }
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
+  if (diffDays === 1) return t('time-yesterday')
+  if (diffDays < 7) return t('time-days-ago-count', { count: diffDays })
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -160,6 +162,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   entityContext,
   'data-testid': testId = 'document-apps-hub'
 }) => {
+  const { t } = useTranslation(translations)
+
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
@@ -306,7 +310,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    */
   const handleCreateNew = useCallback(async () => {
     const newDoc = await createDocument({
-      title: 'Untitled Document',
+      title: t('title-untitled-document'),
       content: '<p></p>',
       status: 'draft',
       createdBy: currentUserId
@@ -317,7 +321,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       setCurrentView('editor')
       updateUrl(newDoc.id, 'editor')
     }
-  }, [createDocument, currentUserId, updateUrl])
+  }, [createDocument, currentUserId, updateUrl, t])
 
   const handleCreateWithAi = useCallback(() => {
     const titleInput = globalThis.window.prompt('Document title (optional):', 'Untitled Document')
@@ -342,7 +346,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    */
   const handleSelectTemplate = useCallback(
     async (template: DocumentTemplate) => {
-      const newDoc = await createDocumentFromTemplate(template.id, `New ${template.name}`)
+      const newDoc = await createDocumentFromTemplate(template.id, t('template-new-prefix', { name: template.name }))
       if (newDoc) {
         await loadDocument(newDoc.id)
         setSelectedDocumentId(newDoc.id)
@@ -350,7 +354,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         updateUrl(newDoc.id, 'editor')
       }
     },
-    [createDocumentFromTemplate, loadDocument, updateUrl]
+    [createDocumentFromTemplate, loadDocument, updateUrl, t]
   )
 
   /**
@@ -388,7 +392,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    */
   const handleDeleteDocument = useCallback(
     async (id: string) => {
-      if (confirm('Are you sure you want to delete this document?')) {
+      if (confirm(t('confirm-delete'))) {
         const success = await deleteDocument(id)
         if (success && selectedDocumentId === id) {
           setSelectedDocumentId(null)
@@ -402,7 +406,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         })
       }
     },
-    [deleteDocument, selectedDocumentId, updateUrl]
+    [deleteDocument, selectedDocumentId, updateUrl, t]
   )
 
   /**
@@ -411,9 +415,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const handleDuplicateDocument = useCallback(
     async (id: string) => {
       await duplicateDocument(id)
-      toast.success('Document duplicated')
+      toast.success(t('toast-duplicated'))
     },
-    [duplicateDocument]
+    [duplicateDocument, t]
   )
 
   /**
@@ -501,20 +505,23 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   /**
    * Toggle favorite
    */
-  const toggleFavorite = useCallback((id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    setFavorites(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        toast.success('Removed from favorites')
-      } else {
-        next.add(id)
-        toast.success('Added to favorites')
-      }
-      return next
-    })
-  }, [])
+  const toggleFavorite = useCallback(
+    (id: string, e?: React.MouseEvent) => {
+      e?.stopPropagation()
+      setFavorites(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) {
+          next.delete(id)
+          toast.success(t('toast-removed-favorites'))
+        } else {
+          next.add(id)
+          toast.success(t('toast-added-favorites'))
+        }
+        return next
+      })
+    },
+    [t]
+  )
 
   /**
    * Toggle select document
@@ -546,34 +553,51 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   /**
    * Copy link
    */
-  const copyLink = useCallback((doc: DocumentSummary) => {
-    const url = new URL(window.location.href)
-    url.searchParams.set('docId', doc.id)
-    url.searchParams.set('view', 'editor')
-    navigator.clipboard.writeText(url.toString())
-    toast.success('Link copied to clipboard')
-  }, [])
+  const copyLink = useCallback(
+    (doc: DocumentSummary) => {
+      const url = new URL(window.location.href)
+      url.searchParams.set('docId', doc.id)
+      url.searchParams.set('view', 'editor')
+      navigator.clipboard.writeText(url.toString())
+      toast.success(t('toast-link-copied'))
+    },
+    [t]
+  )
 
   // Get section title
   const getSectionTitle = () => {
     switch (activeSection) {
       case 'home':
-        return 'Home'
+        return t('sidebar-home')
       case 'my-documents':
-        return 'My Documents'
+        return t('sidebar-my-items')
       case 'shared':
-        return 'Shared with me'
+        return t('sidebar-shared')
       case 'templates':
-        return 'Templates'
+        return t('sidebar-templates')
       case 'favorites':
-        return 'Favorites'
+        return t('sidebar-favorites')
       case 'recent':
-        return 'Recent'
+        return t('sidebar-recent')
       case 'archived':
-        return 'Archived'
+        return t('sidebar-archived')
       default:
-        return 'Documents'
+        return t('sidebar-brand-title')
     }
+  }
+
+  const getEmptyStateTitle = () => {
+    if (activeSection === 'favorites') return t('empty-favorites-title')
+    if (activeSection === 'shared') return t('empty-shared-title')
+    if (activeSection === 'archived') return t('empty-archived-title')
+    return t('empty-default-title')
+  }
+
+  const getEmptyStateDescription = () => {
+    if (activeSection === 'favorites') return t('empty-favorites-description')
+    if (activeSection === 'shared') return t('empty-shared-description')
+    if (activeSection === 'archived') return t('empty-archived-description')
+    return t('empty-default-description')
   }
 
   // Render editor view
@@ -632,7 +656,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                       <ChevronLeft className="gba:w-4 gba:h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Back to Desk</TooltipContent>
+                  <TooltipContent>{t('sidebar-back-to-desk')}</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
@@ -650,7 +674,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+                <TooltipContent>{isSidebarCollapsed ? t('sidebar-expand') : t('sidebar-collapse')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -662,8 +686,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 <FileText className="gba:w-5 gba:h-5 gba:text-white" />
               </div>
               <div>
-                <h1 className="gba:font-semibold gba:text-foreground">Documents</h1>
-                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+                <h1 className="gba:font-semibold gba:text-foreground">{t('sidebar-brand-title')}</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('sidebar-brand-subtitle')}</p>
               </div>
             </div>
           )}
@@ -684,15 +708,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white hover:gba:from-blue-600 hover:gba:to-indigo-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
               >
                 <Plus className="gba:w-4 gba:h-4" />
-                {!isSidebarCollapsed && 'New'}
+                {!isSidebarCollapsed && t('sidebar-new')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
               <DropdownMenuItem onClick={handleCreateNew}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
                 <div>
-                  <div className="gba:font-medium">Blank Document</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Start from scratch</div>
+                  <div className="gba:font-medium">{t('menu-new-blank-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleCreateWithAi}>
@@ -707,29 +731,29 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               <DropdownMenuItem onClick={handleStartUpload}>
                 <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-indigo-500" />
                 <div>
-                  <div className="gba:font-medium">Upload Word</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Import .docx or .doc file</div>
+                  <div className="gba:font-medium">{t('menu-new-upload-word-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-upload-word-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleStartPdfUpload}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-red-500" />
                 <div>
-                  <div className="gba:font-medium">Upload PDF</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Import PDF for search & Q&A</div>
+                  <div className="gba:font-medium">{t('menu-new-upload-pdf-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-upload-pdf-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleStartOdfUpload}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-teal-500" />
                 <div>
-                  <div className="gba:font-medium">Upload ODF</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Import .odt OpenDocument file</div>
+                  <div className="gba:font-medium">{t('menu-new-upload-odf-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-upload-odf-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setActiveSection('templates')}>
                 <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
-                  <div className="gba:font-medium">From Template</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Choose a template</div>
+                  <div className="gba:font-medium">{t('menu-new-from-template-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-from-template-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -738,8 +762,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               >
                 <LayoutTemplate className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
-                  <div className="gba:font-medium">Create Template</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Create a new template</div>
+                  <div className="gba:font-medium">{t('menu-new-create-template-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">
+                    {t('menu-new-create-template-description')}
+                  </div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -761,10 +787,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     }`}
                   >
                     <Home className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Home'}
+                    {!isSidebarCollapsed && t('sidebar-home')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-home')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -778,10 +804,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     }`}
                   >
                     <FolderClosed className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'My Documents'}
+                    {!isSidebarCollapsed && t('sidebar-my-items')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">My Documents</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-my-items')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -797,7 +823,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     <Users className="gba:w-4 gba:h-4" />
                     {!isSidebarCollapsed && (
                       <>
-                        Shared with me
+                        {t('sidebar-shared')}
                         {sharedDocuments.length > 0 && (
                           <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
                             {sharedDocuments.length}
@@ -809,7 +835,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 </TooltipTrigger>
                 {isSidebarCollapsed && (
                   <TooltipContent side="right">
-                    Shared with me {sharedDocuments.length > 0 && `(${sharedDocuments.length})`}
+                    {t('sidebar-shared')} {sharedDocuments.length > 0 && `(${sharedDocuments.length})`}
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -827,7 +853,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     <LayoutTemplate className="gba:w-4 gba:h-4" />
                     {!isSidebarCollapsed && (
                       <>
-                        Templates
+                        {t('sidebar-templates')}
                         {templates.length > 0 && (
                           <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
                             {templates.length}
@@ -839,7 +865,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 </TooltipTrigger>
                 {isSidebarCollapsed && (
                   <TooltipContent side="right">
-                    Templates {templates.length > 0 && `(${templates.length})`}
+                    {t('sidebar-templates')} {templates.length > 0 && `(${templates.length})`}
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -857,7 +883,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     <Star className="gba:w-4 gba:h-4" />
                     {!isSidebarCollapsed && (
                       <>
-                        Favorites
+                        {t('sidebar-favorites')}
                         {favorites.size > 0 && (
                           <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
                             {favorites.size}
@@ -868,7 +894,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   </button>
                 </TooltipTrigger>
                 {isSidebarCollapsed && (
-                  <TooltipContent side="right">Favorites {favorites.size > 0 && `(${favorites.size})`}</TooltipContent>
+                  <TooltipContent side="right">
+                    {t('sidebar-favorites')} {favorites.size > 0 && `(${favorites.size})`}
+                  </TooltipContent>
                 )}
               </Tooltip>
 
@@ -883,10 +911,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     }`}
                   >
                     <Clock className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Recent'}
+                    {!isSidebarCollapsed && t('sidebar-recent')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-recent')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -900,24 +928,26 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     }`}
                   >
                     <Archive className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Archived'}
+                    {!isSidebarCollapsed && t('sidebar-archived')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Archived</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-archived')}</TooltipContent>}
               </Tooltip>
             </TooltipProvider>
           </div>
 
           {!isSidebarCollapsed && (
             <div className="gba:mt-6 gba:pt-4 gba:border-t">
-              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('sidebar-storage')}
+              </p>
               <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                   <Database
                     className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`}
                   />
                   <span className="gba:text-xs gba:text-muted-foreground">
-                    {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                    {storageMode === 'database' ? t('sidebar-storage-cloud') : t('sidebar-storage-local')}
                   </span>
                 </div>
                 <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
@@ -926,7 +956,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     style={{ width: `${Math.min((documents.length / 50) * 100, 100)}%` }}
                   />
                 </div>
-                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{documents.length} documents</p>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
+                  {t('sidebar-storage-documents', { count: documents.length })}
+                </p>
               </div>
             </div>
           )}
@@ -944,9 +976,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   <TooltipContent side="right">
                     <div>
                       <p className="gba:font-medium">
-                        {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                        {storageMode === 'database' ? t('sidebar-storage-cloud') : t('sidebar-storage-local')}
                       </p>
-                      <p className="gba:text-xs gba:text-muted-foreground">{documents.length} documents</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {t('sidebar-storage-documents', { count: documents.length })}
+                      </p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -964,15 +998,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
               <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
                 <X className="gba:w-4 gba:h-4 gba:mr-2" />
-                Cancel
+                {t('common-cancel')}
               </Button>
 
               <div className="gba:text-center gba:mb-8">
                 <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
                   <Upload className="gba:w-8 gba:h-8 gba:text-white" />
                 </div>
-                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload Word Document</h2>
-                <p className="gba:text-muted-foreground">Upload your Word document and we'll preserve the formatting</p>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">{t('upload-word-title')}</h2>
+                <p className="gba:text-muted-foreground">{t('upload-word-description')}</p>
               </div>
 
               <WordUploader
@@ -992,10 +1026,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-red-500 gba:to-red-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
                   <FileText className="gba:w-8 gba:h-8 gba:text-white" />
                 </div>
-                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload PDF Document</h2>
-                <p className="gba:text-muted-foreground">
-                  Upload a PDF to make it searchable and available for Q&A in Desk
-                </p>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">{t('upload-pdf-title')}</h2>
+                <p className="gba:text-muted-foreground">{t('upload-pdf-description')}</p>
               </div>
 
               <PdfUploader
@@ -1006,7 +1038,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   await loadDocument(document.id)
                   setCurrentView('editor')
                   updateUrl(document.id, 'editor')
-                  toast.success('PDF uploaded successfully')
+                  toast.success(t('toast-pdf-uploaded'))
                 }}
                 onError={error => toast.error(error)}
                 onCancel={handleBack}
@@ -1022,17 +1054,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
               <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
                 <X className="gba:w-4 gba:h-4 gba:mr-2" />
-                Cancel
+                {t('common-cancel')}
               </Button>
 
               <div className="gba:text-center gba:mb-8">
                 <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-teal-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
                   <Upload className="gba:w-8 gba:h-8 gba:text-white" />
                 </div>
-                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload ODF Document</h2>
-                <p className="gba:text-muted-foreground">
-                  Upload your OpenDocument text file and we'll preserve the formatting
-                </p>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">{t('upload-odf-title')}</h2>
+                <p className="gba:text-muted-foreground">{t('upload-odf-description')}</p>
               </div>
 
               <OdfUploader
@@ -1050,7 +1080,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             <header className="gba:border-b gba:bg-card">
               <div className="gba:px-6 gba:py-4">
                 <div className="gba:flex gba:items-center gba:justify-between">
-                  <h2 className="gba:text-xl gba:font-semibold">Templates</h2>
+                  <h2 className="gba:text-xl gba:font-semibold">{t('templates-title')}</h2>
                 </div>
               </div>
             </header>
@@ -1092,7 +1122,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="gba:gap-1">
                               <ArrowUpDown className="gba:w-4 gba:h-4" />
-                              Sort
+                              {t('header-sort')}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
@@ -1103,7 +1133,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                               }}
                             >
                               {sortBy === 'name' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                              Name
+                              {t('sort-name')}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
@@ -1112,7 +1142,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                               }}
                             >
                               {sortBy === 'modified' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                              Modified
+                              {t('sort-modified')}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
@@ -1121,7 +1151,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                               }}
                             >
                               {sortBy === 'created' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                              Created
+                              {t('sort-created')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1136,7 +1166,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     <div className="gba:relative">
                       <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                       <Input
-                        placeholder="Search..."
+                        placeholder={t('header-search-placeholder')}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         className="gba:pl-9 gba:w-64 gba:h-9"
@@ -1190,29 +1220,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-blue-500/20 gba:to-indigo-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
                     <FileText className="gba:w-12 gba:h-12 gba:text-blue-500" />
                   </div>
-                  <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
-                    {activeSection === 'favorites'
-                      ? 'No favorites yet'
-                      : activeSection === 'shared'
-                        ? 'Nothing shared with you'
-                        : activeSection === 'archived'
-                          ? 'No archived documents'
-                          : 'No documents yet'}
-                  </h3>
+                  <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">{getEmptyStateTitle()}</h3>
                   <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
-                    {activeSection === 'favorites'
-                      ? 'Star your frequently used documents to see them here.'
-                      : activeSection === 'shared'
-                        ? 'When someone shares a document with you, it will appear here.'
-                        : activeSection === 'archived'
-                          ? 'Archived documents will appear here.'
-                          : 'Create your first document to get started.'}
+                    {getEmptyStateDescription()}
                   </p>
                   {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
                     <div className="gba:flex gba:gap-3">
                       <Button onClick={handleCreateNew}>
                         <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Create Document
+                        {t('empty-create-document')}
                       </Button>
                       <Button variant="outline" onClick={handleCreateWithAi}>
                         <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -1220,7 +1236,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                       </Button>
                       <Button variant="outline" onClick={handleStartUpload}>
                         <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Upload Word
+                        {t('empty-upload-word')}
                       </Button>
                     </div>
                   )}
@@ -1249,7 +1265,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
                         }}
                       >
-                        Name
+                        {t('table-name')}
                         {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                       </div>
                       <div
@@ -1259,10 +1275,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
                         }}
                       >
-                        Modified
+                        {t('table-modified')}
                         {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                       </div>
-                      <div className="gba:w-40 gba:flex-shrink-0">Owner</div>
+                      <div className="gba:w-40 gba:flex-shrink-0">{t('table-owner')}</div>
                       <div
                         className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
                         onClick={() => {
@@ -1270,7 +1286,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
                         }}
                       >
-                        Created
+                        {t('table-created')}
                         {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                       </div>
                       <div className="gba:w-10 gba:flex-shrink-0" />
@@ -1325,11 +1341,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                             <div className="gba:min-w-0">
                               <div className="gba:flex gba:items-center gba:gap-2">
                                 <span className="gba:font-medium gba:text-foreground gba:truncate">
-                                  {doc.title || 'Untitled'}
+                                  {doc.title || t('title-untitled')}
                                 </span>
                                 {doc.status === 'pending_approval' && (
                                   <Badge variant="default" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                    Pending
+                                    {t('status-pending')}
                                   </Badge>
                                 )}
                                 {doc.status === 'approved' && (
@@ -1337,12 +1353,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                     variant="secondary"
                                     className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:bg-success/20 gba:text-success"
                                   >
-                                    Approved
+                                    {t('status-approved')}
                                   </Badge>
                                 )}
                                 {doc.isShared && !isOwner && (
                                   <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                    Shared
+                                    {t('status-shared')}
                                   </Badge>
                                 )}
                                 {isOwner && sharedWith.length > 0 && (
@@ -1375,11 +1391,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                         </button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>
-                                          Shared with {sharedWith.length}{' '}
-                                          {sharedWith.length === 1 ? 'person' : 'people'}
+                                        <p>{t('shared-with-count', { count: sharedWith.length })}</p>
+                                        <p className="gba:text-xs gba:text-muted-foreground">
+                                          {t('shared-click-manage')}
                                         </p>
-                                        <p className="gba:text-xs gba:text-muted-foreground">Click to manage</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
@@ -1393,7 +1408,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                           {/* Modified */}
                           <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                            {formatDate(doc.updatedAt)}
+                            {formatDate(doc.updatedAt, t)}
                           </div>
 
                           {/* Owner */}
@@ -1406,14 +1421,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                 </AvatarFallback>
                               </Avatar>
                               <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                                {isOwner ? 'You' : ownerInfo?.name || 'Unknown'}
+                                {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
                               </span>
                             </div>
                           </div>
 
                           {/* Created */}
                           <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                            {formatDate(doc.createdAt)}
+                            {formatDate(doc.createdAt, t)}
                           </div>
 
                           {/* Actions */}
@@ -1430,40 +1445,40 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleOpenDocument(doc.id)}>
                                   <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Open
+                                  {t('menu-open')}
                                 </DropdownMenuItem>
                                 {isOwner && (
                                   <DropdownMenuItem onClick={() => handleShareClick(doc.id)}>
                                     <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    Share
+                                    {t('menu-share')}
                                   </DropdownMenuItem>
                                 )}
                                 {isOwner && sharedWith.length > 0 && (
                                   <DropdownMenuItem onClick={() => handleManageSharesClick(doc.id)}>
                                     <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    Manage sharing
+                                    {t('menu-manage-sharing')}
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem onClick={() => copyLink(doc)}>
                                   <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Copy link
+                                  {t('menu-copy-link')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDuplicateDocument(doc.id)}>
                                   <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Duplicate
+                                  {t('menu-duplicate')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 {canSendForApproval && (
                                   <DropdownMenuItem onClick={() => handleSendForApprovalClick(doc.id)}>
                                     <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    Send for Approval
+                                    {t('menu-send-for-approval')}
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem onClick={() => toggleFavorite(doc.id)}>
                                   <Star
                                     className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
                                   />
-                                  {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                                  {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -1471,7 +1486,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   onClick={() => handleDeleteDocument(doc.id)}
                                 >
                                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Delete
+                                  {t('menu-delete')}
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1535,7 +1550,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           {/* Status badge */}
                           {doc.status === 'pending_approval' && (
                             <Badge variant="default" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
-                              Pending Approval
+                              {t('menu-send-for-approval')}
                             </Badge>
                           )}
 
@@ -1543,7 +1558,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           {doc.isShared && !isOwner && (
                             <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                               <Users className="gba:w-3 gba:h-3 gba:mr-1" />
-                              Shared
+                              {t('status-shared')}
                             </Badge>
                           )}
                         </div>
@@ -1551,10 +1566,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         {/* Info */}
                         <div className="gba:p-3">
                           <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
-                            {doc.title || 'Untitled'}
+                            {doc.title || t('title-untitled')}
                           </h3>
                           <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                            <span>{formatRelativeTime(doc.updatedAt)}</span>
+                            <span>{formatRelativeTime(doc.updatedAt, t)}</span>
                           </div>
                         </div>
                       </Card>
@@ -1588,7 +1603,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             if (!open) setDocumentForApproval(null)
           }}
           documentId={documentForApproval}
-          documentTitle={documents.find(d => d.id === documentForApproval)?.title || 'Untitled Document'}
+          documentTitle={documents.find(d => d.id === documentForApproval)?.title || t('title-untitled-document')}
           currentUserId={currentUserId}
           currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
           accessToken={accessToken}
@@ -1632,7 +1647,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             if (!open) setDocumentForShare(null)
           }}
           documentId={documentForShare}
-          documentTitle={documents.find(d => d.id === documentForShare)?.title || 'Untitled Document'}
+          documentTitle={documents.find(d => d.id === documentForShare)?.title || t('title-untitled-document')}
           currentUserId={currentUserId}
           currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
           accessToken={accessToken}
@@ -1654,7 +1669,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             if (!open) setDocumentForManageShares(null)
           }}
           documentId={documentForManageShares}
-          documentTitle={documents.find(d => d.id === documentForManageShares)?.title || 'Untitled Document'}
+          documentTitle={documents.find(d => d.id === documentForManageShares)?.title || t('title-untitled-document')}
           accessToken={accessToken}
           onSharesChanged={async () => {
             refreshDocuments()

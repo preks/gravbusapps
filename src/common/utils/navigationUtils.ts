@@ -61,7 +61,6 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // HR
   '/platform/employee-record': 'hr/core/apps/employee-record',
   '/platform/hr/absences/manager-absences': 'hr/absences/apps/manager-absences',
-  '/platform/onboarding-employee': 'hr/core/apps/onboarding-employee',
 
   /// Recruiting: Apps
   '/platform/hr/recruiting/recruiting-manager': 'hr/recruiting/apps/recruiting-manager',
@@ -100,6 +99,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/apps/document-apps': 'platform/apps/document-apps',
   '/platform/apps/note-apps': 'platform/apps/note-apps',
   '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
+  '/platform/apps/board-apps': 'platform/apps/board-apps',
   '/platform/slides': 'platform/apps/slide-apps',
   '/platform/nexus': 'platform/apps/nexus',
 
@@ -113,6 +113,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/documents': 'platform/apps/document-apps',
   '/platform/notes': 'platform/apps/note-apps',
   '/platform/spreadsheets': 'platform/apps/spreadsheet-apps',
+  '/platform/boards': 'platform/apps/board-apps',
 
   // Create
   '/platform/create': 'core/create/apps/create-workspace',
@@ -120,6 +121,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
   '/platform/create/ai-builder': 'core/create/apps/ai-builder',
   '/platform/create/ai-orchestrator': 'core/create/apps/ai-orchestrator',
+  '/platform/create/resource-preview-demo': 'core/create/apps/resource-preview-demo',
 
   // Flow
   '/platform/apps/flow/apps/creator': 'flow/apps/creator',

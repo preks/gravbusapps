@@ -82,6 +82,7 @@ export const getCombinedStatistics = async (
     dailyFactsYear: DailyAbsenceFactView(where: $factsWhereYear) {
       typeRef
       dayDate
+      signedDayFraction
       dayFraction
     }
   `)
@@ -144,11 +145,12 @@ export const getCombinedStatistics = async (
   ) as string[]
 
   // Extract day-based type counts from DailyAbsenceFactView
-  const facts: Array<{ typeRef: string; dayDate: string; dayFraction: number }> = res?.dailyFactsYear || []
+  const facts: Array<{ typeRef: string; dayDate: string; dayFraction?: number; signedDayFraction?: number }> =
+    res?.dailyFactsYear || []
   const typeCounts: Record<string, number> = {}
   facts.forEach(f => {
     const key = f.typeRef || 'UNKNOWN'
-    const val = Number(f.dayFraction) || 0
+    const val = Number((f as any).signedDayFraction ?? f.dayFraction) || 0
     typeCounts[key] = (typeCounts[key] || 0) + val
   })
   // Round to integer days for display consistency
@@ -177,7 +179,7 @@ export const getCombinedStatistics = async (
   facts.forEach(f => {
     const d = new Date(f.dayDate)
     const m = d.getUTCMonth()
-    const val = Number(f.dayFraction) || 0
+    const val = Number((f as any).signedDayFraction ?? f.dayFraction) || 0
     monthlyCounts[m] = (monthlyCounts[m] || 0) + val
   })
   // Round month totals to integers

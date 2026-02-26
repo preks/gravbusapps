@@ -35,3 +35,17 @@ export function formatTableCell(value: unknown, locale: string): string {
   }
   return toDisplayString(value)
 }
+
+/** Matches YYYY-MM (e.g. 2024-01). */
+const YYYY_MM_REGEX = /^\d{4}-\d{2}$/
+
+/**
+ * Formats a month string (YYYY-MM) for display like "Feb 2024".
+ * Uses locale for month name. Returns the original string if not YYYY-MM.
+ */
+export function formatMonthPeriod(ym: string, locale: string): string {
+  if (typeof ym !== 'string' || !YYYY_MM_REGEX.test(ym.trim())) return ym
+  const date = new Date(ym.trim() + '-01')
+  if (Number.isNaN(date.getTime())) return ym
+  return date.toLocaleDateString(locale, { month: 'short', year: 'numeric' })
+}

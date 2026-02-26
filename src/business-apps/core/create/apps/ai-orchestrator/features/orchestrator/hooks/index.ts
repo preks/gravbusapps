@@ -17,3 +17,5 @@ export type { OrchestratorHandlers, OrchestratorHandlerDeps } from './useOrchest
 
 export { useOrchestratorEffects } from './useOrchestratorEffects'
 export type { OrchestratorEffectsDeps } from './useOrchestratorEffects'
+
+export { useChatScroll } from './useChatScroll'

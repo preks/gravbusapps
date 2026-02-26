@@ -9,6 +9,7 @@ import { useChatMessageHandlers, type UseChatMessageHandlersParams } from './hoo
 import { useChatPresenceSync } from './hooks/useChatPresenceSync'
 import { useChatRejoinCall } from './hooks/useChatRejoinCall'
 import { useChatViewMode } from './hooks/useChatViewMode'
+import type { Conversation, User } from './types'
 import type { UserPresence } from './hooks/usePresence'
 import { useRealtimeKitGroupCall } from './hooks/useRealtimeKitGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
@@ -23,7 +24,6 @@ import { CallHistory } from './components/CallHistory/CallHistory'
 import { ChatModals } from './components/ChatModals'
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
-import type { User } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import type { GroupCallParticipant } from './services/groupWebrtcClient'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
@@ -49,6 +49,36 @@ interface ChatProps extends BusinessAppContextProps {
   calendarApiClient?: any | null // CalendarApiClient type
   /** When set, open this user's conversation on mount without showing the list (e.g. from sidepanel pending open) */
   initialOpenWithUser?: InitialOpenWithUserPayload | null
+}
+
+const MARKED_AS_UNREAD_STORAGE_KEY_PREFIX = 'gba-chat-marked-as-unread'
+
+function getMarkedAsUnreadStorageKey(userId: string): string {
+  return `${MARKED_AS_UNREAD_STORAGE_KEY_PREFIX}-${userId}`
+}
+
+function loadMarkedAsUnreadFromStorage(userId: string): Set<string> {
+  try {
+    const raw =
+      globalThis.localStorage === undefined
+        ? null
+        : globalThis.localStorage.getItem(getMarkedAsUnreadStorageKey(userId))
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw) as unknown
+    return Array.isArray(arr) ? new Set(arr.filter((id): id is string => typeof id === 'string')) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveMarkedAsUnreadToStorage(userId: string, ids: Set<string>): void {
+  try {
+    if (globalThis.localStorage !== undefined) {
+      globalThis.localStorage.setItem(getMarkedAsUnreadStorageKey(userId), JSON.stringify([...ids]))
+    }
+  } catch {
+    // ignore
+  }
 }
 
 const ChatInner: React.FC<ChatProps> = memo(
@@ -79,6 +109,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const [isExpertProcessing, setIsExpertProcessing] = useState(false)
     const [processingExpert, setProcessingExpert] = useState<{ name: string; color?: string } | null>(null)
     const [isStartingCall, setIsStartingCall] = useState(false)
+    const [markedAsUnreadIds, setMarkedAsUnreadIds] = useState<Set<string>>(() => new Set())
     const registerMentionEntityRef = useRef<((entity: any, text: string, startIndex: number) => any) | null>(null)
     const focusInputRef = useRef<(() => void) | null>(null)
     const urlContextProcessed = useRef(false)
@@ -88,6 +119,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
     const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
+    const pendingCallFromListRef = useRef<{ conversationId: string; type: 'audio' | 'video' } | null>(null)
     const isEmbeddedMobile = additionalData?.__mobile === true
 
     // Inject nudge animation styles on mount
@@ -167,10 +199,12 @@ const ChatInner: React.FC<ChatProps> = memo(
       refreshConversations,
       updateConversation,
       updateMessage,
+      ensureMessageInList,
       startTyping,
       stopTyping,
       sendNudge,
       registerNudgeCallback,
+      markAsUnread,
       apiClient,
       wsClient,
       conversationSearch,
@@ -190,6 +224,14 @@ const ChatInner: React.FC<ChatProps> = memo(
         .then(setMissedCallsCount)
         .catch(() => setMissedCallsCount(0))
     }, [apiClient, currentUser?.id])
+
+    const markedAsUnreadHydratedRef = useRef(false)
+    useEffect(() => {
+      if (currentUser?.id && !markedAsUnreadHydratedRef.current) {
+        markedAsUnreadHydratedRef.current = true
+        setMarkedAsUnreadIds(loadMarkedAsUnreadFromStorage(currentUser.id))
+      }
+    }, [currentUser?.id])
 
     // Subscribe to real-time missed-count updates from WebSocket
     useEffect(() => {
@@ -643,10 +685,139 @@ const ChatInner: React.FC<ChatProps> = memo(
       [activeConversationId, apiClient, updateConversation]
     )
 
+    const handlePinChangeFromList = useCallback(
+      (conversationId: string, isPinned: boolean) => {
+        if (!apiClient || !updateConversation) return
+        apiClient
+          .updateConversationPreferences(conversationId, {
+            isPinned,
+            pinnedOrder: isPinned ? undefined : null
+          })
+          .then(prefs => {
+            updateConversation(conversationId, {
+              isPinned: prefs.isPinned,
+              pinnedOrder: prefs.pinnedOrder
+            })
+            refreshConversations?.()
+          })
+          .catch(() => {})
+      },
+      [apiClient, updateConversation, refreshConversations]
+    )
+
+    const handleMuteChangeFromList = useCallback(
+      (conversationId: string, isMuted: boolean) => {
+        if (!apiClient || !updateConversation) return
+        apiClient
+          .updateConversationPreferences(conversationId, { isMuted })
+          .then(prefs => {
+            updateConversation(conversationId, { isMuted: prefs.isMuted })
+          })
+          .catch(() => {})
+      },
+      [apiClient, updateConversation]
+    )
+
+    const handleNudgeFromList = useCallback(
+      (conversationId: string, toUserId: string) => {
+        if (!sendNudge) return
+        const now = Date.now()
+        const timeSinceLastNudge = now - lastNudgeTimeRef.current
+        if (timeSinceLastNudge < NUDGE_COOLDOWN_MS) {
+          const secondsRemaining = Math.ceil((NUDGE_COOLDOWN_MS - timeSinceLastNudge) / 1000)
+          setErrorMessage(t('chat-nudgeCooldown', { seconds: secondsRemaining }))
+          setTimeout(() => setErrorMessage(null), 3000)
+          return
+        }
+        const success = sendNudge(conversationId, toUserId)
+        if (success) lastNudgeTimeRef.current = now
+      },
+      [sendNudge, setErrorMessage, t, NUDGE_COOLDOWN_MS]
+    )
+
+    const handleStartAudioCallFromList = useCallback(
+      (conversation: Conversation) => {
+        setActiveConversation(conversation)
+        pendingCallFromListRef.current = { conversationId: conversation.id, type: 'audio' }
+      },
+      [setActiveConversation]
+    )
+
+    const handleStartVideoCallFromList = useCallback(
+      (conversation: Conversation) => {
+        setActiveConversation(conversation)
+        pendingCallFromListRef.current = { conversationId: conversation.id, type: 'video' }
+      },
+      [setActiveConversation]
+    )
+
+    const handleMarkAsUnread = useCallback(() => {
+      if (!activeConversationId || !markAsUnread) return
+      setMarkedAsUnreadIds(prev => {
+        const next = new Set(prev).add(activeConversationId)
+        if (currentUser?.id) saveMarkedAsUnreadToStorage(currentUser.id, next)
+        return next
+      })
+      markAsUnread(activeConversationId).catch(err => {
+        console.error('[Chat] markAsUnread failed (backend may not have been updated):', err?.message ?? err)
+      })
+    }, [activeConversationId, markAsUnread, currentUser?.id])
+
+    const handleMarkAsUnreadFromList = useCallback(
+      (conversationId: string) => {
+        setMarkedAsUnreadIds(prev => {
+          const next = new Set(prev).add(conversationId)
+          if (currentUser?.id) saveMarkedAsUnreadToStorage(currentUser.id, next)
+          return next
+        })
+        markAsUnread?.(conversationId).catch(err => {
+          console.error('[Chat] markAsUnread failed (backend may not have been updated):', err?.message ?? err)
+        })
+      },
+      [markAsUnread, currentUser?.id]
+    )
+
+    const clearMarkedAsUnread = useCallback(
+      (conversationId: string) => {
+        setMarkedAsUnreadIds(prev => {
+          const next = new Set(prev)
+          next.delete(conversationId)
+          if (currentUser?.id) saveMarkedAsUnreadToStorage(currentUser.id, next)
+          return next
+        })
+      },
+      [currentUser?.id]
+    )
+
     // Keep ref in sync with activeConversationId for stable callbacks
     useEffect(() => {
       activeConversationIdRef.current = activeConversationId
     }, [activeConversationId])
+
+    // Clear "marked as unread" dot when user opens that conversation (e.g. from URL or list)
+    useEffect(() => {
+      const conversationId = activeConversationId
+      if (!conversationId || !currentUser?.id) return
+      setMarkedAsUnreadIds(prev => {
+        if (!prev.has(conversationId)) return prev
+        const next = new Set(prev)
+        next.delete(conversationId)
+        saveMarkedAsUnreadToStorage(currentUser.id, next)
+        return next
+      })
+    }, [activeConversationId, currentUser?.id])
+
+    // Start call when active conversation was set from list context menu (audio/video)
+    useEffect(() => {
+      const pending = pendingCallFromListRef.current
+      if (!pending || !activeConversationId || activeConversationId !== pending.conversationId) return
+      pendingCallFromListRef.current = null
+      if (pending.type === 'audio') {
+        handleAudioCall()
+      } else {
+        handleVideoCall()
+      }
+    }, [activeConversationId, handleAudioCall, handleVideoCall])
 
     // Restore active conversation from URL parameter (for panel reopen persistence)
     useEffect(() => {
@@ -925,6 +1096,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                   activeConversationId={activeConversationId}
                   onConversationSelect={conv => {
                     setShowCallHistory(false)
+                    clearMarkedAsUnread(conv.id)
                     handleConversationSelect(conv)
                   }}
                   onRemoveConversation={async conversationId => {
@@ -945,6 +1117,14 @@ const ChatInner: React.FC<ChatProps> = memo(
                       }
                     }
                   }}
+                  onPinChange={handlePinChangeFromList}
+                  onMuteChange={handleMuteChangeFromList}
+                  onNudge={handleNudgeFromList}
+                  onStartAudioCall={handleStartAudioCallFromList}
+                  onStartVideoCall={handleStartVideoCallFromList}
+                  isCallEnabled={isConnected}
+                  onMarkAsUnread={handleMarkAsUnreadFromList}
+                  markedAsUnreadConversationIds={markedAsUnreadIds}
                   onCreateConversation={handleCreateConversation}
                   onCreateGroup={handleCreateGroup}
                   isLoading={conversationsLoading}
@@ -953,7 +1133,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                   onLoadMore={loadMoreConversations}
                   currentUserId={currentUser?.id || null}
                   accessToken={accessToken}
-                  compact={viewMode === 'compact'}
+                  compact={viewMode !== 'full'}
                   presenceMap={presenceMap}
                   presenceVersion={presenceVersion}
                   conversationExpertCounts={conversationExpertCounts}
@@ -1024,6 +1204,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     isMuted={stableActiveConversation?.isMuted}
                     onPin={handlePinConversation}
                     onMute={handleMuteConversation}
+                    onMarkAsUnread={handleMarkAsUnread}
                     isSingleViewMode={isSingleViewMode}
                     viewMode={viewMode}
                     onBack={handleBack}
@@ -1055,6 +1236,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     onSendMessage={handleAISendMessage}
                     apiClient={apiClient}
                     onUpdateMessage={updateMessage}
+                    ensureMessageInList={ensureMessageInList}
                     isAIProcessing={isAIProcessing}
                     aiStreamingText={aiStreamingText}
                     isExpertProcessing={isExpertProcessing}

@@ -16,9 +16,9 @@ import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
 
 export interface RatingScaleValues {
   id?: string
+  version?: number
   name: string
   values: string[]
-  // Optional metadata for future use/backward compatibility
   numValues?: number
   displayMode?: 'value' | 'letters' | 'stars' | 'custom'
 }
@@ -131,6 +131,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
     if (!name.trim() || generatedValues.length === 0) return
     onSave({
       id: initialValues?.id,
+      version: initialValues?.version,
       name: name.trim(),
       values: generatedValues,
       numValues: count,

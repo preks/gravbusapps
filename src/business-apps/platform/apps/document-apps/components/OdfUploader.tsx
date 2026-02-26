@@ -6,10 +6,11 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react'
-import { Card, Button, Badge, Spinner, Progress } from '@newwork/nw-design-system'
+import { Card, Button, Badge, Spinner, Progress, useTranslation } from '@newwork/nw-design-system'
 import { FileText, Upload, X, Check, AlertCircle, FileUp, ArrowRight } from 'lucide-react'
 import { useOdfParser } from '../hooks/useOdfParser'
 import type { ParsedWordDocument } from '../types'
+import translations from '../_i18n'
 
 export interface OdfUploaderProps {
   onFileParsed: (parsedDocument: ParsedWordDocument) => void
@@ -36,6 +37,7 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
   maxFileSize = 25,
   'data-testid': testId = 'odf-uploader'
 }) => {
+  const { t } = useTranslation(translations)
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -50,7 +52,7 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
       // Validate file size
       const maxBytes = maxFileSize * 1024 * 1024
       if (file.size > maxBytes) {
-        const errorMsg = `File size exceeds ${maxFileSize}MB limit`
+        const errorMsg = t('upload-word-file-size-exceeds', { max: maxFileSize })
         onError?.(errorMsg)
         return
       }
@@ -64,7 +66,7 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
         onError?.(error)
       }
     },
-    [maxFileSize, parseFile, onFileParsed, onError, error]
+    [maxFileSize, parseFile, onFileParsed, onError, error, t]
   )
 
   /**
@@ -142,13 +144,15 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
           </div>
 
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Processing your document...</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('upload-odf-processing')}</h3>
             <p className="gba:text-sm gba:text-muted-foreground">{selectedFile?.name}</p>
           </div>
 
           <div className="gba:w-full gba:max-w-xs">
             <Progress value={progress} className="gba:h-2" />
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{progress}% complete</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">
+              {t('upload-odf-progress', { progress })}
+            </p>
           </div>
         </div>
       </Card>
@@ -206,7 +210,7 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
 
           {/* Content preview */}
           <div className="gba:bg-muted/30 gba:rounded-lg gba:p-4">
-            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Preview</p>
+            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">{t('upload-word-preview')}</p>
             <div
               className="gba:text-sm gba:text-foreground gba:line-clamp-4 gba:prose gba:prose-sm gba:max-w-none"
               dangerouslySetInnerHTML={{
@@ -218,14 +222,16 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
           {/* Images found */}
           {parsedDocument.images && parsedDocument.images.length > 0 && (
             <div className="gba:flex gba:items-center gba:gap-2">
-              <Badge variant="secondary">{parsedDocument.images.length} images found</Badge>
+              <Badge variant="secondary">
+                {t('upload-word-images-found', { count: parsedDocument.images.length })}
+              </Badge>
             </div>
           )}
 
           {/* Continue hint */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:bg-primary/5 gba:rounded-lg gba:mt-4">
             <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
-            <p className="gba:text-sm gba:text-foreground">Document parsed successfully. Ready to edit!</p>
+            <p className="gba:text-sm gba:text-foreground">{t('upload-word-parsed-ready')}</p>
             <ArrowRight className="gba:w-4 gba:h-4 gba:text-primary gba:ml-auto" />
           </div>
         </div>
@@ -242,11 +248,11 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
             <AlertCircle className="gba:w-8 gba:h-8 gba:text-destructive" />
           </div>
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Failed to parse document</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('upload-word-parse-failed')}</h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">{error}</p>
           </div>
           <Button variant="outline" onClick={handleClear} data-testid={`${testId}-retry`}>
-            Try Again
+            {t('upload-word-try-again')}
           </Button>
         </div>
       </Card>
@@ -303,24 +309,23 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
           {/* Text */}
           <div className="gba:text-center gba:space-y-2">
             <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {isDragging ? 'Drop your file here' : 'Upload your ODF document'}
+              {isDragging ? t('upload-word-drop-here') : t('upload-odf-title-dropzone')}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-sm">
-              Drag and drop your OpenDocument text file here, or click to browse. We support .odt files up to{' '}
-              {maxFileSize}MB.
+              {t('upload-odf-drag-drop', { max: maxFileSize })}
             </p>
           </div>
 
           {/* Button */}
           <Button variant="outline" className="gba:pointer-events-none" data-testid={`${testId}-browse`}>
             <FileUp className="gba:w-4 gba:h-4 gba:mr-2" />
-            Browse Files
+            {t('upload-word-browse')}
           </Button>
 
           {/* Supported formats */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:justify-center">
             <Badge variant="secondary" className="gba:text-xs">
-              .odt (OpenDocument Text)
+              {t('upload-odf-format')}
             </Badge>
           </div>
         </div>
@@ -333,10 +338,8 @@ export const OdfUploader: React.FC<OdfUploaderProps> = ({
             <Check className="gba:w-4 gba:h-4 gba:text-primary" />
           </div>
           <div className="gba:flex-1">
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">Formatting Preserved</p>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              We'll keep your headers, lists, tables, and images intact
-            </p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('upload-word-formatting-preserved')}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('upload-word-formatting-description')}</p>
           </div>
         </div>
       </div>

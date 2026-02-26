@@ -6,7 +6,7 @@
  */
 
 import React, { memo } from 'react'
-import { EdgeProps, getBezierPath, EdgeLabelRenderer, BaseEdge } from 'reactflow'
+import { EdgeProps, getBezierPath, EdgeLabelRenderer, BaseEdge } from '@xyflow/react'
 import { FolderTree, GitBranch, Link2 } from 'lucide-react'
 
 /**

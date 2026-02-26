@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Alert,
+  Badge,
   Icon,
   useTranslation,
   Dialog,
@@ -26,6 +27,7 @@ import {
 import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/InterventionsTable'
 import HeroLiveClock from './HeroLiveClock'
 import timeTrackingTranslations from '../_i18n'
+import { useEmployeeWorkingHours } from '../utils/useEmployeeWorkingHours'
 
 interface TimeTrackingProps {
   employee: any
@@ -35,6 +37,8 @@ interface TimeTrackingProps {
 }
 
 const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
+  const workingHours = useEmployeeWorkingHours(employee)
+
   const {
     isClockedIn,
     clockInSince,
@@ -50,7 +54,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
     isNearHome,
     isNearOffice,
     updateLocationSelection
-  } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
+  } = useTimeTrackingData({ employeeId, accessToken, workingHours })
 
   const { t } = useTranslation(timeTrackingTranslations)
 
@@ -141,20 +145,22 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
       {/* Main row: Hero, Timeline and Today at a Glance */}
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mt-4" data-testid="timeclock-main-row">
         {/* Hero time card */}
-        <Card
-          className="gba:p-10 gba:!bg-info-on-card gba:text-info-foreground gba:min-h-96"
-          data-testid="timeclock-hero-card"
-        >
+        <Card variant="decorative" className="gba:p-10 gba:min-h-96" data-testid="timeclock-hero-card">
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:gap-4 gba:h-full">
             <div className="gba:bg-info-secondary gba:rounded-full gba:p-5 gba:inline-flex">
               <Icon icon={ClockIcon} className="gba:text-5xl" />
             </div>
-            <HeroLiveClock className="gba:flex gba:flex-col gba:items-center gba:justify-center" />
+            <HeroLiveClock
+              className="gba:flex gba:flex-col gba:items-center gba:justify-center"
+              timeClassName="gba:text-inverse-secondary-foreground"
+              dateClassName="gba:text-inverse-muted-foreground"
+            />
             <div className="gba:w-full">
               {isClockedIn ? (
                 <Button
-                  className="gba:w-full gba:bg-card gba:text-card-foreground"
-                  variant="secondary"
+                  className="gba:w-full"
+                  variant="default"
+                  tone="inverse"
                   disabled={!isSelfView || !isClockedIn || isSubmitting}
                   onClick={clockOut}
                   data-testid="timeclock-hero-clock-out-button"
@@ -166,8 +172,9 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
                 </Button>
               ) : (
                 <Button
-                  className="gba:w-full gba:bg-card gba:text-card-foreground"
-                  variant="secondary"
+                  className="gba:w-full"
+                  variant="default"
+                  tone="inverse"
                   disabled={!isSelfView || isClockedIn || isSubmitting}
                   onClick={clockIn}
                   data-testid="timeclock-hero-clock-in-button"
@@ -281,12 +288,12 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
           {/* Status */}
           <div className="gba:border gba:border-muted gba:rounded-md gba:p-3">
             <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('status')}</div>
-            <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-1 gba:rounded-full gba:bg-info-secondary gba:text-info gba:text-sm gba:font-medium">
+            <Badge variant="info" className="gba:animate-pulse" data-testid="timeclock-status-badge">
               <Icon icon={ClockIcon} />
               {isClockedIn
                 ? t('in_progress')
                 : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.status.clocked_out', 'Clocked out')}
-            </div>
+            </Badge>
           </div>
         </Card>
       </div>

@@ -30,8 +30,12 @@ const API_URL = getDocumentServiceApiUrl()
 let currentAccessToken: string | null = null
 
 // API request helper
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = currentAccessToken
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  accessTokenOverride?: string | null
+): Promise<T> {
+  const token = accessTokenOverride ?? currentAccessToken
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -51,7 +55,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   // Handle empty responses
   const text = await response.text()
-  return text ? JSON.parse(text) : null
+  return (text ? JSON.parse(text) : null) as T
 }
 
 interface PaginatedResponse<T> {
@@ -220,11 +224,19 @@ export const DocumentApiService = {
   /**
    * Get a single document by ID
    */
-  async getDocument(id: string, options?: { fresh?: boolean }): Promise<Document | null> {
+  async getDocument(
+    id: string,
+    optionsOrAccessToken?: { fresh?: boolean } | string | null
+  ): Promise<Document | null> {
     try {
-      const fresh = options?.fresh === true
+      const fresh = typeof optionsOrAccessToken === 'object' && optionsOrAccessToken?.fresh === true
+      const accessToken = typeof optionsOrAccessToken === 'string' ? optionsOrAccessToken : undefined
       const endpoint = fresh ? `/documents/${id}?_ts=${Date.now()}` : `/documents/${id}`
-      const doc = await apiRequest<Record<string, unknown>>(endpoint, fresh ? { cache: 'no-store' } : {})
+      const doc = await apiRequest<Record<string, unknown>>(
+        endpoint,
+        fresh ? { cache: 'no-store' } : {},
+        accessToken
+      )
       return mapApiDocumentToDocument(doc)
     } catch (error) {
       console.error('Failed to get document:', error)
@@ -300,7 +312,8 @@ export const DocumentApiService = {
   async updateDocument(
     id: string,
     updates: Partial<Document>,
-    options?: { createVersion?: boolean }
+    options?: { createVersion?: boolean },
+    accessToken?: string | null
   ): Promise<Document> {
     const payload: Record<string, unknown> = {
       title: updates.title,
@@ -323,10 +336,14 @@ export const DocumentApiService = {
       }
     })
 
-    const updated = await apiRequest<Record<string, unknown>>(`/documents/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload)
-    })
+    const updated = await apiRequest<Record<string, unknown>>(
+      `/documents/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      },
+      accessToken
+    )
 
     return mapApiDocumentToDocument(updated)
   },
@@ -473,7 +490,10 @@ export const DocumentApiService = {
   /**
    * Get all templates
    */
-  async listTemplates(options?: { category?: string; includePublic?: boolean }): Promise<TemplateSummary[]> {
+  async listTemplates(
+    options?: { category?: string; includePublic?: boolean },
+    accessToken?: string | null
+  ): Promise<TemplateSummary[]> {
     const params = new URLSearchParams()
     if (options?.category) params.set('category', options.category)
     if (options?.includePublic !== undefined) params.set('includePublic', options.includePublic.toString())
@@ -481,7 +501,7 @@ export const DocumentApiService = {
     const queryString = params.toString()
     const endpoint = `/templates${queryString ? `?${queryString}` : ''}`
 
-    const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
+    const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint, {}, accessToken)
 
     return response.items.map(t => ({
       id: t.id as string,
@@ -501,9 +521,9 @@ export const DocumentApiService = {
   /**
    * Get a single template
    */
-  async getTemplate(id: string): Promise<DocumentTemplate | null> {
+  async getTemplate(id: string, accessToken?: string | null): Promise<DocumentTemplate | null> {
     try {
-      const template = await apiRequest<Record<string, unknown>>(`/templates/${id}`)
+      const template = await apiRequest<Record<string, unknown>>(`/templates/${id}`, {}, accessToken)
       return mapApiTemplateToTemplate(template)
     } catch (error) {
       console.error('Failed to get template:', error)
@@ -597,16 +617,20 @@ export const DocumentApiService = {
   /**
    * Create document from template
    */
-  async createDocumentFromTemplate(templateId: string, title: string): Promise<Document> {
+  async createDocumentFromTemplate(templateId: string, title: string, accessToken?: string | null): Promise<Document> {
     const payload = {
       title,
       templateId
     }
 
-    const created = await apiRequest<Record<string, unknown>>('/documents', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    })
+    const created = await apiRequest<Record<string, unknown>>(
+      '/documents',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      },
+      accessToken
+    )
 
     return mapApiDocumentToDocument(created)
   },

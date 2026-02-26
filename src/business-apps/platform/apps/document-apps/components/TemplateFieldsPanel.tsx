@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Spinner, Badge, Input } from '@newwork/nw-design-system'
+import { Spinner, Badge, Input, useTranslation } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronRight, Database, FolderOpen, Search, X } from 'lucide-react'
 import {
   getTemplateEntities,
@@ -20,6 +20,7 @@ import {
   type TemplateEntityDomain
 } from '../entities'
 import { useTemplateEntityFields, type TemplateEntityFieldFromGraphQL } from '../hooks/useTemplateEntityFields'
+import translations from '../_i18n'
 import { extractEntityKeysFromContent } from '../utils/templatePlaceholders'
 
 export interface TemplateFieldsPanelProps {
@@ -46,6 +47,7 @@ const FieldButtons: React.FC<{
   indent?: boolean
   searchQuery?: string
 }> = ({ entityKey, fields, onInsert, testId, indent = true, searchQuery = '' }) => {
+  const { t } = useTranslation(translations)
   const filteredFields = searchQuery.trim()
     ? fields.filter(
         field =>
@@ -59,7 +61,7 @@ const FieldButtons: React.FC<{
       <div
         className={`gba:text-xs gba:text-muted-foreground gba:italic ${indent ? 'gba:pl-6 gba:pr-2 gba:pb-2' : 'gba:pl-2 gba:pr-2 gba:pb-1'}`}
       >
-        No fields matching "{searchQuery}"
+        {t('template-fields-no-match', { query: searchQuery })}
       </div>
     )
   }
@@ -90,6 +92,7 @@ const EntityFieldsList: React.FC<{
   testId: string
   searchQuery?: string
 }> = ({ entityKey, accessToken, onInsert, testId, searchQuery = '' }) => {
+  const { t } = useTranslation(translations)
   const { directFields, catalogGroups, isLoading, error } = useTemplateEntityFields(entityKey, accessToken)
   const [catalogsExpanded, setCatalogsExpanded] = useState(true)
   const [expandedCatalog, setExpandedCatalog] = useState<string | null>(null)
@@ -102,21 +105,21 @@ const EntityFieldsList: React.FC<{
     return (
       <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:flex gba:items-center gba:gap-2">
         <Spinner size="sm" />
-        <span className="gba:text-xs gba:text-muted-foreground">Loading fields from GraphQL...</span>
+        <span className="gba:text-xs gba:text-muted-foreground">{t('template-fields-loading')}</span>
       </div>
     )
   }
   if (error) {
     return (
       <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:text-xs gba:text-destructive">
-        Failed to load fields: {error.message}
+        {t('template-fields-load-failed', { message: error.message })}
       </div>
     )
   }
   if (directFields.length === 0 && catalogGroups.length === 0) {
     return (
       <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:text-xs gba:text-muted-foreground">
-        No fields from GraphQL for this type.
+        {t('template-fields-no-fields')}
       </div>
     )
   }
@@ -126,7 +129,7 @@ const EntityFieldsList: React.FC<{
       {directFields.length > 0 && (
         <>
           <div className="gba:px-3 gba:pt-1 gba:pb-0.5 gba:text-xs gba:font-medium gba:text-muted-foreground">
-            Fields
+            {t('template-fields-fields-label')}
           </div>
           <FieldButtons
             entityKey={entityKey}
@@ -151,7 +154,7 @@ const EntityFieldsList: React.FC<{
               <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
             )}
             <FolderOpen className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
-            <span>Catalog values (contract type, employment type, currency)</span>
+            <span>{t('template-fields-catalog-values')}</span>
           </button>
           {catalogsExpanded && (
             <div className="gba:pl-2 gba:space-y-0.5">
@@ -201,6 +204,7 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
   templateContent,
   'data-testid': testId = 'template-fields-panel'
 }) => {
+  const { t } = useTranslation(translations)
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set())
   const [expandedDomains, setExpandedDomains] = useState<Set<TemplateEntityDomain>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
@@ -264,14 +268,14 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
       data-testid={testId}
     >
       <div className="gba:flex-shrink-0 gba:px-3 gba:py-3 gba:border-b gba:space-y-3">
-        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Insert field</h3>
+        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('template-fields-insert')}</h3>
 
         {/* Search input */}
         <div className="gba:relative">
           <Search className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search entities..."
+            placeholder={t('template-fields-search-placeholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="gba:pl-8 gba:pr-8 gba:h-8 gba:text-xs"
@@ -292,7 +296,7 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
         {entitiesUsedInContent.length > 0 && (
           <div className="gba:pt-2 gba:border-t gba:border-border">
             <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">
-              Entities used in this template
+              {t('template-fields-entities-used')}
             </p>
             <div className="gba:flex gba:flex-wrap gba:gap-1">
               {entitiesUsedInContent.map(key => {
@@ -314,7 +318,7 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
       </div>
       <div className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:overflow-x-hidden gba:py-2">
         {entityList.length === 0 ? (
-          <p className="gba:px-3 gba:text-xs gba:text-muted-foreground">No entity types available.</p>
+          <p className="gba:px-3 gba:text-xs gba:text-muted-foreground">{t('template-fields-no-entity-types')}</p>
         ) : (
           <div className="gba:space-y-1">
             {entitiesByDomain.map(({ domain, entities }) => {

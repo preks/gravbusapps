@@ -5,8 +5,15 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react'
-import { AiButton, Button, Card, Textarea } from '@newwork/nw-design-system'
+import { AiButton, Button, Card, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { Send, Wand2, X } from 'lucide-react'
+import sharedTranslations from '../_i18n'
+
+export interface InlineCommentPopoverMessages {
+  addComment?: string
+  placeholder?: string
+  comment?: string
+}
 
 export interface InlineCommentPopoverProps {
   isOpen: boolean
@@ -14,6 +21,7 @@ export interface InlineCommentPopoverProps {
   onSubmit: (content: string) => void
   onEditWithAI?: () => void
   onClose: () => void
+  messages?: InlineCommentPopoverMessages
   'data-testid'?: string
 }
 
@@ -26,8 +34,16 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
   onSubmit,
   onEditWithAI,
   onClose,
+  messages: messagesProp,
   'data-testid': testId = 'inline-comment-popover'
 }) => {
+  const { t } = useTranslation(sharedTranslations)
+  const defaultMessages: Required<InlineCommentPopoverMessages> = {
+    addComment: t('inline-comment-add'),
+    placeholder: t('inline-comment-placeholder'),
+    comment: t('inline-comment-button')
+  }
+  const messages = { ...defaultMessages, ...messagesProp }
   const [content, setContent] = useState('')
   const [mode, setMode] = useState<'actions' | 'comment'>('actions')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -95,7 +111,7 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
                 <Send className="gba:h-3.5 gba:w-3.5 gba:text-warning" />
               </div>
               <span className="gba:text-sm gba:font-semibold">
-                {mode === 'actions' ? 'Selection Actions' : 'Add Comment'}
+                {mode === 'actions' ? 'Selection Actions' : messages.addComment}
               </span>
             </div>
             <Button

@@ -12,7 +12,7 @@ export interface PlanDetailPageProps {
   /** From URL query: open this plan (load and show review) */
   jobId: string | null
   initialPrompt?: string
-  onBack: () => void
+  onBack?: () => void
 }
 
 export const PlanDetailPage: React.FC<PlanDetailPageProps> = ({
@@ -23,13 +23,15 @@ export const PlanDetailPage: React.FC<PlanDetailPageProps> = ({
   onBack
 }) => {
   return (
-    <OrchestratorViewConversational
-      accessToken={accessToken}
-      userInfo={userInfo}
-      initialPrompt={initialPrompt ?? ''}
-      initialJobId={jobId ?? undefined}
-      onBack={onBack}
-      data-testid="ai-orchestrator-plan-detail"
-    />
+    <div className="gba:h-full gba:w-full">
+      <OrchestratorViewConversational
+        accessToken={accessToken}
+        userInfo={userInfo}
+        initialPrompt={initialPrompt ?? ''}
+        initialJobId={jobId ?? undefined}
+        onBack={onBack}
+        data-testid="ai-orchestrator-plan-detail"
+      />
+    </div>
   )
 }
