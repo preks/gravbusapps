@@ -27,7 +27,8 @@ const OrgChartFeature = {
 const CoreFeature = {
   Collaboration: { Key: 'core.collaboration.mode', Values: CoreFeatureCollaborationValue },
   Intranet: { Key: 'core.intranet.mode', Values: CoreFeatureIntranetValue },
-  AiAgent: { Key: 'core.aiagent.enabled' }
+  AiAgent: { Key: 'core.aiagent.enabled' },
+  TeamChat: { Key: 'core.teamchat.enabled' }
 }
 
 const HCMFeature = {

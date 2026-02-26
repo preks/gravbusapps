@@ -7,17 +7,33 @@ import {
 
 export type DisplayMode = 'value' | 'letters' | 'stars' | 'custom'
 
-/** API RatingScaleType enum: NUMERIC_RATING_SCALE_TYPE | CUSTOM_LABEL_RATING_SCALE_TYPE | ALPHABETIC_RATING_SCALE_TYPE. */
+/** API RatingScaleType enum: NUMERIC_RATING_SCALE_TYPE | CUSTOM_LABEL_RATING_SCALE_TYPE | ALPHABETIC_RATING_SCALE_TYPE | STAR_RATING_SCALE_TYPE. */
 function displayModeToScaleType(mode: DisplayMode): string {
   switch (mode) {
     case 'letters':
       return 'ALPHABETIC_RATING_SCALE_TYPE'
     case 'stars':
-      return 'CUSTOM_LABEL_RATING_SCALE_TYPE'
+      return 'STAR_RATING_SCALE_TYPE'
     case 'custom':
       return 'CUSTOM_LABEL_RATING_SCALE_TYPE'
     default:
       return 'NUMERIC_RATING_SCALE_TYPE'
+  }
+}
+
+/** Map API scaleType to modal Display mode for edit pre-selection. */
+export function scaleTypeToDisplayMode(scaleType: string | null | undefined): DisplayMode {
+  switch (scaleType) {
+    case 'STAR_RATING_SCALE_TYPE':
+      return 'stars'
+    case 'ALPHABETIC_RATING_SCALE_TYPE':
+      return 'letters'
+    case 'CUSTOM_LABEL_RATING_SCALE_TYPE':
+      return 'custom'
+    case 'NUMERIC_RATING_SCALE_TYPE':
+      return 'value'
+    default:
+      return 'value'
   }
 }
 

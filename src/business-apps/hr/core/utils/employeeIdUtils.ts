@@ -6,8 +6,10 @@ interface ExternalContextData {
 
 interface AdditionalDataWithContext {
   externalContextData?: ExternalContextData
+  contextData?: { employeeId?: string }
   psi_taskPayload?: {
     employeeId?: string
+    initialParameters?: { employeeId?: string }
     psi_initialParameters?: {
       employeeId?: string
     }
@@ -18,12 +20,13 @@ interface AdditionalDataWithContext {
 /**
  * Extracts employee ID from business app context with priority:
  * 1. externalContextData (from AppAction) - highest priority
- * 2. process payload (psi_taskPayload.employeeId)
- * 3. process initial parameters (psi_taskPayload.psi_initialParameters.employeeId)
- * 4. direct additionalData.employeeId
- * 5. userInfo.employeeDetails.employeeId
- * 6. employee.code or employee.id (if employee object provided)
- * 7. empty string (fallback)
+ * 2. contextData.employeeId (flow/screen context)
+ * 3. process payload (psi_taskPayload.employeeId)
+ * 4. process initial parameters (psi_taskPayload.psi_initialParameters.employeeId, then initialParameters.employeeId)
+ * 5. direct additionalData.employeeId
+ * 6. userInfo.employeeDetails.employeeId
+ * 7. employee.code or employee.id (if employee object provided)
+ * 8. empty string (fallback)
  *
  * @param additionalData - Additional data from BusinessAppContext
  * @param userInfo - User information from BusinessAppContext
@@ -39,8 +42,10 @@ export const extractEmployeeId = (
 
   return (
     externalContext?.employeeId || // From AppAction externalContextData (highest priority)
+    (additionalData as AdditionalDataWithContext)?.contextData?.employeeId ||
     (additionalData as AdditionalDataWithContext)?.psi_taskPayload?.employeeId ||
     (additionalData as AdditionalDataWithContext)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+    (additionalData as AdditionalDataWithContext)?.psi_taskPayload?.initialParameters?.employeeId ||
     (additionalData as AdditionalDataWithContext)?.employeeId ||
     userInfo?.employeeDetails?.employeeId ||
     employee?.code ||

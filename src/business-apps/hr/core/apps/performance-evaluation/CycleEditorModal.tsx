@@ -259,6 +259,13 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     }
   }
 
+  const formatRatingScaleOptionLabel = (scale: CycleEditorRatingScaleOption): string => {
+    const full = `${scale.name} (${scale.values.join(', ')})`
+    const maxLen = PERFORMANCE_VALIDATION.RATING_SCALE_OPTION_LABEL_MAX_LENGTH
+    if (full.length <= maxLen) return full
+    return `${full.slice(0, maxLen - 3)}...`
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="performance-cycle-editor-modal" onInteractOutside={e => e.preventDefault()}>
@@ -340,7 +347,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
             <Combobox
               value={selectedScaleId}
               onValueChange={v => setSelectedScaleId((v as string) || undefined)}
-              options={availableScales.map(s => ({ label: `${s.name} (${s.values.join(', ')})`, value: s.id }))}
+              options={availableScales.map(s => ({ label: formatRatingScaleOptionLabel(s), value: s.id }))}
               placeholder={availableScales.length ? t('placeholder-select-scale') : t('placeholder-no-scales')}
             />
           </div>
