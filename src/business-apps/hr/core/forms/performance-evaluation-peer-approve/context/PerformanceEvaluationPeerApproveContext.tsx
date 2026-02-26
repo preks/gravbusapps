@@ -5,6 +5,7 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useNominatedPeersFromProcess } from '../hooks/useNominatedPeersFromProcess'
 import { useEmployeeDisplayNames } from '../hooks/useEmployeeDisplayNames'
 import { useEmployeeForPeerApproveHeader } from '../hooks/useEmployeeForPeerApproveHeader'
+
 import { useStructureEmployees } from '../../performance-evaluation-form/hooks/useStructureEmployees'
 
 export interface EmployeeForHeader {
@@ -98,7 +99,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
 }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [peerReplacements, setPeerReplacementsState] = useState<PeerReplacements>({})
+  const [peerReplacements, setPeerReplacements] = useState<PeerReplacements>({})
 
   const ad = businessAppContext?.additionalData as Record<string, unknown> | undefined
 
@@ -143,7 +144,7 @@ export const PerformanceEvaluationPeerApproveProvider: React.FC<PerformanceEvalu
   const clearError = useCallback(() => setError(null), [])
 
   const setPeerReplacement = useCallback((peerId: string, replacementEmployeeId: string | null) => {
-    setPeerReplacementsState(prev => {
+    setPeerReplacements(prev => {
       const next = { ...prev }
       if (replacementEmployeeId == null) {
         delete next[peerId]
