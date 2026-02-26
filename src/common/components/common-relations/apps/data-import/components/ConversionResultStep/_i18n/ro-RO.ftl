@@ -10,8 +10,9 @@ import-more-button = Importă mai multe
 done-button = Terminat
 
 # Success Messages
-import-success-title = Import reușit!
-import-success-message = Au fost importate cu succes { $count } { $entityType } în CRM
+import-success-title = Import în curs
+import-success-message = Cele { $count } { $entityType } sunt importate în fundal.
+import-success-email-hint = Veți fi notificat prin e-mail când importul este finalizat.
 conversion-success-message = Au fost convertite cu succes { $count } { $entityType }
 
 # Campaign
