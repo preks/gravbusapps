@@ -204,8 +204,17 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         publicLabel={t('feedback-hub-filter-public')}
         dateFromLabel={t('feedback-hub-filter-date-from')}
         dateToLabel={t('feedback-hub-filter-date-to')}
+        allDatesLabel={t('feedback-hub-filter-all-dates')}
         senderLabel={t('feedback-hub-filter-sender')}
         typeLabel={t('feedback-hub-filter-type')}
+        clearLabel={t('feedback-hub-filters-clear')}
+        onClearFilters={() => {
+          setSearchTerm('')
+          setFilterType('all')
+          setDateFrom('')
+          setDateTo('')
+          setTypeFilter('all')
+        }}
       />
 
       {kpiLoading && !showPendingPanel && (
