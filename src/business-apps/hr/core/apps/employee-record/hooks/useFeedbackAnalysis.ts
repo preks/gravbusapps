@@ -70,12 +70,14 @@ function extractFencedJson(text: string): string | null {
   const openJson = '```json'
   const idxJson = text.indexOf(openJson)
   const idxPlain = text.indexOf(open)
-  const startIdx =
-    idxJson >= 0 && (idxPlain < 0 || idxJson <= idxPlain)
-      ? idxJson + openJson.length
-      : idxPlain >= 0
-        ? idxPlain + open.length
-        : -1
+  let startIdx: number
+  if (idxJson >= 0 && (idxPlain < 0 || idxJson <= idxPlain)) {
+    startIdx = idxJson + openJson.length
+  } else if (idxPlain >= 0) {
+    startIdx = idxPlain + open.length
+  } else {
+    startIdx = -1
+  }
   if (startIdx < 0) return null
   const afterOpen = text.slice(startIdx).trimStart()
   const closeIdx = afterOpen.indexOf(open)

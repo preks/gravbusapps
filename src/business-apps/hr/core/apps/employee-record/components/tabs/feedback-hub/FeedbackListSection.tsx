@@ -67,6 +67,51 @@ function getListContent(
   return <EmptyState title={emptyLabel} />
 }
 
+const panelMaxHeight = 'calc(100vh - 240px)'
+
+function FlipCardInner({
+  isFlipped,
+  frontFace,
+  backFace
+}: {
+  isFlipped: boolean
+  frontFace: React.ReactNode
+  backFace: React.ReactNode | null
+}) {
+  const containerMinHeight = isFlipped ? '' : 'gba:min-h-[200px]'
+  const transform = isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
+  const minHeight = isFlipped ? undefined : '200px'
+  const height = isFlipped ? panelMaxHeight : undefined
+  const maxHeight = isFlipped ? panelMaxHeight : undefined
+  return (
+    <div className={`gba:relative gba:w-full ${containerMinHeight}`} style={{ perspective: '1000px' }}>
+      <div
+        className="gba:relative gba:w-full gba:transition-transform gba:duration-500 gba:ease-in-out"
+        style={{ transformStyle: 'preserve-3d', transform, minHeight, height, maxHeight }}
+      >
+        <div
+          className="gba:w-full gba:min-h-[200px]"
+          style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+        >
+          {frontFace}
+        </div>
+        {backFace === null ? null : (
+          <div
+            className="gba:absolute gba:inset-0 gba:w-full gba:flex gba:flex-col"
+            style={{
+              transform: 'rotateY(180deg)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden'
+            }}
+          >
+            {backFace}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
   title,
   loading,
@@ -126,16 +171,15 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
     </div>
   )
 
-  const panelMaxHeight = 'calc(100vh - 240px)'
   const backFace =
-    footerContent != null ? (
+    footerContent === null || footerContent === undefined ? null : (
       <div
         className="gba:w-full gba:h-full gba:overflow-y-auto gba:overflow-x-hidden gba:scrollbar-thin gba:pr-1"
         style={{ maxHeight: panelMaxHeight }}
       >
         {footerContent}
       </div>
-    ) : null
+    )
 
   return (
     <Card className={hasFlip ? 'gba:overflow-hidden' : undefined}>
@@ -145,49 +189,7 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
           {headerAction}
         </div>
 
-        {hasFlip ? (
-          <div
-            className={`gba:relative gba:w-full ${isFlipped ? '' : 'gba:min-h-[200px]'}`}
-            style={{ perspective: '1000px' }}
-          >
-            <div
-              className="gba:relative gba:w-full gba:transition-transform gba:duration-500 gba:ease-in-out"
-              style={{
-                transformStyle: 'preserve-3d',
-                transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                minHeight: isFlipped ? undefined : '200px',
-                height: isFlipped ? panelMaxHeight : undefined,
-                maxHeight: isFlipped ? panelMaxHeight : undefined
-              }}
-            >
-              {/* Front: list + pagination */}
-              <div
-                className="gba:w-full gba:min-h-[200px]"
-                style={{
-                  backfaceVisibility: 'hidden',
-                  WebkitBackfaceVisibility: 'hidden'
-                }}
-              >
-                {frontFace}
-              </div>
-              {/* Back: insights panel (constrained height so column stays smaller) */}
-              {backFace !== null ? (
-                <div
-                  className="gba:absolute gba:inset-0 gba:w-full gba:flex gba:flex-col"
-                  style={{
-                    transform: 'rotateY(180deg)',
-                    backfaceVisibility: 'hidden',
-                    WebkitBackfaceVisibility: 'hidden'
-                  }}
-                >
-                  {backFace}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          frontFace
-        )}
+        {hasFlip ? <FlipCardInner isFlipped={isFlipped} frontFace={frontFace} backFace={backFace} /> : frontFace}
       </CardContent>
     </Card>
   )
