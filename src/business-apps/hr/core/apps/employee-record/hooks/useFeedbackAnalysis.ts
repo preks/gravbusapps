@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 const FEEDBACK_ANALYZER_EXPERT_ID = '699efff5ddbf12c3953b6686'
 
 export interface SentimentDistribution {
@@ -152,13 +152,16 @@ export const useFeedbackAnalysis = ({ accessToken }: UseFeedbackAnalysisProps) =
     period: string
   ): Promise<FeedbackAnalysisResult | null> => {
     const feedbackData = formatFeedbackForAnalyzer(entries)
+    const locale = getCurrentActiveUserLocale()
+    const language = new Intl.DisplayNames([locale], { type: 'language' }).of(locale.split('-')[0]) ?? locale
     const response = await client.executePromptWithOptions(FEEDBACK_ANALYZER_EXPERT_ID, {
       userParams: {
         employee_name: employeeName,
         period,
         analysis_type: 'comprehensive',
         feedback_direction: direction,
-        feedback_data: feedbackData
+        feedback_data: feedbackData,
+        language: language
       }
     })
     return parseAnalysisResponse(response.content)
