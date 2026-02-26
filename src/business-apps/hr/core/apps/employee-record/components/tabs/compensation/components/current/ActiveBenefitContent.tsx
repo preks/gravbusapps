@@ -119,6 +119,29 @@ const ActiveBenefitContent: React.FC<ActiveBenefitContentProps> = ({
           </div>
         </div>
       )}
+
+      {/* Notes and Comments */}
+      {(benefit.notes || benefit.comments) && (
+        <div className="gba:space-y-3 gba:pt-4 gba:border-t">
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground gba:uppercase gba:tracking-wide">
+            {t('benefit-details-additional-info')}
+          </h3>
+          <div className="gba:space-y-2 gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">
+            {benefit.notes && (
+              <div data-testid="benefit-details-notes-value">
+                <span className="gba:text-muted-foreground">{t('benefit-details-justification')}: </span>
+                {benefit.notes}
+              </div>
+            )}
+            {benefit.comments && (
+              <div data-testid="benefit-details-comments-value">
+                <span className="gba:text-muted-foreground">{t('benefit-details-comments')}: </span>
+                {benefit.comments}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }

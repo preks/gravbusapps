@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Alert, Button } from '@newwork/nw-design-system'
 import { Search } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useBenefitsCatalog } from '../../hooks/useBenefitsCatalog'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { DebouncedInput } from '@/components/debounced-input'
@@ -73,6 +74,13 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
     refetch
   } = useBenefitsCatalog(employeeId, accessToken, {
     excludeHrBackoffice: hrBackofficeHasPermission === false
+  })
+
+  // Refresh catalog when a benefit request or deactivation flow completes
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch()
+    }
   })
 
   // Use external loading or internal loading
