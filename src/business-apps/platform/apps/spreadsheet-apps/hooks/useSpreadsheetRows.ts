@@ -32,7 +32,7 @@ export interface SpreadsheetRowsState {
   handleAddRow: () => Promise<void>
   handleUpdateRow: (values: Record<string, unknown>) => Promise<void>
   handleDeleteRow: (rowId: string) => void
-  handleFortuneSheetDataChange: (newData: Record<string, unknown>[]) => Promise<void>
+  handleUniverDataChange: (newData: Record<string, unknown>[]) => Promise<void>
 }
 
 export function useSpreadsheetRows({
@@ -119,8 +119,8 @@ export function useSpreadsheetRows({
     [activeSheet, localSheetData, setLocalSheetData, onDataChange]
   )
 
-  // Handle data change from FortuneSheetGrid
-  const handleFortuneSheetDataChange = useCallback(
+  // Handle data change from spreadsheet grid (Univer)
+  const handleUniverDataChange = useCallback(
     async (newData: Record<string, unknown>[]) => {
       const currentFilteredData = filteredDataRef.current
       const currentActiveSheet = activeSheet
@@ -128,7 +128,7 @@ export function useSpreadsheetRows({
 
       if (!currentActiveSheet || !currentAppId) return
 
-      // Compare against filteredData (what FortuneSheetGrid sees)
+      // Compare against filteredData (what the grid sees)
       if (newData.length > currentFilteredData.length) {
         const addedRows = newData.slice(currentFilteredData.length)
 
@@ -163,6 +163,6 @@ export function useSpreadsheetRows({
     handleAddRow,
     handleUpdateRow,
     handleDeleteRow,
-    handleFortuneSheetDataChange
+    handleUniverDataChange
   }
 }
