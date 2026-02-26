@@ -10,8 +10,9 @@ import-more-button = Import More
 done-button = Done
 
 # Success Messages
-import-success-title = Import Successful!
-import-success-message = Successfully imported { $count } { $entityType } to CRM
+import-success-title = Import in Progress
+import-success-message = Your { $count } { $entityType } are being imported in the background.
+import-success-email-hint = You will be notified by email when the import completes.
 conversion-success-message = Successfully converted { $count } { $entityType }
 
 # Campaign

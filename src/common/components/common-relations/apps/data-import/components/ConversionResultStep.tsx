@@ -24,7 +24,8 @@ import {
   BuildingsIcon,
   MapPinIcon,
   ArrowCounterClockwiseIcon,
-  MegaphoneSimpleIcon
+  MegaphoneSimpleIcon,
+  ClockIcon
 } from '@phosphor-icons/react'
 import {
   ConvertedEntity,
@@ -54,7 +55,6 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
   targetFieldsConfig,
   entityType,
   isLoading,
-  importResult,
   campaignName,
   onDownloadJSON,
   onImportToBackend,
@@ -65,6 +65,13 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
 
   // State for expandable warnings
   const [showAllWarnings, setShowAllWarnings] = React.useState(false)
+  // Flip immediately on click so the "in progress" screen shows without waiting for the API
+  const [importStarted, setImportStarted] = React.useState(false)
+
+  const handleImportToBackend = async () => {
+    setImportStarted(true)
+    await onImportToBackend()
+  }
 
   // Calculate data quality metrics
   const dataQuality = useMemo(
@@ -101,22 +108,28 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
         </CardHeader>
         <CardContent>
           <div className="gba:space-y-4">
-            {/* Import Success Message */}
-            {importResult && (
-              <Card variant="outlined" className="gba:border-success">
+            {/* Import in Progress Message */}
+            {importStarted && (
+              <Card variant="outlined" className="gba:border-primary">
                 <CardContent className="gba:p-6">
                   <div className="gba:flex gba:flex-col gba:items-center gba:gap-4 gba:text-center">
-                    <CheckCircleIcon className="gba:w-16 gba:h-16 gba:text-success" weight="fill" />
+                    <div className="gba:relative">
+                      <ClockIcon className="gba:w-16 gba:h-16 gba:text-primary" weight="fill" />
+                    </div>
                     <div>
-                      <h3 className="gba:text-2xl gba:font-semibold gba:text-success gba:mb-2">
+                      <h3 className="gba:text-2xl gba:font-semibold gba:text-primary gba:mb-2">
                         {t('import-success-title')}
                       </h3>
-                      <p className="gba:text-base gba:text-foreground">
+                      <p className="gba:text-base gba:text-foreground gba:max-w-md">
                         {t('import-success-message', {
-                          count: importResult.successCount,
-                          entityType: importResult.successCount === 1 ? entityLabelSingular.toLowerCase() : entityLabel
+                          count: convertedEntities.length,
+                          entityType: convertedEntities.length === 1 ? entityLabelSingular.toLowerCase() : entityLabel
                         })}
                       </p>
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:bg-muted gba:rounded-md gba:px-4 gba:py-2">
+                      <EnvelopeIcon className="gba:w-4 gba:h-4 gba:shrink-0" />
+                      <span>{t('import-success-email-hint')}</span>
                     </div>
                     <div className="gba:flex gba:gap-3 gba:w-full gba:max-w-md gba:mt-2">
                       <Button
@@ -138,7 +151,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
             )}
 
             {/* Conversion Success Message (shown when not yet imported) */}
-            {!importResult && (
+            {!importStarted && (
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-success">
                 <CheckCircleIcon className="gba:w-5 gba:h-5 gba:text-success" weight="fill" />
                 {t('conversion-success-message', { count: convertedEntities.length, entityType: entityLabel })}
@@ -146,7 +159,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
             )}
 
             {/* Selected campaign indicator */}
-            {!importResult && campaignName && (
+            {!importStarted && campaignName && (
               <div
                 className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground"
                 data-testid={`${testId}-campaign-label`}
@@ -157,7 +170,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
             )}
 
             {/* Preview, Warnings, and Import Button (shown when not yet imported) */}
-            {!importResult && (
+            {!importStarted && (
               <>
                 {/* Entity Preview Cards */}
                 <div className="gba:space-y-2">
@@ -297,7 +310,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
 
                 {/* Import to CRM Button */}
                 <Button
-                  onClick={onImportToBackend}
+                  onClick={handleImportToBackend}
                   disabled={isLoading}
                   className="gba:w-full"
                   data-testid={`${testId}-import-button`}
