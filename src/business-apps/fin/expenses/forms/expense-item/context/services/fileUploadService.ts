@@ -52,7 +52,6 @@ export const parseFileUpload = async (files: File[], accessToken: string, aiGrou
     }
 
     const data = await response.json()
-    console.log('[Receipt AI] Raw API response from /invoices/from-file:', data)
     return data
   } catch {
     showToast(

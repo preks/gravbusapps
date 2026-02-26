@@ -40,7 +40,6 @@ function shouldAddTaxPosition(positionsSum: number, aiTotal: number | null | und
 export function normalizeReceiptData(data: any): any {
   if (!data) return data
 
-  console.log('[Receipt AI] Original AI processed result (before normalization):', data)
   const normalized = { ...data }
 
   // 1. Filter out items that are tax or tip by description (word match), except e.g. "City Tax"
