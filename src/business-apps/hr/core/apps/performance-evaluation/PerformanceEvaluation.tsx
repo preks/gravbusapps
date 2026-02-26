@@ -345,11 +345,11 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   }
 
   const handleSaveFromScaleModal = async (values: RatingScaleValues) => {
-    const isNewScale = !values.id || values.id.startsWith('scale_')
-    if (accessToken && isNewScale) {
+    if (accessToken) {
       try {
         await saveRatingScale({
           id: values.id,
+          version: values.version,
           name: values.name,
           values: values.values,
           numValues: values.numValues,
