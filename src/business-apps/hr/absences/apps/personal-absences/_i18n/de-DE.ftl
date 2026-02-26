@@ -1,29 +1,38 @@
-# Personal Absences - German (fallback to English keys)
+# Personal Absences - German
 
-request-absence = Request Absence
-calendar = Calendar
-back-to-dashboard = Back to Dashboard
-absence-overview = Absences
-my-balance = My Balance
-year-to-date = Year to Date
-absent-days = Absent
-working-days = Working Days
-days = days
-day = day
-ai-wellness-insight = AI Wellness Insight
-upcoming-absences = Upcoming Absences
-no-upcoming-absences = No upcoming absences
-company-holiday = Company Holiday
-pending-requests = Pending Requests
-no-pending-requests = No pending requests
-my-absence-history = My Absence History
-all-types = All Types
-status-all-placeholder = Status: All
-all = All
-no-data-found = No data found
-start-date = Date
-type = Type
-duration = Duration
+# Header & navigation
+request-absence = Abwesenheit beantragen
+calendar = Kalender
+back-to-dashboard = Zurück zur Übersicht
+absence-overview = Abwesenheiten
+
+# My Balance
+my-balance = Mein Kontostand
+year-to-date = Seit Jahresbeginn
+absent-days = Abwesend
+working-days = Arbeitstage
+days = Tage
+day = Tag
+ai-wellness-insight = KI-Wellness-Einblick
+
+# Upcoming & Pending
+upcoming-absences = Geplante Abwesenheiten
+no-upcoming-absences = Keine geplanten Abwesenheiten
+company-holiday = Feiertag
+pending-requests = Offene Anträge
+no-pending-requests = Keine offenen Anträge
+
+# My Absence History
+my-absence-history = Meine Abwesenheitshistorie
+all-types = Alle Arten
+status-all-placeholder = Status: Alle
+all = Alle
+no-data-found = Keine Daten gefunden
+
+# Table
+start-date = Datum
+type = Art
+duration = Dauer
 status = Status
-description = Comments
-absences = absences
+description = Kommentare
+absences = Abwesenheiten
