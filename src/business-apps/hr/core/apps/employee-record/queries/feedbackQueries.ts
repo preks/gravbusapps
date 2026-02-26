@@ -81,8 +81,6 @@ export const employeeFeedbackHubKpiQuery = `
     $prev30Start: timestamp!
     $last30StartTz: timestamptz!
     $prev30StartTz: timestamptz!
-    $pendingLimit: Int!
-    $pendingOffset: Int!
   ) {
     receivedTotal: EmployeeFeedbackAggregate(
       where: { employeeId: { _eq: $employeeId }, isDeleted: { _neq: true } }
@@ -226,53 +224,19 @@ export const employeeFeedbackHubKpiQuery = `
       feedbackDate
       createdAt
     }
-    pendingRequests: EmployeeFeedbackRequest(
-      where: {
-        employeeId: { _eq: $employeeId }
-        _or: [
-          { statusRef: { _eq: "PENDING" } }
-          { statusRef: { _eq: "EmployeeFeedbackRequestStatus:v1:PENDING" } }
-          { statusRef: { _isNull: true } }
-        ]
-        isDeleted: { _neq: true }
-      }
-      orderBy: { createdAt: DESC }
-      limit: $pendingLimit
-      offset: $pendingOffset
-    ) {
+  }
+`
+
+/** Resolve employee profile data for pending feedback task creators. */
+export const pendingFeedbackRequesterEmployeesQuery = `
+  query GetPendingFeedbackRequesterEmployees($userIds: [String!]) {
+    Employee(where: { userId: { _in: $userIds }, isDeleted: { _eq: false } }) {
       id
-      createdAt
-      requesterEmployeeId
-      requestedOn
-      dueDate
-      message
-      employeeId
-      requesterEmployee {
-        id
-        displayName
-        firstName
-        lastName
-        employeePosition {
-          employee {
-            pictureThumbnail
-          }
-        }
-      }
-    }
-    pendingRequestsAggregate: EmployeeFeedbackRequestAggregate(
-      where: {
-        employeeId: { _eq: $employeeId }
-        _or: [
-          { statusRef: { _eq: "PENDING" } }
-          { statusRef: { _eq: "EmployeeFeedbackRequestStatus:v1:PENDING" } }
-          { statusRef: { _isNull: true } }
-        ]
-        isDeleted: { _neq: true }
-      }
-    ) {
-      aggregate {
-        count
-      }
+      userId
+      displayName
+      firstName
+      lastName
+      pictureThumbnail
     }
   }
 `

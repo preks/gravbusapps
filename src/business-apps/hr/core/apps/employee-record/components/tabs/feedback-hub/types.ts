@@ -92,10 +92,4 @@ export interface FeedbackHubKpiResponse {
   contributorsPrev30?: CountAggregate | null
   lastReceived?: LatestFeedbackRow[]
   lastGiven?: LatestFeedbackRow[]
-  pendingRequests?: PendingRequestRow[]
-  pendingRequestsAggregate?: {
-    aggregate?: {
-      count?: number | null
-    } | null
-  } | null
 }

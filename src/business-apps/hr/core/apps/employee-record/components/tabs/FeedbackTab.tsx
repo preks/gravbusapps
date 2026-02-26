@@ -68,6 +68,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     employee,
     currentUserEmployeeId,
     isSelfView,
+    accessToken,
+    userInfo,
     graphQLClient,
     t
   })
