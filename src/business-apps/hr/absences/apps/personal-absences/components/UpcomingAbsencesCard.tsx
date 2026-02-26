@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton } from '@neww
 import React from 'react'
 import dayjs from 'dayjs'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
 
 type TFunction = (key: string) => string
@@ -64,8 +65,8 @@ export function UpcomingAbsencesCard({
                   <div className="gba:flex-1 gba:min-w-0">
                     <p className="gba:text-sm gba:font-medium gba:truncate">
                       {item.absence.startDate !== item.absence.endDate
-                        ? `${dayjs(item.absence.startDate).format('MMM D')} – ${dayjs(item.absence.endDate).format('MMM D, YYYY')}`
-                        : `${dayjs(item.absence.startDate).format('MMM D')}, ${dayjs(item.absence.startDate).format('YYYY')}`}
+                        ? `${formatDate(item.absence.startDate, 'date.monthDay') ?? '—'} – ${formatDate(item.absence.endDate, 'date.medium') ?? '—'}`
+                        : (formatDate(item.absence.startDate, 'date.medium') ?? '—')}
                       {' – '}
                       {item.absence.type}
                     </p>
@@ -81,7 +82,7 @@ export function UpcomingAbsencesCard({
                     {t('company-holiday')}
                   </p>
                   <p className="gba:text-sm gba:font-medium">
-                    {item.name} — {item.date.format('MMM D, YYYY')}
+                    {item.name} — {formatDate(item.date.toISOString(), 'date.medium') ?? '—'}
                   </p>
                 </div>
               )

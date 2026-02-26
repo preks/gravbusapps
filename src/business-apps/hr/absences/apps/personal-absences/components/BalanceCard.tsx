@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Progress, Skeleton } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@newwork/nw-design-system'
 import { SparkleIcon } from '@phosphor-icons/react'
 import type { AbsenceRow } from '../types/personalAbsences'
 
@@ -95,7 +95,7 @@ export function BalanceCard({
                     >
                       {usedFlex > 0 && (
                         <div
-                          className="gba:h-full gba:min-w-0 gba:flex-shrink-0 gba:bg-info-secondary"
+                          className="gba:h-full gba:min-w-0 gba:flex-shrink-0 gba:rounded-l-full gba:bg-info-secondary"
                           style={{ flex: usedFlex }}
                         />
                       )}
@@ -130,10 +130,23 @@ export function BalanceCard({
                   {ytdAbsentDays} {t('absent-days')} / {ytdTotalWorkingDays} {t('working-days')}
                 </span>
               </div>
-              <Progress
-                value={ytdTotalWorkingDays > 0 ? (ytdAbsentDays / ytdTotalWorkingDays) * 100 : 0}
-                className="gba:h-2"
-              />
+              <div
+                className="gba:h-2 gba:w-full gba:overflow-hidden gba:rounded-full gba:bg-muted"
+                role="progressbar"
+                aria-valuenow={ytdTotalWorkingDays > 0 ? (ytdAbsentDays / ytdTotalWorkingDays) * 100 : 0}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={t('year-to-date')}
+              >
+                {ytdTotalWorkingDays > 0 && (
+                  <div
+                    className="gba:h-full gba:rounded-l-full gba:bg-info-secondary gba:min-w-0"
+                    style={{
+                      width: `${Math.min(100, (ytdAbsentDays / ytdTotalWorkingDays) * 100)}%`
+                    }}
+                  />
+                )}
+              </div>
             </div>
             <div className="gba:mt-2">
               {(() => {

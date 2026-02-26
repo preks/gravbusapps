@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton } from '@newwork/nw-design-system'
-import dayjs from 'dayjs'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
 
 type TFunction = (key: string) => string
@@ -44,7 +44,7 @@ export function PendingRequestsCard({ isLoading, pendingRequests, t }: Readonly<
                   className="gba:flex gba:items-center gba:justify-between gba:rounded gba:border gba:px-3 gba:py-2"
                 >
                   <div className="gba:flex-1 gba:min-w-0">
-                    <p className="gba:text-sm gba:font-medium">{dayjs(a.startDate).format('MMM D, YYYY')}</p>
+                    <p className="gba:text-sm gba:font-medium">{formatDate(a.startDate, 'date.medium') ?? '—'}</p>
                     <p className="gba:text-xs gba:text-muted-foreground">
                       {a.type}
                       {typeof a.workingDays === 'number' && (
