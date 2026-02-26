@@ -1,8 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
-import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Sparkle } from '@phosphor-icons/react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import translations from '../../_i18n'
@@ -10,9 +11,11 @@ import FeedbackToolbar from './feedback-hub/FeedbackToolbar'
 import FeedbackHubHeader from './feedback-hub/FeedbackHubHeader'
 import FeedbackHubKpiGrid from './feedback-hub/FeedbackHubKpiGrid'
 import FeedbackListSection from './feedback-hub/FeedbackListSection'
+import FeedbackAnalysisPanel from './feedback-hub/FeedbackAnalysisPanel'
 import PendingRequestsSheet from './feedback-hub/PendingRequestsSheet'
 import { FEEDBACK_LIST_LIMIT } from '../../queries/feedbackQueries'
 import { PENDING_REQUESTS_PAGE_SIZE, useFeedbackHubData } from './feedback-hub/useFeedbackHubData'
+import { useFeedbackAnalysis } from '../../hooks/useFeedbackAnalysis'
 
 interface FeedbackTabProps {
   employee: Employee
@@ -33,6 +36,15 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   const { t } = useTranslation(translations)
   const graphQLClient = useGraphqlClient(accessToken)
   const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId ?? employeeId ?? employee?.id ?? ''
+
+  const {
+    results: analysisResults,
+    isAnalyzing,
+    error: analysisError,
+    analyze,
+    clear: clearAnalysis
+  } = useFeedbackAnalysis({ accessToken })
+  const [showAnalysis, setShowAnalysis] = useState(false)
 
   const {
     searchTerm,
@@ -74,6 +86,17 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     t
   })
 
+  const handleAnalyzeFeedback = async () => {
+    const employeeName = `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || 'Employee'
+    if (receivedList.length === 0 && givenList.length === 0) return
+    setShowAnalysis(true)
+    await analyze({
+      employeeName,
+      received: receivedList,
+      given: givenList
+    })
+  }
+
   return (
     <div className="gba:space-y-6 " data-testid="feedback-tab">
       <FeedbackHubHeader t={t} employee={employee} accessToken={accessToken} />
@@ -114,6 +137,37 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         senderLabel={t('feedback-hub-filter-sender')}
         typeLabel={t('feedback-hub-filter-type')}
       />
+
+      {/* AI Analysis button */}
+      <div className="gba:flex gba:justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gba:flex gba:items-center gba:gap-2"
+          data-testid="analyze-feedback-button"
+          disabled={isAnalyzing || (receivedList.length === 0 && givenList.length === 0)}
+          onClick={handleAnalyzeFeedback}
+        >
+          {isAnalyzing ? <Spinner size="sm" /> : <Sparkle className="gba:h-4 gba:w-4" weight="fill" />}
+          {isAnalyzing ? 'Analyzing…' : 'AI Analysis'}
+        </Button>
+      </div>
+
+      {/* AI Analysis Results */}
+      {showAnalysis && (
+        <FeedbackAnalysisPanel
+          receivedResult={analysisResults.received}
+          givenResult={analysisResults.given}
+          isAnalyzing={isAnalyzing}
+          error={analysisError}
+          receivedCount={receivedList.length}
+          givenCount={givenList.length}
+          onClose={() => {
+            setShowAnalysis(false)
+            clearAnalysis()
+          }}
+        />
+      )}
 
       {kpiLoading && !showPendingPanel && (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-20">
