@@ -33,7 +33,8 @@ interface PersonalAbsencesCalendarViewProps {
 function toCalendarAbsenceList(rows: AbsenceRow[], t: TFunction): (AbsenceListCardAbsence & { id: string })[] {
   return rows.map(a => {
     const workingDays = a.workingDays ?? 0
-    const duration = workingDays > 0 ? `${workingDays} ${workingDays === 1 ? t('day') : t('days')}` : ''
+    const dayLabel = workingDays === 1 ? t('day') : t('days')
+    const duration = workingDays > 0 ? `${workingDays} ${dayLabel}` : ''
     return {
       id: a.id,
       type: a.type,
@@ -69,7 +70,7 @@ export function PersonalAbsencesCalendarView({
   absences: absencesProp,
   loading: loadingProp,
   error: errorProp
-}: PersonalAbsencesCalendarViewProps) {
+}: Readonly<PersonalAbsencesCalendarViewProps>) {
   const fallback = useAbsenceData(employee?.id, accessToken, absenceEntitlements || [])
 
   const useOwnAbsences = absencesProp != null

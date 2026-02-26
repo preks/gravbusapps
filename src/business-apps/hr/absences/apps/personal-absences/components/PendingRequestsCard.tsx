@@ -11,44 +11,50 @@ interface PendingRequestsCardProps {
   t: TFunction
 }
 
-export function PendingRequestsCard({ isLoading, pendingRequests, t }: PendingRequestsCardProps) {
+export function PendingRequestsCard({ isLoading, pendingRequests, t }: Readonly<PendingRequestsCardProps>) {
   return (
     <Card>
       <CardHeader className="gba:pb-3">
         <CardTitle className="gba:text-base gba:font-semibold">{t('pending-requests')}</CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="gba:space-y-2">
-            <Skeleton className="gba:h-6 gba:w-full" />
-            <Skeleton className="gba:h-6 gba:w-full" />
-          </div>
-        ) : pendingRequests.length === 0 ? (
-          <p className="gba:text-sm gba:text-muted-foreground">{t('no-pending-requests')}</p>
-        ) : (
-          <div className="gba:space-y-2">
-            {pendingRequests.slice(0, 4).map(a => (
-              <div
-                key={a.id}
-                className="gba:flex gba:items-center gba:justify-between gba:rounded gba:border gba:px-3 gba:py-2"
-              >
-                <div className="gba:flex-1 gba:min-w-0">
-                  <p className="gba:text-sm gba:font-medium">{dayjs(a.startDate).format('MMM D, YYYY')}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    {a.type}
-                    {typeof a.workingDays === 'number' && (
-                      <>
-                        {' '}
-                        · {a.workingDays} {a.workingDays === 1 ? t('day') : t('days')}
-                      </>
-                    )}
-                  </p>
-                </div>
-                <Badge variant="pending">{getAbsenceStatusLabel('PENDING')}</Badge>
+        {(() => {
+          if (isLoading) {
+            return (
+              <div className="gba:space-y-2">
+                <Skeleton className="gba:h-6 gba:w-full" />
+                <Skeleton className="gba:h-6 gba:w-full" />
               </div>
-            ))}
-          </div>
-        )}
+            )
+          }
+          if (pendingRequests.length === 0) {
+            return <p className="gba:text-sm gba:text-muted-foreground">{t('no-pending-requests')}</p>
+          }
+          return (
+            <div className="gba:space-y-2">
+              {pendingRequests.slice(0, 4).map(a => (
+                <div
+                  key={a.id}
+                  className="gba:flex gba:items-center gba:justify-between gba:rounded gba:border gba:px-3 gba:py-2"
+                >
+                  <div className="gba:flex-1 gba:min-w-0">
+                    <p className="gba:text-sm gba:font-medium">{dayjs(a.startDate).format('MMM D, YYYY')}</p>
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {a.type}
+                      {typeof a.workingDays === 'number' && (
+                        <>
+                          {' '}
+                          · {a.workingDays} {a.workingDays === 1 ? t('day') : t('days')}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Badge variant="pending">{getAbsenceStatusLabel('PENDING')}</Badge>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
       </CardContent>
     </Card>
   )

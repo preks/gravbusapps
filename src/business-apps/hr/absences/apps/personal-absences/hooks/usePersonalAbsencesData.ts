@@ -221,7 +221,7 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
   const displayEntitlements = useMemo(() => (snapshotEntitlements || []).filter(e => e.display), [snapshotEntitlements])
 
   const otherEntitlements = useMemo(
-    () => (snapshotEntitlements || []).filter(e => !e.display && e.used > 0),
+    () => snapshotEntitlements?.filter(e => !e.display && e.used > 0) ?? [],
     [snapshotEntitlements]
   )
 

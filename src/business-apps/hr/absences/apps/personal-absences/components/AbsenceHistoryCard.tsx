@@ -56,7 +56,103 @@ export function AbsenceHistoryCard({
   paginatedAbsences,
   totalPages,
   t
-}: AbsenceHistoryCardProps) {
+}: Readonly<AbsenceHistoryCardProps>) {
+  const renderCardContent = () => {
+    if (isLoading) {
+      return (
+        <div className="gba:space-y-2">
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+        </div>
+      )
+    }
+    if (error) {
+      return (
+        <div className="gba:flex gba:items-center gba:gap-2 gba:text-destructive gba:py-4">
+          <WarningCircleIcon className="gba:w-4 gba:h-4" />
+          <span>{error}</span>
+        </div>
+      )
+    }
+    if (filteredAbsences.length === 0) {
+      return <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">{t('no-data-found')}</p>
+    }
+    return (
+      <>
+        <div className="gba:overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('start-date')}</TableHead>
+                <TableHead>{t('type')}</TableHead>
+                <TableHead>{t('duration')}</TableHead>
+                <TableHead>{t('status')}</TableHead>
+                <TableHead>{t('description')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedAbsences.map(a => (
+                <TableRow key={a.id}>
+                  <TableCell className="gba:whitespace-nowrap">
+                    {dayjs(a.startDate).format('MMM D')}
+                    {a.startDate !== a.endDate && ` – ${dayjs(a.endDate).format('MMM D, YYYY')}`}
+                    {a.startDate === a.endDate && `, ${dayjs(a.startDate).format('YYYY')}`}
+                  </TableCell>
+                  <TableCell>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <div
+                        className="gba:w-2 gba:h-2 gba:rounded-full gba:shrink-0"
+                        style={{ backgroundColor: `#${a.typeColor}` }}
+                      />
+                      {a.type}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {a.workingDays} {a.workingDays === 1 ? t('day') : t('days')}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant(a.originalStatus)}>{a.status}</Badge>
+                  </TableCell>
+                  <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="gba:flex gba:items-center gba:justify-between gba:pt-4">
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {filteredAbsences.length} {t('absences')}
+            </span>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <CaretLeftIcon className="gba:w-4 gba:h-4" />
+              </Button>
+              <span className="gba:text-sm">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                <CaretRightIcon className="gba:w-4 gba:h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -104,94 +200,7 @@ export function AbsenceHistoryCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="gba:space-y-2">
-            <Skeleton className="gba:h-10 gba:w-full" />
-            <Skeleton className="gba:h-10 gba:w-full" />
-            <Skeleton className="gba:h-10 gba:w-full" />
-          </div>
-        ) : error ? (
-          <div className="gba:flex gba:items-center gba:gap-2 gba:text-destructive gba:py-4">
-            <WarningCircleIcon className="gba:w-4 gba:h-4" />
-            <span>{error}</span>
-          </div>
-        ) : filteredAbsences.length === 0 ? (
-          <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">{t('no-data-found')}</p>
-        ) : (
-          <>
-            <div className="gba:overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('start-date')}</TableHead>
-                    <TableHead>{t('type')}</TableHead>
-                    <TableHead>{t('duration')}</TableHead>
-                    <TableHead>{t('status')}</TableHead>
-                    <TableHead>{t('description')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedAbsences.map(a => (
-                    <TableRow key={a.id}>
-                      <TableCell className="gba:whitespace-nowrap">
-                        {dayjs(a.startDate).format('MMM D')}
-                        {a.startDate !== a.endDate && ` – ${dayjs(a.endDate).format('MMM D, YYYY')}`}
-                        {a.startDate === a.endDate && `, ${dayjs(a.startDate).format('YYYY')}`}
-                      </TableCell>
-                      <TableCell>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <div
-                            className="gba:w-2 gba:h-2 gba:rounded-full gba:shrink-0"
-                            style={{ backgroundColor: `#${a.typeColor}` }}
-                          />
-                          {a.type}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {a.workingDays} {a.workingDays === 1 ? t('day') : t('days')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant(a.originalStatus)}>{a.status}</Badge>
-                      </TableCell>
-                      <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="gba:flex gba:items-center gba:justify-between gba:pt-4">
-                <span className="gba:text-sm gba:text-muted-foreground">
-                  {filteredAbsences.length} {t('absences')}
-                </span>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => p - 1)}
-                  >
-                    <CaretLeftIcon className="gba:w-4 gba:h-4" />
-                  </Button>
-                  <span className="gba:text-sm">
-                    {currentPage} / {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(p => p + 1)}
-                  >
-                    <CaretRightIcon className="gba:w-4 gba:h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
+      <CardContent>{renderCardContent()}</CardContent>
     </Card>
   )
 }

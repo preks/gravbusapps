@@ -17,7 +17,12 @@ interface UpcomingAbsencesCardProps {
   t: TFunction
 }
 
-export function UpcomingAbsencesCard({ isLoading, upcomingAbsences, nextHoliday, t }: UpcomingAbsencesCardProps) {
+export function UpcomingAbsencesCard({
+  isLoading,
+  upcomingAbsences,
+  nextHoliday,
+  t
+}: Readonly<UpcomingAbsencesCardProps>) {
   return (
     <Card>
       <CardHeader className="gba:pb-3">

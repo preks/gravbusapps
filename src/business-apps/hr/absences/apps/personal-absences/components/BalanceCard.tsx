@@ -36,7 +36,7 @@ export function BalanceCard({
   wellnessRequested,
   onRequestWellnessAnalysis,
   t
-}: BalanceCardProps) {
+}: Readonly<BalanceCardProps>) {
   return (
     <Card>
       <CardHeader className="gba:pb-3">
@@ -96,25 +96,36 @@ export function BalanceCard({
               />
             </div>
             <div className="gba:mt-2">
-              {wellnessInsight ? (
-                <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
-                  <SparkleIcon className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:mt-0.5" />
-                  <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{wellnessInsight}</p>
-                </div>
-              ) : wellnessLoading ? (
-                <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
-                  <SparkleIcon className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:animate-pulse" />
-                  <Skeleton className="gba:h-4 gba:w-full" />
-                </div>
-              ) : wellnessDataSummary && !wellnessRequested ? (
-                <button
-                  onClick={onRequestWellnessAnalysis}
-                  className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-primary hover:gba:text-primary/80 gba:transition-colors"
-                >
-                  <SparkleIcon className="gba:w-3.5 gba:h-3.5" />
-                  {t('ai-wellness-insight')}
-                </button>
-              ) : null}
+              {(() => {
+                if (wellnessInsight) {
+                  return (
+                    <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
+                      <SparkleIcon className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:mt-0.5" />
+                      <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{wellnessInsight}</p>
+                    </div>
+                  )
+                }
+                if (wellnessLoading) {
+                  return (
+                    <div className="gba:flex gba:gap-2 gba:rounded gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-3 gba:py-2">
+                      <SparkleIcon className="gba:w-4 gba:h-4 gba:text-primary gba:shrink-0 gba:animate-pulse" />
+                      <Skeleton className="gba:h-4 gba:w-full" />
+                    </div>
+                  )
+                }
+                if (wellnessDataSummary && !wellnessRequested) {
+                  return (
+                    <button
+                      onClick={onRequestWellnessAnalysis}
+                      className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-primary hover:gba:text-primary/80 gba:transition-colors"
+                    >
+                      <SparkleIcon className="gba:w-3.5 gba:h-3.5" />
+                      {t('ai-wellness-insight')}
+                    </button>
+                  )
+                }
+                return null
+              })()}
             </div>
           </>
         )}

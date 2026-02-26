@@ -12,5 +12,5 @@ export function computeLongestWorkStreak(yearAbsences: AbsenceRow[]): number {
     if (end.isAfter(lastEnd)) lastEnd = end
   }
   const gapToToday = dayjs().diff(lastEnd, 'day')
-  return gapToToday > longestWorkStreak ? gapToToday : longestWorkStreak
+  return Math.max(gapToToday, longestWorkStreak)
 }

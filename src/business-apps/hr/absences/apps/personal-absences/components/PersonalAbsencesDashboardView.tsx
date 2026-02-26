@@ -70,7 +70,7 @@ export function PersonalAbsencesDashboardView({
   totalPages,
   error,
   t
-}: PersonalAbsencesDashboardViewProps) {
+}: Readonly<PersonalAbsencesDashboardViewProps>) {
   return (
     <div data-testid="personal-absences-container">
       <PageLayout headerIcon={CalendarBlankIcon} headerTitle={t('absence-overview')} className="gba:min-h-screen">
