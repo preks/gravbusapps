@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton } from '@newwork/nw-design-system'
-import dayjs from 'dayjs'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
 
 type TFunction = (key: string) => string
@@ -12,10 +12,16 @@ interface PendingRequestsCardProps {
 }
 
 export function PendingRequestsCard({ isLoading, pendingRequests, t }: Readonly<PendingRequestsCardProps>) {
+  const totalPendingDays = pendingRequests.reduce((sum, a) => sum + (a.workingDays ?? 0), 0)
+  const title =
+    totalPendingDays > 0
+      ? `${t('pending-requests')} (${totalPendingDays} ${totalPendingDays === 1 ? t('day') : t('days')})`
+      : t('pending-requests')
+
   return (
     <Card>
       <CardHeader className="gba:pb-3">
-        <CardTitle className="gba:text-base gba:font-semibold">{t('pending-requests')}</CardTitle>
+        <CardTitle className="gba:text-base gba:font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {(() => {
@@ -38,7 +44,7 @@ export function PendingRequestsCard({ isLoading, pendingRequests, t }: Readonly<
                   className="gba:flex gba:items-center gba:justify-between gba:rounded gba:border gba:px-3 gba:py-2"
                 >
                   <div className="gba:flex-1 gba:min-w-0">
-                    <p className="gba:text-sm gba:font-medium">{dayjs(a.startDate).format('MMM D, YYYY')}</p>
+                    <p className="gba:text-sm gba:font-medium">{formatDate(a.startDate, 'date.medium') ?? '—'}</p>
                     <p className="gba:text-xs gba:text-muted-foreground">
                       {a.type}
                       {typeof a.workingDays === 'number' && (

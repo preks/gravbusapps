@@ -36,7 +36,8 @@ import {
   handleExpenseTypeChange,
   handleSubmit,
   handleFileUpload,
-  setByEdit
+  setByEdit,
+  normalizeReceiptData
 } from './services'
 import { showToast } from '../../../utils/notificationUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -818,7 +819,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     if (!receiptData?.data) return
 
     try {
-      const data = receiptData.data
+      const rawData = receiptData.data
+      const data = normalizeReceiptData(rawData)
 
       // Ensure we can validate against the configured request currency when provided
       if (
