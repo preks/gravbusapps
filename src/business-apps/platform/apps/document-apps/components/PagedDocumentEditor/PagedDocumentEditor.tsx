@@ -764,7 +764,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       emitDocumentActivity({
         userId: currentUserId,
         userName: currentUserName || t('editor-user-fallback'),
-        userAvatar: currentUserAvatar,
+        userAvatar: currentUserAvatar || undefined,
         documentId: document.id,
         documentTitle: docTitle,
         documentType: 'document',
@@ -777,7 +777,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         emitDocumentActivity({
           userId: currentUserId,
           userName: currentUserName || t('editor-user-fallback'),
-          userAvatar: currentUserAvatar,
+          userAvatar: currentUserAvatar || undefined,
           documentId: document.id,
           documentTitle: docTitle,
           documentType: 'document',
