@@ -8,6 +8,7 @@ absence-overview = Absențe
 
 # My Balance
 my-balance = Soldul meu
+in-approval = În așteptarea aprobării
 year-to-date = De la începutul anului
 absent-days = Zile absență
 working-days = Zile lucrătoare

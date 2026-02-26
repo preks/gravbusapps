@@ -8,6 +8,7 @@ absence-overview = Abwesenheiten
 
 # My Balance
 my-balance = Mein Kontostand
+in-approval = In Freigabe
 year-to-date = Seit Jahresbeginn
 absent-days = Abwesend
 working-days = Arbeitstage

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Progress, Skeleton } from '@newwork/nw-design-system'
 import { SparkleIcon } from '@phosphor-icons/react'
+import type { AbsenceRow } from '../types/personalAbsences'
 
 type TFunction = (key: string) => string
 
@@ -14,6 +15,7 @@ interface BalanceCardProps {
   isLoading: boolean
   displayEntitlements: EntitlementDisplay[]
   otherEntitlements: EntitlementDisplay[]
+  pendingRequests: AbsenceRow[]
   ytdAbsentDays: number
   ytdTotalWorkingDays: number
   wellnessInsight: string | null
@@ -28,6 +30,7 @@ export function BalanceCard({
   isLoading,
   displayEntitlements,
   otherEntitlements,
+  pendingRequests,
   ytdAbsentDays,
   ytdTotalWorkingDays,
   wellnessInsight,
@@ -37,6 +40,9 @@ export function BalanceCard({
   onRequestWellnessAnalysis,
   t
 }: Readonly<BalanceCardProps>) {
+  const getInApprovalDays = (entType: string) =>
+    pendingRequests.filter(r => r.type === entType).reduce((sum, r) => sum + (r.workingDays ?? 0), 0)
+
   return (
     <Card>
       <CardHeader className="gba:pb-3">
@@ -54,22 +60,56 @@ export function BalanceCard({
               className="gba:grid gba:grid-cols-2 gba:gap-2"
               style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
             >
-              {displayEntitlements.map(ent => (
-                <div
-                  key={`display-${ent.type}-${ent.used}-${ent.total}`}
-                  className="gba:rounded gba:border gba:px-3 gba:py-2 gba:space-y-1.5"
-                >
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">{ent.type}</span>
-                    <span className="gba:font-semibold gba:whitespace-nowrap">
-                      {ent.used}{' '}
-                      <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">/ {ent.total}</span>{' '}
-                      <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">{t('days')}</span>
-                    </span>
+              {displayEntitlements.map(ent => {
+                const inApprovalDays = getInApprovalDays(ent.type)
+                const total = ent.total > 0 ? ent.total : 1
+                const usedFlex = Math.max(0, ent.used)
+                const inApprovalFlex = Math.max(0, inApprovalDays)
+                const remainingFlex = Math.max(0, total - usedFlex - inApprovalFlex)
+                return (
+                  <div
+                    key={`display-${ent.type}-${ent.used}-${ent.total}`}
+                    className="gba:rounded gba:border gba:px-3 gba:py-2 gba:space-y-1.5"
+                    data-testid={`balance-card-entitlement-${ent.type.replace(/\s+/g, '-').toLowerCase()}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-between">
+                      <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">{ent.type}</span>
+                      <span className="gba:font-semibold gba:whitespace-nowrap">
+                        {ent.used}{' '}
+                        <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">/ {ent.total}</span>{' '}
+                        <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">{t('days')}</span>
+                      </span>
+                    </div>
+                    {inApprovalDays > 0 && (
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {t('in-approval')}: {inApprovalDays} {inApprovalDays === 1 ? t('day') : t('days')}
+                      </p>
+                    )}
+                    <div
+                      className="gba:flex gba:h-1.5 gba:w-full gba:overflow-hidden gba:rounded-full gba:bg-muted gba:gap-0"
+                      role="progressbar"
+                      aria-valuenow={ent.used}
+                      aria-valuemin={0}
+                      aria-valuemax={total}
+                      aria-label={`${ent.type} balance`}
+                    >
+                      {usedFlex > 0 && (
+                        <div
+                          className="gba:h-full gba:min-w-0 gba:flex-shrink-0 gba:bg-info-secondary"
+                          style={{ flex: usedFlex }}
+                        />
+                      )}
+                      {inApprovalFlex > 0 && (
+                        <div
+                          className="gba:h-full gba:bg-warning gba:min-w-0 gba:flex-shrink-0"
+                          style={{ flex: inApprovalFlex }}
+                        />
+                      )}
+                      {remainingFlex > 0 && <div className="gba:h-full gba:min-w-0" style={{ flex: remainingFlex }} />}
+                    </div>
                   </div>
-                  <Progress value={ent.total > 0 ? (ent.used / ent.total) * 100 : 0} className="gba:h-1.5" />
-                </div>
-              ))}
+                )
+              })}
               {otherEntitlements.map(ent => (
                 <div
                   key={`other-${ent.type}-${ent.used}`}

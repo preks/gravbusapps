@@ -12,10 +12,16 @@ interface PendingRequestsCardProps {
 }
 
 export function PendingRequestsCard({ isLoading, pendingRequests, t }: Readonly<PendingRequestsCardProps>) {
+  const totalPendingDays = pendingRequests.reduce((sum, a) => sum + (a.workingDays ?? 0), 0)
+  const title =
+    totalPendingDays > 0
+      ? `${t('pending-requests')} (${totalPendingDays} ${totalPendingDays === 1 ? t('day') : t('days')})`
+      : t('pending-requests')
+
   return (
     <Card>
       <CardHeader className="gba:pb-3">
-        <CardTitle className="gba:text-base gba:font-semibold">{t('pending-requests')}</CardTitle>
+        <CardTitle className="gba:text-base gba:font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {(() => {
