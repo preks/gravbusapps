@@ -2,9 +2,12 @@ import { PageLayout, Button } from '@newwork/nw-design-system'
 import { CalendarBlankIcon, CaretLeftIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import AbsenceCalendar from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar'
 import { useAbsenceData } from '@/business-apps/hr/core/apps/employee-record/hooks/useAbsenceData'
+import type { AbsenceListCardAbsence } from '@/business-apps/hr/core/apps/employee-record/queries/types'
 import type dayjs from 'dayjs'
+import type { AbsenceRow } from '../types/personalAbsences'
 
 type TFunction = (key: string) => string
 
@@ -21,6 +24,33 @@ interface PersonalAbsencesCalendarViewProps {
   holidayDates: string[]
   onBackToDashboard: () => void
   t: TFunction
+  /** When provided, used for calendar so PENDING/in-approval absences are shown */
+  absences?: AbsenceRow[]
+  loading?: boolean
+  error?: string | null
+}
+
+function toCalendarAbsenceList(rows: AbsenceRow[], t: TFunction): (AbsenceListCardAbsence & { id: string })[] {
+  return rows.map(a => {
+    const workingDays = a.workingDays ?? 0
+    const duration = workingDays > 0 ? `${workingDays} ${workingDays === 1 ? t('day') : t('days')}` : ''
+    return {
+      id: a.id,
+      type: a.type,
+      typeId: a.typeParentEntryId || '',
+      originalStatus: a.originalStatus,
+      status: a.status,
+      title: a.type,
+      startDate: a.startDate,
+      endDate: a.endDate,
+      duration,
+      description: a.description || '',
+      icon: CalendarBlankIcon,
+      typeColor: a.typeColor || 'blue',
+      statusColor: getAbsenceStatusConfig(a.originalStatus).color,
+      requestDate: a.createdAt
+    }
+  })
 }
 
 export function PersonalAbsencesCalendarView({
@@ -35,13 +65,17 @@ export function PersonalAbsencesCalendarView({
   setSelectedEndDate,
   holidayDates,
   onBackToDashboard,
-  t
+  t,
+  absences: absencesProp,
+  loading: loadingProp,
+  error: errorProp
 }: PersonalAbsencesCalendarViewProps) {
-  const {
-    absenceList: calendarAbsenceList,
-    loading: calendarLoading,
-    error: calendarError
-  } = useAbsenceData(employee?.id, accessToken, absenceEntitlements || [])
+  const fallback = useAbsenceData(employee?.id, accessToken, absenceEntitlements || [])
+
+  const useOwnAbsences = absencesProp != null
+  const calendarAbsenceList = useOwnAbsences ? toCalendarAbsenceList(absencesProp, t) : fallback.absenceList
+  const calendarLoading = useOwnAbsences ? (loadingProp ?? false) : fallback.loading
+  const calendarError = useOwnAbsences ? (errorProp ?? null) : fallback.error
 
   const startDateFmt = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFmt = selectedEndDate?.format('YYYY-MM-DD') ?? ''

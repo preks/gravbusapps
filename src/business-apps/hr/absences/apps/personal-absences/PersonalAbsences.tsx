@@ -84,6 +84,9 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         holidayDates={holidayDates}
         onBackToDashboard={() => setShowCalendar(false)}
         t={t}
+        absences={absences}
+        loading={loading}
+        error={error}
       />
     )
   }

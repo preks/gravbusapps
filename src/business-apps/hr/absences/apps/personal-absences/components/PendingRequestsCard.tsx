@@ -1,7 +1,10 @@
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
-import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import {
+  getAbsenceStatusLabel,
+  getAbsenceStatusBackgroundClass,
+  getAbsenceStatusTextClass
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
 
 type TFunction = (key: string) => string
@@ -35,9 +38,21 @@ export function PendingRequestsCard({ isLoading, pendingRequests, t }: PendingRe
               >
                 <div className="gba:flex-1 gba:min-w-0">
                   <p className="gba:text-sm gba:font-medium">{dayjs(a.startDate).format('MMM D, YYYY')}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">{a.type}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    {a.type}
+                    {typeof a.workingDays === 'number' && (
+                      <>
+                        {' '}
+                        · {a.workingDays} {a.workingDays === 1 ? t('day') : t('days')}
+                      </>
+                    )}
+                  </p>
                 </div>
-                <Badge variant="pending">{getAbsenceStatusLabel('PENDING')}</Badge>
+                <span
+                  className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium ${getAbsenceStatusBackgroundClass('PENDING')} ${getAbsenceStatusTextClass('PENDING')}`}
+                >
+                  {getAbsenceStatusLabel('PENDING')}
+                </span>
               </div>
             ))}
           </div>

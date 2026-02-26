@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   Card,
   CardContent,
@@ -20,8 +19,11 @@ import {
 } from '@newwork/nw-design-system'
 import { CaretLeftIcon, CaretRightIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
-import { statusVariant } from '../utils/statusUtils'
+import {
+  getAbsenceStatusLabel,
+  getAbsenceStatusBackgroundClass,
+  getAbsenceStatusTextClass
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
 
 type TFunction = (key: string) => string
@@ -152,7 +154,11 @@ export function AbsenceHistoryCard({
                         {a.workingDays} {a.workingDays === 1 ? t('day') : t('days')}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant(a.originalStatus)}>{a.status}</Badge>
+                        <span
+                          className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium ${getAbsenceStatusBackgroundClass(a.originalStatus)} ${getAbsenceStatusTextClass(a.originalStatus)}`}
+                        >
+                          {a.status}
+                        </span>
                       </TableCell>
                       <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
                     </TableRow>
