@@ -45,7 +45,7 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
   const detailQuery = useMemo(
     () => ({
       employeeId: effectiveEmployeeId,
-      includePeerReviewerIdentity: false
+      includePeerReviewerIdentity: true
     }),
     [effectiveEmployeeId]
   )
@@ -139,6 +139,12 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
         loading={detailLoading}
         error={detailError}
         data={detailData}
+        currentEmployee={{
+          displayName: employee.displayName,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          pictureThumbnail: employee.pictureThumbnail
+        }}
       />
     </div>
   )

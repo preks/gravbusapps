@@ -1,6 +1,9 @@
 import React, { useState } from 'react'
 import dayjs from 'dayjs'
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
   Badge,
   Button,
   Card,
@@ -11,6 +14,9 @@ import {
   EmptyState,
   Progress,
   Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import {
@@ -30,6 +36,12 @@ interface PerformanceEvaluationDetailViewProps {
   loading: boolean
   error: string | null
   data: PerformanceEvaluationAnalysisDetailResponse | null
+  currentEmployee?: {
+    displayName?: string | null
+    firstName?: string | null
+    lastName?: string | null
+    pictureThumbnail?: string | null
+  }
 }
 
 const shouldHideFieldByKey = (key: string): boolean => {
@@ -78,17 +90,112 @@ const getFieldValue = (data: Record<string, unknown>, candidates: string[]): unk
   return null
 }
 
-const getChangeDisplayValue = (data: Record<string, unknown>, candidates: string[]): string => {
-  const value = getFieldValue(data, candidates)
-  if (value === null || value === undefined || value === '') return '--'
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
-  if (typeof value === 'string') return value
-  return '--'
-}
-
 const toPositiveFiniteNumber = (value: unknown): number | null => {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null
   return value
+}
+
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const formatNumericDisplay = (value: number | null): string =>
+  value === null ? '--' : Number(value.toFixed(2)).toString()
+
+const toAvatarSrc = (thumb?: string | null): string | undefined => {
+  if (!thumb) return undefined
+  const trimmed = thumb.trim()
+  if (!trimmed) return undefined
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+  if (trimmed.startsWith('data:image')) return trimmed
+  const sig = trimmed.slice(0, 12)
+  let mime = 'image/jpeg'
+  if (sig.startsWith('/9j/')) mime = 'image/jpeg'
+  else if (sig.startsWith('iVBORw0KGgo')) mime = 'image/png'
+  else if (sig.startsWith('R0lGOD')) mime = 'image/gif'
+  else if (sig.startsWith('Qk')) mime = 'image/bmp'
+  return `data:${mime};base64,${trimmed}`
+}
+
+const getInitials = (name?: string | null, fallback = '?'): string => {
+  if (!name) return fallback
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return fallback
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase()
+}
+
+interface ReviewerIdentity {
+  key: string
+  tooltipLabel: string
+  displayText: string
+  pictureThumbnail?: string | null
+}
+
+const getDisplayNameFromRecord = (value: Record<string, unknown> | null): string | null => {
+  if (!value) return null
+  const displayName = getFieldValue(value, ['displayName', 'name'])
+  if (typeof displayName === 'string' && displayName.trim()) return displayName.trim()
+  const firstName = getFieldValue(value, ['firstName'])
+  const lastName = getFieldValue(value, ['lastName'])
+  const combinedName = [firstName, lastName]
+    .filter(namePart => typeof namePart === 'string' && namePart.trim())
+    .join(' ')
+    .trim()
+  return combinedName || null
+}
+
+const getPictureFromRecord = (value: Record<string, unknown> | null): string | null => {
+  if (!value) return null
+  const picture = getFieldValue(value, ['pictureThumbnail', 'avatar', 'image'])
+  return typeof picture === 'string' && picture.trim() ? picture : null
+}
+
+const getReviewerIdentityFromEntry = (
+  entry: Record<string, unknown>
+): { name: string | null; pictureThumbnail: string | null } => {
+  const directName = getDisplayNameFromRecord(entry)
+  const directPicture = getPictureFromRecord(entry)
+  if (directName || directPicture) {
+    return { name: directName, pictureThumbnail: directPicture }
+  }
+
+  const nestedCandidates = ['reviewerEmployee', 'reviewer', 'employee', 'participant']
+  for (const candidateKey of nestedCandidates) {
+    const candidate = entry[candidateKey]
+    if (!isObjectRecord(candidate)) continue
+    const candidateName = getDisplayNameFromRecord(candidate)
+    const candidatePicture = getPictureFromRecord(candidate)
+    if (candidateName || candidatePicture) {
+      return { name: candidateName, pictureThumbnail: candidatePicture }
+    }
+  }
+
+  return { name: null, pictureThumbnail: null }
+}
+
+const formatChangeDelta = (value: number | null): { text: string; className: string } | null => {
+  if (value === null || value === 0) return null
+  const sign = value > 0 ? '+' : ''
+  const colorClass = value > 0 ? 'gba:text-success' : 'gba:text-destructive'
+  return {
+    text: `${sign}${Number(value.toFixed(2)).toString()}`,
+    className: colorClass
+  }
+}
+
+const getChangeValue = (
+  data: Record<string, unknown>,
+  changes: Record<string, unknown> | null,
+  field: string,
+  fallbackCandidates: string[] = []
+): number | null => {
+  const fromChanges = changes ? toFiniteNumber(getFieldValue(changes, [field])) : null
+  if (fromChanges !== null) return fromChanges
+  return toFiniteNumber(getFieldValue(data, fallbackCandidates))
 }
 
 const DEFAULT_RATING_SCALE_LIMIT = 10
@@ -125,6 +232,25 @@ const getPerspectiveEntries = (
 }
 
 const PREFERRED_REVIEW_COLUMNS = ['Rating', 'Comments', 'Evaluated Date']
+
+const formatRatingForDisplay = (value: string): string => {
+  const trimmedValue = value.trim()
+  if (!trimmedValue || trimmedValue === '-') return '-'
+
+  const starLabelMatch = /^(\d+)\s+stars?$/i.exec(trimmedValue)
+  if (starLabelMatch) {
+    const starsCount = Math.max(0, Math.min(parseInt(starLabelMatch[1], 10), 10))
+    return '★'.repeat(starsCount)
+  }
+
+  const numericMatch = /^(\d+)$/.exec(trimmedValue)
+  if (numericMatch) {
+    const starsCount = Math.max(0, Math.min(parseInt(numericMatch[1], 10), 10))
+    return '★'.repeat(starsCount)
+  }
+
+  return value
+}
 
 const buildPerspectiveRowData = (entries: Record<string, unknown>[]): Record<string, string> => {
   const rowData: Record<string, string> = {}
@@ -235,6 +361,42 @@ const JsonValueBlock: React.FC<{ label: string; value: unknown; depth?: number }
   )
 }
 
+interface ReviewerFallbackIdentity {
+  displayName?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  pictureThumbnail?: string | null
+}
+
+const ReviewerAvatarsCell: React.FC<{ label: string; reviewers: ReviewerIdentity[]; testId: string }> = ({
+  label,
+  reviewers,
+  testId
+}) => (
+  <div className="gba:flex gba:items-center gba:gap-2">
+    <div className="gba:flex gba:items-center gba:-space-x-1">
+      {reviewers.map(reviewer => (
+        <Tooltip key={reviewer.key}>
+          <TooltipTrigger asChild>
+            <div data-testid={`${testId}-${reviewer.key}`}>
+              <Avatar className="gba:h-7 gba:w-7 gba:border gba:border-background">
+                {toAvatarSrc(reviewer.pictureThumbnail) ? (
+                  <AvatarImage src={toAvatarSrc(reviewer.pictureThumbnail)} alt={reviewer.tooltipLabel} />
+                ) : null}
+                <AvatarFallback className="gba:text-[10px] gba:font-medium">{reviewer.displayText}</AvatarFallback>
+              </Avatar>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{reviewer.tooltipLabel}</p>
+          </TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
+    <span className="gba:font-medium">{label}</span>
+  </div>
+)
+
 const DetailItemCard: React.FC<{
   item: Record<string, unknown>
   testId: string
@@ -243,19 +405,77 @@ const DetailItemCard: React.FC<{
   peerLabel: string
   managerLabel: string
   reviewerColumnLabel: string
+  selfReviewerFallback?: ReviewerFallbackIdentity
+  managerReviewerFallback?: ReviewerFallbackIdentity
   headerControls?: React.ReactNode
-}> = ({ item, testId, subtitle, selfLabel, peerLabel, managerLabel, reviewerColumnLabel, headerControls }) => {
+}> = ({
+  item,
+  testId,
+  subtitle,
+  selfLabel,
+  peerLabel,
+  managerLabel,
+  reviewerColumnLabel,
+  selfReviewerFallback,
+  managerReviewerFallback,
+  headerControls
+}) => {
   const selfEntries = getPerspectiveEntries(item, key => key.toLowerCase().includes('self'))
   const peerEntries = getPerspectiveEntries(item, key => key.toLowerCase().includes('peer'))
   const managerEntries = getPerspectiveEntries(item, key => key.toLowerCase().includes('manager'))
   const hasPerspectiveData = selfEntries.length > 0 || peerEntries.length > 0 || managerEntries.length > 0
+
+  const selfFallbackRecord = selfReviewerFallback ? (selfReviewerFallback as unknown as Record<string, unknown>) : null
+  const managerFallbackRecord = managerReviewerFallback
+    ? (managerReviewerFallback as unknown as Record<string, unknown>)
+    : null
+
+  const selfEntryIdentity =
+    selfEntries.length > 0 ? getReviewerIdentityFromEntry(selfEntries[0]) : { name: null, pictureThumbnail: null }
+  const managerEntryIdentity =
+    managerEntries.length > 0 ? getReviewerIdentityFromEntry(managerEntries[0]) : { name: null, pictureThumbnail: null }
+
+  const selfDisplayName = selfEntryIdentity.name ?? getDisplayNameFromRecord(selfFallbackRecord) ?? selfLabel
+  const managerDisplayName =
+    managerEntryIdentity.name ?? getDisplayNameFromRecord(managerFallbackRecord) ?? managerLabel
+
+  const selfReviewers: ReviewerIdentity[] = [
+    {
+      key: 'self',
+      tooltipLabel: selfDisplayName,
+      displayText: getInitials(selfDisplayName, selfLabel.charAt(0).toUpperCase() || 'S'),
+      pictureThumbnail: selfEntryIdentity.pictureThumbnail ?? getPictureFromRecord(selfFallbackRecord)
+    }
+  ]
+
+  const managerReviewers: ReviewerIdentity[] = [
+    {
+      key: 'manager',
+      tooltipLabel: managerDisplayName,
+      displayText: getInitials(managerDisplayName, managerLabel.charAt(0).toUpperCase() || 'M'),
+      pictureThumbnail: managerEntryIdentity.pictureThumbnail ?? getPictureFromRecord(managerFallbackRecord)
+    }
+  ]
+
+  const peerReviewers: ReviewerIdentity[] = peerEntries.map((entry, index) => {
+    const identity = getReviewerIdentityFromEntry(entry)
+    const peerIndex = index + 1
+    const peerFallbackName = `${peerLabel} ${peerIndex}`
+    return {
+      key: `peer-${peerIndex}`,
+      tooltipLabel: identity.name ?? peerFallbackName,
+      displayText: identity.name ? getInitials(identity.name, `P${peerIndex}`) : `P${peerIndex}`,
+      pictureThumbnail: identity.pictureThumbnail
+    }
+  })
+
   const selfRowData = buildPerspectiveRowData(selfEntries)
   const peerRowData = buildPerspectiveRowData(peerEntries)
   const managerRowData = buildPerspectiveRowData(managerEntries)
   const perspectiveRows = [
-    { label: selfLabel, data: selfRowData },
-    ...(peerEntries.length > 0 ? [{ label: peerLabel, data: peerRowData }] : []),
-    { label: managerLabel, data: managerRowData }
+    { label: selfLabel, data: selfRowData, reviewers: selfReviewers },
+    ...(peerEntries.length > 0 ? [{ label: peerLabel, data: peerRowData, reviewers: peerReviewers }] : []),
+    { label: managerLabel, data: managerRowData, reviewers: managerReviewers }
   ]
   const reviewColumns = getReviewColumns(perspectiveRows.map(row => row.data))
 
@@ -287,10 +507,14 @@ const DetailItemCard: React.FC<{
               <tbody>
                 {perspectiveRows.map(row => (
                   <tr key={`${testId}-row-${row.label}`} className="gba:border-b gba:border-border last:gba:border-b-0">
-                    <td className="gba:py-2 gba:pr-3 gba:font-medium">{row.label}</td>
+                    <td className="gba:py-2 gba:pr-3">
+                      <ReviewerAvatarsCell label={row.label} reviewers={row.reviewers} testId={`${testId}-reviewer`} />
+                    </td>
                     {reviewColumns.map(column => (
                       <td key={`${testId}-cell-${row.label}-${column}`} className="gba:py-2 gba:px-3">
-                        {row.data[column] || '-'}
+                        {column === 'Rating'
+                          ? formatRatingForDisplay(row.data[column] || '-')
+                          : row.data[column] || '-'}
                       </td>
                     ))}
                   </tr>
@@ -345,6 +569,8 @@ const EntryCarouselSection: React.FC<{
   previousLabel: string
   nextLabel: string
   reviewerColumnLabel: string
+  selfReviewerFallback?: ReviewerFallbackIdentity
+  managerReviewerFallback?: ReviewerFallbackIdentity
 }> = ({
   title,
   entries,
@@ -354,7 +580,9 @@ const EntryCarouselSection: React.FC<{
   managerLabel,
   previousLabel,
   nextLabel,
-  reviewerColumnLabel
+  reviewerColumnLabel,
+  selfReviewerFallback,
+  managerReviewerFallback
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0)
 
@@ -377,6 +605,8 @@ const EntryCarouselSection: React.FC<{
         peerLabel={peerLabel}
         managerLabel={managerLabel}
         reviewerColumnLabel={reviewerColumnLabel}
+        selfReviewerFallback={selfReviewerFallback}
+        managerReviewerFallback={managerReviewerFallback}
         headerControls={
           <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${testIdPrefix}-controls`}>
             <span className="gba:text-xs gba:text-muted-foreground" data-testid={`${testIdPrefix}-position`}>
@@ -405,13 +635,6 @@ const EntryCarouselSection: React.FC<{
       />
     </section>
   )
-}
-
-const toFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value !== 'string') return null
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : null
 }
 
 const getFirstNumericScoreByKeys = (entry: Record<string, unknown>, keys: string[]): number | null => {
@@ -655,7 +878,12 @@ const RadarComparisonCard: React.FC<{
   )
 }
 
-const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewProps> = ({ loading, error, data }) => {
+const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewProps> = ({
+  loading,
+  error,
+  data,
+  currentEmployee
+}) => {
   const { t } = useTranslation(translations)
 
   if (loading) {
@@ -697,29 +925,48 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
   const companyValueItems = companyValuesEntry ? toObjectList(companyValuesEntry[1]) : []
   const skillItems = skillsEntry ? toObjectList(skillsEntry[1]) : []
   const safeData = data as Record<string, unknown>
-  const overall = isObjectRecord(getFieldValue(safeData, ['overall'])) ? getFieldValue(safeData, ['overall']) : null
+  const overallRaw = getFieldValue(safeData, ['overall'])
+  const averagesRaw = getFieldValue(safeData, ['averages'])
+  const changesSinceLastReviewRaw = getFieldValue(safeData, ['changesSinceLastReview'])
+  const evaluatorManagerRaw = getFieldValue(safeData, ['evaluatorManager'])
+  const overall = isObjectRecord(overallRaw) ? overallRaw : null
+  const averages = isObjectRecord(averagesRaw) ? averagesRaw : null
+  const changesSinceLastReview = isObjectRecord(changesSinceLastReviewRaw) ? changesSinceLastReviewRaw : null
+  const evaluatorManager = isObjectRecord(evaluatorManagerRaw) ? evaluatorManagerRaw : null
   const overallNumericValue =
-    overall &&
+    (averages ? toFiniteNumber(getFieldValue(averages, ['overall'])) : null) ??
+    (overall &&
     isObjectRecord(overall) &&
     typeof overall.averageNumeric === 'number' &&
     Number.isFinite(overall.averageNumeric)
       ? overall.averageNumeric
-      : null
-  const overallNumericDisplay = overallNumericValue !== null ? Number(overallNumericValue.toFixed(2)).toString() : '--'
+      : null)
+  const overallNumericDisplay = formatNumericDisplay(overallNumericValue)
   const ratingScaleLimit = getRatingScaleLimit(safeData, overall && isObjectRecord(overall) ? overall : null)
   const overallProgressPercent =
     overallNumericValue === null ? 0 : Math.min(100, Math.max(0, (overallNumericValue / ratingScaleLimit) * 100))
-  const overallNumericChangeSinceLastReview = getChangeDisplayValue(safeData, [
+  const companyValuesRadarData = buildRadarData(companyValueItems)
+  const skillsRadarData = buildRadarData(skillItems)
+  const companyValuesAverageScoreFallback = computeSectionAverageScore(companyValueItems)
+  const skillsAverageScoreFallback = computeSectionAverageScore(skillItems)
+  const companyValuesAverageNumeric =
+    (averages ? toFiniteNumber(getFieldValue(averages, ['companyValues'])) : null) ??
+    toScoreNumber(companyValuesAverageScoreFallback)
+  const skillsAverageNumeric =
+    (averages ? toFiniteNumber(getFieldValue(averages, ['skills'])) : null) ?? toScoreNumber(skillsAverageScoreFallback)
+  const companyValuesAverageScore = formatNumericDisplay(companyValuesAverageNumeric)
+  const skillsAverageScore = formatNumericDisplay(skillsAverageNumeric)
+  const overallChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'overall', [
     'overallRatingNumericChangeSinceLastReview',
     'overallNumericChangeSinceLastReview',
     'changeSinceLastReviewOverallNumeric'
   ])
-  const companyValuesRadarData = buildRadarData(companyValueItems)
-  const skillsRadarData = buildRadarData(skillItems)
-  const companyValuesAverageScore = computeSectionAverageScore(companyValueItems)
-  const skillsAverageScore = computeSectionAverageScore(skillItems)
-  const companyValuesAverageNumeric = toScoreNumber(companyValuesAverageScore)
-  const skillsAverageNumeric = toScoreNumber(skillsAverageScore)
+  const companyValuesChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'companyValues')
+  const skillsChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'skills')
+  const overallChangeBadge = formatChangeDelta(overallChangeSinceLastReview)
+  const companyValuesChangeBadge = formatChangeDelta(companyValuesChangeSinceLastReview)
+  const skillsChangeBadge = formatChangeDelta(skillsChangeSinceLastReview)
+  const overallNumericChangeSinceLastReview = formatNumericDisplay(overallChangeSinceLastReview)
   const companyValuesProgressPercent =
     companyValuesAverageNumeric === null
       ? 0
@@ -741,6 +988,20 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
       testId: `employee-performance-evaluation-skill-${index}`
     }))
   ]
+  const selfReviewerFallback: ReviewerFallbackIdentity | undefined = currentEmployee
+    ? {
+        displayName: currentEmployee.displayName,
+        firstName: currentEmployee.firstName,
+        lastName: currentEmployee.lastName,
+        pictureThumbnail: currentEmployee.pictureThumbnail
+      }
+    : undefined
+  const managerReviewerFallback: ReviewerFallbackIdentity | undefined = evaluatorManager
+    ? {
+        displayName: getDisplayNameFromRecord(evaluatorManager),
+        pictureThumbnail: getPictureFromRecord(evaluatorManager)
+      }
+    : undefined
 
   return (
     <div className="gba:space-y-6" data-testid="employee-performance-evaluation-detail">
@@ -761,6 +1022,11 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
             <div className="gba:flex gba:items-end gba:gap-2">
               <span className="gba:text-3xl gba:font-bold">{overallNumericDisplay}</span>
               <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
+              {overallChangeBadge ? (
+                <span className={`gba:text-sm gba:font-medium ${overallChangeBadge.className}`}>
+                  {overallChangeBadge.text}
+                </span>
+              ) : null}
             </div>
             <Progress
               value={overallProgressPercent}
@@ -777,6 +1043,11 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
             <div className="gba:flex gba:items-end gba:gap-2">
               <span className="gba:text-3xl gba:font-bold">{companyValuesAverageScore}</span>
               <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
+              {companyValuesChangeBadge ? (
+                <span className={`gba:text-sm gba:font-medium ${companyValuesChangeBadge.className}`}>
+                  {companyValuesChangeBadge.text}
+                </span>
+              ) : null}
             </div>
             <Progress
               value={companyValuesProgressPercent}
@@ -793,6 +1064,11 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
             <div className="gba:flex gba:items-end gba:gap-2">
               <span className="gba:text-3xl gba:font-bold">{skillsAverageScore}</span>
               <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
+              {skillsChangeBadge ? (
+                <span className={`gba:text-sm gba:font-medium ${skillsChangeBadge.className}`}>
+                  {skillsChangeBadge.text}
+                </span>
+              ) : null}
             </div>
             <Progress value={skillsProgressPercent} data-testid="employee-performance-evaluation-skills-progress-bar" />
           </CardContent>
@@ -854,6 +1130,8 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
           previousLabel={t('performance-evaluation-carousel-previous')}
           nextLabel={t('performance-evaluation-carousel-next')}
           reviewerColumnLabel={t('performance-evaluation-reviewer-column')}
+          selfReviewerFallback={selfReviewerFallback}
+          managerReviewerFallback={managerReviewerFallback}
         />
       </div>
     </div>
