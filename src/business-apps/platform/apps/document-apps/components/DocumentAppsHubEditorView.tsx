@@ -12,6 +12,7 @@ import translations from '../_i18n'
 import { PagedDocumentEditor } from './PagedDocumentEditor'
 import { PdfDocumentViewer } from './PdfDocumentViewer'
 import { TemplateFieldsPanel } from './TemplateFieldsPanel'
+import { ExternalDocumentSourceBadge } from './external-import/ExternalDocumentSourceBadge'
 import type { PagedDocumentEditorRef } from './PagedDocumentEditor'
 import type { Document, DocumentTemplate, ParsedWordDocument } from '../types'
 
@@ -157,6 +158,10 @@ export function DocumentAppsHubEditorView({
         />
       )
     }
+
+    const externalProvenance = currentDocument.settings?.external
+    const isExternalReadOnly = !!externalProvenance || currentDocument.settings?.readOnly === true
+
     return (
       <PagedDocumentEditor
         key={currentDocument.id}
@@ -166,7 +171,28 @@ export function DocumentAppsHubEditorView({
         }}
         onBack={handleBack}
         onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
-        isReadOnly={!canEdit}
+        isReadOnly={!canEdit || isExternalReadOnly}
+        headerExtra={
+          externalProvenance ? (
+            <ExternalDocumentSourceBadge
+              provenance={externalProvenance}
+              onCreateEditableCopy={async () => {
+                const copy = await createDocument({
+                  title: `${currentDocument.title} (copy)`,
+                  content: currentDocument.content,
+                  status: 'draft',
+                  createdBy: currentUserId
+                })
+                if (copy) {
+                  setSelectedDocumentId(copy.id)
+                  await loadDocument(copy.id)
+                  updateUrl(copy.id, 'editor')
+                }
+              }}
+              data-testid={`${testId}-external-source-badge`}
+            />
+          ) : undefined
+        }
         accessToken={accessToken}
         userInfo={userInfo}
         data-testid={`${testId}-editor`}

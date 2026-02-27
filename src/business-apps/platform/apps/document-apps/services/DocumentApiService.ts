@@ -113,7 +113,8 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     isShared: apiDoc.isShared as boolean | undefined,
     sharedBy: apiDoc.sharedBy as string | undefined,
     // Source file info for PDFs
-    sourceFile
+    sourceFile,
+    settings: apiDoc.settings as Document['settings']
   }
 }
 
@@ -216,7 +217,8 @@ export const DocumentApiService = {
         permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
         // Source file info for PDFs
         sourceFile,
-        isPdf
+        isPdf,
+        settings: doc.settings as DocumentSummary['settings']
       }
     })
   },
