@@ -54,7 +54,9 @@ import {
   CheckCircle,
   Download,
   FileDown,
-  X
+  ChevronLeft,
+  ChevronRight,
+  Minimize
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -294,6 +296,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isPresentMode, setIsPresentMode] = useState(false)
+  const [presentScale, setPresentScale] = useState(1)
   const [canvasScale, setCanvasScale] = useState(0.65)
   const [showImageDialog, setShowImageDialog] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
@@ -305,6 +308,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [newTitle, setNewTitle] = useState(slide.title)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
+  const presentationContainerRef = useRef<HTMLDivElement>(null)
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
@@ -644,23 +648,105 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [slides, currentTheme, presentationTitle, t])
 
-  // Present Mode
+  // Sync state when user exits fullscreen via Escape key
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isPresentMode) {
+        setIsPresentMode(false)
+      }
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+    }
+  }, [isPresentMode])
+
+  // Calculate presentation scale to fit screen
+  useEffect(() => {
+    if (!isPresentMode) return
+
+    const calculateScale = () => {
+      const slideWidth = 1280
+      const slideHeight = 720
+
+      const scaleX = window.innerWidth / slideWidth
+      const scaleY = window.innerHeight / slideHeight
+      const scale = Math.min(scaleX, scaleY)
+
+      setPresentScale(scale)
+    }
+
+    calculateScale()
+    window.addEventListener('resize', calculateScale)
+
+    return () => {
+      window.removeEventListener('resize', calculateScale)
+    }
+  }, [isPresentMode])
+
+  // Exit presentation mode handler
+  const exitPresentMode = useCallback(() => {
+    setIsPresentMode(false)
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {})
+    }
+  }, [])
+
+  // Keyboard navigation for presentation mode
+  useEffect(() => {
+    if (!isPresentMode) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+        case ' ':
+        case 'PageDown':
+          e.preventDefault()
+          setCurrentSlideIndex(prev => Math.min(slides.length - 1, prev + 1))
+          break
+        case 'ArrowLeft':
+        case 'ArrowUp':
+        case 'PageUp':
+          e.preventDefault()
+          setCurrentSlideIndex(prev => Math.max(0, prev - 1))
+          break
+        case 'Home':
+          e.preventDefault()
+          setCurrentSlideIndex(0)
+          break
+        case 'End':
+          e.preventDefault()
+          setCurrentSlideIndex(slides.length - 1)
+          break
+        case 'Escape':
+          exitPresentMode()
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isPresentMode, slides.length, exitPresentMode])
+
+  // Present Mode (true fullscreen)
   if (isPresentMode) {
+    const goToPrevSlide = () => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))
+    const goToNextSlide = () => setCurrentSlideIndex(Math.min(slides.length - 1, currentSlideIndex + 1))
+    const canGoPrev = currentSlideIndex > 0
+    const canGoNext = currentSlideIndex < slides.length - 1
+
     return (
-      <div className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black">
-        {/* Exit button in top-right - positioned below platform header */}
-        <div className="gba:absolute gba:top-20 gba:right-6 gba:z-[9999]">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsPresentMode(false)}
-            className="gba:bg-white/10 gba:text-white/90 gba:hover:bg-white/20 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:rounded-full"
-            data-testid={`${testId}-present-exit`}
-          >
-            <X className="gba:w-4 gba:h-4" />
-          </Button>
-        </div>
-        <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
+      <div
+        ref={presentationContainerRef}
+        className="gba:fixed gba:inset-0 gba:z-[9999] gba:bg-black gba:w-screen gba:h-screen gba:group"
+      >
+        {/* Slide content */}
+        <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center">
           <SlideCanvas
             elements={currentSlide.elements}
             selectedId={null}
@@ -668,43 +754,81 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             onSelectElement={() => {}}
             onUpdateElement={() => {}}
             onEditText={() => {}}
-            scale={1}
+            scale={presentScale}
           />
         </div>
-        {/* Navigation */}
-        <div className="gba:absolute gba:bottom-8 gba:left-1/2 gba:-translate-x-1/2 gba:flex gba:items-center gba:gap-4 gba:bg-black/50 gba:px-6 gba:py-3 gba:rounded-full">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
-            disabled={currentSlideIndex === 0}
-            className="gba:text-white"
-          >
-            {t('editor-previous')}
-          </Button>
-          <span className="gba:text-sm gba:text-white">
-            {currentSlideIndex + 1} / {slides.length}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentSlideIndex(Math.min(slides.length - 1, currentSlideIndex + 1))}
-            disabled={currentSlideIndex === slides.length - 1}
-            className="gba:text-white"
-          >
-            {t('editor-next')}
-          </Button>
-          <div className="gba:w-px gba:h-6 gba:bg-white/30 gba:mx-2" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsPresentMode(false)}
-            className="gba:text-white/90 gba:hover:text-white gba:hover:bg-white/10"
-            data-testid={`${testId}-present-exit-bottom`}
-          >
-            <X className="gba:w-4 gba:h-4 gba:mr-1.5" />
-            {t('editor-exit')}
-          </Button>
+
+        {/* Left navigation arrow */}
+        <button
+          onClick={goToPrevSlide}
+          disabled={!canGoPrev}
+          className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:z-[10000] gba:w-12 gba:h-12 gba:rounded-full gba:bg-white/10 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:flex gba:items-center gba:justify-center gba:text-white/90 gba:transition-all gba:duration-200 hover:gba:bg-white/20 hover:gba:scale-110 disabled:gba:opacity-30 disabled:gba:cursor-not-allowed disabled:hover:gba:scale-100 disabled:hover:gba:bg-white/10"
+          data-testid={`${testId}-present-prev`}
+        >
+          <ChevronLeft className="gba:w-6 gba:h-6" />
+        </button>
+
+        {/* Right navigation arrow */}
+        <button
+          onClick={goToNextSlide}
+          disabled={!canGoNext}
+          className="gba:absolute gba:right-4 gba:top-1/2 gba:-translate-y-1/2 gba:z-[10000] gba:w-12 gba:h-12 gba:rounded-full gba:bg-white/10 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:flex gba:items-center gba:justify-center gba:text-white/90 gba:transition-all gba:duration-200 hover:gba:bg-white/20 hover:gba:scale-110 disabled:gba:opacity-30 disabled:gba:cursor-not-allowed disabled:hover:gba:scale-100 disabled:hover:gba:bg-white/10"
+          data-testid={`${testId}-present-next`}
+        >
+          <ChevronRight className="gba:w-6 gba:h-6" />
+        </button>
+
+        {/* Bottom control bar */}
+        <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:z-[10000] gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:bg-gradient-to-t gba:from-black/80 gba:to-transparent">
+          {/* Left: Slide counter */}
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <span className="gba:text-sm gba:text-white/90 gba:font-medium gba:tabular-nums gba:bg-white/10 gba:px-3 gba:py-1.5 gba:rounded-md gba:backdrop-blur-sm">
+              {currentSlideIndex + 1} / {slides.length}
+            </span>
+          </div>
+
+          {/* Center: Navigation buttons */}
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={goToPrevSlide}
+              disabled={!canGoPrev}
+              className="gba:text-white gba:bg-white/10 gba:backdrop-blur-sm hover:gba:bg-white/20 gba:disabled:opacity-30"
+            >
+              <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
+              {t('editor-previous')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={goToNextSlide}
+              disabled={!canGoNext}
+              className="gba:text-white gba:bg-white/10 gba:backdrop-blur-sm hover:gba:bg-white/20 gba:disabled:opacity-30"
+            >
+              {t('editor-next')}
+              <ChevronRight className="gba:w-4 gba:h-4 gba:ml-1" />
+            </Button>
+          </div>
+
+          {/* Right: Exit button */}
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={exitPresentMode}
+              className="gba:text-white gba:bg-white/10 gba:backdrop-blur-sm hover:gba:bg-white/20"
+              data-testid={`${testId}-present-exit`}
+            >
+              <Minimize className="gba:w-4 gba:h-4 gba:mr-1.5" />
+              {t('editor-exit')}
+            </Button>
+          </div>
+        </div>
+
+        {/* Keyboard shortcuts hint - appears briefly then fades */}
+        <div className="gba:absolute gba:top-4 gba:left-1/2 gba:-translate-x-1/2 gba:z-[10000] gba:text-xs gba:text-white/50 gba:bg-black/40 gba:px-3 gba:py-1.5 gba:rounded-md gba:backdrop-blur-sm gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:duration-300">
+          {t('editor-presentation-hint') || 'Use arrow keys or click to navigate • ESC to exit'}
         </div>
       </div>
     )
@@ -831,7 +955,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <Separator orientation="vertical" className="gba:h-6" />
 
               {/* Present button */}
-              <Button variant="default" size="sm" onClick={() => setIsPresentMode(true)}>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  setIsPresentMode(true)
+                  document.documentElement.requestFullscreen?.().catch(() => {})
+                }}
+              >
                 <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                 {t('editor-present')}
               </Button>
