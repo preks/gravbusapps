@@ -83,7 +83,12 @@ const PendingRequestsSheet: React.FC<PendingRequestsSheetProps> = ({
                     startProcess({
                       domain: 'employee',
                       processName: 'giveFeedback',
-                      payload: { requestId: row.id, employeeId: row.employeeId ?? employeeId },
+                      payload: {
+                        requestId: row.id,
+                        employeeId: row.employeeId ?? employeeId,
+                        // Preserve old behavior: preselect requester in Give Feedback flow.
+                        receiverId: row.requesterEmployeeId ?? undefined
+                      },
                       builderType: 'NATIVE_SCREEN'
                     })
                   }

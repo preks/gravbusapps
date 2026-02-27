@@ -19,6 +19,8 @@ import { CreateAgentChat } from '../components/chat/CreateAgentChat'
 import { CreateSessionSidebar } from '../components/chat/CreateSessionSidebar'
 import { OrchestratorCanvasContent } from './OrchestratorCanvasContent.tsx'
 import { useListPlans } from '../hooks/useListPlans'
+import { useCachedPlans } from '../hooks/useCachedPlans'
+import { ScreenBuildingLoader } from '../components/widgets/ScreenBuildingLoader'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
@@ -51,6 +53,9 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
   // Prevents the viewState effect from adding messages mid-restore (race condition guard)
   const isRestoringSessionRef = useRef(false)
+
+  // Track session restoration loading state for UI feedback
+  const [isRestoringSession, setIsRestoringSession] = useState(false)
 
   const buildProgress = useBuildProgress({
     client: orchestratorClient.client,
@@ -210,6 +215,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   useEffect(() => {
     if (!initialJobId || !accessToken) return
     isRestoringSessionRef.current = true
+    setIsRestoringSession(true)
     orchestratorClient
       .refreshPlan(initialJobId)
       .then(plan => {
@@ -219,6 +225,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       .catch(() => {})
       .finally(() => {
         isRestoringSessionRef.current = false
+        setIsRestoringSession(false)
       })
   }, [initialJobId, accessToken])
 
@@ -287,7 +294,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     data: plans,
     loading: plansLoading,
     refetch: refetchPlans
-  } = useListPlans({
+  } = useCachedPlans({
     accessToken,
     enabled: sidebarOpen
   })
@@ -304,16 +311,19 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     async (jobId: string) => {
       setSidebarOpen(false)
       isRestoringSessionRef.current = true
+      setIsRestoringSession(true)
       chat.resetMessages()
 
       const plan = await orchestratorClient.refreshPlan(jobId)
       if (!plan) {
         isRestoringSessionRef.current = false
+        setIsRestoringSession(false)
         return
       }
 
       applyRestoredPlan(plan)
       isRestoringSessionRef.current = false
+      setIsRestoringSession(false)
     },
     [chat, orchestratorClient, applyRestoredPlan]
   )
@@ -338,7 +348,14 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
   // --- Chat + Canvas layout ---
   return (
-    <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background" data-testid={testId}>
+    <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:relative" data-testid={testId}>
+      {/* Session restoration loading overlay */}
+      {isRestoringSession && (
+        <div className="gba:absolute gba:inset-0 gba:bg-background/98 gba:backdrop-blur-md gba:z-100 gba:flex gba:items-center gba:justify-center">
+          <ScreenBuildingLoader />
+        </div>
+      )}
+
       <CreateLayout
         sidebarOpen={sidebarOpen}
         sidebar={
@@ -381,6 +398,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             accessToken={accessToken}
             userInfo={userInfo}
             previewRefreshToken={previewRefreshToken}
+            isRestoringSession={isRestoringSession}
           />
         }
       />

@@ -20,6 +20,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { calculateScreenHash, loadHashFile, saveHashFile, configureGit } from './utils/componentHashUtils.js'
 import { getScreenDirectories } from './utils/screenDiscovery.js'
+import { logPhase } from './utils/logPhase.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -161,7 +162,7 @@ async function main() {
 
   // Validate arguments
   if (!args.env || !['dev', 'prod'].includes(args.env)) {
-    console.error('❌ Error: --env=dev|prod is required')
+    console.error('Error: --env=dev|prod is required')
     console.error('\nUsage:')
     console.error(
       '  node scripts/calculate-hashes.js --env=dev|prod [--screens=screen1,screen2] [--commit] [--dry-run]'
@@ -180,25 +181,24 @@ async function main() {
 
   const branch = args.env === 'dev' ? 'develop' : 'main'
 
-  console.log('🔧 Hash Calculator')
-  console.log(`${'='.repeat(60)}`)
-  console.log(`📁 Environment: ${args.env}`)
-  console.log(`📄 Hash file: ${path.basename(hashFile)}`)
-  console.log(`🌿 Target branch: ${branch}`)
-  console.log(`💾 Commit changes: ${args.commit ? 'YES' : 'NO'}`)
-  console.log(`🔍 Dry run: ${args.dryRun ? 'YES' : 'NO'}`)
+  logPhase('HASH CALCULATOR')
+  console.log(`Environment: ${args.env}`)
+  console.log(`Hash file: ${path.basename(hashFile)}`)
+  console.log(`Target branch: ${branch}`)
+  console.log(`Commit changes: ${args.commit ? 'YES' : 'NO'}`)
+  console.log(`Dry run: ${args.dryRun ? 'YES' : 'NO'}`)
 
   // Get screens to process
   let screens = args.screens
   if (!screens || screens.length === 0) {
-    console.log('\n📋 Finding all screens in project...')
+    console.log('\nFinding all screens in project...')
     screens = await findAllScreenDirectories()
   }
 
-  console.log(`\n📊 Screens to process: ${screens.length}`)
+  console.log(`\nScreens to process: ${screens.length}`)
 
   if (args.dryRun) {
-    console.log('\n🔍 DRY RUN - Would process these screens:')
+    console.log('\nDRY RUN - Would process these screens:')
     screens.forEach(s => console.log(`   - ${s}`))
     console.log(`\nWould update: ${hashFile}`)
     return
@@ -206,16 +206,14 @@ async function main() {
 
   // Load existing hashes
   const hashes = loadHashFile(hashFile)
-  console.log(`📥 Loaded ${Object.keys(hashes).length} existing hash(es)`)
+  console.log(`Loaded ${Object.keys(hashes).length} existing hash(es)`)
 
   // Process each screen
   let successCount = 0
   let failCount = 0
   const updatedScreens = []
 
-  console.log(`\n${'='.repeat(60)}`)
-  console.log('🔨 Building screens and calculating hashes...')
-  console.log(`${'='.repeat(60)}`)
+  logPhase('BUILD AND CALCULATE HASHES')
 
   for (let i = 0; i < screens.length; i++) {
     const screen = screens[i]
@@ -235,24 +233,22 @@ async function main() {
       }
 
       successCount++
-      process.stdout.write(`\r${progress} ✅ ${screen}: ${hash.substring(0, 16)}...`.padEnd(80) + '\n')
+      process.stdout.write(`\r${progress} OK ${screen}: ${hash.substring(0, 16)}...`.padEnd(80) + '\n')
     } catch (error) {
       failCount++
-      process.stdout.write(`\r${progress} ❌ ${screen}: ${error.message}`.padEnd(80) + '\n')
+      process.stdout.write(`\r${progress} FAIL ${screen}: ${error.message}`.padEnd(80) + '\n')
     }
   }
 
   // Save updated hashes
-  console.log(`\n${'='.repeat(60)}`)
-  console.log('💾 Saving hashes...')
-  console.log(`${'='.repeat(60)}`)
+  logPhase('SAVE HASHES')
 
   saveHashFile(hashFile, hashes)
-  console.log(`✅ Saved ${Object.keys(hashes).length} hash(es) to ${path.basename(hashFile)}`)
+  console.log(`Saved ${Object.keys(hashes).length} hash(es) to ${path.basename(hashFile)}`)
 
   // Show changes
   if (updatedScreens.length > 0) {
-    console.log(`\n📝 Updated hashes (${updatedScreens.length}):`)
+    console.log(`\nUpdated hashes (${updatedScreens.length}):`)
     for (const { screen, oldHash, newHash } of updatedScreens.slice(0, 10)) {
       console.log(`   ${screen}`)
       if (oldHash) {
@@ -267,9 +263,7 @@ async function main() {
 
   // Commit if requested
   if (args.commit && updatedScreens.length > 0) {
-    console.log(`\n${'='.repeat(60)}`)
-    console.log('📤 Committing and pushing changes...')
-    console.log(`${'='.repeat(60)}`)
+    logPhase('COMMIT AND PUSH HASHES')
 
     // Keep our new hashes for merge conflict resolution
     const ourNewHashes = { ...hashes }
@@ -288,7 +282,7 @@ async function main() {
      */
     const abortRebaseIfNeeded = () => {
       if (isRebaseInProgress()) {
-        console.log('   ⚠️  Aborting in-progress rebase...')
+        console.log('   WARNING: Aborting in-progress rebase...')
         try {
           execSync('git rebase --abort', { cwd: projectRoot, stdio: 'pipe' })
         } catch {
@@ -301,7 +295,7 @@ async function main() {
      * Resolve merge conflict in hash file by merging our changes with remote
      */
     const resolveHashConflict = () => {
-      console.log('   ⚠️  Rebase conflict detected, merging hashes manually...')
+      console.log('   WARNING: Rebase conflict detected, merging hashes manually...')
 
       // During rebase: --ours = remote (the branch we're rebasing onto), --theirs = our local changes
       // We want the remote version as base, then merge our new hashes on top
@@ -309,7 +303,7 @@ async function main() {
         execSync(`git checkout --ours ${hashFileName}`, { cwd: projectRoot, stdio: 'pipe' })
       } catch {
         // File might not exist on remote, start with empty
-        console.log('   📄 Remote version not available, using local as base')
+        console.log('   Remote version not available, using local as base')
       }
 
       // Load whatever version we have now (remote or empty)
@@ -326,7 +320,7 @@ async function main() {
       // Save the merged result
       saveHashFile(hashFile, mergedHashes)
       console.log(
-        `   🔀 Merged ${Object.keys(ourNewHashes).length} local hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
+        `   Merged ${Object.keys(ourNewHashes).length} local hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
       )
 
       // Stage the resolved file
@@ -344,7 +338,7 @@ async function main() {
         execSync('git -c core.editor=true rebase --continue', { cwd: projectRoot, stdio: 'pipe' })
       }
 
-      console.log('   ✅ Conflict resolved and rebase continued')
+      console.log('   Conflict resolved and rebase continued')
     }
 
     try {
@@ -359,7 +353,7 @@ async function main() {
       const needsBranchSwitch = currentBranch !== branch
 
       if (needsBranchSwitch) {
-        console.log(`   📌 Switching from ${currentBranch} to ${branch}...`)
+        console.log(`   Switching from ${currentBranch} to ${branch}...`)
 
         // Stash any uncommitted changes (the hash file we just modified)
         // We'll use a different approach: copy the hash file, switch branch, then restore
@@ -373,7 +367,7 @@ async function main() {
 
         // Restore the hash file with our changes
         fs.writeFileSync(hashFile, hashFileContent, 'utf8')
-        console.log(`   ✅ Switched to ${branch} and restored hash file`)
+        console.log(`   Switched to ${branch} and restored hash file`)
       }
 
       execSync(`git add ${hashFileName}`, { cwd: projectRoot })
@@ -387,10 +381,10 @@ async function main() {
         try {
           // Check if there's an incomplete rebase from a previous attempt
           if (isRebaseInProgress()) {
-            console.log(`🔄 Attempt ${attempt}/3: Resolving in-progress rebase...`)
+            console.log(`Attempt ${attempt}/3: Resolving in-progress rebase...`)
             resolveHashConflict()
           } else {
-            console.log(`🔄 Attempt ${attempt}/3: Pulling and rebasing...`)
+            console.log(`Attempt ${attempt}/3: Pulling and rebasing...`)
             // Capture output to detect conflicts
             execSync(`git pull --rebase origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
           }
@@ -398,7 +392,7 @@ async function main() {
           // If we got here, rebase succeeded - try to push
           execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
           pushSuccess = true
-          console.log(`✅ Changes committed and pushed to ${branch}`)
+          console.log(`Changes committed and pushed to ${branch}`)
           break
         } catch (error) {
           const errorOutput =
@@ -418,14 +412,14 @@ async function main() {
               // After resolving, try to push
               execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
               pushSuccess = true
-              console.log(`✅ Changes committed and pushed to ${branch} (after conflict resolution)`)
+              console.log(`Changes committed and pushed to ${branch} (after conflict resolution)`)
               break
             } catch (pushError) {
               const pushErrorOutput =
                 (pushError.stdout?.toString() || '') + (pushError.stderr?.toString() || '') + (pushError.message || '')
               // If push failed due to more remote changes, we need to retry the whole process
               if (pushErrorOutput.includes('rejected') || pushErrorOutput.includes('non-fast-forward')) {
-                console.log('   ⚠️  More remote changes detected, retrying...')
+                console.log('   WARNING: More remote changes detected, retrying...')
                 abortRebaseIfNeeded()
                 // Re-commit our changes
                 execSync(`git add ${hashFileName}`, { cwd: projectRoot, stdio: 'pipe' })
@@ -445,7 +439,7 @@ async function main() {
               }
             }
           } else if (attempt < 3) {
-            console.log(`🔄 Push failed (attempt ${attempt}/3), retrying...`)
+            console.log(`Push failed (attempt ${attempt}/3), retrying...`)
             abortRebaseIfNeeded()
             await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
           } else {
@@ -463,19 +457,17 @@ async function main() {
     } catch (error) {
       // Clean up on failure
       abortRebaseIfNeeded()
-      console.error(`❌ Failed to commit/push: ${error.message}`)
-      console.log('ℹ️  Hashes were saved locally, you can commit manually')
+      console.error(`Failed to commit/push: ${error.message}`)
+      console.log('INFO: Hashes were saved locally, you can commit manually')
     }
   }
 
   // Summary
-  console.log(`\n${'='.repeat(60)}`)
-  console.log('📊 SUMMARY')
-  console.log(`${'='.repeat(60)}`)
-  console.log(`✅ Successful: ${successCount}`)
-  console.log(`❌ Failed: ${failCount}`)
-  console.log(`📝 Updated: ${updatedScreens.length}`)
-  console.log(`📄 Hash file: ${path.basename(hashFile)}`)
+  logPhase('SUMMARY')
+  console.log(`Successful: ${successCount}`)
+  console.log(`Failed: ${failCount}`)
+  console.log(`Updated: ${updatedScreens.length}`)
+  console.log(`Hash file: ${path.basename(hashFile)}`)
 
   if (failCount > 0) {
     process.exit(1)
@@ -483,6 +475,6 @@ async function main() {
 }
 
 main().catch(error => {
-  console.error('❌ An unexpected error occurred:', error)
+  console.error('An unexpected error occurred:', error)
   process.exit(1)
 })
