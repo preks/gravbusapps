@@ -9,7 +9,11 @@ import { PageLayout, Alert, AlertDescription, useTranslation } from '@newwork/nw
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
-import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
+import {
+  useEntityImport,
+  useEntityMappings,
+  useLeadImportDefaults
+} from '@/common/components/common-relations/apps/data-import/hooks'
 import { FileUploadStep } from './FileUploadStep'
 import { MappingReviewStep } from './MappingReviewStep'
 import { ConversionResultStep } from './ConversionResultStep'
@@ -89,6 +93,28 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     }
   }, [agentResponse, setMappings, setUnmappedSourceFields])
 
+  // Lead-specific defaults (Status, Source, Rating) — only for lead entity type
+  const isLeadImport = config.entityType === 'lead'
+  const leadDefaults = useLeadImportDefaults(context.accessToken, config.domain)
+
+  const handleAnalyze = React.useCallback(async () => {
+    if (isLeadImport) {
+      const statusLabel =
+        leadDefaults.statusOptions.find(o => o.id === leadDefaults.selectedStatus)?.label ?? leadDefaults.selectedStatus
+      const sourceLabel =
+        leadDefaults.sourceOptions.find(o => o.id === leadDefaults.selectedSource)?.label ?? leadDefaults.selectedSource
+      const ratingLabel =
+        leadDefaults.ratingOptions.find(o => o.id === leadDefaults.selectedRating)?.label ?? leadDefaults.selectedRating
+
+      console.log('[LeadImport] Selected defaults before analysis:', {
+        leadStatus: { id: leadDefaults.selectedStatus, label: statusLabel },
+        leadSource: { id: leadDefaults.selectedSource, label: sourceLabel },
+        leadRating: { id: leadDefaults.selectedRating, label: ratingLabel }
+      })
+    }
+    await analyzeWithAgent()
+  }, [isLeadImport, leadDefaults, analyzeWithAgent])
+
   const handleConvert = async () => {
     await convertData(mappings)
   }
@@ -113,13 +139,14 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           file={file}
           isLoading={isLoading}
           onFileChange={handleFileChange}
-          onAnalyze={analyzeWithAgent}
+          onAnalyze={handleAnalyze}
           {...(enableCampaignSelection && {
             campaignId,
             onCampaignChange: (campaign: { id: string; name: string } | null) =>
               setCampaign(campaign?.id ?? null, campaign?.name),
             businessAppContext: context
           })}
+          {...(isLeadImport && { leadDefaults })}
           data-testid={`${testId}-upload-step`}
         />
       )}

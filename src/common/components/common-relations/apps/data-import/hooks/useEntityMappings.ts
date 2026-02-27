@@ -25,7 +25,6 @@ export function useEntityMappings(
   const [mappings, setMappingsState] = useState<FieldMapping[]>(initialMappings)
   const [unmappedSourceFields, setUnmappedSourceFields] = useState<string[]>(initialUnmappedFields)
 
-  // Keep a ref so callbacks can read the latest mappings without stale closure issues
   const mappingsRef = useRef<FieldMapping[]>(mappings)
 
   const setMappings = useCallback((next: FieldMapping[]) => {
@@ -54,59 +53,85 @@ export function useEntityMappings(
     [targetFields, setMappings]
   )
 
-  // Updates the target field from the unmapped source fields pool.
-  // • Removes the chosen field from unmapped.
-  // • If the previous target came from the unmapped pool (not an entity field), returns it.
+  /** Returns the human-readable display label for a stored targetField value. */
+  const getDisplayLabel = useCallback(
+    (targetFieldValue: string): string => {
+      const entityField = targetFields.find(tf => tf.value === targetFieldValue)
+      return entityField ? entityField.label : targetFieldValue
+    },
+    [targetFields]
+  )
+
   const updateTargetFromUnmapped = useCallback(
     (index: number, newTargetField: string) => {
-      const oldTargetField = mappingsRef.current[index]?.targetField
-      if (oldTargetField === newTargetField) return
+      const current = mappingsRef.current[index]
+      if (!current) return
 
+      // Resolve: look up by API value first, then by human-readable label
+      const targetFieldInfo =
+        targetFields.find(tf => tf.value === newTargetField) || targetFields.find(tf => tf.label === newTargetField)
+
+      const resolvedValue = targetFieldInfo ? targetFieldInfo.value : newTargetField
+
+      // No-op if nothing actually changes
+      if (current.targetField === resolvedValue) return
+
+      const oldTargetField = current.targetField
       const updated = [...mappingsRef.current]
-      updated[index] = {
-        ...updated[index],
-        targetField: newTargetField,
-        transformationType: 'direct',
-        catalogIdentifier: undefined
+
+      if (targetFieldInfo?.type === 'catalog') {
+        updated[index] = {
+          ...current,
+          targetField: resolvedValue,
+          transformationType: 'catalog',
+          catalogIdentifier: targetFieldInfo.catalog
+        }
+      } else {
+        updated[index] = {
+          ...current,
+          targetField: resolvedValue,
+          transformationType: 'direct',
+          catalogIdentifier: undefined
+        }
       }
+
       setMappings(updated)
 
-      const entityFieldValues = new Set(targetFields.map(tf => tf.value))
-      setUnmappedSourceFields(prevUnmapped => {
-        let result = prevUnmapped.filter(f => f !== newTargetField)
-        // Return old target to unmapped only if it was a source field (not an entity field)
-        if (oldTargetField && !entityFieldValues.has(oldTargetField) && !result.includes(oldTargetField)) {
-          result = [...result, oldTargetField]
+      setUnmappedSourceFields(prev => {
+        // Remove the newly selected display name from the pool
+        let result = prev.filter(f => f !== newTargetField)
+
+        // Return the old target's display label to the pool
+        if (oldTargetField) {
+          const oldDisplayLabel = getDisplayLabel(oldTargetField)
+          if (!result.includes(oldDisplayLabel)) {
+            result = [...result, oldDisplayLabel]
+          }
         }
+
         return result
       })
     },
-    [targetFields, setMappings]
+    [targetFields, getDisplayLabel, setMappings]
   )
 
+  /**
+   * Removes a mapping row and returns only the target's display label to the
+   * unmapped pool (source field is intentionally NOT restored).
+   */
   const removeMapping = useCallback(
     (index: number) => {
       const removed = mappingsRef.current[index]
-      const entityFieldValues = new Set(targetFields.map(tf => tf.value))
-
       setMappings(mappingsRef.current.filter((_, i) => i !== index))
 
-      setUnmappedSourceFields(prevUnmapped => {
-        let result = prevUnmapped
-        if (removed?.sourceField && !result.includes(removed.sourceField)) {
-          result = [...result, removed.sourceField]
-        }
-        if (
-          removed?.targetField &&
-          !entityFieldValues.has(removed.targetField) &&
-          !result.includes(removed.targetField)
-        ) {
-          result = [...result, removed.targetField]
-        }
-        return result
-      })
+      if (removed?.targetField) {
+        setUnmappedSourceFields(prev => {
+          const targetDisplayLabel = getDisplayLabel(removed.targetField)
+          return prev.includes(targetDisplayLabel) ? prev : [...prev, targetDisplayLabel]
+        })
+      }
     },
-    [targetFields, setMappings]
+    [getDisplayLabel, setMappings]
   )
 
   const addMapping = useCallback(

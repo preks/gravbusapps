@@ -99,9 +99,8 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
               <h3 className="gba:text-sm gba:font-semibold gba:mb-2">{t('mapped-fields-title')}</h3>
               <div className="gba:space-y-3">
                 {mappings.map((mapping, index) => {
-                  // Build the current target option so the trigger always shows a value:
-                  // - entity field  → use its human-readable label from targetFieldsConfig
-                  // - unmapped field chosen previously → raw name (it was removed from unmapped list)
+                  // Show the current target as the first option so the Select trigger
+                  // always displays the selected value (entity field label or source field name).
                   const currentEntityField = targetFieldsConfig.find(tf => tf.value === mapping.targetField)
                   const currentOption = mapping.targetField
                     ? currentEntityField
@@ -109,8 +108,8 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
                       : { value: mapping.targetField, label: mapping.targetField }
                     : null
 
-                  // Remaining dropdown options come from unmappedSourceFields only.
-                  // Exclude the current target if it's already listed there to avoid duplicates.
+                  // Remaining options: ONLY unmapped source fields.
+                  // Exclude the current target to avoid duplicating it in the list.
                   const unmappedOptions = unmappedSourceFields
                     .filter(f => f !== mapping.targetField)
                     .map(f => ({ value: f, label: f }))
