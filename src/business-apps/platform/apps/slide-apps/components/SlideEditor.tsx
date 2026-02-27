@@ -56,7 +56,11 @@ import {
   FileDown,
   ChevronLeft,
   ChevronRight,
-  Minimize
+  Minimize,
+  Undo2,
+  Redo2,
+  ClipboardPaste,
+  CopyPlus
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -311,6 +315,16 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const presentationContainerRef = useRef<HTMLDivElement>(null)
   const thumbnailRefs = useRef<(HTMLDivElement | null)[]>([])
 
+  // Undo/Redo history state
+  const [history, setHistory] = useState<SlideData[][]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const isUndoRedoAction = useRef(false)
+
+  // Clipboard for copy/paste (supports both elements and slides)
+  const [clipboard, setClipboard] = useState<
+    { type: 'element'; data: AnySlideElement } | { type: 'slide'; data: SlideData } | null
+  >(null)
+
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
     return collaborativeSlides?.length ? collaborativeSlides : [defaultSlide]
@@ -430,6 +444,109 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [selectedElementId, currentSlide.elements, updateElement])
 
+  // Track history for undo/redo
+  useEffect(() => {
+    if (isUndoRedoAction.current) {
+      isUndoRedoAction.current = false
+      return
+    }
+    if (!isSynced || !isInitialized) return
+
+    const slidesSnapshot = JSON.stringify(slides)
+    const lastSnapshot = history[historyIndex] ? JSON.stringify(history[historyIndex]) : null
+
+    if (slidesSnapshot !== lastSnapshot) {
+      const newHistory = history.slice(0, historyIndex + 1)
+      newHistory.push(JSON.parse(slidesSnapshot))
+      // Keep max 50 history entries
+      if (newHistory.length > 50) newHistory.shift()
+      setHistory(newHistory)
+      setHistoryIndex(newHistory.length - 1)
+    }
+  }, [slides, isSynced, isInitialized])
+
+  // Undo function
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) {
+      toast.info(t('editor-nothing-to-undo') || 'Nothing to undo')
+      return
+    }
+    isUndoRedoAction.current = true
+    const previousState = history[historyIndex - 1]
+    setHistoryIndex(historyIndex - 1)
+    updateCollaborativeSlides(previousState)
+    toast.success(t('editor-undo') || 'Undo')
+  }, [historyIndex, history, updateCollaborativeSlides, t])
+
+  // Redo function
+  const redo = useCallback(() => {
+    if (historyIndex >= history.length - 1) {
+      toast.info(t('editor-nothing-to-redo') || 'Nothing to redo')
+      return
+    }
+    isUndoRedoAction.current = true
+    const nextState = history[historyIndex + 1]
+    setHistoryIndex(historyIndex + 1)
+    updateCollaborativeSlides(nextState)
+    toast.success(t('editor-redo') || 'Redo')
+  }, [historyIndex, history, updateCollaborativeSlides, t])
+
+  // Copy element or slide to clipboard
+  const copyElement = useCallback(() => {
+    if (selectedElement) {
+      // Copy selected element
+      setClipboard({ type: 'element', data: JSON.parse(JSON.stringify(selectedElement)) })
+      toast.success(t('editor-element-copied') || 'Element copied')
+    } else {
+      // Copy current slide
+      setClipboard({ type: 'slide', data: JSON.parse(JSON.stringify(currentSlide)) })
+      toast.success(t('editor-slide-copied') || 'Slide copied')
+    }
+  }, [selectedElement, currentSlide, t])
+
+  // Paste element or slide from clipboard
+  const pasteElement = useCallback(() => {
+    if (!clipboard) {
+      toast.info(t('editor-nothing-to-paste') || 'Nothing to paste')
+      return
+    }
+
+    if (clipboard.type === 'element') {
+      const element = clipboard.data
+      const pastedElement: AnySlideElement = {
+        ...element,
+        id: `${element.type}-${Date.now()}`,
+        position: {
+          x: Math.min(element.position.x + 30, 1280 - element.size.width),
+          y: Math.min(element.position.y + 30, 720 - element.size.height)
+        }
+      }
+      addElement(pastedElement)
+      toast.success(t('editor-element-pasted') || 'Element pasted')
+    } else if (clipboard.type === 'slide') {
+      // Paste slide as a new slide
+      const slideData = clipboard.data
+      const newSlide: SlideData = {
+        ...slideData,
+        id: `slide-${Date.now()}`,
+        elements: slideData.elements.map(el => ({
+          ...el,
+          id: `${el.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        }))
+      }
+      if (isSynced) {
+        addCollaborativeSlide(newSlide, currentSlideIndex + 1)
+      }
+      setCurrentSlideIndex(currentSlideIndex + 1)
+      setSelectedElementId(null)
+      toast.success(t('editor-slide-pasted') || 'Slide pasted')
+    }
+  }, [clipboard, addElement, isSynced, addCollaborativeSlide, currentSlideIndex, t])
+
+  // Check if can undo/redo
+  const canUndo = historyIndex > 0
+  const canRedo = historyIndex < history.length - 1
+
   // Slide management - use collaborative methods
   const addSlide = useCallback(() => {
     const newSlide: SlideData = {
@@ -461,7 +578,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       toast.error(t('editor-delete-last-slide-error'))
       return
     }
-    if (!window.confirm(t('editor-delete-slide-confirm'))) return
     if (isSynced) {
       removeCollaborativeSlide(currentSlideIndex)
     }
@@ -742,12 +858,50 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       const target = e.target as HTMLElement
       const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 
+      // Undo: Ctrl+Z (works even when input is focused, but not for text inputs)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        if (!isInputFocused) {
+          e.preventDefault()
+          undo()
+          return
+        }
+      }
+
+      // Redo: Ctrl+Y or Ctrl+Shift+Z
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        if (!isInputFocused) {
+          e.preventDefault()
+          redo()
+          return
+        }
+      }
+
+      // Copy: Ctrl+C
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInputFocused) {
+        e.preventDefault()
+        copyElement()
+        return
+      }
+
+      // Paste: Ctrl+V
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInputFocused) {
+        e.preventDefault()
+        pasteElement()
+        return
+      }
+
       if (isInputFocused) return
 
-      // Delete selected element with Delete or Backspace key
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementId) {
+      // Delete with Delete or Backspace key
+      if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
-        deleteElement()
+        if (selectedElementId) {
+          // Delete selected element
+          deleteElement()
+        } else {
+          // Delete current slide
+          deleteSlide()
+        }
         return
       }
 
@@ -764,7 +918,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
     window.addEventListener('keydown', handleEditorKeyDown)
     return () => window.removeEventListener('keydown', handleEditorKeyDown)
-  }, [isPresentMode, slides.length, selectedElementId, deleteElement])
+  }, [
+    isPresentMode,
+    slides.length,
+    selectedElementId,
+    deleteElement,
+    deleteSlide,
+    undo,
+    redo,
+    copyElement,
+    pasteElement
+  ])
 
   // Scroll selected thumbnail into view
   useEffect(() => {
@@ -1047,6 +1211,43 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       {/* Toolbar - Insert & Formatting Tools */}
       <div className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:bg-card gba:flex-wrap">
+        {/* Edit Group - Undo/Redo & Copy/Paste */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={undo}
+          disabled={!canUndo}
+          title={`${t('editor-undo') || 'Undo'} (Ctrl+Z)`}
+        >
+          <Undo2 className="gba:w-4 gba:h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={redo}
+          disabled={!canRedo}
+          title={`${t('editor-redo') || 'Redo'} (Ctrl+Y)`}
+        >
+          <Redo2 className="gba:w-4 gba:h-4" />
+        </Button>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+        <Button variant="ghost" size="sm" onClick={copyElement} title={`${t('editor-copy') || 'Copy'} (Ctrl+C)`}>
+          <Copy className="gba:w-4 gba:h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={pasteElement}
+          disabled={!clipboard}
+          title={`${t('editor-paste') || 'Paste'} (Ctrl+V)`}
+        >
+          <ClipboardPaste className="gba:w-4 gba:h-4" />
+        </Button>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
+
         {/* Insert Group */}
         <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('editor-insert')}</span>
 
@@ -1290,7 +1491,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-background"
                 data-testid={`${testId}-duplicate-slide-btn`}
               >
-                <Copy className="gba:w-4 gba:h-4" />
+                <CopyPlus className="gba:w-4 gba:h-4" />
               </Button>
               <div className="gba:w-px gba:h-5 gba:bg-border" />
               <Button
