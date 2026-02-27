@@ -69,6 +69,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
   // Flag to prevent click handler from clearing selection after marquee
   const justFinishedMarqueeRef = useRef(false)
 
+  // Snap guides state
+  const CANVAS_WIDTH = 1280
+  const CANVAS_HEIGHT = 720
+  const SNAP_THRESHOLD = 8
+  const [snapGuides, setSnapGuides] = useState<{ type: 'horizontal' | 'vertical'; position: number }[]>([])
+
   const getBackgroundStyle = (): React.CSSProperties => {
     switch (background.type) {
       case 'gradient':
@@ -296,6 +302,120 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
     setElementStart({ position: { ...element.position }, size: { ...element.size } })
   }
 
+  // Calculate snap positions for an element being dragged
+  const calculateSnap = useCallback(
+    (
+      draggedPosition: Position,
+      draggedSize: Size,
+      draggedIds: Set<string>
+    ): { snappedPosition: Position; guides: { type: 'horizontal' | 'vertical'; position: number }[] } => {
+      const guides: { type: 'horizontal' | 'vertical'; position: number }[] = []
+      let snappedX = draggedPosition.x
+      let snappedY = draggedPosition.y
+
+      // Calculate dragged element edges and center
+      const dragLeft = draggedPosition.x
+      const dragRight = draggedPosition.x + draggedSize.width
+      const dragCenterX = draggedPosition.x + draggedSize.width / 2
+      const dragTop = draggedPosition.y
+      const dragBottom = draggedPosition.y + draggedSize.height
+      const dragCenterY = draggedPosition.y + draggedSize.height / 2
+
+      // Snap points to check (vertical lines for X snapping)
+      const verticalSnapPoints: { x: number; type: 'left' | 'center' | 'right' }[] = [
+        { x: 0, type: 'left' },
+        { x: CANVAS_WIDTH / 2, type: 'center' },
+        { x: CANVAS_WIDTH, type: 'right' }
+      ]
+
+      // Snap points to check (horizontal lines for Y snapping)
+      const horizontalSnapPoints: { y: number; type: 'top' | 'center' | 'bottom' }[] = [
+        { y: 0, type: 'top' },
+        { y: CANVAS_HEIGHT / 2, type: 'center' },
+        { y: CANVAS_HEIGHT, type: 'bottom' }
+      ]
+
+      // Add snap points from other elements
+      elements.forEach(el => {
+        if (draggedIds.has(el.id)) return
+
+        const elLeft = el.position.x
+        const elRight = el.position.x + el.size.width
+        const elCenterX = el.position.x + el.size.width / 2
+        const elTop = el.position.y
+        const elBottom = el.position.y + el.size.height
+        const elCenterY = el.position.y + el.size.height / 2
+
+        verticalSnapPoints.push(
+          { x: elLeft, type: 'left' },
+          { x: elRight, type: 'right' },
+          { x: elCenterX, type: 'center' }
+        )
+        horizontalSnapPoints.push(
+          { y: elTop, type: 'top' },
+          { y: elBottom, type: 'bottom' },
+          { y: elCenterY, type: 'center' }
+        )
+      })
+
+      // Check vertical snap points (X axis)
+      let closestXSnap: { distance: number; snapTo: number; guideX: number } | null = null
+      verticalSnapPoints.forEach(snap => {
+        // Check left edge
+        const leftDist = Math.abs(dragLeft - snap.x)
+        if (leftDist < SNAP_THRESHOLD && (!closestXSnap || leftDist < closestXSnap.distance)) {
+          closestXSnap = { distance: leftDist, snapTo: snap.x, guideX: snap.x }
+        }
+        // Check right edge
+        const rightDist = Math.abs(dragRight - snap.x)
+        if (rightDist < SNAP_THRESHOLD && (!closestXSnap || rightDist < closestXSnap.distance)) {
+          closestXSnap = { distance: rightDist, snapTo: snap.x - draggedSize.width, guideX: snap.x }
+        }
+        // Check center
+        const centerDist = Math.abs(dragCenterX - snap.x)
+        if (centerDist < SNAP_THRESHOLD && (!closestXSnap || centerDist < closestXSnap.distance)) {
+          closestXSnap = { distance: centerDist, snapTo: snap.x - draggedSize.width / 2, guideX: snap.x }
+        }
+      })
+
+      if (closestXSnap) {
+        snappedX = closestXSnap.snapTo
+        guides.push({ type: 'vertical', position: closestXSnap.guideX })
+      }
+
+      // Check horizontal snap points (Y axis)
+      let closestYSnap: { distance: number; snapTo: number; guideY: number } | null = null
+      horizontalSnapPoints.forEach(snap => {
+        // Check top edge
+        const topDist = Math.abs(dragTop - snap.y)
+        if (topDist < SNAP_THRESHOLD && (!closestYSnap || topDist < closestYSnap.distance)) {
+          closestYSnap = { distance: topDist, snapTo: snap.y, guideY: snap.y }
+        }
+        // Check bottom edge
+        const bottomDist = Math.abs(dragBottom - snap.y)
+        if (bottomDist < SNAP_THRESHOLD && (!closestYSnap || bottomDist < closestYSnap.distance)) {
+          closestYSnap = { distance: bottomDist, snapTo: snap.y - draggedSize.height, guideY: snap.y }
+        }
+        // Check center
+        const centerDist = Math.abs(dragCenterY - snap.y)
+        if (centerDist < SNAP_THRESHOLD && (!closestYSnap || centerDist < closestYSnap.distance)) {
+          closestYSnap = { distance: centerDist, snapTo: snap.y - draggedSize.height / 2, guideY: snap.y }
+        }
+      })
+
+      if (closestYSnap) {
+        snappedY = closestYSnap.snapTo
+        guides.push({ type: 'horizontal', position: closestYSnap.guideY })
+      }
+
+      return {
+        snappedPosition: { x: Math.max(0, snappedX), y: Math.max(0, snappedY) },
+        guides
+      }
+    },
+    [elements]
+  )
+
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       // Only handle element drag/resize here (marquee is handled inline in handleCanvasMouseDown)
@@ -310,29 +430,58 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
       if (isDragging) {
         // Multi-element drag
         if (selectedIds.size > 1 && multiDragStart.size > 0) {
+          // Calculate bounding box of all selected elements for snapping
+          const selectedElements = elements.filter(el => selectedIds.has(el.id))
+          const minX = Math.min(...selectedElements.map(el => el.position.x))
+          const minY = Math.min(...selectedElements.map(el => el.position.y))
+          const maxX = Math.max(...selectedElements.map(el => el.position.x + el.size.width))
+          const maxY = Math.max(...selectedElements.map(el => el.position.y + el.size.height))
+
+          // Calculate new bounding box position
+          const newBoundsX = minX + deltaX
+          const newBoundsY = minY + deltaY
+          const boundsWidth = maxX - minX
+          const boundsHeight = maxY - minY
+
+          // Get snapped position for the bounding box
+          const { snappedPosition, guides } = calculateSnap(
+            { x: newBoundsX, y: newBoundsY },
+            { width: boundsWidth, height: boundsHeight },
+            selectedIds
+          )
+
+          // Calculate the snap offset
+          const snapOffsetX = snappedPosition.x - newBoundsX
+          const snapOffsetY = snappedPosition.y - newBoundsY
+
           const updates: { id: string; updates: Partial<AnySlideElement> }[] = []
           multiDragStart.forEach((startPos, id) => {
             updates.push({
               id,
               updates: {
                 position: {
-                  x: Math.max(0, startPos.x + deltaX),
-                  y: Math.max(0, startPos.y + deltaY)
+                  x: Math.max(0, startPos.x + deltaX + snapOffsetX),
+                  y: Math.max(0, startPos.y + deltaY + snapOffsetY)
                 }
               }
             })
           })
           onUpdateMultipleElements(updates)
+          setSnapGuides(guides)
         } else {
-          // Single element drag
+          // Single element drag with snapping
           const selectedId = [...selectedIds][0]
-          if (selectedId) {
-            onUpdateElement(selectedId, {
-              position: {
-                x: Math.max(0, elementStart.position.x + deltaX),
-                y: Math.max(0, elementStart.position.y + deltaY)
-              }
-            })
+          const selectedElement = elements.find(el => el.id === selectedId)
+          if (selectedId && selectedElement) {
+            const newPosition = {
+              x: elementStart.position.x + deltaX,
+              y: elementStart.position.y + deltaY
+            }
+
+            const { snappedPosition, guides } = calculateSnap(newPosition, selectedElement.size, selectedIds)
+
+            onUpdateElement(selectedId, { position: snappedPosition })
+            setSnapGuides(guides)
           }
         }
       } else if (isResizing && resizeHandle && selectedIds.size === 1) {
@@ -391,7 +540,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
       multiDragStart,
       onUpdateElement,
       onUpdateMultipleElements,
-      scale
+      scale,
+      elements,
+      calculateSnap
     ]
   )
 
@@ -406,6 +557,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
     setResizeHandle(null)
     setElementStart(null)
     setMultiDragStart(new Map())
+    setSnapGuides([])
   }, [isDragging, isResizing, onDragEnd])
 
   // Event listeners for element drag/resize (marquee has its own inline handlers)
@@ -585,33 +737,40 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
             style={{
               width: '100%',
               height: '100%',
-              fontFamily: (element as TextElement).fontFamily,
-              fontSize: (element as TextElement).fontSize,
-              fontWeight: (element as TextElement).fontWeight,
-              fontStyle: (element as TextElement).fontStyle,
-              textDecoration: (element as TextElement).textDecoration,
-              textAlign: (element as TextElement).textAlign,
-              color: (element as TextElement).color,
               backgroundColor: (element as TextElement).gradient ? undefined : (element as TextElement).backgroundColor,
               background: (element as TextElement).gradient
                 ? gradientToCss((element as TextElement).gradient!)
                 : undefined,
-              lineHeight: (element as TextElement).lineHeight,
-              letterSpacing: (element as TextElement).letterSpacing,
               padding: (element as TextElement).padding,
               display: 'flex',
-              alignItems:
+              flexDirection: 'column',
+              justifyContent:
                 (element as TextElement).verticalAlign === 'top'
                   ? 'flex-start'
                   : (element as TextElement).verticalAlign === 'bottom'
                     ? 'flex-end'
                     : 'center',
-              overflow: 'hidden',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word'
+              overflow: 'hidden'
             }}
           >
-            {(element as TextElement).content}
+            <div
+              style={{
+                width: '100%',
+                fontFamily: (element as TextElement).fontFamily,
+                fontSize: (element as TextElement).fontSize,
+                fontWeight: (element as TextElement).fontWeight,
+                fontStyle: (element as TextElement).fontStyle,
+                textDecoration: (element as TextElement).textDecoration,
+                textAlign: (element as TextElement).textAlign,
+                color: (element as TextElement).color,
+                lineHeight: (element as TextElement).lineHeight,
+                letterSpacing: (element as TextElement).letterSpacing,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word'
+              }}
+            >
+              {(element as TextElement).content}
+            </div>
           </div>
         )}
 
@@ -846,6 +1005,33 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
             }}
           />
         )}
+
+        {/* Snap Guides */}
+        {snapGuides.map((guide, idx) => (
+          <div
+            key={`snap-guide-${idx}`}
+            style={{
+              position: 'absolute',
+              // eslint-disable-next-line newwork-local/no-hardcoded-colors
+              backgroundColor: '#f43f5e',
+              pointerEvents: 'none',
+              zIndex: 10000,
+              ...(guide.type === 'vertical'
+                ? {
+                    left: guide.position,
+                    top: 0,
+                    width: 1,
+                    height: CANVAS_HEIGHT
+                  }
+                : {
+                    left: 0,
+                    top: guide.position,
+                    width: CANVAS_WIDTH,
+                    height: 1
+                  })
+            }}
+          />
+        ))}
       </div>
     </div>
   )

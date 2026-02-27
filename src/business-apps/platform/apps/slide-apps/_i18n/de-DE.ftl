@@ -453,3 +453,23 @@ theme-gradient = Verlauf Lila
 editor-export-pdf = Als PDF exportieren
 version-load-failed = Versionen konnten nicht geladen werden
 version-number = Version { $number }
+
+# Refine Slide
+refine-button-label = Verfeinern
+refine-title = Folie verfeinern
+refine-description = Beschreiben Sie, wie Sie diese Folie verbessern möchten
+refine-current-slide = Aktuelle Folie
+refine-instructions = Was möchten Sie ändern?
+refine-instructions-placeholder = z.B. Ein Kreisdiagramm hinzufügen, die Aufzählungspunkte vereinfachen, visueller gestalten...
+refine-web-search = Web nach aktuellen Daten durchsuchen
+refine-web-search-desc = Aktuelle Statistiken und Informationen finden
+refine-failed = Verfeinerung fehlgeschlagen
+refine-analyzing = Aktuelle Folie wird analysiert...
+refine-refining = Folie wird verfeinert...
+refine-building = Verfeinerte Folie wird erstellt...
+refine-preview = Vorschau der verfeinerten Folie
+refine-cancel = Abbrechen
+refine-apply = Änderungen übernehmen
+refine-button = Folie verfeinern
+refine-refining-button = Verfeinern...
+editor-slide-refined = Folie erfolgreich verfeinert

@@ -88,6 +88,7 @@ import {
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
 import { GeneratePresentationButton } from './GeneratePresentationButton'
+import { RefineSlideButton } from './RefineSlideButton'
 import { exportToPptx } from '../utils/exportUtils'
 import translations from '../_i18n'
 
@@ -201,7 +202,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     updateSlide: updateCollaborativeSlide,
     updateElement: updateCollaborativeElement,
     addSlide: addCollaborativeSlide,
-    removeSlide: removeCollaborativeSlide,
     applyContentJsonSnapshot
   } = useSlideCollaboration({
     slideId,
@@ -296,6 +296,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // UI state
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
+  const [selectedSlideIndices, setSelectedSlideIndices] = useState<Set<number>>(new Set([0]))
+  const [slideSelectionAnchor, setSlideSelectionAnchor] = useState<number | null>(null)
   const [selectedElementIds, setSelectedElementIds] = useState<Set<string>>(new Set())
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -314,6 +316,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const videoInputRef = useRef<HTMLInputElement>(null)
   const presentationContainerRef = useRef<HTMLDivElement>(null)
   const thumbnailRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  // Slide drag and drop state
+  const [draggedSlideIndex, setDraggedSlideIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
   // Undo/Redo history state
   const [history, setHistory] = useState<SlideData[][]>([])
@@ -664,33 +670,92 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   }, [currentSlideIndex, isSynced, addCollaborativeSlide, t])
 
   const deleteSlide = useCallback(() => {
-    if (slides.length <= 1) {
+    const indicesToDelete =
+      selectedSlideIndices.size > 1 ? Array.from(selectedSlideIndices).sort((a, b) => b - a) : [currentSlideIndex]
+
+    if (slides.length - indicesToDelete.length < 1) {
       toast.error(t('editor-delete-last-slide-error'))
       return
     }
+
     if (isSynced) {
-      removeCollaborativeSlide(currentSlideIndex)
+      // Delete from highest to lowest index to preserve indices
+      const newSlides = slides.filter((_, idx) => !indicesToDelete.includes(idx))
+      updateCollaborativeSlides(newSlides)
     }
-    setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))
+
+    // Find new current slide index
+    const minDeleted = Math.min(...indicesToDelete)
+    const newIndex = Math.min(minDeleted, slides.length - indicesToDelete.length - 1)
+    setCurrentSlideIndex(Math.max(0, newIndex))
+    setSelectedSlideIndices(new Set([Math.max(0, newIndex)]))
     setSelectedElementIds(new Set())
-    toast.success(t('editor-slide-deleted'))
-  }, [slides.length, currentSlideIndex, isSynced, removeCollaborativeSlide, t])
+
+    const count = indicesToDelete.length
+    toast.success(
+      count > 1 ? t('editor-slides-deleted', { count }) || `${count} slides deleted` : t('editor-slide-deleted')
+    )
+  }, [slides, currentSlideIndex, selectedSlideIndices, isSynced, updateCollaborativeSlides, t])
 
   const duplicateSlide = useCallback(() => {
-    const copy = {
-      ...currentSlide,
-      id: `slide-${Date.now()}`,
-      elements: currentSlide.elements.map(e => ({
-        ...e,
-        id: `${e.type}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
-      }))
-    }
+    const indicesToDuplicate =
+      selectedSlideIndices.size > 1 ? Array.from(selectedSlideIndices).sort((a, b) => a - b) : [currentSlideIndex]
+
     if (isSynced) {
-      addCollaborativeSlide(copy, currentSlideIndex + 1)
+      const newSlides = [...slides]
+      const duplicates: SlideData[] = []
+
+      indicesToDuplicate.forEach(idx => {
+        const original = slides[idx]
+        duplicates.push({
+          ...original,
+          id: `slide-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+          elements: original.elements.map(e => ({
+            ...e,
+            id: `${e.type}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+          }))
+        })
+      })
+
+      // Insert all duplicates after the last selected slide
+      const insertAt = Math.max(...indicesToDuplicate) + 1
+      newSlides.splice(insertAt, 0, ...duplicates)
+      updateCollaborativeSlides(newSlides)
+
+      // Select the duplicated slides
+      const newSelectedIndices = new Set(duplicates.map((_, i) => insertAt + i))
+      setCurrentSlideIndex(insertAt)
+      setSelectedSlideIndices(newSelectedIndices)
     }
-    setCurrentSlideIndex(currentSlideIndex + 1)
-    toast.success(t('toast-slide-duplicated'))
-  }, [currentSlide, currentSlideIndex, isSynced, addCollaborativeSlide, t])
+
+    const count = indicesToDuplicate.length
+    toast.success(
+      count > 1 ? t('toast-slides-duplicated', { count }) || `${count} slides duplicated` : t('toast-slide-duplicated')
+    )
+  }, [slides, currentSlideIndex, selectedSlideIndices, isSynced, updateCollaborativeSlides, t])
+
+  // Reorder slides via drag and drop
+  const reorderSlides = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (fromIndex === toIndex || !isSynced) return
+
+      const newSlides = [...slides]
+      const [movedSlide] = newSlides.splice(fromIndex, 1)
+      newSlides.splice(toIndex, 0, movedSlide)
+
+      updateCollaborativeSlides(newSlides)
+
+      // Update current slide index to follow the moved slide
+      if (currentSlideIndex === fromIndex) {
+        setCurrentSlideIndex(toIndex)
+      } else if (fromIndex < currentSlideIndex && toIndex >= currentSlideIndex) {
+        setCurrentSlideIndex(currentSlideIndex - 1)
+      } else if (fromIndex > currentSlideIndex && toIndex <= currentSlideIndex) {
+        setCurrentSlideIndex(currentSlideIndex + 1)
+      }
+    },
+    [slides, currentSlideIndex, isSynced, updateCollaborativeSlides]
+  )
 
   // Handle AI-generated slides
   const handleGeneratedSlides = useCallback(
@@ -711,6 +776,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       }
     },
     [isSynced, updateCollaborativeSlides, presentationTitle, slideId]
+  )
+
+  // Handle AI-refined slide
+  const handleRefineSlide = useCallback(
+    (refinedSlide: SlideData) => {
+      if (!isSynced) return
+
+      // Keep the original slide ID when updating
+      const updatedSlide = { ...refinedSlide, id: currentSlide.id }
+      updateCollaborativeSlide(currentSlideIndex, updatedSlide)
+      setSelectedElementIds(new Set())
+      toast.success(t('editor-slide-refined') || 'Slide refined')
+    },
+    [isSynced, currentSlide.id, currentSlideIndex, updateCollaborativeSlide, t]
   )
 
   // Handle image upload
@@ -1304,7 +1383,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* AI Generate - positioned at far right like Transform in NoteEditor */}
+              {/* AI Tools */}
+              <RefineSlideButton
+                currentSlide={currentSlide}
+                onRefine={handleRefineSlide}
+                accessToken={accessToken || ''}
+                theme={currentTheme}
+                disabled={!isSynced}
+                data-testid={`${testId}-refine-button`}
+              />
               <GeneratePresentationButton
                 onGenerate={handleGeneratedSlides}
                 accessToken={accessToken || ''}
@@ -1491,6 +1578,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               // Thumbnail scale: sidebar is w-48 (192px) - p-2 (8px each side) - border (4px) = ~176px
               // Canvas is 1280px wide, so scale = 176/1280 ≈ 0.1375
               const thumbScale = 176 / 1280
+              const isDraggedOver = dragOverIndex === idx && draggedSlideIndex !== idx
 
               return (
                 <div
@@ -1498,79 +1586,157 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   ref={el => {
                     thumbnailRefs.current[idx] = el
                   }}
-                  onClick={() => {
-                    setCurrentSlideIndex(idx)
+                  draggable
+                  onDragStart={e => {
+                    setDraggedSlideIndex(idx)
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('text/plain', String(idx))
+                  }}
+                  onDragEnd={() => {
+                    setDraggedSlideIndex(null)
+                    setDragOverIndex(null)
+                  }}
+                  onDragOver={e => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    if (draggedSlideIndex !== null && draggedSlideIndex !== idx) {
+                      setDragOverIndex(idx)
+                    }
+                  }}
+                  onDragLeave={() => {
+                    setDragOverIndex(null)
+                  }}
+                  onDrop={e => {
+                    e.preventDefault()
+                    if (draggedSlideIndex !== null && draggedSlideIndex !== idx) {
+                      reorderSlides(draggedSlideIndex, idx)
+                    }
+                    setDraggedSlideIndex(null)
+                    setDragOverIndex(null)
+                  }}
+                  onClick={e => {
+                    const isCtrlKey = e.ctrlKey || e.metaKey
+                    const isShiftKey = e.shiftKey
+
+                    if (isShiftKey && slideSelectionAnchor !== null) {
+                      // Shift+click: Select range
+                      const start = Math.min(slideSelectionAnchor, idx)
+                      const end = Math.max(slideSelectionAnchor, idx)
+                      const rangeIndices = new Set<number>()
+                      for (let i = start; i <= end; i++) {
+                        rangeIndices.add(i)
+                      }
+                      if (isCtrlKey) {
+                        // Ctrl+Shift: Add range to existing selection
+                        setSelectedSlideIndices(prev => new Set([...prev, ...rangeIndices]))
+                      } else {
+                        setSelectedSlideIndices(rangeIndices)
+                      }
+                      setCurrentSlideIndex(idx)
+                    } else if (isCtrlKey) {
+                      // Ctrl+click: Toggle individual selection
+                      setSelectedSlideIndices(prev => {
+                        const newSet = new Set(prev)
+                        if (newSet.has(idx)) {
+                          if (newSet.size > 1) {
+                            newSet.delete(idx)
+                            // If deleting current, move to another selected
+                            if (idx === currentSlideIndex) {
+                              setCurrentSlideIndex(Math.min(...newSet))
+                            }
+                          }
+                        } else {
+                          newSet.add(idx)
+                        }
+                        return newSet
+                      })
+                      setSlideSelectionAnchor(idx)
+                      if (!selectedSlideIndices.has(idx)) {
+                        setCurrentSlideIndex(idx)
+                      }
+                    } else {
+                      // Regular click: Select only this slide
+                      setCurrentSlideIndex(idx)
+                      setSelectedSlideIndices(new Set([idx]))
+                      setSlideSelectionAnchor(idx)
+                    }
                     setSelectedElementIds(new Set())
                   }}
-                  className={`gba:rounded-lg gba:cursor-pointer gba:transition-all gba:border-2 gba:overflow-hidden ${
+                  className={`gba:rounded-lg gba:cursor-grab gba:transition-all gba:border-2 gba:overflow-hidden gba:bg-card ${
                     idx === currentSlideIndex
                       ? 'gba:border-primary gba:shadow-md'
-                      : 'gba:border-transparent hover:gba:border-muted-foreground/20'
+                      : selectedSlideIndices.has(idx)
+                        ? 'gba:border-primary/60 gba:shadow-sm gba:bg-primary/5'
+                        : 'gba:border-border hover:gba:border-muted-foreground/40'
+                  } ${draggedSlideIndex === idx ? 'gba:opacity-50' : ''} ${
+                    isDraggedOver ? 'gba:border-primary gba:border-dashed gba:bg-primary/10' : ''
                   }`}
                 >
-                  {/* Mini Preview - uses transform scale for accurate rendering */}
+                  {/* Mini Preview - CSS transform for accurate rendering */}
                   <div
-                    className="gba:aspect-video gba:relative gba:overflow-hidden"
+                    className="gba:relative gba:overflow-hidden"
                     style={{
-                      backgroundColor: s.background?.color || '#fff',
-                      background: s.background?.gradient ? gradientToCss(s.background.gradient) : undefined
+                      width: '100%',
+                      aspectRatio: '16 / 9'
                     }}
                   >
-                    {/* Scaled container matching main canvas proportions */}
+                    {/* Scaled canvas container */}
                     <div
-                      className="gba:absolute gba:top-0 gba:left-0 gba:origin-top-left"
+                      className="gba:absolute gba:inset-0"
                       style={{
-                        width: 1280,
-                        height: 720,
-                        transform: `scale(${thumbScale})`
+                        backgroundColor: s.background?.color || '#fff',
+                        background: s.background?.gradient ? gradientToCss(s.background.gradient) : undefined
                       }}
                     >
-                      {(s.elements || []).map(el => (
-                        <div
-                          key={el.id}
-                          className="gba:absolute"
-                          style={{
-                            left: el.position.x,
-                            top: el.position.y,
-                            width: el.size.width,
-                            height: el.size.height,
-                            backgroundColor: el.type === 'shape' ? (el as any).fill : 'transparent',
-                            overflow: 'hidden'
-                          }}
-                        >
-                          {el.type === 'text' && (
-                            <div
-                              style={{
-                                color: (el as any).color,
-                                fontSize: (el as any).fontSize,
-                                fontWeight: (el as any).fontWeight,
-                                fontFamily: (el as any).fontFamily,
-                                textAlign: (el as any).textAlign,
-                                width: '100%',
-                                height: '100%',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              {(el as any).content}
-                            </div>
-                          )}
-                          {el.type === 'image' && (
-                            <img
-                              src={(el as any).src}
-                              alt=""
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: (el as any).objectFit || 'cover'
-                              }}
-                            />
-                          )}
-                        </div>
-                      ))}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: 1280,
+                          height: 720,
+                          transform: `scale(${thumbScale})`,
+                          transformOrigin: 'top left'
+                        }}
+                      >
+                        {(s.elements || []).map(el => (
+                          <div
+                            key={el.id}
+                            className="gba:absolute gba:overflow-hidden"
+                            style={{
+                              left: el.position.x,
+                              top: el.position.y,
+                              width: el.size.width,
+                              height: el.size.height,
+                              backgroundColor: el.type === 'shape' ? (el as any).fill : 'transparent'
+                            }}
+                          >
+                            {el.type === 'text' && (
+                              <div
+                                className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
+                                style={{
+                                  color: (el as any).color,
+                                  fontSize: (el as any).fontSize,
+                                  fontWeight: (el as any).fontWeight,
+                                  fontFamily: (el as any).fontFamily,
+                                  textAlign: (el as any).textAlign,
+                                  lineHeight: (el as any).lineHeight || 1.2
+                                }}
+                              >
+                                {(el as any).content}
+                              </div>
+                            )}
+                            {el.type === 'image' && (
+                              <img src={(el as any).src} alt="" className="gba:w-full gba:h-full gba:object-cover" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="gba:p-1.5 gba:bg-card">
-                    <span className="gba:text-xs gba:font-medium">{idx + 1}</span>
+                    {/* Slide number overlay */}
+                    <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
+                      <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{idx + 1}</span>
+                    </div>
                   </div>
                 </div>
               )
@@ -1579,6 +1745,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
           {/* Slide Actions */}
           <div className="gba:p-3 gba:border-t gba:bg-card/50 gba:space-y-2">
+            {selectedSlideIndices.size > 1 && (
+              <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-1">
+                {selectedSlideIndices.size} {t('editor-slides-selected') || 'slides selected'}
+              </div>
+            )}
             <Button
               variant="default"
               size="sm"

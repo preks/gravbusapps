@@ -451,3 +451,23 @@ theme-sunset = Sunset Orange
 theme-ocean = Ocean Breeze
 theme-minimal = Minimal
 theme-gradient = Gradient Purple
+
+# Refine Slide
+refine-button-label = Refine
+refine-title = Refine Slide
+refine-description = Describe how you would like to improve this slide
+refine-current-slide = Current Slide
+refine-instructions = What would you like to change?
+refine-instructions-placeholder = e.g., Add a pie chart showing the distribution, simplify the bullet points, make it more visual...
+refine-web-search = Search web for updated data
+refine-web-search-desc = Find current statistics and information
+refine-failed = Refinement failed
+refine-analyzing = Analyzing current slide...
+refine-refining = Refining slide...
+refine-building = Building refined slide...
+refine-preview = Refined Slide Preview
+refine-cancel = Cancel
+refine-apply = Apply Changes
+refine-button = Refine Slide
+refine-refining-button = Refining...
+editor-slide-refined = Slide refined successfully

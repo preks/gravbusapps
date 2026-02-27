@@ -453,3 +453,23 @@ theme-gradient = Gradient Violet
 editor-export-pdf = Exportă ca PDF
 version-load-failed = Nu s-au putut încărca versiunile
 version-number = Versiunea { $number }
+
+# Refine Slide
+refine-button-label = Rafinează
+refine-title = Rafinează slide
+refine-description = Descrieți cum doriți să îmbunătățiți acest slide
+refine-current-slide = Slide curent
+refine-instructions = Ce doriți să schimbați?
+refine-instructions-placeholder = ex., Adăugați un grafic de tip pie, simplificați punctele, faceți-l mai vizual...
+refine-web-search = Caută pe web date actualizate
+refine-web-search-desc = Găsește statistici și informații actuale
+refine-failed = Rafinarea a eșuat
+refine-analyzing = Se analizează slide-ul curent...
+refine-refining = Se rafinează slide-ul...
+refine-building = Se construiește slide-ul rafinat...
+refine-preview = Previzualizare slide rafinat
+refine-cancel = Anulează
+refine-apply = Aplică modificările
+refine-button = Rafinează slide
+refine-refining-button = Se rafinează...
+editor-slide-refined = Slide rafinat cu succes
