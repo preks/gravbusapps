@@ -113,8 +113,7 @@ const toAvatarSrc = (thumb?: string | null): string | undefined => {
   if (trimmed.startsWith('data:image')) return trimmed
   const sig = trimmed.slice(0, 12)
   let mime = 'image/jpeg'
-  if (sig.startsWith('/9j/')) mime = 'image/jpeg'
-  else if (sig.startsWith('iVBORw0KGgo')) mime = 'image/png'
+  if (sig.startsWith('iVBORw0KGgo')) mime = 'image/png'
   else if (sig.startsWith('R0lGOD')) mime = 'image/gif'
   else if (sig.startsWith('Qk')) mime = 'image/bmp'
   return `data:${mime};base64,${trimmed}`
@@ -239,17 +238,158 @@ const formatRatingForDisplay = (value: string): string => {
 
   const starLabelMatch = /^(\d+)\s+stars?$/i.exec(trimmedValue)
   if (starLabelMatch) {
-    const starsCount = Math.max(0, Math.min(parseInt(starLabelMatch[1], 10), 10))
+    const starsCount = Math.max(0, Math.min(Number.parseInt(starLabelMatch[1], 10), 10))
     return '★'.repeat(starsCount)
   }
 
   const numericMatch = /^(\d+)$/.exec(trimmedValue)
   if (numericMatch) {
-    const starsCount = Math.max(0, Math.min(parseInt(numericMatch[1], 10), 10))
+    const starsCount = Math.max(0, Math.min(Number.parseInt(numericMatch[1], 10), 10))
     return '★'.repeat(starsCount)
   }
 
   return value
+}
+
+interface DetailViewComputedData {
+  companyValueItems: Record<string, unknown>[]
+  skillItems: Record<string, unknown>[]
+  overallNumericDisplay: string
+  ratingScaleLimit: number
+  overallProgressPercent: number
+  companyValuesAverageScore: string
+  skillsAverageScore: string
+  overallNumericChangeSinceLastReview: string
+  companyValuesProgressPercent: number
+  skillsProgressPercent: number
+  radarMaxDomain: number
+  overallChangeBadge: { text: string; className: string } | null
+  companyValuesChangeBadge: { text: string; className: string } | null
+  skillsChangeBadge: { text: string; className: string } | null
+  companyValuesRadarData: RadarDataPoint[]
+  skillsRadarData: RadarDataPoint[]
+  combinedCarouselEntries: CarouselEntry[]
+  selfReviewerFallback?: ReviewerFallbackIdentity
+  managerReviewerFallback?: ReviewerFallbackIdentity
+}
+
+const computeDetailViewData = (
+  data: PerformanceEvaluationAnalysisDetailResponse,
+  currentEmployee: PerformanceEvaluationDetailViewProps['currentEmployee'],
+  t: (key: string, args?: Record<string, unknown>) => string
+): DetailViewComputedData => {
+  const topLevelEntries = Object.entries(data).filter(([key]) => !shouldHideFieldByKey(key))
+  const companyValuesEntry = topLevelEntries.find(([key]) => key.toLowerCase() === 'companyvalues')
+  const skillsEntry = topLevelEntries.find(([key]) => key.toLowerCase() === 'skills')
+  const companyValueItems = companyValuesEntry ? toObjectList(companyValuesEntry[1]) : []
+  const skillItems = skillsEntry ? toObjectList(skillsEntry[1]) : []
+  const safeData = data as Record<string, unknown>
+  const overallRaw = getFieldValue(safeData, ['overall'])
+  const averagesRaw = getFieldValue(safeData, ['averages'])
+  const changesSinceLastReviewRaw = getFieldValue(safeData, ['changesSinceLastReview'])
+  const evaluatorManagerRaw = getFieldValue(safeData, ['evaluatorManager'])
+  const overall = isObjectRecord(overallRaw) ? overallRaw : null
+  const averages = isObjectRecord(averagesRaw) ? averagesRaw : null
+  const changesSinceLastReview = isObjectRecord(changesSinceLastReviewRaw) ? changesSinceLastReviewRaw : null
+  const evaluatorManager = isObjectRecord(evaluatorManagerRaw) ? evaluatorManagerRaw : null
+
+  const fallbackOverallAverage =
+    overall &&
+    isObjectRecord(overall) &&
+    typeof overall.averageNumeric === 'number' &&
+    Number.isFinite(overall.averageNumeric)
+      ? overall.averageNumeric
+      : null
+  const overallNumericValue =
+    (averages ? toFiniteNumber(getFieldValue(averages, ['overall'])) : null) ?? fallbackOverallAverage
+  const overallNumericDisplay = formatNumericDisplay(overallNumericValue)
+  const ratingScaleLimit = getRatingScaleLimit(safeData, overall && isObjectRecord(overall) ? overall : null)
+  const overallProgressPercent =
+    overallNumericValue === null ? 0 : Math.min(100, Math.max(0, (overallNumericValue / ratingScaleLimit) * 100))
+
+  const companyValuesRadarData = buildRadarData(companyValueItems)
+  const skillsRadarData = buildRadarData(skillItems)
+  const companyValuesAverageScoreFallback = computeSectionAverageScore(companyValueItems)
+  const skillsAverageScoreFallback = computeSectionAverageScore(skillItems)
+  const companyValuesAverageNumeric =
+    (averages ? toFiniteNumber(getFieldValue(averages, ['companyValues'])) : null) ??
+    toScoreNumber(companyValuesAverageScoreFallback)
+  const skillsAverageNumeric =
+    (averages ? toFiniteNumber(getFieldValue(averages, ['skills'])) : null) ?? toScoreNumber(skillsAverageScoreFallback)
+  const companyValuesAverageScore = formatNumericDisplay(companyValuesAverageNumeric)
+  const skillsAverageScore = formatNumericDisplay(skillsAverageNumeric)
+
+  const overallChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'overall', [
+    'overallRatingNumericChangeSinceLastReview',
+    'overallNumericChangeSinceLastReview',
+    'changeSinceLastReviewOverallNumeric'
+  ])
+  const companyValuesChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'companyValues')
+  const skillsChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'skills')
+  const overallChangeBadge = formatChangeDelta(overallChangeSinceLastReview)
+  const companyValuesChangeBadge = formatChangeDelta(companyValuesChangeSinceLastReview)
+  const skillsChangeBadge = formatChangeDelta(skillsChangeSinceLastReview)
+  const overallNumericChangeSinceLastReview = formatNumericDisplay(overallChangeSinceLastReview)
+
+  const companyValuesProgressPercent =
+    companyValuesAverageNumeric === null
+      ? 0
+      : Math.min(100, Math.max(0, (companyValuesAverageNumeric / ratingScaleLimit) * 100))
+  const skillsProgressPercent =
+    skillsAverageNumeric === null ? 0 : Math.min(100, Math.max(0, (skillsAverageNumeric / ratingScaleLimit) * 100))
+
+  const points = [...companyValuesRadarData, ...skillsRadarData]
+  const maxValue = points.reduce((acc, point) => Math.max(acc, point.self, point.peer, point.manager), 0)
+  const radarMaxDomain = maxValue <= 5 ? 5 : Math.ceil(maxValue)
+  const combinedCarouselEntries: CarouselEntry[] = [
+    ...companyValueItems.map((item, index) => ({
+      item,
+      subtitle: t('performance-evaluation-company-value-singular'),
+      testId: `employee-performance-evaluation-company-value-${index}`
+    })),
+    ...skillItems.map((item, index) => ({
+      item,
+      subtitle: t('performance-evaluation-skill-singular'),
+      testId: `employee-performance-evaluation-skill-${index}`
+    }))
+  ]
+
+  const selfReviewerFallback: ReviewerFallbackIdentity | undefined = currentEmployee
+    ? {
+        displayName: currentEmployee.displayName,
+        firstName: currentEmployee.firstName,
+        lastName: currentEmployee.lastName,
+        pictureThumbnail: currentEmployee.pictureThumbnail
+      }
+    : undefined
+  const managerReviewerFallback: ReviewerFallbackIdentity | undefined = evaluatorManager
+    ? {
+        displayName: getDisplayNameFromRecord(evaluatorManager),
+        pictureThumbnail: getPictureFromRecord(evaluatorManager)
+      }
+    : undefined
+
+  return {
+    companyValueItems,
+    skillItems,
+    overallNumericDisplay,
+    ratingScaleLimit,
+    overallProgressPercent,
+    companyValuesAverageScore,
+    skillsAverageScore,
+    overallNumericChangeSinceLastReview,
+    companyValuesProgressPercent,
+    skillsProgressPercent,
+    radarMaxDomain,
+    overallChangeBadge,
+    companyValuesChangeBadge,
+    skillsChangeBadge,
+    companyValuesRadarData,
+    skillsRadarData,
+    combinedCarouselEntries,
+    selfReviewerFallback,
+    managerReviewerFallback
+  }
 }
 
 const buildPerspectiveRowData = (entries: Record<string, unknown>[]): Record<string, string> => {
@@ -724,6 +864,44 @@ const computeRadarAverageScore = (data: RadarDataPoint[], selectedReviewers: Rev
   return Number(average.toFixed(2)).toString()
 }
 
+const getNextSelectedReviewers = (previous: ReviewerKey[], reviewer: ReviewerKey): ReviewerKey[] => {
+  if (previous.includes(reviewer)) {
+    if (previous.length === 1) return previous
+    return previous.filter(entry => entry !== reviewer)
+  }
+
+  const next = new Set<ReviewerKey>([...previous, reviewer])
+  return REVIEWER_KEYS.filter(entry => next.has(entry))
+}
+
+const getActiveRadarSeries = (
+  selectedReviewers: ReviewerKey[],
+  labels: { selfLabel: string; peerLabel: string; managerLabel: string }
+): Array<{ reviewer: ReviewerKey; name: string; dataKey: ReviewerKey; color: string }> => {
+  const series = [
+    {
+      reviewer: 'self' as ReviewerKey,
+      name: labels.selfLabel,
+      dataKey: 'self' as ReviewerKey,
+      color: REVIEWER_COLORS.self
+    },
+    {
+      reviewer: 'peer' as ReviewerKey,
+      name: labels.peerLabel,
+      dataKey: 'peer' as ReviewerKey,
+      color: REVIEWER_COLORS.peer
+    },
+    {
+      reviewer: 'manager' as ReviewerKey,
+      name: labels.managerLabel,
+      dataKey: 'manager' as ReviewerKey,
+      color: REVIEWER_COLORS.manager
+    }
+  ]
+
+  return series.filter(item => selectedReviewers.includes(item.reviewer))
+}
+
 const RadarLegend: React.FC<{
   selfLabel: string
   peerLabel: string
@@ -794,20 +972,12 @@ const RadarComparisonCard: React.FC<{
 }) => {
   const [selectedReviewers, setSelectedReviewers] = useState<ReviewerKey[]>(REVIEWER_KEYS)
 
-  const toggleReviewer = (reviewer: ReviewerKey) => {
-    setSelectedReviewers(previous => {
-      if (previous.includes(reviewer)) {
-        if (previous.length === 1) return previous
-        return previous.filter(entry => entry !== reviewer)
-      }
-
-      const next = new Set<ReviewerKey>([...previous, reviewer])
-      return REVIEWER_KEYS.filter(entry => next.has(entry))
-    })
-  }
+  const toggleReviewer = (reviewer: ReviewerKey) =>
+    setSelectedReviewers(previous => getNextSelectedReviewers(previous, reviewer))
 
   const displayedAverageScore =
     selectedReviewers.length === REVIEWER_KEYS.length ? averageScore : computeRadarAverageScore(data, selectedReviewers)
+  const activeSeries = getActiveRadarSeries(selectedReviewers, { selfLabel, peerLabel, managerLabel })
 
   return (
     <Card data-testid={testId}>
@@ -837,36 +1007,17 @@ const RadarComparisonCard: React.FC<{
                 <PolarAngleAxis dataKey="label" tick={{ fontSize: 12 }} />
                 <PolarRadiusAxis domain={[0, radarMaxDomain]} />
                 <RechartsTooltip />
-                {selectedReviewers.includes('self') ? (
+                {activeSeries.map(series => (
                   <Radar
-                    name={selfLabel}
-                    dataKey="self"
-                    stroke={REVIEWER_COLORS.self}
-                    fill={REVIEWER_COLORS.self}
+                    key={`${testId}-radar-${series.reviewer}`}
+                    name={series.name}
+                    dataKey={series.dataKey}
+                    stroke={series.color}
+                    fill={series.color}
                     fillOpacity={0.14}
                     strokeWidth={2}
                   />
-                ) : null}
-                {selectedReviewers.includes('peer') ? (
-                  <Radar
-                    name={peerLabel}
-                    dataKey="peer"
-                    stroke={REVIEWER_COLORS.peer}
-                    fill={REVIEWER_COLORS.peer}
-                    fillOpacity={0.14}
-                    strokeWidth={2}
-                  />
-                ) : null}
-                {selectedReviewers.includes('manager') ? (
-                  <Radar
-                    name={managerLabel}
-                    dataKey="manager"
-                    stroke={REVIEWER_COLORS.manager}
-                    fill={REVIEWER_COLORS.manager}
-                    fillOpacity={0.14}
-                    strokeWidth={2}
-                  />
-                ) : null}
+                ))}
               </RadarChart>
             </ResponsiveContainer>
           </div>
@@ -919,89 +1070,25 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
     )
   }
 
-  const topLevelEntries = Object.entries(data).filter(([key]) => !shouldHideFieldByKey(key))
-  const companyValuesEntry = topLevelEntries.find(([key]) => key.toLowerCase() === 'companyvalues')
-  const skillsEntry = topLevelEntries.find(([key]) => key.toLowerCase() === 'skills')
-  const companyValueItems = companyValuesEntry ? toObjectList(companyValuesEntry[1]) : []
-  const skillItems = skillsEntry ? toObjectList(skillsEntry[1]) : []
-  const safeData = data as Record<string, unknown>
-  const overallRaw = getFieldValue(safeData, ['overall'])
-  const averagesRaw = getFieldValue(safeData, ['averages'])
-  const changesSinceLastReviewRaw = getFieldValue(safeData, ['changesSinceLastReview'])
-  const evaluatorManagerRaw = getFieldValue(safeData, ['evaluatorManager'])
-  const overall = isObjectRecord(overallRaw) ? overallRaw : null
-  const averages = isObjectRecord(averagesRaw) ? averagesRaw : null
-  const changesSinceLastReview = isObjectRecord(changesSinceLastReviewRaw) ? changesSinceLastReviewRaw : null
-  const evaluatorManager = isObjectRecord(evaluatorManagerRaw) ? evaluatorManagerRaw : null
-  const overallNumericValue =
-    (averages ? toFiniteNumber(getFieldValue(averages, ['overall'])) : null) ??
-    (overall &&
-    isObjectRecord(overall) &&
-    typeof overall.averageNumeric === 'number' &&
-    Number.isFinite(overall.averageNumeric)
-      ? overall.averageNumeric
-      : null)
-  const overallNumericDisplay = formatNumericDisplay(overallNumericValue)
-  const ratingScaleLimit = getRatingScaleLimit(safeData, overall && isObjectRecord(overall) ? overall : null)
-  const overallProgressPercent =
-    overallNumericValue === null ? 0 : Math.min(100, Math.max(0, (overallNumericValue / ratingScaleLimit) * 100))
-  const companyValuesRadarData = buildRadarData(companyValueItems)
-  const skillsRadarData = buildRadarData(skillItems)
-  const companyValuesAverageScoreFallback = computeSectionAverageScore(companyValueItems)
-  const skillsAverageScoreFallback = computeSectionAverageScore(skillItems)
-  const companyValuesAverageNumeric =
-    (averages ? toFiniteNumber(getFieldValue(averages, ['companyValues'])) : null) ??
-    toScoreNumber(companyValuesAverageScoreFallback)
-  const skillsAverageNumeric =
-    (averages ? toFiniteNumber(getFieldValue(averages, ['skills'])) : null) ?? toScoreNumber(skillsAverageScoreFallback)
-  const companyValuesAverageScore = formatNumericDisplay(companyValuesAverageNumeric)
-  const skillsAverageScore = formatNumericDisplay(skillsAverageNumeric)
-  const overallChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'overall', [
-    'overallRatingNumericChangeSinceLastReview',
-    'overallNumericChangeSinceLastReview',
-    'changeSinceLastReviewOverallNumeric'
-  ])
-  const companyValuesChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'companyValues')
-  const skillsChangeSinceLastReview = getChangeValue(safeData, changesSinceLastReview, 'skills')
-  const overallChangeBadge = formatChangeDelta(overallChangeSinceLastReview)
-  const companyValuesChangeBadge = formatChangeDelta(companyValuesChangeSinceLastReview)
-  const skillsChangeBadge = formatChangeDelta(skillsChangeSinceLastReview)
-  const overallNumericChangeSinceLastReview = formatNumericDisplay(overallChangeSinceLastReview)
-  const companyValuesProgressPercent =
-    companyValuesAverageNumeric === null
-      ? 0
-      : Math.min(100, Math.max(0, (companyValuesAverageNumeric / ratingScaleLimit) * 100))
-  const skillsProgressPercent =
-    skillsAverageNumeric === null ? 0 : Math.min(100, Math.max(0, (skillsAverageNumeric / ratingScaleLimit) * 100))
-  const points = [...companyValuesRadarData, ...skillsRadarData]
-  const maxValue = points.reduce((acc, point) => Math.max(acc, point.self, point.peer, point.manager), 0)
-  const radarMaxDomain = maxValue <= 5 ? 5 : Math.ceil(maxValue)
-  const combinedCarouselEntries: CarouselEntry[] = [
-    ...companyValueItems.map((item, index) => ({
-      item,
-      subtitle: t('performance-evaluation-company-value-singular'),
-      testId: `employee-performance-evaluation-company-value-${index}`
-    })),
-    ...skillItems.map((item, index) => ({
-      item,
-      subtitle: t('performance-evaluation-skill-singular'),
-      testId: `employee-performance-evaluation-skill-${index}`
-    }))
-  ]
-  const selfReviewerFallback: ReviewerFallbackIdentity | undefined = currentEmployee
-    ? {
-        displayName: currentEmployee.displayName,
-        firstName: currentEmployee.firstName,
-        lastName: currentEmployee.lastName,
-        pictureThumbnail: currentEmployee.pictureThumbnail
-      }
-    : undefined
-  const managerReviewerFallback: ReviewerFallbackIdentity | undefined = evaluatorManager
-    ? {
-        displayName: getDisplayNameFromRecord(evaluatorManager),
-        pictureThumbnail: getPictureFromRecord(evaluatorManager)
-      }
-    : undefined
+  const {
+    overallNumericDisplay,
+    ratingScaleLimit,
+    overallProgressPercent,
+    companyValuesAverageScore,
+    skillsAverageScore,
+    overallNumericChangeSinceLastReview,
+    companyValuesProgressPercent,
+    skillsProgressPercent,
+    radarMaxDomain,
+    overallChangeBadge,
+    companyValuesChangeBadge,
+    skillsChangeBadge,
+    companyValuesRadarData,
+    skillsRadarData,
+    combinedCarouselEntries,
+    selfReviewerFallback,
+    managerReviewerFallback
+  } = computeDetailViewData(data, currentEmployee, t)
 
   return (
     <div className="gba:space-y-6" data-testid="employee-performance-evaluation-detail">
