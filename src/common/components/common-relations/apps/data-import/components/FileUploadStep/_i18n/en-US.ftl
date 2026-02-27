@@ -13,14 +13,14 @@ file-loaded-text = File loaded: { $fileName } ({ $fileSize } KB)
 campaign-id-label = Campaign (Optional)
 
 # Lead Defaults
-lead-status-label = Lead Status
-lead-source-label = Lead Source
-lead-rating-label = Lead Rating
+lead-status-label = Default Lead Status
+lead-source-label = Default Lead Source
+lead-rating-label = Default Lead Rating
 lead-status-placeholder = Select lead status...
 lead-source-placeholder = Select lead source...
 lead-rating-placeholder = Select lead rating...
 loading-placeholder = Loading...
-lead-defaults-required-hint = Please select Lead Status, Lead Source and Lead Rating before analyzing.
+lead-defaults-required-hint = Please select Default Lead Status, Default Lead Source and Default Lead Rating before analyzing.
 
 # Button Labels
 analyze-button = Analyze with AI Agent

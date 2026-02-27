@@ -13,14 +13,14 @@ file-loaded-text = Fișier încărcat: { $fileName } ({ $fileSize } KB)
 campaign-id-label = Campanie (Opțional)
 
 # Lead Defaults
-lead-status-label = Status Lead
-lead-source-label = Sursă Lead
-lead-rating-label = Evaluare Lead
+lead-status-label = Default Status Lead 
+lead-source-label = Default Sursă Lead 
+lead-rating-label = Default Evaluare Lead 
 lead-status-placeholder = Selectați statusul lead-ului...
 lead-source-placeholder = Selectați sursa lead-ului...
 lead-rating-placeholder = Selectați evaluarea lead-ului...
 loading-placeholder = Se încarcă...
-lead-defaults-required-hint = Vă rugăm selectați Status Lead, Sursă Lead și Evaluare Lead înainte de analiză.
+lead-defaults-required-hint = Vă rugăm selectați Status Lead Default, Sursă Lead Default și Evaluare Lead Default înainte de analiză.
 
 # Button Labels
 analyze-button = Analizare cu Agent AI

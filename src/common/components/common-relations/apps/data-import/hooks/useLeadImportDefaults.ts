@@ -7,6 +7,16 @@
 import { useState, useEffect } from 'react'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
+import {
+  LEAD_STATUS as CUSTOMER_LEAD_STATUS,
+  LEAD_SOURCE as CUSTOMER_LEAD_SOURCE,
+  LEAD_RATING as CUSTOMER_LEAD_RATING
+} from '@/common/data/customer/constants/customerCatalogs'
+import {
+  LEAD_STATUS as INVESTMENT_LEAD_STATUS,
+  LEAD_SOURCE as INVESTMENT_LEAD_SOURCE,
+  LEAD_RATING as INVESTMENT_LEAD_RATING
+} from '@/common/data/investment/constants/investmentCatalogs'
 
 export interface LeadCatalogOption {
   id: string
@@ -26,16 +36,19 @@ export interface LeadImportDefaults {
   isLoading: boolean
 }
 
+// fetchCatalogEntriesByIdentifier expects plain identifier without :version suffix
+const stripVersion = (id: string) => id.split(':')[0]
+
 const CATALOG_IDENTIFIERS: Record<'customer' | 'investment', { status: string; source: string; rating: string }> = {
   customer: {
-    status: 'SalesLeadStatus',
-    source: 'SalesLeadSource',
-    rating: 'SalesLeadRating'
+    status: stripVersion(CUSTOMER_LEAD_STATUS),
+    source: stripVersion(CUSTOMER_LEAD_SOURCE),
+    rating: stripVersion(CUSTOMER_LEAD_RATING)
   },
   investment: {
-    status: 'InvestmentLeadStatus',
-    source: 'InvestmentLeadSource',
-    rating: 'InvestmentLeadRating'
+    status: stripVersion(INVESTMENT_LEAD_STATUS),
+    source: stripVersion(INVESTMENT_LEAD_SOURCE),
+    rating: stripVersion(INVESTMENT_LEAD_RATING)
   }
 }
 
