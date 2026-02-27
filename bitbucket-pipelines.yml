@@ -146,7 +146,7 @@ definitions:
           - docker
         script:
           - export RC_UPLOAD="true"
-          - bash scripts/detect-and-publish-changed-screens.sh
+          - bash scripts/build-hash-detect-and-publish-screens.sh
         artifacts:
           - changed-tsx.txt
 
