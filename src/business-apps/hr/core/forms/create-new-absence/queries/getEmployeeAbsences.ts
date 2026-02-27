@@ -99,6 +99,7 @@ export const employeeRegionLookupQuery = `
     employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
       id
       workingCondition {
+        regionRef
         region {
           id
           value
@@ -107,26 +108,41 @@ export const employeeRegionLookupQuery = `
         }
       }
     }
+    addresses: EmployeeAddress(
+      where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false } }
+      orderBy: { type: ASC }
+    ) {
+      type
+      region {
+        id
+      }
+    }
   }
 `
 
-export const employmentRegionHolidaysQuery = `
-  query GetEmploymentRegionHolidays($activeUserLocale: String!, $regionIds: [String!]!) {
+/** Single-date bank holiday check: region (additionalValue2), year (additionalValue3), date YYYYMMDD (alternativeCode). */
+export const employmentRegionHolidayByDateQuery = `
+  query GetEmploymentRegionHolidayByDate(
+    $activeUserLocale: String!
+    $regionId: String!
+    $year: String!
+    $altCode: String!
+  ) {
     holidays: CatalogEntry(
       where: {
         catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegionHoliday" } }
-        additionalValue2: { _in: $regionIds }
+        isDeleted: { _eq: false }
+        additionalValue2: { _eq: $regionId }
+        additionalValue3: { _eq: $year }
+        alternativeCode: { _eq: $altCode }
       }
-      orderBy: { value: ASC }
     ) {
       id
       value
-      code
-      alternativeCode
       additionalValue1
       additionalValue2
       additionalValue3
-      objectValue
+      alternativeCode
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
         value
       }

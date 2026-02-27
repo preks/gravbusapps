@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
@@ -26,7 +26,7 @@ import {
   getEmployeeAbsenceEntitlement,
   getTodayAbsences,
   employeeRegionLookupQuery,
-  employmentRegionHolidaysQuery,
+  employmentRegionHolidayByDateQuery,
   employeeWorkingHoursQuery
 } from '../queries/getEmployeeAbsences'
 
@@ -125,9 +125,12 @@ export const useAbsenceValidation = ({
   const [absenceEntitlement, setAbsenceEntitlement] = useState<EmployeeAbsenceEntitlement | null>(null)
   const [todayAbsences, setTodayAbsences] = useState<EmployeeAbsence[]>([])
   const [existingSickLeave, setExistingSickLeave] = useState<EmployeeAbsence | null>(null)
-  const [holidays, setHolidays] = useState<HolidayEntry[]>([])
+  const [employeeRegionRef, setEmployeeRegionRef] = useState<string | null>(null)
+  const [holidays] = useState<HolidayEntry[]>([])
   const [dateRangeBreakdown, setDateRangeBreakdown] = useState<DateRangeBreakdown | null>(null)
   const [workingHours, setWorkingHours] = useState<WorkingHours | null>(null)
+  const [isCheckingBankHoliday, setIsCheckingBankHoliday] = useState(false)
+  const bankHolidayCacheRef = useRef<Record<string, boolean>>({})
 
   const { details: absenceTypeDetails } = useAbsenceTypeDetails(context, selectedType)
 
@@ -203,58 +206,28 @@ export const useAbsenceValidation = ({
 
   useEffect(() => {
     if (!accessToken || !employeeId) {
-      setHolidays([])
+      setEmployeeRegionRef(null)
       return
     }
 
-    const fetchRegionAndHolidays = async () => {
+    const fetchRegion = async () => {
       try {
         const activeLocale = getCurrentActiveUserLocale()
-        const regionRes = await client.request(employeeRegionLookupQuery, {
+        const res = await client.request(employeeRegionLookupQuery, {
           employeeId,
           activeUserLocale: activeLocale
         })
-
-        const regionCode: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
-
-        if (regionCode) {
-          const parentRegionIds: string[] = []
-
-          const regionMatch = regionCode.match(/EmploymentRegion:v\d+:(.+)$/)
-          if (regionMatch) {
-            const regionSuffix = regionMatch[1]
-
-            const subRegionMatch = regionSuffix.match(/^([A-Z]{2})(\d+)$/)
-            if (subRegionMatch) {
-              const countryCode = subRegionMatch[1]
-              parentRegionIds.push(`EmploymentRegion:v1:${countryCode}U`)
-              parentRegionIds.push(`EmploymentRegion:v1:${countryCode}`)
-            } else {
-              const parts = regionSuffix.split('_')
-              if (parts.length >= 3) {
-                const countryState = parts.slice(0, 2).join('_')
-                parentRegionIds.push(`EmploymentRegion:v1:${countryState}`)
-                parentRegionIds.push(`EmploymentRegion:v1:${parts[0]}`)
-              } else if (parts.length === 2) {
-                parentRegionIds.push(`EmploymentRegion:v1:${parts[0]}`)
-              }
-            }
-          }
-
-          const regionIds = [regionCode, ...parentRegionIds]
-
-          const holidaysRes = await client.request(employmentRegionHolidaysQuery, {
-            activeUserLocale: activeLocale,
-            regionIds: regionIds
-          })
-
-          const holidaysData: HolidayEntry[] = holidaysRes?.holidays || []
-          setHolidays(holidaysData)
-        } else {
-          setHolidays([])
-        }
+        const addresses = (res?.addresses || []) as Array<{ type?: string; region?: { id: string } }>
+        const workingCondition = res?.employee?.[0]?.workingCondition?.[0] as
+          | { regionRef?: string; region?: { id: string } }
+          | undefined
+        const primaryAddress = addresses.find(a => a?.type === 'PRIMARY')
+        const firstAddress = addresses[0]
+        const regionFromAddress = primaryAddress?.region?.id ?? firstAddress?.region?.id
+        const regionCode = regionFromAddress ?? workingCondition?.regionRef ?? workingCondition?.region?.id
+        setEmployeeRegionRef(regionCode ?? null)
       } catch {
-        setHolidays([])
+        setEmployeeRegionRef(null)
       }
     }
 
@@ -263,7 +236,6 @@ export const useAbsenceValidation = ({
         const workingHoursRes = await client.request(employeeWorkingHoursQuery, {
           employeeId
         })
-
         const workingHoursData: WorkingHours | null = workingHoursRes?.employee?.[0]?.workingHours?.[0] || null
         setWorkingHours(workingHoursData)
       } catch {
@@ -271,7 +243,7 @@ export const useAbsenceValidation = ({
       }
     }
 
-    fetchRegionAndHolidays()
+    fetchRegion()
     fetchWorkingHours()
   }, [accessToken, employeeId, client])
 
@@ -472,6 +444,7 @@ export const useAbsenceValidation = ({
 
       if (!validationStartDate || !validationEndDate || !selectedType) {
         setValidationErrors([])
+        setValidationWarnings([])
         return []
       }
 
@@ -487,10 +460,54 @@ export const useAbsenceValidation = ({
         return [dateOrderError]
       }
 
-      setIsValidating(true)
-
       setValidationWarnings([])
 
+      const isSingleDay = dayjs(validationStartDate).isSame(dayjs(validationEndDate), 'day')
+      if (isSingleDay && employeeRegionRef) {
+        const altCode = dayjs(validationStartDate).format('YYYYMMDD')
+        const year = dayjs(validationStartDate).format('YYYY')
+        const cacheKey = `${employeeRegionRef}:${altCode}`
+        let isBankHoliday = bankHolidayCacheRef.current[cacheKey]
+
+        if (isBankHoliday === undefined) {
+          setIsCheckingBankHoliday(true)
+          try {
+            const activeLocale = getCurrentActiveUserLocale()
+            const res = await client.request<{ holidays?: Array<{ additionalValue1?: string }> }>(
+              employmentRegionHolidayByDateQuery,
+              {
+                activeUserLocale: activeLocale,
+                regionId: employeeRegionRef,
+                year,
+                altCode
+              }
+            )
+            const entries = res?.holidays || []
+            const fullDayHoliday = entries.find(h => h.additionalValue1 !== '05H')
+            isBankHoliday = !!fullDayHoliday
+            bankHolidayCacheRef.current[cacheKey] = isBankHoliday
+          } catch {
+            isBankHoliday = false
+            bankHolidayCacheRef.current[cacheKey] = false
+          } finally {
+            setIsCheckingBankHoliday(false)
+          }
+        }
+
+        if (isBankHoliday) {
+          const bankHolidayError: AbsenceValidationError = {
+            type: 'general',
+            message: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_absences.single_day_bank_holiday_blocked',
+              'The selected day is a bank holiday. You cannot submit a single-day absence for this date.'
+            )
+          }
+          setValidationErrors([bankHolidayError])
+          return [bankHolidayError]
+        }
+      }
+
+      setIsValidating(true)
       try {
         const overlapErrors = checkOverlapValidation(validationStartDate, validationEndDate)
         const { errors: balanceErrors, warnings: balanceWarnings } = checkBalanceValidation(
@@ -516,7 +533,7 @@ export const useAbsenceValidation = ({
         setIsValidating(false)
       }
     },
-    [startDate, endDate, selectedType, checkOverlapValidation, checkBalanceValidation]
+    [startDate, endDate, selectedType, employeeRegionRef, client, checkOverlapValidation, checkBalanceValidation]
   )
 
   useEffect(() => {
@@ -531,6 +548,7 @@ export const useAbsenceValidation = ({
     validationErrors,
     validationWarnings,
     isValidating,
+    isCheckingBankHoliday,
     validateAbsence,
     hasValidationErrors: validationErrors.length > 0,
     overlapErrors: validationErrors.filter(error => error.type === 'overlap'),
