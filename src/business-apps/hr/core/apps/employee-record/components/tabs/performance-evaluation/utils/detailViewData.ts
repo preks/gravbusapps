@@ -19,16 +19,19 @@ const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 export const toLabel = (value: string) => {
-  const normalizedKey = value.replace(/[_\s-]/g, '').toLowerCase()
+  const normalizedKey = value
+    .split(/[_\s-]+/)
+    .join('')
+    .toLowerCase()
   if (normalizedKey.includes('ratingscalevaluelabel')) {
     return 'Rating'
   }
-  return value
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/[_-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^\w/, char => char.toUpperCase())
+  const withSeparatedCaps = Array.from(value)
+    .map(char => (/^[A-Z]$/.test(char) ? ` ${char}` : char))
+    .join('')
+  const withoutUnderscoreDash = withSeparatedCaps.split(/[_-]+/).join(' ')
+  const compacted = withoutUnderscoreDash.split(/\s+/).filter(Boolean).join(' ').trim()
+  return compacted ? `${compacted.charAt(0).toUpperCase()}${compacted.slice(1)}` : ''
 }
 
 export const formatLeafValue = (value: unknown): string => {

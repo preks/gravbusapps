@@ -53,9 +53,9 @@ export const usePerformanceCycleGoalsSummary = ({
     try {
       setLoading(true)
       setError(null)
-      const response = (await graphQLClient.request(employeePerformanceQuery, {
+      const response = await graphQLClient.request<EmployeePerformanceQueryResponse>(employeePerformanceQuery, {
         employeeId
-      })) as EmployeePerformanceQueryResponse
+      })
       setGoals(response?.EmployeePerformanceGoal || [])
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load performance goals summary'
