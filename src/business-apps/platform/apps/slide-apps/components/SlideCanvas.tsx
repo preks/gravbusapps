@@ -1,5 +1,6 @@
 /**
  * SlideCanvas - Draggable/Resizable canvas for slide elements
+ * Supports multi-select with Ctrl/Cmd+click and marquee selection
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react'
@@ -17,7 +18,7 @@ import { gradientToCss } from './slideElements'
 
 interface SlideCanvasProps {
   elements: AnySlideElement[]
-  selectedId: string | null
+  selectedIds: Set<string>
   background: {
     type: 'solid' | 'gradient' | 'image' | 'video'
     color?: string
@@ -27,9 +28,12 @@ interface SlideCanvasProps {
     videoMuted?: boolean
     videoLoop?: boolean
   }
-  onSelectElement: (id: string | null) => void
+  onSelectElements: (ids: Set<string>) => void
   onUpdateElement: (id: string, updates: Partial<AnySlideElement>) => void
+  onUpdateMultipleElements: (updates: { id: string; updates: Partial<AnySlideElement> }[]) => void
   onEditText: (id: string) => void
+  onDragStart?: () => void
+  onDragEnd?: () => void
   scale?: number
 }
 
@@ -37,11 +41,14 @@ type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
 export const SlideCanvas: React.FC<SlideCanvasProps> = ({
   elements,
-  selectedId,
+  selectedIds,
   background,
-  onSelectElement,
+  onSelectElements,
   onUpdateElement,
+  onUpdateMultipleElements,
   onEditText,
+  onDragStart,
+  onDragEnd,
   scale = 1
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -50,6 +57,17 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
   const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null)
   const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 })
   const [elementStart, setElementStart] = useState<{ position: Position; size: Size } | null>(null)
+
+  // Multi-select drag state - stores initial positions of all selected elements
+  const [multiDragStart, setMultiDragStart] = useState<Map<string, Position>>(new Map())
+
+  // Marquee selection state (for rendering the selection box)
+  const [isMarquee, setIsMarquee] = useState(false)
+  const [marqueeStart, setMarqueeStart] = useState<Position>({ x: 0, y: 0 })
+  const [marqueeEnd, setMarqueeEnd] = useState<Position>({ x: 0, y: 0 })
+
+  // Flag to prevent click handler from clearing selection after marquee
+  const justFinishedMarqueeRef = useRef(false)
 
   const getBackgroundStyle = (): React.CSSProperties => {
     switch (background.type) {
@@ -83,20 +101,188 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
     )
   }
 
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    if (e.target === canvasRef.current) {
-      onSelectElement(null)
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    // Start marquee selection when clicking on empty canvas area
+    // Check if clicking on canvas itself or on background elements (not slide elements)
+    const target = e.target as HTMLElement
+    const isClickOnElement = target.closest('[data-slide-element]')
+
+    if (!isClickOnElement && canvasRef.current) {
+      e.preventDefault()
+
+      // Capture values at mousedown time
+      const rect = canvasRef.current.getBoundingClientRect()
+      const startX = (e.clientX - rect.left) / scale
+      const startY = (e.clientY - rect.top) / scale
+      const isAdditive = e.ctrlKey || e.metaKey
+      let currentEndX = startX
+      let currentEndY = startY
+
+      // Update state for rendering
+      setIsMarquee(true)
+      setMarqueeStart({ x: startX, y: startY })
+      setMarqueeEnd({ x: startX, y: startY })
+
+      // Clear selection unless holding Ctrl/Cmd (additive mode)
+      if (!isAdditive) {
+        onSelectElements(new Set())
+      }
+
+      // Create move handler with closure over start position
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (!canvasRef.current) return
+        const moveRect = canvasRef.current.getBoundingClientRect()
+        currentEndX = (moveEvent.clientX - moveRect.left) / scale
+        currentEndY = (moveEvent.clientY - moveRect.top) / scale
+        setMarqueeEnd({ x: currentEndX, y: currentEndY })
+      }
+
+      // Create mouseup handler with closure over all needed values
+      const onMouseUp = () => {
+        // Remove listeners first
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
+
+        // Calculate selection bounds
+        const minX = Math.min(startX, currentEndX)
+        const maxX = Math.max(startX, currentEndX)
+        const minY = Math.min(startY, currentEndY)
+        const maxY = Math.max(startY, currentEndY)
+
+        // Only process if marquee has some size (at least 5px drag)
+        const hasSize = Math.abs(currentEndX - startX) > 5 || Math.abs(currentEndY - startY) > 5
+
+        if (hasSize) {
+          // Select elements that intersect with marquee
+          const newSelection = isAdditive ? new Set(selectedIds) : new Set<string>()
+          elements.forEach(element => {
+            const elLeft = element.position.x
+            const elRight = element.position.x + element.size.width
+            const elTop = element.position.y
+            const elBottom = element.position.y + element.size.height
+
+            // Check intersection - element is selected if marquee crosses into it at all
+            const intersects = elLeft <= maxX && elRight >= minX && elTop <= maxY && elBottom >= minY
+            if (intersects) {
+              newSelection.add(element.id)
+            }
+          })
+
+          if (newSelection.size > 0) {
+            onSelectElements(newSelection)
+          }
+        }
+
+        // Reset marquee state and set flag to prevent click from clearing selection
+        setIsMarquee(false)
+        justFinishedMarqueeRef.current = true
+        // Reset the flag after a short delay (after click event fires)
+        setTimeout(() => {
+          justFinishedMarqueeRef.current = false
+        }, 10)
+      }
+
+      // Attach listeners
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseup', onMouseUp)
     }
   }
+
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // Skip if we just finished a marquee selection (to avoid clearing the selection)
+    if (justFinishedMarqueeRef.current) {
+      return
+    }
+
+    const target = e.target as HTMLElement
+    const isClickOnElement = target.closest('[data-slide-element]')
+    if (!isClickOnElement && !isMarquee) {
+      onSelectElements(new Set())
+    }
+  }
+
+  // Track anchor element for Shift+click range selection
+  const [anchorElementId, setAnchorElementId] = useState<string | null>(null)
 
   const handleElementMouseDown = (e: React.MouseEvent, element: AnySlideElement) => {
     e.stopPropagation()
     if (element.locked) return
 
-    onSelectElement(element.id)
+    const isSelected = selectedIds.has(element.id)
+    const isCtrlKey = e.ctrlKey || e.metaKey
+    const isShiftKey = e.shiftKey
+
+    if (isShiftKey && anchorElementId) {
+      // Shift+click: Select range between anchor and clicked element (by z-index)
+      const sortedElements = [...elements].sort((a, b) => a.zIndex - b.zIndex)
+      const anchorIdx = sortedElements.findIndex(el => el.id === anchorElementId)
+      const clickedIdx = sortedElements.findIndex(el => el.id === element.id)
+
+      if (anchorIdx !== -1 && clickedIdx !== -1) {
+        const startIdx = Math.min(anchorIdx, clickedIdx)
+        const endIdx = Math.max(anchorIdx, clickedIdx)
+        const rangeIds = sortedElements.slice(startIdx, endIdx + 1).map(el => el.id)
+
+        // If Ctrl is also held, add to existing selection
+        const newSelection = isCtrlKey ? new Set(selectedIds) : new Set<string>()
+        rangeIds.forEach(id => newSelection.add(id))
+        onSelectElements(newSelection)
+      }
+    } else if (isCtrlKey) {
+      // Ctrl/Cmd+click: Toggle individual selection
+      const newSelection = new Set(selectedIds)
+      if (isSelected) {
+        newSelection.delete(element.id)
+      } else {
+        newSelection.add(element.id)
+      }
+      onSelectElements(newSelection)
+      setAnchorElementId(element.id)
+    } else if (!isSelected) {
+      // Click without modifier - select only this element
+      onSelectElements(new Set([element.id]))
+      setAnchorElementId(element.id)
+    } else {
+      // Already selected, update anchor for future Shift+clicks
+      setAnchorElementId(element.id)
+    }
+
+    // Start dragging
     setIsDragging(true)
+    onDragStart?.()
     setDragStart({ x: e.clientX / scale, y: e.clientY / scale })
     setElementStart({ position: { ...element.position }, size: { ...element.size } })
+
+    // Store initial positions of all selected elements for multi-drag
+    // Calculate what the selection will be after state update
+    const positions = new Map<string, Position>()
+    let effectiveSelection: Set<string>
+
+    if (isShiftKey && anchorElementId) {
+      const sortedElements = [...elements].sort((a, b) => a.zIndex - b.zIndex)
+      const anchorIdx = sortedElements.findIndex(el => el.id === anchorElementId)
+      const clickedIdx = sortedElements.findIndex(el => el.id === element.id)
+      if (anchorIdx !== -1 && clickedIdx !== -1) {
+        const startIdx = Math.min(anchorIdx, clickedIdx)
+        const endIdx = Math.max(anchorIdx, clickedIdx)
+        const rangeIds = sortedElements.slice(startIdx, endIdx + 1).map(el => el.id)
+        effectiveSelection = isCtrlKey ? new Set([...selectedIds, ...rangeIds]) : new Set(rangeIds)
+      } else {
+        effectiveSelection = new Set([element.id])
+      }
+    } else if (isCtrlKey) {
+      effectiveSelection = isSelected
+        ? new Set([...selectedIds].filter(id => id !== element.id))
+        : new Set([...selectedIds, element.id])
+    } else {
+      effectiveSelection = isSelected ? selectedIds : new Set([element.id])
+    }
+
+    effectiveSelection.forEach(id => {
+      const el = elements.find(e => e.id === id)
+      if (el) positions.set(id, { ...el.position })
+    })
+    setMultiDragStart(positions)
   }
 
   const handleResizeMouseDown = (e: React.MouseEvent, handle: ResizeHandle, element: AnySlideElement) => {
@@ -104,6 +290,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
     if (element.locked) return
 
     setIsResizing(true)
+    onDragStart?.()
     setResizeHandle(handle)
     setDragStart({ x: e.clientX / scale, y: e.clientY / scale })
     setElementStart({ position: { ...element.position }, size: { ...element.size } })
@@ -111,21 +298,46 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!selectedId || !elementStart) return
+      // Only handle element drag/resize here (marquee is handled inline in handleCanvasMouseDown)
+      if (selectedIds.size === 0 || !elementStart) return
 
       const currentX = e.clientX / scale
       const currentY = e.clientY / scale
+
       const deltaX = currentX - dragStart.x
       const deltaY = currentY - dragStart.y
 
       if (isDragging) {
-        onUpdateElement(selectedId, {
-          position: {
-            x: Math.max(0, elementStart.position.x + deltaX),
-            y: Math.max(0, elementStart.position.y + deltaY)
+        // Multi-element drag
+        if (selectedIds.size > 1 && multiDragStart.size > 0) {
+          const updates: { id: string; updates: Partial<AnySlideElement> }[] = []
+          multiDragStart.forEach((startPos, id) => {
+            updates.push({
+              id,
+              updates: {
+                position: {
+                  x: Math.max(0, startPos.x + deltaX),
+                  y: Math.max(0, startPos.y + deltaY)
+                }
+              }
+            })
+          })
+          onUpdateMultipleElements(updates)
+        } else {
+          // Single element drag
+          const selectedId = [...selectedIds][0]
+          if (selectedId) {
+            onUpdateElement(selectedId, {
+              position: {
+                x: Math.max(0, elementStart.position.x + deltaX),
+                y: Math.max(0, elementStart.position.y + deltaY)
+              }
+            })
           }
-        })
-      } else if (isResizing && resizeHandle) {
+        }
+      } else if (isResizing && resizeHandle && selectedIds.size === 1) {
+        // Resize only works for single selection
+        const selectedId = [...selectedIds][0]
         const newPosition = { ...elementStart.position }
         const newSize = { ...elementStart.size }
 
@@ -169,16 +381,34 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
         onUpdateElement(selectedId, { position: newPosition, size: newSize })
       }
     },
-    [selectedId, isDragging, isResizing, resizeHandle, dragStart, elementStart, onUpdateElement, scale]
+    [
+      selectedIds,
+      isDragging,
+      isResizing,
+      resizeHandle,
+      dragStart,
+      elementStart,
+      multiDragStart,
+      onUpdateElement,
+      onUpdateMultipleElements,
+      scale
+    ]
   )
 
   const handleMouseUp = useCallback(() => {
+    // Only handle element drag/resize cleanup here (marquee is handled inline)
+    // Notify parent that drag/resize ended (for history recording)
+    if (isDragging || isResizing) {
+      onDragEnd?.()
+    }
     setIsDragging(false)
     setIsResizing(false)
     setResizeHandle(null)
     setElementStart(null)
-  }, [])
+    setMultiDragStart(new Map())
+  }, [isDragging, isResizing, onDragEnd])
 
+  // Event listeners for element drag/resize (marquee has its own inline handlers)
   useEffect(() => {
     if (isDragging || isResizing) {
       window.addEventListener('mousemove', handleMouseMove)
@@ -320,7 +550,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
   }
 
   const renderElement = (element: AnySlideElement) => {
-    const isSelected = selectedId === element.id
+    const isSelected = selectedIds.has(element.id)
+    const isSingleSelection = selectedIds.size === 1
 
     const wrapperStyle: React.CSSProperties = {
       position: 'absolute',
@@ -331,9 +562,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
       transform: `rotate(${element.rotation}deg)`,
       opacity: element.opacity,
       cursor: element.locked ? 'not-allowed' : 'move',
+
       outline: isSelected ? '2px solid #3b82f6' : 'none',
       outlineOffset: '2px',
-      zIndex: element.zIndex
+      zIndex: element.zIndex,
+
+      boxShadow: isSelected && !isSingleSelection ? '0 0 0 1px rgba(59, 130, 246, 0.5)' : undefined
     }
 
     const resizeHandles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as ResizeHandle[]
@@ -341,6 +575,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
     return (
       <div
         key={element.id}
+        data-slide-element="true"
         style={wrapperStyle}
         onMouseDown={e => handleElementMouseDown(e, element)}
         onDoubleClick={() => element.type === 'text' && onEditText(element.id)}
@@ -521,14 +756,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
           </div>
         )}
 
-        {/* Resize handles */}
-        {isSelected && !element.locked && (
+        {/* Resize handles - only for single selection */}
+        {isSelected && isSingleSelection && !element.locked && (
           <>
             {resizeHandles.map(handle => {
               const handleStyle: React.CSSProperties = {
                 position: 'absolute',
                 width: 10,
                 height: 10,
+
                 backgroundColor: '#3b82f6',
                 border: '2px solid white',
                 borderRadius: '50%',
@@ -583,6 +819,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
           transform: `scale(${scale})`,
           transformOrigin: 'top left'
         }}
+        onMouseDown={handleCanvasMouseDown}
         onClick={handleCanvasClick}
       >
         {/* Video Background */}
@@ -590,6 +827,25 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
 
         {/* Elements */}
         {(elements || []).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)).map(element => renderElement(element))}
+
+        {/* Marquee Selection Rectangle */}
+        {isMarquee && (
+          <div
+            style={{
+              position: 'absolute',
+              left: Math.min(marqueeStart.x, marqueeEnd.x),
+              top: Math.min(marqueeStart.y, marqueeEnd.y),
+              width: Math.abs(marqueeEnd.x - marqueeStart.x),
+              height: Math.abs(marqueeEnd.y - marqueeStart.y),
+
+              border: '1px dashed #3b82f6',
+              // eslint-disable-next-line newwork-local/no-hardcoded-colors
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              pointerEvents: 'none',
+              zIndex: 9999
+            }}
+          />
+        )}
       </div>
     </div>
   )

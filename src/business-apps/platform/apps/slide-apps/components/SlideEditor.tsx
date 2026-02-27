@@ -296,7 +296,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // UI state
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
+  const [selectedElementIds, setSelectedElementIds] = useState<Set<string>>(new Set())
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isPresentMode, setIsPresentMode] = useState(false)
@@ -319,10 +319,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [history, setHistory] = useState<SlideData[][]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const isUndoRedoAction = useRef(false)
+  const isDraggingRef = useRef(false)
+  const pendingHistoryRef = useRef(false)
 
   // Clipboard for copy/paste (supports both elements and slides)
   const [clipboard, setClipboard] = useState<
-    { type: 'element'; data: AnySlideElement } | { type: 'slide'; data: SlideData } | null
+    | { type: 'element'; data: AnySlideElement }
+    | { type: 'elements'; data: AnySlideElement[] }
+    | { type: 'slide'; data: SlideData }
+    | null
   >(null)
 
   // Always render from collaboration state (it is seeded immediately from initial content).
@@ -341,7 +346,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     elements: currentSlideRaw.elements || [],
     background: currentSlideRaw.background || { type: 'solid', color: '#ffffff' }
   }
+  // For property panel, use the first selected element when multiple are selected
+  const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
+  const selectedElements = currentSlide.elements.filter(e => selectedElementIds.has(e.id))
 
   // Note: Initialization is handled by the collaboration hook's onBootstrapRequired callback
   // No need for manual initialization here
@@ -391,34 +399,58 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [canEdit, currentSlideIndex, updateCollaborativeElement]
   )
 
+  const updateMultipleElements = useCallback(
+    (updates: { id: string; updates: Partial<AnySlideElement> }[]) => {
+      if (!canEdit) return
+      // Apply all updates in a single batch
+      const updatedElements = currentSlide.elements.map(el => {
+        const update = updates.find(u => u.id === el.id)
+        return update ? ({ ...el, ...update.updates } as AnySlideElement) : el
+      })
+      updateSlide({ elements: updatedElements })
+    },
+    [canEdit, currentSlide.elements, updateSlide]
+  )
+
   const addElement = useCallback(
     (element: AnySlideElement) => {
       const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex))
       const newElement = { ...element, zIndex: maxZIndex + 1 }
       updateSlide({ elements: [...currentSlide.elements, newElement] })
-      setSelectedElementId(newElement.id)
+      setSelectedElementIds(new Set([newElement.id]))
       toast.success(t('editor-added-element', { type: element.type }))
     },
     [currentSlide.elements, updateSlide, t]
   )
 
   const deleteElement = useCallback(() => {
-    if (!selectedElementId) return
-    updateSlide({ elements: currentSlide.elements.filter(e => e.id !== selectedElementId) })
-    setSelectedElementId(null)
+    if (selectedElementIds.size === 0) return
+    updateSlide({ elements: currentSlide.elements.filter(e => !selectedElementIds.has(e.id)) })
+    setSelectedElementIds(new Set())
     toast.success(t('editor-element-deleted'))
-  }, [selectedElementId, currentSlide.elements, updateSlide, t])
+  }, [selectedElementIds, currentSlide.elements, updateSlide, t])
 
   const duplicateElement = useCallback(() => {
-    if (!selectedElement) return
-    const copy = {
-      ...selectedElement,
-      id: `${selectedElement.type}-${Date.now()}`,
-      position: { x: selectedElement.position.x + 20, y: selectedElement.position.y + 20 }
-    }
-    addElement(copy)
+    if (selectedElements.length === 0) return
+    const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex))
+    const newElements: AnySlideElement[] = []
+    const newIds: string[] = []
+
+    selectedElements.forEach((el, idx) => {
+      const copy = {
+        ...el,
+        id: `${el.type}-${Date.now()}-${idx}`,
+        position: { x: el.position.x + 20, y: el.position.y + 20 },
+        zIndex: maxZIndex + 1 + idx
+      }
+      newElements.push(copy)
+      newIds.push(copy.id)
+    })
+
+    updateSlide({ elements: [...currentSlide.elements, ...newElements] })
+    setSelectedElementIds(new Set(newIds))
     toast.success(t('editor-element-duplicated'))
-  }, [selectedElement, addElement, t])
+  }, [selectedElements, currentSlide.elements, updateSlide, t])
 
   const bringForward = useCallback(() => {
     if (!selectedElementId) return
@@ -444,13 +476,19 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [selectedElementId, currentSlide.elements, updateElement])
 
-  // Track history for undo/redo
+  // Track history for undo/redo (skip during active drag/resize)
   useEffect(() => {
     if (isUndoRedoAction.current) {
       isUndoRedoAction.current = false
       return
     }
     if (!isSynced || !isInitialized) return
+
+    // Skip recording during active drag - mark as pending
+    if (isDraggingRef.current) {
+      pendingHistoryRef.current = true
+      return
+    }
 
     const slidesSnapshot = JSON.stringify(slides)
     const lastSnapshot = history[historyIndex] ? JSON.stringify(history[historyIndex]) : null
@@ -464,6 +502,28 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       setHistoryIndex(newHistory.length - 1)
     }
   }, [slides, isSynced, isInitialized])
+
+  // Callbacks for drag start/end to manage history recording
+  const handleDragStart = useCallback(() => {
+    isDraggingRef.current = true
+  }, [])
+
+  const handleDragEnd = useCallback(() => {
+    isDraggingRef.current = false
+    // If there were changes during drag, record them now
+    if (pendingHistoryRef.current) {
+      pendingHistoryRef.current = false
+      const slidesSnapshot = JSON.stringify(slides)
+      const lastSnapshot = history[historyIndex] ? JSON.stringify(history[historyIndex]) : null
+      if (slidesSnapshot !== lastSnapshot) {
+        const newHistory = history.slice(0, historyIndex + 1)
+        newHistory.push(JSON.parse(slidesSnapshot))
+        if (newHistory.length > 50) newHistory.shift()
+        setHistory(newHistory)
+        setHistoryIndex(newHistory.length - 1)
+      }
+    }
+  }, [slides, history, historyIndex])
 
   // Undo function
   const undo = useCallback(() => {
@@ -491,20 +551,26 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     toast.success(t('editor-redo') || 'Redo')
   }, [historyIndex, history, updateCollaborativeSlides, t])
 
-  // Copy element or slide to clipboard
+  // Copy element(s) or slide to clipboard
   const copyElement = useCallback(() => {
-    if (selectedElement) {
-      // Copy selected element
-      setClipboard({ type: 'element', data: JSON.parse(JSON.stringify(selectedElement)) })
-      toast.success(t('editor-element-copied') || 'Element copied')
+    if (selectedElements.length > 0) {
+      if (selectedElements.length === 1) {
+        // Copy single element
+        setClipboard({ type: 'element', data: JSON.parse(JSON.stringify(selectedElements[0])) })
+        toast.success(t('editor-element-copied') || 'Element copied')
+      } else {
+        // Copy multiple elements
+        setClipboard({ type: 'elements', data: JSON.parse(JSON.stringify(selectedElements)) })
+        toast.success(t('editor-elements-copied') || `${selectedElements.length} elements copied`)
+      }
     } else {
       // Copy current slide
       setClipboard({ type: 'slide', data: JSON.parse(JSON.stringify(currentSlide)) })
       toast.success(t('editor-slide-copied') || 'Slide copied')
     }
-  }, [selectedElement, currentSlide, t])
+  }, [selectedElements, currentSlide, t])
 
-  // Paste element or slide from clipboard
+  // Paste element(s) or slide from clipboard
   const pasteElement = useCallback(() => {
     if (!clipboard) {
       toast.info(t('editor-nothing-to-paste') || 'Nothing to paste')
@@ -523,6 +589,30 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       }
       addElement(pastedElement)
       toast.success(t('editor-element-pasted') || 'Element pasted')
+    } else if (clipboard.type === 'elements') {
+      // Paste multiple elements
+      const elements = clipboard.data as AnySlideElement[]
+      const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex))
+      const newElements: AnySlideElement[] = []
+      const newIds: string[] = []
+
+      elements.forEach((element, idx) => {
+        const pastedElement: AnySlideElement = {
+          ...element,
+          id: `${element.type}-${Date.now()}-${idx}`,
+          position: {
+            x: Math.min(element.position.x + 30, 1280 - element.size.width),
+            y: Math.min(element.position.y + 30, 720 - element.size.height)
+          },
+          zIndex: maxZIndex + 1 + idx
+        }
+        newElements.push(pastedElement)
+        newIds.push(pastedElement.id)
+      })
+
+      updateSlide({ elements: [...currentSlide.elements, ...newElements] })
+      setSelectedElementIds(new Set(newIds))
+      toast.success(t('editor-elements-pasted') || `${elements.length} elements pasted`)
     } else if (clipboard.type === 'slide') {
       // Paste slide as a new slide
       const slideData = clipboard.data
@@ -538,10 +628,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         addCollaborativeSlide(newSlide, currentSlideIndex + 1)
       }
       setCurrentSlideIndex(currentSlideIndex + 1)
-      setSelectedElementId(null)
+      setSelectedElementIds(new Set())
       toast.success(t('editor-slide-pasted') || 'Slide pasted')
     }
-  }, [clipboard, addElement, isSynced, addCollaborativeSlide, currentSlideIndex, t])
+  }, [clipboard, addElement, currentSlide.elements, updateSlide, isSynced, addCollaborativeSlide, currentSlideIndex, t])
 
   // Check if can undo/redo
   const canUndo = historyIndex > 0
@@ -569,7 +659,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       addCollaborativeSlide(newSlide, currentSlideIndex + 1)
     }
     setCurrentSlideIndex(currentSlideIndex + 1)
-    setSelectedElementId(null)
+    setSelectedElementIds(new Set())
     toast.success(t('editor-slide-added'))
   }, [currentSlideIndex, isSynced, addCollaborativeSlide, t])
 
@@ -582,7 +672,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       removeCollaborativeSlide(currentSlideIndex)
     }
     setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))
-    setSelectedElementId(null)
+    setSelectedElementIds(new Set())
     toast.success(t('editor-slide-deleted'))
   }, [slides.length, currentSlideIndex, isSynced, removeCollaborativeSlide, t])
 
@@ -610,7 +700,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       // Replace all slides with generated ones
       updateCollaborativeSlides(generatedSlides)
       setCurrentSlideIndex(0)
-      setSelectedElementId(null)
+      setSelectedElementIds(new Set())
 
       // Update presentation title if changed
       if (title && title !== presentationTitle) {
@@ -890,6 +980,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         return
       }
 
+      // Select All: Ctrl+A
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !isInputFocused) {
+        e.preventDefault()
+        const allElementIds = new Set(currentSlide.elements.map(e => e.id))
+        setSelectedElementIds(allElementIds)
+        return
+      }
+
+      // Escape: Deselect all
+      if (e.key === 'Escape' && !isInputFocused) {
+        e.preventDefault()
+        setSelectedElementIds(new Set())
+        return
+      }
+
       if (isInputFocused) return
 
       // Delete with Delete or Backspace key
@@ -922,6 +1027,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     isPresentMode,
     slides.length,
     selectedElementId,
+    currentSlide.elements,
     deleteElement,
     deleteSlide,
     undo,
@@ -954,10 +1060,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center">
           <SlideCanvas
             elements={currentSlide.elements}
-            selectedId={null}
+            selectedIds={new Set()}
             background={currentSlide.background}
-            onSelectElement={() => {}}
+            onSelectElements={() => {}}
             onUpdateElement={() => {}}
+            onUpdateMultipleElements={() => {}}
             onEditText={() => {}}
             scale={presentScale}
           />
@@ -1393,7 +1500,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   }}
                   onClick={() => {
                     setCurrentSlideIndex(idx)
-                    setSelectedElementId(null)
+                    setSelectedElementIds(new Set())
                   }}
                   className={`gba:rounded-lg gba:cursor-pointer gba:transition-all gba:border-2 gba:overflow-hidden ${
                     idx === currentSlideIndex
@@ -1533,19 +1640,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             >
               <SlideCanvas
                 elements={currentSlide.elements}
-                selectedId={selectedElementId}
+                selectedIds={selectedElementIds}
                 background={currentSlide.background}
-                onSelectElement={id => {
-                  setSelectedElementId(id)
-                  if (isSynced && awareness && id) {
-                    awareness.setLocalStateField('selection', {
-                      slideIndex: currentSlideIndex,
-                      elementId: id
-                    })
+                onSelectElements={ids => {
+                  setSelectedElementIds(ids)
+                  // Update awareness with primary selection (first element)
+                  if (isSynced && awareness) {
+                    const primaryId = ids.size > 0 ? [...ids][0] : null
+                    awareness.setLocalStateField(
+                      'selection',
+                      primaryId
+                        ? {
+                            slideIndex: currentSlideIndex,
+                            elementId: primaryId
+                          }
+                        : null
+                    )
                   }
                 }}
                 onUpdateElement={updateElement}
+                onUpdateMultipleElements={updateMultipleElements}
                 onEditText={handleEditText}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
                 scale={canvasScale}
               />
 
