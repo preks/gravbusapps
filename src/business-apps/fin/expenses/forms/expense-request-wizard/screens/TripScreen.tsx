@@ -1092,17 +1092,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
   }
 
   const handleNext = () => {
-    console.log('[TripScreen countryRef debug] handleNext called', {
-      hasExpenseRulesData: !!expenseRulesData,
-      expenseRulesDataKeys: expenseRulesData ? Object.keys(expenseRulesData) : [],
-      AllowanceRegionRuleDetailLength: expenseRulesData?.AllowanceRegionRuleDetail?.length ?? 0,
-      startLocationTravelRegionRef: startLocation?.travelRegionRef,
-      endLocationTravelRegionRef: endLocation?.travelRegionRef,
-      destinationsCount: destinations?.length,
-      destinationTravelRegionRefs: destinations?.map((d, i) => ({ i, travelRegionRef: d?.travelRegionRef }))
-    })
     if (validateTripForm()) {
-      console.log('[TripScreen countryRef debug] validateTripForm passed, calling submitActionTripData')
       try {
         submitActionTripData(
           startLocation,
@@ -1113,7 +1103,6 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           resolveOvernightAccommodation(),
           validatedEmployeeRuleIdRef.current ?? undefined
         )
-        console.log('[TripScreen countryRef debug] submitActionTripData returned successfully')
       } catch (err) {
         console.error('[TripScreen countryRef debug] Error on Next (submitActionTripData)', {
           error: err,
@@ -1129,8 +1118,6 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         })
         throw err
       }
-    } else {
-      console.log('[TripScreen countryRef debug] validateTripForm failed, not submitting')
     }
   }
 

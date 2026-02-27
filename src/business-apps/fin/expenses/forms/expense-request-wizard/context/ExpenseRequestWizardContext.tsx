@@ -443,12 +443,6 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     overnightAccommodation?: boolean,
     overrideEmployeeRuleId?: string
   ): boolean => {
-    console.log('[TripScreen countryRef debug] submitActionTripData called', {
-      hasExpenseRulesData: !!expenseRulesData,
-      AllowanceRegionRuleDetail: expenseRulesData?.AllowanceRegionRuleDetail?.length ?? 0,
-      homeRegionRuleLength: expenseRulesData?.homeRegionRule?.length ?? 0,
-      event
-    })
     const ruleIdToUse = overrideEmployeeRuleId ?? employeeRuleId ?? ''
     if (overrideEmployeeRuleId) {
       setEmployeeRuleId(overrideEmployeeRuleId)
