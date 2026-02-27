@@ -994,8 +994,16 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
     ].filter(Boolean),
 
     define: {
-      // This replaces process.env.NODE_ENV with the current mode in the build output
-      'process.env.NODE_ENV': JSON.stringify(mode)
+      // Expose NEXT_PUBLIC_* env vars to browser code so the env() utility can
+      // read them via dynamic process.env[key] access. Vite replaces the entire
+      // `process.env` reference with a literal object at compile time, which is
+      // the only way dynamic key lookups (process.env[key]) work in the browser.
+      'process.env': {
+        NODE_ENV: mode,
+        ...Object.fromEntries(
+          Object.entries(env).filter(([k]) => k.startsWith('NEXT_PUBLIC_'))
+        )
+      }
       // globalThis.__APP_BUILD_INFO__ is handled by the prependBannerPlugin, so no need to define it here.
     },
     resolve: {

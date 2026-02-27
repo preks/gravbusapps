@@ -28,6 +28,7 @@ export interface DocumentOperation {
   data?: unknown
   path?: string
   baseVersion?: number
+  broadcastOnly?: boolean
 }
 
 export interface CollaborationWebSocketOptions {

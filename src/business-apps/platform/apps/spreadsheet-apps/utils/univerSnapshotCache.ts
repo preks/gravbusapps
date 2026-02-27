@@ -116,6 +116,23 @@ function cleanupExpiredEntries(nowMs: number): number {
   return evicted
 }
 
+/**
+ * Remove all cached snapshots for a specific sheet (e.g. after a version restore
+ * so that the stale pre-restore snapshot is never served on the next load).
+ */
+export function clearUniverSnapshotCache(appId: string, sheetId: string): void {
+  if (!isStorageAvailable()) return
+  try {
+    const index = loadSheetIndex(appId, sheetId)
+    for (const entry of index.entries) {
+      window.localStorage.removeItem(entry.key)
+    }
+    window.localStorage.removeItem(getIndexKey(appId, sheetId))
+  } catch {
+    // Ignore — clearing is best-effort
+  }
+}
+
 export function readLatestUniverSnapshot(
   appId: string,
   sheetId: string,

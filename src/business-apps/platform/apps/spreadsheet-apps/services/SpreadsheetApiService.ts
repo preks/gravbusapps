@@ -999,6 +999,10 @@ export const SpreadsheetApiService = {
       content?: string
       changeDescription?: string
       isCheckpoint?: boolean
+      // When provided, the caller passes the live Univer snapshot directly so we
+      // skip the saveUniverSnapshot → DB → getUniverSnapshot round-trip entirely.
+      // When absent we fall back to fetching from DB (e.g. auto-restore checkpoints).
+      univerSnapshots?: Record<string, Record<string, unknown> | null>
     }
   ): Promise<Version | null> {
     try {
@@ -1011,10 +1015,47 @@ export const SpreadsheetApiService = {
       } else {
         const app = await this.getApp(appId)
         if (!app) throw new Error('Spreadsheet app not found')
+
+        // Attach the Univer snapshot to every sheet so styling is included in the
+        // checkpoint.  Fast path: caller passed snapshots directly (no DB round-trip
+        // and no version-conflict risk).  Fallback path: fetch the latest snapshot
+        // from DB (used for auto-restore checkpoints where the DB was just updated).
+        const sheetsWithSnapshots = await Promise.all(
+          app.sheets.map(async (sheet) => {
+            // Fast path: caller provided the live Univer snapshot directly.
+            // Only use it when non-null – if null (e.g. grid not yet ready),
+            // fall through to the DB fetch so styling is never silently dropped.
+            if (options.univerSnapshots !== undefined) {
+              const directSnapshot = options.univerSnapshots[sheet.id]
+              if (directSnapshot != null) {
+                return {
+                  ...sheet,
+                  _univerSnapshot: directSnapshot,
+                  _univerSnapshotVersion: 0
+                }
+              }
+              // directSnapshot is null – fall through to DB fetch below
+            }
+            // DB fallback: used when the caller didn't supply a snapshot for this
+            // sheet OR when the live snapshot was unavailable.  The DB contains
+            // the snapshot written by the most recent auto-checkpoint.
+            try {
+              const univerData = await this.getUniverSnapshot(appId, sheet.id)
+              return {
+                ...sheet,
+                _univerSnapshot: univerData.snapshot ?? null,
+                _univerSnapshotVersion: univerData.version ?? 0
+              }
+            } catch {
+              return { ...sheet, _univerSnapshot: null, _univerSnapshotVersion: 0 }
+            }
+          })
+        )
+
         contentSnapshot = {
           name: app.name,
           description: app.description,
-          sheets: app.sheets,
+          sheets: sheetsWithSnapshots,
           relationships: app.relationships,
           settings: app.settings
         }

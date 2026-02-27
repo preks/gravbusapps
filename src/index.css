@@ -26,8 +26,6 @@
 
 @import '@newwork/nw-design-system/index.css';
 
-@import '@fortune-sheet/react/dist/index.css';
-
 @import 'react-quill/dist/quill.snow.css';
 
 @import '@newwork/nw-design-system/core';
@@ -43,7 +41,6 @@
 @import 'tw-animate-css';
 
 @import './business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css';
-@import './business-apps/platform/apps/spreadsheet-apps/components/FortuneSheetGrid.css';
 
 /* -------------------------------------------------------------------------- */
 /* Layout overrides                                                            */

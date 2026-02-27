@@ -5,43 +5,12 @@
  * This hook enriches raw participants from useCollaboration with avatar URLs.
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useCollaboration } from '../../shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { DocumentParticipant, CollaborationOperation } from '../../shared/services/CollaborationClient'
 
-const COLLABORATION_COLOR_PALETTE = [
-  '#2563eb',
-  '#7c3aed',
-  '#0f766e',
-  '#c2410c',
-  '#be185d',
-  '#0369a1',
-  '#4d7c0f',
-  '#4338ca'
-]
-
-function getDeterministicCollaboratorColor(seed: string): string {
-  let hash = 0
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  }
-  return COLLABORATION_COLOR_PALETTE[hash % COLLABORATION_COLOR_PALETTE.length]
-}
-
-function normalizeParticipantColor(participant: DocumentParticipant): string {
-  // Always use the curated spreadsheet palette to keep circles + cursor visually consistent.
-  return getDeterministicCollaboratorColor(participant.userId || participant.userName || 'user')
-}
-
-function normalizeParticipants(participants: DocumentParticipant[]): DocumentParticipant[] {
-  return participants.map(participant => ({
-    ...participant,
-    userColor: normalizeParticipantColor(participant)
-  }))
-}
-
-function areParticipantsEquivalent(a: DocumentParticipant[], b: DocumentParticipant[], includeCursor = false): boolean {
+function areParticipantsEquivalent(a: DocumentParticipant[], b: DocumentParticipant[]): boolean {
   if (a === b) return true
   if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {
@@ -50,11 +19,25 @@ function areParticipantsEquivalent(a: DocumentParticipant[], b: DocumentParticip
     if (pa.userId !== pb.userId) return false
     if ((pa.userName || '') !== (pb.userName || '')) return false
     if ((pa.avatarUrl || '') !== (pb.avatarUrl || '')) return false
-    if ((pa.userColor || '') !== (pb.userColor || '')) return false
-    if (includeCursor) {
-      const paPath = Array.isArray(pa.cursor?.path) ? pa.cursor?.path.join('|') : ''
-      const pbPath = Array.isArray(pb.cursor?.path) ? pb.cursor?.path.join('|') : ''
-      if (paPath !== pbPath) return false
+    // Cursor changes frequently; don’t include it in equality check here
+  }
+  return true
+}
+
+function areCursorParticipantsEquivalent(a: DocumentParticipant[], b: DocumentParticipant[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const pa = a[i]
+    const pb = b[i]
+    if (pa.userId !== pb.userId) return false
+    if ((pa.userName || '') !== (pb.userName || '')) return false
+    if ((pa.avatarUrl || '') !== (pb.avatarUrl || '')) return false
+    const paPath = pa.cursor?.path || []
+    const pbPath = pb.cursor?.path || []
+    if (paPath.length !== pbPath.length) return false
+    for (let j = 0; j < paPath.length; j++) {
+      if (paPath[j] !== pbPath[j]) return false
     }
   }
   return true
@@ -116,6 +99,7 @@ export function useSpreadsheetViewerCollaboration({
     onErrorRef.current?.(error)
   }, [])
 
+  // Base collaboration hook
   const {
     participants: rawParticipants,
     isConnected: isCollaborationConnected,
@@ -130,37 +114,28 @@ export function useSpreadsheetViewerCollaboration({
     onError: onErrorCallback
   })
 
-  // Debug: log collaboration state changes
-  useEffect(() => {
-    console.log('[SpreadsheetViewerCollaboration] State:', {
-      appId,
-      isCollaborationConnected,
-      participantsCount: rawParticipants.length
-    })
-  }, [appId, isCollaborationConnected, rawParticipants.length])
-
   // GraphQL client for avatar fetching
-  const graphqlClient = useGraphQLClient(accessToken)
-  const normalizedParticipants = useMemo(() => normalizeParticipants(rawParticipants), [rawParticipants])
+  const authToken = accessToken || localStorage.getItem('business-app-ide-access-token') || ''
+  const graphqlClient = useGraphQLClient(authToken)
 
   // Enriched participants for header presence
   const [headerParticipants, setHeaderParticipants] = useState<DocumentParticipant[]>([])
 
   // Enriched participants for cell cursor indicators
   const [cursorParticipants, setCursorParticipants] = useState<DocumentParticipant[]>([])
-  const cursorAvatarFetchIdsRef = useRef<string>('')
 
   // Fetch current user info
   useEffect(() => {
     const fetchCurrentUserInfo = async () => {
       try {
-        if (accessToken) {
-          const payload = JSON.parse(atob(accessToken.split('.')[1]))
+        const token = localStorage.getItem('business-app-ide-access-token')
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]))
           currentUserIdRef.current = payload.sub || payload.userId
           setCurrentUserName(payload.name || payload.preferred_username || 'User')
 
           // Fetch avatar
-          if (payload.sub) {
+          if (authToken && payload.sub) {
             const query = `
               query GetCurrentUserAvatar($userId: String!) {
                 Employee(where: { userId: { _eq: $userId } }) {
@@ -186,23 +161,19 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchCurrentUserInfo()
-  }, [accessToken, graphqlClient])
+  }, [authToken, graphqlClient])
 
   // Fetch avatars for header presence
   useEffect(() => {
     async function fetchAvatars() {
-      if (!normalizedParticipants.length || !accessToken) {
-        setHeaderParticipants(prev =>
-          areParticipantsEquivalent(prev, normalizedParticipants) ? prev : normalizedParticipants
-        )
+      if (!rawParticipants.length || !authToken) {
+        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
 
-      const userIds = [...new Set(normalizedParticipants.map(p => p.userId).filter(Boolean))]
+      const userIds = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (userIds.length === 0) {
-        setHeaderParticipants(prev =>
-          areParticipantsEquivalent(prev, normalizedParticipants) ? prev : normalizedParticipants
-        )
+        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
 
@@ -229,7 +200,7 @@ export function useSpreadsheetViewerCollaboration({
           }
         })
 
-        const enrichedParticipants = normalizedParticipants.map(p => ({
+        const enrichedParticipants = rawParticipants.map(p => ({
           ...p,
           avatarUrl: avatarMap.get(p.userId) || undefined
         }))
@@ -238,54 +209,30 @@ export function useSpreadsheetViewerCollaboration({
         )
       } catch (error) {
         console.error('[SpreadsheetViewerCollaboration] Failed to fetch participant avatars:', error)
-        setHeaderParticipants(prev =>
-          areParticipantsEquivalent(prev, normalizedParticipants) ? prev : normalizedParticipants
-        )
+        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
       }
     }
 
     fetchAvatars()
-  }, [normalizedParticipants, accessToken, graphqlClient])
+  }, [rawParticipants, authToken, graphqlClient])
 
   // Fetch avatars for cell cursor indicators (more robust resolution)
   useEffect(() => {
     async function fetchCursorAvatars() {
-      if (!normalizedParticipants.length) {
+      if (!rawParticipants.length || !authToken) {
         setCursorParticipants(prev =>
-          areParticipantsEquivalent(prev, normalizedParticipants, true) ? prev : normalizedParticipants
+          areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants
         )
-        cursorAvatarFetchIdsRef.current = ''
         return
       }
 
-      // Update cursor state immediately from socket payload to keep remote cursor movement smooth.
-      setCursorParticipants(prev => {
-        const previousAvatars = new Map(prev.map(p => [p.userId, p.avatarUrl]))
-        const merged = normalizedParticipants.map(p => ({
-          ...p,
-          avatarUrl: p.avatarUrl || previousAvatars.get(p.userId)
-        }))
-        return areParticipantsEquivalent(prev, merged, true) ? prev : merged
-      })
-
-      if (!accessToken) {
-        return
-      }
-
-      const ids = [...new Set(normalizedParticipants.map(p => p.userId).filter(Boolean))]
+      const ids = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (ids.length === 0) {
         setCursorParticipants(prev =>
-          areParticipantsEquivalent(prev, normalizedParticipants, true) ? prev : normalizedParticipants
+          areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants
         )
-        cursorAvatarFetchIdsRef.current = ''
         return
       }
-
-      const idsKey = ids.slice().sort().join('|')
-      if (cursorAvatarFetchIdsRef.current === idsKey) {
-        return
-      }
-      cursorAvatarFetchIdsRef.current = idsKey
 
       try {
         // Query by Employee.userId (string)
@@ -340,21 +287,21 @@ export function useSpreadsheetViewerCollaboration({
           })
         }
 
-        const enriched = normalizedParticipants.map(p => ({
+        const enriched = rawParticipants.map(p => ({
           ...p,
           avatarUrl: avatarMap.get(p.userId) || undefined
         }))
-        setCursorParticipants(prev => (areParticipantsEquivalent(prev, enriched, true) ? prev : enriched))
+        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, enriched) ? prev : enriched))
       } catch (error) {
         console.error('[SpreadsheetViewerCollaboration] Failed to fetch cursor participant avatars:', error)
         setCursorParticipants(prev =>
-          areParticipantsEquivalent(prev, normalizedParticipants, true) ? prev : normalizedParticipants
+          areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants
         )
       }
     }
 
     fetchCursorAvatars()
-  }, [normalizedParticipants, accessToken, graphqlClient])
+  }, [rawParticipants, authToken, graphqlClient])
 
   return {
     headerParticipants,
