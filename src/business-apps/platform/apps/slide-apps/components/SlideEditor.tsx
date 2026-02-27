@@ -1497,11 +1497,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       {/* Background Dialog */}
       <Dialog open={showBackgroundDialog} onOpenChange={setShowBackgroundDialog}>
-        <DialogContent className="gba:max-w-xl">
+        <DialogContent className="gba:max-w-xl gba:max-h-[90vh] gba:flex gba:flex-col">
           <DialogHeader>
             <DialogTitle>{t('editor-slide-background')}</DialogTitle>
           </DialogHeader>
-          <div className="gba:space-y-4">
+          <div className="gba:space-y-4 gba:overflow-y-auto gba:flex-1 gba:pr-2">
             {/* Current Background Preview */}
             <div>
               <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">
