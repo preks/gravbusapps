@@ -9,6 +9,7 @@ export interface DashboardResponse {
   timeseries: TimeseriesPoint[]
   error_breakdown: BreakdownItem[]
   tool_breakdown: BreakdownItem[]
+  tool_token_stats?: ToolTokenStat[]
   top_cost_runs: RunRow[]
   recent_runs: RunRow[]
 }
@@ -46,6 +47,14 @@ export interface BreakdownItem {
   key: string
   count: number
   share: number
+}
+
+export interface ToolTokenStat {
+  key: string
+  runs: number
+  avg_total_tokens: number | null
+  p50_total_tokens: number | null
+  p95_total_tokens: number | null
 }
 
 export interface RunRow {

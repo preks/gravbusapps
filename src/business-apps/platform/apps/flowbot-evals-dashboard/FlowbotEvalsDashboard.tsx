@@ -24,6 +24,8 @@ import RunsTables from './components/RunsTables'
 import WorkflowComparison from './components/WorkflowComparison'
 import DistributionStats from './components/DistributionStats'
 import DashboardLoading from './components/DashboardLoading'
+import ToolTokenStats from './components/ToolTokenStats'
+import RawWorkflowNames from './components/RawWorkflowNames'
 import type { BucketGranularity } from './types'
 
 const todayDateInputValue = () => {
@@ -248,9 +250,11 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
         <div className="gba:space-y-6">
           <KpiCards cards={data.cards} />
           <DistributionStats distributions={data.distributions} />
+          <RawWorkflowNames recentRuns={data.recent_runs} topCostRuns={data.top_cost_runs} />
           <WorkflowComparison recentRuns={data.recent_runs} topCostRuns={data.top_cost_runs} />
           <TimeseriesCharts points={data.timeseries} />
           <BreakdownCharts errorBreakdown={data.error_breakdown} toolBreakdown={data.tool_breakdown} />
+          {!!data.tool_token_stats?.length && <ToolTokenStats stats={data.tool_token_stats} />}
           <RunsTables topCostRuns={data.top_cost_runs} recentRuns={data.recent_runs} />
         </div>
       )}
