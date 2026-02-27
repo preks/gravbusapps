@@ -309,6 +309,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
   const presentationContainerRef = useRef<HTMLDivElement>(null)
+  const thumbnailRefs = useRef<(HTMLDivElement | null)[]>([])
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
@@ -733,6 +734,38 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isPresentMode, slides.length, exitPresentMode])
 
+  // Keyboard navigation for editor mode (up/down arrows to change slides)
+  useEffect(() => {
+    if (isPresentMode) return
+
+    const handleEditorKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+
+      if (isInputFocused) return
+
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (e.key === 'ArrowUp') {
+          setCurrentSlideIndex(prev => Math.max(0, prev - 1))
+        } else {
+          setCurrentSlideIndex(prev => Math.min(slides.length - 1, prev + 1))
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleEditorKeyDown)
+    return () => window.removeEventListener('keydown', handleEditorKeyDown)
+  }, [isPresentMode, slides.length])
+
+  // Scroll selected thumbnail into view
+  useEffect(() => {
+    const thumbnail = thumbnailRefs.current[currentSlideIndex]
+    if (thumbnail) {
+      thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [currentSlideIndex])
+
   // Present Mode (true fullscreen)
   if (isPresentMode) {
     const goToPrevSlide = () => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))
@@ -1146,6 +1179,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               return (
                 <div
                   key={`${s.id}-${idx}`}
+                  ref={el => {
+                    thumbnailRefs.current[idx] = el
+                  }}
                   onClick={() => {
                     setCurrentSlideIndex(idx)
                     setSelectedElementId(null)
