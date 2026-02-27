@@ -357,3 +357,18 @@ create-job-position-name = Nume
 create-job-position-total-open = Total poziții deschise
 create-job-position-organizational-unit = Unitate organizațională
 create-job-position-error = Nu s-a putut crea poziția. Vă rugăm să încercați din nou.
+
+# Create New Absence – validation messages
+create-absence-unable-to-verify-balance = Nu s-a putut verifica soldul absențelor. Verificați manual.
+create-absence-insufficient-balance = Sold insuficient
+create-absence-requested = Solicitat
+create-absence-available = Disponibil
+create-absence-days = zile
+create-absence-end-date-after-start = Data de încheiere trebuie să fie după data de început.
+create-absence-single-day-bank-holiday-blocked = Ziua selectată este o sărbătoare legală. Nu puteți trimite o absență de o zi pentru această dată.
+create-absence-validation-failed = Validarea a eșuat. Vă rugăm să încercați din nou.
+create-absence-bank-holidays-not-counted = { $count } zile sunt zile libere legale și nu sunt luate în considerare.
+create-absence-overlap-prefix = Există deja o
+create-absence-overlap-scheduled = absență programată
+create-absence-from = de la
+create-absence-to = până la

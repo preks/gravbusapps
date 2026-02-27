@@ -153,6 +153,33 @@ export const employmentRegionHolidayByDateQuery = `
   }
 `
 
+/** Holidays in a date range for working-days balance: alternativeCode between altCodeFrom and altCodeTo (YYYYMMDD). List required so weekends can be excluded when counting. */
+export const employmentRegionHolidaysInRangeQuery = `
+  query GetEmploymentRegionHolidaysInRange(
+    $regionId: String!
+    $altCodeFrom: String!
+    $altCodeTo: String!
+  ) {
+    holidays: CatalogEntry(
+      where: {
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegionHoliday" } }
+        isDeleted: { _eq: false }
+        additionalValue2: { _eq: $regionId }
+        alternativeCode: { _gte: $altCodeFrom, _lte: $altCodeTo }
+      }
+      orderBy: { alternativeCode: ASC }
+    ) {
+      id
+      value
+      code
+      alternativeCode
+      additionalValue1
+      additionalValue2
+      additionalValue3
+    }
+  }
+`
+
 export const employeeWorkingHoursQuery = `
   query GetEmployeeWorkingHours($employeeId: uuid!) {
     employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
