@@ -93,11 +93,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     managerId: platformContext.managerId
   })
 
-  const { managerUserId: currentEmployeeUserId } = useManagerUserId({
-    accessToken,
-    managerId: platformContext.employeeId
-  })
-
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
   const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
@@ -298,6 +293,11 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         })
       } else if (runFor === 'team') {
         const orgClient = new OrgDirectoryClient(accessToken!)
+        const teamRequests: Array<{
+          employeeUserIds: string[]
+          managerUserId: string
+          teamId: string
+        }> = []
         for (const teamId of selectedTeamIds) {
           const [users, teamManagerUserId] = await Promise.all([
             orgClient.getUsersByOrganizationalUnit(teamId),
@@ -311,16 +311,20 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             })
             continue
           }
-          const payload = {
-            employeePerformanceEvaluation: {
-              employee: platformContext.employeeId,
-              performanceCycle: cycle.id
-            },
-            employeeUserId: currentEmployeeUserId || '',
-            performanceCycleId: cycle.id,
-            teamId: '',
+          teamRequests.push({
             employeeUserIds,
-            managerUserId: teamManagerUserId ?? ''
+            managerUserId: teamManagerUserId ?? '',
+            teamId: ''
+          })
+        }
+        if (teamRequests.length > 0) {
+          const payload = {
+            performanceCycleId: cycle.id,
+            employeePerformanceEvaluation: {
+              statusRef: 'EvaluationStatus:v1:DRAFT',
+              notes: ''
+            },
+            teamRequests
           }
           startProcess({
             domain: 'employee',
