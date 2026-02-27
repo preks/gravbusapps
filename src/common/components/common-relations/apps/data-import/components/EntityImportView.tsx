@@ -68,16 +68,26 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     reset
   } = useEntityImport(context, config)
 
-  const { mappings, setMappings, updateMapping, removeMapping, addMapping } = useEntityMappings(
+  const {
+    mappings,
+    setMappings,
+    updateTargetFromUnmapped,
+    removeMapping,
+    addMapping,
+    unmappedSourceFields,
+    setUnmappedSourceFields
+  } = useEntityMappings(
     config.targetFields,
-    agentResponse?.fieldMappings || []
+    agentResponse?.fieldMappings || [],
+    agentResponse?.unmappedSourceFields || []
   )
 
   React.useEffect(() => {
     if (agentResponse) {
       setMappings(agentResponse.fieldMappings)
+      setUnmappedSourceFields(agentResponse.unmappedSourceFields)
     }
-  }, [agentResponse, setMappings])
+  }, [agentResponse, setMappings, setUnmappedSourceFields])
 
   const handleConvert = async () => {
     await convertData(mappings)
@@ -118,10 +128,11 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
         <MappingReviewStep
           agentResponse={agentResponse}
           mappings={mappings}
+          unmappedSourceFields={unmappedSourceFields}
           targetFieldsConfig={config.targetFields}
           entityType={entityType}
           isLoading={isLoading}
-          onUpdateMapping={updateMapping}
+          onUpdateTargetFromUnmapped={updateTargetFromUnmapped}
           onRemoveMapping={removeMapping}
           onAddMapping={addMapping}
           onConvert={handleConvert}
