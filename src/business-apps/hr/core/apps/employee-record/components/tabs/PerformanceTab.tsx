@@ -262,57 +262,41 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     })
   }, [localPerformanceGoals, getInitialEvents])
 
-  const containedGoals = useMemo(() => {
-    if (!selectedCycle) return []
-    const normalizedSearchTerm = searchTerm.trim().toLowerCase()
-    const goals = localPerformanceGoals
-      .filter(isGoalValid)
-      .filter(goal => doesGoalOverlapCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
-      .filter(goal => (statusFilter === 'ALL' ? true : goal.status === statusFilter))
-      .filter(goal => (typeFilter === 'ALL' ? true : getGoalType(goal) === typeFilter))
-      .filter(goal => {
-        if (!normalizedSearchTerm) return true
-        const title = goal.title?.toLowerCase() || ''
-        const note = goal.additionalProperties?.note?.toLowerCase() || ''
-        return title.includes(normalizedSearchTerm) || note.includes(normalizedSearchTerm)
-      })
-      .filter(goal => isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
-    return sortGoals(goals)
-  }, [
-    localPerformanceGoals,
-    selectedCycle,
-    statusFilter,
-    typeFilter,
-    searchTerm,
-    sortGoals,
-    doesGoalOverlapCycle,
-    isGoalContainedInCycle
-  ])
+  const normalizedSearchTerm = useMemo(() => searchTerm.trim().toLowerCase(), [searchTerm])
 
-  const outOfCycleGoals = useMemo(() => {
+  const matchesGoalFilters = useCallback(
+    (goal: ExtendedEmployeePerformanceGoal) => {
+      if (statusFilter !== 'ALL' && goal.status !== statusFilter) return false
+      if (typeFilter !== 'ALL' && getGoalType(goal) !== typeFilter) return false
+      if (!normalizedSearchTerm) return true
+      const title = goal.title?.toLowerCase() || ''
+      const note = goal.additionalProperties?.note?.toLowerCase() || ''
+      return title.includes(normalizedSearchTerm) || note.includes(normalizedSearchTerm)
+    },
+    [statusFilter, typeFilter, normalizedSearchTerm]
+  )
+
+  const cycleRelevantGoals = useMemo(() => {
     if (!selectedCycle) return []
-    const normalizedSearchTerm = searchTerm.trim().toLowerCase()
     return localPerformanceGoals
       .filter(isGoalValid)
       .filter(goal => doesGoalOverlapCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
-      .filter(goal => (statusFilter === 'ALL' ? true : goal.status === statusFilter))
-      .filter(goal => (typeFilter === 'ALL' ? true : getGoalType(goal) === typeFilter))
-      .filter(goal => {
-        if (!normalizedSearchTerm) return true
-        const title = goal.title?.toLowerCase() || ''
-        const note = goal.additionalProperties?.note?.toLowerCase() || ''
-        return title.includes(normalizedSearchTerm) || note.includes(normalizedSearchTerm)
-      })
-      .filter(goal => !isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
-  }, [
-    localPerformanceGoals,
-    selectedCycle,
-    statusFilter,
-    typeFilter,
-    searchTerm,
-    doesGoalOverlapCycle,
-    isGoalContainedInCycle
-  ])
+      .filter(matchesGoalFilters)
+  }, [localPerformanceGoals, selectedCycle, doesGoalOverlapCycle, matchesGoalFilters])
+
+  const containedGoals = useMemo(() => {
+    if (!selectedCycle) return []
+    return sortGoals(
+      cycleRelevantGoals.filter(goal => isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
+    )
+  }, [cycleRelevantGoals, selectedCycle, sortGoals, isGoalContainedInCycle])
+
+  const outOfCycleGoals = useMemo(() => {
+    if (!selectedCycle) return []
+    return cycleRelevantGoals.filter(
+      goal => !isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate)
+    )
+  }, [cycleRelevantGoals, selectedCycle, isGoalContainedInCycle])
 
   useEffect(() => {
     const visibleGoalIds = [...containedGoals, ...outOfCycleGoals].map(goal => goal.id)
