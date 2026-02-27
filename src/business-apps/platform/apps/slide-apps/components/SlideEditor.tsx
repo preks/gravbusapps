@@ -734,7 +734,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isPresentMode, slides.length, exitPresentMode])
 
-  // Keyboard navigation for editor mode (up/down arrows to change slides)
+  // Keyboard navigation for editor mode (up/down arrows to change slides, Delete to remove elements)
   useEffect(() => {
     if (isPresentMode) return
 
@@ -744,6 +744,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       if (isInputFocused) return
 
+      // Delete selected element with Delete or Backspace key
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementId) {
+        e.preventDefault()
+        deleteElement()
+        return
+      }
+
+      // Navigate slides with arrow keys
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault()
         if (e.key === 'ArrowUp') {
@@ -756,7 +764,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
     window.addEventListener('keydown', handleEditorKeyDown)
     return () => window.removeEventListener('keydown', handleEditorKeyDown)
-  }, [isPresentMode, slides.length])
+  }, [isPresentMode, slides.length, selectedElementId, deleteElement])
 
   // Scroll selected thumbnail into view
   useEffect(() => {
