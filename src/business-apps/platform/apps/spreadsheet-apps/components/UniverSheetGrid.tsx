@@ -5,7 +5,7 @@
  * Replaces FortuneSheetGrid; same props and ref contract for TableView and collaboration.
  */
 
-import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
+import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo, useState } from 'react'
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { CommandType } from '@univerjs/core'
@@ -18,6 +18,23 @@ import {
   createUniverConversionContext,
   type UniverWorkbookSnapshot
 } from '../utils/univerAdapter'
+
+// Match Univer's standard defaults for consistent cursor sizing before snapshot is read
+const CURSOR_OVERLAY_ROW_HEIGHT_PX = 23
+const CURSOR_OVERLAY_COL_WIDTH_PX = 73
+const CURSOR_OVERLAY_HEADER_HEIGHT_PX = 28
+const CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX = 48
+
+function parseCursorPath(path?: string[]): { row: number; col: number } | null {
+  if (!path || path.length === 0) return null
+  const rowEntry = path.find(item => item.startsWith('row:'))
+  const colEntry = path.find(item => item.startsWith('col:'))
+  if (!rowEntry || !colEntry) return null
+  const row = Number(rowEntry.slice(4))
+  const col = Number(colEntry.slice(4))
+  if (!Number.isFinite(row) || !Number.isFinite(col) || row < 0 || col < 0) return null
+  return { row, col }
+}
 
 export interface UniverSheetGridProps {
   sheet: SpreadsheetSheet
@@ -48,8 +65,17 @@ export interface UniverSheetGridHandle {
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
   function UniverSheetGrid(props, ref) {
-    const { sheet, data, columns, initialSnapshot, onCellChange, onCellsChange, onSnapshotRequested, onDataChange } =
-      props
+    const {
+      sheet,
+      data,
+      columns,
+      initialSnapshot,
+      onCellChange,
+      onCellsChange,
+      onSnapshotRequested,
+      onDataChange,
+      onCursorEmit
+    } = props
 
     const containerRef = useRef<HTMLDivElement>(null)
     const univerAPIRef = useRef<ReturnType<typeof createUniver>['univerAPI'] | null>(null)
@@ -64,8 +90,173 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
     const propsRef = useRef({ sheet, data, columns, initialSnapshot })
     propsRef.current = { sheet, data, columns, initialSnapshot }
-    const callbacksRef = useRef({ onCellChange, onCellsChange, onSnapshotRequested, onDataChange })
-    callbacksRef.current = { onCellChange, onCellsChange, onSnapshotRequested, onDataChange }
+    const callbacksRef = useRef({ onCellChange, onCellsChange, onSnapshotRequested, onDataChange, onCursorEmit })
+    callbacksRef.current = { onCellChange, onCellsChange, onSnapshotRequested, onDataChange, onCursorEmit }
+    const lastEmittedCursorPathRef = useRef<string>('')
+    // Caches actual column widths and row heights read from the workbook snapshot so that
+    // cursor overlays match the real rendered cell dimensions (not hardcoded constants).
+    const cellDimensionsRef = useRef<{
+      defaultColWidth: number
+      defaultRowHeight: number
+      columnData: Record<string | number, { w?: number }>
+      rowData: Record<string | number, { h?: number }>
+      rowHeaderWidth: number
+      columnHeaderHeight: number
+      zoomRatio: number
+    } | null>(null)
+    // Tracks Univer's internal scroll offset (canvas-based scrolling doesn't update DOM scrollTop)
+    const sheetScrollRef = useRef<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 })
+    // Allows the Univer init effect to trigger a cursor position refresh on scroll
+    const refreshCursorRectsRef = useRef<(() => void) | null>(null)
+    const [cursorRects, setCursorRects] = useState<Record<string, { top: number; left: number; width: number; height: number }>>(
+      {}
+    )
+    const remoteCursorOverlays = useMemo(
+      () =>
+        (props.participants ?? [])
+          .map(participant => {
+            const parsed = parseCursorPath(participant.cursor?.path)
+            if (!parsed) return null
+            return {
+              id: `${participant.userId}-${parsed.row}-${parsed.col}`,
+              userName: participant.userName || 'User',
+              userColor: participant.userColor || '#4ECDC4',
+              row: parsed.row,
+              col: parsed.col
+            }
+          })
+          .filter(
+            (entry): entry is { id: string; userName: string; userColor: string; row: number; col: number } => !!entry
+          ),
+      [props.participants]
+    )
+
+    const areCursorRectsEqual = (
+      a: Record<string, { top: number; left: number; width: number; height: number }>,
+      b: Record<string, { top: number; left: number; width: number; height: number }>
+    ): boolean => {
+      const aKeys = Object.keys(a)
+      const bKeys = Object.keys(b)
+      if (aKeys.length !== bKeys.length) return false
+      for (const key of aKeys) {
+        const ra = a[key]
+        const rb = b[key]
+        if (!rb) return false
+        if (
+          Math.abs(ra.top - rb.top) > 0.5 ||
+          Math.abs(ra.left - rb.left) > 0.5 ||
+          Math.abs(ra.width - rb.width) > 0.5 ||
+          Math.abs(ra.height - rb.height) > 0.5
+        ) {
+          return false
+        }
+      }
+      return true
+    }
+
+    const resolveCellRect = useCallback((row: number, col: number): { top: number; left: number; width: number; height: number } | null => {
+      const api = univerAPIRef.current
+      const container = containerRef.current
+      if (!api || !container) return null
+      try {
+        const workbook = api.getActiveWorkbook?.()
+        const worksheet = workbook?.getActiveSheet?.()
+        if (!worksheet) return null
+
+        // Use the snapshot cache for cell dimensions. Apply zoomRatio so overlays
+        // match the actual rendered size when the user has zoomed the sheet.
+        const dims = cellDimensionsRef.current
+        const zoom = dims?.zoomRatio ?? 1
+        const rowHeaderWidth = dims?.rowHeaderWidth ?? CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX
+        const columnHeaderHeight = dims?.columnHeaderHeight ?? CURSOR_OVERLAY_HEADER_HEIGHT_PX
+        const getColumnWidth = (c: number): number =>
+          (dims?.columnData[c]?.w ?? dims?.defaultColWidth ?? CURSOR_OVERLAY_COL_WIDTH_PX) * zoom
+        const getRowHeight = (r: number): number =>
+          (dims?.rowData[r]?.h ?? dims?.defaultRowHeight ?? CURSOR_OVERLAY_ROW_HEIGHT_PX) * zoom
+
+        let cellLeft = 0
+        for (let c = 0; c < col; c++) cellLeft += getColumnWidth(c)
+        let cellTop = 0
+        for (let r = 0; r < row; r++) cellTop += getRowHeight(r)
+
+        const containerBox = container.getBoundingClientRect()
+        // sheetScrollRef tracks Univer's internal scroll (canvas-based scrolling doesn't use DOM scrollTop)
+        const { scrollLeft, scrollTop } = sheetScrollRef.current
+
+        // Use the topmost canvas to find where the sheet grid starts vertically
+        // (below the Univer toolbar and formula bar). We use canvas.top for the
+        // vertical anchor, but NOT canvas.left — the sheet always fills the container
+        // horizontally from x=0, so the horizontal anchor is just the row index width.
+        // Using canvas.left causes incorrect results because Univer may render the cell
+        // content canvas starting at an offset that varies by version/layout.
+        const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>('canvas'))
+        // Pick the largest canvas by pixel area — that is the main sheet rendering canvas,
+        // which sits below the toolbar and formula bar. Smaller canvases belong to the
+        // formula bar input, overlays, or other internal Univer UI components.
+        const mainCanvas = canvases.reduce<HTMLCanvasElement | null>((best, c) => {
+          if (!best) return c
+          return c.width * c.height > best.width * best.height ? c : best
+        }, null)
+
+        if (mainCanvas) {
+          const canvasBox = mainCanvas.getBoundingClientRect()
+          return {
+            // Vertical: canvas top + column header height + row offsets - scroll
+            top: (canvasBox.top - containerBox.top) + columnHeaderHeight + cellTop - scrollTop,
+            // Horizontal: row index width + column offsets - scroll (no canvas.left — sheet is always at x=0)
+            left: rowHeaderWidth + cellLeft - scrollLeft,
+            width: getColumnWidth(col),
+            height: getRowHeight(row)
+          }
+        }
+
+        // Fallback: find a scrollable child as the sheet viewport reference.
+        const allNodes = Array.from(container.querySelectorAll<HTMLElement>('*'))
+        const scroller = allNodes.find(
+          node => (node.scrollHeight > node.clientHeight + 2 || node.scrollWidth > node.clientWidth + 2) && node !== container
+        )
+        if (scroller) {
+          const scrollerBox = scroller.getBoundingClientRect()
+          return {
+            top: (scrollerBox.top - containerBox.top) + columnHeaderHeight + cellTop - scroller.scrollTop,
+            left: rowHeaderWidth + cellLeft - scroller.scrollLeft,
+            width: getColumnWidth(col),
+            height: getRowHeight(row)
+          }
+        }
+
+        return null
+      } catch {
+        return null
+      }
+    }, [])
+
+    useEffect(() => {
+      if (remoteCursorOverlays.length === 0) {
+        refreshCursorRectsRef.current = null
+        setCursorRects({})
+        return
+      }
+      const refresh = () => {
+        const next: Record<string, { top: number; left: number; width: number; height: number }> = {}
+        for (const cursor of remoteCursorOverlays) {
+          const rect = resolveCellRect(cursor.row, cursor.col)
+          if (rect) next[cursor.id] = rect
+        }
+        setCursorRects(prev => (areCursorRectsEqual(prev, next) ? prev : next))
+      }
+      refreshCursorRectsRef.current = refresh
+      refresh()
+      const onResize = () => refresh()
+      const onScroll = () => refresh()
+      window.addEventListener('resize', onResize)
+      window.addEventListener('scroll', onScroll, true)
+      return () => {
+        refreshCursorRectsRef.current = null
+        window.removeEventListener('resize', onResize)
+        window.removeEventListener('scroll', onScroll, true)
+      }
+    }, [remoteCursorOverlays, resolveCellRect])
 
     const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown) => {
       const api = univerAPIRef.current
@@ -166,7 +357,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
     // Fallback interval: separate from Univer lifecycle so it keeps running even if the Univer effect re-runs.
     useEffect(() => {
-      const FALLBACK_INTERVAL_MS = 5000
+      const FALLBACK_INTERVAL_MS = 10000
       const id = setInterval(() => {
         if (!hasEditedRef.current) return
         const req = requestSnapshotCheckpointRef.current
@@ -207,8 +398,47 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         ]
       })
 
+      // Populate cell dimensions from the initial snapshot immediately so cursor overlays
+      // use correct sizes from the first render (no wait for Univer to hydrate).
+      const applyDimensionsFromSnapshot = (snap: Record<string, unknown>) => {
+        const sheetOrder = snap?.sheetOrder as string[] | undefined
+        const sheets = snap?.sheets as Record<string, Record<string, unknown>> | undefined
+        const firstSheetId = sheetOrder?.[0]
+        const sheetSnap = firstSheetId && sheets ? sheets[firstSheetId] : sheets ? Object.values(sheets)[0] : undefined
+        if (sheetSnap) {
+          const rawCol = sheetSnap.columnData as Record<string | number, { w?: number }> | undefined
+          const rawRow = sheetSnap.rowData as Record<string | number, { h?: number }> | undefined
+          const rowHeader = sheetSnap.rowHeader as { width?: number } | undefined
+          const columnHeader = sheetSnap.columnHeader as { height?: number } | undefined
+          const zoomRatio = (sheetSnap.zoomRatio as number | undefined) ?? 1
+          cellDimensionsRef.current = {
+            defaultColWidth: (sheetSnap.defaultColumnWidth as number | undefined) ?? CURSOR_OVERLAY_COL_WIDTH_PX,
+            defaultRowHeight: (sheetSnap.defaultRowHeight as number | undefined) ?? CURSOR_OVERLAY_ROW_HEIGHT_PX,
+            columnData: rawCol ?? {},
+            rowData: rawRow ?? {},
+            rowHeaderWidth: rowHeader?.width ?? CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX,
+            columnHeaderHeight: columnHeader?.height ?? CURSOR_OVERLAY_HEADER_HEIGHT_PX,
+            zoomRatio
+          }
+        }
+      }
+      applyDimensionsFromSnapshot(snapshotForInit as unknown as Record<string, unknown>)
+
       univerAPIRef.current = univerAPI
       univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
+
+      // Re-read from Univer after it hydrates (handles column/row resizes, Excel imports, etc.)
+      const updateCellDimensions = () => {
+        try {
+          const wb = univerAPIRef.current?.getActiveWorkbook() as unknown as {
+            save?: () => Record<string, unknown>
+            getSnapshot?: () => Record<string, unknown>
+          } | null
+          const snap = wb?.save?.() ?? wb?.getSnapshot?.()
+          if (snap) applyDimensionsFromSnapshot(snap)
+        } catch {}
+      }
+      setTimeout(updateCellDimensions, 200)
 
       const SNAPSHOT_TIMEOUT_MS = 10000
       const requestSnapshotCheckpoint = (force = false) => {
@@ -255,7 +485,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
         }
       }
-      const scheduleSnapshotCheckpoint = (delayMs = 450) => {
+      // 2000ms gives the cell-flush debounce (400ms) + API round-trip time to finish
+      // before we snapshot, so the saved snapshot always reflects a persisted version.
+      const scheduleSnapshotCheckpoint = (delayMs = 2000) => {
         if (snapshotCheckpointTimerRef.current) {
           clearTimeout(snapshotCheckpointTimerRef.current)
         }
@@ -266,17 +498,46 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
       requestSnapshotCheckpointRef.current = requestSnapshotCheckpoint
 
+      // Track Univer's internal scroll position so cursor overlays stay aligned.
+      // Univer scrolls by redrawing the canvas (not DOM scrollTop), so we subscribe
+      // to Univer's scroll events and fall back to DOM scroll if available.
+      const handleSheetScroll = (scrollLeft: number, scrollTop: number) => {
+        sheetScrollRef.current = { scrollLeft, scrollTop }
+        refreshCursorRectsRef.current?.()
+      }
+      const scrollEventDisposable = (
+        univerAPI as { addEvent?(event: string, cb: (p: { scrollLeft?: number; scrollTop?: number }) => void): { dispose(): void } }
+      ).addEvent?.('SheetScrolled', params => {
+        handleSheetScroll(params.scrollLeft ?? 0, params.scrollTop ?? 0)
+      })
+      // Also listen on any DOM scroll container Univer may have created
+      const allContainerNodes = containerRef.current
+        ? Array.from(containerRef.current.querySelectorAll<HTMLElement>('*'))
+        : []
+      const domScroller = allContainerNodes.find(
+        node => (node.scrollHeight > node.clientHeight + 2 || node.scrollWidth > node.clientWidth + 2) && node !== containerRef.current
+      )
+      const onDomScroll = domScroller
+        ? () => handleSheetScroll(domScroller.scrollLeft, domScroller.scrollTop)
+        : null
+      if (domScroller && onDomScroll) {
+        domScroller.addEventListener('scroll', onDomScroll)
+      }
+
       const commandEventKey =
         (univerAPI as { Event?: { CommandExecuted?: string } }).Event?.CommandExecuted ?? 'CommandExecuted'
       const commandDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: { type?: number }) => void): { dispose(): void } }
       ).addEvent?.(commandEventKey, (event: { type?: number }) => {
         const t = event?.type
-        // MUTATION=2, COMMAND=0. Skip OPERATION=1 (scroll, selection).
-        if (t === CommandType.MUTATION || t === CommandType.COMMAND) {
+        // Only MUTATION (type 2) represents an actual data change. COMMAND (type 0)
+        // includes selection/navigation commands which must not trigger snapshots.
+        if (t === CommandType.MUTATION) {
           isDirtyRef.current = true
           hasEditedRef.current = true
           scheduleSnapshotCheckpoint()
+          // Refresh cached dimensions — user may have resized columns/rows
+          updateCellDimensions()
         }
       })
       const eventKey =
@@ -438,11 +699,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
           if (changedCells.length > 0 && onCellsChangeCb) {
             onCellsChangeCb(changedCells)
-            requestSnapshotCheckpoint(true)
-            // Large edits (paste) can be split into multiple chunks; request a checkpoint snapshot.
-            if (changedCells.length > 100) {
-              requestSnapshotCheckpoint(true)
-            }
+            // Do NOT call requestSnapshotCheckpoint here. At this point the cell flush
+            // (schedulePendingCellPersist) has not yet run, so the sheet version has not
+            // been bumped. A snapshot saved now would be immediately stale. The debounced
+            // CommandExecuted snapshot (fired below) runs after the flush completes and
+            // captures the correct version.
             return
           }
 
@@ -450,10 +711,78 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             for (const cell of changedCells) {
               onCellChangeCb(cell.rowId, cell.columnName, cell.value)
             }
-            requestSnapshotCheckpoint(true)
+            // Same reasoning: snapshot is triggered by CommandExecuted, not here.
           }
         }
       )
+      const selectionEventKey =
+        (univerAPI as { Event?: { SelectionMoveEnd?: string } }).Event?.SelectionMoveEnd ?? 'SelectionMoveEnd'
+      const emitCursorByRowCol = (startRow: number, startColumn: number) => {
+        const onCursorEmitCb = callbacksRef.current.onCursorEmit
+        if (!onCursorEmitCb) return
+        const path = [`row:${startRow}`, `col:${startColumn}`]
+        const signature = path.join('|')
+        if (lastEmittedCursorPathRef.current === signature) return
+        lastEmittedCursorPathRef.current = signature
+        onCursorEmitCb({ path })
+      }
+      const emitCursorFromWorksheetSelection = () => {
+        const workbook = univerAPIRef.current?.getActiveWorkbook?.()
+        const worksheet = workbook?.getActiveSheet?.()
+        const selection = (worksheet as { getSelection?: () => { getCurrentCell?: () => unknown } | null }).getSelection?.()
+        const currentCell = selection?.getCurrentCell?.() as
+          | { actualRow?: number; actualColumn?: number; row?: number; column?: number }
+          | undefined
+        const row = currentCell?.actualRow ?? currentCell?.row
+        const col = currentCell?.actualColumn ?? currentCell?.column
+        if (typeof row !== 'number' || typeof col !== 'number') return
+        emitCursorByRowCol(row, col)
+      }
+      const emitCursorFromSelectionEvent = (event: unknown) => {
+        const eventRecord = (event ?? {}) as {
+          selections?: Array<{
+            range?: {
+              startRow?: number
+              startColumn?: number
+            }
+          }>
+          range?: {
+            startRow?: number
+            startColumn?: number
+          }
+          params?: {
+            selections?: Array<{
+              range?: {
+                startRow?: number
+                startColumn?: number
+              }
+            }>
+            range?: {
+              startRow?: number
+              startColumn?: number
+            }
+          }
+        }
+        const selection =
+          eventRecord.selections?.[0]?.range ??
+          eventRecord.range ??
+          eventRecord.params?.selections?.[0]?.range ??
+          eventRecord.params?.range
+        const startRow = selection?.startRow
+        const startColumn = selection?.startColumn
+        if (typeof startRow !== 'number' || typeof startColumn !== 'number') return
+        emitCursorByRowCol(startRow, startColumn)
+      }
+      const selectionDisposable = (
+        univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
+      ).addEvent?.(selectionEventKey, emitCursorFromSelectionEvent)
+      const selectionChangeDisposable = (
+        univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
+      ).addEvent?.('SelectionChanged', emitCursorFromSelectionEvent)
+      const currentSelectionChangeDisposable = (
+        univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
+      ).addEvent?.('CurrentSelectionChanged', emitCursorFromSelectionEvent)
+      const cursorPollIntervalId = setInterval(emitCursorFromWorksheetSelection, 300)
 
       const dispose = () => {
         requestSnapshotCheckpointRef.current = null
@@ -465,8 +794,25 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           valueChangeDisposable?.dispose()
         } catch {}
         try {
+          selectionDisposable?.dispose()
+        } catch {}
+        try {
+          selectionChangeDisposable?.dispose()
+        } catch {}
+        try {
+          currentSelectionChangeDisposable?.dispose()
+        } catch {}
+        try {
+          scrollEventDisposable?.dispose?.()
+        } catch {}
+        if (domScroller && onDomScroll) {
+          domScroller.removeEventListener('scroll', onDomScroll)
+        }
+        clearInterval(cursorPollIntervalId)
+        try {
           commandDisposable?.dispose?.()
         } catch {}
+        sheetScrollRef.current = { scrollLeft: 0, scrollTop: 0 }
         univerAPI.dispose()
         univerAPIRef.current = null
         contextRef.current = null
@@ -481,6 +827,38 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         style={{ height: props.height ?? '100%', width: props.width ?? '100%' }}
       >
         <div ref={containerRef} className="gba:w-full gba:h-full" />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-20">
+          {remoteCursorOverlays.map(cursor => (
+            (() => {
+              const rect = cursorRects[cursor.id]
+              const top = rect ? rect.top : CURSOR_OVERLAY_HEADER_HEIGHT_PX + cursor.row * CURSOR_OVERLAY_ROW_HEIGHT_PX
+              const left = rect ? rect.left : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + cursor.col * CURSOR_OVERLAY_COL_WIDTH_PX
+              const width = rect ? rect.width : CURSOR_OVERLAY_COL_WIDTH_PX
+              const height = rect ? rect.height : CURSOR_OVERLAY_ROW_HEIGHT_PX
+              return (
+            <div
+              key={cursor.id}
+              className="gba:absolute gba:rounded-sm"
+              style={{
+                top,
+                left,
+                width,
+                height,
+                border: `2px solid ${cursor.userColor}`,
+                boxShadow: `0 0 8px ${cursor.userColor}33`
+              }}
+            >
+              <div
+                className="gba:absolute gba:-top-6 gba:left-0 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-white gba:rounded-sm gba:whitespace-nowrap"
+                style={{ backgroundColor: cursor.userColor }}
+              >
+                {cursor.userName}
+              </div>
+            </div>
+              )
+            })()
+          ))}
+        </div>
       </div>
     )
   }

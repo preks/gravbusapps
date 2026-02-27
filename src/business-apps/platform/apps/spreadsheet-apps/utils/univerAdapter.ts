@@ -48,6 +48,12 @@ export interface UniverWorksheetData {
   cellData: UniverSheetCellData
   rowCount?: number
   columnCount?: number
+  defaultColumnWidth?: number
+  defaultRowHeight?: number
+  columnData?: Record<number, { w?: number }>
+  rowData?: Record<number, { h?: number }>
+  rowHeader?: { width?: number; hidden?: number }
+  columnHeader?: { height?: number; hidden?: number }
 }
 
 /** Univer workbook snapshot for createWorkbook() */
@@ -112,12 +118,21 @@ export function buildWorkbookSnapshot(
   })
 
   const DEFAULT_MIN_ROWS = 1000
+  // Univer's standard defaults (px) for consistent cursor overlay sizing
+  const UNIVER_DEFAULT_COL_WIDTH = 73
+  const UNIVER_DEFAULT_ROW_HEIGHT = 23
+  const UNIVER_ROW_HEADER_WIDTH = 46
+  const UNIVER_COLUMN_HEADER_HEIGHT = 20
   const worksheet: UniverWorksheetData = {
     id: sheet.id,
     name: sheet.name,
     cellData,
     rowCount: Math.max(data.length, DEFAULT_MIN_ROWS),
-    columnCount: Math.max(visibleColumns.length, 1)
+    columnCount: Math.max(visibleColumns.length, 1),
+    defaultColumnWidth: UNIVER_DEFAULT_COL_WIDTH,
+    defaultRowHeight: UNIVER_DEFAULT_ROW_HEIGHT,
+    rowHeader: { width: UNIVER_ROW_HEADER_WIDTH },
+    columnHeader: { height: UNIVER_COLUMN_HEADER_HEIGHT }
   }
 
   return {
