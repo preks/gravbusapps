@@ -141,6 +141,17 @@ interface AgentPromptLoaderSetters {
   setError: (e: string | null) => void
 }
 
+function extractParametersFromTemplate(content: string): string[] {
+  if (!content) return []
+  const params = new Set<string>()
+  const pattern = /\{(\w+)\}/g
+  let match
+  while ((match = pattern.exec(content)) !== null) {
+    params.add(match[1])
+  }
+  return Array.from(params).sort((a, b) => a.localeCompare(b))
+}
+
 function useAgentPromptLoader(
   client: ReturnType<typeof usePromptManagerClient>,
   promptProp: PromptODM | null | undefined,
@@ -153,7 +164,18 @@ function useAgentPromptLoader(
   useEffect(() => {
     if (promptProp != null) {
       setPrompt(promptProp)
-      setParamKeys(paramKeysProp ?? [])
+
+      // If paramKeys not provided, extract from template
+      let effectiveKeys = paramKeysProp ?? []
+      if (effectiveKeys.length === 0 && promptProp.user_content?.template) {
+        const userParams = extractParametersFromTemplate(promptProp.user_content.template)
+        const systemParams = promptProp.system_content?.template
+          ? extractParametersFromTemplate(promptProp.system_content.template)
+          : []
+        effectiveKeys = [...new Set([...userParams, ...systemParams])]
+      }
+
+      setParamKeys(effectiveKeys)
       setLoading(false)
       setError(null)
       return
