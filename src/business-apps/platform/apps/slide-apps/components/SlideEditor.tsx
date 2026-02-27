@@ -999,95 +999,144 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
-        {/* Slide Actions */}
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('editor-slides-label')}</span>
-        <Button variant="ghost" size="sm" onClick={addSlide}>
-          <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('editor-add')}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={duplicateSlide}
-          title={t('editor-duplicate-slide')}
-          className="gba:h-8 gba:w-8"
-        >
-          <Copy className="gba:w-4 gba:h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={deleteSlide}
-          title={t('editor-delete-slide')}
-          className="gba:h-8 gba:w-8 gba:text-destructive"
-        >
-          <Trash2 className="gba:w-4 gba:h-4" />
-        </Button>
       </div>
 
       {/* Main Content */}
-      <div className="gba:flex gba:flex-1 gba:min-h-0">
+      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
         {/* Slide Thumbnails */}
-        <div className="gba:w-48 gba:border-r gba:bg-card gba:overflow-y-auto gba:p-2 gba:space-y-2">
-          {slides.map((s, idx) => (
-            <div
-              key={`${s.id}-${idx}`}
-              onClick={() => {
-                setCurrentSlideIndex(idx)
-                setSelectedElementId(null)
-              }}
-              className={`gba:rounded-lg gba:cursor-pointer gba:transition-all gba:border-2 gba:overflow-hidden ${
-                idx === currentSlideIndex
-                  ? 'gba:border-primary gba:shadow-md'
-                  : 'gba:border-transparent hover:gba:border-muted-foreground/20'
-              }`}
-            >
-              {/* Mini Preview */}
-              <div
-                className="gba:aspect-video gba:relative"
-                style={{
-                  backgroundColor: s.background?.color || '#fff',
-                  background: s.background?.gradient ? gradientToCss(s.background.gradient) : undefined
-                }}
-              >
-                {/* Simplified mini elements */}
-                {(s.elements || []).slice(0, 3).map(el => (
+        <div className="gba:w-48 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col">
+          {/* Scrollable thumbnails */}
+          <div className="gba:flex-1 gba:overflow-y-auto gba:p-2 gba:space-y-2">
+            {slides.map((s, idx) => {
+              // Thumbnail scale: sidebar is w-48 (192px) - p-2 (8px each side) - border (4px) = ~176px
+              // Canvas is 1280px wide, so scale = 176/1280 ≈ 0.1375
+              const thumbScale = 176 / 1280
+
+              return (
+                <div
+                  key={`${s.id}-${idx}`}
+                  onClick={() => {
+                    setCurrentSlideIndex(idx)
+                    setSelectedElementId(null)
+                  }}
+                  className={`gba:rounded-lg gba:cursor-pointer gba:transition-all gba:border-2 gba:overflow-hidden ${
+                    idx === currentSlideIndex
+                      ? 'gba:border-primary gba:shadow-md'
+                      : 'gba:border-transparent hover:gba:border-muted-foreground/20'
+                  }`}
+                >
+                  {/* Mini Preview - uses transform scale for accurate rendering */}
                   <div
-                    key={el.id}
-                    className="gba:absolute"
+                    className="gba:aspect-video gba:relative gba:overflow-hidden"
                     style={{
-                      left: el.position.x / 16,
-                      top: el.position.y / 16,
-                      width: el.size.width / 16,
-                      height: el.size.height / 16,
-                      backgroundColor: el.type === 'shape' ? (el as any).fill : 'transparent',
-                      fontSize: 4,
-                      overflow: 'hidden'
+                      backgroundColor: s.background?.color || '#fff',
+                      background: s.background?.gradient ? gradientToCss(s.background.gradient) : undefined
                     }}
                   >
-                    {el.type === 'text' && (
-                      <span style={{ color: (el as any).color, fontSize: Math.max(4, (el as any).fontSize / 16) }}>
-                        {(el as any).content?.slice(0, 20)}
-                      </span>
-                    )}
+                    {/* Scaled container matching main canvas proportions */}
+                    <div
+                      className="gba:absolute gba:top-0 gba:left-0 gba:origin-top-left"
+                      style={{
+                        width: 1280,
+                        height: 720,
+                        transform: `scale(${thumbScale})`
+                      }}
+                    >
+                      {(s.elements || []).map(el => (
+                        <div
+                          key={el.id}
+                          className="gba:absolute"
+                          style={{
+                            left: el.position.x,
+                            top: el.position.y,
+                            width: el.size.width,
+                            height: el.size.height,
+                            backgroundColor: el.type === 'shape' ? (el as any).fill : 'transparent',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          {el.type === 'text' && (
+                            <div
+                              style={{
+                                color: (el as any).color,
+                                fontSize: (el as any).fontSize,
+                                fontWeight: (el as any).fontWeight,
+                                fontFamily: (el as any).fontFamily,
+                                textAlign: (el as any).textAlign,
+                                width: '100%',
+                                height: '100%',
+                                overflow: 'hidden'
+                              }}
+                            >
+                              {(el as any).content}
+                            </div>
+                          )}
+                          {el.type === 'image' && (
+                            <img
+                              src={(el as any).src}
+                              alt=""
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: (el as any).objectFit || 'cover'
+                              }}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-              <div className="gba:p-1.5 gba:bg-card">
-                <span className="gba:text-xs gba:font-medium">{idx + 1}</span>
-              </div>
+                  <div className="gba:p-1.5 gba:bg-card">
+                    <span className="gba:text-xs gba:font-medium">{idx + 1}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Slide Actions */}
+          <div className="gba:p-3 gba:border-t gba:bg-card/50 gba:space-y-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={addSlide}
+              className="gba:w-full gba:gap-2 gba:justify-center"
+              data-testid={`${testId}-add-slide-btn`}
+            >
+              <Plus className="gba:w-4 gba:h-4" />
+              {t('editor-new-slide')}
+            </Button>
+            <div className="gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:border gba:bg-muted/30 gba:p-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={duplicateSlide}
+                title={t('editor-duplicate-slide')}
+                className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-background"
+                data-testid={`${testId}-duplicate-slide-btn`}
+              >
+                <Copy className="gba:w-4 gba:h-4" />
+              </Button>
+              <div className="gba:w-px gba:h-5 gba:bg-border" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={deleteSlide}
+                title={t('editor-delete-slide')}
+                className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-destructive hover:gba:bg-destructive/10"
+                data-testid={`${testId}-delete-slide-btn`}
+              >
+                <Trash2 className="gba:w-4 gba:h-4" />
+              </Button>
             </div>
-          ))}
+          </div>
         </div>
 
         {/* Canvas Area */}
-        <div className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-8">
-          <div className="gba:flex gba:justify-center">
+        <div className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0">
+          <div className="gba:inline-flex gba:justify-center gba:min-w-full">
             <div
-              className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative"
+              className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
               onMouseMove={e => {
                 if (isSynced && awareness) {
                   const rect = e.currentTarget.getBoundingClientRect()
@@ -1139,7 +1188,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         </div>
 
         {/* Property Panel */}
-        <div className="gba:w-72 gba:border-l gba:bg-card gba:overflow-y-auto">
+        <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
           <div className="gba:p-3 gba:border-b">
             <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
           </div>

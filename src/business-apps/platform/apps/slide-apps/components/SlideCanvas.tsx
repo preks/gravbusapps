@@ -561,13 +561,16 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
     )
   }
 
-  // Wrapper to contain scaled canvas properly
+  // Wrapper maintains 16:9 aspect ratio and scales canvas
+  const scaledWidth = 1280 * scale
+  const scaledHeight = 720 * scale
+
   return (
     <div
       style={{
-        width: 1280 * scale,
-        height: 720 * scale,
-        overflow: 'hidden'
+        width: scaledWidth,
+        height: scaledHeight,
+        flexShrink: 0
       }}
     >
       <div
