@@ -301,6 +301,7 @@
   "platform/apps/board-apps": "3a909b557977dce594f63bd4a26f3a20",
   "platform/apps/catalog-manager": "083bebeacf6f58a8bb41f504b7e6249e",
   "platform/apps/chat": "f2b37d775cc107bbabb870b59094278c",
+  "platform/apps/chat-pure": "5ede8539ee85ee9553c58b3ac6fe9fab",
   "platform/apps/custom-data-manager": "056227be4d2a2e028452caa6d544dfda",
   "platform/apps/data-seeder": "296952b1708aa439c700c94fd5cb5158",
   "platform/apps/debugger": "70f4ac84df5d62438d61c7b835a39828",
