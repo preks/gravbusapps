@@ -899,12 +899,23 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                                 cycleEndDate: selectedCycle?.endDate,
                                 cycleName: selectedCycle?.name,
                                 additionalProperties: selectedGoal.additionalProperties,
-                                existingMilestones:
+                                existingMilestonesJson: JSON.stringify(
                                   selectedGoal.employeePerformanceGoalMilestone?.map(m => ({
                                     id: m.id,
                                     title: m.title,
-                                    version: m.version ?? 0
+                                    version: m.version ?? 0,
+                                    done: m.done ?? false,
+                                    doneAt: m.doneAt ?? null
                                   })) || []
+                                ),
+                                existingUpdatesJson: JSON.stringify(
+                                  selectedGoal.employeePerformanceGoalUpdate?.map(u => ({
+                                    id: u.id,
+                                    comment: u.comment,
+                                    progressPercent: u.progressPercent,
+                                    updateTime: u.updateTime
+                                  })) || []
+                                )
                               }
                             }
                           ]}

@@ -17,6 +17,7 @@ import {
 import { Employee } from '../../../hooks/useEmployeeData'
 import { useEmployeePerformanceEvaluations } from './hooks/useEmployeePerformanceEvaluations'
 import { usePerformanceEvaluationDetail } from './hooks/usePerformanceEvaluationDetail'
+import { usePerformanceCycleGoalsSummary } from './hooks/usePerformanceCycleGoalsSummary'
 import PerformanceEvaluationDetailView from './components/PerformanceEvaluationDetailView'
 import { findLatestEvaluationIdByCycleId, findLatestPerformanceCycleId } from './utils/performanceEvaluationMappers'
 import translations from '../../../_i18n'
@@ -45,7 +46,7 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
   const detailQuery = useMemo(
     () => ({
       employeeId: effectiveEmployeeId,
-      includePeerReviewerIdentity: false
+      includePeerReviewerIdentity: true
     }),
     [effectiveEmployeeId]
   )
@@ -53,6 +54,10 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
   const hasSelectedCycle =
     selectedCycleId !== null && data?.performanceCycles.some(cycle => cycle.performanceCycleId === selectedCycleId)
   const activeCycleId = hasSelectedCycle ? selectedCycleId : latestCycleId
+  const activeCycle = useMemo(
+    () => data?.performanceCycles.find(cycle => cycle.performanceCycleId === activeCycleId),
+    [data?.performanceCycles, activeCycleId]
+  )
   const activeEvaluationId = findLatestEvaluationIdByCycleId(data, activeCycleId)
 
   const {
@@ -63,6 +68,15 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
     accessToken,
     evaluationId: activeEvaluationId,
     query: detailQuery
+  })
+  const {
+    summary: cycleGoalsSummary,
+    loading: cycleGoalsSummaryLoading,
+    error: cycleGoalsSummaryError
+  } = usePerformanceCycleGoalsSummary({
+    accessToken,
+    employeeId: effectiveEmployeeId,
+    activeCycle
   })
 
   if (loading) {
@@ -98,17 +112,17 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
 
   return (
     <div className="gba:space-y-6" data-testid="employee-performance-evaluation-container">
-      <div data-testid="employee-performance-evaluation-header">
-        <h2 className="gba:text-2xl gba:font-semibold">{t('performance-evaluation-title')}</h2>
-        <p className="gba:text-muted-foreground gba:text-sm">{t('performance-evaluation-description')}</p>
-      </div>
+      <div
+        className="gba:flex gba:justify-between gba:items-start gba:gap-4"
+        data-testid="employee-performance-evaluation-header"
+      >
+        <div>
+          <h2 className="gba:text-2xl gba:font-semibold">{t('performance-evaluation-title')}</h2>
+          <p className="gba:text-muted-foreground gba:text-sm">{t('performance-evaluation-description')}</p>
+        </div>
 
-      <Card data-testid="employee-performance-evaluation-selector-card">
-        <CardContent className="gba:p-4 gba:space-y-3">
-          <div className="gba:space-y-1">
-            <p className="gba:text-sm gba:font-medium">{t('performance-evaluation-selector-label')}</p>
-            <p className="gba:text-xs gba:text-muted-foreground">{t('performance-evaluation-selector-description')}</p>
-          </div>
+        <div className="gba:w-full gba:max-w-[360px] gba:space-y-1">
+          <p className="gba:text-sm gba:font-medium">{t('performance-evaluation-selector-label')}</p>
           <Select
             value={activeCycleId ?? ''}
             onValueChange={value => {
@@ -131,14 +145,23 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
               ))}
             </SelectContent>
           </Select>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <PerformanceEvaluationDetailView
         evaluationId={activeEvaluationId || ''}
         loading={detailLoading}
         error={detailError}
         data={detailData}
+        cycleGoalsSummary={cycleGoalsSummary}
+        cycleGoalsSummaryLoading={cycleGoalsSummaryLoading}
+        cycleGoalsSummaryError={cycleGoalsSummaryError}
+        currentEmployee={{
+          displayName: employee.displayName,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          pictureThumbnail: employee.pictureThumbnail
+        }}
       />
     </div>
   )
