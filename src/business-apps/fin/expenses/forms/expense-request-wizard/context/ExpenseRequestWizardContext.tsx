@@ -45,7 +45,8 @@ export interface ExpenseRequestWizardContextProps {
     endLocation: LocationData,
     expenseRulesData: any,
     event: string,
-    overnightAccommodation?: boolean
+    overnightAccommodation?: boolean,
+    overrideEmployeeRuleId?: string
   ) => boolean
   showExpenseItem: boolean
   setShowExpenseItem: (show: boolean) => void
@@ -273,7 +274,12 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     try {
       if (!accessToken || !employeeRuleId || !userInfo || !additionalData) return
 
-      setLoading(true)
+      // Only show full-screen loading on initial load (no request data yet).
+      // When refetching after e.g. trip Next, keep current screen visible with existing data.
+      const isInitialLoad = !expenseRequestData
+      if (isInitialLoad) {
+        setLoading(true)
+      }
 
       if (!additionalData) {
         setLoading(false)
@@ -375,7 +381,6 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
         // Get current date
         const currentDate = new Date().toISOString()
 
-        // Fetch employee rule using the imported function
         const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken)
 
         if (employeeRuleData && employeeRuleData.expenseRuleId) {
@@ -427,11 +432,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
   /**
    * Save trip data function
-   * @param startLocation - Start location data
-   * @param destinations - Destinations data
-   * @param endLocation - End location data
-   * @param expenseRulesData - Expense rules data
-   * @returns True if save was successful, false otherwise
+   * @param overrideEmployeeRuleId - When set (e.g. from TripScreen validation), use this instead of context employeeRuleId and sync to context so next screen has it
    */
   const submitActionTripData = (
     startLocation: LocationData,
@@ -439,12 +440,21 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     endLocation: LocationData,
     expenseRulesData: any,
     event: string,
-    overnightAccommodation?: boolean
+    overnightAccommodation?: boolean,
+    overrideEmployeeRuleId?: string
   ): boolean => {
-    // Determine currency based on trip data
-    const determinedCurrency = getCurrencyWithFallback(startLocation, destinations, endLocation, expenseRulesData)
+    console.log('[TripScreen countryRef debug] submitActionTripData called', {
+      hasExpenseRulesData: !!expenseRulesData,
+      AllowanceRegionRuleDetail: expenseRulesData?.AllowanceRegionRuleDetail?.length ?? 0,
+      homeRegionRuleLength: expenseRulesData?.homeRegionRule?.length ?? 0,
+      event
+    })
+    const ruleIdToUse = overrideEmployeeRuleId ?? employeeRuleId ?? ''
+    if (overrideEmployeeRuleId) {
+      setEmployeeRuleId(overrideEmployeeRuleId)
+    }
 
-    // Update currency in context
+    const determinedCurrency = getCurrencyWithFallback(startLocation, destinations, endLocation, expenseRulesData)
     setCurrentCurrency(determinedCurrency)
 
     return handleTripSubmitAction(
@@ -453,7 +463,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       endLocation,
       expenseRulesData,
       expenseRequestData,
-      employeeRuleId || '',
+      ruleIdToUse,
       currentTitle,
       determinedCurrency,
       event,

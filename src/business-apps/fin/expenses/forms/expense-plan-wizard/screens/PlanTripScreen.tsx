@@ -133,6 +133,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   const [employeeRuleError, setEmployeeRuleError] = useState<string | null>(null)
   const [ruleConflictError, setRuleConflictError] = useState<string | null>(null)
 
+  /** Rule id from date+time validation; not pushed to context until submit/next to avoid full-tree rerender */
+  const validatedEmployeeRuleIdRef = useRef<string | null>(null)
+
   const validateEmployeeRule = async (startDate: Date | undefined, startTime: Date | undefined) => {
     setEmployeeRuleError(null)
     setRuleConflictError(null)
@@ -158,7 +161,6 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
       }
 
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken)
-      const ruleDataValue = ruleData.id || ruleData.expenseRuleId
       if (!ruleData) {
         const errorMessage = getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_item.missing_expense_rule_message',
@@ -168,8 +170,19 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         return false
       }
 
+      const ruleDataValue = ruleData.id || ruleData.expenseRuleId
       if (ruleDataValue) {
-        setEmployeeRuleId(ruleDataValue)
+        validatedEmployeeRuleIdRef.current = ruleDataValue
+        try {
+          const activeUserLocale = getCurrentActiveUserLocale()
+          const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
+            expenseRuleId: ruleDataValue,
+            activeUserLocale
+          })
+          setExpenseRulesData(rulesResponse)
+        } catch {
+          // Keep previous rules on fetch error
+        }
       }
 
       return true
@@ -195,9 +208,14 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     }
 
     if (!isEndLocation) {
-      const isRuleValid = await validateEmployeeRule(startDate, startTime)
-      if (!isRuleValid) {
-        return
+      if (startDate && startTime) {
+        const isRuleValid = await validateEmployeeRule(startDate, startTime)
+        if (!isRuleValid) {
+          return
+        }
+      } else {
+        setEmployeeRuleError(null)
+        validatedEmployeeRuleIdRef.current = null
       }
     }
 
@@ -499,7 +517,10 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
         setExpenseRulesData(rulesResponse)
 
-        await loadInitialTripData()
+        // Only prefill trip from plan when form is not yet filled (avoids overwriting user's date/time)
+        if (!startLocation.departureDate) {
+          await loadInitialTripData()
+        }
       } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
@@ -604,7 +625,15 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   ])
 
   const handleSave = () => {
-    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE, requestAdvancePayment)
+    submitActionTripData(
+      startLocation,
+      destinations,
+      endLocation,
+      expenseRulesData,
+      EVENTS.SAVE,
+      requestAdvancePayment,
+      validatedEmployeeRuleIdRef.current ?? undefined
+    )
   }
 
   const handleNext = () => {
@@ -615,7 +644,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         endLocation,
         expenseRulesData,
         EVENTS.NEXT,
-        requestAdvancePayment
+        requestAdvancePayment,
+        validatedEmployeeRuleIdRef.current ?? undefined
       )
     }
   }
