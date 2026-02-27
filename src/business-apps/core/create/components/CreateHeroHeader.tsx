@@ -25,6 +25,7 @@ export interface CreateHeroHeaderProps {
   onBack?: () => void
   actions?: React.ReactNode
   badges?: CreateHeroBadge[]
+  size?: 'default' | 'large'
   className?: string
   'data-testid'?: string
 }
@@ -37,9 +38,12 @@ export const CreateHeroHeader: React.FC<CreateHeroHeaderProps> = ({
   onBack,
   actions,
   badges,
+  size = 'default',
   className,
   'data-testid': testId = 'create-hero-header'
 }) => {
+  const isLarge = size === 'large'
+
   return (
     <div
       className={['gba:relative gba:overflow-hidden gba:shrink-0', className].filter(Boolean).join(' ')}
@@ -61,7 +65,6 @@ export const CreateHeroHeader: React.FC<CreateHeroHeaderProps> = ({
         <SpaceHeroBackground />
       )}
 
-      {/* Dark overlay for text readability */}
       {/* eslint-disable newwork-local/no-hardcoded-colors */}
       <div
         className="gba:absolute gba:inset-0 gba:pointer-events-none"
@@ -72,24 +75,35 @@ export const CreateHeroHeader: React.FC<CreateHeroHeaderProps> = ({
       />
       {/* eslint-enable newwork-local/no-hardcoded-colors */}
 
-      <div className="gba:relative gba:px-6 gba:py-5">
+      <div className={`gba:relative gba:px-6 ${isLarge ? 'gba:py-8' : 'gba:py-5'}`}>
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-          <div className="gba:flex gba:items-start gba:gap-3">
-            <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-white/15">
-              <Icon className="gba:h-5 gba:w-5 gba:text-white" />
+          <div className={`gba:flex gba:items-start ${isLarge ? 'gba:gap-4' : 'gba:gap-3'}`}>
+            <div
+              className={`gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:bg-white/15 ${
+                isLarge ? 'gba:w-14 gba:h-14 gba:rounded-xl' : 'gba:w-10 gba:h-10'
+              }`}
+            >
+              <Icon className={isLarge ? 'gba:h-7 gba:w-7 gba:text-white' : 'gba:h-5 gba:w-5 gba:text-white'} />
             </div>
-            <div className="gba:flex gba:flex-col gba:gap-0.5">
+            <div className={`gba:flex gba:flex-col ${isLarge ? 'gba:gap-1' : 'gba:gap-0.5'}`}>
               <span className="gba:text-xs gba:font-medium gba:tracking-[0.3em] gba:text-white/60 gba:uppercase">
                 {appLabel}
               </span>
               <div
-                className="gba:text-xl gba:font-semibold gba:leading-tight gba:text-white"
+                className={
+                  isLarge
+                    ? 'gba:font-funnel-display gba:text-3xl gba:sm:text-4xl gba:font-semibold gba:leading-tight gba:text-white gba:tracking-tight'
+                    : 'gba:text-xl gba:font-semibold gba:leading-tight gba:text-white'
+                }
                 data-testid={`${testId}-title`}
               >
                 {title}
               </div>
               {description ? (
-                <span className="gba:text-sm gba:text-white/80" data-testid={`${testId}-description`}>
+                <span
+                  className={isLarge ? 'gba:text-base gba:text-white/70 gba:mt-1' : 'gba:text-sm gba:text-white/80'}
+                  data-testid={`${testId}-description`}
+                >
                   {description}
                 </span>
               ) : null}

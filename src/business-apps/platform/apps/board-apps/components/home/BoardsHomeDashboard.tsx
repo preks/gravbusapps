@@ -61,34 +61,39 @@ export const BoardsHomeDashboard: React.FC<BoardsHomeDashboardProps> = ({
 
   return (
     <div className="gba:flex-1 gba:overflow-auto" data-testid={testId}>
-      <div className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8 gba:space-y-8">
+      <div className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:pt-6 gba:pb-10 gba:space-y-6">
         <BoardsHomeGreeting userName={userName} data-testid={`${testId}-greeting`} />
 
-        <BoardsHomeStats stats={stats} isLoading={showSkeleton} data-testid={`${testId}-stats`} />
+        <BoardsHomeStats stats={stats} boards={boards} isLoading={showSkeleton} data-testid={`${testId}-stats`} />
 
-        <BoardsHomeActionItems
-          myWork={myWork}
-          isLoading={showSkeleton}
-          onNavigateToItem={onNavigateToItem}
-          data-testid={`${testId}-actions`}
+        <BoardsHomeTemplates
+          onCreateBoard={onCreateBoard}
+          onBoardCreated={onBoardCreated}
+          createRow={createRow}
+          updateSheet={updateSheet}
+          data-testid={`${testId}-templates`}
         />
 
-        <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6">
-          <BoardsHomeRecent
-            boards={boards}
-            onOpenBoard={onOpenBoard}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-            onCreateBoard={onCreateOpen}
-            data-testid={`${testId}-recent`}
-          />
-          <BoardsHomeTemplates
-            onCreateBoard={onCreateBoard}
-            onBoardCreated={onBoardCreated}
-            createRow={createRow}
-            updateSheet={updateSheet}
-            data-testid={`${testId}-templates`}
-          />
+        <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-5 gba:gap-6">
+          <div className="gba:lg:col-span-3">
+            <BoardsHomeActionItems
+              myWork={myWork}
+              isLoading={showSkeleton}
+              onNavigateToItem={onNavigateToItem}
+              data-testid={`${testId}-actions`}
+            />
+          </div>
+
+          <div className="gba:lg:col-span-2">
+            <BoardsHomeRecent
+              boards={boards}
+              onOpenBoard={onOpenBoard}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onCreateBoard={onCreateOpen}
+              data-testid={`${testId}-recent`}
+            />
+          </div>
         </div>
       </div>
 

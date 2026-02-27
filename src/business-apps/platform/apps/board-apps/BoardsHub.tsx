@@ -386,6 +386,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         appLabel="Boards"
         title={currentBoard ? currentBoard.name : 'Boards'}
         description={currentBoard ? undefined : 'Build anything. Track everything.'}
+        size={isViewing ? 'default' : 'large'}
         onBack={isViewing ? handleBack : undefined}
         actions={heroActions}
         data-testid={`${testId}-hero`}

@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { LayoutGrid, MoreHorizontal, Copy, Trash2, Plus } from 'lucide-react'
+import { LayoutGrid, MoreHorizontal, Copy, Trash2, Plus, Clock } from 'lucide-react'
 import type { BoardSummary } from '../../types'
 
 interface BoardsHomeRecentProps {
@@ -20,6 +20,15 @@ interface BoardsHomeRecentProps {
   onCreateBoard: () => void
   'data-testid'?: string
 }
+
+const CHART_VARS = [
+  'var(--nw-chart-1)',
+  'var(--nw-chart-2)',
+  'var(--nw-chart-3)',
+  'var(--nw-chart-4)',
+  'var(--nw-chart-5)',
+  'var(--nw-chart-6)'
+]
 
 function formatRelative(dateString: string): string {
   const date = new Date(dateString)
@@ -46,7 +55,7 @@ export const BoardsHomeRecent: React.FC<BoardsHomeRecentProps> = ({
   'data-testid': testId = 'boards-home-recent'
 }) => {
   const recentBoards = useMemo(
-    () => [...boards].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5),
+    () => [...boards].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 6),
     [boards]
   )
 
@@ -70,63 +79,65 @@ export const BoardsHomeRecent: React.FC<BoardsHomeRecentProps> = ({
           </div>
         </Card>
       ) : (
-        <div className="gba:space-y-2">
-          {recentBoards.map(board => (
+        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+          {recentBoards.map((board, idx) => (
             <Card
               key={board.id}
-              className="gba:cursor-pointer gba:hover:bg-muted/30 gba:transition-colors"
+              className="gba:cursor-pointer gba:group gba:overflow-hidden gba:hover:ring-1 gba:hover:ring-primary/20 gba:transition-all"
               onClick={() => onOpenBoard(board.id)}
               data-testid={`${testId}-board-${board.id}`}
             >
-              <div className="gba:flex gba:items-center gba:gap-3 gba:p-3">
-                <div className="gba:w-9 gba:h-9 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                  <LayoutGrid className="gba:w-4.5 gba:h-4.5 gba:text-primary" />
-                </div>
-                <div className="gba:flex-1 gba:min-w-0">
-                  <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{board.name}</p>
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-                    <span>{formatRelative(board.updatedAt)}</span>
-                    <span>&middot;</span>
-                    <span>{board.rowCount.toLocaleString()} rows</span>
-                    {board.isShared && (
-                      <>
-                        <span>&middot;</span>
-                        <Badge variant="outline" className="gba:text-xs gba:px-1.5 gba:py-0">
-                          Shared
-                        </Badge>
-                      </>
-                    )}
+              {}
+              <div className="gba:h-1.5" style={{ backgroundColor: CHART_VARS[idx % CHART_VARS.length] }} />
+              {}
+              <div className="gba:p-3">
+                <div className="gba:flex gba:items-start gba:justify-between gba:gap-1">
+                  <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:leading-snug">
+                    {board.name}
+                  </p>
+                  <div
+                    className="gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gba:h-6 gba:w-6 gba:p-0"
+                          data-testid={`${testId}-menu-${board.id}`}
+                        >
+                          <MoreHorizontal className="gba:w-3 gba:h-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onOpenBoard(board.id)}>Open</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onDuplicate(board.id)}>
+                          <Copy className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="gba:text-destructive"
+                          onClick={() => {
+                            if (confirm('Delete this board?')) onDelete(board.id)
+                          }}
+                        >
+                          <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-                <div onClick={e => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gba:h-7 gba:w-7 gba:p-0"
-                        data-testid={`${testId}-menu-${board.id}`}
-                      >
-                        <MoreHorizontal className="gba:w-3.5 gba:h-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onOpenBoard(board.id)}>Open</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDuplicate(board.id)}>
-                        <Copy className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Duplicate
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="gba:text-destructive"
-                        onClick={() => {
-                          if (confirm('Delete this board?')) onDelete(board.id)
-                        }}
-                      >
-                        <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <div className="gba:flex gba:items-center gba:gap-1.5 gba:mt-2 gba:text-xs gba:text-muted-foreground">
+                  <Clock className="gba:w-3 gba:h-3" />
+                  <span>{formatRelative(board.updatedAt)}</span>
+                  <span className="gba:ml-auto gba:tabular-nums">{board.rowCount.toLocaleString()} rows</span>
                 </div>
+                {board.isShared && (
+                  <Badge variant="outline" className="gba:text-xs gba:px-1.5 gba:py-0 gba:mt-2">
+                    Shared
+                  </Badge>
+                )}
               </div>
             </Card>
           ))}

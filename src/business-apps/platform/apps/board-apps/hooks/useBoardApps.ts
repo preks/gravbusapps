@@ -188,7 +188,7 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         append?: boolean
       }
     ) => {
-      const callKey = `${boardId}:${sheetId}:${options?.page ?? 1}:${options?.limit ?? 50}:${options?.filters ?? ''}:${options?.sorts ?? ''}:${options?.append ?? false}`
+      const callKey = `${boardId}:${sheetId}:${options?.page ?? 1}:${options?.limit ?? 50}:${options?.sort ?? ''}:${options?.sortOrder ?? ''}:${options?.filters ?? ''}:${options?.filterConnector ?? ''}:${options?.sorts ?? ''}:${options?.search ?? ''}:${options?.groupBy ?? ''}:${options?.append ?? false}`
       if (callKey === loadRowsKeyRef.current) return
       loadRowsKeyRef.current = callKey
       setRowsLoading(true)

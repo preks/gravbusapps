@@ -8,7 +8,7 @@
  * from its own header without duplicating state.
  */
 
-import React, { useState, useCallback, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import type { Board, BoardSheet, BoardRow, BoardQuickFilter } from './types'
 import { RowPagePanel } from './components/RowPagePanel'
@@ -19,9 +19,11 @@ import { BoardViewerFooter } from './components/viewer/BoardViewerFooter'
 import { BoardViewerOverlays } from './components/viewer/BoardViewerOverlays'
 import { SystemDataSheet } from './components/system-data/SystemDataSheet'
 import { FlowEngineDataSheet } from './components/flow-engine/FlowEngineDataSheet'
+import { ExternalDataSheet } from './components/external-data/ExternalDataSheet'
 import { BoardApiService } from './services/BoardApiService'
 import { useDashboardData } from './hooks/useDashboardData'
 import { usePeopleColumnOptions } from './hooks/usePeopleColumnOptions'
+import type { ServerFilterParams } from './hooks/useTableFilterSort'
 
 function readInitialServerFilters(): { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string } {
   try {
@@ -63,6 +65,7 @@ export interface BoardViewerHandle {
   openSettings: () => void
   openSystemData: () => void
   openFlowData: () => void
+  openExternalData: () => void
   navigateToRow: (sheetId: string, rowId: string, position?: number) => void
 }
 
@@ -173,6 +176,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const [isAddViewOpen, setIsAddViewOpen] = useState(false)
   const [isSystemDataOpen, setIsSystemDataOpen] = useState(false)
   const [isFlowEngineDataOpen, setIsFlowEngineDataOpen] = useState(false)
+  const [isExternalDataOpen, setIsExternalDataOpen] = useState(false)
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null)
   const tableNextPageRef = useRef(1)
   const kanbanNextPageRef = useRef(1)
@@ -357,6 +361,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
       openSettings: () => setIsSettingsOpen(true),
       openSystemData: () => setIsSystemDataOpen(true),
       openFlowData: () => setIsFlowEngineDataOpen(true),
+      openExternalData: () => setIsExternalDataOpen(true),
       navigateToRow
     }),
     [navigateToRow]
@@ -436,6 +441,19 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             ds.populateTargetCol as string,
             dsLimit
           )
+        } else if (ds.provider === 'functionManager') {
+          await BoardApiService.startExternalSync(board.id, activeSheet.id, {
+            connectorId: ds.connectorId as string,
+            connectorName: ds.connectorName as string,
+            query: ds.query as Record<string, unknown> | undefined,
+            selectedFields: ds.selectedFields as string[] | undefined,
+            limit: dsLimit,
+            mode: (ds.syncMode as 'replace' | 'append' | 'merge') || 'replace',
+            mergeKey: ds.mergeKey as string | undefined,
+            autoColumns: true,
+            keepConnected: true,
+            refreshMode: ds.refreshMode as string | undefined
+          })
         } else if (ds.provider === 'flowEngine') {
           await BoardApiService.syncFromFlowEngine(board.id, activeSheet.id, {
             flowEntity: (ds.flowEntity as 'flows' | 'tasks') || 'flows',
@@ -498,7 +516,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   )
 
   const handleServerFilterChange = useCallback(
-    (params: { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }) => {
+    (params: ServerFilterParams) => {
       serverFilterRef.current = params
       if (!activeSheet) return
       const rpp = activeSheet.settings.rowsPerPage || 50
@@ -763,6 +781,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         onSheetUpdate={onSheetUpdate}
         onOpenImport={() => setIsSystemDataOpen(true)}
         onOpenFlowImport={() => setIsFlowEngineDataOpen(true)}
+        onOpenExternalImport={() => setIsExternalDataOpen(true)}
         isSearchOpen={isSearchOpen}
         setIsSearchOpen={setIsSearchOpen}
         isSettingsOpen={isSettingsOpen}
@@ -834,6 +853,36 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             }
           }}
           data-testid={`${testId}-flow-engine-data-sheet`}
+        />
+      )}
+
+      {activeSheet && (
+        <ExternalDataSheet
+          open={isExternalDataOpen}
+          onOpenChange={setIsExternalDataOpen}
+          boardId={board.id}
+          sheetId={activeSheet.id}
+          accessToken={accessToken}
+          onSheetUpdate={
+            onSheetUpdate
+              ? async (bId, sId, updates) => {
+                  await onSheetUpdate(bId, sId, updates as any)
+                }
+              : undefined
+          }
+          onAfterImport={() => {
+            void onReloadBoard?.(board.id)
+            const rpp = activeSheet.settings.rowsPerPage || 50
+            const opts = { ...serverFilterRef.current }
+            if (isKanbanView) {
+              kanbanNextPageRef.current = 2
+              void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+            } else {
+              tableNextPageRef.current = 2
+              void onLoadRows(board.id, activeSheet.id, { page: 1, limit: rpp, ...opts })
+            }
+          }}
+          data-testid={`${testId}-external-data-sheet`}
         />
       )}
     </div>

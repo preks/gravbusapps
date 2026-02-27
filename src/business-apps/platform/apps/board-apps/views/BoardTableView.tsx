@@ -311,6 +311,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         onClearAll={fs.clearAll}
         quickSearch={fs.quickSearch}
         onQuickSearchChange={fs.setQuickSearch}
+        isSearching={Boolean(rowsLoading && fs.serverParams.search?.trim())}
         quickFilters={quickFilters}
         activeQuickFilterIds={fs.activeQuickFilterIds}
         onToggleQuickFilter={fs.toggleQuickFilter}

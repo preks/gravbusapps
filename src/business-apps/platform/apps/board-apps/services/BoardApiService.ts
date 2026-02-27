@@ -1096,9 +1096,120 @@ export const BoardApiService = {
     }
   },
 
+  async serverAnalyticsQuery(
+    boardId: string,
+    sheetId: string,
+    query: { type: string; query?: Record<string, unknown> }
+  ): Promise<{ data: Array<Record<string, unknown>>; totalRows: number; isSampled: boolean } | null> {
+    try {
+      return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/analytics/query`, {
+        method: 'POST',
+        body: JSON.stringify(query)
+      })
+    } catch (err) {
+      console.error('Server analytics query failed:', err instanceof Error ? err.message : err)
+      return null
+    }
+  },
+
   async revokeBoardShare(shareId: string): Promise<boolean> {
     try {
       await apiRequest(`/sharing/${shareId}`, { method: 'DELETE' })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  // ── External data source methods ──────────────────────────────────
+
+  async listExternalConnectors(boardId: string, sheetId: string): Promise<Array<Record<string, unknown>>> {
+    try {
+      return await apiRequest<Array<Record<string, unknown>>>(
+        `/boards/${boardId}/sheets/${sheetId}/external-sources/connectors`
+      )
+    } catch (err) {
+      console.error('Failed to list connectors:', err instanceof Error ? err.message : err)
+      return []
+    }
+  },
+
+  async externalPreview(
+    boardId: string,
+    sheetId: string,
+    connectorId: string,
+    query?: Record<string, unknown>,
+    limit?: number
+  ): Promise<{
+    records: Array<Record<string, unknown>>
+    schema: Array<{ name: string; label?: string; type?: string }>
+    estimatedTotal?: number
+  } | null> {
+    try {
+      return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/preview`, {
+        method: 'POST',
+        body: JSON.stringify({ connectorId, query, limit })
+      })
+    } catch (err) {
+      console.error('External preview failed:', err instanceof Error ? err.message : err)
+      return null
+    }
+  },
+
+  async startExternalSync(
+    boardId: string,
+    sheetId: string,
+    params: {
+      connectorId: string
+      connectorName: string
+      connectorDescription?: string
+      query?: Record<string, unknown>
+      selectedFields?: string[]
+      limit?: number
+      mode: 'replace' | 'append' | 'merge'
+      mergeKey?: string
+      autoColumns?: boolean
+      keepConnected?: boolean
+      refreshMode?: string
+      refreshInterval?: number
+    }
+  ): Promise<{ runId: string } | null> {
+    try {
+      return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/start-sync`, {
+        method: 'POST',
+        body: JSON.stringify(params)
+      })
+    } catch (err) {
+      console.error('Start external sync failed:', err instanceof Error ? err.message : err)
+      return null
+    }
+  },
+
+  async getExternalSyncRunStatus(
+    boardId: string,
+    sheetId: string,
+    runId: string
+  ): Promise<{
+    runId: string
+    status: string
+    totalFetched: number
+    totalSynced: number
+    estimatedTotal?: number | null
+    lastMessage?: string | null
+    startedAt?: string
+    completedAt?: string
+    error?: string | null
+  } | null> {
+    try {
+      return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/runs/${runId}`)
+    } catch {
+      return null
+    }
+  },
+
+  async cancelExternalSyncRun(boardId: string, sheetId: string, runId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/runs/${runId}/cancel`, { method: 'POST' })
       return true
     } catch {
       return false
