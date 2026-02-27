@@ -106,6 +106,7 @@ export function PersonalAbsencesDashboardView({
             isLoading={isLoading}
             displayEntitlements={displayEntitlements}
             otherEntitlements={otherEntitlements}
+            pendingRequests={pendingRequests}
             ytdAbsentDays={ytdAbsentDays}
             ytdTotalWorkingDays={ytdTotalWorkingDays}
             wellnessInsight={wellnessInsight}
