@@ -98,25 +98,24 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   const leadDefaults = useLeadImportDefaults(context.accessToken, config.domain)
 
   const handleAnalyze = React.useCallback(async () => {
-    if (isLeadImport) {
-      const statusLabel =
-        leadDefaults.statusOptions.find(o => o.id === leadDefaults.selectedStatus)?.label ?? leadDefaults.selectedStatus
-      const sourceLabel =
-        leadDefaults.sourceOptions.find(o => o.id === leadDefaults.selectedSource)?.label ?? leadDefaults.selectedSource
-      const ratingLabel =
-        leadDefaults.ratingOptions.find(o => o.id === leadDefaults.selectedRating)?.label ?? leadDefaults.selectedRating
-
-      console.log('[LeadImport] Selected defaults before analysis:', {
-        leadStatus: { id: leadDefaults.selectedStatus, label: statusLabel },
-        leadSource: { id: leadDefaults.selectedSource, label: sourceLabel },
-        leadRating: { id: leadDefaults.selectedRating, label: ratingLabel }
-      })
-    }
     await analyzeWithAgent()
-  }, [isLeadImport, leadDefaults, analyzeWithAgent])
+  }, [analyzeWithAgent])
 
   const handleConvert = async () => {
-    await convertData(mappings)
+    let enforcedFieldsJson: string | undefined
+
+    if (isLeadImport) {
+      const enforced: Record<string, string> = {}
+      if (leadDefaults.selectedStatus) enforced.leadStatusRef = leadDefaults.selectedStatus
+      if (leadDefaults.selectedSource) enforced.leadSourceRef = leadDefaults.selectedSource
+      if (leadDefaults.selectedRating) enforced.leadRatingRef = leadDefaults.selectedRating
+
+      if (Object.keys(enforced).length > 0) {
+        enforcedFieldsJson = JSON.stringify(enforced)
+      }
+    }
+
+    await convertData(mappings, enforcedFieldsJson)
   }
 
   return (
