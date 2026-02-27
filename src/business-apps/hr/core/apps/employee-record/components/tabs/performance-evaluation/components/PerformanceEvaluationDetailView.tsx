@@ -273,26 +273,41 @@ interface DetailViewComputedData {
   managerReviewerFallback?: ReviewerFallbackIdentity
 }
 
-const computeDetailViewData = (
-  data: PerformanceEvaluationAnalysisDetailResponse,
-  currentEmployee: PerformanceEvaluationDetailViewProps['currentEmployee'],
-  t: (key: string, args?: Record<string, unknown>) => string
-): DetailViewComputedData => {
+interface DetailCollections {
+  companyValueItems: Record<string, unknown>[]
+  skillItems: Record<string, unknown>[]
+  safeData: Record<string, unknown>
+  overall: Record<string, unknown> | null
+  averages: Record<string, unknown> | null
+  changesSinceLastReview: Record<string, unknown> | null
+  evaluatorManager: Record<string, unknown> | null
+}
+
+const getDetailCollections = (data: PerformanceEvaluationAnalysisDetailResponse): DetailCollections => {
   const topLevelEntries = Object.entries(data).filter(([key]) => !shouldHideFieldByKey(key))
   const companyValuesEntry = topLevelEntries.find(([key]) => key.toLowerCase() === 'companyvalues')
   const skillsEntry = topLevelEntries.find(([key]) => key.toLowerCase() === 'skills')
-  const companyValueItems = companyValuesEntry ? toObjectList(companyValuesEntry[1]) : []
-  const skillItems = skillsEntry ? toObjectList(skillsEntry[1]) : []
   const safeData = data as Record<string, unknown>
   const overallRaw = getFieldValue(safeData, ['overall'])
   const averagesRaw = getFieldValue(safeData, ['averages'])
   const changesSinceLastReviewRaw = getFieldValue(safeData, ['changesSinceLastReview'])
   const evaluatorManagerRaw = getFieldValue(safeData, ['evaluatorManager'])
-  const overall = isObjectRecord(overallRaw) ? overallRaw : null
-  const averages = isObjectRecord(averagesRaw) ? averagesRaw : null
-  const changesSinceLastReview = isObjectRecord(changesSinceLastReviewRaw) ? changesSinceLastReviewRaw : null
-  const evaluatorManager = isObjectRecord(evaluatorManagerRaw) ? evaluatorManagerRaw : null
 
+  return {
+    companyValueItems: companyValuesEntry ? toObjectList(companyValuesEntry[1]) : [],
+    skillItems: skillsEntry ? toObjectList(skillsEntry[1]) : [],
+    safeData,
+    overall: isObjectRecord(overallRaw) ? overallRaw : null,
+    averages: isObjectRecord(averagesRaw) ? averagesRaw : null,
+    changesSinceLastReview: isObjectRecord(changesSinceLastReviewRaw) ? changesSinceLastReviewRaw : null,
+    evaluatorManager: isObjectRecord(evaluatorManagerRaw) ? evaluatorManagerRaw : null
+  }
+}
+
+const getOverallNumericValue = (
+  overall: Record<string, unknown> | null,
+  averages: Record<string, unknown> | null
+): number | null => {
   const fallbackOverallAverage =
     overall &&
     isObjectRecord(overall) &&
@@ -300,8 +315,54 @@ const computeDetailViewData = (
     Number.isFinite(overall.averageNumeric)
       ? overall.averageNumeric
       : null
-  const overallNumericValue =
-    (averages ? toFiniteNumber(getFieldValue(averages, ['overall'])) : null) ?? fallbackOverallAverage
+  return (averages ? toFiniteNumber(getFieldValue(averages, ['overall'])) : null) ?? fallbackOverallAverage
+}
+
+const buildCombinedCarouselEntries = (
+  companyValueItems: Record<string, unknown>[],
+  skillItems: Record<string, unknown>[],
+  t: (key: string, args?: Record<string, unknown>) => string
+): CarouselEntry[] => [
+  ...companyValueItems.map((item, index) => ({
+    item,
+    subtitle: t('performance-evaluation-company-value-singular'),
+    testId: `employee-performance-evaluation-company-value-${index}`
+  })),
+  ...skillItems.map((item, index) => ({
+    item,
+    subtitle: t('performance-evaluation-skill-singular'),
+    testId: `employee-performance-evaluation-skill-${index}`
+  }))
+]
+
+const buildReviewerFallbacks = (
+  currentEmployee: PerformanceEvaluationDetailViewProps['currentEmployee'],
+  evaluatorManager: Record<string, unknown> | null
+): Pick<DetailViewComputedData, 'selfReviewerFallback' | 'managerReviewerFallback'> => ({
+  selfReviewerFallback: currentEmployee
+    ? {
+        displayName: currentEmployee.displayName,
+        firstName: currentEmployee.firstName,
+        lastName: currentEmployee.lastName,
+        pictureThumbnail: currentEmployee.pictureThumbnail
+      }
+    : undefined,
+  managerReviewerFallback: evaluatorManager
+    ? {
+        displayName: getDisplayNameFromRecord(evaluatorManager),
+        pictureThumbnail: getPictureFromRecord(evaluatorManager)
+      }
+    : undefined
+})
+
+const computeDetailViewData = (
+  data: PerformanceEvaluationAnalysisDetailResponse,
+  currentEmployee: PerformanceEvaluationDetailViewProps['currentEmployee'],
+  t: (key: string, args?: Record<string, unknown>) => string
+): DetailViewComputedData => {
+  const { companyValueItems, skillItems, safeData, overall, averages, changesSinceLastReview, evaluatorManager } =
+    getDetailCollections(data)
+  const overallNumericValue = getOverallNumericValue(overall, averages)
   const overallNumericDisplay = formatNumericDisplay(overallNumericValue)
   const ratingScaleLimit = getRatingScaleLimit(safeData, overall && isObjectRecord(overall) ? overall : null)
   const overallProgressPercent =
@@ -341,33 +402,8 @@ const computeDetailViewData = (
   const points = [...companyValuesRadarData, ...skillsRadarData]
   const maxValue = points.reduce((acc, point) => Math.max(acc, point.self, point.peer, point.manager), 0)
   const radarMaxDomain = maxValue <= 5 ? 5 : Math.ceil(maxValue)
-  const combinedCarouselEntries: CarouselEntry[] = [
-    ...companyValueItems.map((item, index) => ({
-      item,
-      subtitle: t('performance-evaluation-company-value-singular'),
-      testId: `employee-performance-evaluation-company-value-${index}`
-    })),
-    ...skillItems.map((item, index) => ({
-      item,
-      subtitle: t('performance-evaluation-skill-singular'),
-      testId: `employee-performance-evaluation-skill-${index}`
-    }))
-  ]
-
-  const selfReviewerFallback: ReviewerFallbackIdentity | undefined = currentEmployee
-    ? {
-        displayName: currentEmployee.displayName,
-        firstName: currentEmployee.firstName,
-        lastName: currentEmployee.lastName,
-        pictureThumbnail: currentEmployee.pictureThumbnail
-      }
-    : undefined
-  const managerReviewerFallback: ReviewerFallbackIdentity | undefined = evaluatorManager
-    ? {
-        displayName: getDisplayNameFromRecord(evaluatorManager),
-        pictureThumbnail: getPictureFromRecord(evaluatorManager)
-      }
-    : undefined
+  const combinedCarouselEntries = buildCombinedCarouselEntries(companyValueItems, skillItems, t)
+  const { selfReviewerFallback, managerReviewerFallback } = buildReviewerFallbacks(currentEmployee, evaluatorManager)
 
   return {
     companyValueItems,
