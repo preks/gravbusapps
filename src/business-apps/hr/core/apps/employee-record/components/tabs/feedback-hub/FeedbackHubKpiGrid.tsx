@@ -66,9 +66,9 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
   )
 
   return (
-    <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-[minmax(0,1fr)_340px] gba:gap-3 gba:items-start">
-      <div>
-        <SectionKpiCards cards={kpiCards} className="gba:w-full gba:lg:grid-cols-3 nw:lg:grid-cols-3" />
+    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-4 gba:gap-3 gba:items-start">
+      <div className="gba:md:col-span-3">
+        <SectionKpiCards cards={kpiCards} className="gba:w-full gba:md:grid-cols-3 nw:md:grid-cols-3" />
       </div>
       <Card>
         <CardContent className="gba:p-4">

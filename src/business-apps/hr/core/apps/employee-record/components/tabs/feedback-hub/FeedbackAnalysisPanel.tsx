@@ -120,8 +120,8 @@ const AnalysisContent: React.FC<{ result: FeedbackAnalysisResult }> = ({ result 
           </div>
           <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{result.sentiment.label}</div>
         </div>
-        <div className="gba:text-center gba:p-3 gba:rounded-lg gba:bg-background gba:border">
-          <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
+        <div className="gba:text-center gba:p-3 gba:rounded-lg gba:bg-background gba:border gba:min-h-[98px] gba:flex gba:flex-col gba:items-center gba:justify-center">
+          <div className="gba:inline-flex gba:items-center gba:justify-center gba:gap-1">
             <TrendIcon trend={result.sentiment.trend} />
             <span className="gba:text-sm gba:font-medium gba:capitalize">
               {result.sentiment.trend.replace('_', ' ')}
