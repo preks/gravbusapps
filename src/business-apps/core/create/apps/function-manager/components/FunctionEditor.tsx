@@ -48,6 +48,10 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     setAgentEnabled,
     workflowEnabled,
     setWorkflowEnabled,
+    connectorEnabled,
+    setConnectorEnabled,
+    connectorKind,
+    setConnectorKind,
     source,
     setSource,
     inputSchema,
@@ -163,10 +167,14 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
               description={description}
               agentEnabled={agentEnabled}
               workflowEnabled={workflowEnabled}
+              connectorEnabled={connectorEnabled}
+              connectorKind={connectorKind}
               onNameChange={setName}
               onDescriptionChange={setDescription}
               onAgentEnabledChange={setAgentEnabled}
               onWorkflowEnabledChange={setWorkflowEnabled}
+              onConnectorEnabledChange={setConnectorEnabled}
+              onConnectorKindChange={setConnectorKind}
               source={source}
               inputSchema={inputSchema}
               outputSchema={outputSchema}

@@ -58,6 +58,23 @@ export const createFunctionsColumns = (t: TranslationFn): ColumnDef<LatestFuncti
     cell: ({ row }) => <BooleanCell value={row.original.workflowEnabled} />
   },
   {
+    id: 'connectorEnabled',
+    header: t('column-connector'),
+    size: 120,
+    meta: { align: 'center' },
+    cell: ({ row }) => {
+      if (!row.original.connectorEnabled) return <BooleanCell value={false} />
+      const kind = row.original.connectorKind
+      const label = kind === 'unstructured' ? 'Docs' : 'Data'
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
+          <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+          <span className="gba:text-xs gba:text-muted-foreground">{label}</span>
+        </div>
+      )
+    }
+  },
+  {
     id: 'version',
     header: t('column-version'),
     size: 120,
@@ -81,6 +98,7 @@ export const functionsSortableColumns = [
   { id: 'description', label: 'Description' },
   { id: 'agentEnabled', label: 'Agent' },
   { id: 'workflowEnabled', label: 'Workflow' },
+  { id: 'connectorEnabled', label: 'Connector' },
   { id: 'version', label: 'Version' },
   { id: 'lastVersionAt', label: 'Last updated' }
 ]
@@ -90,6 +108,7 @@ export const getDefaultVisibleColumns = (): string[] => [
   'description',
   'agentEnabled',
   'workflowEnabled',
+  'connectorEnabled',
   'version',
   'lastVersionAt'
 ]

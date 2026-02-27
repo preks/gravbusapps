@@ -275,7 +275,15 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
     clearActivity()
   }, [clearActivity])
 
-  type UseCaseTemplate = 'integration' | 'rules' | 'compute' | 'transform' | 'tokenExchange' | 'webhook'
+  type UseCaseTemplate =
+    | 'integration'
+    | 'rules'
+    | 'compute'
+    | 'transform'
+    | 'tokenExchange'
+    | 'webhook'
+    | 'connector'
+    | 'documentConnector'
 
   const getUseCaseKickoffPrompt = useCallback((useCase: UseCaseTemplate) => {
     if (useCase === 'integration') {
@@ -292,6 +300,12 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
     }
     if (useCase === 'tokenExchange') {
       return 'Build a token exchange function.'
+    }
+    if (useCase === 'connector') {
+      return 'Build a board data connector function.'
+    }
+    if (useCase === 'documentConnector') {
+      return 'Build a document connector function.'
     }
     return 'Build a webhook handler function.'
   }, [])
@@ -333,6 +347,44 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
         'Goal: Map the incoming event payload into the output schema (pure mapping by default).',
         'Ask only required questions (input schema/example, output schema/example, mapping rules, edge cases).',
         'Do NOT ask integration questions (docs/auth/preset) unless an external API call is explicitly required.'
+      ].join('\n')
+    }
+    if (useCase === 'connector') {
+      return [
+        'Use case: Board data connector',
+        'Goal: Build a paginated data connector that imports external data into Board Apps.',
+        'CRITICAL CONTRACT — The function receives event.action ("preview" or "page"):',
+        '',
+        '  action="preview" → Return { fields: [{ name, type }], sample: [...up to 5 rows...], totalEstimate }',
+        '  action="page"    → Return { rows: [...data...], nextCursor: string | null, totalEstimate }',
+        '',
+        'Pagination: event.pageSize (default 100), event.cursor (string offset, starts null/0).',
+        'When nextCursor is null, the import is complete.',
+        'Use context.config for API keys, URLs, and credentials (never hardcode secrets).',
+        'Ask which data source (Oracle, SAP, Salesforce, REST API, database, CSV/file, etc.),',
+        'then ask for connection details (API URL, auth method, entity/table, optional query/filter).',
+        'The output MUST set connectorEnabled: true in the draft response.',
+        'Keep the function stateless — all state is managed by the caller via cursor.'
+      ].join('\n')
+    }
+    if (useCase === 'documentConnector') {
+      return [
+        'Use case: Document connector (unstructured data)',
+        'Goal: Build a paginated connector that imports external documents into the Document Service.',
+        'CRITICAL CONTRACT — The function receives event.action ("preview", "page", or "transfer"):',
+        '',
+        '  action="preview" → Return { items: [{ externalId, kind, title, mimeType?, snippet?, externalUrl?, sizeBytes? }], estimatedTotal? }',
+        '  action="page"    → Return { items: [...same shape...], nextCursor: string | null, estimatedTotal? }',
+        '  action="transfer" → Return { externalId, textContent?: string, htmlContent?: string, binary?: Buffer }',
+        '',
+        'Item kinds: "page" (text/HTML content like Confluence/wiki) or "file" (binary files like PDF, DOCX).',
+        'Pagination: event.pageSize (default 50), event.cursor (string, starts null).',
+        'When nextCursor is null, the import is complete.',
+        'Use context.config for API keys, URLs, and credentials (never hardcode secrets).',
+        'Ask which data source (Confluence, SharePoint, Google Drive, S3, Notion, etc.),',
+        'then ask for connection details (API URL, auth method, space/folder, optional query/filter).',
+        'The output MUST set connectorEnabled: true AND connectorKind: "unstructured" in the draft response.',
+        'Keep the function stateless — all state is managed by the caller via cursor.'
       ].join('\n')
     }
     if (useCase === 'rules') {

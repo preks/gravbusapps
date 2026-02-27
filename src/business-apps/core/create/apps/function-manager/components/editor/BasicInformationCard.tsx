@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Textarea } from '@newwork/nw-design-system'
-import { Bot, GitBranch } from 'lucide-react'
+import { Bot, GitBranch, Plug } from 'lucide-react'
 
 export interface BasicInformationCardProps {
   mode: 'create' | 'edit'
@@ -8,10 +8,12 @@ export interface BasicInformationCardProps {
   description: string
   agentEnabled: boolean
   workflowEnabled: boolean
+  connectorEnabled: boolean
   onNameChange: (v: string) => void
   onDescriptionChange: (v: string) => void
   onAgentEnabledChange: (v: boolean) => void
   onWorkflowEnabledChange: (v: boolean) => void
+  onConnectorEnabledChange: (v: boolean) => void
   'data-testid'?: string
 }
 
@@ -21,10 +23,12 @@ export const BasicInformationCard: React.FC<BasicInformationCardProps> = ({
   description,
   agentEnabled,
   workflowEnabled,
+  connectorEnabled,
   onNameChange,
   onDescriptionChange,
   onAgentEnabledChange,
   onWorkflowEnabledChange,
+  onConnectorEnabledChange,
   'data-testid': testId = 'function-editor-basic-info'
 }) => {
   return (
@@ -82,6 +86,18 @@ export const BasicInformationCard: React.FC<BasicInformationCardProps> = ({
             >
               <GitBranch className="gba:w-5 gba:h-5" />
               <span className="gba:font-medium">Workflow Enabled</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant={connectorEnabled ? 'default' : 'outline'}
+              size="lg"
+              onClick={() => onConnectorEnabledChange(!connectorEnabled)}
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid={`${testId}-connector-enabled`}
+            >
+              <Plug className="gba:w-5 gba:h-5" />
+              <span className="gba:font-medium">Board Connector</span>
             </Button>
           </div>
         </div>

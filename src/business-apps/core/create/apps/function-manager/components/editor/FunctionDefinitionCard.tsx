@@ -14,7 +14,8 @@ import {
   TabsTrigger,
   Textarea
 } from '@newwork/nw-design-system'
-import { Bot, GitBranch } from 'lucide-react'
+import { Bot, Database, FileText, GitBranch, Plug } from 'lucide-react'
+import type { ConnectorKind } from '@/common/network/functions/FunctionsServiceClient'
 import { CodeEditor } from './CodeEditor'
 import { SettingsEditor, type ConfigRow } from './SettingsEditor'
 import { TestFunctionCard } from './TestFunctionCard'
@@ -28,10 +29,14 @@ export interface FunctionDefinitionCardProps {
   description: string
   agentEnabled: boolean
   workflowEnabled: boolean
+  connectorEnabled: boolean
+  connectorKind: ConnectorKind | null
   onNameChange: (v: string) => void
   onDescriptionChange: (v: string) => void
   onAgentEnabledChange: (v: boolean) => void
   onWorkflowEnabledChange: (v: boolean) => void
+  onConnectorEnabledChange: (v: boolean) => void
+  onConnectorKindChange: (v: ConnectorKind) => void
   source: string
   inputSchema: string
   outputSchema: string
@@ -62,10 +67,14 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   description,
   agentEnabled,
   workflowEnabled,
+  connectorEnabled,
+  connectorKind,
   onNameChange,
   onDescriptionChange,
   onAgentEnabledChange,
   onWorkflowEnabledChange,
+  onConnectorEnabledChange,
+  onConnectorKindChange,
   source,
   inputSchema,
   outputSchema,
@@ -193,8 +202,55 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
                   <GitBranch className="gba:w-5 gba:h-5" />
                   <span className="gba:font-medium">Workflow Enabled</span>
                 </Button>
+
+                <Button
+                  type="button"
+                  variant={connectorEnabled ? 'default' : 'outline'}
+                  size="lg"
+                  onClick={() => onConnectorEnabledChange(!connectorEnabled)}
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid={`${testId}-connector-enabled`}
+                >
+                  <Plug className="gba:w-5 gba:h-5" />
+                  <span className="gba:font-medium">Connector</span>
+                </Button>
               </div>
             </div>
+
+            {connectorEnabled && (
+              <div className="gba:space-y-2">
+                <Label>Connector Kind</Label>
+                <div className="gba:flex gba:gap-2">
+                  <Button
+                    type="button"
+                    variant={connectorKind === 'structured' || !connectorKind ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onConnectorKindChange('structured')}
+                    className="gba:flex gba:items-center gba:gap-2"
+                    data-testid={`${testId}-connector-kind-structured`}
+                  >
+                    <Database className="gba:w-4 gba:h-4" />
+                    Board Data
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={connectorKind === 'unstructured' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onConnectorKindChange('unstructured')}
+                    className="gba:flex gba:items-center gba:gap-2"
+                    data-testid={`${testId}-connector-kind-unstructured`}
+                  >
+                    <FileText className="gba:w-4 gba:h-4" />
+                    Documents
+                  </Button>
+                </div>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {connectorKind === 'unstructured'
+                    ? 'Imports external documents (Confluence, SharePoint, Drive, S3) into the Document Service.'
+                    : 'Imports structured external data (Oracle, SAP, REST APIs) into Board Apps.'}
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="source" className="gba:space-y-2 gba:pt-4" data-testid={`${testId}-panel-source`}>

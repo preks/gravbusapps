@@ -21,6 +21,7 @@ column-version = Versiune
 column-last-version = Ultima actualizare
 column-agent = Agent
 column-workflow = Workflow
+column-connector = Conector
 
 # Empty State
 empty-message = Nu s-au gasit functii

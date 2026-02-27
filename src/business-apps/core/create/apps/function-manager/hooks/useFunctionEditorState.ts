@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FunctionsServiceClient, type LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
+import {
+  FunctionsServiceClient,
+  type LatestFunctionItem,
+  type ConnectorKind
+} from '@/common/network/functions/FunctionsServiceClient'
 import type {
   FunctionAssistantDraftResponse,
   FunctionAssistantExistingSnapshot,
@@ -40,6 +44,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   const [description, setDescription] = useState('')
   const [agentEnabled, setAgentEnabled] = useState(false)
   const [workflowEnabled, setWorkflowEnabled] = useState(false)
+  const [connectorEnabled, setConnectorEnabled] = useState(false)
+  const [connectorKind, setConnectorKind] = useState<ConnectorKind | null>(null)
 
   // Version fields
   const [source, setSource] = useState('')
@@ -56,6 +62,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     description: string
     agentEnabled: boolean
     workflowEnabled: boolean
+    connectorEnabled: boolean
+    connectorKind: ConnectorKind | null
     source: string
     inputSchema: string
     outputSchema: string
@@ -134,6 +142,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       setDescription(func.description || '')
       setAgentEnabled(func.agentEnabled)
       setWorkflowEnabled(func.workflowEnabled ?? false)
+      setConnectorEnabled(func.connectorEnabled ?? false)
+      setConnectorKind(func.connectorKind ?? null)
 
       if (func.config && Object.keys(func.config).length > 0) {
         setConfigKeys(Object.entries(func.config).map(([key, value]) => ({ key, value })))
@@ -152,6 +162,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       setDescription('')
       setAgentEnabled(false)
       setWorkflowEnabled(false)
+      setConnectorEnabled(false)
+      setConnectorKind(null)
       setSource(
         `module.exports.handler = async (event) => {\n  // Your function code here\n  return { result: 'success' };\n};`
       )
@@ -224,6 +236,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       description,
       agentEnabled,
       workflowEnabled,
+      connectorEnabled,
+      connectorKind,
       source,
       inputSchema,
       outputSchema,
@@ -231,6 +245,10 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     })
     if (mode === 'create' && draft.name && !name.trim()) setName(draft.name)
     if (draft.description && !description.trim()) setDescription(draft.description)
+    if (draft.connectorEnabled) {
+      setConnectorEnabled(true)
+      setConnectorKind(draft.connectorKind || 'structured')
+    }
     if (draft.source) setSource(draft.source)
     if (draft.inputSchema) setInputSchema(JSON.stringify(draft.inputSchema, null, 2))
     if (draft.outputSchema) setOutputSchema(JSON.stringify(draft.outputSchema, null, 2))
@@ -247,6 +265,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     setDescription(snap.description)
     setAgentEnabled(snap.agentEnabled)
     setWorkflowEnabled(snap.workflowEnabled)
+    setConnectorEnabled(snap.connectorEnabled)
+    setConnectorKind(snap.connectorKind)
     setSource(snap.source)
     setInputSchema(snap.inputSchema)
     setOutputSchema(snap.outputSchema)
@@ -287,6 +307,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
           description: description.trim() || undefined,
           agentEnabled,
           workflowEnabled,
+          connectorEnabled,
+          connectorKind: connectorEnabled ? connectorKind || 'structured' : null,
           config,
           firstVersion: { source: source.trim(), inputSchema: inputSchemaObj, outputSchema: outputSchemaObj }
         })
@@ -295,6 +317,8 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
           description: description.trim() || undefined,
           agentEnabled,
           workflowEnabled,
+          connectorEnabled,
+          connectorKind: connectorEnabled ? connectorKind || 'structured' : null,
           config
         })
 
@@ -412,6 +436,10 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     setAgentEnabled,
     workflowEnabled,
     setWorkflowEnabled,
+    connectorEnabled,
+    setConnectorEnabled,
+    connectorKind,
+    setConnectorKind,
     source,
     setSource,
     inputSchema,

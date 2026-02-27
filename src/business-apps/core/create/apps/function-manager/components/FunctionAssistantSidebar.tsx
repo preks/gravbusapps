@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, ScrollArea, Textarea } from '@newwork/nw-design-system'
-import { Calculator, KeyRound, Link2, Scale, Shuffle, Sparkles, Webhook, X } from 'lucide-react'
+import { Calculator, KeyRound, Link2, Plug, Scale, Shuffle, Sparkles, Webhook, X } from 'lucide-react'
 import type {
   FunctionAssistantDraftResponse,
   FunctionAssistantExistingSnapshot,
@@ -62,6 +62,18 @@ const USE_CASES = [
     icon: Webhook,
     title: 'Webhook handler',
     desc: 'Validate signature, parse payload, trigger an action'
+  },
+  {
+    key: 'connector' as const,
+    icon: Plug,
+    title: 'Board data connector',
+    desc: 'Import structured data (Oracle, SAP, REST) into Board Apps'
+  },
+  {
+    key: 'documentConnector' as const,
+    icon: Plug,
+    title: 'Document connector',
+    desc: 'Import documents (Confluence, SharePoint, Drive, S3) into Document Service'
   }
 ] as const
 

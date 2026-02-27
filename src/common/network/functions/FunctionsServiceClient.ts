@@ -1,11 +1,15 @@
 import { env } from '@/common/env/EnvUtils'
 
+export type ConnectorKind = 'structured' | 'unstructured'
+
 export interface FunctionMetadata {
   id: string
   name: string
   description?: string | null
   agentEnabled: boolean
   workflowEnabled?: boolean
+  connectorEnabled?: boolean
+  connectorKind?: ConnectorKind | null
   enabled: boolean
   config: Record<string, string>
 }
@@ -23,6 +27,8 @@ export interface LatestFunctionItem {
   description?: string | null
   agentEnabled: boolean
   workflowEnabled?: boolean
+  connectorEnabled?: boolean
+  connectorKind?: ConnectorKind | null
   enabled: boolean
   config: Record<string, string>
   latestVersion: FunctionVersionMeta
@@ -80,7 +86,17 @@ export type FunctionAssistantQuestionOption = {
 
 export type FunctionAssistantDraftResponse = {
   kind?: 'draft' | 'clarify'
-  track?: 'integration' | 'webhook' | 'transformer' | 'rules' | 'computation' | 'tokenExchange'
+  track?:
+    | 'integration'
+    | 'webhook'
+    | 'transformer'
+    | 'rules'
+    | 'computation'
+    | 'tokenExchange'
+    | 'connector'
+    | 'documentConnector'
+  connectorEnabled?: boolean
+  connectorKind?: ConnectorKind
   applyToEditor?: boolean
   name?: string
   description?: string
@@ -207,6 +223,8 @@ export class FunctionsServiceClient {
     description?: string
     agentEnabled?: boolean
     workflowEnabled?: boolean
+    connectorEnabled?: boolean
+    connectorKind?: ConnectorKind | null
     config?: Record<string, string>
     firstVersion: {
       source: string
@@ -236,6 +254,8 @@ export class FunctionsServiceClient {
       description?: string
       agentEnabled?: boolean
       workflowEnabled?: boolean
+      connectorEnabled?: boolean
+      connectorKind?: ConnectorKind | null
       config?: Record<string, string>
     }
   ): Promise<void> {
