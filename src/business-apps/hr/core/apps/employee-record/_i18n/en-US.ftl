@@ -575,7 +575,7 @@ performance-error-load = Failed to load performance data
 
 # Performance Evaluation Tab
 performance-evaluation-title = Performance Evaluation
-performance-evaluation-description = Review employee evaluation history grouped by performance cycle
+performance-evaluation-description = Review employee evaluation history from a performance cycle
 performance-evaluation-kpi-cycles = Cycles
 performance-evaluation-kpi-evaluations = Evaluations
 performance-evaluation-kpi-in-progress = In Progress
@@ -607,6 +607,13 @@ performance-evaluation-summary-skills-average = Skills Score
 performance-evaluation-summary-average-description = Computed from reviewer ratings.
 performance-evaluation-summary-sidebar-title = Change Since Last Review
 performance-evaluation-summary-sidebar-description = Delta versus the previous review
+performance-evaluation-summary-goals-title = Goals Progress
+performance-evaluation-summary-goals-total = Total goals
+performance-evaluation-summary-goals-achieved = Achieved
+performance-evaluation-summary-goals-on-track = On Track
+performance-evaluation-summary-goals-behind-target = Behind Target
+performance-evaluation-summary-goals-progress-caption = out of { $total } goals
+performance-evaluation-summary-goals-progress-loading = Loading goals progress...
 performance-evaluation-additional-data = Additional data
 performance-evaluation-radar-company-values-title = Company Values Comparison
 performance-evaluation-radar-company-values-description = Self, peer, and manager comparison by value

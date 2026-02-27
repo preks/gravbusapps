@@ -24,6 +24,8 @@ export interface MilestoneItem {
   id: string
   title: string
   version?: number // present for DB-backed milestones (edit mode)
+  done?: boolean
+  doneAt?: string | null
 }
 
 interface FormScreenComponentProps {
