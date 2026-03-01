@@ -11,12 +11,12 @@ interface BoardsHomeActionItemsProps {
 }
 
 const DOT_BG: Record<string, string> = {
-  destructive: 'gba:bg-destructive',
-  warning: 'gba:bg-warning',
-  success: 'gba:bg-success',
-  info: 'gba:bg-info',
-  muted: 'gba:bg-decorative-foreground/40',
-  primary: 'gba:bg-primary'
+  destructive: 'gba:bg-desk-badge-golden',
+  warning: 'gba:bg-desk-badge-golden/70',
+  success: 'gba:bg-decorative-foreground/50',
+  info: 'gba:bg-decorative-foreground/30',
+  muted: 'gba:bg-decorative-foreground/20',
+  primary: 'gba:bg-desk-badge-golden'
 }
 
 function formatDeadline(deadline?: string): string {
@@ -69,7 +69,7 @@ function TaskRow({
         </span>
         {deadlineText && (
           <span
-            className={`gba:text-xs gba:tabular-nums gba:whitespace-nowrap ${overdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-decorative-foreground/60'}`}
+            className={`gba:text-xs gba:tabular-nums gba:whitespace-nowrap ${overdue ? 'gba:text-desk-badge-golden gba:font-medium' : 'gba:text-decorative-foreground/60'}`}
           >
             {deadlineText}
           </span>
@@ -158,27 +158,27 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
       all.push({
         key: 'overdue',
         title: 'Overdue',
-        icon: <AlertTriangle className="gba:w-3.5 gba:h-3.5 gba:text-destructive" />,
+        icon: <AlertTriangle className="gba:w-3.5 gba:h-3.5 gba:text-desk-badge-golden" />,
         items: myWork.overdue,
-        colorClass: 'gba:text-destructive'
+        colorClass: 'gba:text-desk-badge-golden'
       })
     }
     if (myWork.dueToday.length > 0) {
       all.push({
         key: 'today',
         title: 'Due today',
-        icon: <Clock className="gba:w-3.5 gba:h-3.5 gba:text-warning" />,
+        icon: <Clock className="gba:w-3.5 gba:h-3.5 gba:text-desk-badge-golden/70" />,
         items: myWork.dueToday,
-        colorClass: 'gba:text-warning'
+        colorClass: 'gba:text-desk-badge-golden/70'
       })
     }
     if (myWork.dueThisWeek.length > 0) {
       all.push({
         key: 'week',
         title: 'This week',
-        icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-info" />,
+        icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-decorative-foreground/60" />,
         items: myWork.dueThisWeek,
-        colorClass: 'gba:text-info'
+        colorClass: 'gba:text-decorative-foreground/60'
       })
     }
     if (myWork.upcoming.length > 0) {
@@ -187,16 +187,16 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
         title: 'Upcoming',
         icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-decorative-foreground/50" />,
         items: myWork.upcoming,
-        colorClass: 'gba:text-decorative-foreground/70'
+        colorClass: 'gba:text-decorative-foreground/50'
       })
     }
     if (myWork.blocked.length > 0) {
       all.push({
         key: 'blocked',
         title: 'Blocked',
-        icon: <ShieldAlert className="gba:w-3.5 gba:h-3.5 gba:text-destructive" />,
+        icon: <ShieldAlert className="gba:w-3.5 gba:h-3.5 gba:text-desk-badge-golden" />,
         items: myWork.blocked,
-        colorClass: 'gba:text-destructive'
+        colorClass: 'gba:text-desk-badge-golden'
       })
     }
     return all
@@ -256,7 +256,7 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
             </Badge>
           )}
           {(myWork?.dueToday.length ?? 0) > 0 && (
-            <Badge variant="warning" className="gba:text-xs">
+            <Badge className="gba:text-xs gba:bg-desk-badge-golden/60 gba:text-desk-badge-golden-foreground gba:border-0">
               {myWork!.dueToday.length} today
             </Badge>
           )}
@@ -294,7 +294,7 @@ function CompletedSection({
         onClick={() => setExpanded(e => !e)}
         data-testid={`${testId}-completed-toggle`}
       >
-        <CheckCircle2 className="gba:w-3.5 gba:h-3.5 gba:text-success" />
+        <CheckCircle2 className="gba:w-3.5 gba:h-3.5 gba:text-decorative-foreground/50" />
         <span className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-decorative-foreground/70 gba:flex-1">
           Completed
         </span>

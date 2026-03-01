@@ -108,7 +108,7 @@ export const BoardsHomeTemplates: React.FC<BoardsHomeTemplatesProps> = ({
           Quick start from template
         </h3>
       </div>
-      <div className="gba:flex gba:gap-2 gba:overflow-x-auto gba:pb-1">
+      <div className="gba:grid gba:grid-cols-2 gba:gap-2">
         {ALL_TEMPLATES.map(tpl => {
           const IconComponent = ICON_MAP[tpl.iconName] || Kanban
           const isCreating = creating === tpl.id
@@ -117,15 +117,15 @@ export const BoardsHomeTemplates: React.FC<BoardsHomeTemplatesProps> = ({
               key={tpl.id}
               disabled={!!creating}
               onClick={() => handleCreate(tpl)}
-              className="gba:flex gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:px-3 gba:py-2 gba:text-left gba:whitespace-nowrap gba:transition-colors gba:hover:bg-accent/50 gba:disabled:opacity-50 gba:flex-shrink-0"
+              className="gba:flex gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:px-3 gba:py-2 gba:text-left gba:transition-colors gba:hover:bg-accent/50 gba:disabled:opacity-50"
               data-testid={`${testId}-${tpl.id}`}
             >
               {isCreating ? (
-                <Spinner className="gba:w-3.5 gba:h-3.5" />
+                <Spinner className="gba:w-3.5 gba:h-3.5 gba:shrink-0" />
               ) : (
-                <IconComponent className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+                <IconComponent className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:shrink-0" />
               )}
-              <span className="gba:text-xs gba:font-medium gba:text-foreground">{tpl.name}</span>
+              <span className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">{tpl.name}</span>
             </button>
           )
         })}

@@ -3,8 +3,6 @@ import { Spinner } from '@newwork/nw-design-system'
 import { useBoardHomeData } from '../../hooks/useBoardHomeData'
 import { BoardsHomeGreeting } from './BoardsHomeGreeting'
 import { BoardsHomeActionItems } from './BoardsHomeActionItems'
-import { BoardsHomeStats } from './BoardsHomeStats'
-import { BoardsHomeRecent } from './BoardsHomeRecent'
 import { BoardsHomeTemplates } from './BoardsHomeTemplates'
 import type { Board, BoardSummary, BoardRow, BoardSheet } from '../../types'
 
@@ -28,12 +26,6 @@ interface BoardsHomeDashboardProps {
 
 export const BoardsHomeDashboard: React.FC<BoardsHomeDashboardProps> = ({
   userInfo,
-  boards,
-  onOpenBoard,
-  onDuplicate,
-  onDelete,
-  onCreateOpen,
-  /* onCreateAI, onSearchOpen — kept in interface for callers */
   onNavigateToItem,
   onCreateBoard,
   onBoardCreated,
@@ -64,16 +56,6 @@ export const BoardsHomeDashboard: React.FC<BoardsHomeDashboardProps> = ({
       <div className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:pt-6 gba:pb-10 gba:space-y-6">
         <BoardsHomeGreeting userName={userName} data-testid={`${testId}-greeting`} />
 
-        <BoardsHomeStats stats={stats} boards={boards} isLoading={showSkeleton} data-testid={`${testId}-stats`} />
-
-        <BoardsHomeTemplates
-          onCreateBoard={onCreateBoard}
-          onBoardCreated={onBoardCreated}
-          createRow={createRow}
-          updateSheet={updateSheet}
-          data-testid={`${testId}-templates`}
-        />
-
         <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-5 gba:gap-6">
           <div className="gba:lg:col-span-3">
             <BoardsHomeActionItems
@@ -85,13 +67,12 @@ export const BoardsHomeDashboard: React.FC<BoardsHomeDashboardProps> = ({
           </div>
 
           <div className="gba:lg:col-span-2">
-            <BoardsHomeRecent
-              boards={boards}
-              onOpenBoard={onOpenBoard}
-              onDuplicate={onDuplicate}
-              onDelete={onDelete}
-              onCreateBoard={onCreateOpen}
-              data-testid={`${testId}-recent`}
+            <BoardsHomeTemplates
+              onCreateBoard={onCreateBoard}
+              onBoardCreated={onBoardCreated}
+              createRow={createRow}
+              updateSheet={updateSheet}
+              data-testid={`${testId}-templates`}
             />
           </div>
         </div>

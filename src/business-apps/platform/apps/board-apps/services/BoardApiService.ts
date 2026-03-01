@@ -297,14 +297,6 @@ export const BoardApiService = {
 
     return response.items.map(app => {
       const sheets = (app.sheets as Array<Record<string, unknown>>) || []
-      const boardRowCount =
-        (app.rowCount as number) ||
-        (app.row_count as number) ||
-        (app.totalRows as number) ||
-        sheets.reduce(
-          (sum, s) => sum + ((s.rowCount as number) || (s.row_count as number) || (s.totalRows as number) || 0),
-          0
-        )
       return {
         id: app.id as string,
         name: app.name as string,
@@ -312,7 +304,7 @@ export const BoardApiService = {
         icon: app.icon as string | undefined,
         status: app.status as BoardStatus,
         sheetCount: sheets.length,
-        rowCount: boardRowCount,
+        rowCount: (app.rowCount as number) ?? 0,
         createdAt: app.createdAt as string,
         updatedAt: app.updatedAt as string,
         permission: mapPermission(app.permission as string | undefined),
