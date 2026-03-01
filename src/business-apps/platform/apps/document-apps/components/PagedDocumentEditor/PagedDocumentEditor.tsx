@@ -53,6 +53,7 @@ import {
   Send,
   ZoomIn,
   ZoomOut,
+  LayoutPanelLeft,
   UserCheck,
   AlertCircle,
   XCircle,
@@ -64,7 +65,13 @@ import {
   Wand2
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { Document, DocumentApprovalRequest } from '../../types'
+import type { Document, DocumentApprovalRequest, DocumentFormatting } from '../../types'
+import {
+  getPaginationConfigFromFormatting,
+  resolvePageLayout,
+  getDefaultPageLayout,
+  DEFAULT_PAGE_COLOR
+} from '../../utils/pageLayoutUtils'
 import {
   useDocumentEditorAvatars,
   useYjsDocumentSync,
@@ -94,14 +101,12 @@ import { CommentPanel } from '../../../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
 import { AiEditPanel } from '../AiEditPanel'
+import { PageSetupDialog } from './PageSetupDialog'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 
 // A4 dimensions and margins at 96 DPI (aligned with pageLayoutConstants)
-const A4_WIDTH_PX = 794
-const A4_HEIGHT_PX = 1123
-const PAGE_MARGIN_PX = 96
 const PAGE_GAP_PX = 24
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
@@ -311,8 +316,10 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   document?: Document
   initialContent?: string
   initialTitle?: string
-  onSave: (title: string, content: string) => Promise<void>
+  onSave: (title: string, content: string, formatting?: DocumentFormatting) => Promise<void>
   onBack: () => void
+  /** When provided, page setup changes are persisted immediately on OK (so layout survives when leaving without Save). */
+  onPersistFormatting?: (formatting: DocumentFormatting) => Promise<void>
   onSaveAsTemplate?: (title: string, content: string) => void
   onSendForApproval?: () => void
   isReadOnly?: boolean
@@ -364,6 +371,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       initialTitle,
       onSave,
       onBack,
+      onPersistFormatting,
       onSaveAsTemplate,
       onSendForApproval,
       isReadOnly = false,
@@ -383,6 +391,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [zoom, setZoom] = useState(100)
     const [pageCount, setPageCount] = useState(1)
     const [currentPage, setCurrentPage] = useState(1)
+    const [layoutFormatting, setLayoutFormatting] = useState<DocumentFormatting>(() => getDefaultPageLayout())
 
     const editorContainerRef = useRef<HTMLDivElement>(null)
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -393,10 +402,30 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       DocumentApiService.setAccessToken(accessTokenProp || null)
     }, [accessTokenProp])
 
+    const resolvedLayout = resolvePageLayout(layoutFormatting)
+    const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
+    const isPageless = resolvedLayout.pageless
+    const pageColor = resolvedLayout.pageColor ?? DEFAULT_PAGE_COLOR
+
+    useEffect(() => {
+      const fromDoc = resolvePageLayout(document?.formatting)
+      setLayoutFormatting({
+        ...getDefaultPageLayout(),
+        ...document?.formatting,
+        pageSize: fromDoc.pageSize,
+        orientation: fromDoc.orientation,
+        margins: fromDoc.margins,
+        marginUnit: fromDoc.marginUnit,
+        pageColor: fromDoc.pageColor,
+        pageless: fromDoc.pageless
+      })
+    }, [document?.id])
+
     // Versioning UI state
     const [showVersionHistory, setShowVersionHistory] = useState(false)
     const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
     const [showPublishDialog, setShowPublishDialog] = useState(false)
+    const [showPageSetupDialog, setShowPageSetupDialog] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     type RightSidebar = 'closed' | 'comments' | 'ai'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
@@ -600,27 +629,30 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           Superscript,
           Typography,
           PageBreak,
-          // Extension accepts hex only; values match editor background (gba:bg-muted/50) and subtle border
-          PaginationPlus.configure({
-            pageWidth: A4_WIDTH_PX,
-            pageHeight: A4_HEIGHT_PX,
-            pageGap: PAGE_GAP_PX,
-            marginTop: PAGE_MARGIN_PX,
-            marginBottom: PAGE_MARGIN_PX,
-            marginLeft: PAGE_MARGIN_PX,
-            marginRight: PAGE_MARGIN_PX,
-            contentMarginTop: 0,
-            contentMarginBottom: 0,
-            pageBreakBackground: '#f3f4f6',
-            pageGapBorderSize: 0,
-            pageGapBorderColor: '#f3f4f6',
-            headerLeft: '',
-            headerRight: '',
-            footerLeft: '',
-            footerRight: '',
-            customHeader: {},
-            customFooter: {}
-          }),
+          ...(paginationConfig
+            ? [
+                PaginationPlus.configure({
+                  pageWidth: paginationConfig.pageWidth,
+                  pageHeight: paginationConfig.pageHeight,
+                  pageGap: PAGE_GAP_PX,
+                  marginTop: paginationConfig.marginTop,
+                  marginBottom: paginationConfig.marginBottom,
+                  marginLeft: paginationConfig.marginLeft,
+                  marginRight: paginationConfig.marginRight,
+                  contentMarginTop: 0,
+                  contentMarginBottom: 0,
+                  pageBreakBackground: '#f3f4f6',
+                  pageGapBorderSize: 0,
+                  pageGapBorderColor: '#f3f4f6',
+                  headerLeft: '',
+                  headerRight: '',
+                  footerLeft: '',
+                  footerRight: '',
+                  customHeader: {},
+                  customFooter: {}
+                })
+              ]
+            : []),
           InlineCommentExtension.configure({
             onCommentClick: commentId => {
               setRightSidebar('comments')
@@ -642,7 +674,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
         },
         onUpdate: () => {
-          requestAnimationFrame(() => updatePageCount())
+          schedulePaginationRebuild()
           if (document?.id) versioning.markAsChanged()
           if (!document?.id) {
             setHasUnsavedChanges(true)
@@ -651,7 +683,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
         }
       },
-      [document?.id, ydoc, editorContent, editorEditable, isCollaborationMode, t]
+      [
+        document?.id,
+        ydoc,
+        editorContent,
+        editorEditable,
+        isCollaborationMode,
+        t,
+        isPageless,
+        paginationConfig?.pageWidth,
+        paginationConfig?.pageHeight,
+        paginationConfig?.marginTop,
+        paginationConfig?.marginBottom,
+        paginationConfig?.marginLeft,
+        paginationConfig?.marginRight
+      ]
     )
 
     // Inject collaboration cursor styles once on mount
@@ -719,38 +765,121 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setShowInlineCommentPopover(true)
     }, [editor])
 
-    // Page count and current page from PaginationPlus DOM (.rm-page-break)
-    const updatePageCount = useCallback(() => {
-      if (!editorContainerRef.current) return
-      const pageBreaks = editorContainerRef.current.querySelectorAll('.rm-page-break')
-      const count = pageBreaks.length > 0 ? pageBreaks.length : 1
-      setPageCount(count)
-    }, [])
+    // Page count and current page from PaginationPlus DOM.
+    //
+    // PaginationPlus renders a `[data-rm-pagination]` wrapper with one `.rm-page-break` child per page.
+    // Each `.rm-page-break` contains a `.breaker` element positioned at the end of that page.
+    // We compute:
+    // - total pages = number of `.rm-page-break` children (fallback to 1)
+    // - current page = 1 + number of *page boundaries* (breaker elements except last page) above viewport center
+    const paginationModelRef = useRef<{ totalPages: number; boundaryEls: HTMLElement[] }>({
+      totalPages: 1,
+      boundaryEls: []
+    })
+    const paginationRafRef = useRef<number | null>(null)
+
+    const computeCurrentPageFromBoundaries = useCallback(
+      (container: HTMLDivElement, totalPages: number, boundaryEls: HTMLElement[]) => {
+        if (totalPages <= 1 || boundaryEls.length === 0) return 1
+        const containerRect = container.getBoundingClientRect()
+        const viewportCenterY = containerRect.top + containerRect.height / 2
+
+        let passedBoundaries = 0
+        for (const boundaryEl of boundaryEls) {
+          const boundaryTop = boundaryEl.getBoundingClientRect().top
+          if (viewportCenterY >= boundaryTop) {
+            passedBoundaries += 1
+          } else {
+            break
+          }
+        }
+
+        return Math.min(Math.max(1, 1 + passedBoundaries), totalPages)
+      },
+      []
+    )
+
+    const rebuildPaginationModel = useCallback(() => {
+      const container = editorContainerRef.current
+      if (!container) return
+
+      const paginationRoot = container.querySelector('[data-rm-pagination]')
+      const pageEls = paginationRoot ? Array.from(paginationRoot.children) : []
+      const pageBreakEls = pageEls.filter((el): el is HTMLElement => el instanceof HTMLElement)
+      const totalPages = pageBreakEls.length > 0 ? pageBreakEls.length : 1
+
+      // Boundaries between pages are the `.breaker` elements for all but the last page.
+      const boundaryEls = pageBreakEls
+        .slice(0, -1)
+        .map(el => el.querySelector('.breaker'))
+        .filter((el): el is HTMLElement => el instanceof HTMLElement)
+
+      paginationModelRef.current = { totalPages, boundaryEls }
+
+      setPageCount(totalPages)
+      setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+    }, [computeCurrentPageFromBoundaries])
+
+    const schedulePaginationRebuild = useCallback(() => {
+      if (paginationRafRef.current) {
+        cancelAnimationFrame(paginationRafRef.current)
+      }
+      paginationRafRef.current = requestAnimationFrame(() => {
+        paginationRafRef.current = null
+        rebuildPaginationModel()
+      })
+    }, [rebuildPaginationModel])
 
     useEffect(() => {
-      updatePageCount()
-      window.addEventListener('resize', updatePageCount)
-      return () => window.removeEventListener('resize', updatePageCount)
-    }, [updatePageCount])
+      schedulePaginationRebuild()
+      window.addEventListener('resize', schedulePaginationRebuild)
+      return () => window.removeEventListener('resize', schedulePaginationRebuild)
+    }, [schedulePaginationRebuild])
 
-    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-      const container = e.currentTarget
-      const scrollTop = container.scrollTop
-      const pageBreaks = container.querySelectorAll('.rm-page-break')
-      if (pageBreaks.length === 0) {
-        setCurrentPage(1)
-        return
-      }
-      let current = 1
-      for (let i = 0; i < pageBreaks.length; i++) {
-        const el = pageBreaks[i] as HTMLElement
-        const top = el.offsetTop
-        if (scrollTop >= top - 1) {
-          current = i + 1
-        }
-      }
-      setCurrentPage(current)
-    }, [])
+    // Keep pagination model synced in edit/collaboration mode (DOM updates are async).
+    useEffect(() => {
+      if (!document?.id) return
+      schedulePaginationRebuild()
+    }, [document?.id, isYjsSynced, schedulePaginationRebuild])
+
+    // Observe editor DOM changes so the page model updates when PaginationPlus inserts/reflows its DOM.
+    // (In edit/collaboration mode this often happens after initial render, without a user-driven update.)
+    useEffect(() => {
+      const container = editorContainerRef.current
+      if (!container) return
+
+      // Prefer the actual editor DOM root if available.
+      const root: HTMLElement | null =
+        (editor?.view?.dom as unknown as HTMLElement | null) ??
+        (container.querySelector('.ProseMirror') as HTMLElement | null)
+
+      if (!root) return
+
+      const observer = new MutationObserver(() => {
+        schedulePaginationRebuild()
+      })
+
+      observer.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: false,
+        characterData: false
+      })
+
+      // Initial run once the observer is attached.
+      schedulePaginationRebuild()
+
+      return () => observer.disconnect()
+    }, [editor, schedulePaginationRebuild])
+
+    const handleScroll = useCallback(
+      (e: React.UIEvent<HTMLDivElement>) => {
+        const container = e.currentTarget
+        const { totalPages, boundaryEls } = paginationModelRef.current
+        setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+      },
+      [computeCurrentPageFromBoundaries]
+    )
 
     // Cleanup auto-save timeout on unmount
     useEffect(() => {
@@ -767,14 +896,34 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setHasUnsavedChanges(true)
     }, [])
 
-    // Save document
+    const handlePageSetupApply = useCallback(
+      (nextFormatting: DocumentFormatting) => {
+        setLayoutFormatting(nextFormatting)
+        if (document?.id && onPersistFormatting) {
+          void onPersistFormatting(nextFormatting)
+        }
+      },
+      [document?.id, onPersistFormatting]
+    )
+
+    // Save document (pass merged formatting so layout is persisted)
     const handleSave = useCallback(async () => {
       if (isReadOnly || isSaving || !editor) return
 
       setIsSaving(true)
       try {
         const content = editor.getHTML()
-        await onSave(title, content)
+        const formatting: DocumentFormatting = {
+          ...document?.formatting,
+          ...layoutFormatting,
+          pageSize: resolvedLayout.pageSize,
+          orientation: resolvedLayout.orientation,
+          margins: resolvedLayout.margins,
+          marginUnit: resolvedLayout.marginUnit,
+          pageColor: resolvedLayout.pageColor,
+          pageless: resolvedLayout.pageless
+        }
+        await onSave(title, content, formatting)
         setLastSaved(new Date())
         setHasUnsavedChanges(false)
       } catch (error) {
@@ -782,7 +931,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       } finally {
         setIsSaving(false)
       }
-    }, [title, editor, onSave, isReadOnly, isSaving])
+    }, [title, editor, onSave, isReadOnly, isSaving, document?.formatting, layoutFormatting, resolvedLayout])
 
     useDocumentEditorShortcuts({
       onSave: () => {
@@ -920,7 +1069,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       <span>•</span>
                       <span>{t('editor-character-count', { count: charCount })}</span>
                       <span>•</span>
-                      <span>{t('editor-page-of', { current: currentPage, total: pageCount })}</span>
+                      <span>
+                        {t('editor-page-of', { current: Math.min(currentPage, pageCount), total: pageCount })}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1065,6 +1216,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
                 <Separator orientation="vertical" className="gba:h-6" />
 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPageSetupDialog(true)}
+                  data-testid="page-setup-button"
+                >
+                  <LayoutPanelLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('page-setup-title')}
+                </Button>
+
                 {/* Document Actions Menu (includes Export) */}
                 {document?.id && (
                   <DropdownMenu>
@@ -1188,12 +1349,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         }
         .paged-document-editor .ProseMirror {
           outline: none;
-          background-color: #ffffff;
+          background-color: ${pageColor};
           font-family: 'Times New Roman', Georgia, serif;
           font-size: 12pt;
           line-height: 1.6;
           color: #1a1a1a;
-          min-height: ${A4_HEIGHT_PX - PAGE_MARGIN_PX * 2}px;
+          min-height: ${paginationConfig ? paginationConfig.pageHeight - paginationConfig.marginTop - paginationConfig.marginBottom : 400}px;
         }
 
         .paged-document-editor .ProseMirror p {
@@ -1502,6 +1663,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             isPublishing={publishing.isPublishing}
             entityType="document"
             data-testid="document-publish-dialog"
+          />
+        )}
+
+        {showPageSetupDialog && (
+          <PageSetupDialog
+            open={showPageSetupDialog}
+            onOpenChange={setShowPageSetupDialog}
+            formatting={layoutFormatting}
+            onApply={handlePageSetupApply}
+            data-testid="document-page-setup-dialog"
           />
         )}
 

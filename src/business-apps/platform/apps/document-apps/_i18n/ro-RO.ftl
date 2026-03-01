@@ -378,6 +378,34 @@ editor-publish = Publicare...
 editor-save-as-template = Salvați ca șablon
 editor-send-for-approval = Trimiteți pentru aprobare
 editor-ai-edit = Editare AI
+
+# Page setup dialog
+page-setup-title = Configurare pagină
+page-setup-tab-pages = Pagini
+page-setup-tab-pageless = Fără pagini
+page-setup-apply-to = Aplicare la
+page-setup-entire-document = Întreg documentul
+page-setup-orientation = Orientare
+page-setup-portrait = Portret
+page-setup-landscape = Peisaj
+page-setup-paper-size = Dimensiune hârtie
+page-setup-page-colour = Culoare pagină
+page-setup-margins-cm = Margini (cm)
+page-setup-margin-top = Sus
+page-setup-margin-bottom = Jos
+page-setup-margin-left = Stânga
+page-setup-margin-right = Dreapta
+page-setup-use-pageless = Fără pagini
+page-setup-pageless-description = Afișați documentul ca o singură pagină continuă, fără întreruperi de pagină.
+page-setup-cancel = Anulare
+page-setup-ok = OK
+page-size-a4 = A4
+page-size-a3 = A3
+page-size-a5 = A5
+page-size-letter = Letter
+page-size-legal = Legal
+page-size-tabloid = Tabloid
+
 editor-comments-title = Comentarii (clic dreapta pe text pentru comentariu inline)
 editor-locked = Blocat
 editor-zoom-in = Mărire

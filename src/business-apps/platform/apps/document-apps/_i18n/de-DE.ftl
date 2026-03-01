@@ -378,6 +378,34 @@ editor-publish = Veröffentlichen...
 editor-save-as-template = Als Vorlage speichern
 editor-send-for-approval = Zur Genehmigung senden
 editor-ai-edit = KI-Bearbeitung
+
+# Page setup dialog
+page-setup-title = Seiteneinrichtung
+page-setup-tab-pages = Seiten
+page-setup-tab-pageless = Ohne Seiten
+page-setup-apply-to = Anwenden auf
+page-setup-entire-document = Gesamtes Dokument
+page-setup-orientation = Ausrichtung
+page-setup-portrait = Hochformat
+page-setup-landscape = Querformat
+page-setup-paper-size = Papierformat
+page-setup-page-colour = Seitenfarbe
+page-setup-margins-cm = Ränder (cm)
+page-setup-margin-top = Oben
+page-setup-margin-bottom = Unten
+page-setup-margin-left = Links
+page-setup-margin-right = Rechts
+page-setup-use-pageless = Ohne Seitenumbrüche
+page-setup-pageless-description = Dokument als eine durchgehende Seite ohne Seitenumbrüche anzeigen.
+page-setup-cancel = Abbrechen
+page-setup-ok = OK
+page-size-a4 = A4
+page-size-a3 = A3
+page-size-a5 = A5
+page-size-letter = Letter
+page-size-legal = Legal
+page-size-tabloid = Tabloid
+
 editor-comments-title = Kommentare (Rechtsklick für Inline-Kommentar)
 editor-locked = Gesperrt
 editor-zoom-in = Vergrößern
