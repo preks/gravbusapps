@@ -72,6 +72,7 @@ import {
   useVersionUserDisplays
 } from '../../hooks'
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
+import { PaginationPlus } from 'tiptap-pagination-plus'
 import { PageBreak } from './extensions/PageBreak'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
@@ -97,10 +98,11 @@ import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 
-// A4 dimensions in pixels at 96 DPI
-const A4_WIDTH_PX = 794 // 210mm
-const A4_HEIGHT_PX = 1123 // 297mm
-const PAGE_MARGIN_PX = 96 // 1 inch = 96px at 96 DPI
+// A4 dimensions and margins at 96 DPI (aligned with pageLayoutConstants)
+const A4_WIDTH_PX = 794
+const A4_HEIGHT_PX = 1123
+const PAGE_MARGIN_PX = 96
+const PAGE_GAP_PX = 24
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
@@ -598,6 +600,27 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           Superscript,
           Typography,
           PageBreak,
+          // Extension accepts hex only; values match editor background (gba:bg-muted/50) and subtle border
+          PaginationPlus.configure({
+            pageWidth: A4_WIDTH_PX,
+            pageHeight: A4_HEIGHT_PX,
+            pageGap: PAGE_GAP_PX,
+            marginTop: PAGE_MARGIN_PX,
+            marginBottom: PAGE_MARGIN_PX,
+            marginLeft: PAGE_MARGIN_PX,
+            marginRight: PAGE_MARGIN_PX,
+            contentMarginTop: 0,
+            contentMarginBottom: 0,
+            pageBreakBackground: '#f3f4f6',
+            pageGapBorderSize: 0,
+            pageGapBorderColor: '#f3f4f6',
+            headerLeft: '',
+            headerRight: '',
+            footerLeft: '',
+            footerRight: '',
+            customHeader: {},
+            customFooter: {}
+          }),
           InlineCommentExtension.configure({
             onCommentClick: commentId => {
               setRightSidebar('comments')
@@ -613,8 +636,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         // In CRDT mode, the Yjs doc becomes the single source of truth.
         content: editorContent,
         editable: editorEditable,
+        editorProps: {
+          attributes: {
+            dir: 'auto'
+          }
+        },
         onUpdate: () => {
-          updatePageCount()
+          requestAnimationFrame(() => updatePageCount())
           if (document?.id) versioning.markAsChanged()
           if (!document?.id) {
             setHasUnsavedChanges(true)
@@ -691,38 +719,38 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setShowInlineCommentPopover(true)
     }, [editor])
 
-    // Calculate page count based on content height
+    // Page count and current page from PaginationPlus DOM (.rm-page-break)
     const updatePageCount = useCallback(() => {
       if (!editorContainerRef.current) return
-
-      const editorContent = editorContainerRef.current.querySelector('.ProseMirror')
-      if (!editorContent) return
-
-      const contentHeight = editorContent.scrollHeight
-      const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
-      const pages = Math.max(1, Math.ceil(contentHeight / pageContentHeight))
-      setPageCount(pages)
+      const pageBreaks = editorContainerRef.current.querySelectorAll('.rm-page-break')
+      const count = pageBreaks.length > 0 ? pageBreaks.length : 1
+      setPageCount(count)
     }, [])
 
-    // Update page count when content changes
     useEffect(() => {
       updatePageCount()
-
-      // Also update on window resize
       window.addEventListener('resize', updatePageCount)
       return () => window.removeEventListener('resize', updatePageCount)
     }, [updatePageCount])
 
-    // Handle scroll to track current page
-    const handleScroll = useCallback(
-      (e: React.UIEvent<HTMLDivElement>) => {
-        const scrollTop = e.currentTarget.scrollTop
-        const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
-        const currentPageNum = Math.floor(scrollTop / pageContentHeight) + 1
-        setCurrentPage(Math.min(currentPageNum, pageCount))
-      },
-      [pageCount]
-    )
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.currentTarget
+      const scrollTop = container.scrollTop
+      const pageBreaks = container.querySelectorAll('.rm-page-break')
+      if (pageBreaks.length === 0) {
+        setCurrentPage(1)
+        return
+      }
+      let current = 1
+      for (let i = 0; i < pageBreaks.length; i++) {
+        const el = pageBreaks[i] as HTMLElement
+        const top = el.offsetTop
+        if (scrollTop >= top - 1) {
+          current = i + 1
+        }
+      }
+      setCurrentPage(current)
+    }, [])
 
     // Cleanup auto-save timeout on unmount
     useEffect(() => {
@@ -1132,10 +1160,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               {leftPanel}
             </div>
           ) : null}
-          {/* Editor Area with Page Layout */}
+          {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
           <div
             ref={editorContainerRef}
-            className="gba:flex-1 gba:overflow-auto gba:bg-muted/50 gba:min-w-0"
+            className="gba:flex-1 gba:overflow-auto gba:min-w-0 document-editor-viewport"
             onScroll={handleScroll}
           >
             <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
@@ -1146,28 +1174,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   transformOrigin: 'top center'
                 }}
               >
-                {/* Page visual representation */}
-                <div
-                  className="gba:bg-white gba:shadow-lg gba:rounded-sm gba:relative"
-                  style={{
-                    width: `${A4_WIDTH_PX}px`,
-                    minHeight: `${A4_HEIGHT_PX}px`,
-                    padding: `${PAGE_MARGIN_PX}px`
-                  }}
-                >
-                  <EditorContent editor={editor} className="editor-content" />
-
-                  {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
-                </div>
+                <EditorContent editor={editor} className="editor-content" />
+                {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Editor Styles */}
+        {/* Editor Styles — viewport/canvas: light gray; pages: white (match develop branch) */}
         <style>{`
+        .document-editor-viewport {
+          background-color: #f3f4f6;
+        }
         .paged-document-editor .ProseMirror {
           outline: none;
+          background-color: #ffffff;
           font-family: 'Times New Roman', Georgia, serif;
           font-size: 12pt;
           line-height: 1.6;
@@ -1183,14 +1204,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror ol {
           list-style: decimal;
           list-style-position: outside;
-          padding-left: 24pt;
+          padding-inline-start: 24pt;
           margin: 0 0 12pt 0;
         }
 
         .paged-document-editor .ProseMirror ul {
           list-style: disc;
           list-style-position: outside;
-          padding-left: 24pt;
+          padding-inline-start: 24pt;
           margin: 0 0 12pt 0;
         }
 
@@ -1305,7 +1326,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror th {
           border: 1pt solid #333;
           padding: 4pt 6pt;
-          text-align: left;
+          text-align: start;
           vertical-align: top;
           font-size: 10.5pt;
           line-height: 1.3;
