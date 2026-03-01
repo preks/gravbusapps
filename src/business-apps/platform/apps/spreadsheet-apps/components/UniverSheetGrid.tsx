@@ -57,10 +57,22 @@ export interface UniverSheetGridProps {
   width?: string | number
 }
 
+export interface CellDimensionsPayload {
+  sheetId: string
+  defaultColWidth: number
+  defaultRowHeight: number
+  columnData: Record<string | number, { w?: number }>
+  rowData: Record<string | number, { h?: number }>
+  rowHeaderWidth: number
+  columnHeaderHeight: number
+  zoomRatio: number
+}
+
 export interface UniverSheetGridHandle {
   applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown) => void
   getWorkbookSnapshot: () => Record<string, unknown> | null
   getVisibleRangeValues: (rowCount: number, colCount: number) => Record<number, Record<number, unknown>> | null
+  applyRemoteDimensions: (payload: CellDimensionsPayload) => void
 }
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
@@ -78,6 +90,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     } = props
 
     const containerRef = useRef<HTMLDivElement>(null)
+    // Tracks whether this sheet is the currently active editor on the page.
+    // Needed for published screens where the host app may register global shortcuts (e.g. Cmd+B).
+    const isSheetInteractionActiveRef = useRef<boolean>(false)
     const univerAPIRef = useRef<ReturnType<typeof createUniver>['univerAPI'] | null>(null)
     const isLocalEditRef = useRef(false)
     const isDirtyRef = useRef(false)
@@ -309,6 +324,33 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
     }, [])
 
+    const applyRemoteDimensions = useCallback((payload: CellDimensionsPayload) => {
+      if (payload.sheetId !== sheet.id) return
+      cellDimensionsRef.current = {
+        defaultColWidth: payload.defaultColWidth,
+        defaultRowHeight: payload.defaultRowHeight,
+        columnData: payload.columnData ?? {},
+        rowData: payload.rowData ?? {},
+        rowHeaderWidth: payload.rowHeaderWidth,
+        columnHeaderHeight: payload.columnHeaderHeight,
+        zoomRatio: payload.zoomRatio
+      }
+      const api = univerAPIRef.current
+      const worksheet = api?.getActiveWorkbook?.()?.getActiveSheet?.()
+      if (worksheet && typeof (worksheet as { setColumnWidth?: (col: number, w: number) => unknown }).setColumnWidth === 'function') {
+        const ws = worksheet as { setColumnWidth: (col: number, w: number) => unknown; setRowHeight: (row: number, h: number) => unknown }
+        Object.entries(payload.columnData ?? {}).forEach(([colStr, meta]) => {
+          const w = meta?.w
+          if (typeof w === 'number' && w > 0) ws.setColumnWidth(Number(colStr), w)
+        })
+        Object.entries(payload.rowData ?? {}).forEach(([rowStr, meta]) => {
+          const h = meta?.h
+          if (typeof h === 'number' && h > 0) ws.setRowHeight(Number(rowStr), h)
+        })
+      }
+      refreshCursorRectsRef.current?.()
+    }, [sheet.id])
+
     const getVisibleRangeValues = useCallback(
       (rowCount: number, colCount: number): Record<number, Record<number, unknown>> | null => {
         const api = univerAPIRef.current
@@ -344,9 +386,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       () => ({
         applyRemoteCellUpdate,
         getWorkbookSnapshot,
-        getVisibleRangeValues
+        getVisibleRangeValues,
+        applyRemoteDimensions
       }),
-      [applyRemoteCellUpdate, getWorkbookSnapshot, getVisibleRangeValues]
+      [applyRemoteCellUpdate, getWorkbookSnapshot, getVisibleRangeValues, applyRemoteDimensions]
     )
 
     // Keep conversion context in sync when data/columns change (e.g. after save) so value-change handler maps indices correctly.
@@ -821,10 +864,96 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return dispose
     }, [sheet.id, props.snapshotSeed])
 
+    // Track "active sheet" based on pointer/focus so we can hijack shortcuts even when
+    // Univer's canvas selection doesn't move DOM focus (common in published embeds).
+    useEffect(() => {
+      const onPointerDownCapture = (e: PointerEvent) => {
+        const container = containerRef.current
+        if (!container) return
+        isSheetInteractionActiveRef.current = e.target instanceof Node && container.contains(e.target)
+      }
+
+      const onFocusInCapture = (e: FocusEvent) => {
+        const container = containerRef.current
+        if (!container) return
+        isSheetInteractionActiveRef.current = e.target instanceof Node && container.contains(e.target)
+      }
+
+      window.addEventListener('pointerdown', onPointerDownCapture, true)
+      window.addEventListener('focusin', onFocusInCapture, true)
+      return () => {
+        window.removeEventListener('pointerdown', onPointerDownCapture, true)
+        window.removeEventListener('focusin', onFocusInCapture, true)
+      }
+    }, [])
+
+    // Hijack Cmd/Ctrl+B at the window capture phase so host apps can't intercept it first.
+    // We execute the Univer command directly, so we don't need the native event to reach the sheet DOM.
+    useEffect(() => {
+      const onKeyDownCapture = (e: KeyboardEvent) => {
+        if (props.isReadOnly) return
+        const api = univerAPIRef.current
+        const container = containerRef.current
+        if (!api || !container) return
+
+        const activeEl = typeof document !== 'undefined' ? document.activeElement : null
+        const inSheet = (activeEl instanceof Element && container.contains(activeEl)) || isSheetInteractionActiveRef.current
+        if (!inSheet) return
+
+        const isMod = e.metaKey || e.ctrlKey
+        if (!isMod) return
+
+        if (e.key.toLowerCase() !== 'b') return
+
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        e.stopPropagation()
+        // Prefer Univer's built-in command (handles edit mode vs selection mode),
+        // but fall back to explicitly toggling the active range's fontWeight so the
+        // shortcut still works even if focus routing in the host app is unusual.
+        try {
+          const didExecute = api.syncExecuteCommand('sheet.command.set-range-bold')
+          if (didExecute) return
+        } catch {
+          // continue to fallback
+        }
+
+        try {
+          const wb = api.getActiveWorkbook?.()
+          const range =
+            (wb as { getActiveRange?: () => any } | null | undefined)?.getActiveRange?.() ??
+            (wb as { getActiveSheet?: () => any } | null | undefined)?.getActiveSheet?.()?.getActiveRange?.()
+          if (!range) return
+          const style = (range as { getCellStyleData?: () => { bl?: number } | null })?.getCellStyleData?.()
+          const isBold = style?.bl === 1
+          ;(range as { setFontWeight?: (v: 'normal' | 'bold' | null) => unknown })?.setFontWeight?.(isBold ? 'normal' : 'bold')
+        } catch {
+          // Ignore — shortcut is best-effort in published embeds
+        }
+      }
+
+      window.addEventListener('keydown', onKeyDownCapture, true)
+      return () => window.removeEventListener('keydown', onKeyDownCapture, true)
+    }, [props.isReadOnly])
+
+    // When embedded in a published platform, the host may use Cmd+B etc. for its own actions.
+    // Hijack these shortcuts when the user is focused inside the spreadsheet so Univer handles them.
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!containerRef.current?.contains(e.target as Node)) return
+      const isMod = e.metaKey || e.ctrlKey
+      if (!isMod) return
+      const key = e.key.toLowerCase()
+      const spreadsheetShortcuts = ['b', 'i', 'u', 'c', 'v', 'x', 'z', 'y']
+      if (spreadsheetShortcuts.includes(key)) {
+        e.stopPropagation()
+      }
+    }, [])
+
     return (
       <div
         className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:overflow-hidden"
         style={{ height: props.height ?? '100%', width: props.width ?? '100%' }}
+        onKeyDown={handleKeyDown}
       >
         <div ref={containerRef} className="gba:w-full gba:h-full" />
         <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-20">

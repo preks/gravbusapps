@@ -29,7 +29,7 @@ import { useFileLock } from '../shared/hooks/useFileLock'
 import { usePublishing } from '../shared/hooks/usePublishing'
 
 import { TableView, FormView, DashboardView, KanbanView } from './views'
-import type { UniverSheetGridHandle } from './components/UniverSheetGrid'
+import type { UniverSheetGridHandle, CellDimensionsPayload } from './components/UniverSheetGrid'
 import { createUniverConversionContext } from './utils/univerAdapter'
 import { readLatestUniverSnapshot, writeUniverSnapshotCache, clearUniverSnapshotCache } from './utils/univerSnapshotCache'
 import { exportSnapshotAsXlsx } from './utils/exportToExcel'
@@ -365,6 +365,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         sheetVersionRef.current = incomingVersion
       }
       const operation = payload.operation
+      if (operation.type === 'dimension_sync') {
+        const d = operation.data as CellDimensionsPayload | undefined
+        if (d?.sheetId === activeSheetId && spreadsheetGridRef.current?.applyRemoteDimensions) {
+          spreadsheetGridRef.current.applyRemoteDimensions(d)
+        }
+        return
+      }
       if (operation.type !== 'cell_update' && operation.type !== 'cell_change') return
       const d = operation.data as {
         sheetId?: string
@@ -855,6 +862,37 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             metrics: snapshotSaveMetricsRef.current
           })
           lastSuccessfulSnapshotCheckpointAtRef.current = Date.now()
+          // Broadcast dimension sync to collaborators so their grids and cursor overlays stay in sync
+          if (collaboration.isCollaborationConnected) {
+          try {
+            const snap = snapshotToSave as Record<string, unknown>
+            const sheetOrder = snap?.sheetOrder as string[] | undefined
+            const sheets = snap?.sheets as Record<string, Record<string, unknown>> | undefined
+            const firstSheetId = sheetOrder?.[0]
+            const sheetSnap = (firstSheetId && sheets ? sheets[firstSheetId] : sheets ? Object.values(sheets)[0] : undefined) as Record<string, unknown> | undefined
+            if (sheetSnap) {
+              const rowHeader = sheetSnap.rowHeader as { width?: number } | undefined
+              const columnHeader = sheetSnap.columnHeader as { height?: number } | undefined
+              const dimensionPayload: CellDimensionsPayload = {
+                sheetId: activeSheetId,
+                defaultColWidth: (sheetSnap.defaultColumnWidth as number | undefined) ?? 73,
+                defaultRowHeight: (sheetSnap.defaultRowHeight as number | undefined) ?? 23,
+                columnData: (sheetSnap.columnData as Record<string | number, { w?: number }>) ?? {},
+                rowData: (sheetSnap.rowData as Record<string | number, { h?: number }>) ?? {},
+                rowHeaderWidth: rowHeader?.width ?? 48,
+                columnHeaderHeight: columnHeader?.height ?? 28,
+                zoomRatio: (sheetSnap.zoomRatio as number | undefined) ?? 1
+              }
+              collaboration.emitOperation({
+                type: 'dimension_sync',
+                data: dimensionPayload,
+                broadcastOnly: true
+              })
+            }
+          } catch (_) {
+            // Non-fatal
+          }
+          }
           return
         } catch (error) {
           lastError = error
@@ -880,6 +918,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     activeSheet.columns,
     activeSheetId,
     app.id,
+    collaboration,
     createOperationId,
     entityEnabled,
     isOpsV2Enabled,
