@@ -164,6 +164,7 @@ const buildCellPayload = (
     activeTo: latestCell.activeTo || null,
     travelRegionRef: latestCell.travelRegionId,
     countryRef: countryRef,
+    home: latestCell.home || false,
     allowanceRegionRule: ruleId,
     ...(latestCell.id && latestCell.version !== undefined && { version: latestCell.version })
   },
@@ -375,6 +376,7 @@ export const useMatrixCellEditing = ({
               ...c,
               id: savedData.id || c.id,
               amount: savedData.amount,
+              home: latestCell.home || false,
               activeFrom: savedData.activeFrom,
               activeTo: savedData.activeTo,
               currencyCode: savedData.currencyCode,
