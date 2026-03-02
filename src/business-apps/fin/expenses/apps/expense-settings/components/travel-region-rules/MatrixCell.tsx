@@ -9,7 +9,7 @@ import {
   Button,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiFloppyDisk, PiX } from 'react-icons/pi'
+import { FloppyDiskIcon, XIcon } from '@phosphor-icons/react'
 import { EditableCell, CurrencyOption, UsageInfo } from './types'
 import {
   formatDate as formatDateDisplay,
@@ -183,7 +183,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
                   disabled={!cell.amount || cell.amount <= 0}
                   data-testid={`${prefixDataTestId}-cell-save-${ruleId}-${regionId}`}
                 >
-                  <PiFloppyDisk className="gba:w-3 gba:h-3 gba:mr-1" />
+                  <FloppyDiskIcon className="gba:w-3 gba:h-3 gba:mr-1" />
                   Save
                 </Button>
                 <Button
@@ -196,7 +196,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
                   className="gba:h-7 gba:w-7 gba:p-0"
                   data-testid={`${prefixDataTestId}-cell-cancel-${ruleId}-${regionId}`}
                 >
-                  <PiX className="gba:w-3 gba:h-3" />
+                  <XIcon className="gba:w-3 gba:h-3" />
                 </Button>
               </>
             ) : (
@@ -212,7 +212,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
                   disabled={!cell.isModified || !cell.amount || cell.amount <= 0}
                   data-testid={`${prefixDataTestId}-cell-save-${ruleId}-${regionId}`}
                 >
-                  <PiFloppyDisk className="gba:w-3 gba:h-3 gba:mr-1" />
+                  <FloppyDiskIcon className="gba:w-3 gba:h-3 gba:mr-1" />
                   Save
                 </Button>
                 <Button
@@ -226,7 +226,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
                   className="gba:h-7 gba:w-7 gba:p-0"
                   data-testid={`${prefixDataTestId}-cell-cancel-${ruleId}-${regionId}`}
                 >
-                  <PiX className="gba:w-3 gba:h-3" />
+                  <XIcon className="gba:w-3 gba:h-3" />
                 </Button>
               </>
             )}

@@ -8,7 +8,7 @@ import {
   AvatarFallback,
   Button
 } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 import { Building2 } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -490,7 +490,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                   data-testid={formatDataTestId(dataTestId || 'account-list', `remove-account-${index}`)}
                   aria-label={`Remove ${accountData.label}`}
                 >
-                  <PiX className="gba:w-4 gba:h-4" />
+                  <XIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </div>
             )

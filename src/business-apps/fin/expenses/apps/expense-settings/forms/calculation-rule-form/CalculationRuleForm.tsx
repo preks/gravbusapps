@@ -32,7 +32,7 @@ import {
   FormMessage,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiWarning } from 'react-icons/pi'
+import { WarningIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -315,7 +315,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
           <>
             {error && (
               <Alert variant="destructive" data-testid="calculation-rule-form-error">
-                <PiWarning className="gba:h-4 gba:w-4" />
+                <WarningIcon className="gba:h-4 gba:w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}

@@ -1,7 +1,7 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Card, Badge, Button } from '@newwork/nw-design-system'
-import { PiArrowLeft } from 'react-icons/pi'
+import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { useEmployeeWorkLifeBalance } from '../../hooks/useEmployeeWorkLifeBalance'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -75,7 +75,7 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
             className="gba:flex gba:items-center gba:gap-2"
             data-testid="work-life-balance-back-button"
           >
-            <PiArrowLeft className="gba:text-lg" />
+            <ArrowLeftIcon className="gba:text-lg" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_manager.statistics_tab.back_to_statistics',
               'Back to Statistics'

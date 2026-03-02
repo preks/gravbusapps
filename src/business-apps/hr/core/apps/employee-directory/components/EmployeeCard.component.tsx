@@ -1,12 +1,12 @@
 import React, { useCallback } from 'react'
 import {
-  PiChatBold,
-  PiPhoneBold,
-  PiVideoCameraBold,
-  PiUserBold,
-  PiBuildingsBold,
-  PiOfficeChairBold
-} from 'react-icons/pi'
+  ChatIcon,
+  PhoneIcon,
+  VideoCameraIcon,
+  UserIcon,
+  BuildingsIcon,
+  OfficeChairIcon
+} from '@phosphor-icons/react'
 import { Avatar, AvatarImage, AvatarFallback, Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { postToPlatform } from '@/common/utils/postToPlatform'
@@ -118,14 +118,14 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
             </div>
 
             <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-              <PiOfficeChairBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
+              <OfficeChairIcon weight="bold" className="gba:text-muted-foreground gba:mr-1.5" size={14} />
               <span className="gba:truncate" title={employee.jobTitle}>
                 {employee.jobTitle}
               </span>
             </div>
 
             <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-              <PiBuildingsBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
+              <BuildingsIcon weight="bold" className="gba:text-muted-foreground gba:mr-1.5" size={14} />
               <span className="gba:truncate" title={employee.organizationalUnit}>
                 {employee.organizationalUnit}
               </span>
@@ -174,7 +174,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
             className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
             data-testid="employee-directory-card-chat"
           >
-            <PiChatBold size={24} />
+            <ChatIcon weight="bold" size={24} />
           </Button>
         )}
         <Button
@@ -186,7 +186,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
           className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
           data-testid="employee-directory-card-audio-call"
         >
-          <PiPhoneBold size={24} />
+          <PhoneIcon weight="bold" size={24} />
         </Button>
         <Button
           variant="ghost"
@@ -197,7 +197,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
           className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
           data-testid="employee-directory-card-video-call"
         >
-          <PiVideoCameraBold size={24} />
+          <VideoCameraIcon weight="bold" size={24} />
         </Button>
         <Button
           variant="ghost"
@@ -206,7 +206,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
           aria-label="Go to Profile"
           className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
         >
-          <PiUserBold size={24} />
+          <UserIcon weight="bold" size={24} />
         </Button>
       </div>
     </div>

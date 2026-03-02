@@ -9,13 +9,7 @@ import {
   CardTitle,
   SectionKpiCards 
 } from '@newwork/nw-design-system';
-import { 
-  PiCurrencyDollar, 
-  PiCheckCircle, 
-  PiWarningCircle,
-  PiCalendar,
-  PiArrowClockwise
-} from 'react-icons/pi';
+import { CurrencyDollarIcon, CheckCircleIcon, WarningCircleIcon, CalendarIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface ExpenseSettingsDashboardProps extends BusinessAppContextProps {
@@ -100,7 +94,7 @@ const ExpenseSettingsDashboard: React.FC<ExpenseSettingsDashboardProps> = (conte
           data-testid="expense-settings-dashboard-refresh"
           className="gba:flex gba:items-center gba:gap-2"
         >
-          <PiArrowClockwise className={`gba:w-4 gba:h-4 ${isLoading ? 'gba:animate-spin' : ''}`} />
+          <ArrowClockwiseIcon className={`gba:w-4 gba:h-4 ${isLoading ? 'gba:animate-spin' : ''}`} />
           {getTranslationFromI18nKeyAndLabel('common.refresh', 'Refresh')}
         </Button>
       </div>
@@ -126,7 +120,7 @@ const ExpenseSettingsDashboard: React.FC<ExpenseSettingsDashboardProps> = (conte
                 className="gba:w-full gba:flex gba:items-center gba:gap-2"
                 data-testid="quick-action-create-assignment"
               >
-                <PiCurrencyDollar className="gba:w-4 gba:h-4" />
+                <CurrencyDollarIcon className="gba:w-4 gba:h-4" />
                 {getTranslationFromI18nKeyAndLabel('expense_settings.actions.create_assignment', 'Create Rule Assignment')}
               </Button>
               <Button 
@@ -134,7 +128,7 @@ const ExpenseSettingsDashboard: React.FC<ExpenseSettingsDashboardProps> = (conte
                 className="gba:w-full gba:flex gba:items-center gba:gap-2"
                 data-testid="quick-action-view-rules"
               >
-                <PiCheckCircle className="gba:w-4 gba:h-4" />
+                <CheckCircleIcon className="gba:w-4 gba:h-4" />
                 {getTranslationFromI18nKeyAndLabel('expense_settings.actions.view_rules', 'View All Rules')}
               </Button>
               <Button 
@@ -142,7 +136,7 @@ const ExpenseSettingsDashboard: React.FC<ExpenseSettingsDashboardProps> = (conte
                 className="gba:w-full gba:flex gba:items-center gba:gap-2"
                 data-testid="quick-action-validate-rules"
               >
-                <PiWarningCircle className="gba:w-4 gba:h-4" />
+                <WarningCircleIcon className="gba:w-4 gba:h-4" />
                 {getTranslationFromI18nKeyAndLabel('expense_settings.actions.validate_rules', 'Validate Rules')}
               </Button>
             </div>
@@ -198,7 +192,7 @@ const ExpenseSettingsDashboard: React.FC<ExpenseSettingsDashboardProps> = (conte
         <CardContent>
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
             <div className="gba:text-center gba:p-4 gba:bg-green-50 gba:rounded">
-              <PiCheckCircle className="gba:text-2xl gba:text-green-600 gba:mb-2 gba:mx-auto" />
+              <CheckCircleIcon className="gba:text-2xl gba:text-green-600 gba:mb-2 gba:mx-auto" />
               <div>
                 <span className="gba:font-semibold gba:block">
                   {getTranslationFromI18nKeyAndLabel('expense_settings.status.rules_active', 'Rules Active')}
@@ -210,7 +204,7 @@ const ExpenseSettingsDashboard: React.FC<ExpenseSettingsDashboardProps> = (conte
             </div>
             
             <div className="gba:text-center gba:p-4 gba:bg-blue-50 gba:rounded">
-              <PiCurrencyDollar className="gba:text-2xl gba:text-blue-600 gba:mb-2 gba:mx-auto" />
+              <CurrencyDollarIcon className="gba:text-2xl gba:text-blue-600 gba:mb-2 gba:mx-auto" />
               <div>
                 <span className="gba:font-semibold gba:block">
                   {getTranslationFromI18nKeyAndLabel('expense_settings.status.calculations_working', 'Calculations Working')}
@@ -222,7 +216,7 @@ const ExpenseSettingsDashboard: React.FC<ExpenseSettingsDashboardProps> = (conte
             </div>
             
             <div className="gba:text-center gba:p-4 gba:bg-purple-50 gba:rounded">
-              <PiCalendar className="gba:text-2xl gba:text-purple-600 gba:mb-2 gba:mx-auto" />
+              <CalendarIcon className="gba:text-2xl gba:text-purple-600 gba:mb-2 gba:mx-auto" />
               <div>
                 <span className="gba:font-semibold gba:block">
                   {getTranslationFromI18nKeyAndLabel('expense_settings.status.assignments_synced', 'Assignments Synced')}

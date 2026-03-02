@@ -25,7 +25,7 @@ import AbsenceCalendar from './components/AbsenceCalendar'
 import AbsenceList from './components/AbsenceList'
 import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
-import { PiPlus } from 'react-icons/pi'
+import { PlusIcon } from '@phosphor-icons/react'
 import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
@@ -458,7 +458,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   }
                 }}
               >
-                <PiPlus className="gba:h-5 gba:w-5" />
+                <PlusIcon className="gba:h-5 gba:w-5" />
                 {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
               </div>
             )}

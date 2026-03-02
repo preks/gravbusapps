@@ -8,7 +8,7 @@ import { useMissingJobProfileCount } from './hooks/useMissingJobProfileCount'
 import { JobPositionTable } from './components/JobPositionTable'
 import { JobPositionDetails } from './components/JobPositionDetails'
 import { VacancyStatusToggle, ExtendedVacancyFilter } from './components/VacancyStatusToggle'
-import { PiBriefcase } from 'react-icons/pi'
+import { BriefcaseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -207,7 +207,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <PiBriefcase size={20} />
+                <BriefcaseIcon size={20} />
                 <span>
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:human_resources_page.job_positions_section.tab_label',
@@ -277,7 +277,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
           selectedJobPosition
             ? {
                 title: selectedJobPosition.name,
-                icon: <PiBriefcase size={20} />,
+                icon: <BriefcaseIcon size={20} />,
                 content: <JobPositionDetails jobPosition={selectedJobPosition} accessToken={accessToken} />,
                 onClose: handleCloseDetails
               }
