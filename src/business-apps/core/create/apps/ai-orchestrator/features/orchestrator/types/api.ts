@@ -11,6 +11,10 @@ export interface AnalyzeRequest {
   prompt: string
   context?: Record<string, unknown>
   answers?: Record<string, string>
+  /** Repository ID to create session+namespace for (enables namespace isolation) */
+  repoId?: string
+  /** Existing session ID to reuse (for iterative builds) */
+  sessionId?: string
 }
 
 // Response from analyze endpoint

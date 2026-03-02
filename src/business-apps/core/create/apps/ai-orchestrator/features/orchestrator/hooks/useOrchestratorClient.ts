@@ -17,6 +17,9 @@ import type {
   BuildStatus
 } from '../types'
 
+/** Default repository ID for the app starter template */
+const DEFAULT_APP_STARTER_TEMPLATE_REPO_ID = 'f9088954-aa43-4b0e-bc95-d769d15e3895'
+
 export interface UseOrchestratorClientOptions {
   accessToken: string
 }
@@ -105,7 +108,11 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
       setLastContext(context)
 
       try {
-        const request: AnalyzeRequest = { prompt, context }
+        const request: AnalyzeRequest = {
+          prompt,
+          context,
+          repoId: lastRepoId || DEFAULT_APP_STARTER_TEMPLATE_REPO_ID
+        }
         const response = await client.analyze(request)
 
         if (response.success && response.plan) {
@@ -123,7 +130,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         setIsAnalyzing(false)
       }
     },
-    [client]
+    [client, lastRepoId, currentPlan]
   )
 
   /**
@@ -142,7 +149,9 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         const request: AnalyzeRequest = {
           prompt: lastPrompt,
           context: lastContext,
-          answers
+          answers,
+          repoId: lastRepoId ?? undefined,
+          sessionId: lastSessionId ?? undefined
         }
         const response = await client.analyze(request)
 
@@ -161,7 +170,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         setIsAnalyzing(false)
       }
     },
-    [client, lastPrompt, lastContext]
+    [client, lastPrompt, lastContext, lastRepoId, lastSessionId]
   )
 
   /**
