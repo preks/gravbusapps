@@ -5,7 +5,7 @@
  * with comprehensive formatting options.
  */
 
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Editor } from '@tiptap/react'
 import {
   Button,
@@ -302,9 +302,30 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     return t('editor-heading-normal')
   }
 
+  const [, setSelectionTick] = useState(0)
+  useEffect(() => {
+    if (!editor) return
+    const onSelectionUpdate = () => setSelectionTick(t => t + 1)
+    editor.on('selectionUpdate', onSelectionUpdate)
+    return () => {
+      editor.off('selectionUpdate', onSelectionUpdate)
+    }
+  }, [editor])
+
+  const getCurrentFont = (): { label: string; value: string } => {
+    if (!editor) return { label: t('editor-font-default'), value: '' }
+    const fontFamily = editor.getAttributes('textStyle').fontFamily as string | undefined
+    const value = fontFamily?.trim() ?? ''
+    const label =
+      value && FONT_FAMILY_KEYS[value] != null ? t(FONT_FAMILY_KEYS[value]) : value || t('editor-font-default')
+    return { label, value }
+  }
+
   if (!editor) {
     return null
   }
+
+  const currentFont = getCurrentFont()
 
   return (
     <div
@@ -361,12 +382,19 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Font Family */}
+      {/* Font Family — shows the font at the current cursor position */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:min-w-[100px] gba:justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gba:h-8 gba:min-w-[100px] gba:justify-between"
+            data-testid="editor-toolbar-font"
+          >
             <Type className="gba:h-3 gba:w-3 gba:mr-1" />
-            <span className="gba:text-xs gba:truncate">{t('editor-toolbar-font')}</span>
+            <span className="gba:text-xs gba:truncate" style={{ fontFamily: currentFont.value || 'inherit' }}>
+              {currentFont.label}
+            </span>
             <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
           </Button>
         </DropdownMenuTrigger>

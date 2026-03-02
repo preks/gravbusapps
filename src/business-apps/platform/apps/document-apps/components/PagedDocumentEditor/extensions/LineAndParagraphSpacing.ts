@@ -150,19 +150,38 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
   }
 })
 
+const SPACING_NODE_NAMES = new Set(['paragraph', 'heading'])
+
+type SpacingAttrs = {
+  lineHeight?: number | null
+  marginBefore?: string | null
+  marginAfter?: string | null
+}
+
 /**
  * Read current block's line/paragraph spacing for toolbar state.
+ * Resolves the nearest paragraph or heading so the checkmark matches the block at the cursor.
  */
 export function getCurrentSpacing(editor: {
-  state: { selection: { $from: { parent: { attrs: Record<string, unknown> } } } }
-}) {
-  const node = editor.state.selection.$from.parent
-  const attrs = node.attrs as { lineHeight?: number | null; marginBefore?: string | null; marginAfter?: string | null }
-  return {
-    lineHeight: attrs.lineHeight ?? null,
-    marginBefore: attrs.marginBefore ?? null,
-    marginAfter: attrs.marginAfter ?? null
+  state: {
+    selection: {
+      $from: { depth: number; node: (d: number) => { type: { name: string }; attrs: Record<string, unknown> } }
+    }
   }
+}) {
+  const $from = editor.state.selection.$from
+  for (let d = $from.depth; d > 0; d--) {
+    const node = $from.node(d)
+    if (SPACING_NODE_NAMES.has(node.type.name)) {
+      const attrs = node.attrs as SpacingAttrs
+      return {
+        lineHeight: attrs.lineHeight ?? null,
+        marginBefore: attrs.marginBefore ?? null,
+        marginAfter: attrs.marginAfter ?? null
+      }
+    }
+  }
+  return { lineHeight: null, marginBefore: null, marginAfter: null }
 }
 
 export default LineAndParagraphSpacing

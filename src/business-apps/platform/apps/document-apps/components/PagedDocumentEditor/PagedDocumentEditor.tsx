@@ -847,6 +847,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       boundaryEls: []
     })
     const paginationRafRef = useRef<number | null>(null)
+    const paginationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const PAGINATION_DEBOUNCE_MS = 150
 
     const computeCurrentPageFromBoundaries = useCallback(
       (container: HTMLDivElement, totalPages: number, boundaryEls: HTMLElement[]) => {
@@ -890,26 +892,43 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
     }, [computeCurrentPageFromBoundaries])
 
-    const schedulePaginationRebuild = useCallback(() => {
-      if (paginationRafRef.current) {
-        cancelAnimationFrame(paginationRafRef.current)
-      }
-      paginationRafRef.current = requestAnimationFrame(() => {
-        paginationRafRef.current = null
-        rebuildPaginationModel()
-      })
-    }, [rebuildPaginationModel])
+    const schedulePaginationRebuild = useCallback(
+      (immediate = false) => {
+        const run = () => {
+          if (paginationRafRef.current) cancelAnimationFrame(paginationRafRef.current)
+          paginationRafRef.current = requestAnimationFrame(() => {
+            paginationRafRef.current = null
+            rebuildPaginationModel()
+          })
+        }
+        if (immediate) {
+          if (paginationDebounceRef.current) {
+            clearTimeout(paginationDebounceRef.current)
+            paginationDebounceRef.current = null
+          }
+          run()
+          return
+        }
+        if (paginationDebounceRef.current) clearTimeout(paginationDebounceRef.current)
+        paginationDebounceRef.current = setTimeout(() => {
+          paginationDebounceRef.current = null
+          run()
+        }, PAGINATION_DEBOUNCE_MS)
+      },
+      [rebuildPaginationModel]
+    )
 
     useEffect(() => {
-      schedulePaginationRebuild()
-      window.addEventListener('resize', schedulePaginationRebuild)
-      return () => window.removeEventListener('resize', schedulePaginationRebuild)
+      schedulePaginationRebuild(true)
+      const onResize = () => schedulePaginationRebuild(true)
+      window.addEventListener('resize', onResize)
+      return () => window.removeEventListener('resize', onResize)
     }, [schedulePaginationRebuild])
 
     // Keep pagination model synced in edit/collaboration mode (DOM updates are async).
     useEffect(() => {
       if (!document?.id) return
-      schedulePaginationRebuild()
+      schedulePaginationRebuild(true)
     }, [document?.id, isYjsSynced, schedulePaginationRebuild])
 
     // Observe editor DOM changes so the page model updates when PaginationPlus inserts/reflows its DOM.
@@ -926,7 +945,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!root) return
 
       const observer = new MutationObserver(() => {
-        schedulePaginationRebuild()
+        schedulePaginationRebuild(false)
       })
 
       observer.observe(root, {
@@ -936,17 +955,27 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         characterData: false
       })
 
-      // Initial run once the observer is attached.
-      schedulePaginationRebuild()
+      schedulePaginationRebuild(true)
 
-      return () => observer.disconnect()
+      return () => {
+        observer.disconnect()
+        if (paginationDebounceRef.current) {
+          clearTimeout(paginationDebounceRef.current)
+          paginationDebounceRef.current = null
+        }
+      }
     }, [editor, schedulePaginationRebuild])
 
+    const scrollThrottleRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null)
     const handleScroll = useCallback(
       (e: React.UIEvent<HTMLDivElement>) => {
         const container = e.currentTarget
-        const { totalPages, boundaryEls } = paginationModelRef.current
-        setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+        if (scrollThrottleRef.current) return
+        scrollThrottleRef.current = requestAnimationFrame(() => {
+          scrollThrottleRef.current = null
+          const { totalPages, boundaryEls } = paginationModelRef.current
+          setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+        })
       },
       [computeCurrentPageFromBoundaries]
     )
