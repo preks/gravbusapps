@@ -1,22 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  Alert,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Checkbox,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
-import { FunnelIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
+import { Alert, Badge, Button } from '@newwork/nw-design-system'
+import { ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { useEvalsDashboard, type DashboardFilters } from './hooks/useEvalsDashboard'
 import KpiCards from './components/KpiCards'
 import TimeseriesCharts from './components/TimeseriesCharts'
@@ -28,7 +13,7 @@ import DashboardLoading from './components/DashboardLoading'
 import ToolTokenStats from './components/ToolTokenStats'
 import RawWorkflowNames from './components/RawWorkflowNames'
 import TokenBreakdown from './components/TokenBreakdown'
-import type { BucketGranularity } from './types'
+import DashboardFiltersCard from './components/DashboardFiltersCard'
 
 const todayDateInputValue = () => {
   const d = new Date()
@@ -110,6 +95,28 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
           <div className="gba:text-sm gba:text-muted-foreground">
             KPIs, latency, tokens, error rate, tool usage and recent runs.
           </div>
+          <div
+            className="gba:flex gba:flex-wrap gba:gap-2 gba:pt-2"
+            data-testid="flowbot-evals-dashboard-summary-chips"
+          >
+            <Badge variant="secondary" data-testid="flowbot-evals-dashboard-summary-range">
+              {filters.fromLocal} → {filters.toLocal}
+            </Badge>
+            <Badge variant="secondary" data-testid="flowbot-evals-dashboard-summary-bucket">
+              {filters.bucket}
+            </Badge>
+            <Badge
+              variant={data?.include_split_view ? 'default' : 'outline'}
+              data-testid="flowbot-evals-dashboard-summary-split-view"
+            >
+              Split-view: {data?.include_split_view ? 'on' : 'off'}
+            </Badge>
+            {!!filters.workflow.trim() && (
+              <Badge variant="outline" data-testid="flowbot-evals-dashboard-summary-workflow">
+                Workflow: {filters.workflow.trim()}
+              </Badge>
+            )}
+          </div>
         </div>
         <Button
           variant="outline"
@@ -123,134 +130,29 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
         </Button>
       </div>
 
-      <Card data-testid="flowbot-evals-dashboard-filters">
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-3">
-          <CardTitle className="gba:text-sm gba:flex gba:items-center gba:gap-2">
-            <FunnelIcon size={16} />
-            Filters
-          </CardTitle>
-          <Button variant="ghost" size="sm" onClick={resetFilters} data-testid="flowbot-evals-dashboard-reset-filters">
-            Reset
-          </Button>
-        </CardHeader>
-        <CardContent className="gba:grid gba:grid-cols-1 gba:gap-4 gba:lg:grid-cols-4">
-          <div className="gba:space-y-2">
-            <Label htmlFor="flowbot-evals-workflow">Workflow (optional)</Label>
-            <Input
-              id="flowbot-evals-workflow"
-              value={filters.workflow}
-              onChange={e => setFilters(prev => ({ ...prev, workflow: e.target.value }))}
-              placeholder="e.g. Controller Agent (stream)"
-              data-testid="flowbot-evals-dashboard-filter-workflow"
-            />
-            {derivedWorkflowSuggestions.length > 0 && (
-              <div className="gba:flex gba:flex-wrap gba:gap-2">
-                {derivedWorkflowSuggestions.slice(0, 6).map(w => (
-                  <Button
-                    key={w}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setFilters(prev => ({ ...prev, workflow: w }))}
-                    className="gba:h-7 gba:px-2 gba:text-xs"
-                    data-testid={`flowbot-evals-dashboard-suggest-workflow-${encodeURIComponent(w)}`}
-                  >
-                    {w}
-                  </Button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="gba:space-y-2">
-            <Label htmlFor="flowbot-evals-from">From</Label>
-            <Input
-              id="flowbot-evals-from"
-              type="date"
-              value={filters.fromLocal}
-              onChange={e => setFilters(prev => ({ ...prev, fromLocal: e.target.value }))}
-              data-testid="flowbot-evals-dashboard-filter-from"
-            />
-          </div>
-
-          <div className="gba:space-y-2">
-            <Label htmlFor="flowbot-evals-to">To</Label>
-            <Input
-              id="flowbot-evals-to"
-              type="date"
-              value={filters.toLocal}
-              onChange={e => setFilters(prev => ({ ...prev, toLocal: e.target.value }))}
-              data-testid="flowbot-evals-dashboard-filter-to"
-            />
-          </div>
-
-          <div className="gba:space-y-2">
-            <Label>Bucket</Label>
-            <Select
-              value={filters.bucket}
-              onValueChange={v => setFilters(prev => ({ ...prev, bucket: v as BucketGranularity }))}
-            >
-              <SelectTrigger data-testid="flowbot-evals-dashboard-filter-bucket">
-                <SelectValue placeholder="Select bucket" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="hour">hour</SelectItem>
-                <SelectItem value="day">day</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="gba:flex gba:gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setFilters(prev => ({
-                    ...prev,
-                    fromLocal: todayDateInputValue(),
-                    toLocal: todayDateInputValue(),
-                    bucket: 'hour'
-                  }))
-                }
-                data-testid="flowbot-evals-dashboard-quick-24h"
-              >
-                Last 24h
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setFilters(prev => ({
-                    ...prev,
-                    // Inclusive 7-day window with toLocal +1 day at request time.
-                    fromLocal: daysAgoDateInputValue(6),
-                    toLocal: todayDateInputValue(),
-                    bucket: 'day'
-                  }))
-                }
-                data-testid="flowbot-evals-dashboard-quick-7d"
-              >
-                Last 7d
-              </Button>
-            </div>
-
-            <div className="gba:flex gba:items-start gba:gap-2 gba:pt-2">
-              <Checkbox
-                id="flowbot-evals-include-split-view"
-                checked={filters.includeSplitView}
-                onCheckedChange={v => setFilters(prev => ({ ...prev, includeSplitView: v === true }))}
-                data-testid="flowbot-evals-dashboard-filter-include-split-view"
-              />
-              <div className="gba:space-y-1">
-                <Label htmlFor="flowbot-evals-include-split-view" className="gba:text-sm">
-                  Show technical split-view runs
-                </Label>
-                <div className="gba:text-xs gba:text-muted-foreground">
-                  Includes split-view child rows that are normally hidden for business reporting.
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <DashboardFiltersCard
+        filters={filters}
+        setFilters={setFilters}
+        onReset={resetFilters}
+        workflowSuggestions={derivedWorkflowSuggestions}
+        onQuick24h={() =>
+          setFilters(prev => ({
+            ...prev,
+            fromLocal: todayDateInputValue(),
+            toLocal: todayDateInputValue(),
+            bucket: 'hour'
+          }))
+        }
+        onQuick7d={() =>
+          setFilters(prev => ({
+            ...prev,
+            // Inclusive 7-day window with toLocal +1 day at request time.
+            fromLocal: daysAgoDateInputValue(6),
+            toLocal: todayDateInputValue(),
+            bucket: 'day'
+          }))
+        }
+      />
 
       {!context.accessToken && (
         <Alert className="gba:w-full" data-testid="flowbot-evals-dashboard-missing-token">
