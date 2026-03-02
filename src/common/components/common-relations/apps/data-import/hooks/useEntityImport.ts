@@ -44,7 +44,11 @@ export interface UseEntityImportReturn<T> {
   // Handlers
   handleFileChange: (file: File | null) => Promise<void>
   analyzeWithAgent: () => Promise<void>
-  convertData: (mappings: FieldMapping[], transformFn?: (entity: ConvertedEntity) => T) => Promise<void>
+  convertData: (
+    mappings: FieldMapping[],
+    enforcedFieldsJson?: string,
+    transformFn?: (entity: ConvertedEntity) => T
+  ) => Promise<void>
   importToBackend: () => Promise<void>
   downloadJSON: () => void
   reset: () => void
@@ -201,7 +205,6 @@ export function useEntityImport<T = ConvertedEntity>(
     setError(null)
 
     try {
-      // Call AI service with file
       const agentResult = await aiServiceRef.current.analyzeImport(file)
 
       // Validate mappings - filter out invalid target fields
@@ -226,13 +229,13 @@ export function useEntityImport<T = ConvertedEntity>(
         if (targetField.type === 'catalog') {
           return {
             ...mapping,
-            transformationType: 'catalog',
+            transformationType: 'catalog' as const,
             catalogIdentifier: targetField.catalog
           }
         }
         return {
           ...mapping,
-          transformationType: 'direct',
+          transformationType: 'direct' as const,
           catalogIdentifier: undefined
         }
       })
@@ -259,7 +262,7 @@ export function useEntityImport<T = ConvertedEntity>(
 
   // Convert data
   const convertData = useCallback(
-    async (mappings: FieldMapping[], transformFn?: (entity: ConvertedEntity) => T) => {
+    async (mappings: FieldMapping[], enforcedFieldsJson?: string, transformFn?: (entity: ConvertedEntity) => T) => {
       if (!file) {
         setError('No file available')
         return
@@ -274,11 +277,18 @@ export function useEntityImport<T = ConvertedEntity>(
       setError(null)
 
       try {
-        // Build mapping JSON for backend
-        const mappingJson = JSON.stringify({ fieldMappings: mappings })
+        // Remove enforced fields from the mappings so they are not double-counted
+        const enforcedKeys = enforcedFieldsJson
+          ? new Set(Object.keys(JSON.parse(enforcedFieldsJson) as Record<string, string>))
+          : new Set<string>()
+        const filteredMappings =
+          enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(m.targetField)) : mappings
 
-        // Call backend extract endpoint
-        const response = await flowbotClient.extractFromFile(config.entityType, file, mappingJson)
+        // Build mapping JSON for backend
+        const mappingJson = JSON.stringify({ fieldMappings: filteredMappings })
+
+        // Call backend extract endpoint with enforced fields
+        const response = await flowbotClient.extractFromFile(config.entityType, file, mappingJson, enforcedFieldsJson)
 
         // Apply transformation function if provided (for nested structures like investments)
         const transformedEntities = transformFn ? response.records.map(transformFn) : (response.records as T[])

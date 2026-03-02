@@ -148,6 +148,7 @@ export class FlowbotClient extends RestClient {
     entityType: string,
     importFile: File,
     mappingJson: string,
+    enforcedFieldsJson?: string,
     offset: number = 0,
     maxRows: number = 5000,
     options: Omit<RequestOptions, 'body'> = {}
@@ -156,6 +157,9 @@ export class FlowbotClient extends RestClient {
     formData.append('entity_type', entityType)
     formData.append('import_file', importFile)
     formData.append('mapping_json', mappingJson)
+    if (enforcedFieldsJson) {
+      formData.append('enforced_fields_json', enforcedFieldsJson)
+    }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())
 
