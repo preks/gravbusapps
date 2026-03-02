@@ -148,14 +148,14 @@ function toStableRowKey(row: Record<string, unknown>, index: number): string {
   const id = row.id
   if (id == null) return `row-${index}`
   if (typeof id === 'object') return JSON.stringify(id)
-  return String(id)
+  return `${id}`
 }
 
 function toRowId(row: Record<string, unknown>): string {
   const id = row.id
   if (id == null) return ''
   if (typeof id === 'object') return JSON.stringify(id)
-  return String(id)
+  return `${id}`
 }
 
 function buildListQuery(key: string, columns: DataModelPreviewColumn[]): { query: string; listField: string } {
@@ -275,7 +275,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     }
   }, [onDeleteRow, mutationClient, definition.key, definition.namespace, fetchRows])
 
-  const convertCheckboxValue = (raw: unknown): boolean => Boolean(raw)
+  const convertCheckboxValue = Boolean
 
   const convertDateValue = (raw: unknown, colType: string): string => {
     if (raw == null || raw === '') return ''
@@ -285,10 +285,10 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
       date = new Date(raw)
     } else {
       const numericTimestamp = Number(raw)
-      if (!Number.isNaN(numericTimestamp)) {
-        date = new Date(numericTimestamp)
+      if (Number.isNaN(numericTimestamp)) {
+        date = new Date(`${raw}`)
       } else {
-        date = new Date(String(raw))
+        date = new Date(numericTimestamp)
       }
     }
 
@@ -301,12 +301,12 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     if (typeof raw !== 'object' || raw === null || !('id' in raw)) return ''
     const refId = (raw as { id: unknown }).id
     if (refId == null) return ''
-    return typeof refId === 'object' ? JSON.stringify(refId) : String(refId)
+    return typeof refId === 'object' ? JSON.stringify(refId) : `${refId}`
   }
 
   const convertGenericValue = (raw: unknown): string => {
     if (raw == null) return ''
-    return typeof raw === 'object' ? JSON.stringify(raw) : String(raw)
+    return typeof raw === 'object' ? JSON.stringify(raw) : `${raw}`
   }
 
   const startEditingExisting = useCallback(

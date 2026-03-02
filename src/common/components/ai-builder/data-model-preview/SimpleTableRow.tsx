@@ -50,7 +50,6 @@ export const SimpleTableRow: React.FC<SimpleTableRowProps> = ({
                 value={editValues[col.name] ?? (col.type === 'CHECKBOX' ? false : '')}
                 onChange={val => onCellChange(col.name, val)}
                 disabled={saving}
-                id={`row-${rowIndex}-${col.name}`}
               />
             ) : (
               <span className="gba:block gba:truncate">{formatValue(row[col.name], col.type)}</span>

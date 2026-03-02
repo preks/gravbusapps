@@ -33,56 +33,49 @@ export interface CellInputProps {
   value: string | boolean
   onChange: (value: string | boolean) => void
   disabled?: boolean
-  id: string
 }
 
 interface BaseCellProps {
   value: string | boolean
   onChange: (value: string | boolean) => void
   disabled?: boolean
-  id: string
-  required?: boolean
 }
 
-const CheckboxCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, id }) => (
+const CheckboxCell: React.FC<BaseCellProps> = ({ value, onChange, disabled }) => (
   <div className="gba:flex gba:justify-center">
-    <Checkbox id={id} checked={!!value} onCheckedChange={checked => onChange(!!checked)} disabled={disabled} />
+    <Checkbox checked={!!value} onCheckedChange={checked => onChange(!!checked)} disabled={disabled} />
   </div>
 )
 
-const NumberCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, id, required }) => (
+const NumberCell: React.FC<BaseCellProps> = ({ value, onChange, disabled }) => (
   <Input
-    id={id}
     type="number"
     value={value as string}
     onChange={e => onChange(e.target.value)}
     disabled={disabled}
-    placeholder={required ? 'Required' : '—'}
     className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
   />
 )
 
-const DateCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, required }) => (
+const DateCell: React.FC<BaseCellProps> = ({ value, onChange, disabled }) => (
   <div className="gba:w-full">
     <DateInput
       type="date"
       value={value as string}
       onChange={val => onChange(normalizeDateInput(val as string | string[] | undefined, 'date'))}
       disabled={disabled}
-      placeholder={required ? 'Select date' : 'Optional'}
       className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
     />
   </div>
 )
 
-const DateTimeCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, required }) => (
+const DateTimeCell: React.FC<BaseCellProps> = ({ value, onChange, disabled }) => (
   <div className="gba:w-full">
     <DateInput
       type="datetime-local"
       value={value as string}
       onChange={val => onChange(normalizeDateInput(val as string | string[] | undefined, 'datetime'))}
       disabled={disabled}
-      placeholder={required ? 'Select date & time' : 'Optional'}
       className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
     />
   </div>
@@ -92,15 +85,12 @@ interface SelectCellProps extends BaseCellProps {
   options?: Array<{ value: string; label: string }>
 }
 
-const SelectCell: React.FC<SelectCellProps> = ({ value, onChange, disabled, id, required, options }) => {
+const SelectCell: React.FC<SelectCellProps> = ({ value, onChange, disabled, options }) => {
   if (options && options.length > 0) {
     return (
       <Select value={value as string} onValueChange={val => onChange(val)} disabled={disabled}>
-        <SelectTrigger
-          id={id}
-          className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus:gba:ring-1"
-        >
-          <SelectValue placeholder={required ? 'Required' : '—'} />
+        <SelectTrigger className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus:gba:ring-1">
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {options.map(opt => (
@@ -114,40 +104,35 @@ const SelectCell: React.FC<SelectCellProps> = ({ value, onChange, disabled, id, 
   }
   return (
     <Input
-      id={id}
       value={value as string}
       onChange={e => onChange(e.target.value)}
       disabled={disabled}
-      placeholder={required ? 'Required' : '—'}
       className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
     />
   )
 }
 
-const ReferenceCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, id, required }) => (
+const ReferenceCell: React.FC<BaseCellProps> = ({ value, onChange, disabled }) => (
   <Input
-    id={id}
     value={value as string}
     onChange={e => onChange(e.target.value)}
     disabled={disabled}
-    placeholder={required ? 'ID required' : 'Reference ID'}
+    placeholder="Reference ID"
     className="gba:h-8 gba:w-full gba:min-w-0 gba:text-xs gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1 gba:font-mono"
   />
 )
 
-const TextCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, id, required }) => (
+const TextCell: React.FC<BaseCellProps> = ({ value, onChange, disabled }) => (
   <Input
-    id={id}
     value={value as string}
     onChange={e => onChange(e.target.value)}
     disabled={disabled}
-    placeholder={required ? 'Required' : '—'}
     className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
   />
 )
 
-export const CellInput: React.FC<CellInputProps> = ({ col, value, onChange, disabled, id }) => {
-  const baseProps = { value, onChange, disabled, id, required: col.required }
+export const CellInput: React.FC<CellInputProps> = ({ col, value, onChange, disabled }) => {
+  const baseProps = { value, onChange, disabled }
 
   switch (col.type) {
     case 'CHECKBOX':
