@@ -5,6 +5,7 @@ export interface EditableCell {
   travelRegionId: string
   allowanceRegionRuleId: string
   amount: number
+  home?: boolean
   currencyCode: string
   currencyRef?: string // Full currency catalog entry ID
   countryRef?: string // Full country catalog entry ID (required for API)

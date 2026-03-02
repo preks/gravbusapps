@@ -2,8 +2,11 @@ import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { PiTrash } from 'react-icons/pi'
 import {
+  Badge,
+  Checkbox,
   DateInput,
   Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -242,6 +245,25 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
             />
           </div>
 
+          {/* Home Region */}
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Checkbox
+              id={`${prefixDataTestId}-cell-home-${ruleId}-${regionId}`}
+              checked={Boolean(cell.home)}
+              onCheckedChange={checked => {
+                onUpdateCell({ home: Boolean(checked), isModified: true })
+              }}
+              disabled={isUsedInTransactions && !cell.isNew}
+              data-testid={`${prefixDataTestId}-cell-home-${ruleId}-${regionId}`}
+            />
+            <Label
+              htmlFor={`${prefixDataTestId}-cell-home-${ruleId}-${regionId}`}
+              className="gba:text-xs gba:text-muted-foreground gba:cursor-pointer"
+            >
+              Home Region
+            </Label>
+          </div>
+
           {/* Currency */}
           <div>
             <label
@@ -357,6 +379,17 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
         <>
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:text-center">
             {formatPeriodShort(cell.activeFrom, cell.activeTo)}
+          </div>
+          <div className="gba:flex gba:justify-center gba:mb-2">
+            {cell.home && (
+              <Badge
+                variant="secondary"
+                className="gba:text-[10px]"
+                data-testid={`${prefixDataTestId}-cell-home-badge-${ruleId}-${regionId}`}
+              >
+                Home
+              </Badge>
+            )}
           </div>
           <div className="gba:text-center gba:mb-2">
             <div className="gba:text-lg gba:font-semibold gba:text-foreground">{cell.amount.toFixed(2)}</div>

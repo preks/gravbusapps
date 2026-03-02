@@ -60,7 +60,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [isMemberPanelOpen, setIsMemberPanelOpen] = useState(false)
   const [enableAISentiment, setEnableAISentiment] = useState(false)
-  const [unallocatedDailyCost, setUnallocatedDailyCost] = useState<number>(0)
+  const [unallocatedMonthlyCost, setUnallocatedMonthlyCost] = useState<number>(0)
 
   const graphQLClient = useGraphqlClient(accessToken || '')
   const structureId = getCurrentActiveStructureId()
@@ -319,7 +319,11 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       .filter(member => member.totalGoals === 0)
       .map(member => ({
         id: member.employeeId,
-        name: `${member.firstName} ${member.lastName}`
+        name: `${member.firstName} ${member.lastName}`,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        pictureThumbnail: member.pictureThumbnail,
+        jobPositionName: member.jobPositionName
       }))
   }, [teamPerformance])
 
@@ -408,11 +412,11 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     [directReports, unallocatedEmployeeIds, employeeAllocations]
   )
 
-  // Calculate daily cost of unallocated employees
+  // Calculate monthly cost of unallocated employees based on EmployeeSalary
   useEffect(() => {
     const fetchUnallocatedSalaryCost = async () => {
       if (!unallocatedEmployeeIds || unallocatedEmployeeIds.length === 0) {
-        setUnallocatedDailyCost(0)
+        setUnallocatedMonthlyCost(0)
         return
       }
 
@@ -433,7 +437,6 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
               employeeId
               annualGrossSalary
               monthlyGrossSalary
-              hourlyGrossSalary
               startDate
               endDate
               currency {
@@ -447,8 +450,8 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
           employeeIds: unallocatedEmployeeIds
         })
 
-        // Find current active salary for each employee
-        const employeeCurrentSalaries = new Map<string, number>()
+        // Track the latest active salary record per employee
+        const employeeCurrentSalaries = new Map<string, { monthlyAmount: number; startDateMs: number }>()
 
         response.EmployeeSalary.forEach(record => {
           // Check if this is an active record
@@ -457,33 +460,32 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
           const now = new Date()
 
           if (startDate <= now && (!endDate || endDate >= now)) {
-            // Get salary amount (prefer annual, then monthly*12, then hourly*2080)
-            let annualAmount = 0
-            if (record.annualGrossSalary != null && record.annualGrossSalary > 0) {
-              annualAmount = record.annualGrossSalary
-            } else if (record.monthlyGrossSalary != null && record.monthlyGrossSalary > 0) {
-              annualAmount = record.monthlyGrossSalary * 12
-            } else if (record.hourlyGrossSalary != null && record.hourlyGrossSalary > 0) {
-              annualAmount = record.hourlyGrossSalary * 2080 // 40 hrs/week * 52 weeks
+            // Get salary amount as MONTHLY (prefer monthlyGross, fallback annualGross / 12)
+            let monthlyAmount = 0
+            if (record.monthlyGrossSalary != null && record.monthlyGrossSalary > 0) {
+              monthlyAmount = record.monthlyGrossSalary
+            } else if (record.annualGrossSalary != null && record.annualGrossSalary > 0) {
+              monthlyAmount = record.annualGrossSalary / 12
             }
 
-            // Only set if we don't have a salary yet or this is a newer record
-            if (!employeeCurrentSalaries.has(record.employeeId)) {
-              employeeCurrentSalaries.set(record.employeeId, annualAmount)
+            const current = employeeCurrentSalaries.get(record.employeeId)
+            const startDateMs = startDate.getTime()
+            if (!current || startDateMs > current.startDateMs) {
+              employeeCurrentSalaries.set(record.employeeId, { monthlyAmount, startDateMs })
             }
           }
         })
 
-        // Calculate total daily cost (annual salary / 365 days)
-        let totalDailyCost = 0
-        employeeCurrentSalaries.forEach(annualSalary => {
-          totalDailyCost += annualSalary / 365
+        // Calculate total monthly cost
+        let totalMonthlyCost = 0
+        employeeCurrentSalaries.forEach(salaryData => {
+          totalMonthlyCost += salaryData.monthlyAmount
         })
 
-        setUnallocatedDailyCost(Math.round(totalDailyCost))
+        setUnallocatedMonthlyCost(Math.round(totalMonthlyCost))
       } catch (error) {
         console.error('Failed to fetch unallocated salary cost:', error)
-        setUnallocatedDailyCost(0)
+        setUnallocatedMonthlyCost(0)
       }
     }
 
@@ -506,7 +508,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         remote: remoteCount,
         upcomingAnniversaries: upcomingAnniversaries.length
       },
-      unallocatedDailyCost,
+      unallocatedMonthlyCost,
       unallocatedEmployees: unallocatedEmployeesWithAllocation,
       employeesWithoutGoals: employeesWithoutGoalsList,
       goalsBehindData,
@@ -647,7 +649,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     unallocatedEmployeeIds,
     averageAllocationPercentage,
     unallocatedCount,
-    unallocatedDailyCost,
+    // Kept for backward compatibility naming
+    unallocatedDailyCost: unallocatedMonthlyCost,
+    unallocatedMonthlyCost,
     unallocatedEmployeesWithAllocation,
     directReportsWithAllocation,
     averageTeamProgress,
