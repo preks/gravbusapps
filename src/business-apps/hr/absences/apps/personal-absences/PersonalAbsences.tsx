@@ -11,6 +11,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { fetchHolidayDates } from '@/business-apps/hr/core/apps/employee-record/components/tabs/utils/fetchHolidayDates'
+import { useAbsenceEffectiveDates } from '@/business-apps/hr/core/apps/employee-record/hooks/useAbsenceEffectiveDates'
+import { useEmployeeWeeklySchedule } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeWeeklySchedule'
 
 import personalAbsencesTranslations from './_i18n'
 import { usePersonalAbsencesData } from './hooks/usePersonalAbsencesData'
@@ -18,7 +20,12 @@ import { useWellnessInsight } from './hooks/useWellnessInsight'
 import { PersonalAbsencesCalendarView } from './components/PersonalAbsencesCalendarView'
 import { PersonalAbsencesDashboardView } from './components/PersonalAbsencesDashboardView'
 
-export const PersonalAbsences = (props: BusinessAppContextProps) => {
+type PersonalAbsencesProps = BusinessAppContextProps & {
+  employeeIdOverride?: string
+  embedded?: boolean
+}
+
+export const PersonalAbsences = (props: PersonalAbsencesProps) => {
   const { t } = useTranslation(personalAbsencesTranslations)
   const [showCalendar, setShowCalendar] = useState(false)
   const [calendarDate, setCalendarDate] = useState(dayjs())
@@ -27,7 +34,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [holidayDates, setHolidayDates] = useState<string[]>([])
 
   const { accessToken, userInfo } = props
-  const employeeId = userInfo?.employeeDetails?.employeeId
+  const employeeId = props.employeeIdOverride ?? userInfo?.employeeDetails?.employeeId
   const client = useGraphQLClient(accessToken)
 
   const data = usePersonalAbsencesData(accessToken, employeeId)
@@ -58,6 +65,12 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
     getAbsenceGroupDisplayValue,
     handleCreateAbsence
   } = data
+  const { effectiveDates, allowWeekendPaintingInFallback } = useAbsenceEffectiveDates(
+    client,
+    employee?.id,
+    calendarDate
+  )
+  const nonWorkingDates = useEmployeeWeeklySchedule(accessToken, employee?.id, calendarDate)
 
   const wellness = useWellnessInsight(absences, displayEntitlements, ytdAbsentDays, ytdTotalWorkingDays, accessToken)
   const { wellnessDataSummary, wellnessInsight, wellnessLoading, wellnessRequested, requestWellnessAnalysis } = wellness
@@ -87,6 +100,10 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         absences={absences}
         loading={loading}
         error={error}
+        effectiveDates={effectiveDates ?? undefined}
+        allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
+        nonWorkingDates={!effectiveDates ? (nonWorkingDates ?? undefined) : undefined}
+        embedded={props.embedded}
       />
     )
   }
@@ -124,6 +141,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
       totalPages={totalPages}
       error={error}
       t={t}
+      embedded={props.embedded}
     />
   )
 }

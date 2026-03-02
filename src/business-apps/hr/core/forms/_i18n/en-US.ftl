@@ -360,3 +360,18 @@ create-job-position-name = Name
 create-job-position-total-open = Total open
 create-job-position-organizational-unit = Organizational Unit
 create-job-position-error = Failed to create job position. Please try again.
+
+# Create New Absence – validation messages
+create-absence-unable-to-verify-balance = Unable to verify absence balance. Please check manually.
+create-absence-insufficient-balance = Insufficient balance
+create-absence-requested = Requested
+create-absence-available = Available
+create-absence-days = days
+create-absence-end-date-after-start = End date must be after start date
+create-absence-single-day-bank-holiday-blocked = The selected day is a bank holiday. You cannot submit a single-day absence for this date.
+create-absence-validation-failed = Validation failed. Please try again.
+create-absence-bank-holidays-not-counted = { $count } days are bank holidays, so they are not taken into consideration.
+create-absence-overlap-prefix = There is already a
+create-absence-overlap-scheduled = absence scheduled
+create-absence-from = from
+create-absence-to = to

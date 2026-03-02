@@ -170,6 +170,9 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
   >([])
   const [isFetchingPayloadItems, setIsFetchingPayloadItems] = useState<boolean>(false)
 
+  /** Rule id from date+time validation; not pushed to context until submit/next to avoid full-tree rerender */
+  const validatedEmployeeRuleIdRef = useRef<string | null>(null)
+
   const validateEmployeeRule = async (
     startDate: Date | undefined,
     startTime: Date | undefined
@@ -195,7 +198,6 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       }
 
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken)
-      const ruleDataValue = ruleData.id || ruleData.expenseRuleId
       if (!ruleData) {
         const errorMessage = getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_item.missing_expense_rule_message',
@@ -204,8 +206,18 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         return { employeeRuleError: errorMessage, ruleConflictError: null }
       }
 
+      const ruleDataValue = ruleData.id || ruleData.expenseRuleId
       if (ruleDataValue) {
-        setEmployeeRuleId(ruleDataValue)
+        validatedEmployeeRuleIdRef.current = ruleDataValue
+        try {
+          const activeUserLocale = getCurrentActiveUserLocale()
+          const rulesResponse = await getExpenseRulesDataCached(ruleDataValue, activeUserLocale)
+          setExpenseRulesData(rulesResponse)
+          const first = await getAllowancePeriodRuleCached(ruleDataValue)
+          setAllowancePeriodRule(first)
+        } catch {
+          // Keep previous rules/allowance on fetch error
+        }
         const conflictError = await checkRuleConflicts(ruleDataValue)
         return { employeeRuleError: null, ruleConflictError: conflictError }
       }
@@ -439,11 +451,17 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     }
 
     if (!isEndLocation) {
-      const errors = await validateEmployeeRule(startDate, startTime)
-      setEmployeeRuleError(errors.employeeRuleError)
-      setRuleConflictError(errors.ruleConflictError)
-      if (errors.employeeRuleError || errors.ruleConflictError) {
-        return
+      // Only fetch/validate employee rule when both date and time are selected
+      if (startDate && startTime) {
+        const errors = await validateEmployeeRule(startDate, startTime)
+        setEmployeeRuleError(errors.employeeRuleError)
+        setRuleConflictError(errors.ruleConflictError)
+        if (errors.employeeRuleError || errors.ruleConflictError) {
+          return
+        }
+      } else {
+        setEmployeeRuleError(null)
+        setRuleConflictError(null)
       }
     }
 
@@ -831,6 +849,16 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       if (!accessToken || !userInfo?.employeeDetails || !expenseRequestData || !hasAnyItemsToCheck) return
       if (isFetchingPayloadItems) return
 
+      // Only fetch/validate employee rule when both date and time are selected (avoids rerender on date-only)
+      const hasDate = !!startLocation.departureDate
+      const hasTime = !!startLocation.departureTime
+      if (!hasDate || !hasTime) {
+        setEmployeeRuleError(null)
+        setRuleConflictError(null)
+        validatedEmployeeRuleIdRef.current = null
+        return
+      }
+
       // Deduplicate: only run check when date or items change (prevent flicker loop)
       const requestItemIds =
         expenseRequestData?.ExpenseItem?.map((item: any) => item.id)
@@ -842,7 +870,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           .sort()
           .join(',') || ''
       const dateKey = startLocation.departureDate ? new Date(startLocation.departureDate).toISOString() : 'no-date'
-      const checkKey = `${dateKey}|${requestItemIds}|${payloadItemIds}`
+      const checkKey = `${dateKey}|${startLocation.departureTime ?? 'no-time'}|${requestItemIds}|${payloadItemIds}`
 
       if (lastRuleCheckKeyRef.current === checkKey) {
         return
@@ -942,7 +970,10 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
 
         setExpenseRulesData(rulesResponse)
 
-        await loadInitialTripData(rulesResponse)
+        // Only prefill trip from request when form is not yet filled (avoids overwriting user's date/time)
+        if (!startLocation.departureDate) {
+          await loadInitialTripData(rulesResponse)
+        }
       } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
@@ -1055,20 +1086,38 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       endLocation,
       expenseRulesData,
       EVENTS.SAVE,
-      resolveOvernightAccommodation()
+      resolveOvernightAccommodation(),
+      validatedEmployeeRuleIdRef.current ?? undefined
     )
   }
 
   const handleNext = () => {
     if (validateTripForm()) {
-      submitActionTripData(
-        startLocation,
-        destinations,
-        endLocation,
-        expenseRulesData,
-        EVENTS.NEXT,
-        resolveOvernightAccommodation()
-      )
+      try {
+        submitActionTripData(
+          startLocation,
+          destinations,
+          endLocation,
+          expenseRulesData,
+          EVENTS.NEXT,
+          resolveOvernightAccommodation(),
+          validatedEmployeeRuleIdRef.current ?? undefined
+        )
+      } catch (err) {
+        console.error('[TripScreen countryRef debug] Error on Next (submitActionTripData)', {
+          error: err,
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+          countryRefContext: {
+            expenseRulesDataAllowanceDetails: expenseRulesData?.AllowanceRegionRuleDetail?.map((d: any) => ({
+              travelRegionRef: d?.travelRegionRef,
+              countryRef: d?.countryRef,
+              home: d?.home
+            }))
+          }
+        })
+        throw err
+      }
     }
   }
 
