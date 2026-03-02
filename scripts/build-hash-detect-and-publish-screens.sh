@@ -14,7 +14,7 @@ BUILD_EXIT=0
 PUBLISH_EXIT=0
 
 log_phase "BUILD ALL SCREENS (BATCHED)"
-node scripts/build-changed-screens.js
+VITE_HASH_ONLY_BUILD="true" node scripts/build-changed-screens.js
 BUILD_EXIT=$?
 if [[ "$BUILD_EXIT" -ne 0 ]]; then
   echo "Build reported failures (exit: $BUILD_EXIT). Continuing to publish successful build outputs."

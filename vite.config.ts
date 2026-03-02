@@ -191,6 +191,7 @@ export default defineConfig(({ command, mode }) => {
   const isBuildCommand = command === 'build'
   const isSingleBuild = targetEntryKey && targetEntryFile
   const isBatchBuild = process.env.VITE_BATCH_MODE === 'true'
+  const isHashOnlyBuild = process.env.VITE_HASH_ONLY_BUILD === 'true'
 
   if (isBuildCommand && isSingleBuild) {
     console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`)
@@ -344,6 +345,7 @@ if (globalThis.__APP_BUILD_INFO__) {
     name: 'prepend-custom-build-info-banner',
     renderChunk(code: string, chunk: any) {
       if (
+        !isHashOnlyBuild &&
         !shouldHashFilesForDeployment &&
         isUnversionedBuild &&
         chunk.isEntry &&
