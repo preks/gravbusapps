@@ -74,15 +74,16 @@ export const useFeedbackHubData = ({
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const [pendingRequestsPage, setPendingRequestsPage] = useState(1)
   const [showPendingPanel, setShowPendingPanel] = useState(false)
-  const { tasks: pendingFeedbackTasks, totalCount: pendingFeedbackTotalCount } = useFlowExecutionTasks(
-    { accessToken, userInfo } as any,
-    {
-      currentPage: pendingRequestsPage,
-      pageSize: PENDING_REQUESTS_PAGE_SIZE,
-      searchTerm: '',
-      filterTaskName: 'enterRequestedFeedback'
-    }
-  )
+  const {
+    tasks: pendingFeedbackTasks,
+    totalCount: pendingFeedbackTotalCount,
+    refresh: refreshPendingFeedbackTasks
+  } = useFlowExecutionTasks({ accessToken, userInfo } as any, {
+    currentPage: pendingRequestsPage,
+    pageSize: PENDING_REQUESTS_PAGE_SIZE,
+    searchTerm: '',
+    filterTaskName: 'enterRequestedFeedback'
+  })
 
   const buildFeedbackWhere = useCallback(
     (mode: FeedbackStream) => {
@@ -356,6 +357,13 @@ export const useFeedbackHubData = ({
     [receivedList, givenList]
   )
 
+  const reloadAllData = useCallback(() => {
+    refreshPendingFeedbackTasks()
+    fetchList('received', receivedPage)
+    fetchList('given', givenPage)
+    fetchKpiData()
+  }, [refreshPendingFeedbackTasks, fetchList, receivedPage, givenPage, fetchKpiData])
+
   return {
     searchTerm,
     setSearchTerm,
@@ -385,6 +393,7 @@ export const useFeedbackHubData = ({
     setPendingRequestsPage,
     showPendingPanel,
     setShowPendingPanel,
-    typeOptions
+    typeOptions,
+    reloadAllData
   }
 }
