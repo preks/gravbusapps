@@ -419,11 +419,16 @@ function pickKpiQueryVariables(variables: Record<string, unknown>): Record<strin
   }
 }
 
+const mergeOverviewResults = (tableResult?: Record<string, unknown>, kpiResult?: Record<string, unknown>) => ({
+  ...kpiResult,
+  ...tableResult
+})
+
 const inFlightBySignature: Map<string, Promise<any>> = new Map()
 const cacheBySignature: Map<string, { ts: number; data: BackofficeExpensesOverviewState }> = new Map()
 const CACHE_TTL_MS = 30_000
 
-function extractDistinctCurrencies(result: any): string[] {
+function extractDistinctCurrenciesByKeys(result: any, keys: string[]): string[] {
   const currencyRefs = new Set<string>()
   const pushRefs = (arr?: Array<{ currencyRef?: string }>) => {
     if (!Array.isArray(arr)) return
@@ -431,23 +436,23 @@ function extractDistinctCurrencies(result: any): string[] {
       if (r?.currencyRef) currencyRefs.add(r.currencyRef)
     }
   }
-  pushRefs(result?.DistinctCurrenciesFromItems)
-  pushRefs(result?.DistinctCurrenciesFromRequests)
-  pushRefs(result?.DistinctCurrenciesFromPlans)
-  pushRefs(result?.DistinctCurrenciesFromPayments)
+  keys.forEach(key => {
+    pushRefs(result?.[key])
+  })
   return Array.from(currencyRefs).sort((a, b) => a.localeCompare(b))
 }
 
 function extractDistinctCurrenciesFromPayments(result: any): string[] {
-  const currencyRefs = new Set<string>()
-  const pushRefs = (arr?: Array<{ currencyRef?: string }>) => {
-    if (!Array.isArray(arr)) return
-    for (const r of arr) {
-      if (r?.currencyRef) currencyRefs.add(r.currencyRef)
-    }
-  }
-  pushRefs(result?.DistinctCurrenciesFromPayments)
-  return Array.from(currencyRefs).sort((a, b) => a.localeCompare(b))
+  return extractDistinctCurrenciesByKeys(result, ['DistinctCurrenciesFromPayments'])
+}
+
+function extractDistinctCurrencies(result: any): string[] {
+  return extractDistinctCurrenciesByKeys(result, [
+    'DistinctCurrenciesFromItems',
+    'DistinctCurrenciesFromRequests',
+    'DistinctCurrenciesFromPlans',
+    'DistinctCurrenciesFromPayments'
+  ])
 }
 
 function buildMonthlyTrends(trendItems: any[]): Array<{ month: string; amount: number }> {
@@ -625,10 +630,17 @@ export const useBackofficeExpensesOverview = (
         requestPromise = Promise.all([
           shouldFetchTable
             ? graphqlClient.request(BACKOFFICE_EXPENSES_OVERVIEW_TABLE, tableVariables)
-            : Promise.resolve({}),
-          shouldFetchKpis ? graphqlClient.request(BACKOFFICE_EXPENSES_OVERVIEW_KPI, kpiVariables) : Promise.resolve({})
+            : Promise.resolve(undefined),
+          shouldFetchKpis
+            ? graphqlClient.request(BACKOFFICE_EXPENSES_OVERVIEW_KPI, kpiVariables)
+            : Promise.resolve(undefined)
         ])
-          .then(([tableResult, kpiResult]) => ({ ...(kpiResult || {}), ...(tableResult || {}) }))
+          .then(([tableResult, kpiResult]) =>
+            mergeOverviewResults(
+              tableResult as Record<string, unknown> | undefined,
+              kpiResult as Record<string, unknown> | undefined
+            )
+          )
           .finally(() => {
             inFlightBySignature.delete(signature)
           })

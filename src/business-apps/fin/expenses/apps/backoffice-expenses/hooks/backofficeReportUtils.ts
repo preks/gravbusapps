@@ -35,9 +35,17 @@ export const isPaidLikeStatus = (value: unknown): boolean =>
   ['PAID', 'CLOSED'].includes(String(value || '').toUpperCase())
 
 export const toUpperText = (value: unknown): string => String(value || '').toUpperCase()
+export const toUpperSafeText = (value: unknown): string => {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value.toUpperCase()
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value).toUpperCase()
+  }
+  return ''
+}
 
 const normalizeStatusToken = (value: string): string => {
-  const token = toUpperText(value).replace(/[^A-Z]/g, '')
+  const token = toUpperSafeText(value).replaceAll(/[^A-Z]/g, '')
   if (token === 'APPROVAL') return 'APPROVED'
   if (token === 'DRAFT') return 'CREATED'
   return token
@@ -68,7 +76,7 @@ export const hasFromToTransition = (text: string, fromStatuses: string[], toStat
   const toMatch = toNormalized.some(to => normalized.includes(`TO ${to}`) || normalized.includes(`TO: ${to}`))
   if (fromMatch && toMatch) return true
 
-  const compact = normalized.replace(/\s+/g, ' ')
+  const compact = normalized.replaceAll(/\s+/g, ' ')
   return fromNormalized.some(from =>
     toNormalized.some(to => compact.includes(`FROM ${from} TO ${to}`) || compact.includes(`${from} TO ${to}`))
   )
@@ -96,7 +104,9 @@ const getObjectPathValue = (source: Record<string, any>, path: string): unknown 
 }
 
 export const parsePositiveNumber = (value: unknown): number | null => {
-  const normalized = Number(String(value ?? '').replace(',', '.'))
+  if (value === null || value === undefined) return null
+  if (typeof value === 'object') return null
+  const normalized = Number(String(value).replace(',', '.'))
   if (!Number.isFinite(normalized)) return null
   return normalized >= 0 ? normalized : null
 }
@@ -123,9 +133,10 @@ export const parseAdditionalProperties = (raw: unknown): Record<string, any> => 
 
 export const extractBusinessDaysByLabel = (content: string, label: string): number | null => {
   const normalizedContent = String(content || '')
-  const regex = new RegExp(`${label}[\\s\\S]{0,140}?(\\d+(?:[.,]\\d+)?)\\s*business\\s*days`, 'i')
-  const match = normalizedContent.match(regex)
-  return match ? parsePositiveNumber(match[1]) : null
+  const regex = new RegExp(String.raw`${label}[\s\S]{0,140}?(\d+(?:[.,]\d+)?)\s*business\s*days`, 'i')
+  const match = regex.exec(normalizedContent)
+  if (!match) return null
+  return parsePositiveNumber(match[1])
 }
 
 export const buildSlaStatus = (durationDays: number | null, thresholdDays: number): string => {

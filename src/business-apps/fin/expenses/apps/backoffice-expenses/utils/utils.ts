@@ -74,13 +74,8 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
         badgeVariant: 'warning'
       }
 
-    case ExpenseStatus.VERIFIED:
-      return {
-        label: 'Transfer Required',
-        badgeVariant: 'warning'
-      }
-
     case ExpenseStatus.BOOKED:
+    case ExpenseStatus.VERIFIED:
       return {
         label: 'Transfer Required',
         badgeVariant: 'warning'

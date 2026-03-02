@@ -129,8 +129,9 @@ export const useBackofficeTeamSpendingAnalytics = (
         if (!isActive) return
         setError(err?.message || 'Failed to fetch analytics data')
       } finally {
-        if (!isActive) return
-        setIsLoading(false)
+        if (isActive) {
+          setIsLoading(false)
+        }
       }
     }
 
@@ -171,27 +172,25 @@ export const useBackofficeTeamSpendingAnalytics = (
       processEmployeeFilters(item.expensePlan?.employee)
     }
 
-    const locations = Array.from(uniqueLocations.values())
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(location => ({ id: location.id, name: location.name, selected: false }))
+    const sortedLocations = Array.from(uniqueLocations.values()).toSorted((a, b) => a.name.localeCompare(b.name))
+    const locations = sortedLocations.map(location => ({ id: location.id, name: location.name, selected: false }))
     setLocationFilters(locations)
 
     const dashboardDepartments = (availableDepartmentOptions || [])
       .filter(department => department?.id && department?.name)
       .map(department => ({ id: department.id, name: department.name }))
 
-    const departmentsFromData = Array.from(uniqueDepartments.values()).sort((a, b) => a.name.localeCompare(b.name))
+    const departmentsFromData = Array.from(uniqueDepartments.values()).toSorted((a, b) => a.name.localeCompare(b.name))
     const baseDepartments = dashboardDepartments.length > 0 ? dashboardDepartments : departmentsFromData
 
     setDepartmentFilters(previousFilters => {
       const selectedById = new Map(previousFilters.map(filter => [filter.id, filter.selected]))
-      return baseDepartments
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map(department => ({
-          id: department.id,
-          name: department.name,
-          selected: selectedById.get(department.id) || false
-        }))
+      const sortedDepartments = baseDepartments.toSorted((a, b) => a.name.localeCompare(b.name))
+      return sortedDepartments.map(department => ({
+        id: department.id,
+        name: department.name,
+        selected: selectedById.get(department.id) || false
+      }))
     })
   }, [rawData, availableDepartmentOptions])
 

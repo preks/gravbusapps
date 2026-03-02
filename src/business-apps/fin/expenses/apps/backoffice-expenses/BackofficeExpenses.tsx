@@ -35,21 +35,33 @@ const isValidBackofficeTab = (value?: string | null): value is BackofficeTabKey 
   Boolean(value && (BACKOFFICE_TAB_KEYS as readonly string[]).includes(value))
 
 const getViewFromUrl = (): BackofficeView => {
-  if (typeof window === 'undefined') {
+  if (typeof globalThis.window === 'undefined') {
     return 'tabs'
   }
-  const params = new URLSearchParams(window.location.search)
+  const params = new URLSearchParams(globalThis.window.location.search)
   const viewFromUrl = params.get('view')
   return isValidView(viewFromUrl) && viewFromUrl !== 'tabs' ? viewFromUrl : 'tabs'
 }
 
 const getTabFromUrl = (): BackofficeTabKey | null => {
-  if (typeof window === 'undefined') {
+  if (typeof globalThis.window === 'undefined') {
     return null
   }
-  const params = new URLSearchParams(window.location.search)
+  const params = new URLSearchParams(globalThis.window.location.search)
   const tabFromUrl = params.get('tab')
   return isValidBackofficeTab(tabFromUrl) ? tabFromUrl : null
+}
+
+const setParamIfChanged = (url: URL, key: string, value: string | null): boolean => {
+  const currentValue = url.searchParams.get(key)
+  if (value === null) {
+    if (currentValue === null) return false
+    url.searchParams.delete(key)
+    return true
+  }
+  if (currentValue === value) return false
+  url.searchParams.set(key, value)
+  return true
 }
 
 const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
@@ -93,11 +105,11 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
       return tabFromUrl
     }
     const defaultTab = BACKOFFICE_TAB_KEYS[0]
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href)
+    if (typeof globalThis.window !== 'undefined') {
+      const url = new URL(globalThis.window.location.href)
       if (url.searchParams.get('tab') !== defaultTab) {
         url.searchParams.set('tab', defaultTab)
-        window.history.replaceState({}, '', url.toString())
+        globalThis.window.history.replaceState({}, '', url.toString())
       }
     }
     return defaultTab
@@ -118,56 +130,30 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
 
   const updateUrl = useCallback(
     (view: BackofficeView, tab?: BackofficeTabKey, mode: 'push' | 'replace' = 'replace') => {
-      if (typeof window === 'undefined') {
+      if (typeof globalThis.window === 'undefined') {
         return
       }
-      const url = new URL(window.location.href)
-      const currentViewParam = url.searchParams.get('view')
-      const currentTabParam = url.searchParams.get('tab')
-      let changed = false
+      const url = new URL(globalThis.window.location.href)
+      const nextViewParam = view === 'tabs' ? null : view
+      const nextTabParam = view === 'tabs' ? tab || null : null
 
-      if (view === 'tabs') {
-        if (currentViewParam) {
-          url.searchParams.delete('view')
-          changed = true
-        }
-        if (tab) {
-          if (currentTabParam !== tab) {
-            url.searchParams.set('tab', tab)
-            changed = true
-          }
-        } else if (currentTabParam) {
-          url.searchParams.delete('tab')
-          changed = true
-        }
-      } else {
-        if (currentViewParam !== view) {
-          url.searchParams.set('view', view)
-          changed = true
-        }
-        if (currentTabParam) {
-          url.searchParams.delete('tab')
-          changed = true
-        }
-      }
+      const changedView = setParamIfChanged(url, 'view', nextViewParam)
+      const changedTab = setParamIfChanged(url, 'tab', nextTabParam)
+      const changed = changedView || changedTab
 
       if (!changed) {
         return
       }
 
-      const historyMethod = mode === 'push' ? window.history.pushState : window.history.replaceState
-      historyMethod.call(window.history, {}, '', url.toString())
+      const historyMethod =
+        mode === 'push' ? globalThis.window.history.pushState : globalThis.window.history.replaceState
+      historyMethod.call(globalThis.window.history, {}, '', url.toString())
     },
     []
   )
 
-  // ⚡ CRITICAL: Don't render until accessToken is valid (prevents 401 errors)
-  // Must be AFTER all hooks to comply with Rules of Hooks
-  // Dashboard tab is always mounted and calls hooks immediately
-  // useGraphqlClient is called on EVERY render and sets token on singleton
-  if (!props.accessToken || typeof props.accessToken !== 'string' || props.accessToken.length < 100) {
-    return null // Return null to prevent ANY rendering
-  }
+  const hasValidAccessToken =
+    Boolean(props.accessToken) && typeof props.accessToken === 'string' && props.accessToken.length >= 100
 
   const handleTabChange = useCallback(
     (key: string) => {
@@ -207,15 +193,15 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
       }
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.window.addEventListener('popstate', handlePopState)
+    return () => globalThis.window.removeEventListener('popstate', handlePopState)
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
       return
     }
-    const params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(globalThis.window.location.search)
     if (currentView === 'tabs' && !params.has('tab')) {
       updateUrl('tabs', activeTab, 'replace')
     }
@@ -256,25 +242,16 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
     setCurrentView('analytics')
     updateUrl('analytics', undefined, 'push')
   }, [updateUrl])
-  const handleNavigateBackToDashboard = useCallback(() => {
-    setCurrentView('tabs')
-    setActiveTab('dashboard')
-    setMountedTabs(prev => {
-      if (prev.has('dashboard')) {
-        return prev
-      }
-      const next = new Set(prev)
-      next.add('dashboard')
-      return next
-    })
-    updateUrl('tabs', 'dashboard', 'push')
-  }, [updateUrl])
-
   const tabProps = {
     ...props,
     moduleColor: moduleColor,
     onNavigateToReports: handleNavigateToReports,
     onNavigateToAnalytics: handleNavigateToAnalytics
+  }
+
+  // Keep hook order stable; gate rendering only after hooks are declared.
+  if (!hasValidAccessToken) {
+    return null
   }
 
   return (
@@ -345,11 +322,11 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
       </div>
 
       <div className={currentView === 'reports' ? '' : 'gba:hidden'} data-testid="backoffice-expenses-reports-view">
-        <BackofficeExpenseReportsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+        <BackofficeExpenseReportsPage {...props} />
       </div>
 
       <div className={currentView === 'analytics' ? '' : 'gba:hidden'} data-testid="backoffice-expenses-analytics-view">
-        <BackofficeTeamSpendingAnalyticsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+        <BackofficeTeamSpendingAnalyticsPage {...props} />
       </div>
     </>
   )

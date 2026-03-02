@@ -32,9 +32,7 @@ import {
   type ReportColumnDef
 } from './backofficeExpenseReportsPage.utils'
 
-interface BackofficeExpenseReportsPageProps extends BusinessAppContextProps {
-  onNavigateBack: () => void
-}
+type BackofficeExpenseReportsPageProps = BusinessAppContextProps
 
 type ReportSnapshot = {
   rows: any[]
@@ -42,6 +40,15 @@ type ReportSnapshot = {
 }
 
 const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
+  const toFilterText = (value: unknown): string => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value.trim()
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+      return String(value).trim()
+    }
+    return ''
+  }
+
   const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [reportSnapshotsByType, setReportSnapshotsByType] = useState<Partial<Record<ReportType, ReportSnapshot>>>({})
@@ -577,36 +584,33 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
         return new Set<string>()
     }
   }, [selectedReportType])
+  const renderTableCell = (columnKey: string, rowOriginal: any) => {
+    const value = rowOriginal?.[columnKey]
+    if (columnKey.includes('amount') || columnKey.includes('Amount')) {
+      return <span className="gba:text-sm">{formatCurrencyDisplay(value || 0, rowOriginal?.currency || 'EUR')}</span>
+    }
+    if (isDateKey(columnKey)) {
+      return <span className="gba:text-sm">{value ? ensureShortDateFormat(value) : '-'}</span>
+    }
+    if (columnKey === 'title') {
+      const titleValue = value || '-'
+      return (
+        <span className="gba:block gba:max-w-[280px] gba:truncate gba:text-sm" title={titleValue}>
+          {titleValue}
+        </span>
+      )
+    }
+    return (
+      <span className="gba:text-sm">{value === null || value === undefined || value === '' ? '-' : String(value)}</span>
+    )
+  }
   const dataTableColumns = useMemo<TanstackColumnDef<any>[]>(() => {
     return columns.map(column => ({
       id: column.key,
       enableSorting: backendSortableColumnKeys.has(column.key),
-      header: () => <>{column.title ?? ''}</>,
+      header: column.title ?? '',
       accessorFn: (row: any) => row?.[column.key],
-      cell: ({ row }: any) => {
-        const value = row?.original?.[column.key]
-        if (column.key.includes('amount') || column.key.includes('Amount')) {
-          return (
-            <span className="gba:text-sm">{formatCurrencyDisplay(value || 0, row?.original?.currency || 'EUR')}</span>
-          )
-        }
-        if (isDateKey(column.key)) {
-          return <span className="gba:text-sm">{value ? ensureShortDateFormat(value) : '-'}</span>
-        }
-        if (column.key === 'title') {
-          const titleValue = value || '-'
-          return (
-            <span className="gba:block gba:max-w-[280px] gba:truncate gba:text-sm" title={titleValue}>
-              {titleValue}
-            </span>
-          )
-        }
-        return (
-          <span className="gba:text-sm">
-            {value === null || value === undefined || value === '' ? '-' : String(value)}
-          </span>
-        )
-      }
+      cell: ({ row }: any) => renderTableCell(column.key, row?.original)
     }))
   }, [columns, backendSortableColumnKeys])
   const alignedReportRows = useMemo<any[]>(
@@ -629,7 +633,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     [transferRequiredFilterLabel]
   )
   const normalizeStatusFilterValue = (value: unknown): string => {
-    const normalizedValue = String(value || '').trim()
+    const normalizedValue = toFilterText(value)
     if (!normalizedValue) return ''
     if (
       transferRequiredStatusAliases.has(normalizedValue) ||
@@ -800,12 +804,10 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     const selectedStatusSet = isBackendFilteringReport
       ? new Set<string>()
       : new Set(selectedStatuses.map((status: string) => normalizeStatusFilterValue(status)).filter(Boolean))
-    const selectedEmployeeSet = isBackendFilteringReport
-      ? new Set<string>()
-      : new Set(selectedEmployees.map((employee: string) => String(employee)))
+    const selectedEmployeeSet = isBackendFilteringReport ? new Set<string>() : new Set(selectedEmployees.map(String))
     const selectedDepartmentSet = isBackendFilteringReport
       ? new Set<string>()
-      : new Set(selectedDepartments.map((department: string) => String(department)))
+      : new Set(selectedDepartments.map(String))
     return reportRowsWithGroupedStatuses.filter(row => {
       const statusMatch = selectedStatusSet.size === 0 || selectedStatusSet.has(String(row?.status || ''))
       const employeeMatch = selectedEmployeeSet.size === 0 || selectedEmployeeSet.has(String(row?.employeeName || ''))
@@ -851,7 +853,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   const handleFilterChange = (filters: Record<string, any>) => {
     if (!selectedReportType) return
     const nextFilters = filters || {}
-    const currentFilters = (filtersByReportType[selectedReportType] || {}) as Record<string, any>
+    const currentFilters = filtersByReportType[selectedReportType] || {}
     if (JSON.stringify(currentFilters) === JSON.stringify(nextFilters)) return
     setFiltersByReportType(previous => ({
       ...previous,

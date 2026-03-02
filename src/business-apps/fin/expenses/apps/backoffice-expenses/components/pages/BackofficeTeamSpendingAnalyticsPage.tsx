@@ -30,9 +30,7 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import CurrencyFilter from '../../../manager-expenses/components/currency-filter'
 import { useFilterData } from '../../hooks/useFilterData'
 
-interface BackofficeTeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
-  onNavigateBack: () => void
-}
+type BackofficeTeamSpendingAnalyticsPageProps = BusinessAppContextProps
 
 const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyticsPageProps> = ({ accessToken }) => {
   const { primaryCurrency } = useCurrencyStore()
@@ -719,7 +717,7 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
             <WidgetGroup
               widgets={widgets}
               isLoading={isLoading}
-              error={error ? error : null}
+              error={error || null}
               onRetry={() => globalThis.location?.reload?.()}
               skeletonCount={4}
               emptyText={getTranslationFromI18nKeyAndLabel(

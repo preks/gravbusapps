@@ -43,7 +43,7 @@ export class CustomDataGraphQLClient {
       throw new Error('Custom Data GraphQL endpoint is not configured.')
     }
 
-    const operationMatch = query.match(/\b(query|mutation)\s+([A-Za-z0-9_]+)/)
+    const operationMatch = /\b(query|mutation)\s+(\w+)/.exec(query)
     const operationName = operationMatch?.[2] ?? 'anonymous'
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {

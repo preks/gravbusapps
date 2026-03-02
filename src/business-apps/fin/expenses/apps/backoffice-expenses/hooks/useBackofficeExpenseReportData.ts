@@ -221,6 +221,17 @@ const DEFAULT_EXPENSE_PLAN_ORDER: any[] = [{ createdAt: 'DESC' }]
 const DEFAULT_ADVANCE_PAYMENT_ORDER: any[] = [{ createdAt: 'DESC' }]
 const DEFAULT_APPROVAL_PAYOUT_ORDER: any[] = [{ createdAt: 'DESC' }]
 
+const getFilterValues = (
+  filtersByReportType: Partial<Record<ReportType, UseBackofficeExpenseReportFilters>>,
+  reportType: ReportType,
+  selectedType: ReportType | null,
+  key: keyof UseBackofficeExpenseReportFilters
+): string[] => {
+  if (selectedType !== reportType) return []
+  const value = filtersByReportType[reportType]?.[key]
+  return Array.isArray(value) ? value.map(String) : []
+}
+
 function mapSortingToOrderBy(selectedReportType: ReportType | null, sorting: SortingState): any[] {
   const primarySort = Array.isArray(sorting) && sorting.length > 0 ? sorting[0] : undefined
   const sortDirection = primarySort?.desc ? 'DESC' : 'ASC'
@@ -332,42 +343,42 @@ export const useBackofficeExpenseReportData = (
         offset: (currentPage - 1) * pageSize,
         orderBy: selectedReportType === ReportType.ADVANCE_PAYMENT ? reportOrderBy : DEFAULT_ADVANCE_PAYMENT_ORDER
       },
-      requestsEmployeeNames:
-        selectedReportType === ReportType.EXPENSE_REQUEST
-          ? Array.isArray(activeFiltersByReportType[ReportType.EXPENSE_REQUEST]?.employeeName)
-            ? (activeFiltersByReportType[ReportType.EXPENSE_REQUEST]?.employeeName as string[])
-            : []
-          : [],
-      requestsDepartmentNames:
-        selectedReportType === ReportType.EXPENSE_REQUEST
-          ? Array.isArray(activeFiltersByReportType[ReportType.EXPENSE_REQUEST]?.departmentName)
-            ? (activeFiltersByReportType[ReportType.EXPENSE_REQUEST]?.departmentName as string[])
-            : []
-          : [],
-      plansEmployeeNames:
-        selectedReportType === ReportType.EXPENSE_PLAN
-          ? Array.isArray(activeFiltersByReportType[ReportType.EXPENSE_PLAN]?.employeeName)
-            ? (activeFiltersByReportType[ReportType.EXPENSE_PLAN]?.employeeName as string[])
-            : []
-          : [],
-      plansDepartmentNames:
-        selectedReportType === ReportType.EXPENSE_PLAN
-          ? Array.isArray(activeFiltersByReportType[ReportType.EXPENSE_PLAN]?.departmentName)
-            ? (activeFiltersByReportType[ReportType.EXPENSE_PLAN]?.departmentName as string[])
-            : []
-          : [],
-      paymentsEmployeeNames:
-        selectedReportType === ReportType.ADVANCE_PAYMENT
-          ? Array.isArray(activeFiltersByReportType[ReportType.ADVANCE_PAYMENT]?.employeeName)
-            ? (activeFiltersByReportType[ReportType.ADVANCE_PAYMENT]?.employeeName as string[])
-            : []
-          : [],
-      paymentsDepartmentNames:
-        selectedReportType === ReportType.ADVANCE_PAYMENT
-          ? Array.isArray(activeFiltersByReportType[ReportType.ADVANCE_PAYMENT]?.departmentName)
-            ? (activeFiltersByReportType[ReportType.ADVANCE_PAYMENT]?.departmentName as string[])
-            : []
-          : [],
+      requestsEmployeeNames: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.EXPENSE_REQUEST,
+        selectedReportType,
+        'employeeName'
+      ),
+      requestsDepartmentNames: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.EXPENSE_REQUEST,
+        selectedReportType,
+        'departmentName'
+      ),
+      plansEmployeeNames: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.EXPENSE_PLAN,
+        selectedReportType,
+        'employeeName'
+      ),
+      plansDepartmentNames: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.EXPENSE_PLAN,
+        selectedReportType,
+        'departmentName'
+      ),
+      paymentsEmployeeNames: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.ADVANCE_PAYMENT,
+        selectedReportType,
+        'employeeName'
+      ),
+      paymentsDepartmentNames: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.ADVANCE_PAYMENT,
+        selectedReportType,
+        'departmentName'
+      ),
       includeRequests: selectedReportType === ReportType.EXPENSE_REQUEST,
       includePlans: selectedReportType === ReportType.EXPENSE_PLAN,
       includePayments: selectedReportType === ReportType.ADVANCE_PAYMENT,
@@ -414,7 +425,7 @@ export const useBackofficeExpenseReportData = (
     const mappedStatuses = new Set<string>()
 
     statusFilters.forEach(filter => {
-      const normalizedLabel = toUpperText(filter).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+      const normalizedLabel = toUpperText(filter).replaceAll(/[_-]+/g, ' ').replaceAll(/\s+/g, ' ').trim()
       const mappedValues = statusLabelToRawStatuses[normalizedLabel]
       if (Array.isArray(mappedValues)) {
         mappedValues.forEach(value => mappedStatuses.add(value))
@@ -430,6 +441,75 @@ export const useBackofficeExpenseReportData = (
     return Array.from(mappedStatuses)
   }, [])
 
+  const cacheEmployeePositionRows = useCallback((rows: any[]) => {
+    rows.forEach((row: any) => {
+      const displayName = `${row?.firstName || ''} ${row?.lastName || ''}`.trim()
+      const departmentName = String(row?.organizationalUnit?.name || '').trim()
+      const keys = [row?.id, row?.userId, row?.employeeId].map(value => String(value || '')).filter(Boolean)
+
+      if (displayName) {
+        keys.forEach(key => {
+          employeeNameCacheRef.current[key] = displayName
+        })
+      }
+      if (departmentName) {
+        keys.forEach(key => {
+          employeeDepartmentCacheRef.current[key] = departmentName
+        })
+      }
+    })
+  }, [])
+
+  const cacheEmployeeRows = useCallback((rows: any[]) => {
+    rows.forEach((employee: any) => {
+      const displayName =
+        String(employee?.fullName || '').trim() ||
+        `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() ||
+        String(employee?.displayName || '').trim()
+      if (!displayName || !employee?.id) return
+      employeeNameCacheRef.current[String(employee.id)] = displayName
+    })
+  }, [])
+
+  const chunkIdentifiers = useCallback((identifiers: string[], chunkSize = 50): string[][] => {
+    const chunks: string[][] = []
+    for (let index = 0; index < identifiers.length; index += chunkSize) {
+      chunks.push(identifiers.slice(index, index + chunkSize))
+    }
+    return chunks
+  }, [])
+
+  const fetchEmployeePositionBatch = useCallback(
+    async (batchIds: string[]) => {
+      if (!graphqlClient || batchIds.length === 0) return
+      try {
+        const where = {
+          _or: batchIds.flatMap(id => [{ id: { _eq: id } }, { userId: { _eq: id } }, { employeeId: { _eq: id } }])
+        }
+        const result = await graphqlClient.request(GET_EMPLOYEE_POSITIONS_BY_IDENTIFIERS, { where })
+        const rows = Array.isArray(result?.EmployeePosition) ? result.EmployeePosition : []
+        cacheEmployeePositionRows(rows)
+      } catch {
+        // Keep unresolved identifiers empty; UI should not display UUID fallback.
+      }
+    },
+    [graphqlClient, cacheEmployeePositionRows]
+  )
+
+  const fetchEmployeeBatch = useCallback(
+    async (batchIds: string[]) => {
+      if (!graphqlClient || batchIds.length === 0) return
+      try {
+        const result = await graphqlClient.request(GET_EMPLOYEES_BY_IDS, { ids: batchIds })
+        const rows = Array.isArray(result?.Employee) ? result.Employee : []
+        cacheEmployeeRows(rows)
+      } catch {
+        // Keep unresolved IDs as fallback label.
+      }
+    },
+    [graphqlClient, cacheEmployeeRows]
+  )
+
   const resolveEmployeeNamesByIds = useCallback(
     async (employeeIds: string[]) => {
       if (!graphqlClient || employeeIds.length === 0) return employeeNameCacheRef.current
@@ -438,57 +518,20 @@ export const useBackofficeExpenseReportData = (
       const unresolvedIds = uniqueIds.filter(id => !employeeNameCacheRef.current[id])
       if (unresolvedIds.length === 0) return employeeNameCacheRef.current
 
-      const chunkSize = 50
-      for (let i = 0; i < unresolvedIds.length; i += chunkSize) {
-        const batchIds = unresolvedIds.slice(i, i + chunkSize)
-        try {
-          const where = {
-            _or: batchIds.flatMap(id => [{ id: { _eq: id } }, { userId: { _eq: id } }, { employeeId: { _eq: id } }])
-          }
-          const result = await graphqlClient.request(GET_EMPLOYEE_POSITIONS_BY_IDENTIFIERS, { where })
-          const rows = Array.isArray(result?.EmployeePosition) ? result.EmployeePosition : []
-
-          rows.forEach((row: any) => {
-            const displayName = `${row?.firstName || ''} ${row?.lastName || ''}`.trim()
-            const departmentName = String(row?.organizationalUnit?.name || '').trim()
-            if (row?.id && displayName) employeeNameCacheRef.current[String(row.id)] = displayName
-            if (row?.userId && displayName) employeeNameCacheRef.current[String(row.userId)] = displayName
-            if (row?.employeeId && displayName) employeeNameCacheRef.current[String(row.employeeId)] = displayName
-            if (row?.id && departmentName) employeeDepartmentCacheRef.current[String(row.id)] = departmentName
-            if (row?.userId && departmentName) employeeDepartmentCacheRef.current[String(row.userId)] = departmentName
-            if (row?.employeeId && departmentName) {
-              employeeDepartmentCacheRef.current[String(row.employeeId)] = departmentName
-            }
-          })
-        } catch {
-          // Keep unresolved identifiers empty; UI should not display UUID fallback.
-        }
+      const positionChunks = chunkIdentifiers(unresolvedIds)
+      for (const batchIds of positionChunks) {
+        await fetchEmployeePositionBatch(batchIds)
       }
 
       const unresolvedAfterPositions = unresolvedIds.filter(id => !employeeNameCacheRef.current[id])
-      if (unresolvedAfterPositions.length > 0) {
-        for (let i = 0; i < unresolvedAfterPositions.length; i += chunkSize) {
-          const batchIds = unresolvedAfterPositions.slice(i, i + chunkSize)
-          try {
-            const result = await graphqlClient.request(GET_EMPLOYEES_BY_IDS, { ids: batchIds })
-            const rows = Array.isArray(result?.Employee) ? result.Employee : []
-            rows.forEach((employee: any) => {
-              const displayName =
-                String(employee?.fullName || '').trim() ||
-                `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() ||
-                String(employee?.displayName || '').trim()
-              if (!displayName) return
-              if (employee?.id) employeeNameCacheRef.current[String(employee.id)] = displayName
-            })
-          } catch {
-            // Keep unresolved IDs as fallback label.
-          }
-        }
+      const employeeChunks = chunkIdentifiers(unresolvedAfterPositions)
+      for (const batchIds of employeeChunks) {
+        await fetchEmployeeBatch(batchIds)
       }
 
       return employeeNameCacheRef.current
     },
-    [graphqlClient]
+    [graphqlClient, chunkIdentifiers, fetchEmployeePositionBatch, fetchEmployeeBatch]
   )
 
   const resolveDisplayName = useCallback(
@@ -958,61 +1001,66 @@ export const useBackofficeExpenseReportData = (
     })
   }
 
-  const processApprovalPayoutCycleData = (
-    data: any,
-    employeeNameById: Record<string, string> = {},
-    slaPolicy: ExpensesSlaPolicy = DEFAULT_EXPENSES_SLA_POLICY
-  ): ApprovalPayoutCycleReport[] => {
-    const rows = Array.isArray(data?.ExpenseRequest) ? data.ExpenseRequest : []
-    return rows.map((request: any) => {
+  const collectSystemCommentDates = useCallback((comments: any[], fromStatuses: string[], toStatuses: string[]) => {
+    return comments
+      .filter((comment: any) => {
+        const text = String(comment?.comment || '')
+        const type = toUpperText(comment?.commentType)
+        return type === 'SYSTEM_COMMENT' && hasFromToTransition(text, fromStatuses, toStatuses)
+      })
+      .map((comment: any) => comment?.commentDate)
+  }, [])
+
+  const resolveBottleneckStage = useCallback(
+    (
+      pendingAt: string,
+      approvedAt: string,
+      paidAt: string,
+      approvalDays: number | null,
+      payoutDays: number | null,
+      status?: any
+    ) => {
+      const requestStatus = toUpperText(status)
+      const hasFullCycle = Boolean(pendingAt && approvedAt && paidAt)
+      const isSameDayCycle = hasFullCycle && approvalDays === 0 && payoutDays === 0
+
+      if (isSameDayCycle || ['PAID', 'CLOSED'].includes(requestStatus)) {
+        return ''
+      }
+      if (approvalDays !== null && payoutDays !== null) {
+        return approvalDays >= payoutDays ? 'Approval' : 'Payout'
+      }
+      return approvedAt ? 'Payout' : 'Approval'
+    },
+    []
+  )
+
+  const mapApprovalPayoutCycleRow = useCallback(
+    (
+      request: any,
+      employeeNameById: Record<string, string>,
+      slaPolicy: ExpensesSlaPolicy
+    ): ApprovalPayoutCycleReport => {
       const comments = Array.isArray(request?.expenseRequestComment) ? request.expenseRequestComment : []
       const paymentRows = Array.isArray(request?.expensePlan?.advancePayment) ? request.expensePlan.advancePayment : []
-      const paymentComments = paymentRows.flatMap((p: any) =>
-        Array.isArray(p?.advancePaymentComment) ? p.advancePaymentComment : []
+      const paymentComments = paymentRows.flatMap((payment: any) =>
+        Array.isArray(payment?.advancePaymentComment) ? payment.advancePaymentComment : []
       )
 
-      const pendingFromComments = comments
-        .filter((c: any) => {
-          const text = String(c?.comment || '')
-          const type = toUpperText(c?.commentType)
-          return type === 'SYSTEM_COMMENT' && hasFromToTransition(text, ['DRAFT', 'CREATED'], ['PENDING'])
-        })
-        .map((c: any) => c?.commentDate)
-      const pendingAt = pickEarliest(pendingFromComments)
-
-      const approvedFromComments = comments
-        .filter((c: any) => {
-          const text = String(c?.comment || '')
-          const type = toUpperText(c?.commentType)
-          return type === 'SYSTEM_COMMENT' && hasFromToTransition(text, ['PENDING'], ['APPROVED', 'APPROVAL'])
-        })
-        .map((c: any) => c?.commentDate)
-      const approvedAt = pickEarliest(approvedFromComments)
-
+      const pendingAt = pickEarliest(collectSystemCommentDates(comments, ['DRAFT', 'CREATED'], ['PENDING']))
+      const approvedAt = pickEarliest(collectSystemCommentDates(comments, ['PENDING'], ['APPROVED', 'APPROVAL']))
       const paidFromPayments = paymentRows
-        .filter((p: any) => isPaidLikeStatus(p?.status))
-        .map((p: any) => p?.transactionDate || p?.decisionDate || p?.createdAt)
-      const paidFromComments = paymentComments
-        .filter((c: any) => {
-          const text = String(c?.comment || '')
-          return hasStatusTransition(text, ['PAID', 'CLOSED'])
-        })
-        .map((c: any) => c?.commentDate)
-      const paidAt =
-        pickEarliest([
-          ...paidFromPayments,
-          ...paidFromComments,
-          ...comments
-            .filter((c: any) => {
-              const text = String(c?.comment || '')
-              const type = toUpperText(c?.commentType)
-              return (
-                type === 'SYSTEM_COMMENT' &&
-                hasFromToTransition(text, ['APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'], ['PAID', 'CLOSED'])
-              )
-            })
-            .map((c: any) => c?.commentDate)
-        ]) || ''
+        .filter((payment: any) => isPaidLikeStatus(payment?.status))
+        .map((payment: any) => payment?.transactionDate || payment?.decisionDate || payment?.createdAt)
+      const paidFromPaymentComments = paymentComments
+        .filter((comment: any) => hasStatusTransition(String(comment?.comment || ''), ['PAID', 'CLOSED']))
+        .map((comment: any) => comment?.commentDate)
+      const paidFromSystemComments = collectSystemCommentDates(
+        comments,
+        ['APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'],
+        ['PAID', 'CLOSED']
+      )
+      const paidAt = pickEarliest([...paidFromPayments, ...paidFromPaymentComments, ...paidFromSystemComments]) || ''
 
       const approvalDays = daysDiff(pendingAt, approvedAt)
       const payoutDays = daysDiff(approvedAt, paidAt)
@@ -1025,28 +1073,11 @@ export const useBackofficeExpenseReportData = (
         approvalDays,
         slaPolicy.totalCycleSlaBusinessDays
       )
-      const payoutSlaLimitDays = payoutSlaEvaluation.limitDays
-      const payoutSlaStatus = payoutSlaEvaluation.status
       const totalCycleSlaStatus = buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays)
-
-      const requestStatus = toUpperText(request?.status)
-      const hasFullCycle = Boolean(pendingAt && approvedAt && paidAt)
-      const isSameDayCycle = hasFullCycle && approvalDays === 0 && payoutDays === 0
-      const bottleneckStage = isSameDayCycle
-        ? ''
-        : approvalDays !== null && payoutDays !== null
-          ? approvalDays >= payoutDays
-            ? 'Approval'
-            : 'Payout'
-          : ['PAID', 'CLOSED'].includes(requestStatus)
-            ? ''
-            : approvedAt
-              ? 'Payout'
-              : 'Approval'
-
       const statusDisplay = request?.status
         ? getExpenseRequestStatusDisplay(request.status)
         : { label: '', type: 'draft' }
+
       return {
         id: request.id,
         code: request.code || '',
@@ -1064,17 +1095,34 @@ export const useBackofficeExpenseReportData = (
         payoutDays,
         totalCycleDays,
         approvalSlaLimitDays: slaPolicy.approvalSlaBusinessDays,
-        payoutSlaLimitDays,
+        payoutSlaLimitDays: payoutSlaEvaluation.limitDays,
         totalCycleSlaLimitDays: slaPolicy.totalCycleSlaBusinessDays,
         approvalSlaStatus,
-        payoutSlaStatus,
+        payoutSlaStatus: payoutSlaEvaluation.status,
         totalCycleSlaStatus,
-        bottleneckStage,
+        bottleneckStage: resolveBottleneckStage(
+          pendingAt,
+          approvedAt,
+          paidAt,
+          approvalDays,
+          payoutDays,
+          request?.status
+        ),
         status: statusDisplay.label,
         totalAmount: Number(request.totalAmount || 0),
         currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR'
-      } as ApprovalPayoutCycleReport
-    })
+      }
+    },
+    [collectSystemCommentDates, resolveBottleneckStage, resolveDisplayName, resolveDepartmentName]
+  )
+
+  const processApprovalPayoutCycleData = (
+    data: any,
+    employeeNameById: Record<string, string> = {},
+    slaPolicy: ExpensesSlaPolicy = DEFAULT_EXPENSES_SLA_POLICY
+  ): ApprovalPayoutCycleReport[] => {
+    const rows = Array.isArray(data?.ExpenseRequest) ? data.ExpenseRequest : []
+    return rows.map((request: any) => mapApprovalPayoutCycleRow(request, employeeNameById, slaPolicy))
   }
 
   const loadExpensesSlaPolicy = useCallback(async (): Promise<ExpensesSlaPolicy> => {
@@ -1111,10 +1159,13 @@ export const useBackofficeExpenseReportData = (
           'thresholds.totalCycleBusinessDays'
         ]) ?? extractBusinessDaysByLabel(content, 'Total Cycle SLA')
 
+      let payoutRunWeekday = DEFAULT_EXPENSES_SLA_POLICY.payoutRunWeekday
+      if (payout !== null) {
+        payoutRunWeekday = Math.max(0, Math.min(6, Math.trunc(payout)))
+      }
       expensesSlaPolicyRef.current = {
         approvalSlaBusinessDays: approval ?? DEFAULT_EXPENSES_SLA_POLICY.approvalSlaBusinessDays,
-        payoutRunWeekday:
-          payout !== null ? Math.max(0, Math.min(6, Math.trunc(payout))) : DEFAULT_EXPENSES_SLA_POLICY.payoutRunWeekday,
+        payoutRunWeekday,
         totalCycleSlaBusinessDays: total ?? DEFAULT_EXPENSES_SLA_POLICY.totalCycleSlaBusinessDays
       }
       return expensesSlaPolicyRef.current

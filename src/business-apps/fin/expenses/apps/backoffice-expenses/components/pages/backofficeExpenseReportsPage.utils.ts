@@ -26,22 +26,24 @@ const formatCellValue = (key: string, raw: any): string => {
     return raw ? ensureShortDateFormat(raw) : ''
   }
   if (typeof raw === 'number') return String(raw)
+  if (typeof raw === 'string') return raw
+  if (typeof raw === 'boolean' || typeof raw === 'bigint') return String(raw)
   return String(raw)
 }
 
 const escapeCsv = (value: string) => {
   const needsQuotes = /[",\r\n]/.test(value)
-  const out = value.replace(/"/g, '""')
+  const out = value.replaceAll('"', '""')
   return needsQuotes ? `"${out}"` : out
 }
 
 const htmlEscape = (value: string) =>
   value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
 
 const buildFilename = (type: string, ext: string) => {
   const ts = new Date()

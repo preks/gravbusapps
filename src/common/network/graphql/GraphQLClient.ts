@@ -25,10 +25,12 @@ export class GraphQLClient {
       )
     }
 
-    const operationMatch = query.match(/\b(query|mutation)\s+([A-Za-z0-9_]+)/)
+    const operationMatch = /\b(query|mutation)\s+(\w+)/.exec(query)
     const operationType = operationMatch?.[1] ?? 'unknown'
     const operationName = operationMatch?.[2] ?? 'anonymous'
-    const variableKeys = variables ? Object.keys(variables).sort() : []
+    const variableKeys = variables
+      ? Object.keys(variables).sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base' }))
+      : []
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
       method: 'POST',
