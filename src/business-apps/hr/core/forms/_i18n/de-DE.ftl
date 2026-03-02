@@ -357,3 +357,18 @@ create-job-position-name = Name
 create-job-position-total-open = Anzahl offener Stellen
 create-job-position-organizational-unit = Organisationseinheit
 create-job-position-error = Stelle konnte nicht erstellt werden. Bitte versuchen Sie es erneut.
+
+# Create New Absence – validation messages
+create-absence-unable-to-verify-balance = Das Urlaubskonto konnte nicht geprüft werden. Bitte prüfen Sie es manuell.
+create-absence-insufficient-balance = Nicht ausreichendes Guthaben
+create-absence-requested = Angefordert
+create-absence-available = Verfügbar
+create-absence-days = Tage
+create-absence-end-date-after-start = Das Enddatum muss nach dem Startdatum liegen.
+create-absence-single-day-bank-holiday-blocked = Der gewählte Tag ist ein Feiertag. Sie können für dieses Datum keine eintägige Abwesenheit einreichen.
+create-absence-validation-failed = Validierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+create-absence-bank-holidays-not-counted = { $count } Tage sind Feiertage und werden daher nicht berücksichtigt.
+create-absence-overlap-prefix = Es besteht bereits eine
+create-absence-overlap-scheduled = Abwesenheit geplant
+create-absence-from = vom
+create-absence-to = bis

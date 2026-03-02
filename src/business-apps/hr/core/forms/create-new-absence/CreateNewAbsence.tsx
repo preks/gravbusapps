@@ -102,6 +102,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const {
     isValidating,
+    isCheckingBankHoliday,
     hasValidationErrors,
     overlapErrors,
     balanceErrors,
@@ -382,7 +383,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               )
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
         }
-        isSubmitDisabled={!isFormValid || isValidating}
+        isSubmitDisabled={!isFormValid || isValidating || isCheckingBankHoliday}
         submitEventType="pse_submit"
         cancelEventType="pse_abort"
         data-testid="create-new-absence-form"
