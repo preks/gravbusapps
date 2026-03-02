@@ -13,6 +13,21 @@ import type { DataModelPreviewColumn } from './dataModelPreviewTypes'
 
 export type RowValues = Record<string, string | boolean>
 
+function normalizeDateInput(
+  val: string | string[] | [string | null, string | null] | undefined,
+  format: 'date' | 'datetime'
+): string {
+  const raw = Array.isArray(val) ? (val[0] ?? val[1] ?? '') : (val ?? '')
+  const dateValue = typeof raw === 'string' ? raw : ''
+  if (dateValue.length === 0 || Number.isNaN(Number(dateValue))) return dateValue
+  const date = new Date(Number(dateValue))
+  const pad = (n: number) => String(n).padStart(2, '0')
+  if (format === 'date') {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  }
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export interface CellInputProps {
   col: DataModelPreviewColumn
   value: string | boolean
@@ -47,15 +62,7 @@ export const CellInput: React.FC<CellInputProps> = ({ col, value, onChange, disa
           <DateInput
             type="date"
             value={value as string}
-            onChange={val => {
-              let dateValue = Array.isArray(val) ? (val[0] ?? '') : (val ?? '')
-              if (dateValue && !isNaN(Number(dateValue))) {
-                const date = new Date(Number(dateValue))
-                const pad = (n: number) => String(n).padStart(2, '0')
-                dateValue = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-              }
-              onChange(dateValue)
-            }}
+            onChange={val => onChange(normalizeDateInput(val as string | string[] | undefined, 'date'))}
             disabled={disabled}
             placeholder={col.required ? 'Select date' : 'Optional'}
             className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
@@ -68,15 +75,7 @@ export const CellInput: React.FC<CellInputProps> = ({ col, value, onChange, disa
           <DateInput
             type="datetime-local"
             value={value as string}
-            onChange={val => {
-              let dateValue = Array.isArray(val) ? (val[0] ?? '') : (val ?? '')
-              if (dateValue && !isNaN(Number(dateValue))) {
-                const date = new Date(Number(dateValue))
-                const pad = (n: number) => String(n).padStart(2, '0')
-                dateValue = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-              }
-              onChange(dateValue)
-            }}
+            onChange={val => onChange(normalizeDateInput(val as string | string[] | undefined, 'datetime'))}
             disabled={disabled}
             placeholder={col.required ? 'Select date & time' : 'Optional'}
             className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"

@@ -87,9 +87,10 @@ export const DataModelPreview: React.FC<DataModelPreviewProps> = ({
       </PreviewTemplate>
     )
   }
+  if (!definition) return null
   return (
     <DataModelPreviewSingle
-      definition={definition!}
+      definition={definition}
       onCreateRow={onCreateRow}
       onUpdateRow={onUpdateRow}
       onDeleteRow={onDeleteRow}
@@ -108,36 +109,52 @@ interface DataModelPreviewSingleProps {
   testId: string
 }
 
+function formatDateLike(value: unknown, type: string): string {
+  const num = Number(value)
+  if (Number.isNaN(num)) return typeof value === 'string' ? value : JSON.stringify(value)
+  const date = new Date(num)
+  if (Number.isNaN(date.getTime())) return typeof value === 'string' ? value : JSON.stringify(value)
+  if (type === 'DATE') {
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  }
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 function formatReadValue(value: unknown, type: string): string {
   if (value == null || value === '') return '—'
   if (type === 'CHECKBOX') return value ? '✓' : '✗'
   if ((type === 'DATE' || type === 'DATETIME') && typeof value === 'string') {
     try {
-      const timestamp = !isNaN(Number(value)) ? Number(value) : value
-      const date = new Date(timestamp)
-      if (isNaN(date.getTime())) return String(value)
-
-      if (type === 'DATE') {
-        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-      }
-      return date.toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+      return formatDateLike(value, type)
     } catch {
-      return String(value)
+      return typeof value === 'string' ? value : JSON.stringify(value)
     }
   }
   if (type === 'REFERENCE' && typeof value === 'object') return JSON.stringify(value)
   if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
+  return typeof value === 'string' ? value : JSON.stringify(value)
 }
 
-/** Reference columns map to object types in GraphQL — only request scalar fields. */
+/** Reference columns map to scalar fields only in GraphQL. */
 const SCALAR_COLUMN_TYPES = new Set(['TEXT', 'NUMBER', 'DATE', 'DATETIME', 'CHECKBOX', 'SELECT'])
+
+function toStableRowKey(row: Record<string, unknown>, index: number): string {
+  const id = row.id
+  if (id == null) return `row-${index}`
+  return typeof id === 'object' ? JSON.stringify(id) : String(id)
+}
+
+function toRowId(row: Record<string, unknown>): string {
+  const id = row.id
+  if (id == null) return ''
+  return typeof id === 'object' ? JSON.stringify(id) : String(id)
+}
 
 function buildListQuery(key: string, columns: DataModelPreviewColumn[]): { query: string; listField: string } {
   const listField = key.charAt(0).toLowerCase() + key.slice(1) + 'List'
@@ -267,7 +284,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
         } else if (col.type === 'DATE' || col.type === 'DATETIME') {
           if (raw != null && raw !== '') {
             const timestamp = typeof raw === 'number' ? raw : Number(raw)
-            if (!isNaN(timestamp)) {
+            if (Number.isNaN(timestamp) === false) {
               values[col.name] =
                 col.type === 'DATE'
                   ? new Date(timestamp).toISOString().split('T')[0]
@@ -279,9 +296,11 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
             values[col.name] = ''
           }
         } else if (col.type === 'REFERENCE' && typeof raw === 'object' && raw !== null && 'id' in raw) {
-          values[col.name] = String((raw as { id: unknown }).id ?? '')
+          const refId = (raw as { id: unknown }).id
+          values[col.name] =
+            refId != null && typeof refId === 'object' ? JSON.stringify(refId) : refId != null ? String(refId) : ''
         } else {
-          values[col.name] = raw == null ? '' : String(raw)
+          values[col.name] = raw == null ? '' : typeof raw === 'object' ? JSON.stringify(raw) : String(raw)
         }
       })
       setEditingValues(values)
@@ -440,93 +459,103 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
               </Alert>
             </div>
           )}
-          {fetchLoading ? (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-              <Spinner size="sm" />
-            </div>
-          ) : existingRows.length === 0 && rows.length === 0 ? (
-            <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-10">
-              No entries yet. Click "Add row" to create one.
-            </div>
-          ) : (
-            <div className="gba:overflow-x-auto">
-              <table className="gba:w-full gba:text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
-                <colgroup>
-                  {columns.map((_, i) => (
-                    <col key={i} />
-                  ))}
-                  <col style={{ width: '120px' }} />
-                </colgroup>
-                <thead>
-                  <tr className="gba:bg-muted/50 gba:border-b gba:border-border">
+          {(() => {
+            const hasNoRows = existingRows.length === 0 && rows.length === 0
+            if (fetchLoading) {
+              return (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+                  <Spinner size="sm" />
+                </div>
+              )
+            }
+            if (hasNoRows) {
+              return (
+                <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-10">
+                  No entries yet. Click "Add row" to create one.
+                </div>
+              )
+            }
+            return (
+              <div className="gba:overflow-x-auto">
+                <table className="gba:w-full gba:text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
+                  <colgroup>
                     {columns.map(col => (
-                      <th
-                        key={col.name}
-                        className="gba:text-left gba:font-medium gba:px-3 gba:py-2.5 gba:text-foreground gba:overflow-hidden"
-                      >
-                        <div className="gba:truncate">
-                          {col.label || col.name}
-                          {col.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
-                        </div>
-                      </th>
+                      <col key={col.name} />
                     ))}
-                    <th className="gba:px-3 gba:py-2.5" style={{ width: '120px' }} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {existingRows.map((row, rowIndex) => {
-                    const rowKey =
-                      row.id != null
-                        ? typeof row.id === 'object'
-                          ? JSON.stringify(row.id)
-                          : String(row.id)
-                        : String(rowIndex)
-                    const rowId = row.id != null ? String(row.id) : ''
-                    return (
-                      <SimpleTableRow
-                        key={rowKey}
-                        row={row}
-                        rowIndex={rowIndex}
-                        columns={columns}
-                        isEditing={editingExistingId === rowKey}
-                        editValues={editingValues}
-                        canEdit={!isCatalog && !!effectiveOnUpdateRow && rowId !== ''}
-                        canDelete={!isCatalog && !!effectiveOnDeleteRow && rowId !== ''}
-                        saving={existingSaving}
-                        testId={testId}
-                        onStartEdit={() => startEditingExisting(rowKey, row)}
-                        onCancelEdit={cancelEditingExisting}
-                        onSave={() => saveExistingRow(rowId)}
-                        onDelete={() => deleteExistingRow(rowId)}
-                        onCellChange={updateExistingCell}
-                        formatValue={formatReadValue}
-                      />
-                    )
-                  })}
-                  {rows.map((row, rowIndex) => (
-                    <SimpleTableRow
-                      key={row.id}
-                      row={row.values}
-                      rowIndex={existingRows.length + rowIndex}
-                      columns={columns}
-                      isEditing={true}
-                      editValues={row.values}
-                      canEdit={false}
-                      canDelete={!row.saved}
-                      saving={row.saving}
-                      testId={testId}
-                      onStartEdit={() => {}}
-                      onCancelEdit={() => {}}
-                      onSave={() => (effectiveOnCreateRow ? saveRow(row.id) : undefined)}
-                      onDelete={() => deleteRow(row.id)}
-                      onCellChange={(name, value) => updateCell(row.id, name, value)}
-                      formatValue={formatReadValue}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    <col style={{ width: '120px' }} />
+                  </colgroup>
+                  <thead>
+                    <tr className="gba:bg-muted/50 gba:border-b gba:border-border">
+                      {columns.map(col => (
+                        <th
+                          key={col.name}
+                          className="gba:text-left gba:font-medium gba:px-3 gba:py-2.5 gba:text-foreground gba:overflow-hidden"
+                        >
+                          <div className="gba:truncate">
+                            {col.label || col.name}
+                            {col.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
+                          </div>
+                        </th>
+                      ))}
+                      <th className="gba:px-3 gba:py-2.5" style={{ width: '120px' }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {existingRows.map((row, rowIndex) => {
+                      const rowKey = toStableRowKey(row, rowIndex)
+                      const rowId = toRowId(row)
+                      const isEditingThis = editingExistingId === rowKey
+                      const canEditRow = isCatalog === false && Boolean(effectiveOnUpdateRow) && rowId.length > 0
+                      const canDeleteRow = isCatalog === false && Boolean(effectiveOnDeleteRow) && rowId.length > 0
+                      return (
+                        <SimpleTableRow
+                          key={rowKey}
+                          row={row}
+                          rowIndex={rowIndex}
+                          columns={columns}
+                          isEditing={isEditingThis}
+                          editValues={editingValues}
+                          canEdit={canEditRow}
+                          canDelete={canDeleteRow}
+                          saving={existingSaving}
+                          testId={testId}
+                          onStartEdit={() => startEditingExisting(rowKey, row)}
+                          onCancelEdit={cancelEditingExisting}
+                          onSave={() => saveExistingRow(rowId)}
+                          onDelete={() => deleteExistingRow(rowId)}
+                          onCellChange={updateExistingCell}
+                          formatValue={formatReadValue}
+                        />
+                      )
+                    })}
+                    {rows.map((row, rowIndex) => {
+                      const isSaved = row.saved === true
+                      return (
+                        <SimpleTableRow
+                          key={row.id}
+                          row={row.values}
+                          rowIndex={existingRows.length + rowIndex}
+                          columns={columns}
+                          isEditing={true}
+                          editValues={row.values}
+                          canEdit={false}
+                          canDelete={isSaved === false}
+                          saving={row.saving}
+                          testId={testId}
+                          onStartEdit={() => {}}
+                          onCancelEdit={() => {}}
+                          onSave={() => (effectiveOnCreateRow ? saveRow(row.id) : undefined)}
+                          onDelete={() => deleteRow(row.id)}
+                          onCellChange={(name, value) => updateCell(row.id, name, value)}
+                          formatValue={formatReadValue}
+                        />
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })()}
         </CardContent>
       </Card>
     </div>
