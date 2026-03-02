@@ -119,13 +119,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       columnHeaderHeight: number
       zoomRatio: number
     } | null>(null)
-    // Tracks Univer's internal scroll offset (canvas-based scrolling doesn't update DOM scrollTop)
+    // Tracks viewport scroll used by Univer canvas rendering.
     const sheetScrollRef = useRef<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 })
     // Allows the Univer init effect to trigger a cursor position refresh on scroll
     const refreshCursorRectsRef = useRef<(() => void) | null>(null)
-    const [cursorRects, setCursorRects] = useState<Record<string, { top: number; left: number; width: number; height: number }>>(
-      {}
-    )
+    const [cursorRects, setCursorRects] = useState<
+      Record<string, { top: number; left: number; width: number; height: number }>
+    >({})
     const remoteCursorOverlays = useMemo(
       () =>
         (props.participants ?? [])
@@ -169,82 +169,101 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return true
     }
 
-    const resolveCellRect = useCallback((row: number, col: number): { top: number; left: number; width: number; height: number } | null => {
-      const api = univerAPIRef.current
-      const container = containerRef.current
-      if (!api || !container) return null
-      try {
-        const workbook = api.getActiveWorkbook?.()
-        const worksheet = workbook?.getActiveSheet?.()
-        if (!worksheet) return null
+    const resolveCellRect = useCallback(
+      (row: number, col: number): { top: number; left: number; width: number; height: number } | null => {
+        const api = univerAPIRef.current
+        const container = containerRef.current
+        if (!api || !container) return null
+        try {
+          const workbook = api.getActiveWorkbook?.()
+          const worksheet = workbook?.getActiveSheet?.()
+          if (!worksheet) return null
 
-        // Use the snapshot cache for cell dimensions. Apply zoomRatio so overlays
-        // match the actual rendered size when the user has zoomed the sheet.
-        const dims = cellDimensionsRef.current
-        const zoom = dims?.zoomRatio ?? 1
-        const rowHeaderWidth = dims?.rowHeaderWidth ?? CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX
-        const columnHeaderHeight = dims?.columnHeaderHeight ?? CURSOR_OVERLAY_HEADER_HEIGHT_PX
-        const getColumnWidth = (c: number): number =>
-          (dims?.columnData[c]?.w ?? dims?.defaultColWidth ?? CURSOR_OVERLAY_COL_WIDTH_PX) * zoom
-        const getRowHeight = (r: number): number =>
-          (dims?.rowData[r]?.h ?? dims?.defaultRowHeight ?? CURSOR_OVERLAY_ROW_HEIGHT_PX) * zoom
+          // Use the snapshot cache for cell dimensions. Apply zoomRatio so overlays
+          // match the actual rendered size when the user has zoomed the sheet.
+          const dims = cellDimensionsRef.current
+          const zoom = dims?.zoomRatio ?? 1
+          const rowHeaderWidth = dims?.rowHeaderWidth ?? CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX
+          const columnHeaderHeight = dims?.columnHeaderHeight ?? CURSOR_OVERLAY_HEADER_HEIGHT_PX
+          const getColumnWidth = (c: number): number =>
+            (dims?.columnData[c]?.w ?? dims?.defaultColWidth ?? CURSOR_OVERLAY_COL_WIDTH_PX) * zoom
+          const getRowHeight = (r: number): number =>
+            (dims?.rowData[r]?.h ?? dims?.defaultRowHeight ?? CURSOR_OVERLAY_ROW_HEIGHT_PX) * zoom
 
-        let cellLeft = 0
-        for (let c = 0; c < col; c++) cellLeft += getColumnWidth(c)
-        let cellTop = 0
-        for (let r = 0; r < row; r++) cellTop += getRowHeight(r)
+          let cellLeft = 0
+          for (let c = 0; c < col; c++) cellLeft += getColumnWidth(c)
+          let cellTop = 0
+          for (let r = 0; r < row; r++) cellTop += getRowHeight(r)
 
-        const containerBox = container.getBoundingClientRect()
-        // sheetScrollRef tracks Univer's internal scroll (canvas-based scrolling doesn't use DOM scrollTop)
-        const { scrollLeft, scrollTop } = sheetScrollRef.current
+          const containerBox = container.getBoundingClientRect()
 
-        // Use the topmost canvas to find where the sheet grid starts vertically
-        // (below the Univer toolbar and formula bar). We use canvas.top for the
-        // vertical anchor, but NOT canvas.left — the sheet always fills the container
-        // horizontally from x=0, so the horizontal anchor is just the row index width.
-        // Using canvas.left causes incorrect results because Univer may render the cell
-        // content canvas starting at an offset that varies by version/layout.
-        const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>('canvas'))
-        // Pick the largest canvas by pixel area — that is the main sheet rendering canvas,
-        // which sits below the toolbar and formula bar. Smaller canvases belong to the
-        // formula bar input, overlays, or other internal Univer UI components.
-        const mainCanvas = canvases.reduce<HTMLCanvasElement | null>((best, c) => {
-          if (!best) return c
-          return c.width * c.height > best.width * best.height ? c : best
-        }, null)
-
-        if (mainCanvas) {
-          const canvasBox = mainCanvas.getBoundingClientRect()
-          return {
-            // Vertical: canvas top + column header height + row offsets - scroll
-            top: (canvasBox.top - containerBox.top) + columnHeaderHeight + cellTop - scrollTop,
-            // Horizontal: row index width + column offsets - scroll (no canvas.left — sheet is always at x=0)
-            left: rowHeaderWidth + cellLeft - scrollLeft,
-            width: getColumnWidth(col),
-            height: getRowHeight(row)
+          const scrollState = (
+            worksheet as {
+              getScrollState?: () => {
+                sheetViewStartRow?: number
+                sheetViewStartColumn?: number
+                offsetX?: number
+                offsetY?: number
+              }
+            }
+          ).getScrollState?.()
+          let scrollLeftFromState: number | undefined
+          let scrollTopFromState: number | undefined
+          if (scrollState) {
+            const startCol = Math.max(0, scrollState.sheetViewStartColumn ?? 0)
+            const startRow = Math.max(0, scrollState.sheetViewStartRow ?? 0)
+            let left = 0
+            let top = 0
+            for (let c = 0; c < startCol; c++) left += getColumnWidth(c)
+            for (let r = 0; r < startRow; r++) top += getRowHeight(r)
+            left += scrollState.offsetX ?? 0
+            top += scrollState.offsetY ?? 0
+            scrollLeftFromState = left
+            scrollTopFromState = top
           }
-        }
+          const scrollLeft =
+            typeof scrollLeftFromState === 'number' && Number.isFinite(scrollLeftFromState)
+              ? scrollLeftFromState
+              : sheetScrollRef.current.scrollLeft
+          const scrollTop =
+            typeof scrollTopFromState === 'number' && Number.isFinite(scrollTopFromState)
+              ? scrollTopFromState
+              : sheetScrollRef.current.scrollTop
 
-        // Fallback: find a scrollable child as the sheet viewport reference.
-        const allNodes = Array.from(container.querySelectorAll<HTMLElement>('*'))
-        const scroller = allNodes.find(
-          node => (node.scrollHeight > node.clientHeight + 2 || node.scrollWidth > node.clientWidth + 2) && node !== container
-        )
-        if (scroller) {
-          const scrollerBox = scroller.getBoundingClientRect()
-          return {
-            top: (scrollerBox.top - containerBox.top) + columnHeaderHeight + cellTop - scroller.scrollTop,
-            left: rowHeaderWidth + cellLeft - scroller.scrollLeft,
-            width: getColumnWidth(col),
-            height: getRowHeight(row)
+          // Use the topmost canvas to find where the sheet grid starts vertically
+          // (below the Univer toolbar and formula bar). We use canvas.top for the
+          // vertical anchor, but NOT canvas.left — the sheet always fills the container
+          // horizontally from x=0, so the horizontal anchor is just the row index width.
+          // Using canvas.left causes incorrect results because Univer may render the cell
+          // content canvas starting at an offset that varies by version/layout.
+          const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>('canvas'))
+          // Pick the largest canvas by pixel area — that is the main sheet rendering canvas,
+          // which sits below the toolbar and formula bar. Smaller canvases belong to the
+          // formula bar input, overlays, or other internal Univer UI components.
+          const mainCanvas = canvases.reduce<HTMLCanvasElement | null>((best, c) => {
+            if (!best) return c
+            return c.width * c.height > best.width * best.height ? c : best
+          }, null)
+
+          if (mainCanvas) {
+            const canvasBox = mainCanvas.getBoundingClientRect()
+            return {
+              // Vertical: canvas top + column header height + row offsets - viewport scroll
+              top: canvasBox.top - containerBox.top + columnHeaderHeight + cellTop - scrollTop,
+              // Horizontal: row index width + column offsets - viewport scroll
+              left: rowHeaderWidth + cellLeft - scrollLeft,
+              width: getColumnWidth(col),
+              height: getRowHeight(row)
+            }
           }
-        }
 
-        return null
-      } catch {
-        return null
-      }
-    }, [])
+          return null
+        } catch {
+          return null
+        }
+      },
+      []
+    )
 
     useEffect(() => {
       if (remoteCursorOverlays.length === 0) {
@@ -324,32 +343,41 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
     }, [])
 
-    const applyRemoteDimensions = useCallback((payload: CellDimensionsPayload) => {
-      if (payload.sheetId !== sheet.id) return
-      cellDimensionsRef.current = {
-        defaultColWidth: payload.defaultColWidth,
-        defaultRowHeight: payload.defaultRowHeight,
-        columnData: payload.columnData ?? {},
-        rowData: payload.rowData ?? {},
-        rowHeaderWidth: payload.rowHeaderWidth,
-        columnHeaderHeight: payload.columnHeaderHeight,
-        zoomRatio: payload.zoomRatio
-      }
-      const api = univerAPIRef.current
-      const worksheet = api?.getActiveWorkbook?.()?.getActiveSheet?.()
-      if (worksheet && typeof (worksheet as { setColumnWidth?: (col: number, w: number) => unknown }).setColumnWidth === 'function') {
-        const ws = worksheet as { setColumnWidth: (col: number, w: number) => unknown; setRowHeight: (row: number, h: number) => unknown }
-        Object.entries(payload.columnData ?? {}).forEach(([colStr, meta]) => {
-          const w = meta?.w
-          if (typeof w === 'number' && w > 0) ws.setColumnWidth(Number(colStr), w)
-        })
-        Object.entries(payload.rowData ?? {}).forEach(([rowStr, meta]) => {
-          const h = meta?.h
-          if (typeof h === 'number' && h > 0) ws.setRowHeight(Number(rowStr), h)
-        })
-      }
-      refreshCursorRectsRef.current?.()
-    }, [sheet.id])
+    const applyRemoteDimensions = useCallback(
+      (payload: CellDimensionsPayload) => {
+        if (payload.sheetId !== sheet.id) return
+        cellDimensionsRef.current = {
+          defaultColWidth: payload.defaultColWidth,
+          defaultRowHeight: payload.defaultRowHeight,
+          columnData: payload.columnData ?? {},
+          rowData: payload.rowData ?? {},
+          rowHeaderWidth: payload.rowHeaderWidth,
+          columnHeaderHeight: payload.columnHeaderHeight,
+          zoomRatio: payload.zoomRatio
+        }
+        const api = univerAPIRef.current
+        const worksheet = api?.getActiveWorkbook?.()?.getActiveSheet?.()
+        if (
+          worksheet &&
+          typeof (worksheet as { setColumnWidth?: (col: number, w: number) => unknown }).setColumnWidth === 'function'
+        ) {
+          const ws = worksheet as {
+            setColumnWidth: (col: number, w: number) => unknown
+            setRowHeight: (row: number, h: number) => unknown
+          }
+          Object.entries(payload.columnData ?? {}).forEach(([colStr, meta]) => {
+            const w = meta?.w
+            if (typeof w === 'number' && w > 0) ws.setColumnWidth(Number(colStr), w)
+          })
+          Object.entries(payload.rowData ?? {}).forEach(([rowStr, meta]) => {
+            const h = meta?.h
+            if (typeof h === 'number' && h > 0) ws.setRowHeight(Number(rowStr), h)
+          })
+        }
+        refreshCursorRectsRef.current?.()
+      },
+      [sheet.id]
+    )
 
     const getVisibleRangeValues = useCallback(
       (rowCount: number, colCount: number): Record<number, Record<number, unknown>> | null => {
@@ -540,32 +568,71 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }, delayMs)
       }
       requestSnapshotCheckpointRef.current = requestSnapshotCheckpoint
-
-      // Track Univer's internal scroll position so cursor overlays stay aligned.
-      // Univer scrolls by redrawing the canvas (not DOM scrollTop), so we subscribe
-      // to Univer's scroll events and fall back to DOM scroll if available.
       const handleSheetScroll = (scrollLeft: number, scrollTop: number) => {
         sheetScrollRef.current = { scrollLeft, scrollTop }
         refreshCursorRectsRef.current?.()
       }
-      const scrollEventDisposable = (
-        univerAPI as { addEvent?(event: string, cb: (p: { scrollLeft?: number; scrollTop?: number }) => void): { dispose(): void } }
-      ).addEvent?.('SheetScrolled', params => {
-        handleSheetScroll(params.scrollLeft ?? 0, params.scrollTop ?? 0)
-      })
-      // Also listen on any DOM scroll container Univer may have created
-      const allContainerNodes = containerRef.current
-        ? Array.from(containerRef.current.querySelectorAll<HTMLElement>('*'))
-        : []
-      const domScroller = allContainerNodes.find(
-        node => (node.scrollHeight > node.clientHeight + 2 || node.scrollWidth > node.clientWidth + 2) && node !== containerRef.current
-      )
-      const onDomScroll = domScroller
-        ? () => handleSheetScroll(domScroller.scrollLeft, domScroller.scrollTop)
-        : null
-      if (domScroller && onDomScroll) {
-        domScroller.addEventListener('scroll', onDomScroll)
+      const syncScrollFromWorksheet = () => {
+        const workbook = univerAPI.getActiveWorkbook?.()
+        const worksheet = workbook?.getActiveSheet?.()
+        const dims = cellDimensionsRef.current
+        const zoom = dims?.zoomRatio ?? 1
+        const getColumnWidth = (c: number): number =>
+          (dims?.columnData[c]?.w ?? dims?.defaultColWidth ?? CURSOR_OVERLAY_COL_WIDTH_PX) * zoom
+        const getRowHeight = (r: number): number =>
+          (dims?.rowData[r]?.h ?? dims?.defaultRowHeight ?? CURSOR_OVERLAY_ROW_HEIGHT_PX) * zoom
+        const scrollState = (
+          worksheet as
+            | {
+                getScrollState?: () => {
+                  sheetViewStartRow?: number
+                  sheetViewStartColumn?: number
+                  offsetX?: number
+                  offsetY?: number
+                }
+              }
+            | undefined
+        )?.getScrollState?.()
+        if (!scrollState) return
+        const startCol = Math.max(0, scrollState.sheetViewStartColumn ?? 0)
+        const startRow = Math.max(0, scrollState.sheetViewStartRow ?? 0)
+        let left = 0
+        let top = 0
+        for (let c = 0; c < startCol; c++) left += getColumnWidth(c)
+        for (let r = 0; r < startRow; r++) top += getRowHeight(r)
+        left += scrollState.offsetX ?? 0
+        top += scrollState.offsetY ?? 0
+        if (Number.isFinite(left) && Number.isFinite(top)) {
+          handleSheetScroll(left, top)
+        }
       }
+      // Seed initial scroll and keep in sync through events + lightweight polling fallback.
+      syncScrollFromWorksheet()
+      const scrollEventName = (univerAPI as { Event?: { Scroll?: string } }).Event?.Scroll ?? 'Scroll'
+      const scrollEventDisposable = (
+        univerAPI as {
+          addEvent?(
+            event: string,
+            cb: (p: {
+              sheetViewStartRow?: number
+              sheetViewStartColumn?: number
+              offsetX?: number
+              offsetY?: number
+            }) => void
+          ): { dispose(): void }
+        }
+      ).addEvent?.(scrollEventName, () => {
+        syncScrollFromWorksheet()
+      })
+      const activeWorksheet = univerAPI.getActiveWorkbook?.()?.getActiveSheet?.()
+      const worksheetScrollDisposable = (
+        activeWorksheet as {
+          onScroll?: (cb: (s: unknown) => void) => { dispose(): void }
+        }
+      )?.onScroll?.(() => {
+        syncScrollFromWorksheet()
+      })
+      const scrollPollIntervalId = setInterval(syncScrollFromWorksheet, 120)
 
       const commandEventKey =
         (univerAPI as { Event?: { CommandExecuted?: string } }).Event?.CommandExecuted ?? 'CommandExecuted'
@@ -769,10 +836,39 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         lastEmittedCursorPathRef.current = signature
         onCursorEmitCb({ path })
       }
+      const getRowColFromActiveRange = () => {
+        const workbook = univerAPIRef.current?.getActiveWorkbook?.()
+        const activeRange =
+          (workbook as { getActiveRange?: () => unknown } | null | undefined)?.getActiveRange?.() ??
+          (workbook?.getActiveSheet?.() as { getActiveRange?: () => unknown } | undefined)?.getActiveRange?.()
+        if (!activeRange) return null
+        const rangeRecord = activeRange as {
+          getRow?: () => number
+          getColumn?: () => number
+          getRange?: () => { startRow?: number; startColumn?: number }
+          startRow?: number
+          startColumn?: number
+          row?: number
+          column?: number
+        }
+        const nestedRange = rangeRecord.getRange?.()
+        const row = rangeRecord.getRow?.() ?? nestedRange?.startRow ?? rangeRecord.startRow ?? rangeRecord.row
+        const col =
+          rangeRecord.getColumn?.() ?? nestedRange?.startColumn ?? rangeRecord.startColumn ?? rangeRecord.column
+        if (typeof row !== 'number' || typeof col !== 'number') return null
+        return { row, col }
+      }
       const emitCursorFromWorksheetSelection = () => {
+        const fromRange = getRowColFromActiveRange()
+        if (fromRange) {
+          emitCursorByRowCol(fromRange.row, fromRange.col)
+          return
+        }
         const workbook = univerAPIRef.current?.getActiveWorkbook?.()
         const worksheet = workbook?.getActiveSheet?.()
-        const selection = (worksheet as { getSelection?: () => { getCurrentCell?: () => unknown } | null }).getSelection?.()
+        const selection = (
+          worksheet as { getSelection?: () => { getCurrentCell?: () => unknown } | null }
+        ).getSelection?.()
         const currentCell = selection?.getCurrentCell?.() as
           | { actualRow?: number; actualColumn?: number; row?: number; column?: number }
           | undefined
@@ -787,15 +883,35 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             range?: {
               startRow?: number
               startColumn?: number
+              row?: number
+              column?: number
+            }
+            primary?: {
+              actualRow?: number
+              actualColumn?: number
+              startRow?: number
+              startColumn?: number
             }
           }>
           range?: {
             startRow?: number
             startColumn?: number
+            row?: number
+            column?: number
+            actualRow?: number
+            actualColumn?: number
           }
           params?: {
             selections?: Array<{
               range?: {
+                startRow?: number
+                startColumn?: number
+                row?: number
+                column?: number
+              }
+              primary?: {
+                actualRow?: number
+                actualColumn?: number
                 startRow?: number
                 startColumn?: number
               }
@@ -803,7 +919,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             range?: {
               startRow?: number
               startColumn?: number
+              row?: number
+              column?: number
+              actualRow?: number
+              actualColumn?: number
             }
+          }
+          primary?: {
+            actualRow?: number
+            actualColumn?: number
+            startRow?: number
+            startColumn?: number
           }
         }
         const selection =
@@ -811,8 +937,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           eventRecord.range ??
           eventRecord.params?.selections?.[0]?.range ??
           eventRecord.params?.range
-        const startRow = selection?.startRow
-        const startColumn = selection?.startColumn
+        const primary =
+          eventRecord.selections?.[0]?.primary ?? eventRecord.primary ?? eventRecord.params?.selections?.[0]?.primary
+        const startRow = primary?.actualRow ?? primary?.startRow ?? selection?.startRow ?? selection?.row
+        const startColumn = primary?.actualColumn ?? primary?.startColumn ?? selection?.startColumn ?? selection?.column
         if (typeof startRow !== 'number' || typeof startColumn !== 'number') return
         emitCursorByRowCol(startRow, startColumn)
       }
@@ -848,9 +976,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         try {
           scrollEventDisposable?.dispose?.()
         } catch {}
-        if (domScroller && onDomScroll) {
-          domScroller.removeEventListener('scroll', onDomScroll)
-        }
+        try {
+          worksheetScrollDisposable?.dispose?.()
+        } catch {}
+        clearInterval(scrollPollIntervalId)
         clearInterval(cursorPollIntervalId)
         try {
           commandDisposable?.dispose?.()
@@ -897,7 +1026,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (!api || !container) return
 
         const activeEl = typeof document !== 'undefined' ? document.activeElement : null
-        const inSheet = (activeEl instanceof Element && container.contains(activeEl)) || isSheetInteractionActiveRef.current
+        const inSheet =
+          (activeEl instanceof Element && container.contains(activeEl)) || isSheetInteractionActiveRef.current
         if (!inSheet) return
 
         const isMod = e.metaKey || e.ctrlKey
@@ -926,7 +1056,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (!range) return
           const style = (range as { getCellStyleData?: () => { bl?: number } | null })?.getCellStyleData?.()
           const isBold = style?.bl === 1
-          ;(range as { setFontWeight?: (v: 'normal' | 'bold' | null) => unknown })?.setFontWeight?.(isBold ? 'normal' : 'bold')
+          ;(range as { setFontWeight?: (v: 'normal' | 'bold' | null) => unknown })?.setFontWeight?.(
+            isBold ? 'normal' : 'bold'
+          )
         } catch {
           // Ignore — shortcut is best-effort in published embeds
         }
@@ -957,36 +1089,38 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       >
         <div ref={containerRef} className="gba:w-full gba:h-full" />
         <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-20">
-          {remoteCursorOverlays.map(cursor => (
+          {remoteCursorOverlays.map(cursor =>
             (() => {
               const rect = cursorRects[cursor.id]
               const top = rect ? rect.top : CURSOR_OVERLAY_HEADER_HEIGHT_PX + cursor.row * CURSOR_OVERLAY_ROW_HEIGHT_PX
-              const left = rect ? rect.left : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + cursor.col * CURSOR_OVERLAY_COL_WIDTH_PX
+              const left = rect
+                ? rect.left
+                : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + cursor.col * CURSOR_OVERLAY_COL_WIDTH_PX
               const width = rect ? rect.width : CURSOR_OVERLAY_COL_WIDTH_PX
               const height = rect ? rect.height : CURSOR_OVERLAY_ROW_HEIGHT_PX
               return (
-            <div
-              key={cursor.id}
-              className="gba:absolute gba:rounded-sm"
-              style={{
-                top,
-                left,
-                width,
-                height,
-                border: `2px solid ${cursor.userColor}`,
-                boxShadow: `0 0 8px ${cursor.userColor}33`
-              }}
-            >
-              <div
-                className="gba:absolute gba:-top-6 gba:left-0 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-white gba:rounded-sm gba:whitespace-nowrap"
-                style={{ backgroundColor: cursor.userColor }}
-              >
-                {cursor.userName}
-              </div>
-            </div>
+                <div
+                  key={cursor.id}
+                  className="gba:absolute gba:rounded-sm"
+                  style={{
+                    top,
+                    left,
+                    width,
+                    height,
+                    border: `2px solid ${cursor.userColor}`,
+                    boxShadow: `0 0 8px ${cursor.userColor}33`
+                  }}
+                >
+                  <div
+                    className="gba:absolute gba:-top-6 gba:left-0 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-white gba:rounded-sm gba:whitespace-nowrap"
+                    style={{ backgroundColor: cursor.userColor }}
+                  >
+                    {cursor.userName}
+                  </div>
+                </div>
               )
             })()
-          ))}
+          )}
         </div>
       </div>
     )
