@@ -23,16 +23,16 @@ import {
   Divider
 } from 'antd'
 import {
-  FileTextOutlined,
-  RobotOutlined,
-  EditOutlined,
-  ArrowLeftOutlined,
-  ArrowRightOutlined,
-  CheckOutlined,
-  InboxOutlined,
-  PlusOutlined,
-  DeleteOutlined
-} from '@ant-design/icons'
+  FileTextIcon,
+  RobotIcon,
+  PencilIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  TrayIcon,
+  PlusIcon,
+  TrashIcon
+} from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import dayjs from 'dayjs'
 
@@ -419,7 +419,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
             <div className="gba:p-4">
               <div className="gba:flex gba:justify-center gba:items-center gba:mb-4">
                 <span className="gba:text-4xl gba:mr-2">✨</span>
-                <RobotOutlined className="gba:text-4xl gba:text-blue-500" />
+                <RobotIcon size={40} className="gba:text-4xl gba:text-blue-500" />
               </div>
               <Title level={4} className="gba:mb-2">
                 Generate with AI
@@ -439,7 +439,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
             data-testid="method-manual-card"
           >
             <div className="gba:p-4">
-              <EditOutlined className="gba:text-4xl gba:text-green-500 gba:mb-4" />
+              <PencilIcon size={40} className="gba:text-4xl gba:text-green-500 gba:mb-4" />
               <Title level={4} className="gba:mb-2">
                 Manual Creation
               </Title>
@@ -641,7 +641,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
               data-testid="ai-file-upload"
             >
               <p className="ant-upload-drag-icon">
-                <InboxOutlined />
+                <TrayIcon size={16} />
               </p>
               <p className="ant-upload-text">Click or drag PDF file to this area to upload</p>
               <p className="ant-upload-hint">Upload a PDF document containing order information for AI analysis</p>
@@ -664,7 +664,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
               onClick={handleAIGenerate}
               loading={generatingAI}
               disabled={!aiRequest.textInput && !aiRequest.fileUpload}
-              icon={<RobotOutlined />}
+              icon={<RobotIcon size={16} />}
               size="large"
               data-testid="generate-ai-button"
             >
@@ -991,7 +991,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
               Edit
             </Button>
             <Button size="small" danger onClick={() => removeItem(index)} data-testid={`remove-item-${index}`}>
-              <DeleteOutlined />
+              <TrashIcon size={16} />
             </Button>
           </Space>
         )
@@ -1004,7 +1004,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           <Title level={3} className="gba:m-0">
             Line Items
           </Title>
-          <Button type="primary" icon={<PlusOutlined />} onClick={addItem} data-testid="add-item-button">
+          <Button type="primary" icon={<PlusIcon size={16} />} onClick={addItem} data-testid="add-item-button">
             Add Item
           </Button>
         </div>
@@ -1399,7 +1399,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         <Button
           onClick={handlePrevious}
           disabled={currentStep === 0}
-          icon={<ArrowLeftOutlined />}
+          icon={<ArrowLeftIcon size={16} />}
           data-testid="previous-button"
         >
           Previous
@@ -1415,7 +1415,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
               type="primary"
               onClick={handleSubmit}
               loading={creatingOrder}
-              icon={<CheckOutlined />}
+              icon={<CheckIcon size={16} />}
               disabled={formData.items.length === 0 || !formData.customerId || !formData.orderDate}
               data-testid="submit-button"
             >
@@ -1432,7 +1432,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                 (creationMethod === 'manual' && currentStep === 1 && !selectedCustomer) ||
                 (creationMethod === 'manual' && currentStep === 3 && formData.items.length === 0)
               }
-              icon={<ArrowRightOutlined />}
+              icon={<ArrowRightIcon size={16} />}
               data-testid="next-button"
             >
               Next

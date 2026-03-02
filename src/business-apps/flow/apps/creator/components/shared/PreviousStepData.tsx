@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Card, Typography, Tag, Space, Button, Tooltip, Collapse, Spin, Alert } from 'antd'
-import { HistoryOutlined, DownloadOutlined, UserOutlined, CalendarOutlined, ReloadOutlined } from '@ant-design/icons'
+import { ClockCounterClockwiseIcon, DownloadIcon, UserIcon, CalendarIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFlowProgressClient, StepDataResponse } from '@/common/network/flows/useFlowProgressClient'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -117,7 +117,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
         render: (text: string, record: any) => (
           <Space direction="vertical" size="small">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <UserOutlined className="gba:text-blue-500" />
+              <UserIcon size={16} className="gba:text-blue-500" />
               <span className="gba:font-medium">{text}</span>
             </div>
             <Text type="secondary" className="gba:text-xs">
@@ -198,7 +198,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
             )}
           </Space>
           <Button
-            icon={<DownloadOutlined />}
+            icon={<DownloadIcon size={16} />}
             size="small"
             onClick={() => handleExportStep(stepIndex)}
             data-testid={`${prefixDataTestId}-export-step-${stepIndex}`}
@@ -222,7 +222,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
             <Text type="secondary" className="gba:block gba:mb-2">
               {totalCount - data.length} more record{totalCount - data.length !== 1 ? 's' : ''} available
             </Text>
-            <Button size="small" onClick={() => handleExportStep(stepIndex)} icon={<DownloadOutlined />}>
+            <Button size="small" onClick={() => handleExportStep(stepIndex)} icon={<DownloadIcon size={16} />}>
               Export all {totalCount} records
             </Button>
           </div>
@@ -251,7 +251,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
           type="error"
           showIcon
           action={
-            <Button size="small" onClick={loadPreviousStepsData} icon={<ReloadOutlined />}>
+            <Button size="small" onClick={loadPreviousStepsData} icon={<ArrowsClockwiseIcon size={16} />}>
               Retry
             </Button>
           }
@@ -264,7 +264,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
     return (
       <Card data-testid={prefixDataTestId}>
         <div className="gba:text-center gba:py-8">
-          <HistoryOutlined className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
+          <ClockCounterClockwiseIcon size={40} className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
           <Title level={4} type="secondary">
             No Previous Step Data
           </Title>
@@ -277,7 +277,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
   return (
     <div data-testid={prefixDataTestId} className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <HistoryOutlined className="gba:text-lg gba:text-blue-500" />
+        <ClockCounterClockwiseIcon size={18} className="gba:text-lg gba:text-blue-500" />
         <Title level={5} className="gba:mb-0">
           Previous Step Data
         </Title>
@@ -302,7 +302,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
             extra={
               <Tooltip title="Export all data for this step">
                 <Button
-                  icon={<DownloadOutlined />}
+                  icon={<DownloadIcon size={16} />}
                   size="small"
                   type="text"
                   onClick={e => {

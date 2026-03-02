@@ -1,5 +1,5 @@
 import { cloneElement, isValidElement, ReactElement } from 'react'
-import { RiArrowRightSLine } from '@remixicon/react'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { Card, Typography } from 'antd'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
@@ -60,7 +60,7 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
                   {entry.disabled ? (
                     <div className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4 gba:rounded-lg gba:cursor-not-allowed gba:bg-muted gba:text-muted-foreground gba:opacity-60">
                       <span className="gba:font-medium">{entry.label}</span>
-                      <RiArrowRightSLine className="gba:text-base gba:opacity-50" />
+                      <CaretRightIcon size={16} className="gba:text-base gba:opacity-50" />
                     </div>
                   ) : (
                     <div
@@ -83,7 +83,8 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
                       <span data-testid={`${dataTestId}-Navigation-Label`} className="gba:font-medium">
                         {entry.label}
                       </span>
-                      <RiArrowRightSLine
+                      <CaretRightIcon
+                        size={16}
                         data-testid={`${dataTestId}-Navigation-Icon`}
                         className="gba:text-base gba:transition-transform gba:duration-200"
                       />

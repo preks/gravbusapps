@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Label } from '@newwork/nw-design-system'
-import { RightOutlined, FileTextOutlined } from '@ant-design/icons'
+import { CaretRightIcon, FileTextIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../utils/formatters'
 import { formatDateTime } from '@/common/utils/dateFormatter'
@@ -89,7 +89,7 @@ const RequestDetailsSection: React.FC<RequestDetailsSectionProps> = ({
               className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:cursor-pointer gba:transition-colors"
               data-testid="expense-plan-link-button"
             >
-              <RightOutlined />
+              <CaretRightIcon size={16} />
               {expensePlanTitle}
             </button>
             {expensePlanDocument?.file && (
@@ -99,7 +99,7 @@ const RequestDetailsSection: React.FC<RequestDetailsSectionProps> = ({
                 data-testid="document-view-button"
                 title="View Document"
               >
-                <FileTextOutlined />
+                <FileTextIcon size={16} />
               </button>
             )}
           </div>

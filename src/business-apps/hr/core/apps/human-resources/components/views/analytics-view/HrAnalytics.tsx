@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { Alert, Button } from 'antd'
 import { PageLayout } from '@newwork/nw-design-system'
 import {
-  DashboardOutlined,
-  UserOutlined,
-  TeamOutlined,
-  ApartmentOutlined,
-  DollarOutlined,
-  LineChartOutlined
-} from '@ant-design/icons'
-import { ChartPie } from '@phosphor-icons/react'
+  SquaresFourIcon,
+  UserIcon,
+  UsersIcon,
+  BuildingsIcon,
+  CurrencyDollarIcon,
+  ChartLineIcon,
+  ChartPieIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import Dashboard from './components/views/dashboard/Dashboard'
 import Demographics from './components/views/demographics'
@@ -22,7 +22,7 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <DashboardOutlined />,
+      icon: <SquaresFourIcon size={16} />,
       label: 'Dashboard'
     },
     {
@@ -32,22 +32,22 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
     },
     {
       key: 'workforce',
-      icon: <TeamOutlined />,
+      icon: <UsersIcon size={16} />,
       label: 'Workforce'
     },
     {
       key: 'compensation',
-      icon: <DollarOutlined />,
+      icon: <CurrencyDollarIcon size={16} />,
       label: 'Compensation'
     },
     {
       key: 'forecasting',
-      icon: <LineChartOutlined />,
+      icon: <ChartLineIcon size={16} />,
       label: 'Forecasting'
     },
     {
       key: 'structural-analysis',
-      icon: <ApartmentOutlined />,
+      icon: <BuildingsIcon size={16} />,
       label: 'Structural Analysis'
     }
   ]
@@ -208,7 +208,7 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
     <div data-testid="hr-analytics-app">
       <PageLayout
         headerPhosphorIcon={{
-          icon: ChartPie,
+          icon: ChartPieIcon,
           variant: 'premium',
           size: 'lg',
           label: 'HR Analytics'

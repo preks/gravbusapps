@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Card, Row, Col, Descriptions, Button, Divider, Spin, Alert, Empty, Tabs } from 'antd'
-import { EditOutlined, HistoryOutlined, PlusOutlined } from '@ant-design/icons'
+import { PencilIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react'
 import { useFeature } from '@/common/hooks/useFeature'
 import SalaryHistoryChart from '../../components/SalaryHistoryChart'
 import CompensationComponentsTable from '../../components/CompensationComponentsTable'
@@ -140,7 +140,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
         </div>
 
         {isAdvancedSalaryEnabled && (
-          <Button type="primary" icon={<EditOutlined />} data-testid="edit-salary-button">
+          <Button type="primary" icon={<PencilIcon size={16} />} data-testid="edit-salary-button">
             {getTranslationFromI18nKeyAndLabel('salary.button.edit', 'Edit Salary')}
           </Button>
         )}
@@ -252,7 +252,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
             key: 'history',
             label: (
               <span>
-                <HistoryOutlined />
+                <ClockCounterClockwiseIcon size={16} />
                 {getTranslationFromI18nKeyAndLabel('salary.tabs.history', 'Salary History')}
               </span>
             ),

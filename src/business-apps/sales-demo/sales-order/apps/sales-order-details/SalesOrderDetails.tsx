@@ -16,19 +16,19 @@ import {
   Dropdown
 } from 'antd'
 import {
-  ArrowLeftOutlined,
-  ShoppingCartOutlined,
-  UserOutlined,
-  EnvironmentOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  EyeOutlined,
-  SettingOutlined,
-  MoreOutlined,
-  DownOutlined,
-  PlusOutlined,
-  MessageOutlined
-} from '@ant-design/icons'
+  ArrowLeftIcon,
+  ShoppingCartIcon,
+  UserIcon,
+  MapPinIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  EyeIcon,
+  GearIcon,
+  DotsThreeIcon,
+  CaretDownIcon,
+  PlusIcon,
+  ChatCircleIcon
+} from '@phosphor-icons/react'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -241,7 +241,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
       width: 80,
       render: (text, record) => (
         <div className="gba:flex gba:items-center gba:gap-2">
-          {isCommentLineItem(record) && <MessageOutlined className="gba:text-blue-500" />}
+          {isCommentLineItem(record) && <ChatCircleIcon size={16} className="gba:text-blue-500" />}
           <Text strong>{text}</Text>
         </div>
       )
@@ -401,7 +401,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
           >
             <Button
               type="text"
-              icon={<MoreOutlined />}
+              icon={<DotsThreeIcon size={16} />}
               data-testid={`line-item-actions-${record.id}`}
               style={{
                 backgroundColor: '#f5f5f5',
@@ -607,7 +607,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
       <div className="gba:mb-6 gba:flex gba:justify-between gba:items-center" data-testid="back-navigation">
         <Button
           type="text"
-          icon={<ArrowLeftOutlined />}
+          icon={<ArrowLeftIcon size={16} />}
           onClick={handleBack}
           className="gba:flex gba:items-center gba:p-0 gba:h-auto"
           data-testid="back-button"
@@ -624,12 +624,12 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
         >
           <Button
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<PlusIcon size={16} />}
             data-testid="actions-dropdown"
             style={{ backgroundColor: '#000000', borderColor: '#000000', color: '#ffffff' }}
             className="gba:hover:bg-gray-800 gba:hover:border-gray-800"
           >
-            Actions <DownOutlined />
+            Actions <CaretDownIcon size={16} />
           </Button>
         </Dropdown>
       </div>
@@ -644,7 +644,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
               key: 'overview',
               label: (
                 <Space>
-                  <EyeOutlined />
+                  <EyeIcon size={16} />
                   <span>Overview</span>
                 </Space>
               ),
@@ -729,7 +729,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
               key: 'order-info',
               label: (
                 <Space>
-                  <ShoppingCartOutlined />
+                  <ShoppingCartIcon size={16} />
                   <span>Order Information</span>
                 </Space>
               ),
@@ -778,7 +778,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
 
                     <Descriptions.Item label="Salesperson">
                       <Space>
-                        <UserOutlined />
+                        <UserIcon size={16} />
                         <Text>{order.salesperson.name || 'N/A'}</Text>
                       </Space>
                     </Descriptions.Item>
@@ -811,7 +811,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
                     {order.owner && (
                       <Descriptions.Item label="Owner">
                         <Space>
-                          <UserOutlined />
+                          <UserIcon size={16} />
                           <Text>
                             {order.owner.fullName ||
                               `${order.owner.firstName || ''} ${order.owner.lastName || ''}`.trim() ||
@@ -828,7 +828,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
               key: 'customer-info',
               label: (
                 <Space>
-                  <UserOutlined />
+                  <UserIcon size={16} />
                   <span>Customer Information</span>
                 </Space>
               ),
@@ -842,7 +842,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
                     <Descriptions.Item label="Email">
                       {order.customer.email ? (
                         <Space>
-                          <MailOutlined />
+                          <EnvelopeIcon size={16} />
                           <Text>{order.customer.email}</Text>
                         </Space>
                       ) : (
@@ -859,7 +859,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
                     {order.contact?.phone && (
                       <Descriptions.Item label="Phone">
                         <Space>
-                          <PhoneOutlined />
+                          <PhoneIcon size={16} />
                           <Text>{order.contact.phone}</Text>
                         </Space>
                       </Descriptions.Item>
@@ -917,7 +917,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
               key: 'metadata',
               label: (
                 <Space>
-                  <SettingOutlined />
+                  <GearIcon size={16} />
                   <span>Order Metadata</span>
                 </Space>
               ),
@@ -991,7 +991,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
       <Card
         title={
           <Space>
-            <ShoppingCartOutlined />
+            <ShoppingCartIcon size={16} />
             <span>Line Items ({order.items.length})</span>
           </Space>
         }
@@ -1028,10 +1028,10 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
                             gap: '8px'
                           }}
                         >
-                          <MessageOutlined
+                          <ChatCircleIcon
+                            size={16}
                             style={{
-                              color: '#3b82f6',
-                              fontSize: '16px'
+                              color: '#3b82f6'
                             }}
                           />
                           <Text strong style={{ color: '#1f2937' }}>
@@ -1099,7 +1099,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
                         >
                           <Button
                             type="text"
-                            icon={<MoreOutlined />}
+                            icon={<DotsThreeIcon size={16} />}
                             data-testid={`line-item-actions-${record.id}`}
                             style={{
                               backgroundColor: '#f5f5f5',

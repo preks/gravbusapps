@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import { Timeline, Card, Tag, Typography, Space, Spin, Alert, Button } from 'antd'
 import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  UserOutlined,
-  MessageOutlined,
-  SwapOutlined,
-  PlayCircleOutlined,
-  EyeOutlined,
-  LikeOutlined,
-  DislikeOutlined,
-  UserAddOutlined,
-  CloseCircleOutlined
-} from '@ant-design/icons'
+  CheckCircleIcon,
+  ClockIcon,
+  UserIcon,
+  ChatCircleIcon,
+  ArrowsLeftRightIcon,
+  PlayCircleIcon,
+  EyeIcon,
+  ThumbsUpIcon,
+  ThumbsDownIcon,
+  UserPlusIcon,
+  XCircleIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const { Text, Title, Paragraph } = Typography
@@ -136,22 +136,22 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
       case 'assignment':
         switch (event.action) {
           case 'CLAIM':
-            return <UserAddOutlined />
+            return <UserPlusIcon size={16} />
           case 'UNCLAIM':
-            return <CloseCircleOutlined />
+            return <XCircleIcon size={16} />
           case 'REASSIGN':
-            return <SwapOutlined />
+            return <ArrowsLeftRightIcon size={16} />
           case 'COMPLETE':
             return <CheckCircleOutlined />
           case 'REJECT':
-            return <DislikeOutlined />
+            return <ThumbsDownIcon size={16} />
           default:
-            return <PlayCircleOutlined />
+            return <PlayCircleIcon size={16} />
         }
       case 'comment':
-        return <MessageOutlined />
+        return <ChatCircleIcon size={16} />
       default:
-        return <ClockCircleOutlined />
+        return <ClockIcon size={16} />
     }
   }
 
@@ -375,7 +375,7 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
 
       {events.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-          <ClockCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+          <ClockIcon size={48} style={{ marginBottom: '16px' }} />
           <div>No history available</div>
         </div>
       ) : (
@@ -409,7 +409,7 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
                           borderRadius: '4px'
                         }}
                       >
-                        <MessageOutlined style={{ marginRight: '4px', color: '#52c41a' }} />
+                        <ChatCircleIcon size={16} style={{ marginRight: '4px', color: '#52c41a' }} />
                         <Text style={{ fontStyle: 'italic' }}>"{event.comment}"</Text>
                       </div>
                     )}
@@ -426,7 +426,7 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
                         {event.action && <Tag color="default">{event.action}</Tag>}
                         {event.userId && (
                           <Tag color="blue">
-                            <UserOutlined /> {event.userName || event.userId}
+                            <UserIcon size={16} /> {event.userName || event.userId}
                           </Tag>
                         )}
                         {event.metadata?.assignmentMode && (

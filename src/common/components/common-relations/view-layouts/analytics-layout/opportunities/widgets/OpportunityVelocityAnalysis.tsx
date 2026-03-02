@@ -15,8 +15,7 @@ import {
   ChartLegendContent
 } from '@newwork/nw-design-system'
 import { LineChart, Line, XAxis, YAxis } from 'recharts'
-import { ClockCircleOutlined, RiseOutlined, TrophyOutlined } from '@ant-design/icons'
-import { TrendUpIcon } from '@phosphor-icons/react'
+import { ClockIcon, TrendUpIcon, TrophyIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface OpportunityVelocityData {
@@ -96,7 +95,7 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
           </div>
           <div className="gba:bg-purple-50 gba:p-4 gba:rounded-lg" data-testid="velocity-trend">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <RiseOutlined className="gba:text-purple-600" />
+              <TrendUpIcon size={16} className="gba:text-purple-600" />
               <span className="gba:text-sm gba:font-medium gba:text-purple-600">Velocity Trend</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-purple-900">
@@ -168,7 +167,7 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
 
           <div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-              <ClockCircleOutlined className="gba:text-orange-600" />
+              <ClockIcon size={16} className="gba:text-orange-600" />
               <h4 className="gba:text-lg gba:font-semibold gba:text-orange-800">Oldest Open</h4>
               <Badge variant="secondary" className="gba:ml-2">
                 {data.slowMovers.length}

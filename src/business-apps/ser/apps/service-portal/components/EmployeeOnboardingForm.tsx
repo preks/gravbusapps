@@ -7,7 +7,7 @@ import type { WorkflowEngine } from '../../../packages/services-plus-core/src'
 
 // UI Components - TODO: Replace with @newwork/nw-design-system when migrated
 import { Card, Form, Input, Select, DatePicker, Button, Checkbox, Alert, Spin, Row, Col } from 'antd'
-import { UserOutlined, LaptopOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { UserIcon, LaptopIcon, ClockIcon } from '@phosphor-icons/react'
 
 const { Option } = Select
 const { TextArea } = Input
@@ -172,7 +172,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
       <Card
         title={
           <div className="gba:flex gba:items-center gba:gap-3">
-            <UserOutlined className="gba:text-blue-600" />
+            <UserIcon size={16} className="gba:text-blue-600" />
             <span>Employee Onboarding Request</span>
           </div>
         }
@@ -186,7 +186,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
 
           <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <ClockCircleOutlined className="gba:text-blue-600" />
+              <ClockIcon size={16} className="gba:text-blue-600" />
               <span className="gba:font-medium gba:text-blue-900">What happens next:</span>
             </div>
             <ul className="gba:text-sm gba:text-blue-800 gba:list-disc gba:list-inside gba:space-y-1">
@@ -437,7 +437,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                   htmlType="submit"
                   loading={isSubmitting}
                   disabled={!workflowEngine}
-                  icon={<LaptopOutlined />}
+                  icon={<LaptopIcon size={16} />}
                   data-testid="submit-button"
                 >
                   {isSubmitting ? 'Starting Onboarding Process...' : 'Start Onboarding Process'}
