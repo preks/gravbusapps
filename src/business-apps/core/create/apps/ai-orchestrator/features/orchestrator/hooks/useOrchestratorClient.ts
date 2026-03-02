@@ -17,9 +17,6 @@ import type {
   BuildStatus
 } from '../types'
 
-/** Default repository ID for the app starter template */
-const DEFAULT_APP_STARTER_TEMPLATE_REPO_ID = 'f9088954-aa43-4b0e-bc95-d769d15e3895'
-
 export interface UseOrchestratorClientOptions {
   accessToken: string
 }
@@ -110,8 +107,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
       try {
         const request: AnalyzeRequest = {
           prompt,
-          context,
-          repoId: lastRepoId || DEFAULT_APP_STARTER_TEMPLATE_REPO_ID
+          context
         }
         const response = await client.analyze(request)
 
@@ -149,9 +145,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         const request: AnalyzeRequest = {
           prompt: lastPrompt,
           context: lastContext,
-          answers,
-          repoId: lastRepoId ?? undefined,
-          sessionId: lastSessionId ?? undefined
+          answers
         }
         const response = await client.analyze(request)
 
