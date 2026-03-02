@@ -92,6 +92,8 @@ import { useComments } from '../../../shared/hooks/useComments'
 import { usePublishing } from '../../../shared/hooks/usePublishing'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../spaces/hooks/useSpaceDocumentActivity'
 import { buildDocumentEditPrompt } from '@/common/utils/buildDocumentEditPrompt'
+import { openEveryAI } from '@/common/utils/openEveryAI'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
@@ -493,11 +495,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [aiSelectionSnapshot, setAiSelectionSnapshot] = useState('')
     const [aiSelectionSnapshotHtml, setAiSelectionSnapshotHtml] = useState('')
     const [pendingAiChatPrompt, setPendingAiChatPrompt] = useState<string | null>(null)
-    // AI chat state is tracked via wasAiChatLoadingRef inside handleAiChatStateChange
-    // rather than React state to avoid unnecessary re-renders of the editor.
+    // Embedded AI chat sync state (enabled only when legacy debug flag is active).
     const wasAiChatLoadingRef = useRef(false)
     const aiSyncRunIdRef = useRef(0)
     const aiRunStartUpdatedAtRef = useRef<string | undefined>(undefined)
+    const everyAiFallbackPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const suppressYjsSnapshotSaveRef = useRef(false)
     const [isAutocompleteToggleEnabled, setIsAutocompleteToggleEnabled] = useState(false)
     const [autocompleteSuggestion, setAutocompleteSuggestion] = useState('')
@@ -1278,8 +1280,23 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setAiInstruction('')
       setAiSelectionSnapshot('')
       setAiSelectionSnapshotHtml('')
-      setPendingAiChatPrompt(prompt)
-      setRightSidebar('aiChat')
+      const useEmbeddedAiChat =
+        typeof window !== 'undefined' && window.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
+      if (useEmbeddedAiChat) {
+        setPendingAiChatPrompt(prompt)
+        setRightSidebar('aiChat')
+        return
+      }
+
+      openEveryAI({ prompt })
+
+      // Fallback: if this shell does not handle openEveryAI events, navigate directly.
+      window.setTimeout(() => {
+        const everyAiMounted = Boolean(window.document.querySelector('[data-testid="every-ai-app"]'))
+        if (!everyAiMounted) {
+          navigateTo('/platform/every-ai')
+        }
+      }, 800)
     }, [aiInstruction, aiSelectionSnapshot, aiSelectionSnapshotHtml, document?.id, title])
 
     const applyLatestDocumentContent = useCallback(
@@ -1429,6 +1446,61 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       void syncEditorFromLatestDocument()
       setRightSidebar('closed')
     }, [syncEditorFromLatestDocument])
+
+    const clearEveryAiFallbackPoll = useCallback(() => {
+      if (everyAiFallbackPollRef.current) {
+        clearTimeout(everyAiFallbackPollRef.current)
+        everyAiFallbackPollRef.current = null
+      }
+    }, [])
+
+    const startEveryAiFallbackPoll = useCallback(() => {
+      clearEveryAiFallbackPoll()
+      // Start later to give AI time, then keep retrying until chat completion event clears polling.
+      const initialDelayMs = 8000
+      const repeatDelayMs = 2000
+      const maxPollDurationMs = 3 * 60 * 1000
+      const startedAt = Date.now()
+
+      const runAttempt = () => {
+        if (!document?.id) return
+        const elapsedMs = Date.now() - startedAt
+        if (elapsedMs >= maxPollDurationMs) {
+          clearEveryAiFallbackPoll()
+          return
+        }
+        void syncEditorFromLatestDocument().then(applied => {
+          if (applied) {
+            clearEveryAiFallbackPoll()
+            return
+          }
+
+          // Keep polling until completion event arrives and clears this timer.
+          everyAiFallbackPollRef.current = setTimeout(runAttempt, repeatDelayMs)
+        })
+      }
+
+      everyAiFallbackPollRef.current = setTimeout(runAttempt, initialDelayMs)
+    }, [clearEveryAiFallbackPoll, document?.id, syncEditorFromLatestDocument])
+
+    useEffect(() => {
+      if (!document?.id) return
+
+      const handleEveryAiOpened = (event: Event) => {
+        const customEvent = event as CustomEvent<{ type?: string; payload?: { prompt?: string } }>
+        if (customEvent.detail?.type !== 'OPEN_EVERY_AI') return
+        const useEmbeddedAiChat =
+          typeof window !== 'undefined' && window.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
+        if (useEmbeddedAiChat) return
+
+        startEveryAiFallbackPoll()
+      }
+
+      window.addEventListener('openEveryAI', handleEveryAiOpened)
+      return () => window.removeEventListener('openEveryAI', handleEveryAiOpened)
+    }, [document?.id, startEveryAiFallbackPoll])
+
+    useEffect(() => () => clearEveryAiFallbackPoll(), [clearEveryAiFallbackPoll])
 
     // Get word count
     const wordCount =
