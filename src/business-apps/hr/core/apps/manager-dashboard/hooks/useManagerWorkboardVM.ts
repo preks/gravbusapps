@@ -423,13 +423,13 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       try {
         const today = new Date().toISOString().split('T')[0]
 
-        const query = `
-          query GetUnallocatedSalaries($employeeIds: [uuid!]!) {
+        const camelCaseQuery = `
+          query GetUnallocatedSalariesCamelCase($employeeIds: [uuid!]!, $today: date!) {
             EmployeeSalary(
               where: { 
                 employeeId: { _in: $employeeIds }
                 isDeleted: { _eq: false }
-                startDate: { _lte: "${today}" }
+                startDate: { _lte: $today }
               }
               limit: 200
             ) {
@@ -439,39 +439,79 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
               monthlyGrossSalary
               startDate
               endDate
-              currency {
-                code
-              }
             }
           }
         `
 
-        const response = await graphQLClient.request<{ EmployeeSalary: any[] }>(query, {
-          employeeIds: unallocatedEmployeeIds
-        })
+        const snakeCaseQuery = `
+          query GetUnallocatedSalariesSnakeCase($employeeIds: [uuid!]!, $today: date!) {
+            employee_salary(
+              where: {
+                employee_id: { _in: $employeeIds }
+                is_deleted: { _eq: false }
+                start_date: { _lte: $today }
+              }
+              limit: 200
+            ) {
+              id
+              employee_id
+              annual_gross_salary
+              monthly_gross_salary
+              start_date
+              end_date
+            }
+          }
+        `
+
+        let salaryRecords: any[] = []
+
+        try {
+          const response = await graphQLClient.request<{ EmployeeSalary?: any[] }>(camelCaseQuery, {
+            employeeIds: unallocatedEmployeeIds,
+            today
+          })
+          salaryRecords = response?.EmployeeSalary || []
+        } catch (camelCaseError) {
+          console.warn('EmployeeSalary query failed, trying employee_salary fallback:', camelCaseError)
+          const fallbackResponse = await graphQLClient.request<{ employee_salary?: any[] }>(snakeCaseQuery, {
+            employeeIds: unallocatedEmployeeIds,
+            today
+          })
+          salaryRecords = fallbackResponse?.employee_salary || []
+        }
 
         // Track the latest active salary record per employee
         const employeeCurrentSalaries = new Map<string, { monthlyAmount: number; startDateMs: number }>()
 
-        response.EmployeeSalary.forEach(record => {
+        salaryRecords.forEach(record => {
+          const employeeId = record.employeeId || record.employee_id
+          const startDateRaw = record.startDate || record.start_date
+          const endDateRaw = record.endDate || record.end_date
+          const monthlyGrossSalary = record.monthlyGrossSalary ?? record.monthly_gross_salary
+          const annualGrossSalary = record.annualGrossSalary ?? record.annual_gross_salary
+
+          if (!employeeId || !startDateRaw) {
+            return
+          }
+
           // Check if this is an active record
-          const startDate = new Date(record.startDate)
-          const endDate = record.endDate ? new Date(record.endDate) : null
+          const startDate = new Date(startDateRaw)
+          const endDate = endDateRaw ? new Date(endDateRaw) : null
           const now = new Date()
 
           if (startDate <= now && (!endDate || endDate >= now)) {
             // Get salary amount as MONTHLY (prefer monthlyGross, fallback annualGross / 12)
             let monthlyAmount = 0
-            if (record.monthlyGrossSalary != null && record.monthlyGrossSalary > 0) {
-              monthlyAmount = record.monthlyGrossSalary
-            } else if (record.annualGrossSalary != null && record.annualGrossSalary > 0) {
-              monthlyAmount = record.annualGrossSalary / 12
+            if (monthlyGrossSalary != null && monthlyGrossSalary > 0) {
+              monthlyAmount = monthlyGrossSalary
+            } else if (annualGrossSalary != null && annualGrossSalary > 0) {
+              monthlyAmount = annualGrossSalary / 12
             }
 
-            const current = employeeCurrentSalaries.get(record.employeeId)
+            const current = employeeCurrentSalaries.get(employeeId)
             const startDateMs = startDate.getTime()
             if (!current || startDateMs > current.startDateMs) {
-              employeeCurrentSalaries.set(record.employeeId, { monthlyAmount, startDateMs })
+              employeeCurrentSalaries.set(employeeId, { monthlyAmount, startDateMs })
             }
           }
         })
