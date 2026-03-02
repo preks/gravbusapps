@@ -31,7 +31,11 @@ import { usePublishing } from '../shared/hooks/usePublishing'
 import { TableView, FormView, DashboardView, KanbanView } from './views'
 import type { UniverSheetGridHandle, CellDimensionsPayload } from './components/UniverSheetGrid'
 import { createUniverConversionContext } from './utils/univerAdapter'
-import { readLatestUniverSnapshot, writeUniverSnapshotCache, clearUniverSnapshotCache } from './utils/univerSnapshotCache'
+import {
+  readLatestUniverSnapshot,
+  writeUniverSnapshotCache,
+  clearUniverSnapshotCache
+} from './utils/univerSnapshotCache'
 import { exportSnapshotAsXlsx } from './utils/exportToExcel'
 import { AutomationsPanel } from './components/AutomationsPanel'
 import { EntityDataStatusBar } from './components/EntityDataStatusBar'
@@ -160,6 +164,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
 
+      if (!activeSheetId) {
+        if (!cancelled) {
+          setBootstrapSnapshot(null)
+          setBootstrapSnapshotSeed('no-sheet')
+          setIsBootstrapSnapshotLoading(false)
+        }
+        return
+      }
+
       setIsBootstrapSnapshotLoading(true)
       const minVersion = Number(activeSheet.version ?? 0)
       const cached = readLatestUniverSnapshot(app.id, activeSheetId, minVersion)
@@ -177,8 +190,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
 
+      const SNAPSHOT_FETCH_TIMEOUT_MS = 15000
+      const fetchWithTimeout = Promise.race([
+        SpreadsheetApiService.getUniverSnapshot(app.id, activeSheetId),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Snapshot fetch timed out')), SNAPSHOT_FETCH_TIMEOUT_MS)
+        )
+      ])
       try {
-        const remote = await SpreadsheetApiService.getUniverSnapshot(app.id, activeSheetId)
+        const remote = await fetchWithTimeout
         if (cancelled) return
         const remoteVersion = Number(remote?.version ?? 0)
         const isRemoteSnapshotUsable = remoteVersion >= minVersion
@@ -619,7 +639,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // a circular promise dependency (deadlock) where the queued function awaits an inner
   // operation that is itself waiting for the queue to drain.
   const applyBatchDirect = useCallback(
-    async (operations: SpreadsheetBatchOperation[], batchIdPrefix = 'batch'): Promise<SpreadsheetBatchOperationResponse> => {
+    async (
+      operations: SpreadsheetBatchOperation[],
+      batchIdPrefix = 'batch'
+    ): Promise<SpreadsheetBatchOperationResponse> => {
       try {
         const response = await SpreadsheetApiService.applyOperationBatch(app.id, activeSheetId, {
           baseVersion: sheetVersionRef.current,
@@ -845,7 +868,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         try {
           const snapshotToSave =
             attempt === 0 ? snapshot : (spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? snapshot)
-          const cacheResult = writeUniverSnapshotCache(app.id, activeSheetId, Number(sheetVersionRef.current || 0), snapshotToSave)
+          const cacheResult = writeUniverSnapshotCache(
+            app.id,
+            activeSheetId,
+            Number(sheetVersionRef.current || 0),
+            snapshotToSave
+          )
           await SpreadsheetApiService.saveUniverSnapshot(app.id, activeSheetId, {
             version: sheetVersionRef.current,
             snapshot: snapshotToSave
@@ -864,34 +892,36 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           lastSuccessfulSnapshotCheckpointAtRef.current = Date.now()
           // Broadcast dimension sync to collaborators so their grids and cursor overlays stay in sync
           if (collaboration.isCollaborationConnected) {
-          try {
-            const snap = snapshotToSave as Record<string, unknown>
-            const sheetOrder = snap?.sheetOrder as string[] | undefined
-            const sheets = snap?.sheets as Record<string, Record<string, unknown>> | undefined
-            const firstSheetId = sheetOrder?.[0]
-            const sheetSnap = (firstSheetId && sheets ? sheets[firstSheetId] : sheets ? Object.values(sheets)[0] : undefined) as Record<string, unknown> | undefined
-            if (sheetSnap) {
-              const rowHeader = sheetSnap.rowHeader as { width?: number } | undefined
-              const columnHeader = sheetSnap.columnHeader as { height?: number } | undefined
-              const dimensionPayload: CellDimensionsPayload = {
-                sheetId: activeSheetId,
-                defaultColWidth: (sheetSnap.defaultColumnWidth as number | undefined) ?? 73,
-                defaultRowHeight: (sheetSnap.defaultRowHeight as number | undefined) ?? 23,
-                columnData: (sheetSnap.columnData as Record<string | number, { w?: number }>) ?? {},
-                rowData: (sheetSnap.rowData as Record<string | number, { h?: number }>) ?? {},
-                rowHeaderWidth: rowHeader?.width ?? 48,
-                columnHeaderHeight: columnHeader?.height ?? 28,
-                zoomRatio: (sheetSnap.zoomRatio as number | undefined) ?? 1
+            try {
+              const snap = snapshotToSave as Record<string, unknown>
+              const sheetOrder = snap?.sheetOrder as string[] | undefined
+              const sheets = snap?.sheets as Record<string, Record<string, unknown>> | undefined
+              const firstSheetId = sheetOrder?.[0]
+              const sheetSnap = (
+                firstSheetId && sheets ? sheets[firstSheetId] : sheets ? Object.values(sheets)[0] : undefined
+              ) as Record<string, unknown> | undefined
+              if (sheetSnap) {
+                const rowHeader = sheetSnap.rowHeader as { width?: number } | undefined
+                const columnHeader = sheetSnap.columnHeader as { height?: number } | undefined
+                const dimensionPayload: CellDimensionsPayload = {
+                  sheetId: activeSheetId,
+                  defaultColWidth: (sheetSnap.defaultColumnWidth as number | undefined) ?? 73,
+                  defaultRowHeight: (sheetSnap.defaultRowHeight as number | undefined) ?? 23,
+                  columnData: (sheetSnap.columnData as Record<string | number, { w?: number }>) ?? {},
+                  rowData: (sheetSnap.rowData as Record<string | number, { h?: number }>) ?? {},
+                  rowHeaderWidth: rowHeader?.width ?? 48,
+                  columnHeaderHeight: columnHeader?.height ?? 28,
+                  zoomRatio: (sheetSnap.zoomRatio as number | undefined) ?? 1
+                }
+                collaboration.emitOperation({
+                  type: 'dimension_sync',
+                  data: dimensionPayload,
+                  broadcastOnly: true
+                })
               }
-              collaboration.emitOperation({
-                type: 'dimension_sync',
-                data: dimensionPayload,
-                broadcastOnly: true
-              })
+            } catch {
+              // Non-fatal
             }
-          } catch (_) {
-            // Non-fatal
-          }
           }
           return
         } catch (error) {
@@ -1088,12 +1118,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         pendingCellPersistTimeoutRef.current = null
       }
       await new Promise<void>(resolve => {
-        const nextRun = operationQueueRef.current.then(
-          flushPendingCellChanges,
-          flushPendingCellChanges
+        const nextRun = operationQueueRef.current.then(flushPendingCellChanges, flushPendingCellChanges)
+        operationQueueRef.current = nextRun.then(
+          () => undefined,
+          () => undefined
         )
-        operationQueueRef.current = nextRun.then(() => undefined, () => undefined)
-        nextRun.then(() => resolve(), () => resolve())
+        nextRun.then(
+          () => resolve(),
+          () => resolve()
+        )
       })
 
       // Step 2: grab the live Univer snapshot and pass it directly to createVersion.
@@ -1122,7 +1155,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           const colIndex =
             activeSheet.columns.findIndex(c => c.name === firstCell.columnName) >= 0
               ? activeSheet.columns.findIndex(c => c.name === firstCell.columnName)
-              : ctx.columnIdToIndex.get(String(firstCell.columnName)) ?? -1
+              : (ctx.columnIdToIndex.get(String(firstCell.columnName)) ?? -1)
           if (rowIndex !== undefined && colIndex >= 0) {
             collaboration.emitCursor({ path: [`row:${rowIndex}`, `col:${colIndex}`] })
           }
@@ -1422,9 +1455,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         console.error('[SpreadsheetAppViewer] Export failed: workbook snapshot unavailable')
         return
       }
-      const safeName = (app.name || activeSheet.name || 'spreadsheet')
-        .replace(/[/\\?%*:|"<>]/g, '-')
-        .trim() || 'spreadsheet'
+      const safeName =
+        (app.name || activeSheet.name || 'spreadsheet').replace(/[/\\?%*:|"<>]/g, '-').trim() || 'spreadsheet'
       await exportSnapshotAsXlsx(snapshot, safeName)
     } catch (err) {
       console.error('[SpreadsheetAppViewer] Export to Excel failed:', err)
@@ -1487,8 +1519,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       )}
 
       <div className="gba:flex-1 gba:relative gba:min-h-0 gba:overflow-hidden">
-        {viewType === 'table' && (
-          isBootstrapSnapshotLoading ? (
+        {viewType === 'table' &&
+          (isBootstrapSnapshotLoading ? (
             <div className="gba:flex gba:h-full gba:w-full gba:items-center gba:justify-center">
               <div className="gba:text-sm gba:text-muted-foreground">Loading spreadsheet snapshot...</div>
             </div>
@@ -1513,8 +1545,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               isReadOnly={!isEditing || entityEnabled}
               gridRef={spreadsheetGridRef}
             />
-          )
-        )}
+          ))}
 
         {viewType === 'form' && (
           <FormView

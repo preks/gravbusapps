@@ -954,6 +954,20 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
   console.log('[vite.config.ts] wrappedEntries:', wrappedEntries)
 
   return {
+    server:
+      command === 'serve'
+        ? {
+            proxy: {
+              // Proxy FeatureHub API to avoid CORS when running on localhost
+              '/__featurehub': {
+                target: env.NEXT_PUBLIC_FEATURE_HUB_API || 'https://features-dev.newwork.com',
+                changeOrigin: true,
+                secure: true,
+                rewrite: (path: string) => path.replace(/^\/__featurehub/, '')
+              }
+            }
+          }
+        : undefined,
     optimizeDeps: {
       include: [
         'antd',
@@ -1000,9 +1014,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       // the only way dynamic key lookups (process.env[key]) work in the browser.
       'process.env': {
         NODE_ENV: mode,
-        ...Object.fromEntries(
-          Object.entries(env).filter(([k]) => k.startsWith('NEXT_PUBLIC_'))
-        )
+        ...Object.fromEntries(Object.entries(env).filter(([k]) => k.startsWith('NEXT_PUBLIC_')))
       }
       // globalThis.__APP_BUILD_INFO__ is handled by the prependBannerPlugin, so no need to define it here.
     },
