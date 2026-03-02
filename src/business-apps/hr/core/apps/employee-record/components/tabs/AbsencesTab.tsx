@@ -33,7 +33,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { GET_ABSENCE_DAILY_FACTS } from '../../queries/queries'
+import { useAbsenceEffectiveDates } from '../../hooks/useAbsenceEffectiveDates'
 import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
@@ -57,7 +57,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [hasHrBackoffice, setHasHrBackoffice] = useState<boolean>(false)
   const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
   const [holidayDates, setHolidayDates] = useState<string[]>([])
-  const [effectiveDates, setEffectiveDates] = useState<Set<string> | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
   const A001_TYPE_REF = 'AbsenceType:v1:A001'
   const [annualLeaveOverride, setAnnualLeaveOverride] = useState<{
@@ -321,7 +320,11 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     return withTypeIdApplied
   }, [entitlements, annualLeaveOverride, snapshotByType])
 
-  const [allowWeekendPaintingInFallback, setAllowWeekendPaintingInFallback] = useState(false)
+  const { effectiveDates, allowWeekendPaintingInFallback } = useAbsenceEffectiveDates(
+    graphqlClient,
+    employee?.id,
+    currentDate
+  )
   const nonWorkingDates = useEmployeeWeeklySchedule(accessToken, employee?.id, currentDate)
 
   const tabsItems = [
@@ -392,87 +395,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
     loadHolidays()
   }, [employee?.id, accessToken, graphqlClient, currentDate])
-
-  // Fetch BE-provided daily absence facts for the visible month to paint only effective working days
-  useEffect(() => {
-    const loadDailyFacts = async () => {
-      try {
-        if (!graphqlClient || !employee?.id) {
-          setEffectiveDates(null)
-          return
-        }
-        const from = currentDate.startOf('month').format('YYYY-MM-DD')
-        const to = currentDate.endOf('month').format('YYYY-MM-DD')
-        const res: any = await graphqlClient.request(GET_ABSENCE_DAILY_FACTS, {
-          employeeId: employee.id,
-          from,
-          to
-        })
-        const facts: Array<{
-          dayDate?: string
-          day_date?: string
-          dayFraction?: number | string | null
-          day_fraction?: number | string | null
-          signedDayFraction?: number | string | null
-          signed_day_fraction?: number | string | null
-        }> = res?.DailyAbsenceFactView || res?.daily_absence_fact_view || []
-        const set = new Set<string>()
-        let anyDefinedFraction = false
-        let weekendEffective = false
-
-        // Aggregate net value per day using signedDayFraction when present
-        const perDayNet: Record<string, number> = {}
-        facts.forEach(f => {
-          const rawDate = (f.dayDate ?? (f as any).day_date) as string | undefined
-          const rawSigned = (f.signedDayFraction ?? (f as any).signed_day_fraction) as
-            | number
-            | string
-            | null
-            | undefined
-          const rawFrac = (f.dayFraction ?? (f as any).day_fraction) as number | string | null | undefined
-          const value =
-            rawSigned !== null && rawSigned !== undefined
-              ? typeof rawSigned === 'number'
-                ? rawSigned
-                : Number(rawSigned)
-              : rawFrac !== null && rawFrac !== undefined
-                ? typeof rawFrac === 'number'
-                  ? rawFrac
-                  : Number(rawFrac)
-                : null
-          if (value === null || rawDate === undefined) return
-          anyDefinedFraction = true
-          perDayNet[rawDate] = (perDayNet[rawDate] || 0) + value
-        })
-
-        Object.entries(perDayNet).forEach(([date, sum]) => {
-          if (sum > 0) {
-            set.add(date)
-            const d = dayjs(date)
-            if (d.day() === 0 || d.day() === 6) weekendEffective = true
-          }
-        })
-        // Selection rules:
-        // - No facts: fallback to range shading (null) so absences remain visible.
-        // - Facts with defined fractions: use set (may be empty to intentionally suppress painting when all 0).
-        // - Facts all null/undefined: treat as incomplete -> fallback to range shading (null).
-        if (facts.length === 0) {
-          setEffectiveDates(null)
-          setAllowWeekendPaintingInFallback(false)
-        } else if (!anyDefinedFraction) {
-          setEffectiveDates(null)
-          setAllowWeekendPaintingInFallback(false)
-        } else {
-          setEffectiveDates(set)
-          setAllowWeekendPaintingInFallback(weekendEffective)
-        }
-      } catch {
-        // Non-fatal; fall back to shading full ranges
-        setEffectiveDates(null)
-      }
-    }
-    loadDailyFacts()
-  }, [graphqlClient, employee?.id, currentDate])
 
   // Non-working dates derived from weekly schedule are now provided by useEmployeeWeeklySchedule
 
