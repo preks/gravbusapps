@@ -83,11 +83,34 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
   }
 
   // Use alternateId if provided in fragment, otherwise use original entityId
-  const effectiveId = metadata?.alternateId || entityId
+  const rawEffectiveId = metadata?.alternateId || entityId
+  const [effectiveId, embeddedQuery = ''] = rawEffectiveId.split('?')
+  const embeddedParams = new URLSearchParams(embeddedQuery)
 
   // Get configuration for the effective protocol
   const config = ENTITY_CONFIG[effectiveProtocol]
   if (!config) return null
+
+  // Workflow links can include creator query params in the custom-protocol id.
+  // Resolve those explicitly to the creator manage route instead of treating them as raw id text.
+  if (effectiveProtocol === 'service_workflow' || effectiveProtocol === 'workflow_template') {
+    const templateId = embeddedParams.get('templateId') || effectiveId
+    const app = embeddedParams.get('app')
+    const shouldOpenCreator = app === 'flow/apps/creator' || app === null
+
+    if (templateId && shouldOpenCreator) {
+      const hash = fragment || '#manage'
+      return {
+        url: `/platform/apps/flow/apps/creator?templateId=${encodeURIComponent(templateId)}${hash}`,
+        protocol: effectiveProtocol,
+        id: templateId,
+        alternateId: metadata?.alternateId,
+        icon: config.icon(),
+        variant: config.variant,
+        showBorder: config.showBorder
+      }
+    }
+  }
 
   return {
     url: config.urlTemplate.replace('{id}', effectiveId),
@@ -113,7 +136,9 @@ export function getEntityUrl(entity: string, id: string, link?: string): string 
   // If link is provided, use unified resolution (handles alternateId and redirects)
   if (link) {
     const resolved = resolveEntityLink(link)
-    return resolved?.url
+    if (resolved?.url) {
+      return resolved.url
+    }
   }
 
   // Fallback to legacy behavior (direct entity + id lookup)
