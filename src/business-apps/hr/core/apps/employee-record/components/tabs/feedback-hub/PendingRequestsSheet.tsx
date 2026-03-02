@@ -18,6 +18,31 @@ import { startProcess } from '@/common/utils/start-process'
 import { toAvatarSrc } from './avatar'
 import { PendingRequestRow } from './types'
 
+const resolveStartProcessFromEndpoint = (row: PendingRequestRow) => {
+  const endpoint = row.endpoint || ''
+  let domain = 'employee'
+  let processName = 'giveFeedback'
+  let processInstanceId: string | undefined = row.processInstanceId || undefined
+
+  const extractFromParts = (parts: string[]) => {
+    const idx = parts.indexOf('processes')
+    if (idx >= 0 && parts.length > idx + 3) {
+      domain = parts[idx + 1]
+      processName = parts[idx + 2]
+      processInstanceId = parts[idx + 3]
+    }
+  }
+
+  try {
+    const url = new URL(endpoint)
+    extractFromParts(url.pathname.split('/').filter(Boolean))
+  } catch {
+    extractFromParts(endpoint.split('/').filter(Boolean))
+  }
+
+  return { domain, processName, processInstanceId }
+}
+
 interface PendingRequestsSheetProps {
   t: (key: string, options?: Record<string, unknown>) => string
   open: boolean
@@ -79,19 +104,21 @@ const PendingRequestsSheet: React.FC<PendingRequestsSheetProps> = ({
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() =>
+                  onClick={() => {
+                    const { domain, processName, processInstanceId } = resolveStartProcessFromEndpoint(row)
                     startProcess({
-                      domain: 'employee',
-                      processName: 'giveFeedback',
+                      domain,
+                      processName,
                       payload: {
                         requestId: row.id,
                         employeeId: row.employeeId ?? employeeId,
                         // Preserve old behavior: preselect requester in Give Feedback flow.
                         receiverId: row.requesterEmployeeId ?? undefined
                       },
+                      processInstanceId,
                       builderType: 'NATIVE_SCREEN'
                     })
-                  }
+                  }}
                 >
                   <PencilSimpleIcon className="gba:mr-1 gba:h-4 gba:w-4" />
                   {t('feedback-hub-pending-give-feedback-btn')}

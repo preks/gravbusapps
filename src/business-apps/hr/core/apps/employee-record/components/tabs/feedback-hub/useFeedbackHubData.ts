@@ -289,7 +289,9 @@ export const useFeedbackHubData = ({
           dueDate: task?.dueDate || null,
           message,
           employeeId: employee?.id ?? null,
-          requesterEmployeeId: requesterUserId,
+          requesterEmployeeId: requesterUserId || task?.inputs?.receiverId || null,
+          endpoint: task?.endpoint || null,
+          processInstanceId: task?.processInstanceId || null,
           requesterEmployee: {
             id: resolvedEmployee?.id ?? null,
             displayName: resolvedEmployee?.displayName || fallbackName || null,
