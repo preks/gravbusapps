@@ -11,6 +11,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { fetchHolidayDates } from '@/business-apps/hr/core/apps/employee-record/components/tabs/utils/fetchHolidayDates'
+import { useAbsenceEffectiveDates } from '@/business-apps/hr/core/apps/employee-record/hooks/useAbsenceEffectiveDates'
+import { useEmployeeWeeklySchedule } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeWeeklySchedule'
 
 import personalAbsencesTranslations from './_i18n'
 import { usePersonalAbsencesData } from './hooks/usePersonalAbsencesData'
@@ -58,6 +60,12 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
     getAbsenceGroupDisplayValue,
     handleCreateAbsence
   } = data
+  const { effectiveDates, allowWeekendPaintingInFallback } = useAbsenceEffectiveDates(
+    client,
+    employee?.id,
+    calendarDate
+  )
+  const nonWorkingDates = useEmployeeWeeklySchedule(accessToken, employee?.id, calendarDate)
 
   const wellness = useWellnessInsight(absences, displayEntitlements, ytdAbsentDays, ytdTotalWorkingDays, accessToken)
   const { wellnessDataSummary, wellnessInsight, wellnessLoading, wellnessRequested, requestWellnessAnalysis } = wellness
@@ -87,6 +95,9 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         absences={absences}
         loading={loading}
         error={error}
+        effectiveDates={effectiveDates ?? undefined}
+        allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
+        nonWorkingDates={!effectiveDates ? (nonWorkingDates ?? undefined) : undefined}
       />
     )
   }

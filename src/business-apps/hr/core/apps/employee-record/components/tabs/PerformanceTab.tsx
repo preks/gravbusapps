@@ -8,8 +8,16 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  Icon,
   Input,
+  SectionKpiCards,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Spinner,
+  type KpiCardData,
   useTranslation
 } from '@newwork/nw-design-system'
 import {
@@ -30,9 +38,10 @@ import { employeePerformanceQuery } from '../../queries/performanceQueries'
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import translations from '../../_i18n'
-import { Trash } from '@phosphor-icons/react'
+import { CheckCircleIcon, TargetIcon, Trash, TrendUpIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { startProcess } from '@/common/utils/start-process'
 import { beginSilentSave, tryConsumeSilentSave } from '@/common/utils/silent-processes'
+import { FilterBar } from './components/CompactFilterBar'
 
 interface PerformanceTabProps {
   employee: Employee
@@ -110,6 +119,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   const [error, setError] = useState<string | null>(null)
   const [selectedCycleId, setSelectedCycleId] = useState<string>('')
   const [selectedGoalId, setSelectedGoalId] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [typeFilter, setTypeFilter] = useState<string>('ALL')
   const [sortBy, setSortBy] = useState<string>('DUE_DATE')
@@ -252,23 +262,41 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     })
   }, [localPerformanceGoals, getInitialEvents])
 
-  const containedGoals = useMemo(() => {
-    if (!selectedCycle) return []
-    const goals = localPerformanceGoals
-      .filter(isGoalValid)
-      .filter(goal => isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
-      .filter(goal => (statusFilter === 'ALL' ? true : goal.status === statusFilter))
-      .filter(goal => (typeFilter === 'ALL' ? true : getGoalType(goal) === typeFilter))
-    return sortGoals(goals)
-  }, [localPerformanceGoals, selectedCycle, statusFilter, typeFilter, sortGoals, isGoalContainedInCycle])
+  const normalizedSearchTerm = useMemo(() => searchTerm.trim().toLowerCase(), [searchTerm])
 
-  const outOfCycleGoals = useMemo(() => {
+  const matchesGoalFilters = useCallback(
+    (goal: ExtendedEmployeePerformanceGoal) => {
+      if (statusFilter !== 'ALL' && goal.status !== statusFilter) return false
+      if (typeFilter !== 'ALL' && getGoalType(goal) !== typeFilter) return false
+      if (!normalizedSearchTerm) return true
+      const title = goal.title?.toLowerCase() || ''
+      const note = goal.additionalProperties?.note?.toLowerCase() || ''
+      return title.includes(normalizedSearchTerm) || note.includes(normalizedSearchTerm)
+    },
+    [statusFilter, typeFilter, normalizedSearchTerm]
+  )
+
+  const cycleRelevantGoals = useMemo(() => {
     if (!selectedCycle) return []
     return localPerformanceGoals
       .filter(isGoalValid)
       .filter(goal => doesGoalOverlapCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
-      .filter(goal => !isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
-  }, [localPerformanceGoals, selectedCycle, doesGoalOverlapCycle, isGoalContainedInCycle])
+      .filter(matchesGoalFilters)
+  }, [localPerformanceGoals, selectedCycle, doesGoalOverlapCycle, matchesGoalFilters])
+
+  const containedGoals = useMemo(() => {
+    if (!selectedCycle) return []
+    return sortGoals(
+      cycleRelevantGoals.filter(goal => isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
+    )
+  }, [cycleRelevantGoals, selectedCycle, sortGoals, isGoalContainedInCycle])
+
+  const outOfCycleGoals = useMemo(() => {
+    if (!selectedCycle) return []
+    return cycleRelevantGoals.filter(
+      goal => !isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate)
+    )
+  }, [cycleRelevantGoals, selectedCycle, isGoalContainedInCycle])
 
   useEffect(() => {
     const visibleGoalIds = [...containedGoals, ...outOfCycleGoals].map(goal => goal.id)
@@ -323,6 +351,44 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     const behind = containedGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
     return { total, achieved, onTrack, behind }
   }, [containedGoals, getTrackState])
+
+  const kpiCards = useMemo<KpiCardData[]>(
+    () => [
+      {
+        id: 'performance-total-goals',
+        title: 'Total goals',
+        value: String(summary.total),
+        icon: <Icon icon={TargetIcon} size="sm" decorative />,
+        iconColor: 'var(--nw-info)',
+        footer: 'In selected cycle'
+      },
+      {
+        id: 'performance-on-track-goals',
+        title: 'On track',
+        value: String(summary.onTrack),
+        icon: <Icon icon={TrendUpIcon} size="sm" decorative />,
+        iconColor: 'var(--nw-success)',
+        footer: 'Healthy progress'
+      },
+      {
+        id: 'performance-behind-goals',
+        title: 'Behind target',
+        value: String(summary.behind),
+        icon: <Icon icon={WarningCircleIcon} size="sm" decorative />,
+        iconColor: 'var(--nw-warning)',
+        footer: 'Needs attention'
+      },
+      {
+        id: 'performance-achieved-goals',
+        title: 'Achieved',
+        value: String(summary.achieved),
+        icon: <Icon icon={CheckCircleIcon} size="sm" decorative />,
+        iconColor: 'var(--nw-decorative)',
+        footer: 'Completed goals'
+      }
+    ],
+    [summary.total, summary.onTrack, summary.behind, summary.achieved]
+  )
 
   useEffect(() => {
     if (!selectedGoal) return
@@ -585,19 +651,19 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-3">
-          <select
-            value={selectedCycleId}
-            onChange={event => setSelectedCycleId(event.target.value)}
-            className="gba:h-9 gba:min-w-[220px] gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
-            data-testid="performance-cycle-select"
-          >
-            {cycles.map(cycle => (
-              <option value={cycle.id} key={cycle.id}>
-                {cycle.name} ({dayjs(cycle.startDate).format('MMM D, YYYY')} -{' '}
-                {dayjs(cycle.endDate).format('MMM D, YYYY')})
-              </option>
-            ))}
-          </select>
+          <Select value={selectedCycleId} onValueChange={setSelectedCycleId}>
+            <SelectTrigger className="gba:min-w-[260px]" data-testid="performance-cycle-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {cycles.map(cycle => (
+                <SelectItem value={cycle.id} key={cycle.id}>
+                  {cycle.name} ({dayjs(cycle.startDate).format('MMM D, YYYY')} -{' '}
+                  {dayjs(cycle.endDate).format('MMM D, YYYY')})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <AppAction
             variant="update-primary"
@@ -623,68 +689,69 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
         </div>
       </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
-        <Card>
-          <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">Total goals</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">On Track</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.onTrack}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">Behind Target</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.behind}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:p-4">
-            <div className="gba:text-xs gba:text-muted-foreground">Achieved</div>
-            <div className="gba:text-xl gba:font-semibold">{summary.achieved}</div>
-          </CardContent>
-        </Card>
-      </div>
+      <SectionKpiCards cards={kpiCards} className="gba:w-full gba:md:grid-cols-4 nw:md:grid-cols-4" />
 
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-12 gba:gap-6">
         <section className="gba:lg:col-span-5 gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-            <select
-              value={statusFilter}
-              onChange={event => setStatusFilter(event.target.value)}
-              className="gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
-            >
-              <option value="ALL">All status</option>
-              {Object.entries(statusMap).map(([value, info]) => (
-                <option value={value} key={value}>
-                  {info.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={typeFilter}
-              onChange={event => setTypeFilter(event.target.value)}
-              className="gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
-            >
-              <option value="ALL">All types</option>
-              <option value="PERCENTAGE">Percentage</option>
-              <option value="NUMERIC">Numeric</option>
-              <option value="MILESTONE">Milestone</option>
-            </select>
-            <select
-              value={sortBy}
-              onChange={event => setSortBy(event.target.value)}
-              className="gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
-            >
-              <option value="DUE_DATE">Due date</option>
-              <option value="STATUS">Status</option>
-              <option value="UPDATED_RECENTLY">Updated recently</option>
-            </select>
-          </div>
+          <FilterBar
+            dataTestId="performance-goals-filters-card"
+            className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-1.5"
+            controlsClassName="gba:gap-1.5"
+            search={{
+              value: searchTerm,
+              onChange: setSearchTerm,
+              placeholder: 'Search goals',
+              minWidthClassName: 'gba:min-w-[260px] gba:flex-1',
+              'data-testid': 'performance-goals-search-input'
+            }}
+            clear={{
+              label: 'Clear',
+              onClick: () => {
+                setSearchTerm('')
+                setStatusFilter('ALL')
+                setTypeFilter('ALL')
+                setSortBy('DUE_DATE')
+              },
+              'data-testid': 'performance-goals-clear-filters'
+            }}
+          >
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="gba:min-w-[150px]" data-testid="performance-goals-status-filter">
+                <SelectValue placeholder="All status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All status</SelectItem>
+                {Object.entries(statusMap).map(([value, info]) => (
+                  <SelectItem value={value} key={value}>
+                    {info.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="gba:min-w-[150px]" data-testid="performance-goals-type-filter">
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All types</SelectItem>
+                <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                <SelectItem value="NUMERIC">Numeric</SelectItem>
+                <SelectItem value="MILESTONE">Milestone</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="gba:min-w-[170px]" data-testid="performance-goals-sort-filter">
+                <SelectValue placeholder="Due date" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DUE_DATE">Due date</SelectItem>
+                <SelectItem value="STATUS">Status</SelectItem>
+                <SelectItem value="UPDATED_RECENTLY">Updated recently</SelectItem>
+              </SelectContent>
+            </Select>
+          </FilterBar>
 
           {!containedGoals.length && !outOfCycleGoals.length ? (
             <EmptyState title={t('performance-empty')} className="gba:py-10" data-testid="empty-goals-state" />
@@ -832,12 +899,23 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                                 cycleEndDate: selectedCycle?.endDate,
                                 cycleName: selectedCycle?.name,
                                 additionalProperties: selectedGoal.additionalProperties,
-                                existingMilestones:
+                                existingMilestonesJson: JSON.stringify(
                                   selectedGoal.employeePerformanceGoalMilestone?.map(m => ({
                                     id: m.id,
                                     title: m.title,
-                                    version: m.version ?? 0
+                                    version: m.version ?? 0,
+                                    done: m.done ?? false,
+                                    doneAt: m.doneAt ?? null
                                   })) || []
+                                ),
+                                existingUpdatesJson: JSON.stringify(
+                                  selectedGoal.employeePerformanceGoalUpdate?.map(u => ({
+                                    id: u.id,
+                                    comment: u.comment,
+                                    progressPercent: u.progressPercent,
+                                    updateTime: u.updateTime
+                                  })) || []
+                                )
                               }
                             }
                           ]}

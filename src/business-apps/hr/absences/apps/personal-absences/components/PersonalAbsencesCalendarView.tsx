@@ -28,6 +28,9 @@ interface PersonalAbsencesCalendarViewProps {
   absences?: AbsenceRow[]
   loading?: boolean
   error?: string | null
+  effectiveDates?: Set<string>
+  allowWeekendPaintingInFallback?: boolean
+  nonWorkingDates?: Set<string>
 }
 
 function toCalendarAbsenceList(rows: AbsenceRow[], t: TFunction): (AbsenceListCardAbsence & { id: string })[] {
@@ -69,7 +72,10 @@ export function PersonalAbsencesCalendarView({
   t,
   absences: absencesProp,
   loading: loadingProp,
-  error: errorProp
+  error: errorProp,
+  effectiveDates,
+  allowWeekendPaintingInFallback,
+  nonWorkingDates
 }: Readonly<PersonalAbsencesCalendarViewProps>) {
   const fallback = useAbsenceData(employee?.id, accessToken, absenceEntitlements || [])
 
@@ -117,21 +123,26 @@ export function PersonalAbsencesCalendarView({
               {requestAbsenceLabel}
             </AppAction>
           </div>
-          <AbsenceCalendar
-            absenceList={calendarAbsenceList}
-            loading={calendarLoading}
-            error={calendarError}
-            currentDate={calendarDate}
-            setCurrentDate={setCalendarDate}
-            selectedStartDate={selectedStartDate}
-            setSelectedStartDate={setSelectedStartDate}
-            selectedEndDate={selectedEndDate}
-            setSelectedEndDate={setSelectedEndDate}
-            holidayDates={holidayDates}
-            employeeAbsenceEntitlement={absenceEntitlements}
-            employee={employee as any}
-            accessToken={accessToken}
-          />
+          <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
+            <AbsenceCalendar
+              absenceList={calendarAbsenceList}
+              loading={calendarLoading}
+              error={calendarError}
+              currentDate={calendarDate}
+              setCurrentDate={setCalendarDate}
+              selectedStartDate={selectedStartDate}
+              setSelectedStartDate={setSelectedStartDate}
+              selectedEndDate={selectedEndDate}
+              setSelectedEndDate={setSelectedEndDate}
+              holidayDates={holidayDates}
+              employeeAbsenceEntitlement={absenceEntitlements}
+              employee={employee as any}
+              accessToken={accessToken}
+              effectiveDates={effectiveDates}
+              allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
+              nonWorkingDates={nonWorkingDates}
+            />
+          </div>
         </div>
       </PageLayout>
     </div>
