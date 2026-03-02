@@ -13,9 +13,9 @@ import { AssetDetailPanel } from './components/AssetDetailPanel'
 import { EquipmentRegistration } from '../../forms/equipment-registration/EquipmentRegistration'
 import { AllocateAsset } from '../../forms/allocate-asset/AllocateAsset'
 import { ReturnAsset } from '../../forms/return-asset/ReturnAsset'
-import { Asset, AssetStatus } from './types'
+import { RetireAsset } from '../../forms/retire-asset/RetireAsset'
+import { Asset } from './types'
 import { useAssetService } from './services/useAssetService'
-import { AssetProcessClient } from './services/AssetProcessClient'
 import { generateAssetDocumentPdf } from './utils/assetDocumentPdf'
 
 const moduleColor = MODULE_COLORS.HR
@@ -76,7 +76,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     ]
   )
 
-  const { getAllocationsForAsset, getAssetById, deallocateAsset } = useAssetService(props)
+  const { getAllocationsForAsset, getAssetById } = useAssetService(props)
 
   const handleGenerateDocument = useCallback(
     async (assetId: string) => {
@@ -288,44 +288,12 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   )
 
   const handleRetireAsset = useCallback(
-    async (assetId: string) => {
+    (assetId: string) => {
       const asset = assets.find(a => a.id === assetId)
-      if (!asset) return
-
-      try {
-        // Close any active allocations first so history shows ended, not "Current"
-        const allocations = await getAllocationsForAsset(asset.id)
-        const today = new Date().toISOString().slice(0, 10)
-        for (const alloc of allocations) {
-          if (!alloc.endDate) {
-            await deallocateAsset(alloc.id, alloc.version, today)
-          }
-        }
-
-        const client = new AssetProcessClient()
-        client.setAccessToken(props.accessToken)
-
-        await client.updateAsset({
-          id: asset.id,
-          version: asset.version,
-          assetStatus: AssetStatus.RETIRED
-        })
-
-        const payload = {
-          resolution: 'success',
-          processName: 'updateAsset',
-          domain: 'employee',
-          response: { asset: { id: asset.id, assetStatus: AssetStatus.RETIRED } }
-        }
-
-        window.dispatchEvent(new CustomEvent('com.newwork.process.processCompletion', { detail: payload }))
-        window.dispatchEvent(new CustomEvent('com.newwork.process.taskCompletion', { detail: payload }))
-        refetchAssets()
-      } catch (error) {
-        console.error('Error retiring asset:', error)
-      }
+      if (asset) setSelectedAsset(asset)
+      dialogs.openRetire(assetId)
     },
-    [assets, getAllocationsForAsset, deallocateAsset, props.accessToken, refetchAssets]
+    [assets, dialogs]
   )
 
   useAssetProcessEvents({
@@ -340,6 +308,10 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     },
     onReturnProcessComplete: () => {
       dialogs.closeReturn()
+      refetchAssets()
+    },
+    onRetireProcessComplete: () => {
+      dialogs.closeRetire()
       refetchAssets()
     },
     onUpdateAsset: handleUpdateAsset,
@@ -362,6 +334,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
   const returnDialogTitle = useMemo(
     () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_asset_form', 'Return Asset'),
+    [currentLocale]
+  )
+
+  const retireDialogTitle = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retire_asset', 'Retire Asset'),
     [currentLocale]
   )
 
@@ -507,6 +484,27 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               asset: selectedAsset || undefined
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogs.isRetireOpen} onOpenChange={dialogs.closeRetire}>
+        <DialogContent
+          className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto"
+          onInteractOutside={e => e.preventDefault()}
+          onEscapeKeyDown={e => e.preventDefault()}
+        >
+          <DialogTitle className="gba:sr-only">{retireDialogTitle}</DialogTitle>
+          {dialogs.isRetireOpen && (
+            <RetireAsset
+              key={`retire-asset-${dialogs.retiringAssetId ?? ''}-${currentLocale}`}
+              {...props}
+              additionalData={{
+                ...props.additionalData,
+                assetId: dialogs.retiringAssetId || undefined,
+                asset: selectedAsset || undefined
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
