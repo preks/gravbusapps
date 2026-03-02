@@ -12,12 +12,18 @@ import {
   Button,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
 import { SparkleIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CampaignSelect from '@/common/components/customer/selects/campaign-select/CampaignSelect'
+import { LeadImportDefaults } from '@/common/components/common-relations/apps/data-import/hooks/useLeadImportDefaults'
 import translations from './FileUploadStep/_i18n'
 
 export interface FileUploadStepProps {
@@ -28,6 +34,7 @@ export interface FileUploadStepProps {
   campaignId?: string
   onCampaignChange?: (campaign: { id: string; name: string } | null) => void
   businessAppContext?: BusinessAppContextProps
+  leadDefaults?: LeadImportDefaults
   'data-testid'?: string
 }
 
@@ -39,6 +46,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   campaignId,
   onCampaignChange,
   businessAppContext,
+  leadDefaults,
   'data-testid': testId = 'file-upload-step'
 }) => {
   const { t } = useTranslation(translations)
@@ -48,6 +56,11 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
     const selectedFile = e.target.files?.[0] || null
     onFileChange(selectedFile)
   }
+
+  const leadDefaultsComplete =
+    !leadDefaults || (!!leadDefaults.selectedStatus && !!leadDefaults.selectedSource && !!leadDefaults.selectedRating)
+
+  const canAnalyze = !!file && !isLoading && leadDefaultsComplete
 
   return (
     <Card data-testid={testId}>
@@ -93,9 +106,106 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
             </div>
           )}
 
+          {leadDefaults && (
+            <>
+              <div>
+                <Label htmlFor="lead-status-select">
+                  {t('lead-status-label')}
+                  <span className="gba:text-destructive gba:ml-1">*</span>
+                </Label>
+                <Select
+                  value={leadDefaults.selectedStatus || undefined}
+                  onValueChange={leadDefaults.onStatusChange}
+                  disabled={leadDefaults.isLoading}
+                >
+                  <SelectTrigger
+                    id="lead-status-select"
+                    className="gba:mt-2 gba:w-full"
+                    data-testid={`${testId}-lead-status-select`}
+                  >
+                    <SelectValue
+                      placeholder={leadDefaults.isLoading ? t('loading-placeholder') : t('lead-status-placeholder')}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {leadDefaults.statusOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="lead-source-select">
+                  {t('lead-source-label')}
+                  <span className="gba:text-destructive gba:ml-1">*</span>
+                </Label>
+                <Select
+                  value={leadDefaults.selectedSource || undefined}
+                  onValueChange={leadDefaults.onSourceChange}
+                  disabled={leadDefaults.isLoading}
+                >
+                  <SelectTrigger
+                    id="lead-source-select"
+                    className="gba:mt-2 gba:w-full"
+                    data-testid={`${testId}-lead-source-select`}
+                  >
+                    <SelectValue
+                      placeholder={leadDefaults.isLoading ? t('loading-placeholder') : t('lead-source-placeholder')}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {leadDefaults.sourceOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="lead-rating-select">
+                  {t('lead-rating-label')}
+                  <span className="gba:text-destructive gba:ml-1">*</span>
+                </Label>
+                <Select
+                  value={leadDefaults.selectedRating || undefined}
+                  onValueChange={leadDefaults.onRatingChange}
+                  disabled={leadDefaults.isLoading}
+                >
+                  <SelectTrigger
+                    id="lead-rating-select"
+                    className="gba:mt-2 gba:w-full"
+                    data-testid={`${testId}-lead-rating-select`}
+                  >
+                    <SelectValue
+                      placeholder={leadDefaults.isLoading ? t('loading-placeholder') : t('lead-rating-placeholder')}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {leadDefaults.ratingOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {!leadDefaultsComplete && file && (
+                <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-lead-defaults-required`}>
+                  {t('lead-defaults-required-hint')}
+                </p>
+              )}
+            </>
+          )}
+
           <Button
             onClick={onAnalyze}
-            disabled={!file || isLoading}
+            disabled={!canAnalyze}
             className="gba:w-full"
             data-testid={`${testId}-analyze-button`}
           >
