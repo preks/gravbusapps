@@ -7,7 +7,8 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
   query GetExpenseItemsBackoffice(
     $limit: Int!,
     $offset: Int!,
-    $searchTerm: String
+    $searchTerm: String,
+    $orderBy: [ExpenseItemOrderBy!]
   ) {
     ExpenseItemAggregate(
       where: {
@@ -27,7 +28,7 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
     ExpenseItem(
       limit: $limit,
       offset: $offset,
-      orderBy: {createdAt: DESC},
+      orderBy: $orderBy,
       where: {
         isDeleted: {_eq: false},
         status: {_nin: ["CREATED", "DISCARDED"]},
@@ -57,30 +58,15 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
 
 export const GET_EXPENSE_PLANS_BACKOFFICE = `
   query GetExpensePlansBackoffice(
+    $where: ExpensePlanBoolExp,
     $limit: Int!,
     $offset: Int!,
-    $searchTerm: String
+    $orderBy: [ExpensePlanOrderBy!]
   ) {
-    ExpensePlanAggregate(
-      where: {
-        isDeleted: {_eq: false},
-        status: {_nin: ["CREATED", "DISCARDED"]},
-        _or: [
-          {code: {_ilike: $searchTerm}},
-          {title: {_ilike: $searchTerm}}
-        ]
-      }
-    ) { aggregate { count } }
+    ExpensePlanAggregate(where: $where) { aggregate { count } }
     ExpensePlan(
-      limit: $limit, offset: $offset, orderBy: {createdAt: DESC},
-      where: {
-        isDeleted: {_eq: false},
-        status: {_nin: ["CREATED", "DISCARDED"]},
-        _or: [
-          {code: {_ilike: $searchTerm}},
-          {title: {_ilike: $searchTerm}}
-        ]
-      }
+      limit: $limit, offset: $offset, orderBy: $orderBy,
+      where: $where
     ) {
       id code title employeeId requestType { value translations { value localeCode } }
       expenseRequest { id code requestType { value translations { value localeCode } } }
@@ -124,34 +110,15 @@ export const GET_EXPENSE_REQUESTS_BACKOFFICE = `
 
 export const GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE = `
   query GetAdvancePaymentsReportBackoffice(
+    $where: AdvancePaymentBoolExp,
     $limit: Int!,
     $offset: Int!,
-    $searchTerm: String
+    $orderBy: [AdvancePaymentOrderBy!]
   ) {
-    AdvancePaymentAggregate(
-      where: {
-        isDeleted: { _eq: false },
-        status: { _nin: ["CREATED", "DISCARDED"] },
-        _or: [
-          { code: { _ilike: $searchTerm } },
-          { description: { _ilike: $searchTerm } },
-          { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } }
-        ]
-      }
-    ) { aggregate { count } }
+    AdvancePaymentAggregate(where: $where) { aggregate { count } }
     AdvancePayment(
-      limit: $limit, offset: $offset, orderBy: { createdAt: DESC },
-      where: {
-        isDeleted: { _eq: false },
-        status: { _nin: ["CREATED", "DISCARDED"] },
-        _or: [
-          { code: { _ilike: $searchTerm } },
-          { description: { _ilike: $searchTerm } },
-          { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } }
-        ]
-      }
+      limit: $limit, offset: $offset, orderBy: $orderBy,
+      where: $where
     ) {
       id code amount status createdAt paymentMethod currencyRef
       costCenter { id name code }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   DataDisplay,
   type FilterConfiguration,
@@ -17,75 +17,34 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import type { ColumnDef as TanstackColumnDef, SortingState } from '@tanstack/react-table'
+import type { ColumnDef as TanstackColumnDef, OnChangeFn, SortingState } from '@tanstack/react-table'
 import { PiDownload, PiFileText, PiInfo } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBackofficeExpenseReportData, ReportType } from '../../hooks/useBackofficeExpenseReportData'
 import { ensureShortDateFormat } from '../../../manager-expenses/utils/dateUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../personal-expenses/utils'
-import { sanitizeFilename } from '@/common/utils/textUtils'
-
-const dateKeys = new Set([
-  'date',
-  'startDate',
-  'endDate',
-  'submissionDate',
-  'requestDate',
-  'createdAt',
-  'planDate',
-  'pendingAt',
-  'approvedAt',
-  'paidAt'
-])
-
-const formatCellValue = (key: string, raw: any): string => {
-  if (raw == null) return ''
-  if (dateKeys.has(key)) {
-    return raw ? ensureShortDateFormat(raw) : ''
-  }
-  if (typeof raw === 'number') return String(raw)
-  return String(raw)
-}
-
-const escapeCsv = (value: string) => {
-  const needsQuotes = /[",\r\n]/.test(value)
-  const out = value.replace(/"/g, '""')
-  return needsQuotes ? `"${out}"` : out
-}
-
-const htmlEscape = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-
-const buildFilename = (type: string, ext: string) => {
-  const ts = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const filename = `expense-report-${type}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`
-  return sanitizeFilename(filename)
-}
+import {
+  isDateKey,
+  downloadCsvReport,
+  downloadExcelReport,
+  computeSlaKpis,
+  type ReportColumnDef
+} from './backofficeExpenseReportsPage.utils'
 
 interface BackofficeExpenseReportsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void
 }
 
+type ReportSnapshot = {
+  rows: any[]
+  totalCount: number
+}
+
 const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>({})
   const [sorting, setSorting] = useState<SortingState>([])
-  const [fixedApprovalPayoutKpis, setFixedApprovalPayoutKpis] = useState({
-    approvalBreachedLabel: '0/0',
-    approvalBreachedRate: '0.0%',
-    payoutBreachedLabel: '0/0',
-    payoutBreachedRate: '0.0%',
-    totalBreachedLabel: '0/0',
-    totalBreachedRate: '0.0%',
-    withinTotalLabel: '0/0',
-    withinTotalRate: '0.0%'
-  })
+  const [reportSnapshotsByType, setReportSnapshotsByType] = useState<Partial<Record<ReportType, ReportSnapshot>>>({})
 
   const contextProps = useMemo(
     () => ({
@@ -110,7 +69,11 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     reportDataType,
     setSelectedReportType,
     fetchAllForExport
-  } = useBackofficeExpenseReportData(contextProps)
+  } = useBackofficeExpenseReportData(contextProps, filtersByReportType, sorting)
+  const selectedFilters = useMemo(
+    () => (selectedReportType ? (filtersByReportType[selectedReportType] ?? {}) : {}),
+    [filtersByReportType, selectedReportType]
+  )
 
   const reportTypes: Array<{ key: ReportType; name: string; description: string }> = [
     {
@@ -167,7 +130,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     }
   ]
 
-  type ReportColumnDef = { key: string; title: React.ReactNode; widthClass?: string }
   const getExportColumns = (): ReportColumnDef[] => {
     const uiCols = getColumns()
     const insertCurrencyAfter = (afterKey: string) => {
@@ -542,87 +504,45 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   const handleDownload = async () => {
     const cols = getExportColumns()
     if (!cols || cols.length === 0) return
-    const header = cols.map(c => {
-      const title = typeof c.title === 'string' ? c.title : String(c.key)
-      return escapeCsv(title)
-    })
     const allRows = await fetchAllForExport()
-    const rows = (allRows as any[]).map(row => cols.map(c => escapeCsv(formatCellValue(c.key, row[c.key]))))
-    const csvLines = [header.join(','), ...rows.map(r => r.join(','))]
-    const csvContent = csvLines.join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const filename = buildFilename(String(selectedReportType), 'csv')
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    link.setAttribute('rel', 'noopener noreferrer')
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
+    downloadCsvReport(selectedReportType, cols, allRows as any[])
   }
 
   const handleDownloadExcel = async () => {
     const cols = getExportColumns()
     if (!cols || cols.length === 0) return
-    const headerCells = cols
-      .map(c => {
-        const title = typeof c.title === 'string' ? c.title : String(c.key)
-        return `<th>${htmlEscape(title)}</th>`
-      })
-      .join('')
     const allRows = await fetchAllForExport()
-    const bodyRows = (allRows as any[])
-      .map(row => {
-        const tds = cols.map(c => `<td>${htmlEscape(formatCellValue(c.key, row[c.key]))}</td>`).join('')
-        return `<tr>${tds}</tr>`
-      })
-      .join('')
-    const headerHtml = `<thead><tr>${headerCells}</tr></thead>`
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><table>${headerHtml}<tbody>${bodyRows}</tbody></table></body></html>`
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
-    const url = URL.createObjectURL(blob)
-    const filename = buildFilename(String(selectedReportType), 'xls')
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    link.setAttribute('rel', 'noopener noreferrer')
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
+    downloadExcelReport(selectedReportType, cols, allRows as any[])
   }
 
   const columns = useMemo(() => getColumns(), [selectedReportType])
   const isDataAlignedWithSelectedType = reportDataType === selectedReportType
-  const hasReportRows = isDataAlignedWithSelectedType && Array.isArray(reportData) && reportData.length > 0
-  const displayTotalCount = isDataAlignedWithSelectedType ? totalCount : 0
+  const selectedReportSnapshot = selectedReportType ? reportSnapshotsByType[selectedReportType] : undefined
+  const baseReportRows = useMemo<any[]>(
+    () =>
+      isDataAlignedWithSelectedType && Array.isArray(reportData)
+        ? (reportData as any[])
+        : (selectedReportSnapshot?.rows ?? []),
+    [isDataAlignedWithSelectedType, reportData, selectedReportSnapshot]
+  )
+  const hasReportRows = Array.isArray(baseReportRows) && baseReportRows.length > 0
+  const displayTotalCount = isDataAlignedWithSelectedType ? totalCount : (selectedReportSnapshot?.totalCount ?? 0)
   const tableLoading = isLoading && !hasReportRows
+  useEffect(() => {
+    if (!selectedReportType || !isDataAlignedWithSelectedType || !Array.isArray(reportData)) return
+    setReportSnapshotsByType(previous => ({
+      ...previous,
+      [selectedReportType]: {
+        rows: reportData as any[],
+        totalCount
+      }
+    }))
+  }, [selectedReportType, isDataAlignedWithSelectedType, reportData, totalCount])
 
   const selectedReportMeta = reportTypes.find(type => type.key === selectedReportType)
   const tabsValue = selectedReportType || ReportType.APPROVAL_PAYOUT_CYCLE
   const handleReportTypeChange = (value: string) => {
     const nextReportType = reportTypes.find(type => type.key === value)?.key
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-tab-refresh-8',
-        hypothesisId: 'H13',
-        location: 'BackofficeExpenseReportsPage.tsx:handleReportTypeChange',
-        message: 'tab ui value change event',
-        data: {
-          currentType: selectedReportType,
-          nextType: nextReportType,
-          rawValue: value,
-          isSameType: selectedReportType === nextReportType
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     if (nextReportType) {
       setSelectedReportType(nextReportType)
     }
@@ -637,40 +557,30 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     totalWithin:
       'Share of requests where Total Cycle SLA Status is Within SLA. Formula: within-SLA total-cycle rows / evaluable total-cycle rows.'
   }
-  const approvalPayoutSlaKpis = useMemo(() => {
-    if (selectedReportType !== ReportType.APPROVAL_PAYOUT_CYCLE) return null
-    const rows = Array.isArray(reportData) ? (reportData as any[]) : []
-    const evaluatedApproval = rows.filter(row => row?.approvalSlaStatus !== '-')
-    const evaluatedPayout = rows.filter(row => row?.payoutSlaStatus !== '-')
-    const evaluatedTotal = rows.filter(row => row?.totalCycleSlaStatus !== '-')
-
-    const approvalBreached = evaluatedApproval.filter(row => row?.approvalSlaStatus === 'Breached').length
-    const payoutBreached = evaluatedPayout.filter(row => row?.payoutSlaStatus === 'Breached').length
-    const totalBreached = evaluatedTotal.filter(row => row?.totalCycleSlaStatus === 'Breached').length
-    const withinTotal = evaluatedTotal.filter(row => row?.totalCycleSlaStatus === 'Within SLA').length
-
-    const formatRate = (count: number, total: number) => (total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0.0%')
-
-    return {
-      approvalBreachedLabel: `${approvalBreached}/${evaluatedApproval.length}`,
-      approvalBreachedRate: formatRate(approvalBreached, evaluatedApproval.length),
-      payoutBreachedLabel: `${payoutBreached}/${evaluatedPayout.length}`,
-      payoutBreachedRate: formatRate(payoutBreached, evaluatedPayout.length),
-      totalBreachedLabel: `${totalBreached}/${evaluatedTotal.length}`,
-      totalBreachedRate: formatRate(totalBreached, evaluatedTotal.length),
-      withinTotalLabel: `${withinTotal}/${evaluatedTotal.length}`,
-      withinTotalRate: formatRate(withinTotal, evaluatedTotal.length)
+  const approvalPayoutSlaKpiValues = useMemo(
+    () => computeSlaKpis(selectedReportType, Array.isArray(reportData) ? (reportData as any[]) : []),
+    [selectedReportType, reportData]
+  )
+  const backendSortableColumnKeys = useMemo(() => {
+    switch (selectedReportType) {
+      case ReportType.EXPENSE_ITEM:
+        return new Set(['title', 'date', 'amount', 'status'])
+      case ReportType.EXPENSE_REQUEST:
+        return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'requestDate', 'startDate', 'endDate'])
+      case ReportType.EXPENSE_PLAN:
+        return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'startDate', 'endDate'])
+      case ReportType.ADVANCE_PAYMENT:
+        return new Set(['requestDate', 'status', 'amount', 'paymentMethod'])
+      case ReportType.APPROVAL_PAYOUT_CYCLE:
+        return new Set(['title', 'code', 'status', 'totalAmount'])
+      default:
+        return new Set<string>()
     }
-  }, [selectedReportType, reportData])
-  useEffect(() => {
-    if (approvalPayoutSlaKpis) {
-      setFixedApprovalPayoutKpis(approvalPayoutSlaKpis)
-    }
-  }, [approvalPayoutSlaKpis])
-  const approvalPayoutSlaKpiValues = fixedApprovalPayoutKpis
+  }, [selectedReportType])
   const dataTableColumns = useMemo<TanstackColumnDef<any>[]>(() => {
     return columns.map(column => ({
       id: column.key,
+      enableSorting: backendSortableColumnKeys.has(column.key),
       header: () => <>{column.title ?? ''}</>,
       accessorFn: (row: any) => row?.[column.key],
       cell: ({ row }: any) => {
@@ -680,7 +590,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
             <span className="gba:text-sm">{formatCurrencyDisplay(value || 0, row?.original?.currency || 'EUR')}</span>
           )
         }
-        if (dateKeys.has(column.key)) {
+        if (isDateKey(column.key)) {
           return <span className="gba:text-sm">{value ? ensureShortDateFormat(value) : '-'}</span>
         }
         if (column.key === 'title') {
@@ -698,31 +608,92 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
         )
       }
     }))
-  }, [columns])
+  }, [columns, backendSortableColumnKeys])
   const alignedReportRows = useMemo<any[]>(
-    () => (isDataAlignedWithSelectedType && Array.isArray(reportData) ? (reportData as any[]) : []),
-    [isDataAlignedWithSelectedType, reportData]
+    () => (Array.isArray(baseReportRows) ? baseReportRows : []),
+    [baseReportRows]
+  )
+  const transferRequiredFilterLabel = 'Transfer Required'
+  const transferRequiredStatusAliases = useMemo(
+    () =>
+      new Set([
+        transferRequiredFilterLabel,
+        'VERIFIED',
+        'BOOKED',
+        'TRANSFERRED',
+        getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required')
+      ]),
+    [transferRequiredFilterLabel]
+  )
+  const normalizeStatusFilterValue = (value: unknown): string => {
+    const normalizedValue = String(value || '').trim()
+    if (!normalizedValue) return ''
+    if (
+      transferRequiredStatusAliases.has(normalizedValue) ||
+      transferRequiredStatusAliases.has(normalizedValue.toUpperCase())
+    ) {
+      return transferRequiredFilterLabel
+    }
+    return normalizedValue
+  }
+  const reportRowsWithGroupedStatuses = useMemo(
+    () =>
+      alignedReportRows.map(row => ({
+        ...row,
+        status: normalizeStatusFilterValue(row?.status)
+      })),
+    [alignedReportRows, transferRequiredStatusAliases, transferRequiredFilterLabel]
   )
   const statusFilterOptions = useMemo(() => {
-    return Array.from(new Set(alignedReportRows.map(row => String(row?.status || '').trim()).filter(Boolean)))
+    if (selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE) {
+      return [
+        { id: 'In Approval', label: 'In Approval' },
+        { id: 'Verification Required', label: 'Verification Required' },
+        { id: 'Payment Required', label: 'Payment Required' },
+        { id: 'Prepared', label: 'Prepared' },
+        { id: transferRequiredFilterLabel, label: transferRequiredFilterLabel },
+        { id: 'Paid', label: 'Paid' }
+      ]
+    }
+    const restrictedStatuses = new Set(['Payment Required', 'Prepared'])
+    const options = Array.from(
+      new Set(reportRowsWithGroupedStatuses.map(row => String(row?.status || '').trim()).filter(Boolean))
+    )
       .sort((a, b) => a.localeCompare(b))
       .map(value => ({ id: value, label: value }))
-  }, [alignedReportRows])
+    if (selectedReportType === ReportType.ADVANCE_PAYMENT) {
+      return options
+    }
+    return options.filter(option => !restrictedStatuses.has(String(option.id)))
+  }, [selectedReportType, reportRowsWithGroupedStatuses, transferRequiredFilterLabel])
   const employeeFilterOptions = useMemo(() => {
-    return Array.from(new Set(alignedReportRows.map(row => String(row?.employeeName || '').trim()).filter(Boolean)))
+    return Array.from(
+      new Set(reportRowsWithGroupedStatuses.map(row => String(row?.employeeName || '').trim()).filter(Boolean))
+    )
       .sort((a, b) => a.localeCompare(b))
       .map(value => ({ id: value, label: value }))
-  }, [alignedReportRows])
+  }, [reportRowsWithGroupedStatuses])
+  const departmentFilterOptions = useMemo(() => {
+    return Array.from(
+      new Set(reportRowsWithGroupedStatuses.map(row => String(row?.departmentName || '').trim()).filter(Boolean))
+    )
+      .sort((a, b) => a.localeCompare(b))
+      .map(value => ({ id: value, label: value }))
+  }, [reportRowsWithGroupedStatuses])
   const filterConfiguration = useMemo<FilterConfiguration>(
     () => ({
-      id: 'backoffice-expense-reports-filters',
+      // Include report type in config id to reset filter sheet internals on tab switch.
+      id: `backoffice-expense-reports-filters-${selectedReportType || 'unknown'}`,
       name: 'Report Filters',
       groups: [
         {
           id: 'status-group',
           label: 'Status',
           collapsible: true,
-          defaultExpanded: true,
+          defaultExpanded: false,
           filters: [
             {
               id: 'status',
@@ -757,41 +728,139 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
               }
             }
           ]
+        },
+        {
+          id: 'department-group',
+          label: 'Department',
+          collapsible: true,
+          defaultExpanded: false,
+          filters: [
+            {
+              id: 'departmentName',
+              field: 'departmentName',
+              label: 'Department',
+              type: 'multi-select',
+              config: {
+                options: departmentFilterOptions,
+                searchPlaceholder: 'Search departments...',
+                totalCount: departmentFilterOptions.length,
+                hasMore: false
+              }
+            }
+          ]
         }
       ]
     }),
-    [statusFilterOptions, employeeFilterOptions]
+    [statusFilterOptions, employeeFilterOptions, departmentFilterOptions, selectedReportType]
   )
+  useEffect(() => {
+    if (!selectedReportType) return
+
+    const allowedStatusIds = new Set(statusFilterOptions.map(option => String(option.id)))
+    const allowedEmployeeIds = new Set(employeeFilterOptions.map(option => String(option.id)))
+    const allowedDepartmentIds = new Set(departmentFilterOptions.map(option => String(option.id)))
+    const currentFilters = filtersByReportType[selectedReportType] ?? {}
+    const selectedStatuses = Array.isArray(currentFilters.status) ? currentFilters.status.map(String) : []
+    const selectedEmployees = Array.isArray(currentFilters.employeeName) ? currentFilters.employeeName.map(String) : []
+    const selectedDepartments = Array.isArray(currentFilters.departmentName)
+      ? currentFilters.departmentName.map(String)
+      : []
+
+    const sanitizedStatuses = selectedStatuses.filter(status => allowedStatusIds.has(status))
+    const sanitizedEmployees = selectedEmployees.filter(employee => allowedEmployeeIds.has(employee))
+    const sanitizedDepartments = selectedDepartments.filter(department => allowedDepartmentIds.has(department))
+
+    const statusesChanged = sanitizedStatuses.length !== selectedStatuses.length
+    const employeesChanged = sanitizedEmployees.length !== selectedEmployees.length
+    const departmentsChanged = sanitizedDepartments.length !== selectedDepartments.length
+    if (!statusesChanged && !employeesChanged && !departmentsChanged) return
+
+    setFiltersByReportType(previous => ({
+      ...previous,
+      [selectedReportType]: {
+        ...currentFilters,
+        status: sanitizedStatuses,
+        employeeName: sanitizedEmployees,
+        departmentName: sanitizedDepartments
+      }
+    }))
+  }, [selectedReportType, statusFilterOptions, employeeFilterOptions, departmentFilterOptions, filtersByReportType])
   const filteredReportRows = useMemo(() => {
+    const isBackendFilteringReport =
+      selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ||
+      selectedReportType === ReportType.EXPENSE_REQUEST ||
+      selectedReportType === ReportType.EXPENSE_PLAN ||
+      selectedReportType === ReportType.ADVANCE_PAYMENT
     const selectedStatuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
     const selectedEmployees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
-    if (selectedStatuses.length === 0 && selectedEmployees.length === 0) return alignedReportRows
-    return alignedReportRows.filter(row => {
-      const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(String(row?.status || ''))
-      const employeeMatch =
-        selectedEmployees.length === 0 || selectedEmployees.includes(String(row?.employeeName || ''))
-      return statusMatch && employeeMatch
+    const selectedDepartments = Array.isArray(selectedFilters?.departmentName) ? selectedFilters.departmentName : []
+    if (selectedStatuses.length === 0 && selectedEmployees.length === 0 && selectedDepartments.length === 0) {
+      return reportRowsWithGroupedStatuses
+    }
+    const selectedStatusSet = isBackendFilteringReport
+      ? new Set<string>()
+      : new Set(selectedStatuses.map((status: string) => normalizeStatusFilterValue(status)).filter(Boolean))
+    const selectedEmployeeSet = isBackendFilteringReport
+      ? new Set<string>()
+      : new Set(selectedEmployees.map((employee: string) => String(employee)))
+    const selectedDepartmentSet = isBackendFilteringReport
+      ? new Set<string>()
+      : new Set(selectedDepartments.map((department: string) => String(department)))
+    return reportRowsWithGroupedStatuses.filter(row => {
+      const statusMatch = selectedStatusSet.size === 0 || selectedStatusSet.has(String(row?.status || ''))
+      const employeeMatch = selectedEmployeeSet.size === 0 || selectedEmployeeSet.has(String(row?.employeeName || ''))
+      const departmentMatch =
+        selectedDepartmentSet.size === 0 || selectedDepartmentSet.has(String(row?.departmentName || ''))
+      return statusMatch && employeeMatch && departmentMatch
     })
-  }, [alignedReportRows, selectedFilters])
-  const hasActiveFilters = useMemo(() => {
+  }, [
+    selectedReportType,
+    reportRowsWithGroupedStatuses,
+    selectedFilters,
+    transferRequiredStatusAliases,
+    transferRequiredFilterLabel
+  ])
+  const hasClientSideFilters = useMemo(() => {
+    const isBackendFilteringReport =
+      selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ||
+      selectedReportType === ReportType.EXPENSE_REQUEST ||
+      selectedReportType === ReportType.EXPENSE_PLAN ||
+      selectedReportType === ReportType.ADVANCE_PAYMENT
     const selectedStatuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
     const selectedEmployees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
-    return selectedStatuses.length > 0 || selectedEmployees.length > 0
-  }, [selectedFilters])
+    const selectedDepartments = Array.isArray(selectedFilters?.departmentName) ? selectedFilters.departmentName : []
+    return (
+      !isBackendFilteringReport &&
+      (selectedEmployees.length > 0 || selectedStatuses.length > 0 || selectedDepartments.length > 0)
+    )
+  }, [selectedFilters, selectedReportType])
   const sortableColumns = useMemo(
     () =>
-      columns.map(column => ({
-        id: column.key,
-        label: typeof column.title === 'string' ? column.title : column.key
-      })),
-    [columns]
+      columns
+        .filter(column => backendSortableColumnKeys.has(column.key))
+        .map(column => ({
+          id: column.key,
+          label: typeof column.title === 'string' ? column.title : column.key
+        })),
+    [columns, backendSortableColumnKeys]
   )
   const handleSearchChange = (value: string) => {
     setSearchTerm(value)
     setCurrentPage(1)
   }
   const handleFilterChange = (filters: Record<string, any>) => {
-    setSelectedFilters(filters || {})
+    if (!selectedReportType) return
+    const nextFilters = filters || {}
+    const currentFilters = (filtersByReportType[selectedReportType] || {}) as Record<string, any>
+    if (JSON.stringify(currentFilters) === JSON.stringify(nextFilters)) return
+    setFiltersByReportType(previous => ({
+      ...previous,
+      [selectedReportType]: nextFilters
+    }))
+    setCurrentPage(1)
+  }
+  const handleSortingChange: OnChangeFn<SortingState> = updater => {
+    setSorting(previous => (typeof updater === 'function' ? updater(previous) : updater))
     setCurrentPage(1)
   }
   const tablePagination = useMemo(
@@ -801,12 +870,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     }),
     [currentPage, pageSize]
   )
-  const previousDataTableColumnsRef = useRef<TanstackColumnDef<any>[] | null>(null)
-  const previousFilterConfigurationRef = useRef<FilterConfiguration | null>(null)
-  const kpiRowRef = useRef<HTMLDivElement | null>(null)
-  const tabsContainerRef = useRef<HTMLDivElement | null>(null)
-  const toolbarContainerRef = useRef<HTMLDivElement | null>(null)
-  const tableContainerRef = useRef<HTMLDivElement | null>(null)
   const handleTablePaginationChange = (pagination: { pageIndex: number; pageSize: number }) => {
     if (pagination.pageSize === pageSize) {
       setCurrentPage(pagination.pageIndex + 1)
@@ -815,143 +878,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     setPageSize(pagination.pageSize)
     setCurrentPage(1)
   }
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-tab-refresh-2',
-        hypothesisId: 'H6',
-        location: 'BackofficeExpenseReportsPage.tsx:renderState',
-        message: 'page render state',
-        data: {
-          selectedReportType,
-          reportDataType,
-          isLoading,
-          hasReportRows,
-          tableLoading,
-          reportRows: Array.isArray(reportData) ? reportData.length : 0,
-          alignedRows: alignedReportRows.length,
-          filteredRows: filteredReportRows.length,
-          currentPage,
-          pageSize
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [
-    selectedReportType,
-    reportDataType,
-    isLoading,
-    hasReportRows,
-    tableLoading,
-    reportData,
-    alignedReportRows.length,
-    filteredReportRows.length,
-    currentPage,
-    pageSize
-  ])
-  useEffect(() => {
-    const previousColumns = previousDataTableColumnsRef.current
-    const previousFilters = previousFilterConfigurationRef.current
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-tab-refresh-5',
-        hypothesisId: 'H9',
-        location: 'BackofficeExpenseReportsPage.tsx:identityChurn',
-        message: 'toolbar/table identity churn',
-        data: {
-          selectedReportType,
-          columnsChanged: previousColumns !== dataTableColumns,
-          filtersChanged: previousFilters !== filterConfiguration,
-          columnCount: dataTableColumns.length,
-          statusOptionsCount: statusFilterOptions.length,
-          employeeOptionsCount: employeeFilterOptions.length,
-          selectedFilterKeys: Object.keys(selectedFilters || {}).length
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-    previousDataTableColumnsRef.current = dataTableColumns
-    previousFilterConfigurationRef.current = filterConfiguration
-  }, [
-    selectedReportType,
-    dataTableColumns,
-    filterConfiguration,
-    statusFilterOptions.length,
-    employeeFilterOptions.length,
-    selectedFilters
-  ])
-  useEffect(() => {
-    const kpiRect = kpiRowRef.current?.getBoundingClientRect()
-    const tabsRect = tabsContainerRef.current?.getBoundingClientRect()
-    const toolbarRect = toolbarContainerRef.current?.getBoundingClientRect()
-    const tableRect = tableContainerRef.current?.getBoundingClientRect()
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-tab-refresh-9',
-        hypothesisId: 'H14',
-        location: 'BackofficeExpenseReportsPage.tsx:layoutMetrics',
-        message: 'reports layout metrics after render',
-        data: {
-          selectedReportType,
-          tableLoading,
-          hasReportRows,
-          kpiTop: kpiRect?.top ?? null,
-          kpiHeight: kpiRect?.height ?? null,
-          tabsTop: tabsRect?.top ?? null,
-          tabsHeight: tabsRect?.height ?? null,
-          toolbarTop: toolbarRect?.top ?? null,
-          toolbarHeight: toolbarRect?.height ?? null,
-          tableTop: tableRect?.top ?? null,
-          tableHeight: tableRect?.height ?? null
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [selectedReportType, tableLoading, hasReportRows, filteredReportRows.length, dataTableColumns.length])
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-tab-refresh-7',
-        hypothesisId: 'H11',
-        location: 'BackofficeExpenseReportsPage.tsx:lifecycle',
-        message: 'page component mounted',
-        data: { selectedReportType },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-    return () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          runId: 'post-fix-tab-refresh-7',
-          hypothesisId: 'H11',
-          location: 'BackofficeExpenseReportsPage.tsx:lifecycle',
-          message: 'page component unmounted',
-          data: { selectedReportType },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
-    }
-  }, [])
 
   return (
     <div data-testid="backoffice-expense-reports-page-container">
@@ -980,11 +906,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
               </Alert>
             )}
 
-            <div
-              ref={kpiRowRef}
-              className="gba:mb-4 gba:min-h-[140px]"
-              data-testid="backoffice-expense-reports-kpi-row"
-            >
+            <div className="gba:mb-4 gba:min-h-[140px]" data-testid="backoffice-expense-reports-kpi-row">
               <TooltipProvider>
                 <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:md:grid-cols-2 gba:xl:grid-cols-4">
                   <Card className="gba:min-h-[124px]" data-testid="backoffice-approval-sla-breached-kpi">
@@ -1104,7 +1026,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
               </TooltipProvider>
             </div>
 
-            <div ref={tabsContainerRef}>
+            <div>
               <Tabs
                 value={tabsValue}
                 onValueChange={handleReportTypeChange}
@@ -1134,14 +1056,15 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
               {selectedReportMeta?.description}
             </p>
 
-            <div ref={toolbarContainerRef}>
+            <div>
               <DataDisplay
+                key={`backoffice-reports-datadisplay-${selectedReportType || 'unknown'}`}
                 titleSections={[
                   {
                     id: 'results',
                     label: getTranslationFromI18nKeyAndLabel('lowcoder:common.data', 'Data'),
                     metadata: {
-                      count: hasActiveFilters ? filteredReportRows.length : displayTotalCount,
+                      count: hasClientSideFilters ? filteredReportRows.length : displayTotalCount,
                       isLoading: tableLoading
                     }
                   }
@@ -1158,7 +1081,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                 onFilterChange={handleFilterChange}
                 sorting={sorting}
                 sortableColumns={sortableColumns}
-                onSortingChange={setSorting}
+                onSortingChange={handleSortingChange}
                 primaryAction={
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <Button
@@ -1188,20 +1111,21 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                   </div>
                 }
                 toolbarDensity="default"
+                enableLiveFiltering={true}
                 data-testid="backoffice-expense-reports-filters-card"
               >
-                <div ref={tableContainerRef} className="gba:border gba:border-border gba:rounded-md gba:bg-background">
+                <div className="gba:border gba:border-border gba:rounded-md gba:bg-background">
                   <DataTable
                     data={filteredReportRows}
                     columns={dataTableColumns}
                     loading={tableLoading}
-                    totalCount={hasActiveFilters ? filteredReportRows.length : displayTotalCount}
+                    totalCount={hasClientSideFilters ? filteredReportRows.length : displayTotalCount}
                     pagination={tablePagination}
                     onPaginationChange={handleTablePaginationChange}
                     enablePagination
                     enableSorting
                     sorting={sorting}
-                    onSortingChange={setSorting}
+                    onSortingChange={handleSortingChange}
                     enableSelection={false}
                     enableColumnPinning
                     enableResizing={true}

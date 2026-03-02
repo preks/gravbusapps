@@ -116,56 +116,6 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
     () => new Set<BackofficeTabKey>([initialTabRef.current!])
   )
 
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-nav-debug-1',
-        hypothesisId: 'HD1',
-        location: 'BackofficeExpenses.tsx:lifecycle',
-        message: 'backoffice root mounted',
-        data: { initialView: getViewFromUrl(), initialTab: initialTabRef.current },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-    return () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          runId: 'post-fix-nav-debug-1',
-          hypothesisId: 'HD1',
-          location: 'BackofficeExpenses.tsx:lifecycle',
-          message: 'backoffice root unmounted',
-          data: { lastView: currentView, lastTab: activeTab },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
-    }
-  }, [])
-
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-nav-debug-1',
-        hypothesisId: 'HD2',
-        location: 'BackofficeExpenses.tsx:viewState',
-        message: 'view/tab state changed',
-        data: { currentView, activeTab, mountedTabsCount: mountedTabs.size, mountedTabs: Array.from(mountedTabs) },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [currentView, activeTab, mountedTabs])
-
   const updateUrl = useCallback(
     (view: BackofficeView, tab?: BackofficeTabKey, mode: 'push' | 'replace' = 'replace') => {
       if (typeof window === 'undefined') {
@@ -299,56 +249,14 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
   }, [contextTab, currentView, updateUrl])
 
   const handleNavigateToReports = useCallback(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-nav-debug-1',
-        hypothesisId: 'HD3',
-        location: 'BackofficeExpenses.tsx:handleNavigateToReports',
-        message: 'navigate to reports requested',
-        data: { fromView: currentView, fromTab: activeTab },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     setCurrentView('reports')
     updateUrl('reports', undefined, 'push')
-  }, [activeTab, currentView, updateUrl])
+  }, [updateUrl])
   const handleNavigateToAnalytics = useCallback(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-nav-debug-1',
-        hypothesisId: 'HD3',
-        location: 'BackofficeExpenses.tsx:handleNavigateToAnalytics',
-        message: 'navigate to analytics requested',
-        data: { fromView: currentView, fromTab: activeTab },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     setCurrentView('analytics')
     updateUrl('analytics', undefined, 'push')
-  }, [activeTab, currentView, updateUrl])
+  }, [updateUrl])
   const handleNavigateBackToDashboard = useCallback(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-nav-debug-1',
-        hypothesisId: 'HD4',
-        location: 'BackofficeExpenses.tsx:handleNavigateBackToDashboard',
-        message: 'navigate back to dashboard requested',
-        data: { fromView: currentView, fromTab: activeTab, willForceTab: 'dashboard' },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     setCurrentView('tabs')
     setActiveTab('dashboard')
     setMountedTabs(prev => {
@@ -360,7 +268,7 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
       return next
     })
     updateUrl('tabs', 'dashboard', 'push')
-  }, [activeTab, currentView, updateUrl])
+  }, [updateUrl])
 
   const tabProps = {
     ...props,

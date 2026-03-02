@@ -5,7 +5,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BACKOFFICE_EXPENSES_OVERVIEW } from '../queries/backofficeExpensesOverview'
+import {
+  BACKOFFICE_EXPENSES_OVERVIEW_KPI,
+  BACKOFFICE_EXPENSES_OVERVIEW_TABLE
+} from '../queries/backofficeExpensesOverview'
 
 export interface OverviewPagingAndSort<TOrder> {
   limit?: number
@@ -26,6 +29,12 @@ export interface UseBackofficeExpensesOverviewParams {
   plansStatus?: string[]
   plansStatusExclude?: readonly string[]
   paymentsStatus?: string[]
+  requestsEmployeeNames?: string[]
+  plansEmployeeNames?: string[]
+  paymentsEmployeeNames?: string[]
+  requestsDepartmentNames?: string[]
+  plansDepartmentNames?: string[]
+  paymentsDepartmentNames?: string[]
   plansEffectiveDateRange?: { from?: string | null; to?: string | null } | null
   plansStartDateRange?: { from?: string | null; to?: string | null } | null
   plansEndDateRange?: { from?: string | null; to?: string | null } | null
@@ -36,6 +45,10 @@ export interface UseBackofficeExpensesOverviewParams {
   requestsStartDateRange?: { from?: string | null; to?: string | null } | null
   requestsEndDateRange?: { from?: string | null; to?: string | null } | null
   requestsTypeFilter?: string[]
+  includeRequests?: boolean
+  includePlans?: boolean
+  includePayments?: boolean
+  includeKpis?: boolean
 }
 
 export interface BackofficeExpensesOverviewState {
@@ -193,6 +206,65 @@ function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]):
   return { status: { _nin: excluded } } as unknown as GqlBoolExp
 }
 
+function buildEmployeeNameWhere(
+  names: string[] | undefined,
+  path: 'employee' | 'expensePlan.employee' = 'employee'
+): GqlBoolExp {
+  const normalizedNames = Array.isArray(names) ? names.map(name => String(name || '').trim()).filter(Boolean) : []
+  if (normalizedNames.length === 0) return {}
+  if (path === 'employee') {
+    return {
+      _or: normalizedNames.map(name => ({ employee: { fullName: { _eq: name } } }))
+    } as unknown as GqlBoolExp
+  }
+  return {
+    _or: normalizedNames.map(name => ({ expensePlan: { employee: { fullName: { _eq: name } } } }))
+  } as unknown as GqlBoolExp
+}
+
+function buildDepartmentNameWhere(
+  names: string[] | undefined,
+  path: 'employee' | 'expensePlan.employee' = 'employee'
+): GqlBoolExp {
+  const normalizedNames = Array.isArray(names) ? names.map(name => String(name || '').trim()).filter(Boolean) : []
+  if (normalizedNames.length === 0) return {}
+  if (path === 'employee') {
+    return {
+      _or: normalizedNames.map(name => ({
+        employee: {
+          employeePosition: {
+            organizationalUnit: {
+              name: { _eq: name }
+            }
+          }
+        }
+      }))
+    } as unknown as GqlBoolExp
+  }
+  return {
+    _or: normalizedNames.map(name => ({
+      expensePlan: {
+        employee: {
+          employeePosition: {
+            organizationalUnit: {
+              name: { _eq: name }
+            }
+          }
+        }
+      }
+    }))
+  } as unknown as GqlBoolExp
+}
+
+function combineWithAnd(baseWhere: GqlBoolExp, extraWhere: GqlBoolExp): GqlBoolExp {
+  const baseHasKeys = Object.keys(baseWhere || {}).length > 0
+  const extraHasKeys = Object.keys(extraWhere || {}).length > 0
+  if (!baseHasKeys && !extraHasKeys) return {}
+  if (!baseHasKeys) return extraWhere
+  if (!extraHasKeys) return baseWhere
+  return { _and: [baseWhere, extraWhere] } as unknown as GqlBoolExp
+}
+
 function buildPlanDateWhereClause(params: UseBackofficeExpensesOverviewParams): GqlBoolExp {
   const conditions = [
     buildPlanEffectiveDateFilter(params.plansEffectiveDateRange),
@@ -258,11 +330,92 @@ function buildBackofficeOverviewVariables(params: UseBackofficeExpensesOverviewP
     reqCurrencyWhere,
     planCurrencyWhere,
     payCurrencyWhere,
-    planDateWhere: buildPlanDateWhereClause(params),
-    reqDateWhere: buildRequestDateWhereClause(params),
+    planDateWhere: combineWithAnd(
+      combineWithAnd(buildPlanDateWhereClause(params), buildEmployeeNameWhere(params.plansEmployeeNames, 'employee')),
+      buildDepartmentNameWhere(params.plansDepartmentNames, 'employee')
+    ),
+    reqDateWhere: combineWithAnd(
+      combineWithAnd(
+        buildRequestDateWhereClause(params),
+        buildEmployeeNameWhere(params.requestsEmployeeNames, 'employee')
+      ),
+      buildDepartmentNameWhere(params.requestsDepartmentNames, 'employee')
+    ),
     reqStatusWhere: buildStatusWhere(params.requestsStatus),
     planStatusWhere: buildPlanStatusWhere(params.plansStatus, params.plansStatusExclude),
-    payStatusWhere: buildStatusWhere(params.paymentsStatus)
+    payStatusWhere: combineWithAnd(
+      combineWithAnd(
+        buildStatusWhere(params.paymentsStatus),
+        buildEmployeeNameWhere(params.paymentsEmployeeNames, 'expensePlan.employee')
+      ),
+      buildDepartmentNameWhere(params.paymentsDepartmentNames, 'expensePlan.employee')
+    ),
+    includeRequests: params.includeRequests ?? true,
+    includePlans: params.includePlans ?? true,
+    includePayments: params.includePayments ?? true
+  }
+}
+
+function pickTableQueryVariables(variables: Record<string, unknown>): Record<string, unknown> {
+  const {
+    searchTerm,
+    reqLimit,
+    reqOffset,
+    reqOrderBy,
+    planLimit,
+    planOffset,
+    planOrderBy,
+    payLimit,
+    payOffset,
+    payOrderBy,
+    reqCurrencyWhere,
+    planCurrencyWhere,
+    payCurrencyWhere,
+    reqStatusWhere,
+    planStatusWhere,
+    payStatusWhere,
+    planDateWhere,
+    reqDateWhere,
+    includeRequests,
+    includePlans,
+    includePayments
+  } = variables
+
+  return {
+    searchTerm,
+    reqLimit,
+    reqOffset,
+    reqOrderBy,
+    planLimit,
+    planOffset,
+    planOrderBy,
+    payLimit,
+    payOffset,
+    payOrderBy,
+    reqCurrencyWhere,
+    planCurrencyWhere,
+    payCurrencyWhere,
+    reqStatusWhere,
+    planStatusWhere,
+    payStatusWhere,
+    planDateWhere,
+    reqDateWhere,
+    includeRequests,
+    includePlans,
+    includePayments
+  }
+}
+
+function pickKpiQueryVariables(variables: Record<string, unknown>): Record<string, unknown> {
+  const { currencyRef, monthStart, monthEnd, yearStart, reqCurrencyWhere, planCurrencyWhere } = variables
+
+  return {
+    currencyRef,
+    monthStart,
+    monthEnd,
+    yearStart,
+    reqCurrencyWhere,
+    planCurrencyWhere
   }
 }
 
@@ -416,6 +569,12 @@ export const useBackofficeExpensesOverview = (
       JSON.stringify(params.plansStatus || []),
       JSON.stringify(params.plansStatusExclude || []),
       JSON.stringify(params.paymentsStatus || []),
+      JSON.stringify(params.requestsEmployeeNames || []),
+      JSON.stringify(params.plansEmployeeNames || []),
+      JSON.stringify(params.paymentsEmployeeNames || []),
+      JSON.stringify(params.requestsDepartmentNames || []),
+      JSON.stringify(params.plansDepartmentNames || []),
+      JSON.stringify(params.paymentsDepartmentNames || []),
       params.plansEffectiveDateRange?.from,
       params.plansEffectiveDateRange?.to,
       params.plansStartDateRange?.from,
@@ -433,13 +592,23 @@ export const useBackofficeExpensesOverview = (
       params.requestsStartDateRange?.to,
       params.requestsEndDateRange?.from,
       params.requestsEndDateRange?.to,
-      JSON.stringify(params.requestsTypeFilter || [])
+      JSON.stringify(params.requestsTypeFilter || []),
+      params.includeRequests,
+      params.includePlans,
+      params.includePayments
     ]
   )
 
   const run = useCallback(async () => {
     if (!context.accessToken) return
-    const signature = JSON.stringify(variables)
+    const includeRequests = params.includeRequests ?? true
+    const includePlans = params.includePlans ?? true
+    const includePayments = params.includePayments ?? true
+    const shouldFetchTable = includeRequests || includePlans || includePayments
+    const shouldFetchKpis = params.includeKpis ?? true
+    const tableVariables = pickTableQueryVariables(variables)
+    const kpiVariables = pickKpiQueryVariables(variables)
+    const signature = JSON.stringify({ tableVariables, kpiVariables, shouldFetchTable, shouldFetchKpis })
     setError(null)
     const cached = cacheBySignature.get(signature)
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
@@ -453,9 +622,16 @@ export const useBackofficeExpensesOverview = (
     try {
       let requestPromise = inFlightBySignature.get(signature)
       if (!requestPromise) {
-        requestPromise = graphqlClient.request(BACKOFFICE_EXPENSES_OVERVIEW, variables).finally(() => {
-          inFlightBySignature.delete(signature)
-        })
+        requestPromise = Promise.all([
+          shouldFetchTable
+            ? graphqlClient.request(BACKOFFICE_EXPENSES_OVERVIEW_TABLE, tableVariables)
+            : Promise.resolve({}),
+          shouldFetchKpis ? graphqlClient.request(BACKOFFICE_EXPENSES_OVERVIEW_KPI, kpiVariables) : Promise.resolve({})
+        ])
+          .then(([tableResult, kpiResult]) => ({ ...(kpiResult || {}), ...(tableResult || {}) }))
+          .finally(() => {
+            inFlightBySignature.delete(signature)
+          })
         inFlightBySignature.set(signature, requestPromise)
       }
       const result: any = await requestPromise
@@ -482,7 +658,15 @@ export const useBackofficeExpensesOverview = (
     } finally {
       if (latestSignatureRef.current === signature) setIsLoading(false)
     }
-  }, [context.accessToken, graphqlClient, variables])
+  }, [
+    context.accessToken,
+    graphqlClient,
+    variables,
+    params.includeRequests,
+    params.includePlans,
+    params.includePayments,
+    params.includeKpis
+  ])
 
   useEffect(() => {
     void run()

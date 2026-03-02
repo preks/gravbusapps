@@ -72,43 +72,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     }
   }, [currencyDebounceTimer])
 
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-nav-debug-2',
-        hypothesisId: 'HD5',
-        location: 'ExpenseDashboardTab.tsx:lifecycle',
-        message: 'dashboard tab mounted',
-        data: {
-          isActive,
-          hasReportsAction: Boolean(props.onNavigateToReports),
-          hasAnalyticsAction: Boolean(props.onNavigateToAnalytics)
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-    return () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          runId: 'post-fix-nav-debug-2',
-          hypothesisId: 'HD5',
-          location: 'ExpenseDashboardTab.tsx:lifecycle',
-          message: 'dashboard tab unmounted',
-          data: { isActive },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
-    }
-  }, [])
-
   const getTranslatedQuarter = (quarterNumber: number): string => {
     return getTranslationFromI18nKeyAndLabel(`lowcoder:cards.quarter_${quarterNumber}`, `Q${quarterNumber}`)
   }
@@ -502,24 +465,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
 
   // Handle filter changes and update dashboard stats with debouncing
   const handleFiltersChange = (newFilters: FilterOptions) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-nav-debug-2',
-        hypothesisId: 'HD6',
-        location: 'ExpenseDashboardTab.tsx:handleFiltersChange',
-        message: 'dashboard filters changed',
-        data: {
-          periodChanged: newFilters.period !== currentFilters.period,
-          currencyChanged: newFilters.currency !== currentFilters.currency,
-          departmentChanged: newFilters.department !== currentFilters.department
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     // Mark that user has manually selected a currency (prevent auto-update)
     if (newFilters.currency !== currentFilters.currency) {
       setHasUserSelectedCurrency(true)
@@ -543,29 +488,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   }
 
   const isRefreshing = loading && !isCurrencyLoading
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        runId: 'post-fix-nav-debug-2',
-        hypothesisId: 'HD7',
-        location: 'ExpenseDashboardTab.tsx:renderState',
-        message: 'dashboard render state',
-        data: {
-          isActive,
-          loading,
-          isCurrencyLoading,
-          isRefreshing,
-          hasError: Boolean(error),
-          period: currentFilters.period
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [isActive, loading, isCurrencyLoading, isRefreshing, error, currentFilters.period])
   const quickActions = useMemo(
     () => [
       {
