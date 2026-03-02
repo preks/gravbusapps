@@ -12,6 +12,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import TimeSummaryCards from '../../employee-record/components/tabs/components/TimeSummaryCards'
+import { parseDurationToMinutes, formatDurationToHHMM } from '../utils/duration'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 
@@ -49,20 +50,6 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
 
   const calendarAbsences = React.useMemo<AbsenceListCardAbsence[]>(() => {
     const entries = allMonthEntries
-    const parseMinutes = (text?: string): number => {
-      if (!text) return 0
-      let hours = 0
-      let minutes = 0
-      const tokens = String(text).trim().split(/\s+/)
-      for (const token of tokens) {
-        if (/^\d+h$/i.test(token)) {
-          hours = Number.parseInt(token.slice(0, -1), 10) || 0
-        } else if (/^\d+m$/i.test(token)) {
-          minutes = Number.parseInt(token.slice(0, -1), 10) || 0
-        }
-      }
-      return hours * 60 + minutes
-    }
     const mapStatus = (s?: string): string => {
       const t = String(s || '').toLowerCase()
       if (t === 'approved') return 'APPROVED'
@@ -77,7 +64,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
 
     const timeEntries: AbsenceListCardAbsence[] = entries.map(e => {
       const dayKey = toKey(new Date(e.attendanceDateISO))
-      const label = e.effectiveTime || e.recordedTime || '0h'
+      const label = formatDurationToHHMM(e.effectiveTime || e.recordedTime || '0h')
       const status = mapStatus(e.status)
       return {
         type: label,
@@ -93,8 +80,8 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
         typeColor: '',
         statusColor: '',
         requestDate: dayKey,
-        plannedMinutes: parseMinutes(e.plannedTime),
-        effectiveMinutes: parseMinutes(e.effectiveTime)
+        plannedMinutes: parseDurationToMinutes(e.plannedTime),
+        effectiveMinutes: parseDurationToMinutes(e.effectiveTime)
       }
     })
 

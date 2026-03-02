@@ -20,7 +20,12 @@ import { useWellnessInsight } from './hooks/useWellnessInsight'
 import { PersonalAbsencesCalendarView } from './components/PersonalAbsencesCalendarView'
 import { PersonalAbsencesDashboardView } from './components/PersonalAbsencesDashboardView'
 
-export const PersonalAbsences = (props: BusinessAppContextProps) => {
+type PersonalAbsencesProps = BusinessAppContextProps & {
+  employeeIdOverride?: string
+  embedded?: boolean
+}
+
+export const PersonalAbsences = (props: PersonalAbsencesProps) => {
   const { t } = useTranslation(personalAbsencesTranslations)
   const [showCalendar, setShowCalendar] = useState(false)
   const [calendarDate, setCalendarDate] = useState(dayjs())
@@ -29,7 +34,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [holidayDates, setHolidayDates] = useState<string[]>([])
 
   const { accessToken, userInfo } = props
-  const employeeId = userInfo?.employeeDetails?.employeeId
+  const employeeId = props.employeeIdOverride ?? userInfo?.employeeDetails?.employeeId
   const client = useGraphQLClient(accessToken)
 
   const data = usePersonalAbsencesData(accessToken, employeeId)
@@ -98,6 +103,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         effectiveDates={effectiveDates ?? undefined}
         allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
         nonWorkingDates={!effectiveDates ? (nonWorkingDates ?? undefined) : undefined}
+        embedded={props.embedded}
       />
     )
   }
@@ -135,6 +141,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
       totalPages={totalPages}
       error={error}
       t={t}
+      embedded={props.embedded}
     />
   )
 }
