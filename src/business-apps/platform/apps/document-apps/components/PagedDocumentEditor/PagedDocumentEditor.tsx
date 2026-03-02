@@ -108,7 +108,6 @@ import { AiEditPanel } from '../AiEditPanel'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
-import DOMPurify from 'dompurify'
 
 // A4 dimensions in pixels at 96 DPI
 const A4_WIDTH_PX = 794 // 210mm
@@ -504,13 +503,25 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const scheduleAutocompleteRef = useRef<() => void>(() => {})
     const autocompleteRolloutEnabled = useMemo(() => isAutocompleteRolloutEnabled(), [])
     const [isAiSelectionPreviewExpanded, setIsAiSelectionPreviewExpanded] = useState(false)
-    const sanitizedAiSelectionPreviewHtml = useMemo(() => {
-      if (!aiSelectionSnapshotHtml.trim()) return ''
-      return DOMPurify.sanitize(aiSelectionSnapshotHtml, {
-        USE_PROFILES: { html: true }
-      })
-    }, [aiSelectionSnapshotHtml])
-    const hasLongAiSelectionPreview = aiSelectionSnapshot.length > 220 || sanitizedAiSelectionPreviewHtml.length > 300
+    const aiSelectionPreviewText = useMemo(() => {
+      const directText = aiSelectionSnapshot.trim()
+      if (directText) return directText
+
+      const html = aiSelectionSnapshotHtml.trim()
+      if (!html) return ''
+
+      if (typeof window === 'undefined') {
+        return html
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      }
+
+      const container = window.document.createElement('div')
+      container.innerHTML = html
+      return (container.textContent || container.innerText || '').replace(/\s+/g, ' ').trim()
+    }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
+    const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -1799,7 +1810,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 autoFocus
                 data-testid="document-ai-instruction-input"
               />
-              {(aiSelectionSnapshot.trim() || sanitizedAiSelectionPreviewHtml) && (
+              {aiSelectionPreviewText && (
                 <div className="gba:space-y-1">
                   <p className="gba:text-xs gba:text-muted-foreground" data-testid="document-ai-selection-hint">
                     Selection detected. Edits will focus on this content unless you say otherwise.
@@ -1816,14 +1827,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     }}
                     title={hasLongAiSelectionPreview ? 'Double-click to expand/collapse preview' : undefined}
                   >
-                    {sanitizedAiSelectionPreviewHtml ? (
-                      <div
-                        className="document-ai-selection-preview-content gba:prose gba:prose-sm gba:max-w-none"
-                        dangerouslySetInnerHTML={{ __html: sanitizedAiSelectionPreviewHtml }}
-                      />
-                    ) : (
-                      aiSelectionSnapshot
-                    )}
+                    <div className="gba:whitespace-pre-wrap">{aiSelectionPreviewText}</div>
                   </div>
                   {hasLongAiSelectionPreview && (
                     <p className="gba:text-[10px] gba:text-muted-foreground">
