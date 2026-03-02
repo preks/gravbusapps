@@ -29,6 +29,13 @@ import {
   calculateTotalAmount,
   extractAvailableCurrencies
 } from './teamSpendingAnalytics/utils'
+import {
+  computeDateRangeBounds,
+  buildLocationFilters,
+  buildDepartmentFilters,
+  toggleFilterById,
+  filterBySearch
+} from './teamSpendingAnalytics/shared'
 
 dayjs.extend(weekday)
 dayjs.extend(localeData)
@@ -49,42 +56,10 @@ export const useTeamSpendingAnalytics = (accessToken: string, managerId: string,
   const graphqlClient = useGraphQLClient(accessToken)
 
   // Compute date range primitives to keep effect deps stable
-  const computedEndDate = useMemo(() => {
-    const now = dayjs()
-    switch (dateRange) {
-      case DateRangeEnum.LAST_30_DAYS:
-      case DateRangeEnum.LAST_90_DAYS:
-      case DateRangeEnum.LAST_6_MONTHS:
-      case DateRangeEnum.LAST_YEAR:
-        return now.format('YYYY-MM-DD') // end = today
-      case DateRangeEnum.CURRENT_YEAR:
-        return now.endOf('year').format('YYYY-MM-DD') // end = Dec 31st
-      case DateRangeEnum.ALL_TIME:
-        return null // no upper bound
-      default:
-        return now.format('YYYY-MM-DD')
-    }
-  }, [dateRange])
-
-  const computedStartDate = useMemo(() => {
-    const now = dayjs()
-    switch (dateRange) {
-      case DateRangeEnum.LAST_30_DAYS:
-        return now.subtract(30, 'day').format('YYYY-MM-DD')
-      case DateRangeEnum.LAST_90_DAYS:
-        return now.subtract(90, 'day').format('YYYY-MM-DD')
-      case DateRangeEnum.LAST_6_MONTHS:
-        return now.subtract(6, 'month').format('YYYY-MM-DD')
-      case DateRangeEnum.LAST_YEAR:
-        return now.subtract(1, 'year').format('YYYY-MM-DD')
-      case DateRangeEnum.CURRENT_YEAR:
-        return now.startOf('year').format('YYYY-MM-DD')
-      case DateRangeEnum.ALL_TIME:
-        return null
-      default:
-        return now.subtract(30, 'day').format('YYYY-MM-DD')
-    }
-  }, [dateRange])
+  const { startDate: computedStartDate, endDate: computedEndDate } = useMemo(
+    () => computeDateRangeBounds(dateRange),
+    [dateRange]
+  )
 
   // Fetch data with signature-based deduplication (prevents StrictMode double-fetch)
   const lastFetchSignatureRef = useRef<string | null>(null)
@@ -146,67 +121,17 @@ export const useTeamSpendingAnalytics = (accessToken: string, managerId: string,
   // Extract location and department filters from raw data
   useEffect(() => {
     if (!rawData) return
-
-    const uniqueLocations = new Map<string, { id: string; name: string }>()
-    const uniqueDepartments = new Map<string, { id: string; name: string }>()
-
-    const processEmployeeFilters = (employee: any) => {
-      const location = employee?.employeePosition?.siteLocation
-      if (location?.id && location?.name) {
-        uniqueLocations.set(location.id, { id: location.id, name: location.name })
-      }
-
-      const orgUnit = employee?.employeePosition?.organizationalUnit
-      if (orgUnit?.id && orgUnit?.name) {
-        uniqueDepartments.set(orgUnit.id, { id: orgUnit.id, name: orgUnit.name })
-      }
-    }
-
-    for (const item of rawData.expenseItems || []) {
-      processEmployeeFilters(item.employee)
-    }
-    for (const item of rawData.expenseRequests || []) {
-      processEmployeeFilters(item.employee)
-    }
-    for (const item of rawData.expensePlans || []) {
-      processEmployeeFilters(item.employee)
-    }
-    for (const item of rawData.advancePayments || []) {
-      processEmployeeFilters(item.expensePlan?.employee)
-    }
-
-    const locations = Array.from(uniqueLocations.values())
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(location => ({
-        id: location.id,
-        name: location.name,
-        selected: false
-      }))
-
-    setLocationFilters(locations)
-
-    const departments = Array.from(uniqueDepartments.values())
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(department => ({
-        id: department.id,
-        name: department.name,
-        selected: false
-      }))
-
-    setDepartmentFilters(departments)
+    setLocationFilters(buildLocationFilters(rawData))
+    setDepartmentFilters(buildDepartmentFilters(rawData))
   }, [rawData])
 
   // Filter toggles
   const toggleLocationFilter = (locationId: string) => {
-    setLocationFilters(prevFilters =>
-      prevFilters.map(filter => (filter.id === locationId ? { ...filter, selected: !filter.selected } : filter))
-    )
+    setLocationFilters(prevFilters => toggleFilterById(prevFilters, locationId))
   }
 
   const toggleDepartmentFilter = (departmentId: string) => {
-    setDepartmentFilters(prevFilters =>
-      prevFilters.map(filter => (filter.id === departmentId ? { ...filter, selected: !filter.selected } : filter))
-    )
+    setDepartmentFilters(prevFilters => toggleFilterById(prevFilters, departmentId))
   }
 
   const handleSearchTermChange = (term: string) => setSearchTerm(term)
@@ -214,15 +139,11 @@ export const useTeamSpendingAnalytics = (accessToken: string, managerId: string,
 
   // Filter by search term
   const filteredLocationFilters = useMemo(() => {
-    if (!searchTerm) return locationFilters
-    return locationFilters.filter(location => location.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    return filterBySearch(locationFilters, searchTerm)
   }, [locationFilters, searchTerm])
 
   const filteredDepartmentFilters = useMemo(() => {
-    if (!departmentSearchTerm) return departmentFilters
-    return departmentFilters.filter(department =>
-      department.name.toLowerCase().includes(departmentSearchTerm.toLowerCase())
-    )
+    return filterBySearch(departmentFilters, departmentSearchTerm)
   }, [departmentFilters, departmentSearchTerm])
 
   // Extract available currencies
