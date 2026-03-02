@@ -71,7 +71,17 @@ const FONT_FAMILY_KEYS: Record<string, string> = {
   'Verdana, sans-serif': 'editor-font-verdana',
   'Courier New, monospace': 'editor-font-courier',
   'Garamond, serif': 'editor-font-garamond',
-  'Trebuchet MS, sans-serif': 'editor-font-trebuchet'
+  'Trebuchet MS, sans-serif': 'editor-font-trebuchet',
+  'Calibri, Candara, Segoe UI, sans-serif': 'editor-font-calibri',
+  'Cambria, Georgia, serif': 'editor-font-cambria',
+  'Tahoma, Verdana, sans-serif': 'editor-font-tahoma',
+  'Comic Sans MS, cursive': 'editor-font-comic-sans',
+  'Consolas, Courier New, monospace': 'editor-font-consolas',
+  'Palatino Linotype, Palatino, Book Antiqua, serif': 'editor-font-palatino',
+  'Century Gothic, CenturyGothic, sans-serif': 'editor-font-century-gothic',
+  'Constantia, Georgia, serif': 'editor-font-constantia',
+  'Candara, Segoe UI, sans-serif': 'editor-font-candara',
+  'Corbel, Candara, sans-serif': 'editor-font-corbel'
 }
 const FONT_FAMILIES = [
   { value: '' },
@@ -81,7 +91,17 @@ const FONT_FAMILIES = [
   { value: 'Verdana, sans-serif' },
   { value: 'Courier New, monospace' },
   { value: 'Garamond, serif' },
-  { value: 'Trebuchet MS, sans-serif' }
+  { value: 'Trebuchet MS, sans-serif' },
+  { value: 'Calibri, Candara, Segoe UI, sans-serif' },
+  { value: 'Cambria, Georgia, serif' },
+  { value: 'Tahoma, Verdana, sans-serif' },
+  { value: 'Comic Sans MS, cursive' },
+  { value: 'Consolas, Courier New, monospace' },
+  { value: 'Palatino Linotype, Palatino, Book Antiqua, serif' },
+  { value: 'Century Gothic, CenturyGothic, sans-serif' },
+  { value: 'Constantia, Georgia, serif' },
+  { value: 'Candara, Segoe UI, sans-serif' },
+  { value: 'Corbel, Candara, sans-serif' }
 ]
 
 // Font sizes
