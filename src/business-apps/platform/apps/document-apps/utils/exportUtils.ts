@@ -20,24 +20,45 @@ export function escapeHtmlText(text: string): string {
     .replace(/'/g, '&#39;')
 }
 
+/** Allowed block spacing CSS properties for export (line and paragraph spacing). */
+const BLOCK_SPACING_PROPS = /(line-height|margin-top|margin-bottom)\s*:\s*([^;]+)/gi
+
+function filterStyleToBlockSpacing(styleStr: string): string {
+  const parts: string[] = []
+  let m: RegExpExecArray | null
+  BLOCK_SPACING_PROPS.lastIndex = 0
+  while ((m = BLOCK_SPACING_PROPS.exec(styleStr)) !== null) {
+    parts.push(`${m[1]}: ${m[2].trim()}`)
+  }
+  return parts.join('; ')
+}
+
 /**
  * Lightweight export sanitizer to reduce risk when embedding editor HTML into print/export documents.
  * This is not a full HTML sanitizer, but it removes the most dangerous primitives:
  * - script/iframe/object/embed tags
  * - inline event handlers (on*)
  * - dangerous URL protocols in href/src
- * - inline styles (style=...) to avoid CSS-based injection vectors
+ * - inline styles (style=...) to avoid CSS-based injection vectors, unless preserveBlockSpacing is true
  */
-export function sanitizeHtmlForExport(html: string): string {
+export function sanitizeHtmlForExport(html: string, options?: { preserveBlockSpacing?: boolean }): string {
   if (!html) return ''
+  const preserveBlockSpacing = options?.preserveBlockSpacing === true
 
   // Prefer DOMPurify when available (browser context). Snyk recognizes it as a sanitizer.
   try {
     if (typeof window !== 'undefined') {
-      return DOMPurify.sanitize(html, {
+      const purified = DOMPurify.sanitize(html, {
         FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-        FORBID_ATTR: ['style']
+        FORBID_ATTR: preserveBlockSpacing ? [] : ['style']
       })
+      if (preserveBlockSpacing) {
+        return purified.replace(
+          /\s+style\s*=\s*["']([^"']*)["']/g,
+          (_, content) => ` style="${filterStyleToBlockSpacing(content)}"`
+        )
+      }
+      return purified
     }
   } catch {
     // Fall back to regex-based stripping below.
@@ -54,8 +75,15 @@ export function sanitizeHtmlForExport(html: string): string {
   // Remove inline event handlers (quoted or unquoted)
   out = out.replace(/\s+on[a-z]+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
 
-  // Remove inline styles entirely (safer for exports/print)
-  out = out.replace(/\s+style\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
+  if (!preserveBlockSpacing) {
+    // Remove inline styles entirely (safer for exports/print)
+    out = out.replace(/\s+style\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
+  } else {
+    out = out.replace(
+      /\s+style\s*=\s*["']([^"']*)["']/g,
+      (_, content) => ` style="${filterStyleToBlockSpacing(content)}"`
+    )
+  }
 
   // Remove dangerous protocols in href/src (keep attribute-less element instead)
   out = out.replace(/\s+(href|src)\s*=\s*(["']?)\s*(javascript:|data:text\/html)[\s\S]*?\2/gi, '')
@@ -79,7 +107,7 @@ export function buildPrintHtmlDocument({
   extraCss = ''
 }: PrintHtmlDocumentOptions): string {
   const safeTitle = escapeHtmlText(title || 'Document')
-  const safeBodyHtml = sanitizeHtmlForExport(htmlContent)
+  const safeBodyHtml = sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true })
   const titleHeading = includeTitleHeading ? `<h1>${safeTitle}</h1>` : ''
 
   return `<!DOCTYPE html>
@@ -124,10 +152,7 @@ export function buildPrintHtmlDocument({
 export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
   const { title, htmlContent, includeTitleHeading = false, extraCss = '', targetWindow } = options
   const safeTitleText = title || 'Document'
-  const sanitizedBodyHtml = DOMPurify.sanitize(sanitizeHtmlForExport(htmlContent), {
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-    FORBID_ATTR: ['style']
-  })
+  const sanitizedBodyHtml = sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true })
 
   let printWindow: Window | null = targetWindow && !targetWindow.closed ? targetWindow : null
   if (!printWindow) {
@@ -257,8 +282,8 @@ function htmlToWordML(html: string): string {
  * Uses HTML-to-DOCX conversion with proper page break handling
  */
 export async function exportToWord(title: string, htmlContent: string): Promise<void> {
-  // Convert HTML to Word-compatible format
-  const wordContent = htmlToWordML(sanitizeHtmlForExport(htmlContent))
+  // Convert HTML to Word-compatible format (preserve line/paragraph spacing for export)
+  const wordContent = htmlToWordML(sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true }))
   const safeTitle = escapeHtmlText(title || 'Document')
 
   // Create Word document using HTML

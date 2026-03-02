@@ -50,8 +50,11 @@ import {
   IndentIncrease,
   IndentDecrease,
   RemoveFormatting,
-  SeparatorHorizontal
+  SeparatorHorizontal,
+  Check,
+  AlignVerticalJustifyCenter
 } from 'lucide-react'
+import { getCurrentSpacing } from './extensions/LineAndParagraphSpacing'
 
 interface EditorToolbarProps {
   editor: Editor | null
@@ -110,6 +113,16 @@ const HEADING_LEVELS = [
   { label: 'Heading 5', value: 5 },
   { label: 'Heading 6', value: 6 }
 ]
+
+// Line spacing presets (value = line-height multiplier). Single uses 1.15 to match Google Docs.
+const LINE_SPACING_OPTIONS = [
+  { key: 'single', value: 1.0 },
+  { key: '1-15', value: 1.15 },
+  { key: '1-5', value: 1.5 },
+  { key: 'double', value: 2.0 }
+]
+
+const PARAGRAPH_SPACING_EM = '0.5em'
 
 // Color palette
 const COLORS = [
@@ -525,6 +538,86 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <AlignJustify className="gba:h-4 gba:w-4" />
         </ToolbarButton>
       </div>
+
+      {/* Line and paragraph spacing */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gba:h-8 gba:w-8 gba:p-0"
+            data-testid="editor-toolbar-line-spacing"
+            title={t('editor-toolbar-line-paragraph-spacing')}
+          >
+            <AlignVerticalJustifyCenter className="gba:h-4 gba:w-4" />
+            <ChevronDown className="gba:h-3 gba:w-3 gba:ml-0.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          onCloseAutoFocus={e => {
+            e.preventDefault()
+            editor.commands.focus()
+          }}
+        >
+          {LINE_SPACING_OPTIONS.map(({ key, value }) => {
+            const spacing = getCurrentSpacing(editor)
+            const effective = spacing.lineHeight ?? 1.15
+            const isActive = Math.abs(Number(effective) - value) < 0.01
+            return (
+              <DropdownMenuItem
+                key={key}
+                onSelect={() => {
+                  const v = value
+                  requestAnimationFrame(() => {
+                    editor.chain().focus().setLineHeight(v).run()
+                  })
+                }}
+              >
+                {isActive ? <Check className="gba:h-4 gba:w-4 gba:mr-2" /> : <span className="gba:w-4 gba:mr-2" />}
+                {t(`editor-line-spacing-${key}`)}
+              </DropdownMenuItem>
+            )
+          })}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              requestAnimationFrame(() => {
+                editor.chain().focus().setMarginBefore(PARAGRAPH_SPACING_EM).run()
+              })
+            }}
+          >
+            {t('editor-paragraph-spacing-before')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              requestAnimationFrame(() => {
+                editor.chain().focus().setMarginAfter(PARAGRAPH_SPACING_EM).run()
+              })
+            }}
+          >
+            {t('editor-paragraph-spacing-after')}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              requestAnimationFrame(() => {
+                editor.chain().focus().unsetMarginBefore().run()
+              })
+            }}
+          >
+            {t('editor-paragraph-spacing-remove-before')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              requestAnimationFrame(() => {
+                editor.chain().focus().unsetMarginAfter().run()
+              })
+            }}
+          >
+            {t('editor-paragraph-spacing-remove-after')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 

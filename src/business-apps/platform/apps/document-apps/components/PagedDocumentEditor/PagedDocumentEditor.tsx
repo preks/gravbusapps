@@ -80,6 +80,7 @@ import {
 } from '../../hooks'
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
 import { PaginationPlus } from 'tiptap-pagination-plus'
+import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
 import { PageBreak } from './extensions/PageBreak'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
@@ -662,6 +663,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             placeholder: t('editor-content-placeholder')
           }),
           TextAlign.configure({
+            types: ['heading', 'paragraph']
+          }),
+          LineAndParagraphSpacing.configure({
             types: ['heading', 'paragraph']
           }),
           Underline,
@@ -1479,13 +1483,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           background-color: ${pageColor};
           font-family: 'Times New Roman', Georgia, serif;
           font-size: 12pt;
-          line-height: 1.6;
+          line-height: 1.15;
           color: #1a1a1a;
           min-height: ${paginationConfig ? paginationConfig.pageHeight - paginationConfig.marginTop - paginationConfig.marginBottom : 400}px;
         }
 
         .paged-document-editor .ProseMirror p {
-          margin: 0 0 10pt 0;
+          margin: 0;
         }
 
         /* Lists (Tailwind preflight resets list-style to none) */
