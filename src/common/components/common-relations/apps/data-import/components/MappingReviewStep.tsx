@@ -30,10 +30,11 @@ import translations from './MappingReviewStep/_i18n'
 export interface MappingReviewStepProps {
   agentResponse: ImportAnalyzerResponse
   mappings: FieldMapping[]
+  unmappedSourceFields: string[]
   targetFieldsConfig: TargetFieldDefinition[]
   entityType?: string
   isLoading: boolean
-  onUpdateMapping: (index: number, field: 'targetField' | 'transformationType', value: string) => void
+  onUpdateTargetFromUnmapped: (index: number, newTargetField: string) => void
   onRemoveMapping: (index: number) => void
   onAddMapping: (sourceField: string) => void
   onConvert: () => void
@@ -44,10 +45,11 @@ export interface MappingReviewStepProps {
 export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
   agentResponse,
   mappings,
+  unmappedSourceFields,
   targetFieldsConfig,
   entityType = 'records',
   isLoading,
-  onUpdateMapping,
+  onUpdateTargetFromUnmapped,
   onRemoveMapping,
   onAddMapping,
   onConvert,
@@ -57,7 +59,7 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
   const { t } = useTranslation(translations)
 
   // Defensive check - validate agentResponse has required properties (critical for preventing crashes)
-  if (!agentResponse?.sourceFields || !agentResponse?.unmappedSourceFields) {
+  if (!agentResponse?.sourceFields) {
     return (
       <Card>
         <CardContent>
@@ -67,9 +69,7 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
     )
   }
 
-  // Ensure arrays exist
   const sourceFields = agentResponse.sourceFields || []
-  const unmappedSourceFields = agentResponse.unmappedSourceFields || []
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -98,55 +98,76 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
             <div>
               <h3 className="gba:text-sm gba:font-semibold gba:mb-2">{t('mapped-fields-title')}</h3>
               <div className="gba:space-y-3">
-                {mappings.map((mapping, index) => (
-                  <div
-                    key={`${mapping.sourceField}-${mapping.targetField}`}
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg"
-                    data-testid={`${testId}-mapping-${index}`}
-                  >
-                    <div className="gba:flex-1">
-                      <Label className="gba:text-xs gba:text-muted-foreground">{t('source-field-label')}</Label>
-                      <div className="gba:font-medium gba:text-sm">{mapping.sourceField}</div>
-                    </div>
+                {mappings.map((mapping, index) => {
+                  // Show the current target as the first option so the Select trigger
+                  // always displays the selected value (entity field label or source field name).
+                  const currentEntityField = targetFieldsConfig.find(tf => tf.value === mapping.targetField)
+                  const currentOption = mapping.targetField
+                    ? currentEntityField
+                      ? { value: currentEntityField.value, label: currentEntityField.label }
+                      : { value: mapping.targetField, label: mapping.targetField }
+                    : null
 
-                    <div className="gba:text-muted-foreground">→</div>
+                  // Remaining options: ONLY unmapped source fields.
+                  // Exclude the current target to avoid duplicating it in the list.
+                  const unmappedOptions = unmappedSourceFields
+                    .filter(f => f !== mapping.targetField)
+                    .map(f => ({ value: f, label: f }))
 
-                    <div className="gba:flex-1">
-                      <Label className="gba:text-xs gba:text-muted-foreground">{t('target-field-label')}</Label>
-                      <Select
-                        value={mapping.targetField}
-                        onValueChange={value => onUpdateMapping(index, 'targetField', value)}
-                      >
-                        <SelectTrigger className="gba:w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {targetFieldsConfig.map(tf => (
-                            <SelectItem key={tf.value} value={tf.value}>
-                              {tf.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  const targetOptions = currentOption ? [currentOption, ...unmappedOptions] : unmappedOptions
 
-                    <div className="gba:w-20">
-                      <Label className="gba:text-xs gba:text-muted-foreground">{t('type-label')}</Label>
-                      <div className="gba:text-xs gba:font-medium gba:mt-1">
-                        {mapping.transformationType === 'catalog' ? t('type-catalog') : t('type-direct')}
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onRemoveMapping(index)}
-                      data-testid={`${testId}-remove-mapping-${index}`}
+                  return (
+                    <div
+                      key={`${mapping.sourceField}-${mapping.targetField}-${index}`}
+                      className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg"
+                      data-testid={`${testId}-mapping-${index}`}
                     >
-                      <XCircleIcon className="gba:w-4 gba:h-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="gba:flex-1">
+                        <Label className="gba:text-xs gba:text-muted-foreground">{t('source-field-label')}</Label>
+                        <div className="gba:font-medium gba:text-sm" data-testid={`${testId}-source-field-${index}`}>
+                          {mapping.sourceField}
+                        </div>
+                      </div>
+
+                      <div className="gba:text-muted-foreground">→</div>
+
+                      <div className="gba:flex-1">
+                        <Label className="gba:text-xs gba:text-muted-foreground">{t('target-field-label')}</Label>
+                        <Select
+                          value={mapping.targetField || undefined}
+                          onValueChange={value => onUpdateTargetFromUnmapped(index, value)}
+                        >
+                          <SelectTrigger className="gba:w-full">
+                            <SelectValue placeholder="Select a field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {targetOptions.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="gba:w-20">
+                        <Label className="gba:text-xs gba:text-muted-foreground">{t('type-label')}</Label>
+                        <div className="gba:text-xs gba:font-medium gba:mt-1">
+                          {mapping.transformationType === 'catalog' ? t('type-catalog') : t('type-direct')}
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onRemoveMapping(index)}
+                        data-testid={`${testId}-remove-mapping-${index}`}
+                      >
+                        <XCircleIcon className="gba:w-4 gba:h-4" />
+                      </Button>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
