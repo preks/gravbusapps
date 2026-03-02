@@ -3,7 +3,8 @@ import { Button } from '@newwork/nw-design-system'
 import { PiArrowLeft } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-const DATA_TEST_ID = 'back-button'
+const DEFAULT_CLASS_NAME = ''
+const DEFAULT_DATA_TEST_ID = 'back-button'
 
 export interface BackButtonProps {
   /**
@@ -37,8 +38,8 @@ export interface BackButtonProps {
  */
 export const BackButton: React.FC<BackButtonProps> = ({
   customBackText,
-  className = '',
-  dataTestId = DATA_TEST_ID,
+  className = DEFAULT_CLASS_NAME,
+  dataTestId = DEFAULT_DATA_TEST_ID,
   onBack,
   backUrl
 }) => {
