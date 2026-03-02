@@ -91,6 +91,45 @@ export function sanitizeHtmlForExport(html: string, options?: { preserveBlockSpa
   return out
 }
 
+/**
+ * Resolves image src to a data URL for export (e.g. file-service URL + token -> base64).
+ * Return null to leave the original src unchanged.
+ */
+export type GetImageDataUrlForExport = (src: string) => Promise<string | null>
+
+/** Convert a Blob to a data URL for embedding in exported HTML. */
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * Replaces each img src in html with the result of getImageDataUrl(src) when not null.
+ * Use so exported Word/PDF contain embedded images instead of unreachable URLs.
+ */
+export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageDataUrlForExport): Promise<string> {
+  const imgRegex = /<img([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*)>/gi
+  let result = ''
+  let lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = imgRegex.exec(html)) !== null) {
+    result += html.slice(lastIndex, m.index)
+    const dataUrl = await getImageDataUrl(m[2])
+    if (dataUrl != null) {
+      result += `<img${m[1]}src="${dataUrl}"${m[3]}>`
+    } else {
+      result += m[0]
+    }
+    lastIndex = imgRegex.lastIndex
+  }
+  result += html.slice(lastIndex)
+  return result
+}
+
 export interface PrintHtmlDocumentOptions {
   title: string
   htmlContent: string
@@ -276,14 +315,22 @@ function htmlToWordML(html: string): string {
   return content
 }
 
+export interface ExportImageOptions {
+  getImageDataUrl?: GetImageDataUrlForExport
+}
+
 /**
  * Export document to Word format (.docx)
  *
- * Uses HTML-to-DOCX conversion with proper page break handling
+ * Uses HTML-to-DOCX conversion with proper page break handling.
+ * If getImageDataUrl is provided, images are embedded as data URLs so they display in the exported file.
  */
-export async function exportToWord(title: string, htmlContent: string): Promise<void> {
-  // Convert HTML to Word-compatible format (preserve line/paragraph spacing for export)
-  const wordContent = htmlToWordML(sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true }))
+export async function exportToWord(title: string, htmlContent: string, options?: ExportImageOptions): Promise<void> {
+  let content = sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true })
+  if (options?.getImageDataUrl) {
+    content = await embedImagesInHtml(content, options.getImageDataUrl)
+  }
+  const wordContent = htmlToWordML(content)
   const safeTitle = escapeHtmlText(title || 'Document')
 
   // Create Word document using HTML
@@ -392,11 +439,19 @@ export async function exportToWord(title: string, htmlContent: string): Promise<
  *
  * Uses browser's print to PDF functionality with proper page breaks.
  * Pass targetWindow when opening a window synchronously on user click to avoid popup blockers.
+ * If getImageDataUrl is provided, images are embedded so they display in the printed PDF.
  */
-export async function exportToPDF(title: string, htmlContent: string, targetWindow?: Window | null): Promise<void> {
-  // Convert page breaks for print/PDF
-  const pdfContent = htmlContent.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
-  printHtmlDocument({ title, htmlContent: pdfContent, targetWindow })
+export async function exportToPDF(
+  title: string,
+  htmlContent: string,
+  targetWindow?: Window | null,
+  options?: ExportImageOptions
+): Promise<void> {
+  let content = htmlContent.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
+  if (options?.getImageDataUrl) {
+    content = await embedImagesInHtml(content, options.getImageDataUrl)
+  }
+  printHtmlDocument({ title, htmlContent: content, targetWindow })
 }
 
 /**

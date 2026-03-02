@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -16,7 +17,6 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
-import { Image } from '@tiptap/extension-image'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
@@ -72,6 +72,7 @@ import {
   getDefaultPageLayout,
   DEFAULT_PAGE_COLOR
 } from '../../utils/pageLayoutUtils'
+import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../utils/linkUtils'
 import {
   useDocumentEditorAvatars,
   useYjsDocumentSync,
@@ -81,10 +82,11 @@ import {
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
 import { PaginationPlus } from 'tiptap-pagination-plus'
 import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
-import { PageBreak } from './extensions/PageBreak'
+import { DocumentImage, PageBreak } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
-import { exportToWord, exportToPDF, printHtmlDocument } from '../../utils/exportUtils'
+import { exportToWord, exportToPDF, printHtmlDocument, blobToDataUrl, embedImagesInHtml } from '../../utils/exportUtils'
+import { fileClient } from '@/common/network/files/FileClient'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
@@ -103,6 +105,10 @@ import { InlineCommentPopover } from '../../../shared/components/InlineCommentPo
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
 import { AiEditPanel } from '../AiEditPanel'
 import { PageSetupDialog } from './PageSetupDialog'
+import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from './LinkDialog'
+import { LinkBubbleMenu } from './LinkBubbleMenu'
+import { InsertImageDialog } from './InsertImageDialog'
+import { useEditorImageHandlers } from './hooks/useEditorImageHandlers'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
@@ -427,6 +433,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
     const [showPublishDialog, setShowPublishDialog] = useState(false)
     const [showPageSetupDialog, setShowPageSetupDialog] = useState(false)
+    const [showInsertImageDialog, setShowInsertImageDialog] = useState(false)
+    const [showLinkDialog, setShowLinkDialog] = useState(false)
+    const [linkDialogMode, setLinkDialogMode] = useState<LinkDialogMode>('insert')
+    const [linkDialogInitialValues, setLinkDialogInitialValues] = useState<LinkDialogInitialValues | undefined>()
+    const [linkDialogInsertWithNoSelection, setLinkDialogInsertWithNoSelection] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     type RightSidebar = 'closed' | 'comments' | 'ai'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
@@ -645,6 +656,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const isCollaborationMode = Boolean(document?.id)
 
+    const imageHandlers = useEditorImageHandlers({
+      editorRef,
+      documentId: document?.id ?? null,
+      accessToken
+    })
+
     // Initialize TipTap editor
     const editor = useEditor(
       {
@@ -675,12 +692,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             multicolor: true
           }),
           Link.configure({
-            openOnClick: false,
+            openOnClick: true,
             HTMLAttributes: {
-              class: 'editor-link'
-            }
+              class: 'editor-link',
+              rel: 'noopener noreferrer'
+            },
+            isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
           }),
-          Image.configure({
+          DocumentImage.configure({
+            getAccessToken: () => accessToken,
             HTMLAttributes: {
               class: 'editor-image'
             }
@@ -742,6 +762,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           attributes: {
             dir: 'auto'
           },
+          handlePaste: imageHandlers.handlePaste,
+          handleDrop: imageHandlers.handleDrop,
           handleKeyDown: (_view, event) => {
             if (event.key !== 'Tab') return false
             event.preventDefault()
@@ -786,6 +808,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         isCollaborationMode,
         t,
         isPageless,
+        accessToken,
+        imageHandlers.handlePaste,
+        imageHandlers.handleDrop,
         paginationConfig?.pageWidth,
         paginationConfig?.pageHeight,
         paginationConfig?.marginTop,
@@ -1034,6 +1059,61 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [document?.id, formattingYMap, isYjsSynced, onPersistFormatting]
     )
 
+    const openLinkDialog = useCallback(() => {
+      if (!editor) return
+      const { from, to } = editor.state.selection
+      const isEmpty = from === to
+      if (editor.isActive('link')) {
+        setLinkDialogMode('edit')
+        setLinkDialogInitialValues({
+          href: editor.getAttributes('link').href || '',
+          displayText: editor.state.doc.textBetween(from, to),
+          openInNewTab: editor.getAttributes('link').target === '_blank'
+        })
+        setLinkDialogInsertWithNoSelection(false)
+      } else if (isEmpty) {
+        setLinkDialogMode('insert')
+        setLinkDialogInitialValues({ href: '', displayText: '', openInNewTab: false })
+        setLinkDialogInsertWithNoSelection(true)
+      } else {
+        setLinkDialogMode('insert')
+        setLinkDialogInitialValues({
+          href: '',
+          displayText: editor.state.doc.textBetween(from, to),
+          openInNewTab: false
+        })
+        setLinkDialogInsertWithNoSelection(false)
+      }
+      setShowLinkDialog(true)
+    }, [editor])
+
+    const handleLinkApply = useCallback(
+      (values: { href: string; displayText?: string; openInNewTab: boolean }) => {
+        if (!editor) return
+        const { href, displayText: displayTextVal, openInNewTab } = values
+        const target = openInNewTab ? '_blank' : undefined
+        if (linkDialogMode === 'edit') {
+          editor.chain().focus().extendMarkRange('link').setLink({ href, target }).run()
+          return
+        }
+        if (linkDialogInsertWithNoSelection) {
+          const text = displayTextVal?.trim() || href
+          const rel = 'noopener noreferrer'
+          const targetAttr = openInNewTab ? ' target="_blank"' : ''
+          const html = `<a href="${escapeHtmlAttr(href)}"${targetAttr} rel="${rel}">${escapeHtmlText(text)}</a>`
+          editor.chain().focus().insertContent(html).run()
+          return
+        }
+        editor.chain().focus().setLink({ href, target }).run()
+      },
+      [editor, linkDialogMode, linkDialogInsertWithNoSelection]
+    )
+
+    const handleLinkRemove = useCallback(() => {
+      if (!editor) return
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    }, [editor])
+
     // Save document (pass merged formatting so layout is persisted)
     const handleSave = useCallback(async () => {
       if (isReadOnly || isSaving || !editor) return
@@ -1121,50 +1201,84 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         void handleSave()
       },
       onAddInlineComment: handleAddInlineComment,
+      onOpenLinkDialog: openLinkDialog,
       editor,
       editorContainerRef
     })
 
     useEditorKeyboardIsolation(editorContainerRef)
 
+    // Resolve image src to data URL for export so Word/PDF contain embedded images
+    const getImageDataUrl = useCallback(
+      async (src: string): Promise<string | null> => {
+        if (!src) return null
+        if (src.startsWith('data:')) return src
+        if (src.startsWith('blob:')) {
+          try {
+            const res = await fetch(src)
+            const blob = await res.blob()
+            return blobToDataUrl(blob)
+          } catch {
+            return null
+          }
+        }
+        try {
+          const path =
+            typeof window !== 'undefined' && src.startsWith('http')
+              ? new URL(src).pathname
+              : src.startsWith('/')
+                ? src
+                : `/${src}`
+          if (!path.includes('/tenant/downloads/') || !accessToken) return null
+          const blob = await fileClient.downloadFileByPath(path, accessToken)
+          return blobToDataUrl(blob)
+        } catch {
+          return null
+        }
+      },
+      [accessToken]
+    )
+
     // Export to Word
     const handleExportWord = useCallback(async () => {
       if (!editor) return
       setIsExporting(true)
       try {
-        await exportToWord(title, editor.getHTML())
+        await exportToWord(title, editor.getHTML(), { getImageDataUrl })
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to Word failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor])
+    }, [title, editor, getImageDataUrl])
 
     // Export to PDF
     const handleExportPDF = useCallback(async () => {
       if (!editor) return
       setIsExporting(true)
       try {
-        await exportToPDF(title, editor.getHTML())
+        await exportToPDF(title, editor.getHTML(), undefined, { getImageDataUrl })
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to PDF failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor])
+    }, [title, editor, getImageDataUrl])
 
-    // Print document
-    const handlePrint = useCallback(() => {
+    // Print document (embeds images so they show when printing to PDF)
+    const handlePrint = useCallback(async () => {
       if (!editor) return
+      let htmlContent = editor.getHTML()
+      htmlContent = await embedImagesInHtml(htmlContent, getImageDataUrl)
       printHtmlDocument({
         title,
-        htmlContent: editor.getHTML(),
+        htmlContent,
         extraCss: `
         .page-break { page-break-after: always; break-after: page; }
         @media print { .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
       `
       })
-    }, [title, editor])
+    }, [title, editor, getImageDataUrl])
 
     // Zoom controls
     const handleZoomIn = useCallback(() => {
@@ -1496,7 +1610,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           </div>
 
           {/* Toolbar */}
-          <EditorToolbar editor={editor} data-testid={`${testId}-toolbar`} />
+          <EditorToolbar
+            editor={editor}
+            onOpenLinkDialog={openLinkDialog}
+            onOpenInsertImageDialog={() => setShowInsertImageDialog(true)}
+            data-testid={`${testId}-toolbar`}
+          />
         </div>
 
         {/* Main content: optional left panel + editor area */}
@@ -1521,6 +1640,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 }}
               >
                 <EditorContent editor={editor} className="editor-content" />
+                {editor && (
+                  <BubbleMenu
+                    editor={editor}
+                    shouldShow={({ editor: e }) => e.isActive('link')}
+                    pluginKey="linkBubbleMenu"
+                  >
+                    <LinkBubbleMenu editor={editor} onEdit={openLinkDialog} data-testid="document-link-bubble-menu" />
+                  </BubbleMenu>
+                )}
                 {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
               </div>
             </div>
@@ -1536,10 +1664,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           outline: none;
           background-color: ${pageColor};
           font-family: 'Times New Roman', Georgia, serif;
-          font-size: 12pt;
+          font-size: 16px;
           line-height: 1.15;
           color: #1a1a1a;
           min-height: ${paginationConfig ? paginationConfig.pageHeight - paginationConfig.marginTop - paginationConfig.marginBottom : 400}px;
+        }
+
+        .paged-document-editor .ProseMirror .editor-link {
+          color: var(--nw-primary);
+          text-decoration: underline;
+          cursor: pointer;
         }
 
         .paged-document-editor .ProseMirror p {
@@ -1572,21 +1706,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         }
 
         .paged-document-editor .ProseMirror h1 {
-          font-size: 24pt;
+          font-size: 2rem;
           font-weight: 700;
           margin: 0 0 16pt 0;
           line-height: 1.2;
         }
 
         .paged-document-editor .ProseMirror h2 {
-          font-size: 18pt;
+          font-size: 1.5rem;
           font-weight: 600;
           margin: 20pt 0 12pt 0;
           line-height: 1.3;
         }
 
         .paged-document-editor .ProseMirror h3 {
-          font-size: 14pt;
+          font-size: 1.125rem;
           font-weight: 600;
           margin: 16pt 0 10pt 0;
           line-height: 1.4;
@@ -1595,7 +1729,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror h4,
         .paged-document-editor .ProseMirror h5,
         .paged-document-editor .ProseMirror h6 {
-          font-size: 12pt;
+          font-size: 1rem;
           font-weight: 600;
           margin: 14pt 0 8pt 0;
         }
@@ -1625,7 +1759,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           padding: 12pt;
           overflow-x: auto;
           font-family: 'Courier New', monospace;
-          font-size: 10pt;
+          font-size: 0.875rem;
           margin: 12pt 0;
         }
 
@@ -1634,7 +1768,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           padding: 2pt 4pt;
           border-radius: 2pt;
           font-family: 'Courier New', monospace;
-          font-size: 10pt;
+          font-size: 0.875rem;
         }
 
         .paged-document-editor .ProseMirror a {
@@ -1645,8 +1779,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror img {
           max-width: 100%;
           height: auto;
-          margin: 12pt 0;
+          margin: 0;
+          vertical-align: bottom;
           border-radius: 4pt;
+        }
+        .paged-document-editor .ProseMirror .editor-image {
+          margin: 0;
         }
 
         /* Tables: print-first (no horizontal scrolling) */
@@ -1674,7 +1812,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           padding: 4pt 6pt;
           text-align: start;
           vertical-align: top;
-          font-size: 10.5pt;
+          font-size: 0.875rem;
           line-height: 1.3;
           overflow-wrap: anywhere;
           word-break: break-word;
@@ -1720,7 +1858,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           position: relative;
           background: white;
           padding: 4pt 12pt;
-          font-size: 9pt;
+          font-size: 0.75rem;
           color: #888;
           text-transform: uppercase;
           letter-spacing: 1pt;
@@ -1858,6 +1996,29 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             formatting={layoutFormatting}
             onApply={handlePageSetupApply}
             data-testid="document-page-setup-dialog"
+          />
+        )}
+
+        {showInsertImageDialog && editor && (
+          <InsertImageDialog
+            open={showInsertImageDialog}
+            onOpenChange={setShowInsertImageDialog}
+            editor={editor}
+            documentId={document?.id ?? null}
+            accessToken={accessToken}
+            data-testid="document-insert-image-dialog"
+          />
+        )}
+
+        {showLinkDialog && (
+          <LinkDialog
+            open={showLinkDialog}
+            onOpenChange={setShowLinkDialog}
+            mode={linkDialogMode}
+            initialValues={linkDialogInitialValues}
+            onApply={handleLinkApply}
+            onRemoveLink={linkDialogMode === 'edit' ? handleLinkRemove : undefined}
+            data-testid="document-link-dialog"
           />
         )}
 

@@ -267,7 +267,6 @@ export class SocketIoYjsProvider {
       console.log('[SocketIoYjsProvider] Applying doc state, length:', stateBytes.length)
       Y.applyUpdate(this.ydoc, stateBytes, 'remote')
 
-      // Debug: Check what's in the Yjs doc now (TipTap uses 'default' fragment by default)
       const fragment = this.ydoc.getXmlFragment('default')
       console.log('[SocketIoYjsProvider] After applying state, fragment length:', fragment.length)
       console.log('[SocketIoYjsProvider] Fragment content:', fragment.toJSON())
@@ -301,7 +300,11 @@ export class SocketIoYjsProvider {
     this.setSynced(true)
   }
 
-  private handleRemoteYjsUpdate = (event: { documentId: string; entityType?: 'document' | 'note' | 'slide'; update: string }) => {
+  private handleRemoteYjsUpdate = (event: {
+    documentId: string
+    entityType?: 'document' | 'note' | 'slide'
+    update: string
+  }) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
     // Check entityType matches

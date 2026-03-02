@@ -379,6 +379,61 @@ editor-font-candara = Candara
 editor-font-corbel = Corbel
 editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = Bild-URL
+
+# Insert image dialog
+insert-image-dialog-title = Bild einfügen
+insert-image-dialog-title-replace = Bild ersetzen
+insert-image-tab-upload = Hochladen
+insert-image-tab-from-url = Von URL
+insert-image-choose-file = Datei wählen
+insert-image-drop-here = Bild hier ablegen oder klicken zum Durchsuchen
+insert-image-url-placeholder = https://example.com/bild.png
+insert-image-insert = Einfügen
+insert-image-cancel = Abbrechen
+insert-image-uploading = Wird hochgeladen…
+insert-image-upload-failed = Hochladen fehlgeschlagen. Erneut versuchen oder URL verwenden.
+insert-image-invalid-url = Bitte geben Sie eine gültige Bild-URL ein.
+
+# Link dialog
+link-dialog-title-insert = Link einfügen
+link-dialog-title-edit = Link bearbeiten
+link-dialog-url-label = URL
+link-dialog-url-placeholder = https://example.com
+link-dialog-text-label = Anzuzeigender Text
+link-dialog-text-placeholder = Linktext
+link-dialog-open-new-tab = In neuem Tab öffnen
+link-dialog-apply = Übernehmen
+link-dialog-remove-link = Link entfernen
+link-dialog-cancel = Abbrechen
+link-dialog-invalid-url = Bitte geben Sie eine gültige URL ein.
+
+# Link bubble menu
+link-bubble-edit = Bearbeiten
+link-bubble-remove-link = Link entfernen
+link-bubble-open-link = Link öffnen
+link-bubble-open-new-tab = In neuem Tab öffnen
+
+image-context-cut = Ausschneiden
+image-context-copy = Kopieren
+image-context-paste = Einfügen
+image-context-delete = Löschen
+image-context-replace = Bild ersetzen
+image-context-alt-text = Alt-Text
+
+image-context-wrap-text = Textumbruch
+image-wrap-inline = Mit Text in Zeile
+image-wrap-left = Quadrat (Text rechts)
+image-wrap-right = Quadrat (Text links)
+image-wrap-tight = Eng
+image-wrap-through = Durch
+image-wrap-center = Oben und unten
+image-wrap-behind = Hinter Text
+image-wrap-in-front = Vor Text
+
+image-alt-text-dialog-title = Alt-Text
+image-alt-text-label = Beschreibung (für Barrierefreiheit)
+image-alt-text-save = Speichern
+
 editor-back-title = Zurück zu Dokumenten
 editor-save-document = Dokument speichern
 editor-approval-pending = Genehmigung ausstehend

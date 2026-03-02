@@ -59,6 +59,10 @@ import { getCurrentSpacing } from './extensions/LineAndParagraphSpacing'
 interface EditorToolbarProps {
   editor: Editor | null
   onInsertPageBreak?: () => void
+  /** When set, link toolbar button opens Link dialog instead of URL prompt */
+  onOpenLinkDialog?: () => void
+  /** When set, image toolbar button opens Insert Image dialog instead of URL prompt */
+  onOpenInsertImageDialog?: () => void
   'data-testid'?: string
 }
 
@@ -257,35 +261,39 @@ const ToolbarButton: React.FC<{
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
   onInsertPageBreak,
+  onOpenLinkDialog,
+  onOpenInsertImageDialog,
   'data-testid': testId = 'editor-toolbar'
 }) => {
   const { t } = useTranslation(translations)
 
-  const setLink = useCallback(() => {
+  const handleLinkClick = useCallback(() => {
     if (!editor) return
-    const previousUrl = editor.getAttributes('link').href
-    const url = window.prompt(t('editor-toolbar-link-prompt'), previousUrl)
-
-    if (url === null) {
-      return
+    if (onOpenLinkDialog) {
+      onOpenLinkDialog()
+    } else {
+      const previousUrl = editor.getAttributes('link').href
+      const url = window.prompt(t('editor-toolbar-link-prompt'), previousUrl)
+      if (url === null) return
+      if (url === '') {
+        editor.chain().focus().extendMarkRange('link').unsetLink().run()
+        return
+      }
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
     }
-
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      return
-    }
-
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-  }, [editor, t])
+  }, [editor, t, onOpenLinkDialog])
 
   const addImage = useCallback(() => {
     if (!editor) return
+    if (onOpenInsertImageDialog) {
+      onOpenInsertImageDialog()
+      return
+    }
     const url = window.prompt(t('editor-toolbar-image-prompt'))
-
     if (url) {
       editor.chain().focus().setImage({ src: url }).run()
     }
-  }, [editor, t])
+  }, [editor, t, onOpenInsertImageDialog])
 
   const insertTable = useCallback(() => {
     if (!editor) return
@@ -731,7 +739,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       {/* Insert Elements */}
       <div className="gba:flex gba:items-center gba:gap-0.5">
-        <ToolbarButton onClick={setLink} isActive={editor.isActive('link')} tooltip={t('editor-toolbar-insert-link')}>
+        <ToolbarButton
+          onClick={handleLinkClick}
+          isActive={editor.isActive('link')}
+          tooltip={t('editor-toolbar-insert-link')}
+        >
           <Link className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton onClick={addImage} tooltip={t('editor-toolbar-insert-image')}>

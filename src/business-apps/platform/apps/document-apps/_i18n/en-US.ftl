@@ -382,6 +382,62 @@ editor-font-corbel = Corbel
 editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = Image URL
 
+# Insert image dialog
+insert-image-dialog-title = Insert image
+insert-image-dialog-title-replace = Change picture
+insert-image-tab-upload = Upload
+insert-image-tab-from-url = From URL
+insert-image-choose-file = Choose file
+insert-image-drop-here = Drop image here or click to browse
+insert-image-url-placeholder = https://example.com/image.png
+insert-image-insert = Insert
+insert-image-cancel = Cancel
+insert-image-uploading = Uploading…
+insert-image-upload-failed = Upload failed. Try again or use a URL.
+insert-image-invalid-url = Please enter a valid image URL.
+
+# Link dialog
+link-dialog-title-insert = Insert Link
+link-dialog-title-edit = Edit Link
+link-dialog-url-label = URL
+link-dialog-url-placeholder = https://example.com
+link-dialog-text-label = Text to display
+link-dialog-text-placeholder = Link text
+link-dialog-open-new-tab = Open in new tab
+link-dialog-apply = Apply
+link-dialog-remove-link = Remove link
+link-dialog-cancel = Cancel
+link-dialog-invalid-url = Please enter a valid URL.
+
+# Link bubble menu
+link-bubble-edit = Edit
+link-bubble-remove-link = Remove link
+link-bubble-open-link = Open link
+link-bubble-open-new-tab = Open in new tab
+
+# Image context menu (right-click on image)
+image-context-cut = Cut
+image-context-copy = Copy
+image-context-paste = Paste
+image-context-delete = Delete
+image-context-replace = Change picture
+image-context-alt-text = Alt text
+
+# Wrap text (Word-style)
+image-context-wrap-text = Wrap text
+image-wrap-inline = In line with text
+image-wrap-left = Square (text on right)
+image-wrap-right = Square (text on left)
+image-wrap-tight = Tight
+image-wrap-through = Through
+image-wrap-center = Top and bottom
+image-wrap-behind = Behind text
+image-wrap-in-front = In front of text
+
+image-alt-text-dialog-title = Alt text
+image-alt-text-label = Description (for accessibility)
+image-alt-text-save = Save
+
 # Paged document editor
 editor-back-title = Back to documents
 editor-save-document = Save Document

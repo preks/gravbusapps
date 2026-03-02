@@ -379,6 +379,61 @@ editor-font-candara = Candara
 editor-font-corbel = Corbel
 editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = URL imagine
+
+# Insert image dialog
+insert-image-dialog-title = Inserați imagine
+insert-image-dialog-title-replace = Schimbați imaginea
+insert-image-tab-upload = Încărcare
+insert-image-tab-from-url = Din URL
+insert-image-choose-file = Alegeți fișierul
+insert-image-drop-here = Plasați imaginea aici sau faceți clic pentru a răsfoi
+insert-image-url-placeholder = https://example.com/imagine.png
+insert-image-insert = Inserare
+insert-image-cancel = Anulare
+insert-image-uploading = Se încarcă…
+insert-image-upload-failed = Încărcarea a eșuat. Încercați din nou sau folosiți un URL.
+insert-image-invalid-url = Introduceți un URL valid pentru imagine.
+
+# Link dialog
+link-dialog-title-insert = Inserați link
+link-dialog-title-edit = Editați linkul
+link-dialog-url-label = URL
+link-dialog-url-placeholder = https://example.com
+link-dialog-text-label = Text de afișat
+link-dialog-text-placeholder = Text link
+link-dialog-open-new-tab = Deschide în tab nou
+link-dialog-apply = Aplicare
+link-dialog-remove-link = Eliminați linkul
+link-dialog-cancel = Anulare
+link-dialog-invalid-url = Introduceți o adresă URL validă.
+
+# Link bubble menu
+link-bubble-edit = Editare
+link-bubble-remove-link = Eliminați linkul
+link-bubble-open-link = Deschide linkul
+link-bubble-open-new-tab = Deschide în tab nou
+
+image-context-cut = Decupare
+image-context-copy = Copiere
+image-context-paste = Lipire
+image-context-delete = Ștergere
+image-context-replace = Schimbați imaginea
+image-context-alt-text = Text alternativ
+
+image-context-wrap-text = Înfășurare text
+image-wrap-inline = În linie cu textul
+image-wrap-left = Pătrat (text la dreapta)
+image-wrap-right = Pătrat (text la stânga)
+image-wrap-tight = Strâns
+image-wrap-through = Prin
+image-wrap-center = Sus și jos
+image-wrap-behind = În spatele textului
+image-wrap-in-front = În fața textului
+
+image-alt-text-dialog-title = Text alternativ
+image-alt-text-label = Descriere (pentru accesibilitate)
+image-alt-text-save = Salvare
+
 editor-back-title = Înapoi la documente
 editor-save-document = Salvați documentul
 editor-approval-pending = Aprobare în așteptare
