@@ -741,6 +741,31 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         editorProps: {
           attributes: {
             dir: 'auto'
+          },
+          handleKeyDown: (_view, event) => {
+            if (event.key !== 'Tab') return false
+            event.preventDefault()
+            const ed = editorRef.current
+            if (!ed) return true
+            const $from = ed.state.selection.$from
+            let inTableCell = false
+            for (let d = $from.depth; d > 0; d--) {
+              if ($from.node(d).type.name === 'tableCell') {
+                inTableCell = true
+                break
+              }
+            }
+            if (inTableCell) {
+              if (event.shiftKey) {
+                ed.commands.goToPreviousCell()
+              } else {
+                const moved = ed.commands.goToNextCell()
+                if (!moved) ed.chain().addRowAfter().goToNextCell().run()
+              }
+            } else {
+              if (!event.shiftKey) ed.commands.insertContent('\t')
+            }
+            return true
           }
         },
         onUpdate: () => {

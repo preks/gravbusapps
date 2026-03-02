@@ -1,7 +1,6 @@
 /**
- * InsertTab extension: Tab key inserts a tab character (Word-like behavior).
- * When the cursor is inside a table cell, Tab is not handled so the table
- * extension can use it for cell navigation.
+ * InsertTab extension: Tab inserts a tab character in text (Word-like);
+ * in tables, Tab / Shift-Tab move to next/previous cell.
  */
 
 import { Extension } from '@tiptap/core'
@@ -23,8 +22,18 @@ export const InsertTab = Extension.create({
   addKeyboardShortcuts() {
     return {
       Tab: () => {
-        if (isInsideTableCell(this.editor)) return false
+        if (isInsideTableCell(this.editor)) {
+          const moved = this.editor.commands.goToNextCell()
+          if (moved) return true
+          return this.editor.chain().addRowAfter().goToNextCell().run()
+        }
         return this.editor.commands.insertContent('\t')
+      },
+      'Shift-Tab': () => {
+        if (isInsideTableCell(this.editor)) {
+          return this.editor.commands.goToPreviousCell()
+        }
+        return false
       }
     }
   }
