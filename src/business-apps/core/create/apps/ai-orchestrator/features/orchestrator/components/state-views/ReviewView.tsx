@@ -65,7 +65,6 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
       <Canvas
         title={plan.userSummary?.title || 'Review Plan'}
         subtitle="Review what will be built — use the chat panel to refine"
-        showGradientFade={true}
         floatingAction={
           <FloatingActionButton
             label="Start Building"

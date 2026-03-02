@@ -102,6 +102,7 @@ const createNewEditableCell = (
     travelRegionId: region.id,
     allowanceRegionRuleId: rule.id,
     amount: 0,
+    home: false,
     currencyCode: 'EUR',
     currencyRef: eurCurrency?.id,
     countryRef: countryRef,

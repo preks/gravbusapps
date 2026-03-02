@@ -36,6 +36,7 @@ export const convertToEditableCells = (
             travelRegionId: region.id,
             allowanceRegionRuleId: rule.id,
             amount: detail.amount,
+            home: detail.home || false,
             currencyCode: detail.currency?.code || 'EUR',
             currencyRef: detail.currency?.id || detail.currencyRef,
             countryRef: detail.country?.id || detail.countryRef,
