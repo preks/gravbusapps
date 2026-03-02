@@ -31,6 +31,7 @@ interface PersonalAbsencesCalendarViewProps {
   effectiveDates?: Set<string>
   allowWeekendPaintingInFallback?: boolean
   nonWorkingDates?: Set<string>
+  embedded?: boolean
 }
 
 function toCalendarAbsenceList(rows: AbsenceRow[], t: TFunction): (AbsenceListCardAbsence & { id: string })[] {
@@ -75,7 +76,8 @@ export function PersonalAbsencesCalendarView({
   error: errorProp,
   effectiveDates,
   allowWeekendPaintingInFallback,
-  nonWorkingDates
+  nonWorkingDates,
+  embedded = false
 }: Readonly<PersonalAbsencesCalendarViewProps>) {
   const fallback = useAbsenceData(employee?.id, accessToken, absenceEntitlements || [])
 
@@ -90,61 +92,69 @@ export function PersonalAbsencesCalendarView({
   const requestAbsenceLabel =
     startDateFmt && endDateFmt ? `${baseRequestText} (${startDateFmt} - ${endDateFmt})` : baseRequestText
 
+  const content = (
+    <div className="gba:p-4 gba:space-y-4">
+      <div className="gba:flex gba:justify-between gba:items-center">
+        <Button variant="outline" onClick={onBackToDashboard}>
+          <CaretLeftIcon className="gba:w-4 gba:h-4 gba:mr-1" />
+          {t('back-to-dashboard')}
+        </Button>
+        <AppAction
+          variant="update-primary"
+          key={`cal-action-${startDateFmt}-${endDateFmt}`}
+          data-testid="calendar-absence-request-button"
+          lazyLoad
+          emptyState="enable"
+          contexts={[
+            {
+              context: FlowContextName.employeeAbsenceRecord,
+              contextData: {
+                employeeId: employee.id,
+                absenceType: absenceEntitlements.find((e: any) => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
+                flowType: 'vacation',
+                startDate: startDateFmt,
+                endDate: endDateFmt
+              }
+            }
+          ]}
+          prefixDataTestId="calendar-absence-request"
+          accessToken={accessToken}
+        >
+          {requestAbsenceLabel}
+        </AppAction>
+      </div>
+      <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
+        <AbsenceCalendar
+          absenceList={calendarAbsenceList}
+          loading={calendarLoading}
+          error={calendarError}
+          currentDate={calendarDate}
+          setCurrentDate={setCalendarDate}
+          selectedStartDate={selectedStartDate}
+          setSelectedStartDate={setSelectedStartDate}
+          selectedEndDate={selectedEndDate}
+          setSelectedEndDate={setSelectedEndDate}
+          holidayDates={holidayDates}
+          employeeAbsenceEntitlement={absenceEntitlements}
+          employee={employee as any}
+          accessToken={accessToken}
+          effectiveDates={effectiveDates}
+          allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
+          nonWorkingDates={nonWorkingDates}
+        />
+      </div>
+    </div>
+  )
+
   return (
     <div data-testid="personal-absences-container">
-      <PageLayout headerIcon={CalendarBlankIcon} headerTitle={t('calendar')} className="gba:min-h-screen">
-        <div className="gba:p-4 gba:space-y-4">
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <Button variant="outline" onClick={onBackToDashboard}>
-              <CaretLeftIcon className="gba:w-4 gba:h-4 gba:mr-1" />
-              {t('back-to-dashboard')}
-            </Button>
-            <AppAction
-              variant="update-primary"
-              key={`cal-action-${startDateFmt}-${endDateFmt}`}
-              data-testid="calendar-absence-request-button"
-              lazyLoad
-              emptyState="enable"
-              contexts={[
-                {
-                  context: FlowContextName.employeeAbsenceRecord,
-                  contextData: {
-                    employeeId: employee.id,
-                    absenceType: absenceEntitlements.find((e: any) => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-                    flowType: 'vacation',
-                    startDate: startDateFmt,
-                    endDate: endDateFmt
-                  }
-                }
-              ]}
-              prefixDataTestId="calendar-absence-request"
-              accessToken={accessToken}
-            >
-              {requestAbsenceLabel}
-            </AppAction>
-          </div>
-          <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
-            <AbsenceCalendar
-              absenceList={calendarAbsenceList}
-              loading={calendarLoading}
-              error={calendarError}
-              currentDate={calendarDate}
-              setCurrentDate={setCalendarDate}
-              selectedStartDate={selectedStartDate}
-              setSelectedStartDate={setSelectedStartDate}
-              selectedEndDate={selectedEndDate}
-              setSelectedEndDate={setSelectedEndDate}
-              holidayDates={holidayDates}
-              employeeAbsenceEntitlement={absenceEntitlements}
-              employee={employee as any}
-              accessToken={accessToken}
-              effectiveDates={effectiveDates}
-              allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
-              nonWorkingDates={nonWorkingDates}
-            />
-          </div>
-        </div>
-      </PageLayout>
+      {embedded ? (
+        content
+      ) : (
+        <PageLayout headerIcon={CalendarBlankIcon} headerTitle={t('calendar')} className="gba:min-h-screen">
+          {content}
+        </PageLayout>
+      )}
     </div>
   )
 }
