@@ -135,8 +135,8 @@ definitions:
         name: Publish Changed Screens
         runs-on:
           - 'self.hosted'
-          - 'do.global.runner.size2'
-        size: 2x
+          - 'do.global.runner.size4'
+        size: 4x
         clone:
           enabled: true
           depth: full
@@ -154,8 +154,8 @@ definitions:
         name: Build Screens
         runs-on:
           - 'self.hosted'
-          - 'do.global.runner.size2'
-        size: 2x
+          - 'do.global.runner.size4'
+        size: 4x
         clone:
           enabled: true
           depth: full
