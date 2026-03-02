@@ -51,7 +51,7 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
   const { t } = useTranslation(translations)
   const [runFor, setRunFor] = useState<RunForOption>('self')
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
-  const [selectedTeamId, setSelectedTeamId] = useState<string>('')
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
 
   const {
     employees,
@@ -96,14 +96,14 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
       prevOpenRef.current = true
       setRunFor('self')
       setSelectedEmployeeId(defaultEmployeeId ?? null)
-      setSelectedTeamId('')
+      setSelectedTeamIds([])
       if (defaultEmployeeId) fetchStructureEmployees()
     }
     if (!open) prevOpenRef.current = false
   }, [open, defaultEmployeeId, fetchStructureEmployees])
 
   const hasValidEmployee = Boolean(selectedEmployeeId && String(selectedEmployeeId).trim())
-  const hasValidTeam = Boolean(selectedTeamId && String(selectedTeamId).trim())
+  const hasValidTeam = selectedTeamIds.length > 0
 
   const handleConfirm = () => {
     if (runFor === 'self') {
@@ -119,7 +119,7 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
       if (!hasValidTeam) return
       onConfirm({
         runFor: 'team',
-        teamIds: [selectedTeamId!]
+        teamIds: selectedTeamIds
       })
     }
   }
@@ -184,10 +184,11 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
               <Label>{t('start-confirm-select-teams')}</Label>
               <div className="gba:w-full gba:max-w-full">
                 <Combobox
-                  value={selectedTeamId}
+                  mode="multiple"
+                  value={selectedTeamIds}
                   onValueChange={(id: string[] | string) => {
-                    const next = typeof id === 'string' ? id : Array.isArray(id) ? (id[0] ?? '') : ''
-                    setSelectedTeamId(next)
+                    const next = Array.isArray(id) ? id : typeof id === 'string' && id ? [id] : []
+                    setSelectedTeamIds([...new Set(next)])
                   }}
                   options={organizationalUnits.map((unit: OrganizationalUnit) => ({
                     label: unit.name,
