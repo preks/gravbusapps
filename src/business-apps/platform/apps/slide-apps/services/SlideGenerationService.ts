@@ -3,13 +3,16 @@
  *
  * Uses dedicated document-service endpoint for reliable generation.
  * Optionally uses research service for web search data gathering.
+ * Supports automatic template matching for consistent branding.
  */
 
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
-import type { SlideData } from '../components/slideElements'
+import type { SlideData, SlideElement } from '../components/slideElements'
 import type { SlideTheme } from '../components/slideThemes'
 import { SlideResearchService, formatResearchForGeneration, type ResearchResult } from './SlideResearchService'
 import { generateSlideFromLayout, type SlideLayoutContent, type SlideLayoutType } from './SlideLayoutService'
+import { SlidesApiService } from './SlidesApiService'
+import type { SlideTemplate } from '../types'
 
 // Content types for references
 export type ContentType = 'document' | 'spreadsheet' | 'note' | 'slides'
@@ -29,6 +32,10 @@ export interface GenerationOptions {
   theme?: SlideTheme
   /** Optional i18n function for user-visible fallbacks (e.g. Option A/B, Thank You) */
   getMessage?: (key: string, params?: Record<string, string>) => string
+  /** Enable automatic template matching (default: true) */
+  useTemplateMatching?: boolean
+  /** Specific template ID to use (overrides auto-matching) */
+  templateId?: string
 }
 
 export interface GenerationResult {
@@ -36,6 +43,12 @@ export interface GenerationResult {
   title: string
   sources?: string[]
   researchData?: ResearchResult
+  /** Matched template info (if template matching found a match) */
+  matchedTemplate?: {
+    id: string
+    name: string
+    themeId?: string
+  }
 }
 
 export type GenerationProgressCallback = (
@@ -50,6 +63,372 @@ const SLIDE_COUNT_RANGES = {
   medium: { min: 9, max: 14, target: 12 },
   long: { min: 15, max: 25, target: 20 }
 } as const
+
+/**
+ * Extract explicit template name from description
+ * Looks for patterns like "use template X", "template X", "using X template"
+ */
+function extractExplicitTemplateName(text: string): string | null {
+  const lowerText = text.toLowerCase()
+
+  // Patterns to detect explicit template references
+  const patterns = [
+    /(?:use|using|with)\s+(?:the\s+)?template\s+["']?([a-z0-9\s-]+?)["']?(?:\s|$|,|\.)/i,
+    /template\s+["']?([a-z0-9\s-]+?)["']?\s+(?:template)?/i,
+    /["']([a-z0-9\s-]+?)["']\s+template/i,
+    /template:\s*["']?([a-z0-9\s-]+?)["']?(?:\s|$|,|\.)/i
+  ]
+
+  for (const pattern of patterns) {
+    const match = lowerText.match(pattern)
+    if (match && match[1]) {
+      return match[1].trim()
+    }
+  }
+
+  return null
+}
+
+/**
+ * Extract keywords from a description for template matching
+ */
+function extractKeywords(text: string): string[] {
+  const stopWords = new Set([
+    'a',
+    'an',
+    'the',
+    'is',
+    'are',
+    'was',
+    'were',
+    'be',
+    'been',
+    'being',
+    'have',
+    'has',
+    'had',
+    'do',
+    'does',
+    'did',
+    'will',
+    'would',
+    'could',
+    'should',
+    'may',
+    'might',
+    'must',
+    'shall',
+    'can',
+    'need',
+    'dare',
+    'to',
+    'of',
+    'in',
+    'for',
+    'on',
+    'with',
+    'at',
+    'by',
+    'from',
+    'as',
+    'into',
+    'through',
+    'during',
+    'before',
+    'after',
+    'above',
+    'below',
+    'and',
+    'but',
+    'or',
+    'nor',
+    'so',
+    'yet',
+    'both',
+    'either',
+    'neither',
+    'not',
+    'only',
+    'own',
+    'same',
+    'than',
+    'too',
+    'very',
+    'just',
+    'about',
+    'create',
+    'make',
+    'build',
+    'presentation',
+    'slides',
+    'slide',
+    'generate',
+    'me',
+    'sample',
+    'please'
+  ])
+
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !stopWords.has(word))
+}
+
+/**
+ * Calculate match score between description and template
+ */
+function calculateTemplateMatchScore(
+  description: string,
+  template: { name: string; description?: string },
+  explicitTemplateName: string | null
+): number {
+  const templateName = template.name.toLowerCase()
+
+  // If user explicitly requested this template by name, return highest score
+  if (explicitTemplateName) {
+    const normalizedExplicit = explicitTemplateName.toLowerCase().trim()
+    const normalizedTemplate = templateName.toLowerCase().trim()
+
+    // Exact match or template name contains the explicit name
+    if (
+      normalizedTemplate === normalizedExplicit ||
+      normalizedTemplate.includes(normalizedExplicit) ||
+      normalizedExplicit.includes(normalizedTemplate)
+    ) {
+      console.log(`[SlideGeneration] Explicit template match: "${normalizedExplicit}" matches "${normalizedTemplate}"`)
+      return 1.0 // Perfect match
+    }
+  }
+
+  // Fallback to keyword matching
+  const descKeywords = extractKeywords(description)
+  const templateText = `${template.name} ${template.description || ''}`.toLowerCase()
+  const templateKeywords = extractKeywords(templateText)
+
+  if (descKeywords.length === 0 || templateKeywords.length === 0) return 0
+
+  let matchCount = 0
+  for (const keyword of descKeywords) {
+    // Check for exact match or partial match (word contains keyword)
+    if (templateKeywords.some(tk => tk.includes(keyword) || keyword.includes(tk))) {
+      matchCount++
+    }
+    // Also check if the template text contains the keyword
+    if (templateText.includes(keyword)) {
+      matchCount += 0.5
+    }
+  }
+
+  // Normalize score (0-1 range)
+  return matchCount / descKeywords.length
+}
+
+/**
+ * Find the best matching template for a given description
+ */
+async function findMatchingTemplate(
+  description: string,
+  accessToken: string,
+  minScore: number = 0.15
+): Promise<SlideTemplate | null> {
+  try {
+    SlidesApiService.setAccessToken(accessToken)
+    const templates = await SlidesApiService.listTemplates()
+
+    if (templates.length === 0) {
+      console.log('[SlideGeneration] No templates found in database')
+      return null
+    }
+
+    // First, check for explicit template name request
+    const explicitTemplateName = extractExplicitTemplateName(description)
+    if (explicitTemplateName) {
+      console.log(`[SlideGeneration] User explicitly requested template: "${explicitTemplateName}"`)
+    }
+
+    let bestMatch: { template: SlideTemplate | null; score: number } = {
+      template: null,
+      score: 0
+    }
+
+    for (const summary of templates) {
+      const score = calculateTemplateMatchScore(
+        description,
+        {
+          name: summary.name,
+          description: summary.description
+        },
+        explicitTemplateName
+      )
+
+      if (score > bestMatch.score) {
+        // Fetch full template to get slides
+        const fullTemplate = await SlidesApiService.getTemplate(summary.id)
+        if (fullTemplate) {
+          bestMatch = { template: fullTemplate, score }
+        }
+      }
+
+      // If we found an exact match (score = 1.0), no need to continue
+      if (score >= 1.0) break
+    }
+
+    // Only return if score meets minimum threshold
+    if (bestMatch.score >= minScore && bestMatch.template) {
+      console.log(
+        `[SlideGeneration] Found matching template: "${bestMatch.template.name}" (score: ${bestMatch.score.toFixed(2)})`
+      )
+      return bestMatch.template
+    }
+
+    return null
+  } catch (error) {
+    console.warn('[SlideGeneration] Template matching failed:', error)
+    return null
+  }
+}
+
+/**
+ * Extract layout structure from template slides for AI guidance
+ */
+function extractTemplateStructure(slides: SlideData[]): string {
+  const layouts = slides.map((slide, index) => {
+    // Determine slide type based on elements
+    const hasTitle = slide.elements.some((el: SlideElement) => el.type === 'text' && el.fontSize && el.fontSize >= 32)
+    const hasBullets = slide.elements.some((el: SlideElement) => el.type === 'text' && el.content?.includes('•'))
+    const hasImage = slide.elements.some((el: SlideElement) => el.type === 'image')
+    const hasChart = slide.elements.some(
+      (el: SlideElement) => el.type === 'shape' && ['rectangle', 'circle'].includes(el.shapeType || '')
+    )
+
+    let layoutType = 'content'
+    if (index === 0) layoutType = 'title-cover'
+    else if (index === slides.length - 1) layoutType = 'thank-you'
+    else if (hasImage && hasBullets) layoutType = 'image-with-content'
+    else if (hasChart) layoutType = 'data-visualization'
+    else if (hasBullets) layoutType = 'bullets'
+    else if (hasTitle && !hasBullets) layoutType = 'section-divider'
+
+    // Extract sample content structure
+    const titleEl = slide.elements.find((el: SlideElement) => el.type === 'text' && el.fontSize && el.fontSize >= 32)
+    const title = titleEl?.content || `Slide ${index + 1}`
+
+    return `Slide ${index + 1}: ${layoutType} - "${title}"`
+  })
+
+  return layouts.join('\n')
+}
+
+/**
+ * Format template guidance for the AI
+ */
+function formatTemplateGuidance(template: SlideTemplate): string {
+  const structure = extractTemplateStructure(template.contentJson.slides)
+
+  return `
+TEMPLATE GUIDANCE:
+You are generating content based on an existing template "${template.name}".
+Follow this slide structure closely, adapting the content to the new topic while maintaining the same flow and layout types.
+
+Template Structure (${template.contentJson.slides.length} slides):
+${structure}
+
+Instructions:
+- Generate exactly ${template.contentJson.slides.length} slides
+- Follow the same layout sequence (title-cover, content slides, thank-you)
+- Maintain similar content density per slide
+- Adapt all content to the new topic while keeping the structural flow
+`
+}
+
+/**
+ * Deep clone a slide, preserving all visual properties
+ */
+function cloneSlide(slide: SlideData): SlideData {
+  return JSON.parse(JSON.stringify(slide))
+}
+
+/**
+ * Identify text elements in a slide for content replacement
+ * Returns elements sorted by position (top to bottom, left to right)
+ */
+function getTextElements(slide: SlideData): SlideElement[] {
+  return slide.elements
+    .filter((el): el is SlideElement => el.type === 'text')
+    .sort((a, b) => {
+      // Sort by Y position first (top to bottom), then X (left to right)
+      const yDiff = (a.y || 0) - (b.y || 0)
+      if (Math.abs(yDiff) > 50) return yDiff
+      return (a.x || 0) - (b.x || 0)
+    })
+}
+
+/**
+ * Determine if a text element is a title based on font size and position
+ */
+function isTitleElement(el: SlideElement): boolean {
+  return (el.fontSize && el.fontSize >= 28) || (el.y !== undefined && el.y < 150)
+}
+
+/**
+ * Populate template slides with AI-generated content
+ * This preserves the template's visual design while replacing text content
+ * If AI generates more slides than template has, template slides are repeated cyclically
+ */
+function populateTemplateWithContent(templateSlides: SlideData[], aiSlides: BackendSlideSpec[]): SlideData[] {
+  if (templateSlides.length === 0) return []
+
+  // Generate slides for all AI content, cycling through template slides
+  return aiSlides.map((aiContent, index) => {
+    // Use template slide cyclically (e.g., if template has 2 slides and AI has 5,
+    // use template[0], template[1], template[0], template[1], template[0])
+    const templateIndex = index % templateSlides.length
+    const clonedSlide = cloneSlide(templateSlides[templateIndex])
+
+    // Generate new ID for each cloned slide
+    clonedSlide.id = `slide-${Date.now()}-${index}`
+
+    const textElements = getTextElements(clonedSlide)
+    if (textElements.length === 0) return clonedSlide
+
+    // Find title element (largest font or topmost position)
+    const titleElement = textElements.find(isTitleElement)
+    const bodyElements = textElements.filter(el => el !== titleElement)
+
+    // Update title
+    if (titleElement && aiContent.title) {
+      titleElement.content = aiContent.title
+    }
+
+    // Update body content based on what AI provided
+    if (bodyElements.length > 0) {
+      if (aiContent.bullets && aiContent.bullets.length > 0) {
+        // Format as bullet list
+        const bulletText = aiContent.bullets.map(b => `• ${b}`).join('\n')
+        bodyElements[0].content = bulletText
+      } else if (aiContent.content) {
+        // Use plain content
+        bodyElements[0].content = aiContent.content
+      } else if (aiContent.subtitle) {
+        // Use subtitle as body if nothing else
+        bodyElements[0].content = aiContent.subtitle
+      }
+
+      // If there are additional body elements and two-column content
+      if (bodyElements.length >= 2) {
+        if (aiContent.leftColumn && aiContent.leftColumn.length > 0) {
+          bodyElements[0].content = aiContent.leftColumn.map(b => `• ${b}`).join('\n')
+        }
+        if (aiContent.rightColumn && aiContent.rightColumn.length > 0) {
+          bodyElements[1].content = aiContent.rightColumn.map(b => `• ${b}`).join('\n')
+        }
+      }
+    }
+
+    return clonedSlide
+  })
+}
 
 // AI response types from backend
 interface BackendSlideSpec {
@@ -389,6 +768,55 @@ export async function generateSlides(
 ): Promise<GenerationResult> {
   let researchData: ResearchResult | undefined
   const sources: string[] = []
+  let matchedTemplate: SlideTemplate | null = null
+
+  // Phase 0: Template matching (if enabled, default: true)
+  const useTemplateMatching = options.useTemplateMatching !== false
+
+  if (useTemplateMatching) {
+    onProgress?.('generation', 'progress-checking-templates')
+
+    try {
+      // Check for specific template ID first
+      if (options.templateId) {
+        SlidesApiService.setAccessToken(accessToken)
+        matchedTemplate = await SlidesApiService.getTemplate(options.templateId)
+        if (matchedTemplate) {
+          console.log(`[SlideGeneration] Using specified template: "${matchedTemplate.name}"`)
+        }
+      } else {
+        // Auto-match based on description
+        matchedTemplate = await findMatchingTemplate(options.description, accessToken)
+      }
+
+      // Add template guidance to requirements
+      if (matchedTemplate) {
+        console.log(`[SlideGeneration] Matched template details:`, {
+          id: matchedTemplate.id,
+          name: matchedTemplate.name,
+          themeId: matchedTemplate.contentJson.themeId,
+          slideCount: matchedTemplate.contentJson.slides.length
+        })
+        const templateGuidance = formatTemplateGuidance(matchedTemplate)
+        options = {
+          ...options,
+          additionalRequirements: `${options.additionalRequirements || ''}\n\n${templateGuidance}`,
+          // Override length to match template slide count
+          length:
+            matchedTemplate.contentJson.slides.length <= 8
+              ? 'short'
+              : matchedTemplate.contentJson.slides.length <= 14
+                ? 'medium'
+                : 'long'
+        }
+        onProgress?.('generation', 'progress-using-template', {
+          templateName: matchedTemplate.name
+        })
+      }
+    } catch (err) {
+      console.warn('[SlideGeneration] Template matching phase failed:', err)
+    }
+  }
 
   // Phase 1: Research (if web search enabled)
   if (options.useWebSearch) {
@@ -438,20 +866,38 @@ export async function generateSlides(
     })
   }
 
-  // Phase 3: Convert to slide data using layout service
+  // Phase 3: Convert to slide data
   onProgress?.('validation', 'progress-building')
 
-  const slides: SlideData[] = apiResponse.slides.map((spec, index) => {
-    const layoutContent = mapToLayoutContent(spec, options.getMessage)
-    return generateSlideFromLayout(layoutContent, index, options.theme)
-  })
+  let slides: SlideData[]
 
-  return {
+  if (matchedTemplate && matchedTemplate.contentJson.slides.length > 0) {
+    // Use template slides as base, populate with AI-generated content
+    // This preserves the template's visual design (backgrounds, layouts, element positions)
+    slides = populateTemplateWithContent(matchedTemplate.contentJson.slides, apiResponse.slides)
+    console.log(`[SlideGeneration] Populated ${slides.length} template slides with AI content`)
+  } else {
+    // No template - generate slides from scratch using layout service
+    slides = apiResponse.slides.map((spec, index) => {
+      const layoutContent = mapToLayoutContent(spec, options.getMessage)
+      return generateSlideFromLayout(layoutContent, index, options.theme)
+    })
+  }
+
+  const result = {
     slides,
     title: apiResponse.title || options.description.substring(0, 50),
     sources: sources.length > 0 ? sources : undefined,
-    researchData
+    researchData,
+    matchedTemplate: matchedTemplate
+      ? {
+          id: matchedTemplate.id,
+          name: matchedTemplate.name,
+          themeId: matchedTemplate.contentJson.themeId
+        }
+      : undefined
   }
+  return result
 }
 
 // Export service object

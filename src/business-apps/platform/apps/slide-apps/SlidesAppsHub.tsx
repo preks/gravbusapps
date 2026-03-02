@@ -71,7 +71,14 @@ import {
   type SlideHubSortBy,
   type SlideHubSortOrder
 } from './hooks'
-import { SlideEditor, ShareSlideDialog, ManageSharesDialog, PowerPointUploader } from './components'
+import {
+  SlideEditor,
+  ShareSlideDialog,
+  ManageSharesDialog,
+  PowerPointUploader,
+  TemplateBrowserDialog
+} from './components'
+import type { SlideData } from './components/slideElements'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
@@ -177,6 +184,11 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [showTemplateBrowserDialog, setShowTemplateBrowserDialog] = useState(false)
+  const [pendingTemplateSlides, setPendingTemplateSlides] = useState<{
+    slides: SlideData[]
+    themeId: string
+  } | null>(null)
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
@@ -252,6 +264,31 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       loadSlide(created.id)
     }
   }, [createSlide, loadSlide, updateUrl, t])
+
+  /** Handle template selection from template browser */
+  const handleTemplateSelected = useCallback(
+    async (templateSlides: SlideData[], themeId: string) => {
+      // Close the template browser dialog
+      setShowTemplateBrowserDialog(false)
+
+      // Create a new slide
+      const created = await createSlide({ title: t('title-untitled-slide') })
+      if (created) {
+        // Store the pending template to apply when editor loads
+        setPendingTemplateSlides({ slides: templateSlides, themeId })
+        setSelectedSlideId(created.id)
+        setCurrentView('editor')
+        updateUrl(created.id, 'editor')
+        loadSlide(created.id)
+      }
+    },
+    [createSlide, loadSlide, updateUrl, t]
+  )
+
+  /** Clear pending template after it's been applied */
+  const handleInitialTemplateApplied = useCallback(() => {
+    setPendingTemplateSlides(null)
+  }, [])
 
   /** Open a slide */
   const handleOpenSlide = useCallback(
@@ -453,6 +490,8 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         accessToken={accessToken}
         userInfo={userInfo}
         onBack={handleBack}
+        initialTemplate={pendingTemplateSlides ?? undefined}
+        onInitialTemplateApplied={handleInitialTemplateApplied}
         data-testid={`${testId}-editor`}
       />
     )
@@ -546,7 +585,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                   <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleCreateNew}>
+              <DropdownMenuItem onClick={() => setShowTemplateBrowserDialog(true)}>
                 <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
                   <div className="gba:font-medium">{t('menu-new-template-title')}</div>
@@ -1235,6 +1274,14 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           />
         </DialogContent>
       </Dialog>
+
+      {/* Template Browser Dialog */}
+      <TemplateBrowserDialog
+        open={showTemplateBrowserDialog}
+        onOpenChange={setShowTemplateBrowserDialog}
+        onApplyTemplate={handleTemplateSelected}
+        data-testid={`${testId}-template-browser`}
+      />
     </div>
   )
 }

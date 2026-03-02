@@ -89,6 +89,8 @@ import {
 import { GradientBuilder } from './GradientBuilder'
 import { GeneratePresentationButton } from './GeneratePresentationButton'
 import { RefineSlideButton } from './RefineSlideButton'
+import { SaveTemplateButton } from './SaveTemplateButton'
+import { TemplateBrowserButton } from './TemplateBrowserButton'
 import { exportToPptx } from '../utils/exportUtils'
 import translations from '../_i18n'
 
@@ -97,6 +99,13 @@ export interface SlideEditorProps extends BusinessAppContextProps {
   slide: SlideType
   onBack: () => void
   onSlideUpdated?: (slide: SlideType) => void
+  /** Initial template to apply when editor loads (for "Create from Template" flow) */
+  initialTemplate?: {
+    slides: SlideData[]
+    themeId: string
+  }
+  /** Callback when initial template has been applied */
+  onInitialTemplateApplied?: () => void
   'data-testid'?: string
 }
 
@@ -135,6 +144,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   onSlideUpdated,
   accessToken,
   userInfo,
+  initialTemplate,
+  onInitialTemplateApplied,
   'data-testid': testId = 'slide-editor'
 }) => {
   const { t } = useTranslation(translations)
@@ -388,6 +399,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const canEdit = isSynced && isInitialized
+
+  // Track whether initial template has been applied
+  const initialTemplateAppliedRef = useRef(false)
+
+  // Apply initial template when editor is ready
+  useEffect(() => {
+    if (!initialTemplate || !canEdit || initialTemplateAppliedRef.current) return
+
+    // Apply template slides and theme
+    const templatedSlides = initialTemplate.slides.map((slide, idx) => ({
+      ...slide,
+      id: `slide-${Date.now()}-${idx}`
+    }))
+
+    updateCollaborativeSlides(templatedSlides)
+    updateCollaborativeTheme(initialTemplate.themeId)
+    initialTemplateAppliedRef.current = true
+
+    // Notify parent that template has been applied
+    onInitialTemplateApplied?.()
+
+    toast.success(t('toast-template-applied') || 'Template applied')
+  }, [initialTemplate, canEdit, updateCollaborativeSlides, updateCollaborativeTheme, onInitialTemplateApplied, t])
 
   const updateSlide = useCallback(
     (updates: Partial<SlideData>) => {
@@ -759,13 +793,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Handle AI-generated slides
   const handleGeneratedSlides = useCallback(
-    (generatedSlides: SlideData[], title: string) => {
+    (generatedSlides: SlideData[], title: string, matchedTemplate?: { id: string; name: string; themeId?: string }) => {
       if (!isSynced || generatedSlides.length === 0) return
 
       // Replace all slides with generated ones
       updateCollaborativeSlides(generatedSlides)
       setCurrentSlideIndex(0)
       setSelectedElementIds(new Set())
+
+      // Apply matched template's theme if available
+      if (matchedTemplate?.themeId) {
+        updateCollaborativeTheme(matchedTemplate.themeId)
+        toast.info(
+          t('toast-template-matched', { name: matchedTemplate.name }) || `Using template: ${matchedTemplate.name}`
+        )
+      }
 
       // Update presentation title if changed
       if (title && title !== presentationTitle) {
@@ -775,7 +817,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         })
       }
     },
-    [isSynced, updateCollaborativeSlides, presentationTitle, slideId]
+    [isSynced, updateCollaborativeSlides, updateCollaborativeTheme, presentationTitle, slideId, t]
   )
 
   // Handle AI-refined slide
@@ -790,6 +832,35 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       toast.success(t('editor-slide-refined') || 'Slide refined')
     },
     [isSynced, currentSlide.id, currentSlideIndex, updateCollaborativeSlide, t]
+  )
+
+  // Handle template application
+  const handleApplyTemplate = useCallback(
+    (templateSlides: SlideData[], themeId: string) => {
+      if (!isSynced || templateSlides.length === 0) return
+
+      // Generate new IDs for template slides to avoid conflicts
+      const slidesWithNewIds = templateSlides.map(slide => ({
+        ...slide,
+        id: crypto.randomUUID(),
+        elements: slide.elements.map(el => ({
+          ...el,
+          id: crypto.randomUUID()
+        }))
+      }))
+
+      // Append template slides to existing slides
+      const newSlides = [...slides, ...slidesWithNewIds]
+      updateCollaborativeSlides(newSlides)
+
+      // Apply template theme
+      updateCollaborativeTheme(themeId)
+
+      // Navigate to first template slide
+      setCurrentSlideIndex(slides.length)
+      setSelectedElementIds(new Set())
+    },
+    [isSynced, slides, updateCollaborativeSlides, updateCollaborativeTheme]
   )
 
   // Handle image upload
@@ -1383,6 +1454,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {/* Save as Template */}
+              <SaveTemplateButton
+                slides={slides}
+                themeId={currentTheme?.id || 'corporate-blue'}
+                disabled={!isSynced || slides.length === 0}
+                data-testid={`${testId}-save-template-button`}
+              />
+
               {/* AI Tools */}
               <RefineSlideButton
                 currentSlide={currentSlide}
@@ -1566,6 +1645,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Templates */}
+        <TemplateBrowserButton
+          onApplyTemplate={handleApplyTemplate}
+          disabled={!isSynced}
+          data-testid={`${testId}-template-browser-button`}
+        />
       </div>
 
       {/* Main Content */}

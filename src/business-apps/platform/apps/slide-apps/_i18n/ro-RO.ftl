@@ -65,6 +65,8 @@ toast-favorite-removed = Eliminat din favorite
 toast-favorite-added = Adăugat la favorite
 toast-imported-slides = Importate { $count } slide-uri
 toast-import-failed = Import PowerPoint eșuat
+toast-template-matched = Se folosește șablonul: { $name }
+toast-template-applied = Șablon aplicat
 
 # Editor
 editor-slide-saved = Slide salvat
@@ -421,6 +423,8 @@ progress-research-complete = Cercetare completă!
 progress-generating = Prezentarea se generează...
 progress-web-search-failed = Căutarea web a eșuat, continuăm fără date de cercetare
 progress-building = Slide-urile se construiesc...
+progress-checking-templates = Se caută șabloane potrivite...
+progress-using-template = Se folosește șablonul: { $templateName }
 
 # SlideGenerationService fallbacks
 generation-option-a = Opțiunea A
@@ -473,3 +477,48 @@ refine-apply = Aplică modificările
 refine-button = Rafinează slide
 refine-refining-button = Se rafinează...
 editor-slide-refined = Slide rafinat cu succes
+
+# Templates
+template-save-button = Salvează ca șablon
+template-save-title = Salvează ca șablon
+template-save-description = Salvează slide-urile curente ca șablon reutilizabil
+template-slides-preview = Slide-uri
+template-name-label = Nume șablon
+template-name-placeholder = ex., Șablon prezentare vânzări
+template-description-label = Descriere
+template-description-placeholder = Descrieți când să utilizați acest șablon...
+template-category-label = Categorie
+template-category-business = Business
+template-category-creative = Creativ
+template-category-minimal = Minimal
+template-category-custom = Personalizat
+template-public-label = Partajează cu organizația
+template-public-description = Fă acest șablon disponibil pentru toți utilizatorii
+template-cancel = Anulează
+template-save-btn = Salvează șablon
+template-saving = Se salvează...
+template-save-error = Nu s-a putut salva șablonul
+template-saved-title = Șablon salvat
+template-saved-description = Șablonul a fost salvat cu succes
+
+template-browse-button = Șabloane
+template-browser-title = Browser șabloane
+template-browser-description = Alegeți un șablon pentru prezentarea dvs.
+template-tab-all = Toate
+template-tab-my-templates = Șabloanele mele
+template-search-placeholder = Caută șabloane...
+template-loading = Se încarcă șabloanele...
+template-empty-title = Niciun șablon găsit
+template-empty-search = Încercați un alt termen de căutare
+template-empty-description = Creați primul șablon pentru a începe
+template-selected = Selectat
+template-select-hint = Selectați un șablon pentru a continua
+template-apply-btn = Folosește șablon
+template-applying = Se aplică...
+template-applied-title = Șablon aplicat
+template-applied-description = Șablonul a fost adăugat la prezentarea dvs.
+
+template-public = Public
+template-private = Privat
+template-delete = Șterge
+template-delete-confirm = Ștergeți acest șablon?

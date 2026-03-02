@@ -23,7 +23,7 @@ import {
 } from '@newwork/nw-design-system'
 import { AlertCircle, Globe, Search, Layers, Check, Wand2 } from 'lucide-react'
 import { ContentAttachmentPicker } from './ContentAttachmentPicker'
-import { useSlideGeneration } from '../hooks/useSlideGeneration'
+import { useSlideGeneration, type MatchedTemplateInfo } from '../hooks/useSlideGeneration'
 import type { SlideData } from './slideElements'
 import type { ContentReference, GenerationOptions } from '../services/SlideGenerationService'
 import translations from '../_i18n'
@@ -31,7 +31,7 @@ import translations from '../_i18n'
 export interface GeneratePresentationDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onGenerate: (slides: SlideData[], title: string) => void
+  onGenerate: (slides: SlideData[], title: string, matchedTemplate?: MatchedTemplateInfo) => void
   accessToken: string
   'data-testid'?: string
 }
@@ -62,8 +62,8 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
   // Generation hook
   const { isGenerating, phase, error, progressMessage, generate, reset } = useSlideGeneration({
     accessToken,
-    onSuccess: (slides, title) => {
-      onGenerate(slides, title)
+    onSuccess: (slides, title, _sources, matchedTemplate) => {
+      onGenerate(slides, title, matchedTemplate)
       onOpenChange(false)
     }
   })

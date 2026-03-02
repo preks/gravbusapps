@@ -14,9 +14,15 @@ import translations from '../_i18n'
 
 export type GenerationPhase = 'idle' | 'research' | 'generation' | 'validation' | 'complete'
 
+export interface MatchedTemplateInfo {
+  id: string
+  name: string
+  themeId?: string
+}
+
 export interface UseSlideGenerationOptions {
   accessToken: string
-  onSuccess?: (slides: SlideData[], title: string, sources?: string[]) => void
+  onSuccess?: (slides: SlideData[], title: string, sources?: string[], matchedTemplate?: MatchedTemplateInfo) => void
   onError?: (error: string) => void
 }
 
@@ -31,6 +37,8 @@ export interface UseSlideGenerationResult {
   progressMessage: string | null
   /** Sources found during research (if web search was enabled) */
   sources: string[] | null
+  /** Matched template info (if template matching found a match) */
+  matchedTemplate: MatchedTemplateInfo | null
   /** Start the generation process */
   generate: (options: GenerationOptions) => Promise<void>
   /** Reset state */
@@ -48,6 +56,7 @@ export function useSlideGeneration({
   const [error, setError] = useState<string | null>(null)
   const [progressMessage, setProgressMessage] = useState<string | null>(null)
   const [sources, setSources] = useState<string[] | null>(null)
+  const [matchedTemplate, setMatchedTemplate] = useState<MatchedTemplateInfo | null>(null)
 
   const generate = useCallback(
     async (options: GenerationOptions) => {
@@ -61,6 +70,7 @@ export function useSlideGeneration({
       setIsGenerating(true)
       setError(null)
       setSources(null)
+      setMatchedTemplate(null)
       setPhase('idle')
       setProgressMessage(t('progress-preparing'))
 
@@ -89,6 +99,11 @@ export function useSlideGeneration({
           setSources(result.sources)
         }
 
+        // Store matched template info
+        if (result.matchedTemplate) {
+          setMatchedTemplate(result.matchedTemplate)
+        }
+
         setPhase('complete')
         setProgressMessage(t('progress-ready'))
 
@@ -98,7 +113,7 @@ export function useSlideGeneration({
         setProgressMessage(null)
         setIsGenerating(false)
 
-        onSuccess?.(result.slides, result.title, result.sources)
+        onSuccess?.(result.slides, result.title, result.sources, result.matchedTemplate)
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : t('progress-generate-failed')
         console.error('[useSlideGeneration] Generation failed:', err)
@@ -120,6 +135,7 @@ export function useSlideGeneration({
     setError(null)
     setProgressMessage(null)
     setSources(null)
+    setMatchedTemplate(null)
   }, [])
 
   return {
@@ -128,6 +144,7 @@ export function useSlideGeneration({
     error,
     progressMessage,
     sources,
+    matchedTemplate,
     generate,
     reset
   }

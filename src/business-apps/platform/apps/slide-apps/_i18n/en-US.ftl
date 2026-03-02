@@ -65,6 +65,8 @@ toast-favorite-removed = Removed from favorites
 toast-favorite-added = Added to favorites
 toast-imported-slides = Imported { $count } slides
 toast-import-failed = Failed to import PowerPoint
+toast-template-matched = Using template: { $name }
+toast-template-applied = Template applied
 
 # Editor
 editor-slide-saved = Slide saved
@@ -424,6 +426,8 @@ progress-research-complete = Research complete!
 progress-generating = Generating presentation...
 progress-web-search-failed = Web search failed, continuing without research data
 progress-building = Building slides...
+progress-checking-templates = Checking for matching templates...
+progress-using-template = Using template: { $templateName }
 
 # SlideGenerationService fallbacks (comparison/quote/thank-you)
 generation-option-a = Option A
@@ -471,3 +475,48 @@ refine-apply = Apply Changes
 refine-button = Refine Slide
 refine-refining-button = Refining...
 editor-slide-refined = Slide refined successfully
+
+# Templates
+template-save-button = Save as Template
+template-save-title = Save as Template
+template-save-description = Save your current slides as a reusable template
+template-slides-preview = Slides
+template-name-label = Template Name
+template-name-placeholder = e.g., Sales Pitch Template
+template-description-label = Description
+template-description-placeholder = Describe when to use this template...
+template-category-label = Category
+template-category-business = Business
+template-category-creative = Creative
+template-category-minimal = Minimal
+template-category-custom = Custom
+template-public-label = Share with organization
+template-public-description = Make this template available to all users
+template-cancel = Cancel
+template-save-btn = Save Template
+template-saving = Saving...
+template-save-error = Failed to save template
+template-saved-title = Template Saved
+template-saved-description = Your template has been saved successfully
+
+template-browse-button = Templates
+template-browser-title = Template Browser
+template-browser-description = Choose a template to start your presentation
+template-tab-all = All
+template-tab-my-templates = My Templates
+template-search-placeholder = Search templates...
+template-loading = Loading templates...
+template-empty-title = No templates found
+template-empty-search = Try a different search term
+template-empty-description = Create your first template to get started
+template-selected = Selected
+template-select-hint = Select a template to continue
+template-apply-btn = Use Template
+template-applying = Applying...
+template-applied-title = Template Applied
+template-applied-description = The template has been added to your presentation
+
+template-public = Public
+template-private = Private
+template-delete = Delete
+template-delete-confirm = Delete this template?

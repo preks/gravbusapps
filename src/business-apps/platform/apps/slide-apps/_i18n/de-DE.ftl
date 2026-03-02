@@ -65,6 +65,8 @@ toast-favorite-removed = Aus Favoriten entfernt
 toast-favorite-added = Zu Favoriten hinzugefügt
 toast-imported-slides = { $count } Folien importiert
 toast-import-failed = PowerPoint-Import fehlgeschlagen
+toast-template-matched = Vorlage wird verwendet: { $name }
+toast-template-applied = Vorlage angewendet
 
 # Editor
 editor-slide-saved = Folie gespeichert
@@ -421,6 +423,8 @@ progress-research-complete = Recherche abgeschlossen!
 progress-generating = Präsentation wird generiert...
 progress-web-search-failed = Websuche fehlgeschlagen, es wird ohne Recherchedaten fortgefahren
 progress-building = Folien werden erstellt...
+progress-checking-templates = Passende Vorlagen werden gesucht...
+progress-using-template = Vorlage wird verwendet: { $templateName }
 
 # SlideGenerationService fallbacks
 generation-option-a = Option A
@@ -473,3 +477,48 @@ refine-apply = Änderungen übernehmen
 refine-button = Folie verfeinern
 refine-refining-button = Verfeinern...
 editor-slide-refined = Folie erfolgreich verfeinert
+
+# Templates
+template-save-button = Als Vorlage speichern
+template-save-title = Als Vorlage speichern
+template-save-description = Speichern Sie Ihre aktuellen Folien als wiederverwendbare Vorlage
+template-slides-preview = Folien
+template-name-label = Vorlagenname
+template-name-placeholder = z.B. Verkaufspräsentation Vorlage
+template-description-label = Beschreibung
+template-description-placeholder = Beschreiben Sie, wann diese Vorlage verwendet werden soll...
+template-category-label = Kategorie
+template-category-business = Geschäftlich
+template-category-creative = Kreativ
+template-category-minimal = Minimal
+template-category-custom = Benutzerdefiniert
+template-public-label = Mit Organisation teilen
+template-public-description = Diese Vorlage für alle Benutzer verfügbar machen
+template-cancel = Abbrechen
+template-save-btn = Vorlage speichern
+template-saving = Speichern...
+template-save-error = Vorlage konnte nicht gespeichert werden
+template-saved-title = Vorlage gespeichert
+template-saved-description = Ihre Vorlage wurde erfolgreich gespeichert
+
+template-browse-button = Vorlagen
+template-browser-title = Vorlagen-Browser
+template-browser-description = Wählen Sie eine Vorlage für Ihre Präsentation
+template-tab-all = Alle
+template-tab-my-templates = Meine Vorlagen
+template-search-placeholder = Vorlagen suchen...
+template-loading = Vorlagen werden geladen...
+template-empty-title = Keine Vorlagen gefunden
+template-empty-search = Versuchen Sie einen anderen Suchbegriff
+template-empty-description = Erstellen Sie Ihre erste Vorlage, um zu beginnen
+template-selected = Ausgewählt
+template-select-hint = Wählen Sie eine Vorlage aus, um fortzufahren
+template-apply-btn = Vorlage verwenden
+template-applying = Anwenden...
+template-applied-title = Vorlage angewendet
+template-applied-description = Die Vorlage wurde zu Ihrer Präsentation hinzugefügt
+
+template-public = Öffentlich
+template-private = Privat
+template-delete = Löschen
+template-delete-confirm = Diese Vorlage löschen?
