@@ -16,6 +16,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TimeEntry } from '../hooks/useTimeTrackingData'
 import hrI18n from './_i18n'
+import { formatDurationToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 export interface TimeEntriesTableProps {
   entries: TimeEntry[]
@@ -113,13 +114,21 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                   {formatTime(e.startTimeISO)}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-end-cell-${e.id}`}>{formatTime(e.endTimeISO)}</TableCell>
-                <TableCell data-testid={`time-tracking-table-recorded-cell-${e.id}`}>{e.recordedTime ?? '-'}</TableCell>
-                <TableCell data-testid={`time-tracking-table-break-cell-${e.id}`}>{e.breakTime ?? '0h'}</TableCell>
-                <TableCell data-testid={`time-tracking-table-effective-cell-${e.id}`}>
-                  {e.effectiveTime ?? '-'}
+                <TableCell data-testid={`time-tracking-table-recorded-cell-${e.id}`}>
+                  {e.recordedTime != null && e.recordedTime !== '' ? formatDurationToHHMM(e.recordedTime) : '-'}
                 </TableCell>
-                <TableCell data-testid={`time-tracking-table-planned-cell-${e.id}`}>{e.plannedTime ?? '-'}</TableCell>
-                <TableCell data-testid={`time-tracking-table-diff-cell-${e.id}`}>{e.differenceTime ?? '-'}</TableCell>
+                <TableCell data-testid={`time-tracking-table-break-cell-${e.id}`}>
+                  {formatDurationToHHMM(e.breakTime ?? '0h')}
+                </TableCell>
+                <TableCell data-testid={`time-tracking-table-effective-cell-${e.id}`}>
+                  {e.effectiveTime != null && e.effectiveTime !== '' ? formatDurationToHHMM(e.effectiveTime) : '-'}
+                </TableCell>
+                <TableCell data-testid={`time-tracking-table-planned-cell-${e.id}`}>
+                  {e.plannedTime != null && e.plannedTime !== '' ? formatDurationToHHMM(e.plannedTime) : '-'}
+                </TableCell>
+                <TableCell data-testid={`time-tracking-table-diff-cell-${e.id}`}>
+                  {e.differenceTime != null && e.differenceTime !== '' ? formatDurationToHHMM(e.differenceTime) : '-'}
+                </TableCell>
                 <TableCell data-testid={`time-tracking-table-manual-cell-${e.id}`}>
                   <Badge variant={e.manualOverride ? 'warning' : 'secondary'}>
                     {e.manualOverride
