@@ -36,100 +36,133 @@ export interface CellInputProps {
   id: string
 }
 
+interface BaseCellProps {
+  value: string | boolean
+  onChange: (value: string | boolean) => void
+  disabled?: boolean
+  id: string
+  required?: boolean
+}
+
+const CheckboxCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, id }) => (
+  <div className="gba:flex gba:justify-center">
+    <Checkbox id={id} checked={!!value} onCheckedChange={checked => onChange(!!checked)} disabled={disabled} />
+  </div>
+)
+
+const NumberCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, id, required }) => (
+  <Input
+    id={id}
+    type="number"
+    value={value as string}
+    onChange={e => onChange(e.target.value)}
+    disabled={disabled}
+    placeholder={required ? 'Required' : '—'}
+    className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
+  />
+)
+
+const DateCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, required }) => (
+  <div className="gba:w-full">
+    <DateInput
+      type="date"
+      value={value as string}
+      onChange={val => onChange(normalizeDateInput(val as string | string[] | undefined, 'date'))}
+      disabled={disabled}
+      placeholder={required ? 'Select date' : 'Optional'}
+      className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
+    />
+  </div>
+)
+
+const DateTimeCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, required }) => (
+  <div className="gba:w-full">
+    <DateInput
+      type="datetime-local"
+      value={value as string}
+      onChange={val => onChange(normalizeDateInput(val as string | string[] | undefined, 'datetime'))}
+      disabled={disabled}
+      placeholder={required ? 'Select date & time' : 'Optional'}
+      className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
+    />
+  </div>
+)
+
+interface SelectCellProps extends BaseCellProps {
+  options?: Array<{ value: string; label: string }>
+}
+
+const SelectCell: React.FC<SelectCellProps> = ({ value, onChange, disabled, id, required, options }) => {
+  if (options && options.length > 0) {
+    return (
+      <Select value={value as string} onValueChange={val => onChange(val)} disabled={disabled}>
+        <SelectTrigger
+          id={id}
+          className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus:gba:ring-1"
+        >
+          <SelectValue placeholder={required ? 'Required' : '—'} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(opt => (
+            <SelectItem key={opt.value} value={opt.value} className="gba:text-sm">
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+  return (
+    <Input
+      id={id}
+      value={value as string}
+      onChange={e => onChange(e.target.value)}
+      disabled={disabled}
+      placeholder={required ? 'Required' : '—'}
+      className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
+    />
+  )
+}
+
+const ReferenceCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, id, required }) => (
+  <Input
+    id={id}
+    value={value as string}
+    onChange={e => onChange(e.target.value)}
+    disabled={disabled}
+    placeholder={required ? 'ID required' : 'Reference ID'}
+    className="gba:h-8 gba:w-full gba:min-w-0 gba:text-xs gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1 gba:font-mono"
+  />
+)
+
+const TextCell: React.FC<BaseCellProps> = ({ value, onChange, disabled, id, required }) => (
+  <Input
+    id={id}
+    value={value as string}
+    onChange={e => onChange(e.target.value)}
+    disabled={disabled}
+    placeholder={required ? 'Required' : '—'}
+    className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
+  />
+)
+
 export const CellInput: React.FC<CellInputProps> = ({ col, value, onChange, disabled, id }) => {
+  const baseProps = { value, onChange, disabled, id, required: col.required }
+
   switch (col.type) {
     case 'CHECKBOX':
-      return (
-        <div className="gba:flex gba:justify-center">
-          <Checkbox id={id} checked={!!value} onCheckedChange={checked => onChange(!!checked)} disabled={disabled} />
-        </div>
-      )
+      return <CheckboxCell {...baseProps} />
     case 'NUMBER':
-      return (
-        <Input
-          id={id}
-          type="number"
-          value={value as string}
-          onChange={e => onChange(e.target.value)}
-          disabled={disabled}
-          placeholder={col.required ? 'Required' : '—'}
-          className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
-        />
-      )
+      return <NumberCell {...baseProps} />
     case 'DATE':
-      return (
-        <div className="gba:w-full">
-          <DateInput
-            type="date"
-            value={value as string}
-            onChange={val => onChange(normalizeDateInput(val as string | string[] | undefined, 'date'))}
-            disabled={disabled}
-            placeholder={col.required ? 'Select date' : 'Optional'}
-            className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
-          />
-        </div>
-      )
+      return <DateCell {...baseProps} />
     case 'DATETIME':
-      return (
-        <div className="gba:w-full">
-          <DateInput
-            type="datetime-local"
-            value={value as string}
-            onChange={val => onChange(normalizeDateInput(val as string | string[] | undefined, 'datetime'))}
-            disabled={disabled}
-            placeholder={col.required ? 'Select date & time' : 'Optional'}
-            className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
-          />
-        </div>
-      )
+      return <DateTimeCell {...baseProps} />
     case 'SELECT':
-      if (col.options && col.options.length > 0) {
-        return (
-          <Select value={value as string} onValueChange={val => onChange(val)} disabled={disabled}>
-            <SelectTrigger className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus:gba:ring-1">
-              <SelectValue placeholder={col.required ? 'Required' : '—'} />
-            </SelectTrigger>
-            <SelectContent>
-              {col.options.map(opt => (
-                <SelectItem key={opt.value} value={opt.value} className="gba:text-sm">
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )
-      }
-      return (
-        <Input
-          id={id}
-          value={value as string}
-          onChange={e => onChange(e.target.value)}
-          disabled={disabled}
-          placeholder={col.required ? 'Required' : '—'}
-          className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
-        />
-      )
+      return <SelectCell {...baseProps} options={col.options} />
     case 'REFERENCE':
-      return (
-        <Input
-          id={id}
-          value={value as string}
-          onChange={e => onChange(e.target.value)}
-          disabled={disabled}
-          placeholder={col.required ? 'ID required' : 'Reference ID'}
-          className="gba:h-8 gba:w-full gba:min-w-0 gba:text-xs gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1 gba:font-mono"
-        />
-      )
+      return <ReferenceCell {...baseProps} />
     default:
-      return (
-        <Input
-          id={id}
-          value={value as string}
-          onChange={e => onChange(e.target.value)}
-          disabled={disabled}
-          placeholder={col.required ? 'Required' : '—'}
-          className="gba:h-8 gba:w-full gba:min-w-0 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
-        />
-      )
+      return <TextCell {...baseProps} />
   }
 }

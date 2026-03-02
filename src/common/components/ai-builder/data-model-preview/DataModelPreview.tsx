@@ -147,13 +147,15 @@ const SCALAR_COLUMN_TYPES = new Set(['TEXT', 'NUMBER', 'DATE', 'DATETIME', 'CHEC
 function toStableRowKey(row: Record<string, unknown>, index: number): string {
   const id = row.id
   if (id == null) return `row-${index}`
-  return typeof id === 'object' ? JSON.stringify(id) : String(id)
+  if (typeof id === 'object') return JSON.stringify(id)
+  return String(id)
 }
 
 function toRowId(row: Record<string, unknown>): string {
   const id = row.id
   if (id == null) return ''
-  return typeof id === 'object' ? JSON.stringify(id) : String(id)
+  if (typeof id === 'object') return JSON.stringify(id)
+  return String(id)
 }
 
 function buildListQuery(key: string, columns: DataModelPreviewColumn[]): { query: string; listField: string } {
@@ -205,7 +207,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
       const schemaTypes = await graphqlClient.introspectEntityType(definition.key)
       if (Object.keys(schemaTypes).length > 0) {
         const enrichedColumns = enrichColumnsWithSchemaTypes(definition.columns ?? [], schemaTypes)
-        setColumns(enrichedColumns as DataModelPreviewColumn[])
+        setColumns(enrichedColumns)
       }
     } catch (error) {
       console.warn('Failed to fetch schema types, using definition types:', error)
@@ -273,6 +275,40 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     }
   }, [onDeleteRow, mutationClient, definition.key, definition.namespace, fetchRows])
 
+  const convertCheckboxValue = (raw: unknown): boolean => Boolean(raw)
+
+  const convertDateValue = (raw: unknown, colType: string): string => {
+    if (raw == null || raw === '') return ''
+
+    let date: Date
+    if (typeof raw === 'number') {
+      date = new Date(raw)
+    } else {
+      const numericTimestamp = Number(raw)
+      if (!Number.isNaN(numericTimestamp)) {
+        date = new Date(numericTimestamp)
+      } else {
+        date = new Date(String(raw))
+      }
+    }
+
+    if (Number.isNaN(date.getTime())) return ''
+
+    return colType === 'DATE' ? date.toISOString().split('T')[0] : date.toISOString()
+  }
+
+  const convertReferenceValue = (raw: unknown): string => {
+    if (typeof raw !== 'object' || raw === null || !('id' in raw)) return ''
+    const refId = (raw as { id: unknown }).id
+    if (refId == null) return ''
+    return typeof refId === 'object' ? JSON.stringify(refId) : String(refId)
+  }
+
+  const convertGenericValue = (raw: unknown): string => {
+    if (raw == null) return ''
+    return typeof raw === 'object' ? JSON.stringify(raw) : String(raw)
+  }
+
   const startEditingExisting = useCallback(
     (rowKey: string, row: Record<string, unknown>) => {
       setEditingExistingId(rowKey)
@@ -280,27 +316,13 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
       columns.forEach(col => {
         const raw = row[col.name]
         if (col.type === 'CHECKBOX') {
-          values[col.name] = Boolean(raw)
+          values[col.name] = convertCheckboxValue(raw)
         } else if (col.type === 'DATE' || col.type === 'DATETIME') {
-          if (raw != null && raw !== '') {
-            const timestamp = typeof raw === 'number' ? raw : Number(raw)
-            if (Number.isNaN(timestamp) === false) {
-              values[col.name] =
-                col.type === 'DATE'
-                  ? new Date(timestamp).toISOString().split('T')[0]
-                  : new Date(timestamp).toISOString()
-            } else {
-              values[col.name] = ''
-            }
-          } else {
-            values[col.name] = ''
-          }
-        } else if (col.type === 'REFERENCE' && typeof raw === 'object' && raw !== null && 'id' in raw) {
-          const refId = (raw as { id: unknown }).id
-          values[col.name] =
-            refId != null && typeof refId === 'object' ? JSON.stringify(refId) : refId != null ? String(refId) : ''
+          values[col.name] = convertDateValue(raw, col.type)
+        } else if (col.type === 'REFERENCE') {
+          values[col.name] = convertReferenceValue(raw)
         } else {
-          values[col.name] = raw == null ? '' : typeof raw === 'object' ? JSON.stringify(raw) : String(raw)
+          values[col.name] = convertGenericValue(raw)
         }
       })
       setEditingValues(values)
