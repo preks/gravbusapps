@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  Input,
   Separator,
   Tooltip,
   TooltipContent,
@@ -110,18 +111,24 @@ const FONT_FAMILIES = [
 
 // Font sizes
 const FONT_SIZES = [
+  { label: '5', value: '5pt' },
+  { label: '5.5', value: '5.5pt' },
+  { label: '6.5', value: '6.5pt' },
+  { label: '7.5', value: '7.5pt' },
   { label: '8', value: '8pt' },
   { label: '9', value: '9pt' },
   { label: '10', value: '10pt' },
+  { label: '10.5', value: '10.5pt' },
   { label: '11', value: '11pt' },
   { label: '12', value: '12pt' },
   { label: '14', value: '14pt' },
   { label: '16', value: '16pt' },
   { label: '18', value: '18pt' },
   { label: '20', value: '20pt' },
+  { label: '22', value: '22pt' },
   { label: '24', value: '24pt' },
+  { label: '26', value: '26pt' },
   { label: '28', value: '28pt' },
-  { label: '32', value: '32pt' },
   { label: '36', value: '36pt' },
   { label: '48', value: '48pt' },
   { label: '72', value: '72pt' }
@@ -311,6 +318,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   }
 
   const [, setSelectionTick] = useState(0)
+  const [fontSizeInputValue, setFontSizeInputValue] = useState<string | null>(null)
   useEffect(() => {
     if (!editor) return
     const onSelectionUpdate = () => setSelectionTick(t => t + 1)
@@ -329,11 +337,40 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     return { label, value }
   }
 
+  const getCurrentFontSize = (): string => {
+    if (!editor) return '12'
+    const fontSize = editor.getAttributes('textStyle').fontSize as string | undefined
+    if (!fontSize) return '12'
+    const match = fontSize.match(/^(\d+(?:\.\d+)?)/)
+    return match ? match[1] : '12'
+  }
+
+  const applyCustomFontSize = useCallback(
+    (raw: string) => {
+      if (!editor) return
+      const trimmed = raw.trim()
+      if (!trimmed) {
+        setFontSizeInputValue(null)
+        return
+      }
+      const num = parseFloat(trimmed.replace(',', '.'))
+      if (Number.isNaN(num) || num < 0.5 || num > 1638) {
+        setFontSizeInputValue(null)
+        return
+      }
+      editor.chain().focus().setFontSize(`${num}pt`).run()
+      setFontSizeInputValue(null)
+    },
+    [editor]
+  )
+
   if (!editor) {
     return null
   }
 
   const currentFont = getCurrentFont()
+  const currentFontSize = getCurrentFontSize()
+  const fontSizeDisplay = fontSizeInputValue !== null ? fontSizeInputValue : currentFontSize
 
   return (
     <div
@@ -425,27 +462,55 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Font Size */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:w-14 gba:justify-between">
-            <span className="gba:text-xs">12</span>
-            <ChevronDown className="gba:h-3 gba:w-3" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="gba:max-h-64 gba:overflow-y-auto">
-          {FONT_SIZES.map(({ label, value }) => (
-            <DropdownMenuItem
-              key={label}
-              onClick={() => {
-                editor.chain().focus().setMark('textStyle', { fontSize: value }).run()
-              }}
+      {/* Font Size — editable like MS Word: type any value or pick from presets */}
+      <div
+        className="gba:flex gba:items-center gba:h-8 gba:border gba:rounded-md gba:border-border gba:overflow-hidden gba:min-w-0"
+        data-testid="editor-toolbar-font-size"
+      >
+        <Input
+          type="text"
+          inputMode="decimal"
+          value={fontSizeDisplay}
+          onChange={e => setFontSizeInputValue(e.target.value)}
+          onFocus={() => setFontSizeInputValue(currentFontSize)}
+          onBlur={() => applyCustomFontSize(fontSizeDisplay)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              applyCustomFontSize(fontSizeDisplay)
+              ;(e.target as HTMLInputElement).blur()
+            } else if (e.key === 'Escape') {
+              setFontSizeInputValue(null)
+              ;(e.target as HTMLInputElement).blur()
+            }
+          }}
+          className="gba:h-8 gba:w-12 gba:border-0 gba:rounded-none gba:text-xs gba:text-center gba:focus-visible:ring-0"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gba:h-8 gba:w-7 gba:p-0 gba:rounded-none gba:border-l gba:border-border"
             >
-              {label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              <ChevronDown className="gba:h-3 gba:w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="gba:max-h-64 gba:overflow-y-auto">
+            {FONT_SIZES.map(({ label, value }) => (
+              <DropdownMenuItem
+                key={label}
+                onClick={() => {
+                  editor.chain().focus().setFontSize(value).run()
+                  setFontSizeInputValue(null)
+                }}
+              >
+                {label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 

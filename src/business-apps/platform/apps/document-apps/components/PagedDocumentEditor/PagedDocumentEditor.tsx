@@ -22,6 +22,7 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { FontFamily } from '@tiptap/extension-font-family'
+import { FontSize } from '@tiptap/extension-text-style/font-size'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
 import { Typography } from '@tiptap/extension-typography'
@@ -54,6 +55,9 @@ import {
   ZoomIn,
   ZoomOut,
   LayoutPanelLeft,
+  ChevronRight,
+  ChevronDown,
+  Search,
   UserCheck,
   AlertCircle,
   XCircle,
@@ -82,10 +86,10 @@ import {
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
 import { PaginationPlus } from 'tiptap-pagination-plus'
 import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
-import { DocumentImage, PageBreak } from './extensions'
+import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
-import { exportToWord, exportToPDF, printHtmlDocument, blobToDataUrl, embedImagesInHtml } from '../../utils/exportUtils'
+import { exportToWord, exportToPDF, printHtmlDocument, blobToDataUrl } from '../../utils/exportUtils'
 import { fileClient } from '@/common/network/files/FileClient'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
@@ -108,6 +112,7 @@ import { PageSetupDialog } from './PageSetupDialog'
 import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from './LinkDialog'
 import { LinkBubbleMenu } from './LinkBubbleMenu'
 import { InsertImageDialog } from './InsertImageDialog'
+import { NavigationPanel } from './NavigationPanel'
 import { useEditorImageHandlers } from './hooks/useEditorImageHandlers'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
@@ -441,6 +446,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     type RightSidebar = 'closed' | 'comments' | 'ai'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
+    const [showNavigationPanel, setShowNavigationPanel] = useState(() => {
+      if (typeof window === 'undefined') return false
+      return window.localStorage.getItem('document-editor-navigation-panel-open') === 'true'
+    })
+    useEffect(() => {
+      if (typeof window === 'undefined') return
+      window.localStorage.setItem('document-editor-navigation-panel-open', String(showNavigationPanel))
+    }, [showNavigationPanel])
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
@@ -625,7 +638,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       emitDocumentActivity({
         userId: currentUserId,
         userName: currentUserName || t('editor-user-fallback'),
-        userAvatar: currentUserAvatar,
+        userAvatar: currentUserAvatar || undefined,
         documentId: document.id,
         documentTitle: docTitle,
         documentType: 'document',
@@ -638,7 +651,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         emitDocumentActivity({
           userId: currentUserId,
           userName: currentUserName || t('editor-user-fallback'),
-          userAvatar: currentUserAvatar,
+          userAvatar: currentUserAvatar || undefined,
           documentId: document.id,
           documentTitle: docTitle,
           documentType: 'document',
@@ -715,10 +728,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           TableHeader,
           TableCell,
           FontFamily,
+          FontSize.configure({ types: ['textStyle'] }),
           Subscript,
           Superscript,
           Typography,
           PageBreak,
+          SearchHighlight,
           ...(paginationConfig
             ? [
                 PaginationPlus.configure({
@@ -1208,28 +1223,53 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     useEditorKeyboardIsolation(editorContainerRef)
 
-    // Resolve image src to data URL for export so Word/PDF contain embedded images
+    // Resolve image src to data URL for export so Word/PDF/print contain embedded images
     const getImageDataUrl = useCallback(
       async (src: string): Promise<string | null> => {
         if (!src) return null
-        if (src.startsWith('data:')) return src
-        if (src.startsWith('blob:')) {
+        const t = src.trim()
+        if (t.startsWith('data:')) return t
+        if (t.startsWith('blob:')) {
           try {
-            const res = await fetch(src)
+            const res = await fetch(t)
             const blob = await res.blob()
             return blobToDataUrl(blob)
           } catch {
             return null
           }
         }
+        if (!accessToken) return null
+        if (t.startsWith('http://') || t.startsWith('https://')) {
+          try {
+            // Prefer FileClient for file-service download URLs (handles "/files/api/v1" base correctly).
+            // This also fixes older stored URLs that were missing the "/files" prefix and would 404.
+            const u = new URL(t)
+            const pathWithQuery = `${u.pathname}${u.search}`
+            const isTenantDownload =
+              u.pathname.includes('/tenant/downloads/') || u.pathname.includes('/tenant/Downloads/')
+            const looksLikeApiV1 = u.pathname.startsWith('/api/v1/')
+            if (isTenantDownload || looksLikeApiV1) {
+              const blob = await fileClient.downloadFileByPath(pathWithQuery, accessToken)
+              return blobToDataUrl(blob)
+            }
+
+            const res = await fetch(t, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+              credentials: 'omit'
+            })
+            if (!res.ok) return null
+            const blob = await res.blob()
+            return blobToDataUrl(blob)
+          } catch {
+            return null
+          }
+        }
+        const rawPath = t.startsWith('/') ? t : `/${t}`
+        const hasFileServicePath =
+          rawPath.includes('/tenant/') || rawPath.startsWith('/files/') || rawPath.startsWith('/api/v1/')
+        if (!hasFileServicePath) return null
         try {
-          const path =
-            typeof window !== 'undefined' && src.startsWith('http')
-              ? new URL(src).pathname
-              : src.startsWith('/')
-                ? src
-                : `/${src}`
-          if (!path.includes('/tenant/downloads/') || !accessToken) return null
+          const path = rawPath.replace(/^\/files(?=\/api\/v1\/)/, '')
           const blob = await fileClient.downloadFileByPath(path, accessToken)
           return blobToDataUrl(blob)
         } catch {
@@ -1239,46 +1279,71 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [accessToken]
     )
 
+    // Build HTML with images embedded from document model (srcs from image nodes, resolved in order)
+    const getExportHtmlWithEmbeddedImages = useCallback(async (): Promise<string> => {
+      if (!editor) return ''
+      const srcs: string[] = []
+      editor.state.doc.descendants((node: { type: { name: string }; attrs?: { src?: string } }) => {
+        if (node.type.name === 'image' && node.attrs?.src) srcs.push(node.attrs.src)
+      })
+      const dataUrls = await Promise.all(srcs.map(src => getImageDataUrl(src)))
+      let html = editor.getHTML()
+      let idx = 0
+      html = html.replace(
+        /<img([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*)>/gi,
+        (match, before: string, _src: string, after: string) => {
+          const dataUrl = dataUrls[idx++]
+          return dataUrl != null ? `<img${before}src="${dataUrl}"${after}>` : match
+        }
+      )
+      return html
+    }, [editor, getImageDataUrl])
+
     // Export to Word
     const handleExportWord = useCallback(async () => {
       if (!editor) return
       setIsExporting(true)
       try {
-        await exportToWord(title, editor.getHTML(), { getImageDataUrl })
+        const htmlWithImages = await getExportHtmlWithEmbeddedImages()
+        await exportToWord(title, htmlWithImages)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to Word failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor, getImageDataUrl])
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
-    // Export to PDF
+    // Export to PDF (uses hidden iframe + print dialog so Save as PDF works without popups)
     const handleExportPDF = useCallback(async () => {
       if (!editor) return
       setIsExporting(true)
       try {
-        await exportToPDF(title, editor.getHTML(), undefined, { getImageDataUrl })
+        const htmlWithImages = await getExportHtmlWithEmbeddedImages()
+        await exportToPDF(title, htmlWithImages)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to PDF failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor, getImageDataUrl])
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
-    // Print document (embeds images so they show when printing to PDF)
+    // Print document
     const handlePrint = useCallback(async () => {
       if (!editor) return
-      let htmlContent = editor.getHTML()
-      htmlContent = await embedImagesInHtml(htmlContent, getImageDataUrl)
-      printHtmlDocument({
-        title,
-        htmlContent,
-        extraCss: `
+      try {
+        const htmlContent = await getExportHtmlWithEmbeddedImages()
+        printHtmlDocument({
+          title,
+          htmlContent,
+          extraCss: `
         .page-break { page-break-after: always; break-after: page; }
         @media print { .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
       `
-      })
-    }, [title, editor, getImageDataUrl])
+        })
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Print failed:', error)
+      }
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
     // Zoom controls
     const handleZoomIn = useCallback(() => {
@@ -1515,6 +1580,20 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
                 <Separator orientation="vertical" className="gba:h-6" />
 
+                {/* Word-style floating Find / Navigation button (icon + label + chevron) */}
+                <Button
+                  variant={showNavigationPanel ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowNavigationPanel(prev => !prev)}
+                  title={t('navigation-panel-title')}
+                  data-testid="navigation-panel-toggle"
+                  className="gba:rounded-full gba:px-3 gba:gap-1.5 gba:bg-background gba:border gba:border-border hover:gba:bg-muted/50"
+                >
+                  <Search className="gba:w-4 gba:h-4" aria-hidden />
+                  <span>{t('navigation-panel-find-tab')}</span>
+                  <ChevronDown className="gba:w-4 gba:h-4 gba:opacity-70" aria-hidden />
+                </Button>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -1618,13 +1697,41 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           />
         </div>
 
-        {/* Main content: optional left panel + editor area */}
-        <div className={`gba:flex gba:flex-1 gba:min-h-0 ${leftPanel ? 'gba:flex-row' : 'gba:flex-col'}`}>
-          {leftPanel ? (
+        {/* Main content: Navigation panel, or expand strip + optional template panel, then editor */}
+        <div className="gba:flex gba:flex-1 gba:min-h-0 gba:flex-row">
+          {showNavigationPanel ? (
             <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
-              {leftPanel}
+              <NavigationPanel
+                editor={editor}
+                onClose={() => {
+                  setShowNavigationPanel(false)
+                  editor?.commands.clearSearchHighlights?.()
+                }}
+                data-testid={`${testId}-navigation-panel`}
+              />
             </div>
-          ) : null}
+          ) : (
+            <>
+              {/* Expand strip: icon-only button when navigation is collapsed (nicer, no text) */}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowNavigationPanel(true)}
+                title={t('navigation-panel-show')}
+                aria-label={t('navigation-panel-show')}
+                data-testid="navigation-panel-expand"
+                className="gba:flex-shrink-0 gba:h-full gba:rounded-none gba:border-r gba:border-y-0 gba:border-l-0 gba:w-10 gba:min-w-10"
+              >
+                <ChevronRight className="gba:h-5 gba:w-5" aria-hidden />
+              </Button>
+              {leftPanel ? (
+                <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
+                  {leftPanel}
+                </div>
+              ) : null}
+            </>
+          )}
           {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
           <div
             ref={editorContainerRef}
@@ -1660,6 +1767,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .document-editor-viewport {
           background-color: #f3f4f6;
         }
+        /* Base defaults; font-family/font-size from toolbar (textStyle marks) override via inline styles */
         .paged-document-editor .ProseMirror {
           outline: none;
           background-color: ${pageColor};
@@ -1674,6 +1782,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           color: var(--nw-primary);
           text-decoration: underline;
           cursor: pointer;
+        }
+        .paged-document-editor .ProseMirror .navigation-search-highlight {
+          background: color-mix(in srgb, var(--nw-primary) 22%, transparent);
+          border-radius: 2px;
+        }
+        .paged-document-editor .ProseMirror .navigation-search-highlight-current {
+          background: color-mix(in srgb, var(--nw-primary) 45%, transparent);
+          border-radius: 2px;
+          outline: 2px solid var(--nw-primary);
+          outline-offset: 1px;
         }
 
         .paged-document-editor .ProseMirror p {
@@ -1972,7 +2090,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <CheckpointDialog
             isOpen={showCheckpointDialog}
             onClose={() => setShowCheckpointDialog(false)}
-            onSave={versioning.createCheckpoint}
+            onSave={async description => {
+              await versioning.createCheckpoint(description)
+            }}
             isSaving={versioning.isSaving}
             data-testid="document-checkpoint-dialog"
           />
@@ -1982,7 +2102,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <PublishDialog
             isOpen={showPublishDialog}
             onClose={() => setShowPublishDialog(false)}
-            onPublish={publishing.publish}
+            onPublish={async (publishNotes, createCheckpoint) => {
+              await publishing.publish(publishNotes, createCheckpoint)
+            }}
             isPublishing={publishing.isPublishing}
             entityType="document"
             data-testid="document-publish-dialog"
@@ -2067,8 +2189,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onUpdateComment={async (commentId, content) => {
               await comments.updateComment(commentId, { content })
             }}
-            onResolveComment={comments.resolveComment}
-            onDeleteComment={comments.deleteComment}
+            onResolveComment={async commentId => {
+              await comments.resolveComment(commentId)
+            }}
+            onDeleteComment={async commentId => {
+              await comments.deleteComment(commentId)
+            }}
             onClose={() => setRightSidebar('closed')}
             currentUserId={currentUserId || undefined}
             currentUserName={currentUserName || undefined}

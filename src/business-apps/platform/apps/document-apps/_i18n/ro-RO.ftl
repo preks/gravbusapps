@@ -453,6 +453,30 @@ editor-save-as-template = Salvați ca șablon
 editor-send-for-approval = Trimiteți pentru aprobare
 editor-ai-edit = Editare AI
 
+# Navigation panel (Headings, Find, Replace)
+navigation-panel-title = Titluri
+navigation-panel-headings-tab = Titluri
+navigation-panel-find-tab = Căutare
+navigation-panel-replace-tab = Înlocuire
+navigation-panel-search-placeholder = Căutați în document
+navigation-panel-replace-with-placeholder = Înlocuiți cu
+navigation-panel-replace = Înlocuiți
+navigation-panel-replace-all = Înlocuiți toate
+navigation-panel-find-next = Următorul
+navigation-panel-find-prev = Anteriorul
+navigation-panel-no-headings = Acest document nu conține titluri.
+navigation-panel-no-headings-hint = Folosiți Acasă > Stiluri pentru a adăuga titluri.
+navigation-panel-match-count = { $count } { $count ->
+  [one] potrivire
+ *[other] potriviri
+}
+navigation-panel-result-of = Rezultat { $current } din { $total }
+navigation-panel-case-sensitive = Respectă majusculele
+navigation-panel-whole-words = Doar cuvinte întregi
+navigation-panel-replace-hint = Căutați un termen în document și introduceți termenul cu care doriți să îl înlocuiți.
+navigation-panel-close = Închide panoul de navigare
+navigation-panel-show = Afișează panoul de navigare
+
 # Page setup dialog
 page-setup-title = Configurare pagină
 page-setup-tab-pages = Pagini

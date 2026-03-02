@@ -453,6 +453,30 @@ editor-save-as-template = Als Vorlage speichern
 editor-send-for-approval = Zur Genehmigung senden
 editor-ai-edit = KI-Bearbeitung
 
+# Navigation panel (Headings, Find, Replace)
+navigation-panel-title = Überschriften
+navigation-panel-headings-tab = Überschriften
+navigation-panel-find-tab = Suchen
+navigation-panel-replace-tab = Ersetzen
+navigation-panel-search-placeholder = Im Dokument suchen
+navigation-panel-replace-with-placeholder = Ersetzen durch
+navigation-panel-replace = Ersetzen
+navigation-panel-replace-all = Alle ersetzen
+navigation-panel-find-next = Nächstes
+navigation-panel-find-prev = Vorheriges
+navigation-panel-no-headings = Dieses Dokument enthält keine Überschriften.
+navigation-panel-no-headings-hint = Nutzen Sie Start > Formatvorlagen für eine Gliederung.
+navigation-panel-match-count = { $count } { $count ->
+  [one] Treffer
+ *[other] Treffer
+}
+navigation-panel-result-of = Ergebnis { $current } von { $total }
+navigation-panel-case-sensitive = Groß-/Kleinschreibung
+navigation-panel-whole-words = Nur ganze Wörter
+navigation-panel-replace-hint = Suchen Sie einen Begriff im Dokument und geben Sie den Begriff ein, durch den er ersetzt werden soll.
+navigation-panel-close = Navigationsbereich schließen
+navigation-panel-show = Navigationsbereich einblenden
+
 # Page setup dialog
 page-setup-title = Seiteneinrichtung
 page-setup-tab-pages = Seiten

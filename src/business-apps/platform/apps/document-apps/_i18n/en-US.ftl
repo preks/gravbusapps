@@ -461,6 +461,30 @@ editor-export-pdf = Export as PDF
 editor-print = Print
 editor-ai-edit = AI Edit
 
+# Navigation panel (Headings, Find, Replace)
+navigation-panel-title = Headings
+navigation-panel-headings-tab = Headings
+navigation-panel-find-tab = Find
+navigation-panel-replace-tab = Replace
+navigation-panel-search-placeholder = Search in document
+navigation-panel-replace-with-placeholder = Replace with
+navigation-panel-replace = Replace
+navigation-panel-replace-all = Replace All
+navigation-panel-find-next = Find next
+navigation-panel-find-prev = Find previous
+navigation-panel-no-headings = This document doesn't have any headings.
+navigation-panel-no-headings-hint = To add headings for an outline, use Home > Styles.
+navigation-panel-match-count = { $count } { $count ->
+  [one] match
+ *[other] matches
+}
+navigation-panel-result-of = Result { $current } of { $total }
+navigation-panel-case-sensitive = Match case
+navigation-panel-whole-words = Whole words only
+navigation-panel-replace-hint = Search for a term in your document and enter the term that you would like to replace with.
+navigation-panel-close = Close navigation panel
+navigation-panel-show = Show Navigation Pane
+
 # Page setup dialog
 page-setup-title = Page setup
 page-setup-tab-pages = Pages

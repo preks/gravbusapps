@@ -35,23 +35,24 @@ function filterStyleToBlockSpacing(styleStr: string): string {
 
 /**
  * Lightweight export sanitizer to reduce risk when embedding editor HTML into print/export documents.
- * This is not a full HTML sanitizer, but it removes the most dangerous primitives:
- * - script/iframe/object/embed tags
- * - inline event handlers (on*)
- * - dangerous URL protocols in href/src
- * - inline styles (style=...) to avoid CSS-based injection vectors, unless preserveBlockSpacing is true
+ * Removes: script/iframe/object/embed, inline event handlers, javascript:/data:text/html in href/src.
+ * When allowDataUriInImg is true we skip DOMPurify and use only regex so img src (data:, https, relative) are never stripped.
  */
-export function sanitizeHtmlForExport(html: string, options?: { preserveBlockSpacing?: boolean }): string {
+export function sanitizeHtmlForExport(
+  html: string,
+  options?: { preserveBlockSpacing?: boolean; allowDataUriInImg?: boolean }
+): string {
   if (!html) return ''
   const preserveBlockSpacing = options?.preserveBlockSpacing === true
+  const allowDataUriInImg = options?.allowDataUriInImg === true
 
-  // Prefer DOMPurify when available (browser context). Snyk recognizes it as a sanitizer.
-  try {
-    if (typeof window !== 'undefined') {
-      const purified = DOMPurify.sanitize(html, {
+  if (!allowDataUriInImg && typeof window !== 'undefined') {
+    try {
+      const config: Parameters<typeof DOMPurify.sanitize>[1] = {
         FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
         FORBID_ATTR: preserveBlockSpacing ? [] : ['style']
-      })
+      }
+      const purified = DOMPurify.sanitize(html, config)
       if (preserveBlockSpacing) {
         return purified.replace(
           /\s+style\s*=\s*["']([^"']*)["']/g,
@@ -59,9 +60,9 @@ export function sanitizeHtmlForExport(html: string, options?: { preserveBlockSpa
         )
       }
       return purified
+    } catch {
+      // Fall through to regex path.
     }
-  } catch {
-    // Fall back to regex-based stripping below.
   }
 
   let out = html
@@ -146,7 +147,10 @@ export function buildPrintHtmlDocument({
   extraCss = ''
 }: PrintHtmlDocumentOptions): string {
   const safeTitle = escapeHtmlText(title || 'Document')
-  const safeBodyHtml = sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true })
+  const safeBodyHtml = sanitizeHtmlForExport(htmlContent, {
+    preserveBlockSpacing: true,
+    allowDataUriInImg: true
+  })
   const titleHeading = includeTitleHeading ? `<h1>${safeTitle}</h1>` : ''
 
   return `<!DOCTYPE html>
@@ -171,11 +175,11 @@ export function buildPrintHtmlDocument({
       th { background: #f0f0f0; font-weight: bold; }
       pre { background: #f5f5f5; border: 1px solid #e0e0e0; padding: 8pt; font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
       code { font-family: 'Courier New', monospace; font-size: 10pt; background: #f0f0f0; padding: 2pt 4pt; }
-      img { max-width: 100%; height: auto; }
+      img { max-width: 100%; height: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       a { color: #0066cc; text-decoration: underline; }
       .page-break { page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0; border: none; }
       @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body, img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .page-break { page-break-after: always; break-after: page; height: 0; border: none; }
       }
       ${extraCss}
@@ -188,39 +192,75 @@ export function buildPrintHtmlDocument({
 </html>`
 }
 
-export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
-  const { title, htmlContent, includeTitleHeading = false, extraCss = '', targetWindow } = options
-  const safeTitleText = title || 'Document'
-  const sanitizedBodyHtml = sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true })
+/**
+ * Print document via a hidden iframe to avoid popup blockers.
+ * Uses same document as buildPrintHtmlDocument; triggers native print dialog (Print / Save as PDF).
+ */
+function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
+  const fullHtml = buildPrintHtmlDocument(options)
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('style', 'position:absolute;width:0;height:0;border:0;visibility:hidden')
+  document.body.appendChild(iframe)
 
-  let printWindow: Window | null = targetWindow && !targetWindow.closed ? targetWindow : null
-  if (!printWindow) {
-    printWindow = window.open('about:blank', '_blank', 'noopener,noreferrer')
-  }
-  if (!printWindow) {
-    console.error('[exportUtils] Print window blocked')
+  const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document
+  if (!iframeDoc) {
+    document.body.removeChild(iframe)
+    console.error('[exportUtils] Iframe document not accessible')
     return
   }
 
-  try {
-    const doc = printWindow.document
+  iframeDoc.open()
+  iframeDoc.write(fullHtml)
+  iframeDoc.close()
 
-    // Reset head/body (about:blank might already have them)
-    while (doc.head.firstChild) doc.head.removeChild(doc.head.firstChild)
-    while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild)
+  const doPrint = () => {
+    try {
+      iframe.contentWindow?.print()
+    } catch (error) {
+      console.error('[exportUtils] Print failed:', error)
+    } finally {
+      setTimeout(() => {
+        try {
+          if (iframe.parentNode) document.body.removeChild(iframe)
+        } catch {}
+      }, 1000)
+    }
+  }
 
-    const metaCharset = doc.createElement('meta')
-    metaCharset.setAttribute('charset', 'utf-8')
+  if (iframeDoc.readyState === 'complete') {
+    doPrint()
+  } else {
+    iframe.onload = () => setTimeout(doPrint, 50)
+    setTimeout(doPrint, 500)
+  }
+}
 
-    const metaReferrer = doc.createElement('meta')
-    metaReferrer.setAttribute('name', 'referrer')
-    metaReferrer.setAttribute('content', 'no-referrer')
+export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
+  const { targetWindow } = options
+  const useExistingWindow = targetWindow && !targetWindow.closed
 
-    const titleEl = doc.createElement('title')
-    titleEl.textContent = safeTitleText
+  if (useExistingWindow) {
+    const safeTitleText = options.title || 'Document'
+    const sanitizedBodyHtml = sanitizeHtmlForExport(options.htmlContent, {
+      preserveBlockSpacing: true,
+      allowDataUriInImg: true
+    })
+    const { includeTitleHeading = false, extraCss = '' } = options
 
-    const styleEl = doc.createElement('style')
-    styleEl.textContent = `
+    try {
+      const doc = targetWindow.document
+      while (doc.head.firstChild) doc.head.removeChild(doc.head.firstChild)
+      while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild)
+
+      const metaCharset = doc.createElement('meta')
+      metaCharset.setAttribute('charset', 'utf-8')
+      const metaReferrer = doc.createElement('meta')
+      metaReferrer.setAttribute('name', 'referrer')
+      metaReferrer.setAttribute('content', 'no-referrer')
+      const titleEl = doc.createElement('title')
+      titleEl.textContent = safeTitleText
+      const styleEl = doc.createElement('style')
+      styleEl.textContent = `
       @page { size: A4; margin: 1in; }
       body { font-family: 'Times New Roman', Georgia, serif; font-size: 12pt; line-height: 1.6; margin: 0; padding: 0; }
       h1 { font-size: 24pt; margin: 0 0 12pt 0; }
@@ -239,56 +279,44 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
       img { max-width: 100%; height: auto; }
       a { color: #0066cc; text-decoration: underline; }
       .page-break { page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0; border: none; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .page-break { page-break-after: always; break-after: page; height: 0; border: none; }
+      @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
+      ${extraCss}`
+      doc.head.append(metaCharset, metaReferrer, titleEl, styleEl)
+      if (includeTitleHeading) {
+        const heading = doc.createElement('h1')
+        heading.textContent = safeTitleText
+        doc.body.appendChild(heading)
       }
-      ${extraCss}
-    `
+      const container = doc.createElement('div')
+      container.innerHTML = sanitizedBodyHtml
+      doc.body.appendChild(container)
 
-    doc.head.append(metaCharset, metaReferrer, titleEl, styleEl)
-
-    if (includeTitleHeading) {
-      const heading = doc.createElement('h1')
-      heading.textContent = safeTitleText
-      doc.body.appendChild(heading)
+      const doPrint = () => {
+        try {
+          targetWindow.focus()
+          targetWindow.print()
+        } catch (error) {
+          console.error('[exportUtils] Print failed:', error)
+        } finally {
+          setTimeout(() => {
+            try {
+              targetWindow.close()
+            } catch {}
+          }, 1000)
+        }
+      }
+      targetWindow.addEventListener('load', () => setTimeout(doPrint, 50), { once: true })
+      setTimeout(doPrint, 800)
+    } catch {
+      console.error('[exportUtils] Failed to prepare print window')
+      try {
+        targetWindow.close()
+      } catch {}
     }
-
-    const container = doc.createElement('div')
-    // Sanitized via DOMPurify above.
-    container.innerHTML = sanitizedBodyHtml
-    doc.body.appendChild(container)
-  } catch {
-    console.error('[exportUtils] Failed to prepare print window')
-    try {
-      printWindow.close()
-    } catch {}
     return
   }
 
-  const doPrint = () => {
-    try {
-      printWindow.focus()
-      printWindow.print()
-    } catch (error) {
-      console.error('[exportUtils] Print failed:', error)
-    } finally {
-      // Give the print dialog a moment to open before we clean up.
-      setTimeout(() => {
-        try {
-          printWindow.close()
-        } catch {}
-      }, 1000)
-    }
-  }
-
-  // Try to print once the new document loads, with a fallback timer.
-  try {
-    printWindow.addEventListener('load', () => setTimeout(doPrint, 50), { once: true })
-  } catch {
-    // ignore
-  }
-  setTimeout(doPrint, 800)
+  printHtmlDocumentViaIframe(options)
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -326,7 +354,10 @@ export interface ExportImageOptions {
  * If getImageDataUrl is provided, images are embedded as data URLs so they display in the exported file.
  */
 export async function exportToWord(title: string, htmlContent: string, options?: ExportImageOptions): Promise<void> {
-  let content = sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true })
+  let content = sanitizeHtmlForExport(htmlContent, {
+    preserveBlockSpacing: true,
+    allowDataUriInImg: true
+  })
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }

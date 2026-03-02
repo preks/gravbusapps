@@ -129,13 +129,29 @@ function toAbsoluteFileUrlIfNeeded(relativePath: string): string {
     return relativePath
   }
   try {
-    const base = new URL(FILES_ENDPOINT)
+    const base = new URL(FILES_ENDPOINT) // typically: https://<host>/files/api/v1
     const isSameOrigin = typeof window !== 'undefined' && window.location.origin === base.origin
     if (isSameOrigin) {
       return relativePath
     }
-    const pathPart = relativePath.startsWith('/files') ? relativePath.slice(6) || '/' : relativePath
-    return `${base.origin}${pathPart.startsWith('/') ? pathPart : `/${pathPart}`}`
+
+    const normalized = relativePath.startsWith('/') ? relativePath : `/${relativePath}`
+
+    // Preserve platform proxy paths ("/files/...") when constructing absolute URLs.
+    // Stripping "/files" creates invalid URLs on environments where the file-service is hosted under "/files".
+    if (normalized.startsWith('/files/')) {
+      return `${base.origin}${normalized}`
+    }
+
+    // Some APIs return "/api/v1/..." (without "/files") even though the file-service lives under "/files/api/v1".
+    if (normalized.startsWith('/api/v1/')) {
+      return `${base.origin}/files${normalized}`
+    }
+
+    // For "/tenant/..." paths, resolve relative to the FILES_ENDPOINT base pathname.
+    // E.g. base.pathname "/files/api/v1" + "/tenant/..." => "/files/api/v1/tenant/..."
+    const basePath = base.pathname.replace(/\/$/, '')
+    return `${base.origin}${basePath}${normalized}`
   } catch {
     return relativePath
   }
