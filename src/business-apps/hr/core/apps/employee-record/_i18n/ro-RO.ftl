@@ -323,7 +323,7 @@ employee-record-tab-hr-admin = Administrare HR
 employee-record-tab-hr-growth = Dezvoltare HR
 hr-growth-skills = Competențe
 hr-growth-feedback = Hub Feedback
-hr-growth-performance = Performanță
+hr-growth-performance = Obiective
 
 # Feedback Hub (sub-pagină sub Dezvoltare HR)
 feedback-hub-title = Hub Feedback

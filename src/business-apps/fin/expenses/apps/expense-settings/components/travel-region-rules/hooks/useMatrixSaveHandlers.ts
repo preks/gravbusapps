@@ -95,6 +95,7 @@ export const useMatrixSaveHandlers = ({
                   activeTo: cell.activeTo || null, // Explicitly set to null if undefined
                   travelRegionRef: cell.travelRegionId,
                   countryRef: countryRef,
+                  home: cell.home || false,
                   allowanceRegionRule: rule.id,
                   ...(cell.id && cell.version !== undefined && { version: cell.version })
                 },

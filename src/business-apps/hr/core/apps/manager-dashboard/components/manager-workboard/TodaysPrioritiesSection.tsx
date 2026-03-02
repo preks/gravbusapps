@@ -222,9 +222,16 @@ interface TodaysPrioritiesSectionProps {
     remote: number
     upcomingAnniversaries: number
   }
-  unallocatedDailyCost?: number
+  unallocatedMonthlyCost?: number
   unallocatedEmployees?: Array<{ id: string; name: string; allocationPercent: number }>
-  employeesWithoutGoals?: Array<{ id: string; name: string }>
+  employeesWithoutGoals?: Array<{
+    id: string
+    name: string
+    firstName: string
+    lastName: string
+    pictureThumbnail?: string
+    jobPositionName?: string
+  }>
   goalsBehindData?: Array<{
     employeeId: string
     employeeName: string
@@ -241,7 +248,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
   items,
   loading,
   counts,
-  unallocatedDailyCost = 0,
+  unallocatedMonthlyCost = 0,
   unallocatedEmployees = [],
   employeesWithoutGoals = [],
   goalsBehindData = [],
@@ -379,8 +386,8 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
               <div>
                 <p className="gba:font-medium">{counts.unallocated} team members unallocated</p>
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {unallocatedDailyCost > 0
-                    ? `Estimated cost: €${unallocatedDailyCost.toLocaleString()} per day`
+                  {unallocatedMonthlyCost > 0
+                    ? `Estimated monthly cost: €${unallocatedMonthlyCost.toLocaleString()}`
                     : 'Impact: delivery & engagement risk'}
                 </p>
               </div>
@@ -488,8 +495,8 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
             </button>
             <SheetTitle className="gba:text-xl gba:font-semibold">Unallocated Team Members</SheetTitle>
             <p className="gba:text-sm gba:text-muted-foreground gba:pt-2">
-              {unallocatedDailyCost > 0
-                ? `Estimated cost: €${unallocatedDailyCost.toLocaleString()} per day`
+              {unallocatedMonthlyCost > 0
+                ? `Estimated monthly cost: €${unallocatedMonthlyCost.toLocaleString()}`
                 : `${counts.unallocated} members need project allocation`}
             </p>
           </SheetHeader>
@@ -566,7 +573,18 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
                   contexts={[
                     {
                       context: FlowContextName.employeePerformanceGoal,
-                      contextData: { employeeId: employee.id }
+                      contextData: {
+                        employeeId: employee.id,
+                        employee: {
+                          id: employee.id,
+                          firstName: employee.firstName,
+                          lastName: employee.lastName,
+                          pictureThumbnail: employee.pictureThumbnail,
+                          employeePosition: employee.jobPositionName
+                            ? [{ jobPosition: { name: employee.jobPositionName } }]
+                            : []
+                        }
+                      }
                     }
                   ]}
                   accessToken={accessToken || ''}
