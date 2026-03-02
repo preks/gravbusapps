@@ -56,9 +56,7 @@ const downloadBlob = (blob: Blob, filename: string) => {
   link.href = url
   link.download = filename
   link.setAttribute('rel', 'noopener noreferrer')
-  document.body.appendChild(link)
   link.click()
-  link.remove()
   URL.revokeObjectURL(url)
 }
 
