@@ -47,6 +47,19 @@ interface ToolCall {
   result?: string
   status: 'running' | 'complete'
   id: string
+  order?: number
+  displayTitle?: string
+  displayDetail?: string
+  displayKind?: 'info' | 'success' | 'warning' | 'error'
+  displayStep?: 'call' | 'progress' | 'result'
+  progressLines?: string[]
+}
+
+interface MessageBlock {
+  type: 'thinking' | 'response'
+  content: string
+  collapsed?: boolean
+  order?: number
 }
 
 interface Message {
@@ -55,6 +68,7 @@ interface Message {
   toolCalls?: ToolCall[]
   thinkingLog?: string
   thinkingCollapsed?: boolean
+  blocks?: MessageBlock[]
   createdBy?: string
   editHistory?: Array<{
     userId: string
@@ -87,7 +101,7 @@ interface ChatDrawerProps {
   userAvatar?: string
   onClearChat?: () => void
   onAttachFile?: () => void
-  onToggleThinking?: (messageIndex: number) => void
+  onToggleThinking?: (messageIndex: number, blockIndex?: number) => void
   onRestoreMessage?: (message: Message) => void
   onEditMessage?: (message: Message, nextContent: string) => void
   isRestoringMessageId?: string | null
@@ -152,6 +166,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
 }) => {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const [filesExpanded, setFilesExpanded] = useState(false)
+  const [expandedToolProgress, setExpandedToolProgress] = useState<Record<string, boolean>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [editingMessage, setEditingMessage] = useState<Message | null>(null)
@@ -291,65 +306,202 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     )
   }
 
-  const renderToolCalls = (toolCalls: ToolCall[]) => {
-    if (!toolCalls || toolCalls.length === 0) return null
+  const renderToolCall = (tool: ToolCall, key: string) => {
+    const { displayText, detailText } = getToolDisplay(tool)
+    const progressLines = Array.isArray(tool.progressLines) ? tool.progressLines : []
+    const progressToggleKey = tool.id || key
+    const progressExpanded = !!expandedToolProgress[progressToggleKey]
+    const indicatorClass =
+      tool.status === 'running'
+        ? 'gba:bg-warning gba:animate-pulse'
+        : tool.displayKind === 'error'
+          ? 'gba:bg-red-500'
+          : tool.displayKind === 'warning'
+            ? 'gba:bg-amber-500'
+            : tool.displayKind === 'info'
+              ? 'gba:bg-muted-foreground/70'
+              : 'gba:bg-success'
 
     return (
-      <div className="gba:bg-muted/50 gba:rounded-lg gba:p-2 gba:space-y-1">
-        <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tools', 'Tools')} ({toolCalls.length})
-        </span>
-        {toolCalls.map(tool => {
-          const { displayText, filePath } = getToolDisplay(tool)
-          return (
-            <div key={tool.id} className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-              <span
-                className={`gba:w-2 gba:h-2 gba:rounded-full gba:flex-shrink-0 ${
-                  tool.status === 'complete' ? 'gba:bg-success' : 'gba:bg-warning gba:animate-pulse'
-                }`}
-              />
-              <span className="gba:font-medium gba:text-muted-foreground">{displayText}</span>
-              {filePath ? (
-                <span className="gba:font-mono gba:text-xs gba:text-primary gba:truncate" title={filePath}>
-                  {filePath}
-                </span>
-              ) : (
-                tool.args && <span className="gba:text-muted-foreground gba:truncate gba:text-[10px]">{tool.args}</span>
-              )}
-            </div>
-          )
-        })}
+      <div key={key} className="gba:bg-muted/50 gba:rounded-lg gba:px-3 gba:py-2 gba:border gba:border-border/50">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+          <span className={`gba:w-2 gba:h-2 gba:rounded-full gba:flex-shrink-0 ${indicatorClass}`} />
+          <span className="gba:font-medium gba:text-muted-foreground">{displayText}</span>
+        </div>
+        {detailText && (
+          <div className="gba:mt-1 gba:ml-4 gba:text-[11px] gba:text-muted-foreground gba:break-all">{detailText}</div>
+        )}
+        {progressLines.length > 0 && (
+          <div className="gba:mt-2 gba:ml-4">
+            <button
+              type="button"
+              className="gba:flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground hover:gba:text-foreground"
+              onClick={() =>
+                setExpandedToolProgress(prev => ({
+                  ...prev,
+                  [progressToggleKey]: !prev[progressToggleKey]
+                }))
+              }
+            >
+              {progressExpanded ? <ChevronDown className="gba:w-3 gba:h-3" /> : <ChevronRight className="gba:w-3 gba:h-3" />}
+              <span>Progress ({progressLines.length} steps)</span>
+            </button>
+            {progressExpanded && (
+              <div className="gba:mt-1 gba:space-y-1">
+                {progressLines.map((line, index) => (
+                  <div key={`${progressToggleKey}-progress-${index}`} className="gba:text-[11px] gba:text-muted-foreground">
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     )
   }
 
-  function getToolDisplay(tool: { tool: string; args?: string }): { displayText: string; filePath: string | null } {
+  function getToolDisplay(tool: ToolCall): { displayText: string; detailText?: string } {
+    if (tool.displayTitle) {
+      const normalizedDetail =
+        tool.displayDetail && tool.displayDetail.trim() && tool.displayDetail.trim() !== tool.displayTitle.trim()
+          ? tool.displayDetail
+          : undefined
+      return {
+        displayText: tool.displayTitle,
+        detailText: normalizedDetail
+      }
+    }
+
     let displayText = tool.tool
-    let filePath: string | null = null
-    if (!tool.args) return { displayText, filePath }
-    const pathRegex = /(?:filePath|path|target_file):\s*"([^"]+)"/
-    const filePathRegex = /file_path:\s*"([^"]+)"/
+    let detailText: string | undefined
+    const pathRegex = /["']?(?:filePath|file_path|path|target_file|targetPath)["']?\s*:\s*"([^"]+)"/
+    if (!tool.args) return { displayText, detailText }
+
     if (tool.tool === 'write_file' || tool.tool === 'read_file') {
       const pathMatch = pathRegex.exec(tool.args)
       if (pathMatch) {
-        filePath = pathMatch[1]
+        detailText = pathMatch[1]
         displayText =
           tool.tool === 'write_file'
             ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_writing', '✍️ Writing')
             : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_reading', '📖 Reading')
       }
     } else if (tool.tool === 'propose_change') {
-      const fileMatch = filePathRegex.exec(tool.args)
+      const fileMatch = pathRegex.exec(tool.args)
       if (fileMatch) {
-        filePath = fileMatch[1]
+        detailText = fileMatch[1]
         displayText = getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_editing', '🔧 Editing')
       }
     }
-    return { displayText, filePath }
+    if (!detailText && tool.args) {
+      detailText = tool.args
+    }
+    return { displayText, detailText }
   }
 
   const renderMarkdown = (content: string) => {
     return <MarkdownRenderer content={content} />
+  }
+
+  const sanitizeVisibleResponseText = (value: string): string => {
+    if (!value) return ''
+    return value.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').replace(/<\/?thinking>/gi, '')
+  }
+
+  type BlockTimelineEntry = {
+    type: 'block'
+    order: number
+    position: number
+    block: MessageBlock
+    blockIndex?: number
+    key: string
+  }
+
+  type ToolTimelineEntry = {
+    type: 'tool'
+    order: number
+    position: number
+    tool: ToolCall
+    key: string
+  }
+
+  type TimelineEntry = BlockTimelineEntry | ToolTimelineEntry
+
+  const getRenderableBlockEntries = (message: Message): BlockTimelineEntry[] => {
+    if (Array.isArray(message.blocks) && message.blocks.length > 0) {
+      const entries: BlockTimelineEntry[] = []
+      message.blocks.forEach((block, blockIndex) => {
+        const type = block?.type === 'thinking' ? 'thinking' : block?.type === 'response' ? 'response' : null
+        const content = typeof block?.content === 'string' ? block.content : ''
+        if (!type || !content.trim()) return
+        entries.push({
+          type: 'block',
+          order: typeof block.order === 'number' && Number.isFinite(block.order) ? block.order : blockIndex + 1,
+          position: entries.length,
+          block: {
+            type,
+            content: type === 'response' ? sanitizeVisibleResponseText(content) : content,
+            collapsed: type === 'thinking' ? block.collapsed !== false : undefined
+          },
+          blockIndex,
+          key: `block-${message.messageId ?? 'msg'}-${blockIndex}`
+        })
+      })
+      if (entries.length > 0) return entries
+    }
+
+    const fallback: BlockTimelineEntry[] = []
+    if (message.thinkingLog?.trim()) {
+      fallback.push({
+        type: 'block',
+        order: 1,
+        position: 0,
+        block: {
+          type: 'thinking',
+          content: message.thinkingLog,
+          collapsed: message.thinkingCollapsed !== false
+        },
+        key: `fallback-thinking-${message.messageId ?? 'msg'}`
+      })
+    }
+    const responseContent = sanitizeVisibleResponseText(message.content)
+    if (responseContent.trim()) {
+      fallback.push({
+        type: 'block',
+        order: fallback.length + 1,
+        position: fallback.length,
+        block: {
+          type: 'response',
+          content: responseContent
+        },
+        key: `fallback-response-${message.messageId ?? 'msg'}`
+      })
+    }
+    return fallback
+  }
+
+  const getTimelineEntries = (message: Message): TimelineEntry[] => {
+    const blockEntries = getRenderableBlockEntries(message)
+    const maxBlockOrder = blockEntries.reduce((max, entry) => Math.max(max, entry.order), 0)
+    const toolEntries: ToolTimelineEntry[] = []
+    if (Array.isArray(message.toolCalls) && message.toolCalls.length > 0) {
+      message.toolCalls.forEach((tool, toolIndex) => {
+        toolEntries.push({
+          type: 'tool',
+          order:
+            typeof tool.order === 'number' && Number.isFinite(tool.order) ? tool.order : maxBlockOrder + toolIndex + 1,
+          position: toolIndex,
+          tool,
+          key: `${tool.id || 'tool'}-${toolIndex}`
+        })
+      })
+    }
+
+    return [...blockEntries, ...toolEntries].sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order
+      return a.position - b.position
+    })
   }
 
   return (
@@ -493,51 +645,78 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                       </div>
                     ) : (
                       <div className="gba:space-y-3 gba:bg-muted/30 gba:rounded-2xl gba:px-4 gba:py-3 gba:border gba:border-border/50">
-                        {/* Only show thinking block if there's meaningful content (>50 chars) */}
-                        {message.thinkingLog && message.thinkingLog.trim().length > 50 && (
-                          <div className="gba:border gba:border-muted-foreground/20 gba:rounded-lg gba:overflow-hidden">
-                            <button
-                              className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-muted/50 gba:text-xs gba:text-muted-foreground hover:gba:bg-muted gba:transition-colors"
-                              onClick={() => onToggleThinking?.(idx)}
-                            >
-                              {message.thinkingCollapsed ? (
-                                <ChevronRight className="gba:w-3 gba:h-3" />
-                              ) : (
-                                <ChevronDown className="gba:w-3 gba:h-3" />
-                              )}
-                              <Brain className="gba:w-3 gba:h-3" />
-                              <span className="gba:font-medium">
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.thinking_label', 'Thinking')}
-                              </span>
-                              <span className="gba:text-muted-foreground/60">
-                                ({Math.ceil(message.thinkingLog.length / 100)}{' '}
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.steps', 'steps')})
-                              </span>
-                            </button>
-                            {!message.thinkingCollapsed && message.thinkingLog.trim() && (
-                              <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap gba:max-h-64 gba:overflow-y-auto gba:border-t gba:border-muted-foreground/10">
-                                {message.thinkingLog}
+                        {(() => {
+                          const timelineEntries = getTimelineEntries(message)
+                          const firstResponseTimelineIndex = timelineEntries.findIndex(
+                            entry => entry.type === 'block' && entry.block.type === 'response'
+                          )
+                          return timelineEntries.map((entry, timelineIndex) => {
+                            if (entry.type === 'tool') {
+                              return renderToolCall(entry.tool, `${entry.key}-${timelineIndex}`)
+                            }
+
+                            const { block, blockIndex } = entry
+                            if (block.type === 'thinking') {
+                              const isCollapsed = block.collapsed !== false
+                              return (
+                                <div
+                                  key={`${entry.key}-${timelineIndex}`}
+                                  className="gba:border gba:border-muted-foreground/20 gba:rounded-lg gba:overflow-hidden"
+                                >
+                                  <button
+                                    className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-muted/50 gba:text-xs gba:text-muted-foreground hover:gba:bg-muted gba:transition-colors"
+                                    onClick={() => onToggleThinking?.(idx, blockIndex)}
+                                  >
+                                    {isCollapsed ? (
+                                      <ChevronRight className="gba:w-3 gba:h-3" />
+                                    ) : (
+                                      <ChevronDown className="gba:w-3 gba:h-3" />
+                                    )}
+                                    <Brain className="gba:w-3 gba:h-3" />
+                                    <span className="gba:font-medium">
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:ai_builder.thinking_label',
+                                        'Thinking'
+                                      )}
+                                    </span>
+                                    <span className="gba:text-muted-foreground/60">
+                                      ({Math.ceil(block.content.length / 100)}{' '}
+                                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.steps', 'steps')})
+                                    </span>
+                                  </button>
+                                  {!isCollapsed && block.content.trim() && (
+                                    <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap gba:max-h-64 gba:overflow-y-auto gba:border-t gba:border-muted-foreground/10">
+                                      {block.content}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <div
+                                key={`${entry.key}-${timelineIndex}`}
+                                className="gba:bg-card gba:border gba:rounded-lg gba:px-3 gba:py-2"
+                              >
+                                {timelineIndex === firstResponseTimelineIndex && message.cost && (
+                                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-2 gba:pb-2 gba:border-b">
+                                    <span className="gba:text-xs gba:font-medium gba:text-primary">
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:ai_builder.ai_response',
+                                        'AI Response'
+                                      )}
+                                    </span>
+                                    <span className="gba:text-xs gba:text-muted-foreground">
+                                      ${message.cost.totalCost.toFixed(4)} ({message.cost.inputTokens.toLocaleString()}{' '}
+                                      in / {message.cost.outputTokens.toLocaleString()} out)
+                                    </span>
+                                  </div>
+                                )}
+                                {renderMarkdown(block.content)}
                               </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="gba:bg-card gba:border gba:rounded-lg gba:px-3 gba:py-2">
-                          {message.cost && (
-                            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2 gba:pb-2 gba:border-b">
-                              <span className="gba:text-xs gba:font-medium gba:text-primary">
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.ai_response', 'AI Response')}
-                              </span>
-                              <span className="gba:text-xs gba:text-muted-foreground">
-                                ${message.cost.totalCost.toFixed(4)} ({message.cost.inputTokens.toLocaleString()}in /{' '}
-                                {message.cost.outputTokens.toLocaleString()}out)
-                              </span>
-                            </div>
-                          )}
-                          {renderMarkdown(message.content)}
-                        </div>
-
-                        {message.toolCalls && message.toolCalls.length > 0 && renderToolCalls(message.toolCalls)}
+                            )
+                          })
+                        })()}
 
                         <button
                           onClick={() => handleCopyMessage(message.content, `${idx}`)}
