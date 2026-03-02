@@ -436,6 +436,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
 
+    // Collaborative page layout (formatting) sync via Yjs.
+    // Content is already synced via Collaboration; formatting must be synced separately.
+    const formattingYMap = React.useMemo(() => ydoc.getMap('documentFormatting'), [ydoc])
+    const metaYMap = React.useMemo(() => ydoc.getMap('documentMeta'), [ydoc])
+
     const collaborationExtension = React.useMemo(
       () => (document?.id ? Collaboration.configure({ document: ydoc }) : null),
       [document?.id, ydoc]
@@ -509,6 +514,67 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setLastSaved,
       setHasUnsavedChanges
     })
+
+    // Seed collaborative title once synced (do not overwrite an existing value from the room).
+    useEffect(() => {
+      if (!document?.id) return
+      if (!isYjsSynced) return
+      if (metaYMap.get('title')) return
+      const initial = (document?.title || '').trim()
+      if (!initial) return
+      metaYMap.set('title', initial)
+    }, [document?.id, document?.title, isYjsSynced, metaYMap])
+
+    // Seed collaborative formatting once synced (do not overwrite an existing value from the room).
+    useEffect(() => {
+      if (!document?.id) return
+      if (!isYjsSynced) return
+      if (formattingYMap.get('formatting')) return
+      if (!document?.formatting) return
+      formattingYMap.set('formatting', document.formatting)
+    }, [document?.id, document?.formatting, formattingYMap, isYjsSynced])
+
+    // Apply title updates from other collaborators.
+    useEffect(() => {
+      if (!document?.id) return
+
+      const applyFromYjs = () => {
+        const next = metaYMap.get('title')
+        if (typeof next !== 'string') return
+        const nextTitle = next.trim()
+        if (!nextTitle) return
+        setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+        lastSavedTitleRef.current = nextTitle
+      }
+
+      applyFromYjs()
+      const handler = () => applyFromYjs()
+      metaYMap.observe(handler)
+      return () => metaYMap.unobserve(handler)
+    }, [document?.id, metaYMap])
+
+    // Apply formatting updates from other collaborators.
+    useEffect(() => {
+      if (!document?.id) return
+
+      const applyFromYjs = () => {
+        const next = formattingYMap.get('formatting') as DocumentFormatting | undefined
+        if (!next) return
+        setLayoutFormatting(prev => {
+          const prevJson = JSON.stringify(prev ?? {})
+          const nextJson = JSON.stringify(next ?? {})
+          if (prevJson === nextJson) return prev
+          return next
+        })
+      }
+
+      // Apply immediately in case the map already has a value.
+      applyFromYjs()
+
+      const handler = () => applyFromYjs()
+      formattingYMap.observe(handler)
+      return () => formattingYMap.unobserve(handler)
+    }, [document?.id, formattingYMap])
 
     const editorContent = React.useMemo(
       () => (document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>'),
@@ -899,11 +965,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const handlePageSetupApply = useCallback(
       (nextFormatting: DocumentFormatting) => {
         setLayoutFormatting(nextFormatting)
+        // Sync formatting to other collaborators (edit mode only).
+        if (document?.id && isYjsSynced) {
+          formattingYMap.set('formatting', nextFormatting)
+        }
         if (document?.id && onPersistFormatting) {
           void onPersistFormatting(nextFormatting)
         }
       },
-      [document?.id, onPersistFormatting]
+      [document?.id, formattingYMap, isYjsSynced, onPersistFormatting]
     )
 
     // Save document (pass merged formatting so layout is persisted)
@@ -912,6 +982,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       setIsSaving(true)
       try {
+        const nextTitle = title.trim() || title
+        // Keep collaborative title in sync when saving from toolbar/shortcuts
+        // (e.g. when user saves without blurring the title input).
+        if (document?.id && isYjsSynced) {
+          metaYMap.set('title', nextTitle.trim())
+        }
+
         const content = editor.getHTML()
         const formatting: DocumentFormatting = {
           ...document?.formatting,
@@ -923,7 +1000,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           pageColor: resolvedLayout.pageColor,
           pageless: resolvedLayout.pageless
         }
-        await onSave(title, content, formatting)
+        await onSave(nextTitle, content, formatting)
         setLastSaved(new Date())
         setHasUnsavedChanges(false)
       } catch (error) {
@@ -931,7 +1008,55 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       } finally {
         setIsSaving(false)
       }
-    }, [title, editor, onSave, isReadOnly, isSaving, document?.formatting, layoutFormatting, resolvedLayout])
+    }, [
+      title,
+      editor,
+      onSave,
+      isReadOnly,
+      isSaving,
+      document?.id,
+      document?.formatting,
+      isYjsSynced,
+      metaYMap,
+      layoutFormatting,
+      resolvedLayout
+    ])
+
+    const lastSavedTitleRef = useRef(title)
+
+    useEffect(() => {
+      // Keep in sync when title is loaded/changed programmatically.
+      lastSavedTitleRef.current = title
+    }, [document?.id])
+
+    const persistTitleIfChanged = useCallback(() => {
+      if (isReadOnly) return
+      if (isSaving) return
+
+      const nextTitle = title.trim()
+      if (!nextTitle) return
+
+      if (nextTitle === lastSavedTitleRef.current) return
+      lastSavedTitleRef.current = nextTitle
+      setTitle(nextTitle)
+
+      // Sync to other collaborators (edit mode only).
+      if (document?.id && isYjsSynced) {
+        metaYMap.set('title', nextTitle)
+      }
+
+      void handleSave()
+    }, [document?.id, handleSave, isReadOnly, isSaving, isYjsSynced, metaYMap, title])
+
+    const handleTitleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== 'Enter') return
+      e.preventDefault()
+      e.currentTarget.blur()
+    }, [])
+
+    const handleTitleBlur = useCallback(() => {
+      persistTitleIfChanged()
+    }, [persistTitleIfChanged])
 
     useDocumentEditorShortcuts({
       onSave: () => {
@@ -1060,6 +1185,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       ref={titleInputRef}
                       value={title}
                       onChange={handleTitleChange}
+                      onKeyDown={handleTitleKeyDown}
+                      onBlur={handleTitleBlur}
                       placeholder={t('editor-title-placeholder')}
                       disabled={isReadOnly}
                       className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:min-w-0 gba:w-full gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
