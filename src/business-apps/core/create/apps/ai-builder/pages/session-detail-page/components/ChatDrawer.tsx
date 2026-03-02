@@ -4,6 +4,10 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
+  InputGroup,
+  InputGroupTextarea,
+  InputGroupAddon,
+  InputGroupButton,
   Tooltip,
   TooltipTrigger,
   TooltipContent,
@@ -822,17 +826,36 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                 <Upload className="gba:w-4 gba:h-4" />
               </Button>
             )}
-            <div className="gba:flex-1 gba:relative">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={e => onInputChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={inputPlaceholder ?? 'Describe what you want to build...'}
-                className="gba:w-full gba:px-4 gba:py-3 gba:pr-12 gba:border gba:border-border gba:rounded-lg gba:bg-background gba:text-sm gba:resize-none focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary focus:gba:border-transparent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-                rows={3}
-                data-testid="ai-builder-input"
-              />
+            <div className="gba:flex-1">
+              <InputGroup className="gba:min-h-[84px]">
+                <InputGroupTextarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={e => onInputChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={inputPlaceholder ?? 'Describe what you want to build...'}
+                  className="gba:min-h-[84px]"
+                  rows={3}
+                  data-testid="ai-builder-input"
+                />
+                <InputGroupAddon align="block-end" className="gba:justify-end">
+                  <InputGroupButton
+                    onClick={isProcessing ? onStopMessage : onSendMessage}
+                    disabled={isProcessing ? !onStopMessage : !input.trim()}
+                    variant="default"
+                    size="iconSm"
+                    className="gba:rounded-full"
+                    data-testid="ai-builder-send-button"
+                    title={
+                      isProcessing
+                        ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.stop_generation', 'Stop generation')
+                        : (sendButtonLabel ?? undefined)
+                    }
+                  >
+                    {isProcessing ? <Square className="gba:w-4 gba:h-4" /> : <Sparkles className="gba:w-4 gba:h-4" />}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
             </div>
             {isProcessing && input.trim() && (
               <Button
@@ -847,20 +870,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                 Queue
               </Button>
             )}
-            <Button
-              onClick={isProcessing ? onStopMessage : onSendMessage}
-              disabled={isProcessing ? !onStopMessage : !input.trim()}
-              size="icon"
-              className="gba:shrink-0"
-              data-testid="ai-builder-send-button"
-              title={
-                isProcessing
-                  ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.stop_generation', 'Stop generation')
-                  : (sendButtonLabel ?? undefined)
-              }
-            >
-              {isProcessing ? <Square className="gba:w-4 gba:h-4" /> : <Sparkles className="gba:w-4 gba:h-4" />}
-            </Button>
           </div>
           {queuedFollowUpPrompt && (
             <div className="gba:mt-2 gba:rounded-md gba:border gba:bg-muted/40 gba:p-2">
