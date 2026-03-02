@@ -101,6 +101,64 @@ function extractMainTopic(serializedContent: string): string {
 }
 
 /**
+ * Apply refined content from AI to the original slide, preserving visual design
+ * This keeps the original slide's backgrounds, shapes, positions, and colors
+ * while updating only the text content
+ */
+function applyRefinedContentToOriginal(originalSlide: SlideData, refinedSlide: SlideData): SlideData {
+  // Deep clone the original slide to preserve all visual elements
+  const result: SlideData = JSON.parse(JSON.stringify(originalSlide))
+
+  // Get text elements from both slides, sorted by position (top to bottom)
+  const originalTextElements = result.elements
+    .filter((e): e is TextElement => e.type === 'text')
+    .sort((a, b) => a.position.y - b.position.y)
+
+  const refinedTextElements = refinedSlide.elements
+    .filter((e): e is TextElement => e.type === 'text')
+    .sort((a, b) => a.position.y - b.position.y)
+
+  if (originalTextElements.length === 0 || refinedTextElements.length === 0) {
+    return result
+  }
+
+  // Match text elements by role (title, subtitle, body) based on font size and position
+  const categorizeElement = (el: TextElement): 'title' | 'subtitle' | 'body' => {
+    if (el.fontSize >= 40) return 'title'
+    if (el.fontSize >= 28) return 'subtitle'
+    return 'body'
+  }
+
+  // Group elements by category
+  const originalByCategory = {
+    title: originalTextElements.filter(e => categorizeElement(e) === 'title'),
+    subtitle: originalTextElements.filter(e => categorizeElement(e) === 'subtitle'),
+    body: originalTextElements.filter(e => categorizeElement(e) === 'body')
+  }
+
+  const refinedByCategory = {
+    title: refinedTextElements.filter(e => categorizeElement(e) === 'title'),
+    subtitle: refinedTextElements.filter(e => categorizeElement(e) === 'subtitle'),
+    body: refinedTextElements.filter(e => categorizeElement(e) === 'body')
+  }
+
+  // Update content for each category, matching by index within category
+  for (const category of ['title', 'subtitle', 'body'] as const) {
+    const originals = originalByCategory[category]
+    const refined = refinedByCategory[category]
+
+    originals.forEach((originalEl, index) => {
+      if (refined[index]) {
+        // Update only the content, keep all styling and position
+        originalEl.content = refined[index].content
+      }
+    })
+  }
+
+  return result
+}
+
+/**
  * Main refinement function - uses the generate endpoint with current slide as context
  */
 export async function refineSlide(
@@ -141,13 +199,15 @@ ${serializedSlide.hasChart ? '6. The original slide has a chart - consider keepi
 ${serializedSlide.hasTable ? '6. The original slide has a table - consider keeping or enhancing the tabular data' : ''}`
 
   // Use the existing generate endpoint with "short" length (minimum slides)
+  // Disable template matching for refinement to avoid exceeding additionalRequirements limit
   const result = await generateSlides(
     {
       description,
       length: 'short',
       additionalRequirements,
       useWebSearch: options.useWebSearch,
-      theme: options.theme
+      theme: options.theme,
+      useTemplateMatching: false
     },
     accessToken,
     phase => {
@@ -163,8 +223,11 @@ ${serializedSlide.hasTable ? '6. The original slide has a table - consider keepi
     throw new Error('No slide was generated')
   }
 
+  // Apply refined content to original slide, preserving visual design (backgrounds, shapes, colors)
+  const refinedSlide = applyRefinedContentToOriginal(options.slide, result.slides[0])
+
   return {
-    slide: result.slides[0],
+    slide: refinedSlide,
     sources: result.sources
   }
 }

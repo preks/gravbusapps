@@ -22,7 +22,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { AlertCircle, Globe, Sparkles, Check } from 'lucide-react'
-import type { SlideData, TextElement } from './slideElements'
+import type { SlideData, TextElement, ShapeElement } from './slideElements'
 import type { SlideTheme } from './slideThemes'
 import { refineSlide, serializeSlideForAI } from '../services/SlideRefinementService'
 import { gradientToCss } from './slideElements'
@@ -143,22 +143,30 @@ export const RefineSlideDialog: React.FC<RefineSlideDialogProps> = ({
             <div className="gba:flex gba:gap-4">
               {/* Thumbnail */}
               <div
-                className="gba:w-40 gba:flex-shrink-0 gba:aspect-video gba:rounded-lg gba:border gba:overflow-hidden gba:bg-white"
-                style={{
-                  backgroundColor: currentSlide.background?.color || '#fff',
-                  background: currentSlide.background?.gradient
-                    ? gradientToCss(currentSlide.background.gradient)
-                    : undefined
-                }}
+                className="gba:w-40 gba:flex-shrink-0 gba:relative gba:overflow-hidden gba:rounded-lg gba:border"
+                style={{ aspectRatio: '16 / 9' }}
               >
                 <div
-                  className="gba:w-full gba:h-full gba:relative gba:origin-top-left"
-                  style={{ transform: 'scale(0.125)', width: 1280, height: 720 }}
+                  className="gba:absolute gba:inset-0"
+                  style={{
+                    backgroundColor: currentSlide.background?.color || '#fff',
+                    background: currentSlide.background?.gradient
+                      ? gradientToCss(currentSlide.background.gradient)
+                      : undefined
+                  }}
                 >
-                  {currentSlide.elements
-                    .filter((el): el is TextElement => el.type === 'text')
-                    .slice(0, 5)
-                    .map(el => (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: 1280,
+                      height: 720,
+                      transform: 'scale(0.125)',
+                      transformOrigin: 'top left'
+                    }}
+                  >
+                    {(currentSlide.elements || []).map(el => (
                       <div
                         key={el.id}
                         className="gba:absolute gba:overflow-hidden"
@@ -167,14 +175,27 @@ export const RefineSlideDialog: React.FC<RefineSlideDialogProps> = ({
                           top: el.position.y,
                           width: el.size.width,
                           height: el.size.height,
-                          color: el.color,
-                          fontSize: el.fontSize,
-                          fontWeight: el.fontWeight
+                          backgroundColor: el.type === 'shape' ? (el as ShapeElement).fill : 'transparent'
                         }}
                       >
-                        {el.content}
+                        {el.type === 'text' && (
+                          <div
+                            className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
+                            style={{
+                              color: (el as TextElement).color,
+                              fontSize: (el as TextElement).fontSize,
+                              fontWeight: (el as TextElement).fontWeight,
+                              fontFamily: (el as TextElement).fontFamily,
+                              textAlign: (el as TextElement).textAlign,
+                              lineHeight: (el as TextElement).lineHeight || 1.2
+                            }}
+                          >
+                            {(el as TextElement).content}
+                          </div>
+                        )}
                       </div>
                     ))}
+                  </div>
                 </div>
               </div>
 
@@ -265,21 +286,30 @@ export const RefineSlideDialog: React.FC<RefineSlideDialogProps> = ({
                 </Label>
               </div>
               <div
-                className="gba:w-full gba:aspect-video gba:rounded-lg gba:border-2 gba:border-success/30 gba:overflow-hidden gba:bg-white"
-                style={{
-                  backgroundColor: previewSlide.background?.color || '#fff',
-                  background: previewSlide.background?.gradient
-                    ? gradientToCss(previewSlide.background.gradient)
-                    : undefined
-                }}
+                className="gba:w-full gba:relative gba:overflow-hidden gba:rounded-lg gba:border-2 gba:border-success/30"
+                style={{ aspectRatio: '16 / 9' }}
               >
                 <div
-                  className="gba:w-full gba:h-full gba:relative gba:origin-top-left"
-                  style={{ transform: 'scale(0.45)', width: 1280, height: 720 }}
+                  className="gba:absolute gba:inset-0"
+                  style={{
+                    backgroundColor: previewSlide.background?.color || '#fff',
+                    background: previewSlide.background?.gradient
+                      ? gradientToCss(previewSlide.background.gradient)
+                      : undefined
+                  }}
                 >
-                  {previewSlide.elements
-                    .filter((el): el is TextElement => el.type === 'text')
-                    .map(el => (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: 1280,
+                      height: 720,
+                      transform: 'scale(0.45)',
+                      transformOrigin: 'top left'
+                    }}
+                  >
+                    {(previewSlide.elements || []).map(el => (
                       <div
                         key={el.id}
                         className="gba:absolute gba:overflow-hidden"
@@ -288,14 +318,27 @@ export const RefineSlideDialog: React.FC<RefineSlideDialogProps> = ({
                           top: el.position.y,
                           width: el.size.width,
                           height: el.size.height,
-                          color: el.color,
-                          fontSize: el.fontSize,
-                          fontWeight: el.fontWeight
+                          backgroundColor: el.type === 'shape' ? (el as ShapeElement).fill : 'transparent'
                         }}
                       >
-                        {el.content}
+                        {el.type === 'text' && (
+                          <div
+                            className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
+                            style={{
+                              color: (el as TextElement).color,
+                              fontSize: (el as TextElement).fontSize,
+                              fontWeight: (el as TextElement).fontWeight,
+                              fontFamily: (el as TextElement).fontFamily,
+                              textAlign: (el as TextElement).textAlign,
+                              lineHeight: (el as TextElement).lineHeight || 1.2
+                            }}
+                          >
+                            {(el as TextElement).content}
+                          </div>
+                        )}
                       </div>
                     ))}
+                  </div>
                 </div>
               </div>
             </div>
