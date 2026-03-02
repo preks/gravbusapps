@@ -105,10 +105,6 @@ import { CommentPanel } from '../../../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
 import { AiEditPanel } from '../AiEditPanel'
-import {
-  EmbeddedFlowbotChatPanel,
-  type EmbeddedFlowbotChatState
-} from '../../../shared/components/EmbeddedFlowbotChatPanel'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
@@ -480,7 +476,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
     const [showPublishDialog, setShowPublishDialog] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
-    type RightSidebar = 'closed' | 'comments' | 'ai' | 'aiChat'
+    type RightSidebar = 'closed' | 'comments' | 'ai'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
@@ -494,11 +490,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [aiInstruction, setAiInstruction] = useState('')
     const [aiSelectionSnapshot, setAiSelectionSnapshot] = useState('')
     const [aiSelectionSnapshotHtml, setAiSelectionSnapshotHtml] = useState('')
-    const [pendingAiChatPrompt, setPendingAiChatPrompt] = useState<string | null>(null)
-    // Embedded AI chat sync state (enabled only when legacy debug flag is active).
-    const wasAiChatLoadingRef = useRef(false)
-    const aiSyncRunIdRef = useRef(0)
-    const aiRunStartUpdatedAtRef = useRef<string | undefined>(undefined)
     const everyAiFallbackPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const suppressYjsSnapshotSaveRef = useRef(false)
     const [isAutocompleteToggleEnabled, setIsAutocompleteToggleEnabled] = useState(false)
@@ -1280,13 +1271,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setAiInstruction('')
       setAiSelectionSnapshot('')
       setAiSelectionSnapshotHtml('')
-      const useEmbeddedAiChat =
-        typeof window !== 'undefined' && window.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
-      if (useEmbeddedAiChat) {
-        setPendingAiChatPrompt(prompt)
-        setRightSidebar('aiChat')
-        return
-      }
 
       openEveryAI({ prompt })
 
@@ -1361,92 +1345,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       }
     }, [applyLatestDocumentContent, document?.id, editor])
 
-    const reconcileAfterAiCompletion = useCallback(
-      async (runId: number, runStartUpdatedAt?: string) => {
-        if (!document?.id || !editor) return
-        const baselineHtml = editor.getHTML()
-        const baselineUpdatedAtMs = runStartUpdatedAt ? Date.parse(runStartUpdatedAt) : Number.NaN
-        const delays = [0, 800, 1800, 3000, 5000, 8000]
-
-        for (const delayMs of delays) {
-          try {
-            if (runId !== aiSyncRunIdRef.current) return
-            if (delayMs > 0) {
-              await new Promise(resolve => setTimeout(resolve, delayMs))
-              if (runId !== aiSyncRunIdRef.current) return
-            }
-
-            const latest = await DocumentApiService.getDocument(document.id, { fresh: true })
-            if (!latest?.content) continue
-
-            const latestUpdatedAtMs = latest.updatedAt ? Date.parse(latest.updatedAt) : Number.NaN
-            const hasNewerVersionByTimestamp =
-              Number.isFinite(baselineUpdatedAtMs) &&
-              Number.isFinite(latestUpdatedAtMs) &&
-              latestUpdatedAtMs > baselineUpdatedAtMs
-            const hasContentChange = !areHtmlSemanticallyEquivalent(latest.content, baselineHtml)
-            const shouldApply = hasNewerVersionByTimestamp || hasContentChange
-            if (!shouldApply) continue
-
-            const applied = await applyLatestDocumentContent(latest.content, latest.updatedAt)
-            if (applied || runId !== aiSyncRunIdRef.current) return
-          } catch {
-            // Retry with the next delay
-          }
-        }
-      },
-      [applyLatestDocumentContent, document?.id, editor]
-    )
-
-    const triggerAiCompletionReload = useCallback(
-      async (runId: number) => {
-        if (!document?.id) return
-        const appliedImmediately = await syncEditorFromLatestDocument()
-        if (appliedImmediately || runId !== aiSyncRunIdRef.current) return
-        await reconcileAfterAiCompletion(runId, aiRunStartUpdatedAtRef.current)
-      },
-      [document?.id, reconcileAfterAiCompletion, syncEditorFromLatestDocument]
-    )
-
-    const handleAiChatStateChange = useCallback(
-      (state: EmbeddedFlowbotChatState) => {
-        const wasLoading = wasAiChatLoadingRef.current
-        wasAiChatLoadingRef.current = state.isGenerating
-
-        if (!wasLoading && state.isGenerating) {
-          aiSyncRunIdRef.current += 1
-          const runId = aiSyncRunIdRef.current
-          aiRunStartUpdatedAtRef.current = undefined
-          if (document?.id) {
-            void DocumentApiService.getDocument(document.id, { fresh: true })
-              .then(doc => {
-                if (runId !== aiSyncRunIdRef.current) return
-                aiRunStartUpdatedAtRef.current = doc?.updatedAt
-              })
-              .catch(() => {})
-          }
-        }
-
-        if (wasLoading && !state.isGenerating) {
-          const runId = aiSyncRunIdRef.current
-          void triggerAiCompletionReload(runId)
-        }
-      },
-      [document?.id, triggerAiCompletionReload]
-    )
-
-    // Cancel any in-flight AI reconcile loop on unmount.
-    useEffect(() => {
-      return () => {
-        aiSyncRunIdRef.current += 1
-      }
-    }, [])
-
-    const handleCloseAiChatPanel = useCallback(() => {
-      void syncEditorFromLatestDocument()
-      setRightSidebar('closed')
-    }, [syncEditorFromLatestDocument])
-
     const clearEveryAiFallbackPoll = useCallback(() => {
       if (everyAiFallbackPollRef.current) {
         clearTimeout(everyAiFallbackPollRef.current)
@@ -1489,9 +1387,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const handleEveryAiOpened = (event: Event) => {
         const customEvent = event as CustomEvent<{ type?: string; payload?: { prompt?: string } }>
         if (customEvent.detail?.type !== 'OPEN_EVERY_AI') return
-        const useEmbeddedAiChat =
-          typeof window !== 'undefined' && window.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
-        if (useEmbeddedAiChat) return
 
         startEveryAiFallbackPoll()
       }
@@ -2406,20 +2301,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             currentUserId={currentUserId || undefined}
             headerHeight={measuredHeaderHeight || 120}
             data-testid="document-ai-edit-panel"
-          />
-        )}
-
-        {document?.id && rightSidebar === 'aiChat' && (
-          <EmbeddedFlowbotChatPanel
-            accessToken={accessToken}
-            onClose={handleCloseAiChatPanel}
-            title="AI Document Chat"
-            headerHeight={measuredHeaderHeight || 120}
-            initialPrompt={pendingAiChatPrompt}
-            onInitialPromptConsumed={() => setPendingAiChatPrompt(null)}
-            onStateChange={handleAiChatStateChange}
-            currentUserAvatar={currentUserAvatar}
-            data-testid="document-ai-chat-panel"
           />
         )}
 
