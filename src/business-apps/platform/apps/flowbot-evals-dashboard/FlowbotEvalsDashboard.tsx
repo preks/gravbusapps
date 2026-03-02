@@ -7,6 +7,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Checkbox,
   Input,
   Label,
   Select,
@@ -26,6 +27,7 @@ import DistributionStats from './components/DistributionStats'
 import DashboardLoading from './components/DashboardLoading'
 import ToolTokenStats from './components/ToolTokenStats'
 import RawWorkflowNames from './components/RawWorkflowNames'
+import TokenBreakdown from './components/TokenBreakdown'
 import type { BucketGranularity } from './types'
 
 const todayDateInputValue = () => {
@@ -56,7 +58,8 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       // Inclusive 7-day window (today and previous 6 days).
       fromLocal: daysAgoDateInputValue(6),
       toLocal: todayDateInputValue(),
-      bucket: 'day'
+      bucket: 'day',
+      includeSplitView: false
     }),
     []
   )
@@ -68,8 +71,14 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
   const derivedWorkflowSuggestions = useMemo(() => {
     const set = new Set<string>()
     data?.error_breakdown?.forEach(i => i.key && set.add(i.key))
-    data?.recent_runs?.forEach(r => r.workflow && set.add(r.workflow))
-    data?.top_cost_runs?.forEach(r => r.workflow && set.add(r.workflow))
+    data?.recent_runs?.forEach(r => {
+      const name = r.workflow_display ?? r.workflow
+      if (name) set.add(name)
+    })
+    data?.top_cost_runs?.forEach(r => {
+      const name = r.workflow_display ?? r.workflow
+      if (name) set.add(name)
+    })
     return Array.from(set)
       .sort((a, b) => a.localeCompare(b))
       .slice(0, 30)
@@ -82,7 +91,8 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       filters.workflow === defaultFilters.workflow &&
       filters.fromLocal === defaultFilters.fromLocal &&
       filters.toLocal === defaultFilters.toLocal &&
-      filters.bucket === defaultFilters.bucket
+      filters.bucket === defaultFilters.bucket &&
+      filters.includeSplitView === defaultFilters.includeSplitView
 
     if (isAlreadyDefault) {
       void refetch()
@@ -221,6 +231,23 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
                 Last 7d
               </Button>
             </div>
+
+            <div className="gba:flex gba:items-start gba:gap-2 gba:pt-2">
+              <Checkbox
+                id="flowbot-evals-include-split-view"
+                checked={filters.includeSplitView}
+                onCheckedChange={v => setFilters(prev => ({ ...prev, includeSplitView: v === true }))}
+                data-testid="flowbot-evals-dashboard-filter-include-split-view"
+              />
+              <div className="gba:space-y-1">
+                <Label htmlFor="flowbot-evals-include-split-view" className="gba:text-sm">
+                  Show technical split-view runs
+                </Label>
+                <div className="gba:text-xs gba:text-muted-foreground">
+                  Includes split-view child rows that are normally hidden for business reporting.
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -240,7 +267,7 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       {isEmpty && (
         <Alert className="gba:w-full" data-testid="flowbot-evals-dashboard-empty">
           No eval runs found in the selected time range. Try expanding the date range (e.g. “Last 7d”) or clearing the
-          workflow filter.
+          workflow filter. If you expect split-view runs, enable “Show technical split-view runs”.
         </Alert>
       )}
 
@@ -250,6 +277,7 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
         <div className="gba:space-y-6">
           <KpiCards cards={data.cards} />
           <DistributionStats distributions={data.distributions} />
+          {!!data.token_breakdown && <TokenBreakdown tokenBreakdown={data.token_breakdown} />}
           <RawWorkflowNames recentRuns={data.recent_runs} topCostRuns={data.top_cost_runs} />
           <WorkflowComparison recentRuns={data.recent_runs} topCostRuns={data.top_cost_runs} />
           <TimeseriesCharts points={data.timeseries} />

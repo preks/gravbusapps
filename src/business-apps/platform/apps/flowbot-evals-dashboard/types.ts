@@ -2,6 +2,7 @@ export type BucketGranularity = 'hour' | 'day'
 
 export interface DashboardResponse {
   workflow: string | null
+  include_split_view?: boolean
   from_ts: string
   to_ts: string
   cards: DashboardCard[]
@@ -9,6 +10,7 @@ export interface DashboardResponse {
   timeseries: TimeseriesPoint[]
   error_breakdown: BreakdownItem[]
   tool_breakdown: BreakdownItem[]
+  token_breakdown?: TokenBreakdownBlock
   tool_token_stats?: ToolTokenStat[]
   top_cost_runs: RunRow[]
   recent_runs: RunRow[]
@@ -57,10 +59,39 @@ export interface ToolTokenStat {
   p95_total_tokens: number | null
 }
 
+export interface TokenTotals {
+  // Preferred (new contract)
+  total_tokens?: number | null
+  input_tokens?: number | null
+  output_tokens?: number | null
+  cached_input_tokens?: number | null
+  uncached_total_tokens?: number | null
+
+  // Backwards-compatible fallbacks (old contract)
+  total?: number | null
+  input?: number | null
+  output?: number | null
+  cached_input?: number | null
+  uncached_total?: number | null
+}
+
+export interface TokenBreakdownBlock {
+  overall?: TokenTotals
+  monolith?: TokenTotals
+  controller?: TokenTotals
+}
+
 export interface RunRow {
   run_id: string
   created_at: string
   workflow: string | null
+  workflow_display?: string | null
+  is_split_view?: boolean | null
+  split_view_type?: string | null
+  parent_run_id?: string | null
+  parent_workflow?: string | null
+  from_agent?: string | null
+  to_agent?: string | null
   session_id: string | null
   total_ms: number | null
   ttft_ms: number | null

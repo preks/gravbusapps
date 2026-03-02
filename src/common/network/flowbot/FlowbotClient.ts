@@ -39,6 +39,7 @@ export interface EvalsDashboardQueryParams {
   from_ts?: string
   to_ts?: string
   bucket?: 'hour' | 'day'
+  include_split_view?: boolean
 }
 
 export interface MapFromFileRequest {

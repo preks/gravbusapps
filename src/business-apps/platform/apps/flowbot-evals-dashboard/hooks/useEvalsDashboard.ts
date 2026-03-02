@@ -28,6 +28,7 @@ export interface DashboardFilters {
   fromLocal: string
   toLocal: string
   bucket: BucketGranularity
+  includeSplitView: boolean
 }
 
 export interface UseEvalsDashboardState {
@@ -52,9 +53,10 @@ export function useEvalsDashboard(context: BusinessAppContextProps, filters: Das
       workflow: filters.workflow.trim() || undefined,
       from_ts,
       to_ts,
-      bucket: filters.bucket
+      bucket: filters.bucket,
+      include_split_view: filters.includeSplitView ? true : undefined
     }
-  }, [filters.bucket, filters.fromLocal, filters.toLocal, filters.workflow])
+  }, [filters.bucket, filters.fromLocal, filters.includeSplitView, filters.toLocal, filters.workflow])
 
   const fetchDashboard = useCallback(async () => {
     if (!context.accessToken) {

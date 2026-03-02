@@ -1,10 +1,9 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  Badge,
   Table,
   TableHeader,
   TableRow,
@@ -35,7 +34,6 @@ function RunsTable({ title, rows, dataTestId }: Readonly<RunsTableProps>) {
     <Card data-testid={dataTestId}>
       <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2">
         <CardTitle className="gba:text-sm">{title}</CardTitle>
-        <Badge variant="secondary">{rows.length}</Badge>
       </CardHeader>
       <CardContent>
         <div className="gba:max-h-96 gba:overflow-y-auto">
@@ -56,7 +54,7 @@ function RunsTable({ title, rows, dataTestId }: Readonly<RunsTableProps>) {
               {visible.map(r => (
                 <TableRow key={r.run_id}>
                   <TableCell className="gba:whitespace-nowrap">{formatDateTime(r.created_at)}</TableCell>
-                  <TableCell className="gba:w-56 gba:truncate">{r.workflow ?? '—'}</TableCell>
+                  <TableCell className="gba:w-56 gba:truncate">{r.workflow_display ?? r.workflow ?? '—'}</TableCell>
                   <TableCell className="gba:whitespace-nowrap">{formatMs(r.total_ms)}</TableCell>
                   <TableCell className="gba:whitespace-nowrap">{formatMs(r.ttft_ms)}</TableCell>
                   <TableCell className="gba:whitespace-nowrap">{formatMaybeNumber(r.total_tokens)}</TableCell>

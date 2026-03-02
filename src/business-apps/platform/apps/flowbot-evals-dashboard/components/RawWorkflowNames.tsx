@@ -4,7 +4,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Badge,
   Table,
   TableBody,
   TableCell,
@@ -21,7 +20,8 @@ interface RawWorkflowNamesProps {
 }
 
 type WorkflowItem = {
-  name: string
+  display: string
+  rawNames: string[]
   count: number
 }
 
@@ -36,44 +36,55 @@ export function RawWorkflowNames({
       if (run.run_id) byRunId.set(run.run_id, run)
     })
 
-    const counts = new Map<string, number>()
+    const counts = new Map<string, { count: number; raw: Set<string> }>()
     Array.from(byRunId.values()).forEach(run => {
-      const key = (run.workflow || 'null').trim() || 'null'
-      counts.set(key, (counts.get(key) || 0) + 1)
+      const display = (run.workflow_display ?? run.workflow ?? 'null').trim() || 'null'
+      const raw = (run.workflow ?? 'null').trim() || 'null'
+
+      const current = counts.get(display) || { count: 0, raw: new Set<string>() }
+      current.count += 1
+      current.raw.add(raw)
+      counts.set(display, current)
     })
 
     return Array.from(counts.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
+      .map(([display, { count, raw }]) => ({ display, rawNames: Array.from(raw).sort(), count }))
+      .sort((a, b) => b.count - a.count || a.display.localeCompare(b.display))
   }, [recentRuns, topCostRuns])
 
   return (
     <Card data-testid={testId}>
       <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2">
-        <CardTitle className="gba:text-sm">Raw workflow names from payload</CardTitle>
-        <Badge variant="secondary">{rows.length}</Badge>
+        <CardTitle className="gba:text-sm">Workflow names (display vs raw)</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="gba:max-h-52 gba:overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Workflow name</TableHead>
+                <TableHead>Workflow (display)</TableHead>
+                <TableHead>Workflow (raw)</TableHead>
                 <TableHead>Runs in payload</TableHead>
                 <TableHead>Contains "monolith"</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map(row => (
-                <TableRow key={row.name}>
-                  <TableCell className="gba:max-w-xl gba:truncate">{row.name}</TableCell>
+                <TableRow key={row.display}>
+                  <TableCell className="gba:max-w-xs gba:truncate">{row.display}</TableCell>
+                  <TableCell className="gba:max-w-xl gba:truncate">{row.rawNames.join(', ')}</TableCell>
                   <TableCell>{row.count}</TableCell>
-                  <TableCell>{row.name.toLowerCase().includes('monolith') ? 'yes' : 'no'}</TableCell>
+                  <TableCell>
+                    {row.display.toLowerCase().includes('monolith') ||
+                    row.rawNames.some(n => n.toLowerCase().includes('monolith'))
+                      ? 'yes'
+                      : 'no'}
+                  </TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="gba:text-center gba:text-muted-foreground">
+                  <TableCell colSpan={4} className="gba:text-center gba:text-muted-foreground">
                     No workflow names in current payload.
                   </TableCell>
                 </TableRow>

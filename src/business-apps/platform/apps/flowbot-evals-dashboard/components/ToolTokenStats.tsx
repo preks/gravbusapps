@@ -4,7 +4,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Badge,
   Table,
   TableHeader,
   TableRow,
@@ -50,7 +49,6 @@ export function ToolTokenStats({
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2">
           <CardTitle className="gba:text-sm">Token cost by tool</CardTitle>
-          <Badge variant="secondary">{sorted.length}</Badge>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="gba:h-64 gba:w-full">

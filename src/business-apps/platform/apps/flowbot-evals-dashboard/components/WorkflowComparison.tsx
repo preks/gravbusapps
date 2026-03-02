@@ -4,7 +4,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Badge,
   Table,
   TableHeader,
   TableRow,
@@ -56,7 +55,7 @@ export function WorkflowComparison({
 
     const grouped = new Map<string, RunRow[]>()
     merged.forEach(run => {
-      const key = run.workflow || 'Unknown workflow'
+      const key = run.workflow_display || run.workflow || 'Unknown workflow'
       const arr = grouped.get(key) || []
       arr.push(run)
       grouped.set(key, arr)
@@ -81,7 +80,6 @@ export function WorkflowComparison({
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2">
           <CardTitle className="gba:text-sm">Workflow run share</CardTitle>
-          <Badge variant="secondary">{workflowStats.length}</Badge>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="gba:h-64 gba:w-full">
