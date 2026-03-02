@@ -55,10 +55,10 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
             {/* Distribution (Primary) */}
             <div className="gba:space-y-1.5">
               {onTrack > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-success/10">
+                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-surface">
                   <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <CheckCircle2 className="gba:text-success" size={16} />
-                    <span className="gba:text-xs gba:font-medium">On track</span>
+                    <CheckCircle2 className="gba:text-info-on-card" size={16} />
+                    <span className="gba:text-xs gba:font-medium gba:text-info-on-card">On track</span>
                   </div>
                   <Badge variant="success" className="gba:text-xs gba:px-2 gba:py-0">
                     {onTrack}
@@ -67,10 +67,10 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
               )}
 
               {behind > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-destructive/10">
+                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-surface">
                   <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <XCircle className="gba:text-destructive" size={16} />
-                    <span className="gba:text-xs gba:font-medium">Behind</span>
+                    <XCircle className="gba:text-destructive-on-card" size={16} />
+                    <span className="gba:text-xs gba:font-medium gba:text-destructive-on-card">Behind</span>
                   </div>
                   <Badge variant="destructive" className="gba:text-xs gba:px-2 gba:py-0">
                     {behind}
