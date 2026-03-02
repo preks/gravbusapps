@@ -27,9 +27,9 @@ export const useOrgUnitById = ({ accessToken, orgUnitId, structureId }: UseOrgUn
   const [error, setError] = useState<string | null>(null)
 
   const orgUnit: SelectOption | null =
-    orgUnitRaw != null
-      ? { id: orgUnitRaw.id, name: orgUnitRaw.name, label: orgUnitRaw.name, value: orgUnitRaw.id }
-      : null
+    orgUnitRaw === null
+      ? null
+      : { id: orgUnitRaw.id, name: orgUnitRaw.name, label: orgUnitRaw.name, value: orgUnitRaw.id }
 
   const fetch = useCallback(async () => {
     if (!orgUnitId || !accessToken || !client) {

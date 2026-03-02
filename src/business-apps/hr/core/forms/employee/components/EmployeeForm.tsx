@@ -75,6 +75,16 @@ const EmployeeForm: React.FC = () => {
     [jobPositions]
   )
 
+  const jobPositionEmptyText = (() => {
+    if (formValues.organizationalUnitId) {
+      if (jobPositionsLoading) {
+        return t('loading')
+      }
+      return t('employee-form-no-positions')
+    }
+    return t('employee-form-select-org-unit-first')
+  })()
+
   const isFormValid =
     formValues.firstName?.trim() &&
     formValues.lastName?.trim() &&
@@ -322,13 +332,7 @@ const EmployeeForm: React.FC = () => {
                     onValueChange={v => handleJobPositionChange(v ?? '')}
                     placeholder={t('action-select-placeholder')}
                     searchPlaceholder="Type to search..."
-                    emptyText={
-                      !formValues.organizationalUnitId
-                        ? t('employee-form-select-org-unit-first')
-                        : jobPositionsLoading
-                          ? t('loading')
-                          : t('employee-form-no-positions')
-                    }
+                    emptyText={jobPositionEmptyText}
                     onSearch={searchJobPositions}
                     searchDebounce={300}
                     loading={showJobPositionsLoading}
