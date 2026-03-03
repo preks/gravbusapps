@@ -147,10 +147,10 @@ const HEADING_LEVELS = [
 
 // Line spacing presets (value = line-height multiplier). Single uses 1.15 to match Google Docs.
 const LINE_SPACING_OPTIONS = [
-  { key: 'single', value: 1.0 },
+  { key: 'single', value: 1 },
   { key: '1-15', value: 1.15 },
   { key: '1-5', value: 1.5 },
-  { key: 'double', value: 2.0 }
+  { key: 'double', value: 2 }
 ]
 
 const PARAGRAPH_SPACING_EM = '0.5em'
