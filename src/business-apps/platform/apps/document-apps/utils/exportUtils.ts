@@ -21,22 +21,139 @@ export function escapeHtmlText(text: string): string {
 }
 
 /** Allowed block spacing CSS properties for export (line and paragraph spacing). */
-const BLOCK_SPACING_PROPS = /(line-height|margin-top|margin-bottom)\s*:\s*([^;]+)/gi
+const BLOCK_SPACING_PROPS = new Set(['line-height', 'margin-top', 'margin-bottom'])
 
 function filterStyleToBlockSpacing(styleStr: string): string {
   const parts: string[] = []
-  let m: RegExpExecArray | null
-  BLOCK_SPACING_PROPS.lastIndex = 0
-  while ((m = BLOCK_SPACING_PROPS.exec(styleStr)) !== null) {
-    parts.push(`${m[1]}: ${m[2].trim()}`)
+  for (const rawDecl of styleStr.split(';')) {
+    const decl = rawDecl.trim()
+    if (!decl) continue
+
+    const splitIdx = decl.indexOf(':')
+    if (splitIdx === -1) continue
+
+    const prop = decl.slice(0, splitIdx).trim().toLowerCase()
+    if (!BLOCK_SPACING_PROPS.has(prop)) continue
+
+    const value = decl.slice(splitIdx + 1).trim()
+    if (!value) continue
+
+    parts.push(`${prop}: ${value}`)
   }
   return parts.join('; ')
+}
+
+const EXPORT_DATA_URI_ATTR = 'data-nw-export-src'
+
+function stripTagsToText(html: string): string {
+  const out: string[] = []
+  let inTag = false
+
+  for (let i = 0; i < html.length; i++) {
+    const ch = html[i]
+    if (ch === '<') {
+      inTag = true
+      continue
+    }
+    if (ch === '>') {
+      inTag = false
+      continue
+    }
+    if (!inTag) out.push(ch)
+  }
+
+  return out.join('')
+}
+
+function preserveDataUriImgsForPurify(html: string): string {
+  if (typeof globalThis.DOMParser === 'undefined') return html
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const imgs = Array.from(doc.body.querySelectorAll('img[src]'))
+
+  for (const img of imgs) {
+    const src = img.getAttribute('src')
+    if (!src) continue
+
+    const trimmed = src.trim()
+    if (trimmed.toLowerCase().startsWith('data:')) {
+      img.setAttribute(EXPORT_DATA_URI_ATTR, trimmed)
+      img.setAttribute('src', 'about:blank')
+    }
+  }
+
+  return doc.body.innerHTML
+}
+
+function postProcessExportHtml(
+  html: string,
+  options: { preserveBlockSpacing: boolean; allowDataUriInImg: boolean }
+): string {
+  if (typeof globalThis.DOMParser === 'undefined') return html
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+
+  // Remove potentially executable / embeddable tags completely
+  for (const el of Array.from(doc.body.querySelectorAll('script,iframe,object,embed'))) {
+    el.remove()
+  }
+
+  const allElements = Array.from(doc.body.querySelectorAll('*'))
+  for (const el of allElements) {
+    // Remove inline event handlers
+    for (const attrName of el.getAttributeNames()) {
+      if (attrName.toLowerCase().startsWith('on')) {
+        el.removeAttribute(attrName)
+      }
+    }
+
+    // Remove/limit inline styles
+    const style = el.getAttribute('style')
+    if (style != null) {
+      if (!options.preserveBlockSpacing) {
+        el.removeAttribute('style')
+      } else {
+        const filtered = filterStyleToBlockSpacing(style)
+        if (filtered) el.setAttribute('style', filtered)
+        else el.removeAttribute('style')
+      }
+    }
+
+    // Remove dangerous protocols in href/src
+    for (const urlAttr of ['href', 'src'] as const) {
+      const raw = el.getAttribute(urlAttr)
+      if (!raw) continue
+
+      const lower = raw.trim().toLowerCase()
+      if (lower.startsWith('javascript:') || lower.startsWith('data:text/html')) {
+        el.removeAttribute(urlAttr)
+        continue
+      }
+
+      if (lower.startsWith('data:')) {
+        const isImgSrc = urlAttr === 'src' && el.tagName.toLowerCase() === 'img'
+        if (!(options.allowDataUriInImg && isImgSrc)) {
+          el.removeAttribute(urlAttr)
+        }
+      }
+    }
+
+    // Restore preserved data URI images (if we staged them before DOMPurify)
+    if (options.allowDataUriInImg && el.tagName.toLowerCase() === 'img') {
+      const preserved = el.getAttribute(EXPORT_DATA_URI_ATTR)
+      if (preserved) el.setAttribute('src', preserved)
+    }
+    if (el.hasAttribute(EXPORT_DATA_URI_ATTR)) el.removeAttribute(EXPORT_DATA_URI_ATTR)
+  }
+
+  return doc.body.innerHTML
 }
 
 /**
  * Lightweight export sanitizer to reduce risk when embedding editor HTML into print/export documents.
  * Removes: script/iframe/object/embed, inline event handlers, javascript:/data:text/html in href/src.
- * When allowDataUriInImg is true we skip DOMPurify and use only regex so img src (data:, https, relative) are never stripped.
  */
 export function sanitizeHtmlForExport(
   html: string,
@@ -46,68 +163,24 @@ export function sanitizeHtmlForExport(
   const preserveBlockSpacing = options?.preserveBlockSpacing === true
   const allowDataUriInImg = options?.allowDataUriInImg === true
 
-  if (!allowDataUriInImg && typeof globalThis.window !== 'undefined') {
-    try {
-      const config: Parameters<typeof DOMPurify.sanitize>[1] = {
-        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-        FORBID_ATTR: preserveBlockSpacing ? [] : ['style']
-      }
-      const purified = DOMPurify.sanitize(html, config)
-      if (preserveBlockSpacing) {
-        // Linear regexes (no alternation) to avoid ReDoS
-        return purified
-          .replace(
-            /\s+style\s*=\s*"[^"]*"/g,
-            m => ` style="${filterStyleToBlockSpacing(m.replace(/^\s+style\s*=\s*"|"$/g, ''))}"`
-          )
-          .replace(
-            /\s+style\s*=\s*'[^']*'/g,
-            m => ` style="${filterStyleToBlockSpacing(m.replace(/^\s+style\s*=\s*'|'$/g, ''))}"`
-          )
-      }
-      return purified
-    } catch {
-      // Fall through to regex path.
+  if (typeof globalThis.window === 'undefined' || typeof globalThis.DOMParser === 'undefined') {
+    return stripTagsToText(html)
+  }
+
+  try {
+    const config: Parameters<typeof DOMPurify.sanitize>[1] = {
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      FORBID_ATTR: preserveBlockSpacing ? [] : ['style'],
+      ALLOW_DATA_ATTR: allowDataUriInImg
     }
+
+    const input = allowDataUriInImg ? preserveDataUriImgsForPurify(html) : html
+    const purified = DOMPurify.sanitize(input, config)
+
+    return postProcessExportHtml(purified, { preserveBlockSpacing, allowDataUriInImg })
+  } catch {
+    return stripTagsToText(html)
   }
-
-  let out = html
-
-  // Remove potentially executable / embeddable tags completely
-  out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-  out = out.replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, '')
-  out = out.replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, '')
-  out = out.replace(/<embed[\s\S]*?>/gi, '')
-
-  // Remove inline event handlers (linear regexes to avoid ReDoS)
-  out = out
-    .replace(/\s+on[a-z]+\s*=\s*"[^"]*"/gi, '')
-    .replace(/\s+on[a-z]+\s*=\s*'[^']*'/gi, '')
-    .replace(/\s+on[a-z]+\s*=\s*[^\s>]+/gi, '')
-
-  if (!preserveBlockSpacing) {
-    // Remove inline styles entirely (linear regexes to avoid ReDoS)
-    out = out
-      .replace(/\s+style\s*=\s*"[^"]*"/gi, '')
-      .replace(/\s+style\s*=\s*'[^']*'/gi, '')
-      .replace(/\s+style\s*=\s*[^\s>]+/gi, '')
-  } else {
-    // Linear regexes to avoid ReDoS
-    out = out
-      .replace(
-        /\s+style\s*=\s*"[^"]*"/g,
-        m => ` style="${filterStyleToBlockSpacing(m.replace(/^\s+style\s*=\s*"|"$/g, ''))}"`
-      )
-      .replace(
-        /\s+style\s*=\s*'[^']*'/g,
-        m => ` style="${filterStyleToBlockSpacing(m.replace(/^\s+style\s*=\s*'|'$/g, ''))}"`
-      )
-  }
-
-  // Remove dangerous protocols in href/src (keep attribute-less element instead)
-  out = out.replace(/\s+(href|src)\s*=\s*(["']?)\s*(javascript:|data:text\/html)[\s\S]*?\2/gi, '')
-
-  return out
 }
 
 /**
@@ -496,7 +569,7 @@ export async function exportToPDF(
   targetWindow?: Window | null,
   options?: ExportImageOptions
 ): Promise<void> {
-  let content = htmlContent.replaceAll(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
+  let content = htmlContent.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }
