@@ -147,61 +147,36 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
     }
   }, [onAddNavigationRef, handleAddNavigation])
 
-  // Map roles/features to DTO shape { name: string }[] (handles string[] ids or existing { name }[])
-  const mapRolesToDto = useCallback(
-    (value: unknown): { name: string }[] => {
-      if (!Array.isArray(value)) return []
-      return value.map(item =>
-        typeof item === 'string'
-          ? { name: roleOptions.find(r => r.id === item)?.name ?? item }
-          : { name: (item as { name?: string }).name ?? '' }
-      )
-    },
-    [roleOptions]
-  )
-  const mapFeaturesToDto = useCallback(
-    (value: unknown): { name: string }[] => {
-      if (!Array.isArray(value)) return []
-      return value.map(item =>
-        typeof item === 'string'
-          ? { name: featureOptions.find(f => f.id === item)?.name ?? item }
-          : { name: (item as { name?: string }).name ?? '' }
-      )
-    },
-    [featureOptions]
-  )
-
-  // Build payload: with currentEntry (update) merges and returns full DTO; without (create) returns only fields from edits
+  // Helper to build navigation update data from edits
   const buildNavigationUpdateData = useCallback(
-    (edits: Record<string, unknown>, currentEntry?: (typeof navigationEntries)[number]): Partial<NavigationDTO> => {
-      const source = currentEntry ? { ...currentEntry, ...edits } : edits
-      if (currentEntry) {
-        return {
-          code: (source.code ?? '') as string,
-          name: (source.name ?? '') as string,
-          url: (source.url ?? '') as string,
-          name_i18n: (source.name_i18n ?? {}) as Record<string, string>,
-          description: (source.description ?? '') as string,
-          description_i18n: (source.description_i18n ?? {}) as Record<string, string>,
-          roles: mapRolesToDto(source.roles),
-          features: mapFeaturesToDto(source.features),
-          isSearchable: (source.isSearchable ?? false) as boolean
-        }
-      }
+    (edits: Record<string, unknown>): Partial<NavigationDTO> => {
       const updateData: Partial<NavigationDTO> = {}
-      if (source.code !== undefined) updateData.code = source.code as string
-      if (source.name !== undefined) updateData.name = source.name as string
-      if (source.url !== undefined) updateData.url = source.url as string
-      if (source.name_i18n !== undefined) updateData.name_i18n = source.name_i18n as Record<string, string>
-      if (source.description !== undefined) updateData.description = source.description as string
-      if (source.description_i18n !== undefined)
-        updateData.description_i18n = source.description_i18n as Record<string, string>
-      if (source.roles !== undefined) updateData.roles = mapRolesToDto(source.roles)
-      if (source.features !== undefined) updateData.features = mapFeaturesToDto(source.features)
-      if (source.isSearchable !== undefined) updateData.isSearchable = source.isSearchable as boolean
+      if (edits.code !== undefined) updateData.code = edits.code as string
+      if (edits.name !== undefined) updateData.name = edits.name as string
+      if (edits.url !== undefined) updateData.url = edits.url as string
+      if (edits.name_i18n !== undefined) updateData.name_i18n = edits.name_i18n as Record<string, string>
+      if (edits.description !== undefined) updateData.description = edits.description as string
+      if (edits.description_i18n !== undefined)
+        updateData.description_i18n = edits.description_i18n as Record<string, string>
+
+      if (edits.roles !== undefined) {
+        updateData.roles = (edits.roles as string[]).map((roleId: string) => {
+          const role = roleOptions.find(r => r.id === roleId)
+          return { name: role?.name || roleId }
+        })
+      }
+
+      if (edits.features !== undefined) {
+        updateData.features = (edits.features as string[]).map((featureId: string) => {
+          const feature = featureOptions.find(f => f.id === featureId)
+          return { name: feature?.name || featureId }
+        })
+      }
+
+      if (edits.isSearchable !== undefined) updateData.isSearchable = edits.isSearchable as boolean
       return updateData
     },
-    [mapRolesToDto, mapFeaturesToDto]
+    [roleOptions, featureOptions]
   )
 
   // Handle save entry
@@ -218,6 +193,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
         const isDraft = editableState.isDraft(navigationId)
 
         if (isDraft) {
+          // Create new navigation via API
           const updateData = buildNavigationUpdateData(edits)
           await createNavigation(updateData)
 
@@ -232,9 +208,8 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
           })
           await refetchNavigations()
         } else {
-          const currentEntry = navigationEntries.find(e => e.id === navigationId)
-          if (!currentEntry) return
-          const updateData = buildNavigationUpdateData(edits, currentEntry)
+          // Update existing navigation
+          const updateData = buildNavigationUpdateData(edits)
           await updateNavigation(navigationId, updateData)
           await refetchNavigations()
           editableState.onDiscardEntry(navigationId)
@@ -245,14 +220,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
         editableState.setSaving(navigationId, false)
       }
     },
-    [
-      editableState,
-      updateNavigation,
-      createNavigation,
-      refetchNavigations,
-      buildNavigationUpdateData,
-      navigationEntries
-    ]
+    [editableState, updateNavigation, createNavigation, refetchNavigations, buildNavigationUpdateData]
   )
 
   // Handle discard entry

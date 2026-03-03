@@ -48,7 +48,7 @@ export const useOrchestratorHandlers = ({
         state.setViewState('error')
       }
     },
-    [orchestratorClient, state]
+    [orchestratorClient.analyze, state]
   )
 
   // Handle re-analyze
@@ -63,7 +63,7 @@ export const useOrchestratorHandlers = ({
         state.setViewState('error')
       }
     },
-    [orchestratorClient, state]
+    [orchestratorClient.reanalyze, state]
   )
 
   // Handle edit plan
@@ -123,11 +123,11 @@ export const useOrchestratorHandlers = ({
       state.loggedPhasesRef.current.clear()
       state.lastCompletedCountRef.current = 0
 
-      // Use session/repo from last build (lastSessionId/lastRepoId)
-      const sessionId = orchestratorClient.lastSessionId
-      const repoId = orchestratorClient.lastRepoId
-
-      await buildProgress.startBuild(skipComponents, sessionId ?? undefined, repoId ?? undefined)
+      await buildProgress.startBuild(
+        skipComponents,
+        orchestratorClient.lastSessionId ?? undefined,
+        orchestratorClient.lastRepoId ?? undefined
+      )
     },
     [buildProgress.startBuild, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state]
   )
@@ -155,12 +155,12 @@ export const useOrchestratorHandlers = ({
     state.loggedPhasesRef.current.clear()
     state.lastCompletedCountRef.current = 0
 
-    // Use session/repo from last build (lastSessionId/lastRepoId)
-    const sessionId = orchestratorClient.lastSessionId
-    const repoId = orchestratorClient.lastRepoId
-
     // Re-execute the build with the same plan; pass stored session for execute-again
-    await buildProgress.startBuild(undefined, sessionId ?? undefined, repoId ?? undefined)
+    await buildProgress.startBuild(
+      undefined,
+      orchestratorClient.lastSessionId ?? undefined,
+      orchestratorClient.lastRepoId ?? undefined
+    )
   }, [buildProgress, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state])
 
   // Handle cancel

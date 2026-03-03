@@ -147,7 +147,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={isSubmitDisabled}
       submitEventType="pse_submit"
-      cancelEventType="pse_abort"
+      cancelEventType="pse_cancel"
       submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.send', 'Send Request')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}

@@ -99,16 +99,26 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
               <h3 className="gba:text-sm gba:font-semibold gba:mb-2">{t('mapped-fields-title')}</h3>
               <div className="gba:space-y-3">
                 {mappings.map((mapping, index) => {
-                  // Available target fields = all config fields NOT already used by other rows,
-                  // plus the current row's own selection so it stays visible.
-                  const usedByOtherRows = new Set(mappings.filter((_, i) => i !== index).map(m => m.targetField))
-                  const availableTargetFields = targetFieldsConfig
-                    .filter(tf => !usedByOtherRows.has(tf.value) || tf.value === mapping.targetField)
-                    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+                  // Show the current target as the first option so the Select trigger
+                  // always displays the selected value (entity field label or source field name).
+                  const currentEntityField = targetFieldsConfig.find(tf => tf.value === mapping.targetField)
+                  const currentOption = mapping.targetField
+                    ? currentEntityField
+                      ? { value: currentEntityField.value, label: currentEntityField.label }
+                      : { value: mapping.targetField, label: mapping.targetField }
+                    : null
+
+                  // Remaining options: ONLY unmapped source fields.
+                  // Exclude the current target to avoid duplicating it in the list.
+                  const unmappedOptions = unmappedSourceFields
+                    .filter(f => f !== mapping.targetField)
+                    .map(f => ({ value: f, label: f }))
+
+                  const targetOptions = currentOption ? [currentOption, ...unmappedOptions] : unmappedOptions
 
                   return (
                     <div
-                      key={`${mapping.sourceField}-${index}`}
+                      key={`${mapping.sourceField}-${mapping.targetField}-${index}`}
                       className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg"
                       data-testid={`${testId}-mapping-${index}`}
                     >
@@ -131,9 +141,9 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
                             <SelectValue placeholder="Select a field" />
                           </SelectTrigger>
                           <SelectContent>
-                            {availableTargetFields.map(tf => (
-                              <SelectItem key={tf.value} value={tf.value}>
-                                {tf.label}
+                            {targetOptions.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
                               </SelectItem>
                             ))}
                           </SelectContent>

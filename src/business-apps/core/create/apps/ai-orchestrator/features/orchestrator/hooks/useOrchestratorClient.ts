@@ -105,10 +105,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
       setLastContext(context)
 
       try {
-        const request: AnalyzeRequest = {
-          prompt,
-          context
-        }
+        const request: AnalyzeRequest = { prompt, context }
         const response = await client.analyze(request)
 
         if (response.success && response.plan) {
@@ -126,7 +123,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         setIsAnalyzing(false)
       }
     },
-    [client, lastRepoId, currentPlan]
+    [client]
   )
 
   /**
@@ -164,7 +161,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         setIsAnalyzing(false)
       }
     },
-    [client, lastPrompt, lastContext, lastRepoId, lastSessionId]
+    [client, lastPrompt, lastContext]
   )
 
   /**

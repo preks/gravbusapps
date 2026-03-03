@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { PreviewTemplate } from '../preview-template'
 import {
   Card,
@@ -6,25 +6,28 @@ import {
   CardHeader,
   CardTitle,
   Button,
+  Input,
+  Checkbox,
   Alert,
   AlertDescription,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  DateInput,
   Spinner
 } from '@newwork/nw-design-system'
-import { Database, Plus, RefreshCw } from 'lucide-react'
+import { Database, Plus, Trash2, Check, Loader2, RefreshCw } from 'lucide-react'
 import { CustomDataGraphQLClient } from '@/common/network/custom-data/CustomDataGraphQLClient'
 import { CustomDataMutationClient } from '@/common/network/custom-data/CustomDataMutationClient'
 import type { DataModelPreviewColumn, DataModelPreviewDefinition } from './dataModelPreviewTypes'
-import { enrichColumnsWithSchemaTypes } from './typeMapping'
-import type { RowValues } from './DataModelPreviewCells'
-import { SimpleTableRow } from './SimpleTableRow'
 
 export interface DataModelPreviewItem {
   id: string
   label: string
   definition: DataModelPreviewDefinition
   onCreateRow?: (values: Record<string, unknown>) => Promise<void>
-  onUpdateRow?: (rowId: string, values: Record<string, unknown>) => Promise<void>
-  onDeleteRow?: (rowId: string) => Promise<void>
 }
 
 export interface DataModelPreviewProps {
@@ -33,12 +36,12 @@ export interface DataModelPreviewProps {
   /** Single data model (no switcher). */
   definition?: DataModelPreviewDefinition
   onCreateRow?: (values: Record<string, unknown>) => Promise<void>
-  onUpdateRow?: (rowId: string, values: Record<string, unknown>) => Promise<void>
-  onDeleteRow?: (rowId: string) => Promise<void>
   /** When provided, existing records are fetched from the custom-data API and mutations are auto-wired. */
   accessToken?: string
   'data-testid'?: string
 }
+
+type RowValues = Record<string, string | boolean>
 
 function emptyRow(columns: DataModelPreviewColumn[]): RowValues {
   const row: RowValues = {}
@@ -46,6 +49,195 @@ function emptyRow(columns: DataModelPreviewColumn[]): RowValues {
     row[col.name] = col.type === 'CHECKBOX' ? false : ''
   })
   return row
+}
+
+interface CellInputProps {
+  col: DataModelPreviewColumn
+  value: string | boolean
+  onChange: (value: string | boolean) => void
+  disabled?: boolean
+  id: string
+}
+
+const CellInput: React.FC<CellInputProps> = ({ col, value, onChange, disabled, id }) => {
+  switch (col.type) {
+    case 'CHECKBOX':
+      return (
+        <div className="gba:flex gba:justify-center">
+          <Checkbox id={id} checked={!!value} onCheckedChange={checked => onChange(!!checked)} disabled={disabled} />
+        </div>
+      )
+    case 'NUMBER':
+      return (
+        <Input
+          id={id}
+          type="number"
+          value={value as string}
+          onChange={e => onChange(e.target.value)}
+          disabled={disabled}
+          placeholder={col.required ? 'Required' : '—'}
+          className="gba:h-8 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
+        />
+      )
+    case 'DATE':
+      return (
+        <DateInput
+          type="date"
+          value={value as string}
+          onChange={val => onChange(Array.isArray(val) ? (val[0] ?? '') : (val ?? ''))}
+          disabled={disabled}
+          className="gba:h-8 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
+        />
+      )
+    case 'DATETIME':
+      return (
+        <DateInput
+          type="datetime-local"
+          value={value as string}
+          onChange={val => onChange(Array.isArray(val) ? (val[0] ?? '') : (val ?? ''))}
+          disabled={disabled}
+          className="gba:h-8 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent"
+        />
+      )
+    case 'SELECT':
+      if (col.options && col.options.length > 0) {
+        return (
+          <Select value={value as string} onValueChange={val => onChange(val)} disabled={disabled}>
+            <SelectTrigger className="gba:h-8 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus:gba:ring-1">
+              <SelectValue placeholder={col.required ? 'Required' : '—'} />
+            </SelectTrigger>
+            <SelectContent>
+              {col.options.map(opt => (
+                <SelectItem key={opt.value} value={opt.value} className="gba:text-sm">
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+      }
+      return (
+        <Input
+          id={id}
+          value={value as string}
+          onChange={e => onChange(e.target.value)}
+          disabled={disabled}
+          placeholder={col.required ? 'Required' : '—'}
+          className="gba:h-8 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
+        />
+      )
+    case 'REFERENCE':
+      return (
+        <Input
+          id={id}
+          value={value as string}
+          onChange={e => onChange(e.target.value)}
+          disabled={disabled}
+          placeholder={col.required ? 'ID required' : 'Reference ID'}
+          className="gba:h-8 gba:text-xs gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1 gba:font-mono"
+        />
+      )
+    default:
+      return (
+        <Input
+          id={id}
+          value={value as string}
+          onChange={e => onChange(e.target.value)}
+          disabled={disabled}
+          placeholder={col.required ? 'Required' : '—'}
+          className="gba:h-8 gba:text-sm gba:border-0 gba:shadow-none gba:bg-transparent focus-visible:gba:ring-1"
+        />
+      )
+  }
+}
+
+interface EditableRowProps {
+  rowIndex: number
+  columns: DataModelPreviewColumn[]
+  values: RowValues
+  onChange: (name: string, value: string | boolean) => void
+  onDelete: () => void
+  onSave?: () => Promise<void>
+  saving?: boolean
+  saved?: boolean
+  saveError?: string | null
+  testId: string
+}
+
+const EditableRow: React.FC<EditableRowProps> = ({
+  rowIndex,
+  columns,
+  values,
+  onChange,
+  onDelete,
+  onSave,
+  saving,
+  saved,
+  saveError,
+  testId
+}) => {
+  const uid = useId()
+  return (
+    <>
+      <tr
+        className="gba:border-b gba:border-border gba:bg-background hover:gba:bg-muted/30 gba:transition-colors"
+        data-testid={`${testId}-row-${rowIndex}`}
+      >
+        {columns.map(col => (
+          <td key={col.name} className="gba:px-1 gba:py-1 gba:align-middle">
+            <CellInput
+              col={col}
+              value={values[col.name] ?? (col.type === 'CHECKBOX' ? false : '')}
+              onChange={val => onChange(col.name, val)}
+              disabled={saving || saved}
+              id={`${uid}-${col.name}`}
+            />
+          </td>
+        ))}
+        <td className="gba:px-2 gba:py-1 gba:align-middle gba:w-16">
+          <div className="gba:flex gba:items-center gba:gap-1">
+            {onSave && !saved && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7"
+                onClick={onSave}
+                disabled={saving}
+                data-testid={`${testId}-row-${rowIndex}-save`}
+              >
+                {saving ? (
+                  <Loader2 className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />
+                ) : (
+                  <Check className="gba:h-3.5 gba:w-3.5 gba:text-green-600" />
+                )}
+              </Button>
+            )}
+            {!saved && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7"
+                onClick={onDelete}
+                disabled={saving}
+                data-testid={`${testId}-row-${rowIndex}-delete`}
+              >
+                <Trash2 className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>
+      {saveError && (
+        <tr>
+          <td colSpan={columns.length + 1} className="gba:px-3 gba:pb-2">
+            <Alert variant="destructive" className="gba:py-2">
+              <AlertDescription className="gba:text-xs">{saveError}</AlertDescription>
+            </Alert>
+          </td>
+        </tr>
+      )}
+    </>
+  )
 }
 
 interface RowState {
@@ -62,8 +254,6 @@ export const DataModelPreview: React.FC<DataModelPreviewProps> = ({
   items,
   definition,
   onCreateRow,
-  onUpdateRow,
-  onDeleteRow,
   accessToken,
   'data-testid': testId = 'data-model-preview'
 }) => {
@@ -77,8 +267,6 @@ export const DataModelPreview: React.FC<DataModelPreviewProps> = ({
               key={active.id}
               definition={active.definition}
               onCreateRow={active.onCreateRow}
-              onUpdateRow={active.onUpdateRow}
-              onDeleteRow={active.onDeleteRow}
               accessToken={accessToken}
               testId={`${testId}-${active.id}`}
             />
@@ -87,13 +275,10 @@ export const DataModelPreview: React.FC<DataModelPreviewProps> = ({
       </PreviewTemplate>
     )
   }
-  if (!definition) return null
   return (
     <DataModelPreviewSingle
-      definition={definition}
+      definition={definition!}
       onCreateRow={onCreateRow}
-      onUpdateRow={onUpdateRow}
-      onDeleteRow={onDeleteRow}
       accessToken={accessToken}
       testId={testId}
     />
@@ -103,60 +288,12 @@ export const DataModelPreview: React.FC<DataModelPreviewProps> = ({
 interface DataModelPreviewSingleProps {
   definition: DataModelPreviewDefinition
   onCreateRow?: (values: Record<string, unknown>) => Promise<void>
-  onUpdateRow?: (rowId: string, values: Record<string, unknown>) => Promise<void>
-  onDeleteRow?: (rowId: string) => Promise<void>
   accessToken?: string
   testId: string
 }
 
-function formatDateLike(value: unknown, type: string): string {
-  const num = Number(value)
-  if (Number.isNaN(num)) return typeof value === 'string' ? value : JSON.stringify(value)
-  const date = new Date(num)
-  if (Number.isNaN(date.getTime())) return typeof value === 'string' ? value : JSON.stringify(value)
-  if (type === 'DATE') {
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-  }
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-function formatReadValue(value: unknown, type: string): string {
-  if (value == null || value === '') return '—'
-  if (type === 'CHECKBOX') return value ? '✓' : '✗'
-  if ((type === 'DATE' || type === 'DATETIME') && typeof value === 'string') {
-    try {
-      return formatDateLike(value, type)
-    } catch {
-      return typeof value === 'string' ? value : JSON.stringify(value)
-    }
-  }
-  if (type === 'REFERENCE' && typeof value === 'object') return JSON.stringify(value)
-  if (typeof value === 'object') return JSON.stringify(value)
-  return typeof value === 'string' ? value : JSON.stringify(value)
-}
-
-/** Reference columns map to scalar fields only in GraphQL. */
+/** Reference columns map to object types in GraphQL — only request scalar fields. */
 const SCALAR_COLUMN_TYPES = new Set(['TEXT', 'NUMBER', 'DATE', 'DATETIME', 'CHECKBOX', 'SELECT'])
-
-function toStableRowKey(row: Record<string, unknown>, index: number): string {
-  const id = row.id
-  if (id == null) return `row-${index}`
-  if (typeof id === 'object') return JSON.stringify(id)
-  return `${id}`
-}
-
-function toRowId(row: Record<string, unknown>): string {
-  const id = row.id
-  if (id == null) return ''
-  if (typeof id === 'object') return JSON.stringify(id)
-  return `${id}`
-}
 
 function buildListQuery(key: string, columns: DataModelPreviewColumn[]): { query: string; listField: string } {
   const listField = key.charAt(0).toLowerCase() + key.slice(1) + 'List'
@@ -165,26 +302,34 @@ function buildListQuery(key: string, columns: DataModelPreviewColumn[]): { query
   return { query: `{ ${listField} {\n      ${fields}\n    } }`, listField }
 }
 
+function formatReadValue(value: unknown, type: string): string {
+  if (value == null || value === '') return '—'
+  if (type === 'CHECKBOX') return value ? '✓' : '✗'
+  if ((type === 'DATE' || type === 'DATETIME') && typeof value === 'string') {
+    try {
+      return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    } catch {
+      return String(value)
+    }
+  }
+  if (type === 'REFERENCE' && typeof value === 'object') return JSON.stringify(value)
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
 const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
   definition,
   onCreateRow,
-  onUpdateRow,
-  onDeleteRow,
   accessToken,
   testId
 }) => {
-  const [columns, setColumns] = useState<DataModelPreviewColumn[]>(definition.columns ?? [])
+  const columns = definition.columns ?? []
   const displayName = definition.display_name ?? definition.key ?? ''
   const [rows, setRows] = useState<RowState[]>([])
 
   const [existingRows, setExistingRows] = useState<Record<string, unknown>[]>([])
   const [fetchLoading, setFetchLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
-
-  const [editingExistingId, setEditingExistingId] = useState<string | null>(null)
-  const [editingValues, setEditingValues] = useState<RowValues>({})
-  const [existingSaving, setExistingSaving] = useState(false)
-  const [existingError, setExistingError] = useState<string | null>(null)
 
   const isCatalog = definition.modelType === 'catalog'
 
@@ -199,24 +344,6 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
       accessToken && !isCatalog ? new CustomDataMutationClient({ accessToken, namespace: definition.namespace }) : null,
     [accessToken, isCatalog, definition.namespace]
   )
-
-  const fetchSchemaTypes = useCallback(async () => {
-    if (!graphqlClient) return
-
-    try {
-      const schemaTypes = await graphqlClient.introspectEntityType(definition.key)
-      if (Object.keys(schemaTypes).length > 0) {
-        const enrichedColumns = enrichColumnsWithSchemaTypes(definition.columns ?? [], schemaTypes)
-        setColumns(enrichedColumns)
-      }
-    } catch (error) {
-      console.warn('Failed to fetch schema types, using definition types:', error)
-    }
-  }, [graphqlClient, definition.key, definition.columns])
-
-  useEffect(() => {
-    fetchSchemaTypes()
-  }, [fetchSchemaTypes])
 
   const fetchRows = useCallback(async () => {
     if (!graphqlClient) return
@@ -245,133 +372,6 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
       await fetchRows()
     }
   }, [onCreateRow, mutationClient, definition.key, definition.namespace, fetchRows])
-
-  const effectiveOnUpdateRow = useMemo<
-    ((rowId: string, values: Record<string, unknown>) => Promise<void>) | undefined
-  >(() => {
-    if (onUpdateRow) return onUpdateRow
-    if (!mutationClient) return undefined
-    return async (rowId: string, values: Record<string, unknown>) => {
-      await mutationClient.updateRow({
-        definitionKey: definition.key,
-        rowId,
-        values,
-        namespace: definition.namespace
-      })
-      await fetchRows()
-    }
-  }, [onUpdateRow, mutationClient, definition.key, definition.namespace, fetchRows])
-
-  const effectiveOnDeleteRow = useMemo<((rowId: string) => Promise<void>) | undefined>(() => {
-    if (onDeleteRow) return onDeleteRow
-    if (!mutationClient) return undefined
-    return async (rowId: string) => {
-      await mutationClient.deleteRow({
-        definitionKey: definition.key,
-        rowId,
-        namespace: definition.namespace
-      })
-      await fetchRows()
-    }
-  }, [onDeleteRow, mutationClient, definition.key, definition.namespace, fetchRows])
-
-  const convertCheckboxValue = Boolean
-
-  const convertDateValue = (raw: unknown, colType: string): string => {
-    if (raw == null || raw === '') return ''
-
-    let date: Date
-    if (typeof raw === 'number') {
-      date = new Date(raw)
-    } else {
-      const numericTimestamp = Number(raw)
-      if (Number.isNaN(numericTimestamp)) {
-        date = new Date(`${raw}`)
-      } else {
-        date = new Date(numericTimestamp)
-      }
-    }
-
-    if (Number.isNaN(date.getTime())) return ''
-
-    return colType === 'DATE' ? date.toISOString().split('T')[0] : date.toISOString()
-  }
-
-  const convertReferenceValue = (raw: unknown): string => {
-    if (typeof raw !== 'object' || raw === null || !('id' in raw)) return ''
-    const refId = (raw as { id: unknown }).id
-    if (refId == null) return ''
-    return typeof refId === 'object' ? JSON.stringify(refId) : `${refId}`
-  }
-
-  const convertGenericValue = (raw: unknown): string => {
-    if (raw == null) return ''
-    return typeof raw === 'object' ? JSON.stringify(raw) : `${raw}`
-  }
-
-  const startEditingExisting = useCallback(
-    (rowKey: string, row: Record<string, unknown>) => {
-      setEditingExistingId(rowKey)
-      const values: RowValues = {}
-      columns.forEach(col => {
-        const raw = row[col.name]
-        if (col.type === 'CHECKBOX') {
-          values[col.name] = convertCheckboxValue(raw)
-        } else if (col.type === 'DATE' || col.type === 'DATETIME') {
-          values[col.name] = convertDateValue(raw, col.type)
-        } else if (col.type === 'REFERENCE') {
-          values[col.name] = convertReferenceValue(raw)
-        } else {
-          values[col.name] = convertGenericValue(raw)
-        }
-      })
-      setEditingValues(values)
-    },
-    [columns]
-  )
-
-  const cancelEditingExisting = useCallback(() => {
-    setEditingExistingId(null)
-  }, [])
-
-  const updateExistingCell = useCallback((name: string, value: string | boolean) => {
-    setEditingValues(prev => ({ ...prev, [name]: value }))
-  }, [])
-
-  const saveExistingRow = useCallback(
-    async (rowId: string) => {
-      if (!effectiveOnUpdateRow) return
-      setExistingSaving(true)
-      setExistingError(null)
-      try {
-        await effectiveOnUpdateRow(rowId, editingValues as Record<string, unknown>)
-        setEditingExistingId(null)
-        setExistingError(null)
-      } catch (e) {
-        setExistingError(e instanceof Error ? e.message : 'Failed to update row')
-      } finally {
-        setExistingSaving(false)
-      }
-    },
-    [effectiveOnUpdateRow, editingValues]
-  )
-
-  const deleteExistingRow = useCallback(
-    async (rowId: string) => {
-      if (!effectiveOnDeleteRow) return
-      setExistingError(null)
-      try {
-        await effectiveOnDeleteRow(rowId)
-        if (editingExistingId === rowId) {
-          setEditingExistingId(null)
-        }
-        setExistingError(null)
-      } catch (e) {
-        setExistingError(e instanceof Error ? e.message : 'Failed to delete row')
-      }
-    },
-    [effectiveOnDeleteRow, editingExistingId]
-  )
 
   const addRow = useCallback(() => {
     setRows(prev => [
@@ -474,110 +474,79 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
               </Alert>
             </div>
           )}
-          {existingError && (
-            <div className="gba:px-3 gba:pt-3">
-              <Alert variant="destructive" className="gba:py-2">
-                <AlertDescription className="gba:text-xs">{existingError}</AlertDescription>
-              </Alert>
-            </div>
-          )}
-          {(() => {
-            const hasNoRows = existingRows.length === 0 && rows.length === 0
-            if (fetchLoading) {
-              return (
-                <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-                  <Spinner size="sm" />
-                </div>
-              )
-            }
-            if (hasNoRows) {
-              return (
-                <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-10">
-                  No entries yet. Click "Add row" to create one.
-                </div>
-              )
-            }
-            return (
-              <div className="gba:overflow-x-auto">
-                <table className="gba:w-full gba:text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
-                  <colgroup>
-                    {columns.map(col => (
-                      <col key={col.name} />
-                    ))}
-                    <col style={{ width: '120px' }} />
-                  </colgroup>
-                  <thead>
-                    <tr className="gba:bg-muted/50 gba:border-b gba:border-border">
+          <div className="gba:overflow-x-auto">
+            <table className="gba:w-full gba:text-sm">
+              <thead>
+                <tr className="gba:bg-muted/50 gba:border-b gba:border-border">
+                  {columns.map(col => (
+                    <th
+                      key={col.name}
+                      className="gba:text-left gba:font-medium gba:px-3 gba:py-2.5 gba:text-foreground gba:whitespace-nowrap"
+                    >
+                      <span>{col.label || col.name}</span>
+                      {col.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
+                    </th>
+                  ))}
+                  <th className="gba:w-16" />
+                </tr>
+              </thead>
+              <tbody>
+                {fetchLoading && existingRows.length === 0 && rows.length === 0 && (
+                  <tr>
+                    <td colSpan={columns.length + 1} className="gba:text-center gba:py-8">
+                      <Spinner size="sm" />
+                    </td>
+                  </tr>
+                )}
+                {!fetchLoading && existingRows.length === 0 && rows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={columns.length + 1}
+                      className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-10"
+                    >
+                      No entries yet. Click "Add row" to create one.
+                    </td>
+                  </tr>
+                )}
+                {existingRows.map((row, i) => {
+                  const rowKey =
+                    row.id != null ? (typeof row.id === 'object' ? JSON.stringify(row.id) : String(row.id)) : String(i)
+                  return (
+                    <tr
+                      key={rowKey}
+                      className="gba:border-b gba:border-border hover:gba:bg-muted/20 gba:transition-colors"
+                      data-testid={`${testId}-existing-row-${i}`}
+                    >
                       {columns.map(col => (
-                        <th
+                        <td
                           key={col.name}
-                          className="gba:text-left gba:font-medium gba:px-3 gba:py-2.5 gba:text-foreground gba:overflow-hidden"
+                          className="gba:px-3 gba:py-2 gba:align-middle gba:text-sm gba:text-foreground"
                         >
-                          <div className="gba:truncate">
-                            {col.label || col.name}
-                            {col.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
-                          </div>
-                        </th>
+                          {formatReadValue(row[col.name], col.type)}
+                        </td>
                       ))}
-                      <th className="gba:px-3 gba:py-2.5" style={{ width: '120px' }} />
+                      <td className="gba:w-16" />
                     </tr>
-                  </thead>
-                  <tbody>
-                    {existingRows.map((row, rowIndex) => {
-                      const rowKey = toStableRowKey(row, rowIndex)
-                      const rowId = toRowId(row)
-                      const isEditingThis = editingExistingId === rowKey
-                      const canEditRow = isCatalog === false && Boolean(effectiveOnUpdateRow) && rowId.length > 0
-                      const canDeleteRow = isCatalog === false && Boolean(effectiveOnDeleteRow) && rowId.length > 0
-                      return (
-                        <SimpleTableRow
-                          key={rowKey}
-                          row={row}
-                          rowIndex={rowIndex}
-                          columns={columns}
-                          isEditing={isEditingThis}
-                          editValues={editingValues}
-                          canEdit={canEditRow}
-                          canDelete={canDeleteRow}
-                          saving={existingSaving}
-                          testId={testId}
-                          onStartEdit={() => startEditingExisting(rowKey, row)}
-                          onCancelEdit={cancelEditingExisting}
-                          onSave={() => saveExistingRow(rowId)}
-                          onDelete={() => deleteExistingRow(rowId)}
-                          onCellChange={updateExistingCell}
-                          formatValue={formatReadValue}
-                        />
-                      )
-                    })}
-                    {rows.map((row, rowIndex) => {
-                      const isSaved = row.saved === true
-                      return (
-                        <SimpleTableRow
-                          key={row.id}
-                          row={row.values}
-                          rowIndex={existingRows.length + rowIndex}
-                          columns={columns}
-                          isEditing={true}
-                          editValues={row.values}
-                          canEdit={false}
-                          canDelete={isSaved === false}
-                          saving={row.saving}
-                          testId={testId}
-                          onStartEdit={() => {}}
-                          onCancelEdit={() => {}}
-                          onSave={() => (effectiveOnCreateRow ? saveRow(row.id) : undefined)}
-                          onDelete={() => deleteRow(row.id)}
-                          onCellChange={(name, value) => updateCell(row.id, name, value)}
-                          formatValue={formatReadValue}
-                        />
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
-          })()}
+                  )
+                })}
+                {rows.map((row, i) => (
+                  <EditableRow
+                    key={row.id}
+                    rowIndex={i}
+                    columns={columns}
+                    values={row.values}
+                    onChange={(name, value) => updateCell(row.id, name, value)}
+                    onDelete={() => deleteRow(row.id)}
+                    onSave={effectiveOnCreateRow ? () => saveRow(row.id) : undefined}
+                    saving={row.saving}
+                    saved={row.saved}
+                    saveError={row.saveError}
+                    testId={testId}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

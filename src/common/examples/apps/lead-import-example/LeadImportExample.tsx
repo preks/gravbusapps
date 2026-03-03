@@ -43,103 +43,6 @@ interface CatalogLookupCache {
 
 type AgentResponse = LeadImportAnalyzerResponse
 
-// Lead table fields sourced from GraphQL schema introspection of both:
-//   CRM:  nw_crm.lead          (Lead entity)
-//   IRM:  nw_investment_relations.investment_lead  (InvestmentLead entity)
-//
-// Fields marked "(CRM)" exist only on the CRM Lead table.
-// Fields marked "(IRM)" exist only on the IRM InvestmentLead table.
-// Unmarked fields exist in both tables under the same field name.
-const LEAD_TARGET_FIELDS = [
-  // ── Personal (shared) ────────────────────────────────────────────────────
-  { value: 'firstName', label: 'First Name', type: 'direct' },
-  { value: 'lastName', label: 'Last Name', type: 'direct' },
-  { value: 'email', label: 'Email', type: 'direct' },
-  { value: 'phoneNumber', label: 'Phone Number', type: 'direct' },
-  { value: 'position', label: 'Position', type: 'direct' },
-  { value: 'academicTitleRef', label: 'Academic Title', type: 'catalog', catalog: 'AcademicTitle' },
-  { value: 'salutationRef', label: 'Salutation', type: 'catalog', catalog: 'Salutation' },
-
-  // ── Company (shared) ─────────────────────────────────────────────────────
-  { value: 'companyName', label: 'Company Name', type: 'direct' },
-  { value: 'companyEmail', label: 'Company Email', type: 'direct' },
-  { value: 'companyPhone', label: 'Company Phone', type: 'direct' },
-  { value: 'companyWebsite', label: 'Company Website', type: 'direct' },
-  { value: 'legalFormRef', label: 'Legal Form', type: 'catalog', catalog: 'LegalForm' },
-  // CRM: numberOfEmployees / IRM: companySize — different field names
-  { value: 'numberOfEmployeesRef', label: 'Company Size (CRM)', type: 'catalog', catalog: 'CompanySize' },
-  { value: 'companySizeRef', label: 'Company Size (IRM)', type: 'catalog', catalog: 'CompanySize' },
-  // CRM: annualRevenue / IRM: accountAnnualRevenueBand
-  { value: 'annualRevenueRef', label: 'Annual Revenue (CRM)', type: 'catalog', catalog: 'AnnualRevenue' },
-  {
-    value: 'accountAnnualRevenueBandRef',
-    label: 'Annual Revenue Band (IRM)',
-    type: 'catalog',
-    catalog: 'AccountAnnualRevenueBand'
-  },
-  // CRM: industry / IRM: industryClass
-  { value: 'industryRef', label: 'Industry (CRM)', type: 'catalog', catalog: 'IndustryClass' },
-  { value: 'industryClassRef', label: 'Industry (IRM)', type: 'catalog', catalog: 'IndustryClass' },
-
-  // ── Address ───────────────────────────────────────────────────────────────
-  { value: 'city', label: 'City (CRM)', type: 'direct' }, // CRM field name
-  { value: 'locality', label: 'Locality (IRM)', type: 'direct' }, // IRM field name
-  { value: 'postalCode', label: 'Postal Code', type: 'direct' },
-  { value: 'addressLine', label: 'Address Line', type: 'direct' },
-  { value: 'countryRef', label: 'Country', type: 'catalog', catalog: 'Country' },
-  { value: 'regionRef', label: 'Region', type: 'catalog', catalog: 'Region' },
-
-  // ── Lead Info (shared) ────────────────────────────────────────────────────
-  { value: 'code', label: 'Code', type: 'direct' },
-  { value: 'description', label: 'Description', type: 'direct' },
-  { value: 'leadRatingRef', label: 'Lead Rating', type: 'catalog', catalog: 'LeadRating' },
-  { value: 'sensitive', label: 'Sensitive', type: 'direct' },
-  { value: 'sourceCompanyName', label: 'Source Company Name', type: 'direct' },
-  { value: 'sourceIndividualName', label: 'Source Individual Name', type: 'direct' },
-  { value: 'leadSourceType', label: 'Lead Source Type', type: 'direct' },
-  { value: 'conversionDate', label: 'Conversion Date', type: 'direct' },
-  { value: 'timeZoneRef', label: 'Time Zone', type: 'catalog', catalog: 'TimeZone' },
-  // Both CRM and IRM have leadSourceRef and leadStatusRef
-  { value: 'leadSourceRef', label: 'Lead Source', type: 'catalog', catalog: 'LeadSource' },
-  { value: 'leadStatusRef', label: 'Lead Status', type: 'catalog', catalog: 'LeadStatus' },
-  // CRM additionally has source/sourceRef and status/statusRef as separate catalog fields
-  { value: 'sourceRef', label: 'Source (CRM)', type: 'catalog', catalog: 'LeadSource' },
-  { value: 'statusRef', label: 'Status (CRM)', type: 'catalog', catalog: 'LeadStatus' },
-
-  // ── CRM-only fields ───────────────────────────────────────────────────────
-  { value: 'name', label: 'Lead Name (CRM)', type: 'direct' },
-  { value: 'rating', label: 'Rating - raw text (CRM)', type: 'direct' },
-  { value: 'salesCampaignId', label: 'Sales Campaign (CRM)', type: 'direct' },
-
-  // ── IRM Investment-specific fields ────────────────────────────────────────
-  { value: 'investmentName', label: 'Investment Name (IRM)', type: 'direct' },
-  { value: 'investmentGroupRef', label: 'Investment Group (IRM)', type: 'catalog', catalog: 'InvestmentGroup' },
-  { value: 'investmentTypeRef', label: 'Investment Type (IRM)', type: 'catalog', catalog: 'InvestmentType' },
-  { value: 'investmentRoleRef', label: 'Investment Role (IRM)', type: 'catalog', catalog: 'InvestmentRole' },
-  {
-    value: 'investmentStakeTypeRef',
-    label: 'Investment Stake Type (IRM)',
-    type: 'catalog',
-    catalog: 'InvestmentStakeType'
-  },
-  { value: 'stakePercentage', label: 'Stake Percentage (IRM)', type: 'direct' },
-  { value: 'marketValue', label: 'Market Value (IRM)', type: 'direct' },
-  { value: 'initialInvestmentAmount', label: 'Initial Investment Amount (IRM)', type: 'direct' },
-  { value: 'loanAmount', label: 'Loan Amount (IRM)', type: 'direct' },
-  { value: 'loanInterestRate', label: 'Loan Interest Rate (IRM)', type: 'direct' },
-  { value: 'requiredCapitalAmount', label: 'Required Capital Amount (IRM)', type: 'direct' },
-  { value: 'forecastedProfitAmount', label: 'Forecasted Profit Amount (IRM)', type: 'direct' },
-  { value: 'annualNetColdRent', label: 'Annual Net Cold Rent (IRM)', type: 'direct' },
-  { value: 'buildingYear', label: 'Building Year (IRM)', type: 'direct' },
-  { value: 'size', label: 'Size (IRM)', type: 'direct' },
-  {
-    value: 'sizeMeasurementUnitRef',
-    label: 'Size Measurement Unit (IRM)',
-    type: 'catalog',
-    catalog: 'SizeMeasurementUnit'
-  }
-] as const
-
 const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
   // State
   const [file, setFile] = useState<File | null>(null)
@@ -147,7 +50,6 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
   const [parsedData, setParsedData] = useState<ParsedRow[]>([])
   const [agentResponse, setAgentResponse] = useState<AgentResponse | null>(null)
   const [editedMappings, setEditedMappings] = useState<FieldMapping[]>([])
-  const [unmappedSourceFields, setUnmappedSourceFields] = useState<string[]>([])
   const [convertedLeads, setConvertedLeads] = useState<ConvertedLead[]>([])
   const [step, setStep] = useState<'upload' | 'mapping' | 'result'>('upload')
   const [isLoading, setIsLoading] = useState(false)
@@ -161,6 +63,34 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
       aiServiceRef.current = new LeadImportAnalyzerService(context.accessToken)
     }
   }, [context.accessToken])
+
+  // Available target fields for mapping
+  const targetFields = [
+    { value: 'firstName', label: 'First Name', type: 'direct' },
+    { value: 'lastName', label: 'Last Name', type: 'direct' },
+    { value: 'email', label: 'Email', type: 'direct' },
+    { value: 'phoneNumber', label: 'Phone Number', type: 'direct' },
+    { value: 'position', label: 'Position', type: 'direct' },
+    { value: 'companyName', label: 'Company Name', type: 'direct' },
+    { value: 'companyEmail', label: 'Company Email', type: 'direct' },
+    { value: 'companyPhone', label: 'Company Phone', type: 'direct' },
+    { value: 'companyWebsite', label: 'Company Website', type: 'direct' },
+    { value: 'city', label: 'City', type: 'direct' },
+    { value: 'postalCode', label: 'Postal Code', type: 'direct' },
+    { value: 'description', label: 'Description', type: 'direct' },
+    { value: 'countryRef', label: 'Country (Catalog)', type: 'catalog', catalog: 'Country' },
+    { value: 'regionRef', label: 'Region (Catalog)', type: 'catalog', catalog: 'Region' },
+    {
+      value: 'numberOfEmployeesRef',
+      label: 'Company Size (Catalog)',
+      type: 'catalog',
+      catalog: 'CompanySize'
+    },
+    { value: 'industryRef', label: 'Industry (Catalog)', type: 'catalog', catalog: 'IndustryClass' },
+    { value: 'leadSourceRef', label: 'Lead Source (Catalog)', type: 'catalog', catalog: 'LeadSource' },
+    { value: 'leadStatusRef', label: 'Lead Status (Catalog)', type: 'catalog', catalog: 'LeadStatus' },
+    { value: 'leadRatingRef', label: 'Lead Rating (Catalog)', type: 'catalog', catalog: 'LeadRating' }
+  ]
 
   // Catalog data state
   const [catalogData, setCatalogData] = useState<{
@@ -307,7 +237,6 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
 
       setAgentResponse(agentResult)
       setEditedMappings(agentResult.fieldMappings)
-      setUnmappedSourceFields(agentResult.unmappedSourceFields ?? [])
       setStep('mapping')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -322,11 +251,12 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
       const updated = [...prev]
       updated[index] = { ...updated[index], [field]: value }
 
+      // Update catalog identifier if switching to catalog type
       if (field === 'targetField') {
-        const targetFieldInfo = LEAD_TARGET_FIELDS.find(tf => tf.value === value)
+        const targetFieldInfo = targetFields.find(tf => tf.value === value)
         if (targetFieldInfo?.type === 'catalog') {
           updated[index].transformationType = 'catalog'
-          updated[index].catalogIdentifier = (targetFieldInfo as any).catalog
+          updated[index].catalogIdentifier = targetFieldInfo.catalog
         } else {
           updated[index].transformationType = 'direct'
           delete updated[index].catalogIdentifier
@@ -337,21 +267,21 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
     })
   }, [])
 
-  // Remove mapping — source field moves to unmapped list, target field becomes available again
+  // Remove mapping
   const removeMapping = useCallback((index: number) => {
-    setEditedMappings(prev => {
-      const removedSourceField = prev[index]?.sourceField
-      if (removedSourceField) {
-        setUnmappedSourceFields(current => [...current, removedSourceField])
-      }
-      return prev.filter((_, i) => i !== index)
-    })
+    setEditedMappings(prev => prev.filter((_, i) => i !== index))
   }, [])
 
-  // Re-add an unmapped source field as a new mapping row with no target selected
-  const remapSourceField = useCallback((sourceField: string) => {
-    setUnmappedSourceFields(prev => prev.filter(f => f !== sourceField))
-    setEditedMappings(prev => [...prev, { sourceField, targetField: '', transformationType: 'direct' }])
+  // Add new mapping
+  const addMapping = useCallback((sourceField: string) => {
+    setEditedMappings(prev => [
+      ...prev,
+      {
+        sourceField,
+        targetField: 'firstName', // Default target
+        transformationType: 'direct'
+      }
+    ])
   }, [])
 
   // Catalog lookup helper
@@ -384,12 +314,12 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
 
       // Exact match on code or value
       const exactMatch = entries.find(
-        entry => entry.code?.toLowerCase() === search || entry.value?.toLowerCase() === search
+        entry => entry.code?.toLowerCase() === search || entry.value.toLowerCase() === search
       )
       if (exactMatch) return exactMatch.id
 
       // Fuzzy match on value
-      const fuzzyMatch = entries.find(entry => entry.value?.toLowerCase().includes(search))
+      const fuzzyMatch = entries.find(entry => entry.value.toLowerCase().includes(search))
       if (fuzzyMatch) return fuzzyMatch.id
 
       return null
@@ -465,7 +395,6 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
     setParsedData([])
     setAgentResponse(null)
     setEditedMappings([])
-    setUnmappedSourceFields([])
     setConvertedLeads([])
     setStep('upload')
     setError(null)
@@ -552,87 +481,84 @@ const LeadImportExample: React.FC<BusinessAppContextProps> = context => {
             </CardHeader>
             <CardContent>
               <div className="gba:space-y-4">
-                <div className="gba:text-sm gba:text-muted-foreground">
+                <div className="gba:text-sm gba:text-gray-600">
                   <p>
-                    AI detected {agentResponse.sourceFields.length} source fields and mapped {editedMappings.length} of
-                    them to lead table fields.
+                    AI detected {agentResponse.sourceFields.length} fields and mapped {editedMappings.length} of them.
                   </p>
+                  {agentResponse.unmappedSourceFields.length > 0 && (
+                    <p className="gba:mt-1 gba:text-amber-600">
+                      {agentResponse.unmappedSourceFields.length} fields remain unmapped
+                    </p>
+                  )}
                 </div>
 
                 {/* Mapped Fields */}
                 <div>
                   <h3 className="gba:text-sm gba:font-semibold gba:mb-2">Mapped Fields</h3>
                   <div className="gba:space-y-3">
-                    {editedMappings.map((mapping, index) => {
-                      const usedByOtherRows = new Set(
-                        editedMappings.filter((_, i) => i !== index).map(m => m.targetField)
-                      )
-                      const availableFields = LEAD_TARGET_FIELDS.filter(
-                        tf => !usedByOtherRows.has(tf.value) || tf.value === mapping.targetField
-                      )
-                      return (
-                        <div
-                          key={index}
-                          className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg"
-                        >
-                          <div className="gba:flex-1">
-                            <Label className="gba:text-xs gba:text-muted-foreground">Source Field</Label>
-                            <div className="gba:font-medium gba:text-sm">{mapping.sourceField}</div>
-                          </div>
-
-                          <div className="gba:text-muted-foreground">→</div>
-
-                          <div className="gba:flex-1">
-                            <Label className="gba:text-xs gba:text-muted-foreground">Target Field</Label>
-                            <Select
-                              value={mapping.targetField}
-                              onValueChange={value => updateMapping(index, 'targetField', value)}
-                            >
-                              <SelectTrigger className="gba:w-full">
-                                <SelectValue placeholder="Select a field..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableFields.map(tf => (
-                                  <SelectItem key={tf.value} value={tf.value}>
-                                    {tf.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="gba:w-20">
-                            <Label className="gba:text-xs gba:text-muted-foreground">Type</Label>
-                            <div className="gba:text-xs gba:font-medium gba:mt-1">
-                              {mapping.transformationType === 'catalog' ? 'Catalog' : 'Direct'}
-                            </div>
-                          </div>
-
-                          <Button variant="ghost" size="sm" onClick={() => removeMapping(index)}>
-                            <XCircleIcon className="gba:w-4 gba:h-4" />
-                          </Button>
+                    {editedMappings.map((mapping, index) => (
+                      <div
+                        key={index}
+                        className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg"
+                      >
+                        <div className="gba:flex-1">
+                          <Label className="gba:text-xs gba:text-gray-500">Source Field</Label>
+                          <div className="gba:font-medium gba:text-sm">{mapping.sourceField}</div>
                         </div>
-                      )
-                    })}
+
+                        <div className="gba:text-gray-400">→</div>
+
+                        <div className="gba:flex-1">
+                          <Label className="gba:text-xs gba:text-gray-500">Target Field</Label>
+                          <Select
+                            value={mapping.targetField}
+                            onValueChange={value => updateMapping(index, 'targetField', value)}
+                          >
+                            <SelectTrigger className="gba:w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {targetFields.map(tf => (
+                                <SelectItem key={tf.value} value={tf.value}>
+                                  {tf.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="gba:w-20">
+                          <Label className="gba:text-xs gba:text-gray-500">Type</Label>
+                          <div className="gba:text-xs gba:font-medium gba:mt-1">
+                            {mapping.transformationType === 'catalog' ? 'Catalog' : 'Direct'}
+                          </div>
+                        </div>
+
+                        <Button variant="ghost" size="sm" onClick={() => removeMapping(index)}>
+                          <XCircleIcon className="gba:w-4 gba:h-4" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Unmapped Source Fields */}
-                {unmappedSourceFields.length > 0 && (
+                {/* Unmapped Fields */}
+                {agentResponse.unmappedSourceFields.length > 0 && (
                   <div>
-                    <h3 className="gba:text-sm gba:font-semibold gba:mb-2">Unmapped Source Fields</h3>
-                    <div className="gba:space-y-2">
-                      {unmappedSourceFields.map(sourceField => (
-                        <div
-                          key={sourceField}
-                          className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg gba:border-dashed"
-                        >
-                          <span className="gba:text-sm gba:text-muted-foreground">{sourceField}</span>
-                          <Button variant="outline" size="sm" onClick={() => remapSourceField(sourceField)}>
-                            Map Field
-                          </Button>
-                        </div>
-                      ))}
+                    <h3 className="gba:text-sm gba:font-semibold gba:mb-2">Unmapped Fields</h3>
+                    <div className="gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded-lg gba:p-3">
+                      <div className="gba:flex gba:flex-wrap gba:gap-2">
+                        {agentResponse.unmappedSourceFields.map(field => (
+                          <button
+                            key={field}
+                            onClick={() => addMapping(field)}
+                            className="gba:px-3 gba:py-1 gba:text-xs gba:bg-white gba:border gba:border-gray-300 gba:rounded gba:hover:bg-gray-50 gba:transition-colors"
+                          >
+                            {field}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mt-2">Click a field to add it to the mappings</p>
                     </div>
                   </div>
                 )}
