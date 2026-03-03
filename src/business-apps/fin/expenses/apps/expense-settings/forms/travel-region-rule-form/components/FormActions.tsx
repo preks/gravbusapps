@@ -1,7 +1,6 @@
 import React from 'react'
 import { Button, Spinner } from '@newwork/nw-design-system'
-import { PiFloppyDisk } from 'react-icons/pi'
-
+import { FloppyDiskIcon } from '@phosphor-icons/react'
 interface FormActionsProps {
   isEditing: boolean
   isSubmitting: boolean
@@ -16,7 +15,7 @@ export const FormActions: React.FC<FormActionsProps> = ({ isEditing, isSubmittin
         Cancel
       </Button>
       <Button onClick={onSave} disabled={isSubmitting} className="gba:flex gba:items-center gba:gap-2">
-        {isSubmitting ? <Spinner size="sm" /> : <PiFloppyDisk className="gba:h-4 gba:w-4" />}
+        {isSubmitting ? <Spinner size="sm" /> : <FloppyDiskIcon className="gba:h-4 gba:w-4" />}
         {isEditing ? 'Update Rule' : 'Create Rule'}
       </Button>
     </div>

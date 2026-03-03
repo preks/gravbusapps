@@ -24,7 +24,7 @@ import {
   FormControl,
   FormMessage
 } from '@newwork/nw-design-system'
-import { PiWarning } from 'react-icons/pi'
+import { WarningIcon } from '@phosphor-icons/react'
 import {
   TravelLocation,
   AllowanceType,
@@ -151,7 +151,7 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
 
         {error && (
           <Alert variant="destructive" data-testid="allowance-code-form-error">
-            <PiWarning className="gba:h-4 gba:w-4" />
+            <WarningIcon className="gba:h-4 gba:w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}

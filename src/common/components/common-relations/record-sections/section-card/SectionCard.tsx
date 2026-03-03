@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { PiCaretLeft, PiCaretRight } from 'react-icons/pi'
+import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -245,14 +245,14 @@ const SectionWrapper = <T = Record<string, any>,>({
                   data-testid={`${singleSection.id}-carousel-prev`}
                   className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
                 >
-                  <PiCaretLeft className="gba:text-[10px]" />
+                  <CaretLeftIcon className="gba:text-[10px]" />
                 </button>
                 <button
                   onClick={() => handleCarouselNext(singleSection.id, sectionInfo.pages.length)}
                   data-testid={`${singleSection.id}-carousel-next`}
                   className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
                 >
-                  <PiCaretRight className="gba:text-[10px]" />
+                  <CaretRightIcon className="gba:text-[10px]" />
                 </button>
               </div>
             </div>
@@ -318,14 +318,14 @@ const SectionWrapper = <T = Record<string, any>,>({
                 data-testid={`${activeTab}-carousel-prev`}
                 className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
               >
-                <PiCaretLeft className="gba:text-[10px]" />
+                <CaretLeftIcon className="gba:text-[10px]" />
               </button>
               <button
                 onClick={() => handleCarouselNext(activeTab, activeSectionInfo.pages.length)}
                 data-testid={`${activeTab}-carousel-next`}
                 className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
               >
-                <PiCaretRight className="gba:text-[10px]" />
+                <CaretRightIcon className="gba:text-[10px]" />
               </button>
             </div>
           </div>

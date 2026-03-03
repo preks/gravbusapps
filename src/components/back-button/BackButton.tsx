@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { PiArrowLeft } from 'react-icons/pi'
+import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface BackButtonProps {
@@ -61,7 +61,7 @@ export const BackButton: React.FC<BackButtonProps> = ({
       className={`gba:flex gba:items-center gba:gap-2 ${className}`}
       data-testid={dataTestId}
     >
-      <PiArrowLeft className="gba:h-4 gba:w-4" />
+      <ArrowLeftIcon className="gba:h-4 gba:w-4" />
       <span>{backText}</span>
     </Button>
   )

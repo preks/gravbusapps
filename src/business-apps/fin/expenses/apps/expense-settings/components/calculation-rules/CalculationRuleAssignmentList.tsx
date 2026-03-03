@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { PiPlus, PiPencil, PiTrash, PiDotsThreeVertical } from 'react-icons/pi'
+import { PlusIcon, PencilIcon, TrashIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CheckIcon, XIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
@@ -319,7 +319,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
     filterLabelMap: {},
     actions: (
       <Button onClick={() => setIsCreateModalVisible(true)} data-testid={`${PREFIX}-create-button`}>
-        <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+        <PlusIcon className="gba:mr-2 gba:h-4 gba:w-4" />
         {getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createAssignment', 'Create Assignment')}
       </Button>
     )
@@ -421,7 +421,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                                       data-testid={`${PREFIX}-actions-trigger-${index}`}
                                       onClick={e => e.stopPropagation()}
                                     >
-                                      <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                      <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
@@ -432,7 +432,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                                       }}
                                       data-testid={`${PREFIX}-edit-assignment-${index}`}
                                     >
-                                      <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:expense_calculation_rule.edit',
                                         'Edit'
@@ -447,7 +447,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                                       className="gba:text-destructive"
                                       data-testid={`${PREFIX}-delete-assignment-${index}`}
                                     >
-                                      <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:expense_calculation_rule.delete',
                                         'Delete'

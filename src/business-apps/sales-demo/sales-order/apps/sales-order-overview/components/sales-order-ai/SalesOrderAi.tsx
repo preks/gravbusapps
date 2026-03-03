@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Button, Input, Modal, Avatar, Typography } from 'antd'
-import { PiMagicWand, PiArrowRight, PiPaperPlane, PiPlus, PiFile, PiX } from 'react-icons/pi'
+import { MagicWandIcon, ArrowRightIcon, PaperPlaneIcon, PlusIcon, FileIcon, XIcon } from '@phosphor-icons/react'
 import EveryAIOutline from '@/assets/icons/everyAiOutline.svg'
 
 const { TextArea } = Input
@@ -35,22 +35,22 @@ const suggestions: Suggestion[] = [
   {
     id: 'analyze-orders',
     text: 'Analyze my sales order trends this month',
-    icon: <PiMagicWand className="gba:text-blue-500" />
+    icon: <MagicWandIcon className="gba:text-blue-500" />
   },
   {
     id: 'pending-approvals',
     text: 'Show me orders pending approval',
-    icon: <PiMagicWand className="gba:text-orange-500" />
+    icon: <MagicWandIcon className="gba:text-orange-500" />
   },
   {
     id: 'customer-insights',
     text: 'Give me insights on top customers',
-    icon: <PiMagicWand className="gba:text-green-500" />
+    icon: <MagicWandIcon className="gba:text-green-500" />
   },
   {
     id: 'order-optimization',
     text: 'How to optimize order processing?',
-    icon: <PiMagicWand className="gba:text-purple-500" />
+    icon: <MagicWandIcon className="gba:text-purple-500" />
   }
 ]
 
@@ -207,7 +207,7 @@ export const SalesOrderAi: React.FC<SalesOrderAiProps> = ({ className }) => {
             className="gba:flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1 gba:rounded gba:transition-colors gba:hover:bg-gray-100 gba:disabled:opacity-50 gba:disabled:cursor-not-allowed gba:border-none gba:bg-transparent"
             data-testid="sales-order-ai-submit-button"
           >
-            <PiPaperPlane
+            <PaperPlaneIcon
               className={`gba:text-lg ${prompt.trim() || uploadedFiles.length > 0 ? 'gba:text-blue-500' : 'gba:text-gray-400'}`}
             />
           </button>
@@ -218,7 +218,7 @@ export const SalesOrderAi: React.FC<SalesOrderAiProps> = ({ className }) => {
             className="gba:flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1 gba:rounded gba:transition-colors gba:hover:bg-gray-100 gba:border-none gba:bg-transparent"
             data-testid="sales-order-ai-add-files-button"
           >
-            <PiPlus className="gba:text-lg gba:text-gray-500" />
+            <PlusIcon className="gba:text-lg gba:text-gray-500" />
           </button>
           <input
             ref={fileInputRef}
@@ -255,7 +255,7 @@ export const SalesOrderAi: React.FC<SalesOrderAiProps> = ({ className }) => {
                     {suggestion.icon}
                   </div>
                   <Text className="gba:text-sm gba:text-gray-700 gba:flex-1">{suggestion.text}</Text>
-                  <PiArrowRight className="gba:text-gray-400 gba:text-sm" />
+                  <ArrowRightIcon className="gba:text-gray-400 gba:text-sm" />
                 </button>
               ))}
             </div>
@@ -280,7 +280,7 @@ export const SalesOrderAi: React.FC<SalesOrderAiProps> = ({ className }) => {
                   data-testid={`sales-order-ai-uploaded-file-${file.id}`}
                 >
                   <div className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded gba:bg-gray-100">
-                    <PiFile className="gba:text-gray-500" />
+                    <FileIcon className="gba:text-gray-500" />
                   </div>
                   <Text className="gba:text-sm gba:text-gray-700 gba:flex-1">
                     {file.name} ({file.size})
@@ -291,7 +291,7 @@ export const SalesOrderAi: React.FC<SalesOrderAiProps> = ({ className }) => {
                     className="gba:flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1 gba:rounded gba:transition-colors gba:hover:bg-gray-100 gba:border-none gba:bg-transparent"
                     data-testid={`sales-order-ai-remove-file-${file.id}`}
                   >
-                    <PiX className="gba:text-gray-400 gba:text-sm" />
+                    <XIcon className="gba:text-gray-400 gba:text-sm" />
                   </button>
                 </div>
               ))}
@@ -383,7 +383,7 @@ export const SalesOrderAi: React.FC<SalesOrderAiProps> = ({ className }) => {
               />
               <Button
                 type="primary"
-                icon={<PiPaperPlane />}
+                icon={<PaperPlaneIcon />}
                 onClick={handlePromptSubmit}
                 disabled={!prompt.trim() && uploadedFiles.length === 0}
                 data-testid="sales-order-ai-chat-send-button"

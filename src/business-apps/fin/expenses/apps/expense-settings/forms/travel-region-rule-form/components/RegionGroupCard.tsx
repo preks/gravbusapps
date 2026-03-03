@@ -12,7 +12,7 @@ import {
   Checkbox,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiTrash } from 'react-icons/pi'
+import { TrashIcon } from '@phosphor-icons/react'
 import { SmartColumnGroup, CatalogOption } from '../types'
 import { normalizeDateInputValue } from '../../../utils'
 
@@ -66,7 +66,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           title="Remove Group"
           disabled={isEditRestricted}
         >
-          <PiTrash className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
+          <TrashIcon className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
           Remove
         </Button>
       </div>

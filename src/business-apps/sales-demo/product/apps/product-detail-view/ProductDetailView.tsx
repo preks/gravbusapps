@@ -1,19 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { Row, Col, Card, Tabs, Statistic, Tag, Space, Typography, Alert, Button, Spin, Descriptions } from 'antd'
-import {
-  PiPackage,
-  PiArrowLeft,
-  PiEye,
-  PiInfo,
-  PiWarehouse,
-  PiCurrencyEur,
-  PiTruck,
-  PiChartLine,
-  PiFolder,
-  PiArrowUp,
-  PiArrowDown,
-  PiMinus
-} from 'react-icons/pi'
+import { PackageIcon, ArrowLeftIcon, EyeIcon, InfoIcon, WarehouseIcon, CurrencyEurIcon, TruckIcon, ChartLineIcon, FolderIcon, ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@phosphor-icons/react'
 import { ActionButton } from '@newwork/gravity-ui-catalog'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -92,9 +79,9 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   // Get trend icon
   const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />
-    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />
-    return <PiMinus className="gba:text-gray-400" />
+    if (trend > 0) return <ArrowUpIcon className="gba:text-green-500" />
+    if (trend < 0) return <ArrowDownIcon className="gba:text-red-500" />
+    return <MinusIcon className="gba:text-gray-400" />
   }
 
   // Get status color
@@ -211,7 +198,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       <div className="gba:mb-6 gba:flex gba:justify-between gba:items-center" data-testid="back-navigation">
         <Button
           type="text"
-          icon={<PiArrowLeft />}
+          icon={<ArrowLeftIcon />}
           onClick={handleBack}
           className="gba:flex gba:items-center gba:p-0 gba:h-auto"
           data-testid="back-button"
@@ -239,7 +226,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </Title>
               <Space size="large" className="gba:mb-4">
                 <Text strong>Product #: {product.productNumber}</Text>
-                <Tag color={getStatusColor(product.stateCode || '')} icon={<PiPackage />}>
+                <Tag color={getStatusColor(product.stateCode || '')} icon={<PackageIcon />}>
                   {product.stateCode || 'Unknown'}
                 </Tag>
                 <Tag color="blue">{product.productTypeCode || 'N/A'}</Tag>
@@ -272,7 +259,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               key: 'overview',
               label: (
                 <Space>
-                  <PiEye />
+                  <EyeIcon />
                   <span>Overview</span>
                 </Space>
               ),
@@ -404,7 +391,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               key: 'product-info',
               label: (
                 <Space>
-                  <PiInfo />
+                  <InfoIcon />
                   <span>Product Information</span>
                 </Space>
               ),
@@ -471,7 +458,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               key: 'inventory-stock',
               label: (
                 <Space>
-                  <PiWarehouse />
+                  <WarehouseIcon />
                   <span>Inventory & Stock</span>
                 </Space>
               ),
@@ -546,7 +533,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               key: 'pricing-costs',
               label: (
                 <Space>
-                  <PiCurrencyEur />
+                  <CurrencyEurIcon />
                   <span>Pricing & Costs</span>
                 </Space>
               ),
@@ -627,7 +614,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               key: 'supplier-vendor',
               label: (
                 <Space>
-                  <PiTruck />
+                  <TruckIcon />
                   <span>Supplier & Vendor</span>
                 </Space>
               ),
@@ -686,7 +673,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               key: 'sales-performance',
               label: (
                 <Space>
-                  <PiChartLine />
+                  <ChartLineIcon />
                   <span>Sales Performance</span>
                 </Space>
               ),
@@ -784,7 +771,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               key: 'documents-media',
               label: (
                 <Space>
-                  <PiFolder />
+                  <FolderIcon />
                   <span>Documents & Media</span>
                 </Space>
               ),
@@ -808,7 +795,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                           >
                             <div className="gba:text-center">
                               <div className="gba:mb-3">
-                                <PiFolder size={48} className="gba:text-blue-500" />
+                                <FolderIcon size={48} className="gba:text-blue-500" />
                               </div>
                               <Text strong className="gba:block gba:mb-1">
                                 {document.fileName}

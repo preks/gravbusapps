@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { PiCaretUp, PiCaretDown } from 'react-icons/pi'
+import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { cn } from '../../common/utils/cn'
 import { DebouncedInput } from './DebouncedInput'
@@ -269,9 +269,9 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         </div>
                       )}
                       {isExpanded ? (
-                        <PiCaretUp size={20} className="gba:text-black" aria-hidden="true" />
+                        <CaretUpIcon size={20} className="gba:text-black" aria-hidden="true" />
                       ) : (
-                        <PiCaretDown size={20} className="gba:text-black" aria-hidden="true" />
+                        <CaretDownIcon size={20} className="gba:text-black" aria-hidden="true" />
                       )}
                     </div>
                   </button>

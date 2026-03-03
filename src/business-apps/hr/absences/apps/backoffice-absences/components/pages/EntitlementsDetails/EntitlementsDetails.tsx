@@ -9,7 +9,7 @@ import {
   TableRow,
   Spinner
 } from '@newwork/nw-design-system'
-import { PiArrowLeft, PiCalendarBlank, PiUsers, PiArrowUp, PiArrowDown, PiCalendar, PiUser } from 'react-icons/pi'
+import { ArrowLeftIcon, CalendarBlankIcon, UsersIcon, ArrowUpIcon, ArrowDownIcon, CalendarIcon, UserIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { Spin, Alert } from 'antd'
 import { DataContainer } from '../../../../../../../../components/layout/dataContainer'
@@ -27,8 +27,8 @@ interface EntitlementsDetailsProps extends BusinessAppContextProps {
 // Helper functions
 const renderSortIcon = (field: string, sortField: string, sortOrder: 'asc' | 'desc' | '') => {
   if (sortField !== field) return null
-  if (sortOrder === 'asc') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-  if (sortOrder === 'desc') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+  if (sortOrder === 'asc') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+  if (sortOrder === 'desc') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
   return null
 }
 
@@ -816,7 +816,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                 >
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-employee-cell-${entitlement.id}`}>
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <PiUser size={16} className="gba:text-muted-foreground" />
+                      <UserIcon size={16} className="gba:text-muted-foreground" />
                       <span className="gba:font-medium gba:text-sm">{entitlement.employeeName}</span>
                     </div>
                   </TableCell>
@@ -841,7 +841,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   >
                     {entitlement.validFrom ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-muted-foreground" />
+                        <CalendarIcon size={16} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDateForDisplay(entitlement.validFrom)}</span>
                       </div>
                     ) : (
@@ -851,7 +851,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-valid-to-cell-${entitlement.id}`}>
                     {entitlement.validTo ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-muted-foreground" />
+                        <CalendarIcon size={16} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDateForDisplay(entitlement.validTo)}</span>
                       </div>
                     ) : (
@@ -1009,7 +1009,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           className="gba:flex gba:items-center gba:gap-2"
           data-testid="back-to-dashboard-button"
         >
-          <PiArrowLeft size={16} />
+          <ArrowLeftIcon size={16} />
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
             'Back to Dashboard'
@@ -1021,7 +1021,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <PiUsers size={24} className="gba:text-info" />
+            <UsersIcon size={24} className="gba:text-info" />
             <div>
               <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -1044,7 +1044,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       {summaryStats && (
         <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
           <h3 className="gba:text-lg gba:font-medium gba:mb-4 gba:flex gba:items-center gba:gap-2">
-            <PiCalendarBlank size={20} className="gba:text-info" />
+            <CalendarBlankIcon size={20} className="gba:text-info" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.summary_statistics.title',
               'Summary Statistics (Filtered Results)'
