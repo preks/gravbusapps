@@ -4,6 +4,7 @@
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react'
+import { ImageOff } from 'lucide-react'
 import type {
   AnySlideElement,
   TextElement,
@@ -74,6 +75,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
   const CANVAS_HEIGHT = 720
   const SNAP_THRESHOLD = 8
   const [snapGuides, setSnapGuides] = useState<{ type: 'horizontal' | 'vertical'; position: number }[]>([])
+
+  // Track images that failed to load
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+
+  const handleImageError = useCallback((elementId: string) => {
+    setFailedImages(prev => new Set(prev).add(elementId))
+  }, [])
 
   const getBackgroundStyle = (): React.CSSProperties => {
     switch (background.type) {
@@ -778,24 +786,43 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
         {element.type === 'shape' && renderShape(element as ShapeElement)}
 
         {element.type === 'image' && (
-          <img
-            src={(element as ImageElement).src}
-            alt={(element as ImageElement).alt}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: (element as ImageElement).objectFit,
-              borderRadius: (element as ImageElement).borderRadius,
-              border:
-                (element as ImageElement).borderWidth > 0
-                  ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
-                  : 'none',
-              boxShadow: (element as ImageElement).shadow
-                ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-                : 'none'
-            }}
-            draggable={false}
-          />
+          <>
+            {!failedImages.has(element.id) ? (
+              <img
+                src={(element as ImageElement).src}
+                alt={(element as ImageElement).alt}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: (element as ImageElement).objectFit,
+                  borderRadius: (element as ImageElement).borderRadius,
+                  border:
+                    (element as ImageElement).borderWidth > 0
+                      ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
+                      : 'none',
+                  boxShadow: (element as ImageElement).shadow
+                    ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                    : 'none'
+                }}
+                draggable={false}
+                onError={() => handleImageError(element.id)}
+              />
+            ) : (
+              <div
+                className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:text-muted-foreground gba:rounded"
+                style={{
+                  borderRadius: (element as ImageElement).borderRadius,
+                  border:
+                    (element as ImageElement).borderWidth > 0
+                      ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
+                      : 'none'
+                }}
+              >
+                <ImageOff className="gba:w-8 gba:h-8 gba:mb-2" />
+                <span className="gba:text-xs">Image failed to load</span>
+              </div>
+            )}
+          </>
         )}
 
         {element.type === 'code' && (

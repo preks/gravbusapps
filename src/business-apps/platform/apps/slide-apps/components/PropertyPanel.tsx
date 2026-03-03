@@ -2,7 +2,7 @@
  * PropertyPanel - Styling panel for selected elements
  */
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Button,
   Input,
@@ -36,7 +36,8 @@ import {
   MoveDown,
   RotateCcw,
   ChevronDown,
-  Palette
+  Palette,
+  Upload
 } from 'lucide-react'
 import type {
   AnySlideElement,
@@ -69,6 +70,22 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const [showGradientBuilder, setShowGradientBuilder] = useState(false)
+  const replaceImageInputRef = useRef<HTMLInputElement>(null)
+
+  const handleReplaceImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      onUpdate({ src: reader.result as string })
+    }
+    reader.readAsDataURL(file)
+
+    if (replaceImageInputRef.current) {
+      replaceImageInputRef.current.value = ''
+    }
+  }
 
   if (!element) {
     return (
@@ -529,6 +546,49 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       {/* IMAGE PROPERTIES */}
       {imageElement && (
         <div className="gba:space-y-4">
+          {/* Image Source */}
+          <div className="gba:space-y-3">
+            <Label className="gba:text-xs gba:font-semibold">{t('props-image-source')}</Label>
+
+            {/* Current image preview */}
+            <div className="gba:w-full gba:h-20 gba:rounded gba:overflow-hidden gba:bg-muted gba:border">
+              <img src={imageElement.src} alt="" className="gba:w-full gba:h-full gba:object-contain" />
+            </div>
+
+            {/* Replace image button */}
+            <div className="gba:flex gba:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => replaceImageInputRef.current?.click()}
+                className="gba:text-xs"
+              >
+                <Upload className="gba:w-3 gba:h-3 gba:mr-1" />
+                {t('props-replace-image')}
+              </Button>
+              <input
+                ref={replaceImageInputRef}
+                type="file"
+                accept="image/*"
+                className="gba:hidden"
+                onChange={handleReplaceImage}
+              />
+            </div>
+
+            {/* Alt text */}
+            <div>
+              <Label className="gba:text-xs">{t('props-alt-text')}</Label>
+              <Input
+                value={imageElement.alt}
+                onChange={e => onUpdate({ alt: e.target.value })}
+                placeholder={t('props-alt-text-placeholder')}
+                className="gba:mt-1 gba:text-xs"
+              />
+            </div>
+          </div>
+
+          <Separator />
+
           <Label className="gba:text-xs gba:font-semibold">{t('props-image-styling')}</Label>
 
           {/* Object Fit */}

@@ -61,7 +61,8 @@ import {
   Undo2,
   Redo2,
   ClipboardPaste,
-  CopyPlus
+  CopyPlus,
+  StickyNote
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -96,6 +97,8 @@ import { VoiceInputButton } from './VoiceInputButton'
 import { VoiceVisualizer } from './VoiceVisualizer'
 import { FloatingTextActions } from './FloatingTextActions'
 import { PdfExportDialog } from './PdfExportDialog'
+import { SpeakerNotesPanel } from './SpeakerNotesPanel'
+import { PresenterView } from './PresenterView'
 import { useVoiceInput } from '../hooks/useVoiceInput'
 import { exportToPptx } from '../utils/exportUtils'
 import translations from '../_i18n'
@@ -329,10 +332,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showBackgroundDialog, setShowBackgroundDialog] = useState(false)
   const [showRenameDialog, setShowRenameDialog] = useState(false)
   const [showPdfExportDialog, setShowPdfExportDialog] = useState(false)
+  const [showNotesPanel, setShowNotesPanel] = useState(false)
+  const [presenterMode, setPresenterMode] = useState(false)
   const [presentationTitle, setPresentationTitle] = useState(slide.title)
   const [newTitle, setNewTitle] = useState(slide.title)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
+  const bgImageInputRef = useRef<HTMLInputElement>(null)
   const presentationContainerRef = useRef<HTMLDivElement>(null)
   const thumbnailRefs = useRef<(HTMLDivElement | null)[]>([])
   const canvasContainerRef = useRef<HTMLDivElement>(null)
@@ -483,6 +489,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [canEdit, currentSlideIndex, updateCollaborativeSlide]
   )
 
+  const updateCurrentSlideNotes = useCallback(
+    (notes: string) => {
+      updateSlide({ notes })
+    },
+    [updateSlide]
+  )
+
   const updateElement = useCallback(
     (id: string, updates: Partial<AnySlideElement>) => {
       if (!canEdit) return
@@ -567,6 +580,43 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       updateElement(prev.id, { zIndex: current.zIndex })
     }
   }, [selectedElementId, currentSlide.elements, updateElement])
+
+  // Drag-and-drop image handlers for canvas
+  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const handleCanvasDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      if (!canEdit) return
+
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+      if (files.length === 0) return
+
+      const canvasRect = canvasContainerRef.current?.getBoundingClientRect()
+      if (!canvasRect) return
+
+      const dropX = (e.clientX - canvasRect.left) / canvasScale
+      const dropY = (e.clientY - canvasRect.top) / canvasScale
+
+      files.forEach((file, index) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const src = reader.result as string
+          addElement(
+            createImageElement(src, {
+              position: { x: dropX + index * 20, y: dropY + index * 20 },
+              size: { width: 400, height: 300 }
+            })
+          )
+        }
+        reader.readAsDataURL(file)
+      })
+    },
+    [canEdit, canvasScale, addElement]
+  )
 
   // Track history for undo/redo (skip during active drag/resize)
   useEffect(() => {
@@ -1000,6 +1050,30 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [updateSlide]
   )
 
+  const handleImageBackground = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        updateSlide({
+          background: {
+            type: 'image',
+            imageUrl: reader.result as string
+          }
+        })
+        setShowBackgroundDialog(false)
+      }
+      reader.readAsDataURL(file)
+
+      if (bgImageInputRef.current) {
+        bgImageInputRef.current.value = ''
+      }
+    },
+    [updateSlide]
+  )
+
   // Text editing
   const handleEditText = useCallback((id: string) => {
     setEditingTextId(id)
@@ -1178,10 +1252,40 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         return
       }
 
-      // Paste: Ctrl+V
+      // Paste: Ctrl+V (check for clipboard images first, then fall back to element paste)
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInputFocused) {
         e.preventDefault()
-        pasteElement()
+
+        // Try to paste image from clipboard
+        navigator.clipboard
+          .read()
+          .then(async items => {
+            for (const item of items) {
+              const imageType = item.types.find(type => type.startsWith('image/'))
+              if (imageType) {
+                const blob = await item.getType(imageType)
+                const reader = new FileReader()
+                reader.onload = () => {
+                  const src = reader.result as string
+                  addElement(
+                    createImageElement(src, {
+                      position: { x: 200, y: 200 },
+                      size: { width: 400, height: 300 }
+                    })
+                  )
+                  toast.success(t('editor-image-pasted'))
+                }
+                reader.readAsDataURL(blob)
+                return
+              }
+            }
+            // No image found in clipboard, fall back to element paste
+            pasteElement()
+          })
+          .catch(() => {
+            // Clipboard API not available or denied, fall back to element paste
+            pasteElement()
+          })
         return
       }
 
@@ -1193,10 +1297,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         return
       }
 
-      // Escape: Deselect all
+      // Escape: Close notes panel or deselect all
       if (e.key === 'Escape' && !isInputFocused) {
         e.preventDefault()
-        setSelectedElementIds(new Set())
+        if (showNotesPanel) {
+          setShowNotesPanel(false)
+        } else {
+          setSelectedElementIds(new Set())
+        }
         return
       }
 
@@ -1223,6 +1331,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         } else {
           setCurrentSlideIndex(prev => Math.min(slides.length - 1, prev + 1))
         }
+        return
+      }
+
+      // Toggle speaker notes panel with 'N'
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault()
+        setShowNotesPanel(prev => !prev)
+        return
+      }
+
+      // Start presenter view with 'P'
+      if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault()
+        setPresenterMode(true)
+        return
       }
     }
 
@@ -1238,7 +1361,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     undo,
     redo,
     copyElement,
-    pasteElement
+    pasteElement,
+    addElement,
+    showNotesPanel,
+    t
   ])
 
   // Scroll selected thumbnail into view
@@ -1471,18 +1597,42 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
               <Separator orientation="vertical" className="gba:h-6" />
 
-              {/* Present button */}
+              {/* Speaker Notes button */}
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
-                onClick={() => {
-                  setIsPresentMode(true)
-                  document.documentElement.requestFullscreen?.().catch(() => {})
-                }}
+                onClick={() => setShowNotesPanel(!showNotesPanel)}
+                className={showNotesPanel ? 'gba:bg-accent' : ''}
               >
-                <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                {t('editor-present')}
+                <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('editor-speaker-notes')}
               </Button>
+
+              {/* Present dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="default" size="sm">
+                    <Play className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('editor-present')}
+                    <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setIsPresentMode(true)
+                      document.documentElement.requestFullscreen?.().catch(() => {})
+                    }}
+                  >
+                    <Play className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('editor-present')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPresenterMode(true)}>
+                    <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('presenter-view')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Export dropdown */}
               <DropdownMenu>
@@ -1934,6 +2084,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               ref={canvasContainerRef}
               className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
               style={{ width: 1280 * canvasScale, height: 720 * canvasScale }}
+              onDragOver={handleCanvasDragOver}
+              onDrop={handleCanvasDrop}
               onMouseMove={e => {
                 if (isSynced && awareness) {
                   const rect = e.currentTarget.getBoundingClientRect()
@@ -2358,6 +2510,39 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{t('editor-video-backgrounds-note')}</p>
             </div>
 
+            <Separator />
+
+            {/* Image Background */}
+            <div>
+              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">
+                <ImageIcon className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
+                {t('editor-image-background')}
+              </Label>
+              <div className="gba:flex gba:gap-2">
+                <Button variant="outline" size="sm" onClick={() => bgImageInputRef.current?.click()}>
+                  <ImageIcon className="gba:w-4 gba:h-4 gba:mr-1" />
+                  {t('editor-upload-background-image')}
+                </Button>
+                <input
+                  ref={bgImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="gba:hidden"
+                  onChange={handleImageBackground}
+                />
+              </div>
+              <Input
+                placeholder={t('editor-background-image-url')}
+                onChange={e => {
+                  if (e.target.value) {
+                    updateSlide({ background: { type: 'image', imageUrl: e.target.value } })
+                    setShowBackgroundDialog(false)
+                  }
+                }}
+                className="gba:mt-2"
+              />
+            </div>
+
             <div className="gba:flex gba:justify-end gba:pt-2">
               <Button variant="outline" onClick={() => setShowBackgroundDialog(false)}>
                 {t('editor-done')}
@@ -2377,6 +2562,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         title={presentationTitle}
         t={t}
       />
+
+      {/* Speaker Notes Panel */}
+      {showNotesPanel && (
+        <SpeakerNotesPanel
+          notes={currentSlide.notes || ''}
+          slideIndex={currentSlideIndex}
+          onNotesChange={updateCurrentSlideNotes}
+          onClose={() => setShowNotesPanel(false)}
+          t={t}
+        />
+      )}
+
+      {/* Presenter View */}
+      {presenterMode && (
+        <PresenterView
+          slides={slides}
+          currentSlideIndex={currentSlideIndex}
+          theme={currentTheme}
+          onSlideChange={setCurrentSlideIndex}
+          onExit={() => setPresenterMode(false)}
+          t={t}
+        />
+      )}
     </div>
   )
 }

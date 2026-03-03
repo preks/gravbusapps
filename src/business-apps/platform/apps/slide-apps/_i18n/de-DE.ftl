@@ -542,6 +542,22 @@ template-private = Privat
 template-delete = Löschen
 template-delete-confirm = Diese Vorlage löschen?
 
+# Speaker Notes
+editor-speaker-notes = Sprechernotizen
+editor-speaker-notes-placeholder = Sprechernotizen für diese Folie hinzufügen...
+editor-speaker-notes-chars = { $count } Zeichen
+editor-speaker-notes-empty = Keine Notizen für diese Folie
+
+# Presenter View
+presenter-view = Referentenansicht
+presenter-current-slide = Aktuelle Folie
+presenter-next-slide = Nächste Folie
+presenter-notes = Notizen
+presenter-no-notes = Keine Notizen für diese Folie
+presenter-last-slide = Letzte Folie
+presenter-time-elapsed = Vergangen
+presenter-exit = Beenden
+
 # Voice Input
 editor-voice-listening = Hört zu... Sprechen Sie jetzt
 editor-voice-not-supported = Spracheingabe wird in diesem Browser nicht unterstützt
@@ -551,3 +567,14 @@ editor-voice-recognizing = Erkannt
 editor-voice-recording = Aufnahme läuft...
 editor-voice-hint = Tipp: Klicken Sie auf "Spracheingabe", um zu diktieren
 editor-text-placeholder = Geben Sie hier Ihren Text ein...
+
+# Bilderweiterungen
+props-image-source = Bildquelle
+props-replace-image = Ersetzen
+props-alt-text = Alternativtext
+props-alt-text-placeholder = Beschreiben Sie dieses Bild...
+editor-image-pasted = Bild aus Zwischenablage eingefügt
+editor-image-background = Bild-Hintergrund
+editor-upload-background-image = Bild hochladen
+editor-background-image-url = Oder Bild-URL einfügen
+editor-image-load-error = Bild konnte nicht geladen werden

@@ -540,6 +540,22 @@ template-private = Private
 template-delete = Delete
 template-delete-confirm = Delete this template?
 
+# Speaker Notes
+editor-speaker-notes = Speaker Notes
+editor-speaker-notes-placeholder = Add speaker notes for this slide...
+editor-speaker-notes-chars = { $count } characters
+editor-speaker-notes-empty = No notes for this slide
+
+# Presenter View
+presenter-view = Presenter View
+presenter-current-slide = Current Slide
+presenter-next-slide = Next Slide
+presenter-notes = Notes
+presenter-no-notes = No notes for this slide
+presenter-last-slide = Last slide
+presenter-time-elapsed = Elapsed
+presenter-exit = Exit
+
 # Voice Input
 editor-voice-listening = Listening... Speak now
 editor-voice-not-supported = Voice input not supported in this browser
@@ -549,3 +565,14 @@ editor-voice-recognizing = Recognizing
 editor-voice-recording = Recording...
 editor-voice-hint = Tip: Click "Voice Input" to dictate
 editor-text-placeholder = Enter your text here...
+
+# Image Enhancements
+props-image-source = Image Source
+props-replace-image = Replace
+props-alt-text = Alt Text
+props-alt-text-placeholder = Describe this image...
+editor-image-pasted = Image pasted from clipboard
+editor-image-background = Image Background
+editor-upload-background-image = Upload Image
+editor-background-image-url = Or paste image URL
+editor-image-load-error = Image failed to load
