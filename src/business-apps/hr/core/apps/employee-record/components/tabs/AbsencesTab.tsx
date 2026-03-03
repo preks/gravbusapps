@@ -137,28 +137,28 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           res?.EntitlementUsageSnapshotView || res?.entitlement_usage_snapshot_view || []
 
         // Aggregate all rows per typeRef for Entitlements tab and donut use
-        const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
-        const byType: Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }> =
-          {}
+        const byType = new Map<
+          string,
+          { total: number; usedApproved: number; usedPending: number; remaining: number }
+        >()
         rows.forEach(r => {
           const key = r?.typeRef
-          if (!key || UNSAFE_OBJECT_KEYS.has(key)) return
-          const acc = byType[key] || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
+          if (!key) return
+          const acc = byType.get(key) || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
           acc.total += Number(r?.totalEntitlement) || 0
           acc.usedApproved += Number(r?.usedApproved) || 0
           acc.usedPending += Number(r?.usedPending) || 0
           // remaining is per-window; recompute after summing components to avoid drift
-          byType[key] = acc
+          byType.set(key, acc)
         })
         // Recompute remaining per type after summation
-        Object.keys(byType).forEach(k => {
-          const v = byType[k]
+        byType.forEach(v => {
           v.remaining = Math.max(0, v.total - v.usedApproved - v.usedPending)
         })
-        setSnapshotByType(byType)
+        setSnapshotByType(Object.fromEntries(byType))
 
         // Derive A001 override from aggregated map
-        const a = byType[A001_TYPE_REF]
+        const a = byType.get(A001_TYPE_REF)
         if (a) {
           setAnnualLeaveOverride({
             total: a.total,
