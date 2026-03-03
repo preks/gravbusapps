@@ -10,6 +10,7 @@ import { Card, Button, Badge, Spinner, Progress, useTranslation } from '@newwork
 import { FileText, Upload, X, Check, AlertCircle, FileUp, ArrowRight } from 'lucide-react'
 import { useWordParser } from '../hooks/useWordParser'
 import type { ParsedWordDocument } from '../types'
+import { sanitizeHtmlForExport } from '../utils/exportUtils'
 import translations from '../_i18n'
 
 export interface WordUploaderProps {
@@ -214,7 +215,9 @@ export const WordUploader: React.FC<WordUploaderProps> = ({
             <div
               className="gba:text-sm gba:text-foreground gba:line-clamp-4 gba:prose gba:prose-sm gba:max-w-none"
               dangerouslySetInnerHTML={{
-                __html: parsedDocument.html.substring(0, 500) + (parsedDocument.html.length > 500 ? '...' : '')
+                __html: sanitizeHtmlForExport(
+                  parsedDocument.html.substring(0, 500) + (parsedDocument.html.length > 500 ? '...' : '')
+                )
               }}
             />
           </div>

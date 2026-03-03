@@ -366,7 +366,8 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
   const useExistingWindow = targetWindow && !targetWindow.closed
 
   if (useExistingWindow) {
-    const safeTitleText = options.title || 'Document'
+    // CWE-79: escape title before any DOM use so useState-sourced title cannot reach HTML sinks
+    const safeTitleText = escapeHtmlText(options.title || 'Document')
     const { includeTitleHeading = false, extraCss = '' } = options
 
     try {
