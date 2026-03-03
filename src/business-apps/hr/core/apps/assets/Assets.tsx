@@ -1,21 +1,27 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PageLayout, Button, Dialog, DialogContent, DialogTitle } from '@newwork/nw-design-system'
+import { PageLayout, Dialog, DialogContent, DialogTitle, Button } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAssets } from './hooks/useAssets'
 import { useAssetDialogs } from './hooks/useAssetDialogs'
+import { useEmployeeFilterBackendSearch } from './hooks/useEmployeeFilterBackendSearch'
 import { useAssetProcessEvents } from './hooks/useAssetProcessEvents'
+import { useSiteLocationsForFilter } from './hooks/useSiteLocationsForFilter'
 import { AssetStatistics } from './components/AssetStatistics'
 import { AssetTable } from './components/AssetTable'
+import { AssetTableFilters } from './components/AssetTableFilters'
 import { AssetDetailPanel } from './components/AssetDetailPanel'
 import { EquipmentRegistration } from '../../forms/equipment-registration/EquipmentRegistration'
 import { AllocateAsset } from '../../forms/allocate-asset/AllocateAsset'
 import { ReturnAsset } from '../../forms/return-asset/ReturnAsset'
 import { RetireAsset } from '../../forms/retire-asset/RetireAsset'
-import { Asset } from './types'
+import { Asset, AssetStatus } from './types'
 import { useAssetService } from './services/useAssetService'
+import { useAssetsCatalog } from '../../forms/equipment-registration/hooks/useAssetsCatalog'
+import { DataFilter, DataFilterGroup } from '@/components/data-filter/DataFilter'
+import { formatStatus } from './components/AssetTableUtils'
 import { generateAssetDocumentPdf } from './utils/assetDocumentPdf'
 
 const moduleColor = MODULE_COLORS.HR
@@ -27,9 +33,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [selectedFilterIds, setSelectedFilterIds] = useState<string[]>([])
+  const [employeeFilterSearch, setEmployeeFilterSearch] = useState('')
   const [sortField, setSortField] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+  const [showDataFilter, setShowDataFilter] = useState(false)
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
 
   useEffect(() => {
@@ -47,6 +55,62 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
   const dialogs = useAssetDialogs()
 
+  const { options: categoryOptions } = useAssetsCatalog(props)
+  const { locations: locationOptions } = useSiteLocationsForFilter(props.accessToken)
+  const { backendSearch: employeeBackendSearch, getEmployeeLabel } = useEmployeeFilterBackendSearch(
+    props.accessToken ?? '',
+    selectedFilterIds,
+    employeeFilterSearch
+  )
+
+  const categoryFilter = useMemo(
+    () => selectedFilterIds.filter(id => id.startsWith('category:')).map(id => id.slice('category:'.length)),
+    [selectedFilterIds]
+  )
+  const locationFilter = useMemo(
+    () => selectedFilterIds.filter(id => id.startsWith('location:')).map(id => id.slice('location:'.length)),
+    [selectedFilterIds]
+  )
+  const statusFilter = useMemo(
+    () => selectedFilterIds.filter(id => id.startsWith('status:')).map(id => id.slice('status:'.length)),
+    [selectedFilterIds]
+  )
+  const employeeFilter = useMemo(
+    () => selectedFilterIds.filter(id => id.startsWith('employee:')).map(id => id.slice('employee:'.length)),
+    [selectedFilterIds]
+  )
+  const activeStatusFilter = useMemo(() => {
+    const statusIds = statusFilter
+    if (statusIds.length === 0) return 'all'
+    if (statusIds.length === 1) return statusIds[0]
+    return 'all'
+  }, [statusFilter])
+
+  const assetsOptions = useMemo(
+    () => ({
+      page: currentPage,
+      pageSize,
+      search: searchQuery,
+      statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
+      categoryFilter: categoryFilter.length > 0 ? categoryFilter : undefined,
+      locationFilter: locationFilter.length > 0 ? locationFilter : undefined,
+      employeeFilter: employeeFilter.length > 0 ? employeeFilter : undefined,
+      sortField: sortField || undefined,
+      sortOrder: sortField ? sortOrder : undefined
+    }),
+    [
+      currentPage,
+      pageSize,
+      searchQuery,
+      statusFilter,
+      categoryFilter,
+      locationFilter,
+      employeeFilter,
+      sortField,
+      sortOrder
+    ]
+  )
+
   const {
     assets,
     totalCount,
@@ -56,14 +120,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     statisticsError,
     refetch: refetchAssets,
     refetchStatistics
-  } = useAssets(props, {
-    page: currentPage,
-    pageSize,
-    search: searchQuery,
-    statusFilter,
-    sortField: sortField || undefined,
-    sortOrder: sortField ? sortOrder : undefined
-  })
+  } = useAssets(props, assetsOptions)
 
   const memoizedStatistics = useMemo(
     () => statistics,
@@ -230,7 +287,21 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   }, [getAssetIdFromUrl, handlePanelClose])
 
   const handleStatusFilterChange = useCallback((status: string) => {
-    setStatusFilter(status)
+    setSelectedFilterIds(prev => {
+      const withoutStatus = prev.filter(id => !id.startsWith('status:'))
+      if (status === 'all') return withoutStatus
+      return [...withoutStatus, `status:${status}`]
+    })
+    setCurrentPage(1)
+  }, [])
+
+  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    setSelectedFilterIds(prev => (selected ? [...prev, filterId] : prev.filter(id => id !== filterId)))
+    setCurrentPage(1)
+  }, [])
+
+  const handleSetFilterPills = useCallback((newIds: string[]) => {
+    setSelectedFilterIds(newIds)
     setCurrentPage(1)
   }, [])
 
@@ -357,6 +428,68 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [props.additionalData, dialogs.editingAssetId, selectedAsset, refetchAssets, dialogs]
   )
 
+  const filterGroups: DataFilterGroup[] = useMemo(
+    () => [
+      {
+        id: 'category',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category'),
+        filters: categoryOptions.map(opt => ({
+          id: `category:${opt.value}`,
+          label: opt.label,
+          selected: selectedFilterIds.includes(`category:${opt.value}`)
+        }))
+      },
+      {
+        id: 'location',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location'),
+        filters: locationOptions.map(loc => ({
+          id: `location:${loc.id}`,
+          label: loc.name,
+          selected: selectedFilterIds.includes(`location:${loc.id}`)
+        }))
+      },
+      {
+        id: 'status',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status'),
+        filters: Object.values(AssetStatus).map(s => ({
+          id: `status:${s}`,
+          label: formatStatus(s),
+          selected: selectedFilterIds.includes(`status:${s}`)
+        }))
+      },
+      {
+        id: 'employee',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee'),
+        backendSearch: employeeBackendSearch,
+        emptyMessage: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:hr_assets.type_to_search_employee',
+          'Type to search for an employee'
+        )
+      }
+    ],
+    [categoryOptions, locationOptions, selectedFilterIds, employeeBackendSearch]
+  )
+
+  const filterLabelMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    categoryOptions.forEach(opt => {
+      map[`category:${opt.value}`] = opt.label
+    })
+    locationOptions.forEach(loc => {
+      map[`location:${loc.id}`] = loc.name
+    })
+    Object.values(AssetStatus).forEach(s => {
+      map[`status:${s}`] = formatStatus(s)
+    })
+    selectedFilterIds
+      .filter(id => id.startsWith('employee:'))
+      .forEach(id => {
+        const employeeId = id.slice('employee:'.length)
+        map[id] = getEmployeeLabel(employeeId) ?? employeeId
+      })
+    return map
+  }, [categoryOptions, locationOptions, selectedFilterIds, getEmployeeLabel])
+
   return (
     <div data-testid="assets-app">
       <PageLayout
@@ -369,57 +502,96 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         className="gba:min-h-screen"
         variant={moduleColor}
       >
-        <div className="gba:space-y-6">
-          <AssetStatistics
-            statistics={memoizedStatistics}
-            isLoading={statisticsLoading}
-            error={statisticsError}
-            onRetry={refetchStatistics}
-            onStatusFilterChange={handleStatusFilterChange}
-            activeStatusFilter={statusFilter}
-          />
+        <div className="gba:flex gba:flex-col gba:h-full gba:w-full gba:min-w-0" data-testid="data-container">
+          <div className="gba:min-h-[400px] gba:overflow-auto gba:bg-white" data-testid="data-container-body">
+            <div className="gba:p-4 gba:space-y-6">
+              <AssetStatistics
+                statistics={memoizedStatistics}
+                isLoading={statisticsLoading}
+                error={statisticsError}
+                onRetry={refetchStatistics}
+                onStatusFilterChange={handleStatusFilterChange}
+                activeStatusFilter={activeStatusFilter}
+              />
 
-          <div className="gba:space-y-4">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <h3 className="gba:text-lg gba:font-semibold">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_assets', 'All Assets')}
-              </h3>
-              <Button
-                onClick={() => dialogs.openRegister()}
-                data-testid="register-equipment-button"
-                className="gba:gap-2"
-              >
-                <PlusIcon size={20} />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
-              </Button>
+              <div className="gba:flex gba:flex-row gba:gap-4 gba:items-start">
+                {showDataFilter && (
+                  <div
+                    className="gba:flex gba:flex-col gba:w-[336px] gba:shrink-0 gba:border-r gba:border-gray-100 gba:bg-white gba:pr-4"
+                    data-testid="assets-filter-sidebar"
+                  >
+                    <DataFilter
+                      show={true}
+                      onClose={() => setShowDataFilter(false)}
+                      filterGroups={filterGroups}
+                      onFilterChange={handleFilterChange}
+                      onGroupSearchChange={(groupId, value) => {
+                        if (groupId === 'employee') setEmployeeFilterSearch(value)
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="gba:flex-1 gba:min-w-0 gba:space-y-4">
+                  <div
+                    className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-4 gba:flex-wrap"
+                    data-testid="assets-table-section-header"
+                  >
+                    <div className="gba:flex gba:flex-row gba:items-center gba:gap-4 gba:min-w-0 gba:flex-1">
+                      <AssetTableFilters
+                        searchQuery={searchQuery}
+                        onSearchChange={handleSearchChange}
+                        onPageChange={setCurrentPage}
+                        showDataFilter={showDataFilter}
+                        onToggleDataFilter={() => setShowDataFilter(prev => !prev)}
+                      />
+                      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:shrink-0">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_assets', 'All Assets')}{' '}
+                        <span className="gba:font-semibold gba:text-muted-foreground" data-testid="assets-total-count">
+                          {totalCount}
+                        </span>
+                      </h3>
+                    </div>
+                    <Button
+                      onClick={() => dialogs.openRegister()}
+                      data-testid="register-equipment-button"
+                      className="gba:gap-2 gba:shrink-0"
+                    >
+                      <PlusIcon size={20} />
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
+                    </Button>
+                  </div>
+                  <AssetTable
+                    {...props}
+                    assets={assets}
+                    totalCount={totalCount}
+                    isLoading={assetsLoading}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    searchQuery={searchQuery}
+                    sortField={sortField}
+                    sortOrder={sortOrder}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={handlePageSizeChange}
+                    onSearchChange={handleSearchChange}
+                    onSortChange={handleSortChange}
+                    onAssetClick={handleAssetClick}
+                    onAllocateAsset={handleAllocateAsset}
+                    onUpdateAsset={handleUpdateAsset}
+                    onRetireAsset={handleRetireAsset}
+                    onRetrieveAsset={handleRetrieveAsset}
+                    onGenerateDocument={handleGenerateDocument}
+                    showDataFilter={showDataFilter}
+                    onToggleDataFilter={() => setShowDataFilter(prev => !prev)}
+                    filter={selectedFilterIds}
+                    setFilter={handleSetFilterPills}
+                    filterLabelMap={filterLabelMap}
+                  />
+                </div>
+              </div>
             </div>
-            <AssetTable
-              {...props}
-              assets={assets}
-              totalCount={totalCount}
-              isLoading={assetsLoading}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              statusFilter={statusFilter}
-              searchQuery={searchQuery}
-              sortField={sortField}
-              sortOrder={sortOrder}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={handlePageSizeChange}
-              onSearchChange={handleSearchChange}
-              onStatusFilterChange={handleStatusFilterChange}
-              onSortChange={handleSortChange}
-              onAssetClick={handleAssetClick}
-              onAllocateAsset={handleAllocateAsset}
-              onUpdateAsset={handleUpdateAsset}
-              onRetireAsset={handleRetireAsset}
-              onRetrieveAsset={handleRetrieveAsset}
-              onGenerateDocument={handleGenerateDocument}
-            />
           </div>
         </div>
       </PageLayout>
-
       <AssetDetailPanel
         asset={selectedAsset}
         allocations={selectedAssetAllocations}
