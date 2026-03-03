@@ -34,6 +34,7 @@ adjust-salary-frequency-monthly = Monthly
 adjust-salary-frequency-hourly = Hourly
 adjust-salary-current-salary = Current Salary
 adjust-salary-calculation-breakdown = Salary Adjustment Summary
+adjust-salary-duplicate-month-warning = A salary adjustment already exists for this month on { $date }. Please choose another effective date.
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Assign Employee Salary
