@@ -242,7 +242,10 @@ export function NavigationPanel({ editor, onClose, 'data-testid': testId = 'navi
         <TabsContent value="find" className="gba:flex-1 gba:min-h-0 gba:mt-0 gba:flex gba:flex-col gba:overflow-hidden">
           <div className="gba:flex gba:flex-col gba:gap-2 gba:px-3 gba:py-2 gba:shrink-0">
             <div className="gba:relative">
-              <Search className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
+              <Search
+                className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-foreground"
+                aria-hidden
+              />
               <Input
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
@@ -254,7 +257,7 @@ export function NavigationPanel({ editor, onClose, 'data-testid': testId = 'navi
                   }
                 }}
                 placeholder={t('navigation-panel-search-placeholder')}
-                className="gba:pl-8"
+                className="gba:pl-8 gba:text-foreground gba:placeholder:text-muted-foreground"
                 data-testid={`${testId}-find-input`}
               />
             </div>
@@ -359,12 +362,14 @@ export function NavigationPanel({ editor, onClose, 'data-testid': testId = 'navi
                 }
               }}
               placeholder={t('navigation-panel-search-placeholder')}
+              className="gba:text-foreground gba:placeholder:text-muted-foreground"
               data-testid={`${testId}-replace-find-input`}
             />
             <Input
               value={replaceTerm}
               onChange={e => setReplaceTerm(e.target.value)}
               placeholder={t('navigation-panel-replace-with-placeholder')}
+              className="gba:text-foreground gba:placeholder:text-muted-foreground"
               data-testid={`${testId}-replace-input`}
             />
             <div className="gba:flex gba:flex-col gba:gap-1.5">

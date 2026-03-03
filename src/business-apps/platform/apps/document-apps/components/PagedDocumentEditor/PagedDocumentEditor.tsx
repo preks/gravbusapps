@@ -1582,16 +1582,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
                 {/* Word-style floating Find / Navigation button (icon + label + chevron) */}
                 <Button
-                  variant={showNavigationPanel ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowNavigationPanel(prev => !prev)}
                   title={t('navigation-panel-title')}
                   data-testid="navigation-panel-toggle"
-                  className="gba:rounded-full gba:px-3 gba:gap-1.5 gba:bg-background gba:border gba:border-border hover:gba:bg-muted/50"
+                  className={`gba:rounded-full gba:px-3 gba:gap-1.5 gba:text-foreground ${showNavigationPanel ? 'gba:bg-muted/50' : ''}`}
                 >
-                  <Search className="gba:w-4 gba:h-4" aria-hidden />
+                  <Search className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
                   <span>{t('navigation-panel-find-tab')}</span>
-                  <ChevronDown className="gba:w-4 gba:h-4 gba:opacity-70" aria-hidden />
+                  <ChevronDown className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
                 </Button>
 
                 <Button
