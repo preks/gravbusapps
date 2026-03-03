@@ -552,9 +552,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           .trim()
       }
 
-      const container = globalThis.document.createElement('div')
-      container.innerHTML = html
-      return (container.textContent || container.innerText || '').split(/\s+/).join(' ').trim()
+      const parsed = new globalThis.DOMParser().parseFromString(html, 'text/html')
+      return (parsed.body.textContent || '').split(/\s+/).join(' ').trim()
     }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
     const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
 
@@ -1259,7 +1258,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const serializer = DOMSerializer.fromSchema(editor.schema)
       const domFragment = serializer.serializeFragment(slice.content)
       div.appendChild(domFragment)
-      return { text, html: div.innerHTML.trim() }
+      const selectedHtml = div.innerHTML.trim()
+      return { text, html: selectedHtml }
     }, [editor])
 
     useEffect(() => {
