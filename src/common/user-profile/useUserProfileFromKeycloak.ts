@@ -1,8 +1,41 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { KeycloakTokenParsed } from 'keycloak-js'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useUserManagementClient } from '@/common/network/users/useUserManagementClient'
 import type { User } from '@/common/network/users/types'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
+
+const GET_USER_PROFILE = `
+query getUserProfile($userId: String!, $structureId: uuid) {
+  Employee(
+    where: {
+      employeePosition: { structureId: { _eq: $structureId } }
+      userId: { _eq: $userId }
+      isDeleted: { _eq: false }
+    }
+  ) {
+    pictureThumbnail
+    picture
+    id
+    firstName
+    lastName
+    employeePosition {
+      organizationalUnit {
+        name
+      }
+      organizationalUnitId
+      siteLocationId
+      supervisorEmployeeId
+      supervisor {
+        id
+        userId
+        firstName
+        lastName
+      }
+    }
+  }
+}
+`
 
 type EmployeePosition = {
   organizationalUnitId: string
@@ -26,6 +59,10 @@ type Employee = {
   firstName: string
   lastName: string
   employeePosition: EmployeePosition
+}
+
+type UserProfileResponse = {
+  Employee: Employee[]
 }
 
 export interface UseUserProfileFromKeycloakResult {
@@ -124,6 +161,7 @@ export function useUserProfileFromKeycloak(
     loading: false
   })
 
+  const client = useGraphQLClient(accessToken)
   const userClient = useUserManagementClient(accessToken ?? '')
 
   const userId = useMemo(() => (tokenParsed?.sub as string | undefined) ?? undefined, [tokenParsed?.sub])
@@ -146,39 +184,17 @@ export function useUserProfileFromKeycloak(
     }))
     ;(async () => {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'run-1',
-            hypothesisId: 'H2',
-            location: 'useUserProfileFromKeycloak.ts:190',
-            message: 'User profile fetch started',
-            data: { hasAccessToken: Boolean(accessToken), hasUserId: Boolean(userId) },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
-        const userProfile = await userClient.getUserById(userId)
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'run-2',
-            hypothesisId: 'H2',
-            location: 'useUserProfileFromKeycloak.ts:199',
-            message: 'Employee GraphQL skipped due backend DB errors',
-            data: { userIdPresent: Boolean(userId) },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
+        const [employeeData, userProfile] = await Promise.all([
+          client.request<UserProfileResponse>(GET_USER_PROFILE, {
+            userId,
+            structureId: null
+          }),
+          userClient.getUserById(userId)
+        ])
 
         if (cancelled) return
 
-        const employee = undefined
+        const employee = employeeData.Employee?.[0]
         const userInfo = mapUserAndEmployeeToUserInfo(userProfile, employee, tokenParsed)
 
         setState({
@@ -192,20 +208,6 @@ export function useUserProfileFromKeycloak(
 
         const error = err instanceof Error ? err : new Error(String(err))
         console.error('[UserProfile] Failed to fetch profile from GraphQL', error)
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'run-1',
-            hypothesisId: 'H3',
-            location: 'useUserProfileFromKeycloak.ts:231',
-            message: 'User profile outer catch hit',
-            data: { errorMessage: error.message.slice(0, 200) },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
 
         setState({
           loading: false,
@@ -220,7 +222,7 @@ export function useUserProfileFromKeycloak(
     return () => {
       cancelled = true
     }
-  }, [accessToken, userId, tokenParsed])
+  }, [accessToken, userId, client, tokenParsed])
 
   return state
 }
