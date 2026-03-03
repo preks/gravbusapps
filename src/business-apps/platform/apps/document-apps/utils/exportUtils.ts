@@ -121,12 +121,13 @@ function postProcessExportHtml(
       }
     }
 
-    // Remove dangerous protocols in href/src
+    // Remove dangerous protocols in href/src (blocklist only; we strip these, never execute)
     for (const urlAttr of ['href', 'src'] as const) {
       const raw = el.getAttribute(urlAttr)
       if (!raw) continue
 
       const lower = raw.trim().toLowerCase()
+      // NOSONAR S1523 - literal used only to detect and remove dangerous URLs; no code execution
       if (lower.startsWith('javascript:') || lower.startsWith('data:text/html')) {
         el.removeAttribute(urlAttr)
         continue
