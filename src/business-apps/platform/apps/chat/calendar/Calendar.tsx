@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { Alert, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { useChatTranslation } from '../contexts/TranslationContext'
 import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
@@ -91,8 +92,12 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
 
-  // Avatar fetching hook with caching
+  const t = useChatTranslation()
   const { fetchAvatarsSync, requestAvatars } = useEmployeeAvatarsCache(accessToken)
+
+  // Ref so timeout callback can read latest events (after date change triggers fetch)
+  const eventsRef = useRef<CalendarEvent[]>(events)
+  eventsRef.current = events
 
   // Fetch avatars when selected event changes
   useEffect(() => {
@@ -164,14 +169,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
 
   // Handle URL params to navigate to a specific date/meeting (e.g., from MeetingCard click)
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+
     const handleNavigation = async (event?: Event) => {
       const urlParams = new URLSearchParams(window.location.search)
       const dateParam = urlParams.get('date')
       const meetingIdParam = urlParams.get('meetingId')
 
-      // If this is triggered by switchToCalendar event, refresh the calendar first
-      // This ensures we have the latest events (e.g., after AI schedules a meeting)
-      if (event?.type === 'switchToCalendar') {
+      // If this is triggered by switchToCalendar event, refresh only when not navigating to a specific date/meeting
+      // (avoids duplicate fetch when opening from MeetingCard which already has date + meetingId in URL)
+      if (event?.type === 'switchToCalendar' && !dateParam) {
         await refresh()
       }
 
@@ -181,23 +188,35 @@ const CalendarInner: React.FC<CalendarProps> = ({
           setCurrentDate(targetDate)
           setView('day')
 
-          // If we have a meetingId, find and select that meeting after events load
+          // If we have a meetingId, find and select that meeting after events load (URL keeps meetingId/date for shareable link)
           if (meetingIdParam) {
-            // Wait a bit for events to load, then select the meeting
-            setTimeout(() => {
-              const meetingEvent = events.find(e => e.id === meetingIdParam)
+            timeoutId = setTimeout(() => {
+              timeoutId = null
+              // Only open if URL still has this meetingId (user may have closed modal and cleared URL)
+              const currentParams = new URLSearchParams(window.location.search)
+              if (currentParams.get('meetingId') !== meetingIdParam) return
+              // Use ref so we see events after they load for the new date (e.g. "view in calendar" from card)
+              const meetingEvent = eventsRef.current.find(e => e.id === meetingIdParam)
               if (meetingEvent) {
                 selectEvent(meetingEvent)
                 setIsDetailModalOpen(true)
               }
             }, 500)
           }
-
-          // Clear the params after handling to avoid re-triggering
-          const url = new URL(window.location.href)
-          url.searchParams.delete('date')
-          url.searchParams.delete('meetingId')
-          window.history.replaceState({}, '', url.toString())
+          // Keep date/meetingId in URL so the open meeting dialog is reflected and link is shareable
+        }
+      } else if (meetingIdParam && events.length > 0) {
+        // meetingId without date: find meeting in loaded events, go to its day and select it (URL keeps meetingId for shareable link)
+        const meetingEvent = events.find(e => e.id === meetingIdParam)
+        if (meetingEvent) {
+          const meetingDate = meetingEvent.start
+          if (!isNaN(meetingDate.getTime())) {
+            setCurrentDate(meetingDate)
+            setView('day')
+            selectEvent(meetingEvent)
+            setIsDetailModalOpen(true)
+          }
+          // Keep meetingId in URL so the open meeting dialog is reflected and link is shareable
         }
       }
     }
@@ -209,9 +228,32 @@ const CalendarInner: React.FC<CalendarProps> = ({
     const handleSwitchEvent = (e: Event) => handleNavigation(e)
     window.addEventListener('switchToCalendar', handleSwitchEvent)
     return () => {
+      if (timeoutId !== null) clearTimeout(timeoutId)
       window.removeEventListener('switchToCalendar', handleSwitchEvent)
     }
   }, [events, setCurrentDate, setView, selectEvent, refresh])
+
+  // Sync modal with browser back/forward: open/close modal when URL meetingId appears/disappears
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const meetingIdParam = urlParams.get('meetingId')
+      if (meetingIdParam && !isDetailModalOpen) {
+        const meetingEvent = events.find(e => e.id === meetingIdParam)
+        if (meetingEvent) {
+          setCurrentDate(meetingEvent.start)
+          setView('day')
+          selectEvent(meetingEvent)
+          setIsDetailModalOpen(true)
+        }
+      } else if (!meetingIdParam && isDetailModalOpen) {
+        setIsDetailModalOpen(false)
+        selectEvent(null)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [events, isDetailModalOpen, selectEvent, setCurrentDate, setView])
 
   // Refresh calendar when backend sends meeting_created (so user sees new meetings without reload)
   useEffect(() => {
@@ -223,13 +265,28 @@ const CalendarInner: React.FC<CalendarProps> = ({
     return () => globalThis.removeEventListener('calendar:refresh', onCalendarRefresh)
   }, [refresh, refreshInvitations])
 
+  // Sync meeting detail modal state with URL (bookmarkable / shareable link)
+  const setMeetingInUrl = useCallback((meetingId: string, date: Date) => {
+    const url = new URL(window.location.href)
+    url.searchParams.set('meetingId', meetingId)
+    url.searchParams.set('date', date.toISOString().slice(0, 10))
+    window.history.replaceState({}, '', url.toString())
+  }, [])
+  const clearMeetingFromUrl = useCallback(() => {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('meetingId')
+    url.searchParams.delete('date')
+    window.history.replaceState({}, '', url.toString())
+  }, [])
+
   // Handle event click
   const handleEventClick = useCallback(
     (event: CalendarEvent) => {
       selectEvent(event)
       setIsDetailModalOpen(true)
+      setMeetingInUrl(event.id, event.start)
     },
-    [selectEvent]
+    [selectEvent, setMeetingInUrl]
   )
 
   // Handle time slot click (for creating meetings)
@@ -266,9 +323,10 @@ const CalendarInner: React.FC<CalendarProps> = ({
       await updateMeeting(meetingId, data)
       setIsCreateModalOpen(false)
       setEditingMeeting(null)
+      clearMeetingFromUrl()
       setIsDetailModalOpen(false)
     },
-    [updateMeeting]
+    [updateMeeting, clearMeetingFromUrl]
   )
 
   // Handle edit button click from detail modal
@@ -340,16 +398,18 @@ const CalendarInner: React.FC<CalendarProps> = ({
       }
       selectEvent(event)
       setIsDetailModalOpen(true)
+      setMeetingInUrl(meeting.id, new Date(meeting.startTime))
     },
-    [selectEvent]
+    [selectEvent, setMeetingInUrl]
   )
 
   // Handle delete meeting
   const handleDeleteMeeting = useCallback(async () => {
     if (!selectedEvent) return
     await cancelMeeting(selectedEvent.id)
+    clearMeetingFromUrl()
     setIsDetailModalOpen(false)
-  }, [selectedEvent, cancelMeeting])
+  }, [selectedEvent, cancelMeeting, clearMeetingFromUrl])
 
   // Handle starting a meeting call
   // Handle starting call from detail modal - dispatch event for Chat to handle
@@ -395,11 +455,12 @@ const CalendarInner: React.FC<CalendarProps> = ({
         })
       )
 
+      clearMeetingFromUrl()
       setIsDetailModalOpen(false)
     } catch (error) {
       console.error('[Calendar] Error dispatching join-meeting event:', error)
     }
-  }, [enrichedSelectedEvent])
+  }, [enrichedSelectedEvent, clearMeetingFromUrl])
 
   // Handle quick join from calendar event item - dispatch event for Chat to handle
   const handleQuickJoinCall = useCallback((event: CalendarEvent) => {
@@ -423,13 +484,15 @@ const CalendarInner: React.FC<CalendarProps> = ({
     if (!id) return
     if (onOpenChat) {
       onOpenChat(id)
+      clearMeetingFromUrl()
       setIsDetailModalOpen(false)
       return
     }
     const url = buildPlatformUrl('/platform/chat', { conversationId: id })
     navigateTo(url)
+    clearMeetingFromUrl()
     setIsDetailModalOpen(false)
-  }, [enrichedSelectedEvent, onOpenChat])
+  }, [enrichedSelectedEvent, onOpenChat, clearMeetingFromUrl])
 
   // Handle create button click
   const handleCreateButtonClick = useCallback(() => {
@@ -441,19 +504,29 @@ const CalendarInner: React.FC<CalendarProps> = ({
 
   // Close detail modal
   const handleCloseDetailModal = useCallback(() => {
+    clearMeetingFromUrl()
     setIsDetailModalOpen(false)
     selectEvent(null)
-  }, [selectEvent])
+  }, [selectEvent, clearMeetingFromUrl])
 
-  // Error state
+  // Error state (e.g. chat service unreachable) with retry
   if (error) {
     return (
       <div
         className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
         data-testid={`${prefixDataTestId}-error`}
       >
-        <Alert variant="destructive" className="gba:max-w-sm">
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="gba:max-w-sm gba:flex gba:flex-col gba:gap-3">
+          <AlertDescription>{t('calendar-error')}</AlertDescription>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refresh()}
+            data-testid={`${prefixDataTestId}-error-retry`}
+            className="gba:self-start"
+          >
+            {t('calendar-retry')}
+          </Button>
         </Alert>
       </div>
     )

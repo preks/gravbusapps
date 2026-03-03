@@ -437,6 +437,8 @@ chat-transcript-generating-minutes = Besprechungsnotizen werden erstellt...
 chat-transcript-generating-minutes-status = Besprechungsnotizen werden erstellt...
 chat-transcript-failed-create-minutes = Fehler beim Erstellen der Besprechungsnotizen
 chat-transcript-retry = Wiederholen
+chat-call-recordingTranscriptNotice = Aufzeichnung und Transkription. Durch Ihre Teilnahme willigen Sie ein, einbezogen zu werden.
+chat-call-recordingTranscriptActive = Audio wird aufgezeichnet, um ein Transkript und Besprechungsnotizen zu erstellen.
 
 # Notifications
 notifications-title = Benachrichtigungen
@@ -559,6 +561,7 @@ calendar-no-events = Keine Termine geplant
 calendar-all-day = Ganztägig
 calendar-loading = Kalender wird geladen...
 calendar-error = Kalender konnte nicht geladen werden
+calendar-retry = Erneut versuchen
 calendar-event-details = Termindetails
 calendar-pending-invitations = Ausstehende Einladungen
 calendar-accept = Annehmen

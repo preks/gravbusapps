@@ -5,6 +5,7 @@ import { createCalendarApiClient } from '../../calendar/calendarApiClient'
 import type { CalendarEvent } from '../../calendar/types'
 import { getAgendaFromMetadata } from '../../calendar/utils/agendaUtils'
 import { useEmployeeAvatarsCache, EmployeeAvatarInfo } from '../../hooks/useEmployeeAvatarsCache'
+import { useChatTranslation } from '../../contexts/TranslationContext'
 import { env } from '@/common/env/EnvUtils'
 
 interface UpcomingMeetingsProps {
@@ -239,6 +240,7 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
   const [lastFetchTime, setLastFetchTime] = useState<number>(0)
   const [isExpanded, setIsExpanded] = useState(false)
 
+  const t = useChatTranslation()
   // Use avatar cache for resolving participant avatars
   const avatarCache = useEmployeeAvatarsCache(accessToken)
 
@@ -435,6 +437,14 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
           )}
         </h3>
         <span className="gba:text-xs gba:text-muted-foreground/70">Next 7 days</span>
+      </div>
+
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2" data-testid="upcoming-meetings-recording-notice">
+        <span
+          className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+          aria-hidden
+        />
+        <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('chat-call-recordingTranscriptNotice')}</p>
       </div>
 
       <div className="gba:rounded-xl gba:bg-card gba:p-2">

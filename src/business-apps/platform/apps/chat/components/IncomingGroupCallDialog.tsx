@@ -353,6 +353,18 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
               {t('call-startedBy')} {callerName}
             </p>
             <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{callTypeLabel}</p>
+            <div
+              className="gba:flex gba:items-center gba:gap-2 gba:mt-2"
+              data-testid={`${prefixDataTestId}-recording-notice`}
+            >
+              <span
+                className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                aria-hidden
+              />
+              <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                {t('chat-call-recordingTranscriptNotice')}
+              </p>
+            </div>
           </div>
 
           {/* Scrollable content - PreCall layout */}

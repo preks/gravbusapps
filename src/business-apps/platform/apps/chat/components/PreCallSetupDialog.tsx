@@ -307,6 +307,18 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                   : t('groupCall-participants') || 'participants'}
               </p>
             )}
+            <div
+              className="gba:flex gba:items-center gba:gap-2 gba:mt-2"
+              data-testid={`${prefixDataTestId}-recording-notice`}
+            >
+              <span
+                className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                aria-hidden
+              />
+              <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                {t('chat-call-recordingTranscriptNotice')}
+              </p>
+            </div>
           </div>
 
           {/* Scrollable Content */}

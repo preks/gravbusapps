@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   Button,
@@ -201,6 +202,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="gba:max-w-md">
+        <DialogDescription className="gba:sr-only">{event.title} — meeting details</DialogDescription>
         <DialogHeader className="gba:pb-2">
           <div className="gba:flex gba:items-start gba:gap-3">
             <div
@@ -231,6 +233,18 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
         </DialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
+          <div className="gba:flex gba:items-center gba:gap-2" data-testid="meeting-detail-recording-notice">
+            <span
+              className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+              aria-hidden
+            />
+            <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+              {event.metadata?.aiTranscriptionEnabled === true
+                ? t('chat-call-recordingTranscriptActive')
+                : t('chat-call-recordingTranscriptNotice')}
+            </p>
+          </div>
+
           {/* Date and Time */}
           <div className="gba:flex gba:items-start gba:gap-3">
             <Calendar className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
