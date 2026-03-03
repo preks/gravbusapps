@@ -57,6 +57,8 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 import translations from './_i18n'
 import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
 
+type DateInputValue = string | [string | null, string | null] | null
+
 /** Value option for the cycle editor (from API; id, title, recordState). */
 export interface CycleEditorValueOption {
   id: string
@@ -301,7 +303,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={startDate}
-                onChange={(value: string | [string | null, string | null] | null) => {
+                onChange={(value: DateInputValue) => {
                   onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   const parsed = parseStartDate(raw)
@@ -332,7 +334,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={endDate}
-                onChange={(value: string | [string | null, string | null] | null) => {
+                onChange={(value: DateInputValue) => {
                   onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEndDate(raw)
@@ -356,7 +358,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={evalPeriodStart}
-                onChange={(value: string | [string | null, string | null] | null) => {
+                onChange={(value: DateInputValue) => {
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEvalPeriodStart(raw)
                 }}
@@ -370,7 +372,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={evalPeriodEnd}
-                onChange={(value: string | [string | null, string | null] | null) => {
+                onChange={(value: DateInputValue) => {
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEvalPeriodEnd(raw)
                 }}
