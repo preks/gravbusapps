@@ -309,7 +309,10 @@ function generateColumnSchema(analysis: ColumnAnalysis, index: number, parsedShe
     name: analysis.name,
     label: formatColumnLabel(analysis.name),
     type: analysis.detectedType,
-    width: calculateColumnWidth(analysis),
+    width:
+      typeof parsedColumn?.width === 'number' && parsedColumn.width > 0
+        ? parsedColumn.width
+        : calculateColumnWidth(analysis),
     isVisible: true,
     isEditable: analysis.detectedType !== 'calculated',
     isRequired: analysis.isRequired,

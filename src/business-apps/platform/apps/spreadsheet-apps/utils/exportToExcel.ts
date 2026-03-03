@@ -123,10 +123,7 @@ function toBorderStyle(s: number | undefined): ExcelJS.BorderStyle | undefined {
   return map[s]
 }
 
-function applyStyle(
-  cell: ExcelJS.Cell,
-  style: UniverStyle | undefined
-): void {
+function applyStyle(cell: ExcelJS.Cell, style: UniverStyle | undefined): void {
   if (!style) return
 
   // Font
@@ -195,10 +192,7 @@ function applyStyle(
  * @param snapshot  The raw workbook snapshot returned by `getWorkbookSnapshot()`.
  * @param filename  Base filename (without extension) for the worksheet tab names.
  */
-export async function snapshotToXlsxBlob(
-  snapshot: Record<string, unknown>,
-  filename = 'spreadsheet'
-): Promise<Blob> {
+export async function snapshotToXlsxBlob(snapshot: Record<string, unknown>, filename = 'spreadsheet'): Promise<Blob> {
   const wb = snapshot as unknown as UniverSnapshot
   const globalStyles = wb.styles ?? {}
 
@@ -206,9 +200,7 @@ export async function snapshotToXlsxBlob(
   workbook.creator = 'Newwork'
   workbook.created = new Date()
 
-  const sheetOrder: string[] = Array.isArray(wb.sheetOrder)
-    ? wb.sheetOrder
-    : Object.keys(wb.sheets ?? {})
+  const sheetOrder: string[] = Array.isArray(wb.sheetOrder) ? wb.sheetOrder : Object.keys(wb.sheets ?? {})
 
   for (const sheetId of sheetOrder) {
     const sheetData = wb.sheets?.[sheetId]
@@ -220,9 +212,8 @@ export async function snapshotToXlsxBlob(
     if (sheetData.columnData) {
       for (const [colIdxStr, colMeta] of Object.entries(sheetData.columnData)) {
         const colIdx = Number(colIdxStr) + 1 // ExcelJS is 1-based
-        if (colMeta.w && !colMeta.hd) {
-          // Univer stores width in pixels (roughly). ExcelJS uses character units.
-          // 1 Excel character ≈ 7px is a common approximation.
+        if (typeof colMeta.w === 'number' && colMeta.w > 0) {
+          // Univer stores width in pixels. ExcelJS uses character units (~7px per char).
           ws.getColumn(colIdx).width = Math.max(colMeta.w / 7, 4)
         }
         if (colMeta.hd) {
@@ -235,7 +226,8 @@ export async function snapshotToXlsxBlob(
     if (sheetData.rowData) {
       for (const [rowIdxStr, rowMeta] of Object.entries(sheetData.rowData)) {
         const rowIdx = Number(rowIdxStr) + 1
-        if (rowMeta.h) {
+        if (typeof rowMeta.h === 'number' && rowMeta.h > 0) {
+          // Univer and ExcelJS both use pixel-like units for row height
           ws.getRow(rowIdx).height = rowMeta.h
         }
         if (rowMeta.hd) {
@@ -284,12 +276,7 @@ export async function snapshotToXlsxBlob(
     if (Array.isArray(sheetData.mergeData)) {
       for (const merge of sheetData.mergeData) {
         try {
-          ws.mergeCells(
-            merge.startRow + 1,
-            merge.startColumn + 1,
-            merge.endRow + 1,
-            merge.endColumn + 1
-          )
+          ws.mergeCells(merge.startRow + 1, merge.startColumn + 1, merge.endRow + 1, merge.endColumn + 1)
         } catch {
           // ignore overlapping / invalid merge ranges
         }
@@ -306,10 +293,7 @@ export async function snapshotToXlsxBlob(
 /**
  * Trigger a browser download of the xlsx file built from a Univer snapshot.
  */
-export async function exportSnapshotAsXlsx(
-  snapshot: Record<string, unknown>,
-  filename = 'spreadsheet'
-): Promise<void> {
+export async function exportSnapshotAsXlsx(snapshot: Record<string, unknown>, filename = 'spreadsheet'): Promise<void> {
   const blob = await snapshotToXlsxBlob(snapshot, filename)
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

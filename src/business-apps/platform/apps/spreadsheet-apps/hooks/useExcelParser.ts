@@ -152,8 +152,18 @@ function buildParsedSheetFromAoa(params: {
   formulaByColumnIndex?: Record<number, string | undefined>
   backgroundByCell?: Record<string, string | undefined>
   columnWidthByIndex?: Record<number, number | undefined>
+  rowHeightByIndex?: Record<number, number | undefined>
 }): ParsedSheet {
-  const { name, index, headers, dataRows, formulaByColumnIndex, backgroundByCell, columnWidthByIndex } = params
+  const {
+    name,
+    index,
+    headers,
+    dataRows,
+    formulaByColumnIndex,
+    backgroundByCell,
+    columnWidthByIndex,
+    rowHeightByIndex
+  } = params
 
   const isEmpty = headers.length === 0 || (dataRows.length === 0 && headers.every(h => !h))
   if (isEmpty) {
@@ -196,6 +206,10 @@ function buildParsedSheetFromAoa(params: {
 
   const rows = dataRows.map((row, rowIndex) => {
     const rowObj: Record<string, unknown> = {}
+    const rowHeight = rowHeightByIndex?.[rowIndex]
+    if (typeof rowHeight === 'number' && rowHeight > 0) {
+      rowObj._height = rowHeight
+    }
     headers.forEach((header, i) => {
       const value = row?.[i] ?? null
       const backgroundHex = backgroundByCell?.[`${rowIndex}:${i}`]
@@ -313,11 +327,16 @@ async function parseXlsxArrayBufferWithMode(
 
     const dataRows: unknown[][] = []
     const backgroundByCell: Record<string, string | undefined> = {}
+    const rowHeightByIndex: Record<number, number | undefined> = {}
     const startRow = mode === 'preserve-format' ? 1 : 2
     const endRow = worksheet.actualRowCount > 0 ? worksheet.actualRowCount : worksheet.rowCount
 
     for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
       const row = worksheet.getRow(rowNum)
+      const rowHeight = row.height
+      if (typeof rowHeight === 'number' && rowHeight > 0) {
+        rowHeightByIndex[dataRows.length] = rowHeight
+      }
       const rowValues: unknown[] = []
       const rowBackgrounds: Array<string | undefined> = []
       for (let col = 1; col <= maxColumns; col++) {
@@ -357,7 +376,8 @@ async function parseXlsxArrayBufferWithMode(
       dataRows,
       formulaByColumnIndex,
       backgroundByCell,
-      columnWidthByIndex
+      columnWidthByIndex,
+      rowHeightByIndex
     })
   })
 

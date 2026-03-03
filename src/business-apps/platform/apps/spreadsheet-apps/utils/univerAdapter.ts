@@ -88,6 +88,28 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
   return value
 }
 
+/** Map our parsed style (from Excel import) to Univer inline style */
+function toUniverInlineStyle(obj: Record<string, unknown>): Record<string, unknown> | undefined {
+  const style: Record<string, unknown> = {}
+  if (obj.bg && typeof obj.bg === 'string') {
+    const hex = obj.bg.replace('#', '')
+    style.bg = { rgb: hex.length === 6 || hex.length === 8 ? `#${hex}` : obj.bg }
+  }
+  if (obj.fc && typeof obj.fc === 'string') {
+    const hex = obj.fc.replace('#', '')
+    style.cl = { rgb: hex.length === 6 || hex.length === 8 ? `#${hex}` : obj.fc }
+  }
+  if (obj.bl) style.bl = 1
+  if (obj.it) style.it = 1
+  if (obj.ff && typeof obj.ff === 'string') style.ff = obj.ff
+  if (typeof obj.fs === 'number') style.fs = obj.fs
+  if (typeof obj.ht === 'number') style.ht = obj.ht + 1
+  if (typeof obj.vt === 'number') style.vt = obj.vt + 1
+  if (obj.tb === 2) style.tb = 2
+  if (Object.keys(style).length === 0) return undefined
+  return style
+}
+
 function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellData | null {
   if (raw === undefined || raw === null || raw === '') return null
   const normalizedColumnName = String(column.name || '').toLowerCase()
@@ -120,6 +142,14 @@ function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellDa
     } else if ((column.type === 'url' || isLinkColumn) && objectValue) {
       raw = objectValue
     } else {
+      const cell: UniverCellData = {}
+      if (obj.f && typeof obj.f === 'string') cell.f = obj.f.startsWith('=') ? obj.f : `=${obj.f}`
+      const val = obj.v ?? obj.m
+      if (val !== undefined && val !== null) cell.v = val as string | number | boolean
+      else if (obj.m !== undefined) cell.v = obj.m as string | number | boolean
+      const univerStyle = toUniverInlineStyle(obj)
+      if (univerStyle) cell.s = univerStyle
+      if (Object.keys(cell).length > 0) return cell
       return raw as UniverCellData
     }
   }
@@ -178,11 +208,25 @@ export function buildWorkbookSnapshot(
   })
 
   const DEFAULT_MIN_ROWS = 1000
-  // Univer's standard defaults (px) for consistent cursor overlay sizing
   const UNIVER_DEFAULT_COL_WIDTH = 73
   const UNIVER_DEFAULT_ROW_HEIGHT = 23
   const UNIVER_ROW_HEADER_WIDTH = 46
   const UNIVER_COLUMN_HEADER_HEIGHT = 20
+
+  const columnData: Record<number, { w?: number }> = {}
+  visibleColumns.forEach((col, idx) => {
+    const w = typeof col.width === 'number' && col.width > 0 ? col.width : UNIVER_DEFAULT_COL_WIDTH
+    columnData[idx] = { w }
+  })
+
+  const rowData: Record<number, { h?: number }> = {}
+  data.forEach((row, idx) => {
+    const h = row._height as number | undefined
+    if (typeof h === 'number' && h > 0) {
+      rowData[idx] = { h }
+    }
+  })
+
   const worksheet: UniverWorksheetData = {
     id: sheet.id,
     name: sheet.name,
@@ -191,6 +235,8 @@ export function buildWorkbookSnapshot(
     columnCount: Math.max(visibleColumns.length, 1),
     defaultColumnWidth: UNIVER_DEFAULT_COL_WIDTH,
     defaultRowHeight: UNIVER_DEFAULT_ROW_HEIGHT,
+    columnData: Object.keys(columnData).length > 0 ? columnData : undefined,
+    rowData: Object.keys(rowData).length > 0 ? rowData : undefined,
     rowHeader: { width: UNIVER_ROW_HEADER_WIDTH },
     columnHeader: { height: UNIVER_COLUMN_HEADER_HEIGHT }
   }

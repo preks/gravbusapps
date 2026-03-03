@@ -6,13 +6,24 @@
 
 import React, { memo, useCallback, useState } from 'react'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { ChevronRight, Eye, Home, FileSpreadsheet, MessageSquare, Lock, Send, CheckCircle2 } from 'lucide-react'
+import {
+  ChevronRight,
+  Eye,
+  Home,
+  FileSpreadsheet,
+  MessageSquare,
+  Lock,
+  Send,
+  CheckCircle2,
+  BarChart3
+} from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
 import { SpreadsheetActionsMenu } from './SpreadsheetActionsMenu'
 import { AutoSaveIndicator } from '../../shared/components/AutoSaveIndicator'
 import { StatusBadge } from '../../shared/components/StatusBadge'
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
+import type { PublishStatus } from '../../shared/types/versioning'
 import type { CursorParticipant } from '../hooks/useSpreadsheetCellSelection'
 
 export interface SpreadsheetHeaderProps {
@@ -59,6 +70,7 @@ export interface SpreadsheetHeaderProps {
   onShowPublishDialog: () => void
   onAddColumn: () => void
   onManageColumns: () => void
+  onOpenAnalytics: () => void
   onOpenAutomations: () => void
   onEdit?: () => void
   onExport?: () => void
@@ -90,6 +102,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onShowPublishDialog,
   onAddColumn,
   onManageColumns,
+  onOpenAnalytics,
   onOpenAutomations,
   onEdit,
   onExport,
@@ -171,6 +184,17 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
           {/* Divider */}
           <div className="gba:h-6 gba:w-px gba:bg-border/50" />
 
+          {/* Publishing status */}
+          {!isCollectionCopy && (
+            <StatusBadge
+              status={
+                (['draft', 'in_review', 'published', 'archived'].includes(publishingStatus)
+                  ? publishingStatus
+                  : 'draft') as PublishStatus
+              }
+            />
+          )}
+
           {/* View Only Badge */}
           {!isEditing && (
             <Badge
@@ -212,6 +236,18 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                 )}
               </Button>
 
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenAnalytics}
+                title="AI Analytics"
+                data-testid="spreadsheet-analytics-button"
+                className="gba:h-8 gba:px-2 gba:gap-1 gba:bg-black gba:text-white gba:hover:bg-black/90 gba:hover:text-white"
+              >
+                <BarChart3 className="gba:w-4 gba:h-4" />
+                AI Analytics
+              </Button>
+
               {/* Lock status (compact) */}
               {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
                 <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
@@ -219,9 +255,6 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                   Locked
                 </Badge>
               )}
-
-              {/* Status badge */}
-              <StatusBadge status={publishingStatus || 'draft'} />
             </div>
           )}
 
@@ -260,6 +293,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             canEdit={canEdit}
             onAddColumn={onAddColumn}
             onManageColumns={onManageColumns}
+            onOpenAnalytics={onOpenAnalytics}
             onOpenAutomations={onOpenAutomations}
             onEdit={onEdit}
             allowExport={activeSheet.settings.allowExport}

@@ -39,6 +39,7 @@ import {
 } from './utils/univerSnapshotCache'
 import { exportSnapshotAsXlsx } from './utils/exportToExcel'
 import { AutomationsPanel } from './components/AutomationsPanel'
+import { AnalyticsPanel } from './components/AnalyticsPanel'
 import { EntityDataStatusBar } from './components/EntityDataStatusBar'
 import { SpreadsheetDialogsSection } from './components/SpreadsheetDialogsSection'
 import { SpreadsheetHeader } from './components/SpreadsheetHeader'
@@ -102,6 +103,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [bootstrapSnapshot, setBootstrapSnapshot] = useState<Record<string, unknown> | null>(null)
   const [bootstrapSnapshotSeed, setBootstrapSnapshotSeed] = useState<string>('none')
   const [isBootstrapSnapshotLoading, setIsBootstrapSnapshotLoading] = useState<boolean>(true)
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false)
   const UNIVER_DATA_CHANGE_DEBOUNCE_MS = 350
   // 400ms debounce batches rapid keystrokes into a single flush without noticeable delay.
   const CELL_PERSIST_DEBOUNCE_MS = 400
@@ -1603,8 +1605,146 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
   }, [isExporting, app.name, activeSheet.name])
 
+  const handleInsertAnalyticsRows = useCallback(
+    async (rows: Array<Record<string, unknown>>): Promise<boolean> => {
+      if (!activeSheetId || rows.length === 0 || entityEnabled) return false
+
+      const payloads = rows
+        .map(row => {
+          const payload: Record<string, unknown> = {}
+          activeSheet.columns.forEach(column => {
+            if (row[column.name] !== undefined) {
+              payload[column.name] = row[column.name]
+            }
+          })
+          return payload
+        })
+        .filter(payload => Object.keys(payload).length > 0)
+
+      if (payloads.length === 0) {
+        toast.error('No matching columns found to insert pivot result.')
+        return false
+      }
+
+      try {
+        const createdRows: Array<Record<string, unknown>> = []
+        if (onRowAdd) {
+          for (const payload of payloads) {
+            const created = await onRowAdd(app.id, activeSheetId, payload)
+            if (created) {
+              createdRows.push({ ...payload, ...created })
+            }
+          }
+        } else {
+          try {
+            const created = await SpreadsheetApiService.bulkAddRows(app.id, activeSheetId, payloads)
+            createdRows.push(...created)
+          } catch (error) {
+            if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 405)) {
+              for (const payload of payloads) {
+                const created = await SpreadsheetApiService.addRow(app.id, activeSheetId, payload)
+                createdRows.push({ ...payload, ...created })
+              }
+            } else {
+              throw error
+            }
+          }
+        }
+
+        if (createdRows.length === 0) {
+          toast.error('No rows were inserted into the sheet.')
+          return false
+        }
+
+        const next = [...localSheetDataRef.current, ...createdRows]
+        setLocalSheetData(next)
+        onDataChange?.(activeSheetId, next)
+        toast.success(`Inserted ${createdRows.length} analytics row${createdRows.length > 1 ? 's' : ''}.`)
+        return true
+      } catch (error) {
+        console.error('[SpreadsheetAppViewer] Failed to insert analytics rows:', error)
+        toast.error('Failed to insert analytics result into sheet.')
+        return false
+      }
+    },
+    [
+      activeSheet.columns,
+      activeSheetId,
+      app.id,
+      entityEnabled,
+      localSheetDataRef,
+      onDataChange,
+      onRowAdd,
+      setLocalSheetData
+    ]
+  )
+
   // --- Active view type ---
   const viewType = activeView?.config.type || activeSheet.viewType || 'table'
+
+  const getHeaderRowFromGrid = useCallback((): Map<string, string> | null => {
+    const grid = spreadsheetGridRef.current
+    const visibleColumns = activeSheet.columns.filter(c => c.isVisible)
+    if (!grid?.getVisibleRangeValues || !visibleColumns.length) return null
+    const values = grid.getVisibleRangeValues(1, visibleColumns.length)
+    if (!values || !values[0]) return null
+    const row0 = values[0]
+    const map = new Map<string, string>()
+    const extract = (v: unknown): string => {
+      if (v == null || v === '') return ''
+      if (typeof v === 'string') return String(v).trim()
+      if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+      if (typeof v === 'object' && !Array.isArray(v)) {
+        const obj = v as Record<string, unknown>
+        const x = obj.v ?? obj.m ?? obj.url ?? obj.src
+        if (typeof x === 'string') return String(x).trim()
+        if (typeof x === 'number' && Number.isFinite(x)) return String(x)
+      }
+      return String(v).trim()
+    }
+    visibleColumns.forEach((col, i) => {
+      const raw = row0[i]
+      const label = extract(raw)
+      if (label) map.set(col.name, label)
+    })
+    return map.size > 0 ? map : null
+  }, [activeSheet.columns])
+
+  /** Read live data from Univer grid with column names - guarantees correct structure for charts */
+  const getSheetDataFromGrid = useCallback((): Record<string, unknown>[] | null => {
+    const grid = spreadsheetGridRef.current
+    const visibleColumns = activeSheet.columns.filter(c => c.isVisible !== false)
+    if (!grid?.getVisibleRangeValues || !visibleColumns.length) return null
+    const rowCount = Math.min(Math.max(sheetData.length, 500), 5000)
+    const colCount = visibleColumns.length
+    const values = grid.getVisibleRangeValues(rowCount, colCount)
+    if (!values || Object.keys(values).length === 0) return null
+    const extractValue = (v: unknown): unknown => {
+      if (v == null) return v
+      if (typeof v === 'object' && !Array.isArray(v)) {
+        const obj = v as Record<string, unknown>
+        const x = obj.v ?? obj.m ?? obj.url ?? obj.src
+        return x !== undefined ? x : v
+      }
+      return v
+    }
+    const rows: Record<string, unknown>[] = []
+    for (let r = 0; r < rowCount; r++) {
+      const rowCells = values[r]
+      if (!rowCells || typeof rowCells !== 'object') {
+        rows.push({})
+        continue
+      }
+      const row: Record<string, unknown> = {}
+      visibleColumns.forEach((col, c) => {
+        const raw = rowCells[c]
+        const val = extractValue(raw)
+        if (val !== undefined) row[col.name] = val
+      })
+      rows.push(row)
+    }
+    return rows.length > 0 ? rows : null
+  }, [activeSheet.columns, sheetData.length])
 
   return (
     <div className="gba:flex gba:flex-col gba:w-full gba:h-full gba:overflow-hidden" data-testid={testId}>
@@ -1638,7 +1778,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onShowPublishDialog={() => setShowPublishDialog(true)}
         onAddColumn={columnsState.handleAddColumn}
         onManageColumns={() => columnsState.setIsManageColumnsDialogOpen(true)}
-        onOpenAutomations={() => setIsAutomationsOpen(true)}
+        onOpenAnalytics={() => {
+          setIsAutomationsOpen(false)
+          setIsAnalyticsOpen(true)
+        }}
+        onOpenAutomations={() => {
+          setIsAnalyticsOpen(false)
+          setIsAutomationsOpen(true)
+        }}
         onEdit={onEdit}
         onExport={() => void handleExportToExcel()}
         isCollectionCopy={isCollectionCopy}
@@ -1772,6 +1919,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onRunAutomation={(id, rows) => automations.runAutomation(id, rows)}
         onRefreshWorkflowStatuses={() => void automations.refreshWorkflowStatuses()}
         data-testid={`${testId}-automations-panel`}
+      />
+
+      <AnalyticsPanel
+        isOpen={isAnalyticsOpen}
+        onClose={() => setIsAnalyticsOpen(false)}
+        columns={activeSheet.columns}
+        sheetData={sheetData}
+        sheetName={activeSheet.name}
+        sheetId={activeSheetId}
+        accessToken={accessToken}
+        canEdit={isEditing && !entityEnabled}
+        onInsertRows={handleInsertAnalyticsRows}
+        getHeaderRowFromGrid={viewType === 'table' ? getHeaderRowFromGrid : undefined}
+        getSheetDataFromGrid={viewType === 'table' && !entityEnabled ? getSheetDataFromGrid : undefined}
+        data-testid={`${testId}-analytics-panel`}
       />
     </div>
   )

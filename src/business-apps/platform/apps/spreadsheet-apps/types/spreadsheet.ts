@@ -35,7 +35,7 @@ export interface ParsedSheet {
   name: string
   index: number
   columns: ParsedColumn[]
-  rows: Record<string, unknown>[]
+  rows: Record<string, unknown>[] // row may include _height for row height preservation
   rowCount: number
   isEmpty: boolean
 }
