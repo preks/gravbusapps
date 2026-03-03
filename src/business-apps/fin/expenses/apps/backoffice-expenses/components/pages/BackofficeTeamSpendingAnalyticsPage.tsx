@@ -170,6 +170,52 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
     }
   ]
 
+  const renderSummaryStatisticsCard = (
+    cardTestId: string,
+    countTestId: string,
+    amountTestId: string,
+    totalCount: number,
+    totalAmount: number | null | undefined,
+    countLabelKey: string,
+    countLabelFallback: string,
+    amountClassName: string
+  ) => (
+    <Card data-testid={cardTestId}>
+      <CardHeader>
+        <CardTitle>
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
+            'Summary Statistics'
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="gba:space-y-4">
+          <div className="gba:text-center">
+            <div className="gba:text-3xl gba:font-bold gba:text-primary" data-testid={countTestId}>
+              {totalCount}
+            </div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(countLabelKey, countLabelFallback)}
+            </div>
+          </div>
+          <Separator />
+          <div className="gba:text-center">
+            <div className={amountClassName} data-testid={amountTestId}>
+              {formatKpiAmount(Number((totalAmount ?? 0).toFixed?.(2) ?? totalAmount ?? 0))}
+            </div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.dashboard_tab.total_amount',
+                'Total Amount'
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   const renderExpenseItemsTab = () => (
     <div className="gba:flex gba:flex-col gba:gap-6">
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
@@ -213,51 +259,16 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
           </CardContent>
         </Card>
 
-        <Card data-testid="backoffice-analytics-expense-items-summary-card">
-          <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-                'Summary Statistics'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:space-y-4">
-              <div className="gba:text-center">
-                <div
-                  className="gba:text-3xl gba:font-bold gba:text-primary"
-                  data-testid="backoffice-analytics-expense-items-total-count"
-                >
-                  {data?.expenseItemsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
-                    'Total Items'
-                  )}
-                </div>
-              </div>
-              <Separator />
-              <div className="gba:text-center">
-                <div
-                  className="gba:text-2xl gba:font-bold gba:text-primary"
-                  data-testid="backoffice-analytics-expense-items-total-amount"
-                >
-                  {formatKpiAmount(
-                    Number((data?.totalExpenseAmount ?? 0).toFixed?.(2) ?? data?.totalExpenseAmount ?? 0)
-                  )}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                    'Total Amount'
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {renderSummaryStatisticsCard(
+          'backoffice-analytics-expense-items-summary-card',
+          'backoffice-analytics-expense-items-total-count',
+          'backoffice-analytics-expense-items-total-amount',
+          data?.expenseItemsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
+          data?.totalExpenseAmount,
+          'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
+          'Total Items',
+          'gba:text-2xl gba:font-bold gba:text-primary'
+        )}
       </div>
     </div>
   )
@@ -305,51 +316,16 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
           </CardContent>
         </Card>
 
-        <Card data-testid="backoffice-analytics-expense-requests-summary-card">
-          <CardHeader className="gba:bg-muted">
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-                'Summary Statistics'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:space-y-4">
-              <div className="gba:text-center">
-                <div
-                  className="gba:text-3xl gba:font-bold gba:text-primary"
-                  data-testid="backoffice-analytics-expense-requests-total-count"
-                >
-                  {data?.expenseRequestsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
-                    'Total Requests'
-                  )}
-                </div>
-              </div>
-              <Separator />
-              <div className="gba:text-center">
-                <div
-                  className="gba:text-2xl gba:font-bold gba:text-success"
-                  data-testid="backoffice-analytics-expense-requests-total-amount"
-                >
-                  {formatKpiAmount(
-                    Number((data?.totalRequestAmount ?? 0).toFixed?.(2) ?? data?.totalRequestAmount ?? 0)
-                  )}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_amount',
-                    'Total Amount'
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {renderSummaryStatisticsCard(
+          'backoffice-analytics-expense-requests-summary-card',
+          'backoffice-analytics-expense-requests-total-count',
+          'backoffice-analytics-expense-requests-total-amount',
+          data?.expenseRequestsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
+          data?.totalRequestAmount,
+          'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
+          'Total Requests',
+          'gba:text-2xl gba:font-bold gba:text-success'
+        )}
       </div>
     </div>
   )
@@ -377,49 +353,16 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
           </CardContent>
         </Card>
 
-        <Card data-testid="backoffice-analytics-expense-plans-summary-card">
-          <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-                'Summary Statistics'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:space-y-4">
-              <div className="gba:text-center">
-                <div
-                  className="gba:text-3xl gba:font-bold gba:text-primary"
-                  data-testid="backoffice-analytics-expense-plans-total-count"
-                >
-                  {data?.expensePlansByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
-                    'Total Plans'
-                  )}
-                </div>
-              </div>
-              <Separator />
-              <div className="gba:text-center">
-                <div
-                  className="gba:text-2xl gba:font-bold gba:text-warning"
-                  data-testid="backoffice-analytics-expense-plans-total-amount"
-                >
-                  {formatKpiAmount(Number((data?.totalPlanAmount ?? 0).toFixed?.(2) ?? data?.totalPlanAmount ?? 0))}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_amount',
-                    'Total Amount'
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {renderSummaryStatisticsCard(
+          'backoffice-analytics-expense-plans-summary-card',
+          'backoffice-analytics-expense-plans-total-count',
+          'backoffice-analytics-expense-plans-total-amount',
+          data?.expensePlansByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
+          data?.totalPlanAmount,
+          'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
+          'Total Plans',
+          'gba:text-2xl gba:font-bold gba:text-warning'
+        )}
       </div>
     </div>
   )
@@ -447,51 +390,16 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
           </CardContent>
         </Card>
 
-        <Card data-testid="backoffice-analytics-advance-payments-summary-card">
-          <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-                'Summary Statistics'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:space-y-4">
-              <div className="gba:text-center">
-                <div
-                  className="gba:text-3xl gba:font-bold gba:text-primary"
-                  data-testid="backoffice-analytics-advance-payments-total-count"
-                >
-                  {data?.advancePaymentsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
-                    'Total Payments'
-                  )}
-                </div>
-              </div>
-              <Separator />
-              <div className="gba:text-center">
-                <div
-                  className="gba:text-2xl gba:font-bold gba:text-info"
-                  data-testid="backoffice-analytics-advance-payments-total-amount"
-                >
-                  {formatKpiAmount(
-                    Number((data?.totalAdvanceAmount ?? 0).toFixed?.(2) ?? data?.totalAdvanceAmount ?? 0)
-                  )}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_amount',
-                    'Total Amount'
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {renderSummaryStatisticsCard(
+          'backoffice-analytics-advance-payments-summary-card',
+          'backoffice-analytics-advance-payments-total-count',
+          'backoffice-analytics-advance-payments-total-amount',
+          data?.advancePaymentsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
+          data?.totalAdvanceAmount,
+          'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
+          'Total Payments',
+          'gba:text-2xl gba:font-bold gba:text-info'
+        )}
       </div>
     </div>
   )

@@ -130,54 +130,44 @@ function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]):
   return { status: { _nin: excluded } } as unknown as GqlBoolExp
 }
 
+function normalizeNames(names: string[] | undefined): string[] {
+  return Array.isArray(names) ? names.map(name => String(name || '').trim()).filter(Boolean) : []
+}
+
+function wrapScopedEmployeeWhere(path: 'employee' | 'expensePlan.employee', employeeWhere: GqlBoolExp): GqlBoolExp {
+  return path === 'employee' ? { employee: employeeWhere } : { expensePlan: { employee: employeeWhere } }
+}
+
+function buildScopedNameWhere(
+  names: string[] | undefined,
+  path: 'employee' | 'expensePlan.employee',
+  buildEmployeeWhere: (name: string) => GqlBoolExp
+): GqlBoolExp {
+  const normalizedNames = normalizeNames(names)
+  if (normalizedNames.length === 0) return {}
+  return {
+    _or: normalizedNames.map(name => wrapScopedEmployeeWhere(path, buildEmployeeWhere(name)))
+  } as unknown as GqlBoolExp
+}
+
 function buildEmployeeNameWhere(
   names: string[] | undefined,
   path: 'employee' | 'expensePlan.employee' = 'employee'
 ): GqlBoolExp {
-  const normalizedNames = Array.isArray(names) ? names.map(name => String(name || '').trim()).filter(Boolean) : []
-  if (normalizedNames.length === 0) return {}
-  if (path === 'employee') {
-    return {
-      _or: normalizedNames.map(name => ({ employee: { fullName: { _eq: name } } }))
-    } as unknown as GqlBoolExp
-  }
-  return {
-    _or: normalizedNames.map(name => ({ expensePlan: { employee: { fullName: { _eq: name } } } }))
-  } as unknown as GqlBoolExp
+  return buildScopedNameWhere(names, path, name => ({ fullName: { _eq: name } }))
 }
 
 function buildDepartmentNameWhere(
   names: string[] | undefined,
   path: 'employee' | 'expensePlan.employee' = 'employee'
 ): GqlBoolExp {
-  const normalizedNames = Array.isArray(names) ? names.map(name => String(name || '').trim()).filter(Boolean) : []
-  if (normalizedNames.length === 0) return {}
-  if (path === 'employee') {
-    return {
-      _or: normalizedNames.map(name => ({
-        employee: {
-          employeePosition: {
-            organizationalUnit: {
-              name: { _eq: name }
-            }
-          }
-        }
-      }))
-    } as unknown as GqlBoolExp
-  }
-  return {
-    _or: normalizedNames.map(name => ({
-      expensePlan: {
-        employee: {
-          employeePosition: {
-            organizationalUnit: {
-              name: { _eq: name }
-            }
-          }
-        }
+  return buildScopedNameWhere(names, path, name => ({
+    employeePosition: {
+      organizationalUnit: {
+        name: { _eq: name }
       }
-    }))
-  } as unknown as GqlBoolExp
+    }
+  }))
 }
 
 function combineWithAnd(baseWhere: GqlBoolExp, extraWhere: GqlBoolExp): GqlBoolExp {
