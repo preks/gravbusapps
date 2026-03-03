@@ -105,6 +105,9 @@ const getAuthToken = (): string | null => {
 // API request helper
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken()
+  const method = (options.method || 'GET').toUpperCase()
+  const shouldUseKeepAlive =
+    typeof window !== 'undefined' && method !== 'GET' && method !== 'HEAD' && options.keepalive === undefined
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -114,6 +117,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
+    ...(shouldUseKeepAlive ? { keepalive: true } : {}),
     headers
   })
 
@@ -182,6 +186,13 @@ export interface SpreadsheetBatchOperationResponse {
   }>
   idempotentReplay: boolean
 }
+
+// Cache whether the backend supports ops-v2 batch endpoint.
+// null => unknown, true => available, false => unavailable (fallback to legacy row APIs)
+let supportsOperationBatchEndpoint: boolean | null = null
+// Cache whether the backend supports Univer snapshot persistence endpoints.
+// null => unknown, true => available, false => unavailable (skip snapshot API calls).
+let supportsUniverSnapshotEndpoint: boolean | null = null
 
 // Map backend permission to frontend permission
 function mapPermission(backendPermission: string | undefined): SpreadsheetApp['permission'] {
@@ -741,10 +752,185 @@ export const SpreadsheetApiService = {
       operationCount: payload.operations.length
     })
 
-    return apiRequest<SpreadsheetBatchOperationResponse>(`/spreadsheets/${appId}/sheets/${sheetId}/operations/batch`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    })
+    const applyLegacyFallback = async (): Promise<SpreadsheetBatchOperationResponse> => {
+      const operationResults: SpreadsheetBatchOperationResponse['operationResults'] = []
+      const appliedOperations: SpreadsheetBatchOperationResponse['appliedOperations'] = []
+
+      for (const operation of payload.operations) {
+        if (operation.type === 'add_rows') {
+          const rows = Array.isArray((operation.data as { rows?: unknown[] }).rows)
+            ? ((operation.data as { rows: Array<Record<string, unknown>> }).rows ?? [])
+            : []
+          let created: Array<Record<string, unknown>> = []
+          try {
+            created = await SpreadsheetApiService.bulkAddRows(appId, sheetId, rows)
+          } catch (error) {
+            // Older deployments may not expose /rows/bulk. Fallback to per-row create.
+            if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 405)) {
+              created = []
+              for (const row of rows) {
+                created.push(await SpreadsheetApiService.addRow(appId, sheetId, row))
+              }
+            } else {
+              throw error
+            }
+          }
+          operationResults.push({
+            operationId: operation.operationId,
+            type: operation.type,
+            // Match ops-v2 shape expected by viewer (rows[].id).
+            result: {
+              rows: created.map(row => ({
+                id: String(
+                  (row as Record<string, unknown>)._rowUuid ??
+                    (row as Record<string, unknown>)._id ??
+                    (row as Record<string, unknown>).id ??
+                    ''
+                )
+              }))
+            }
+          })
+          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
+          continue
+        }
+
+        if (operation.type === 'set_range') {
+          const cells = Array.isArray((operation.data as { cells?: unknown[] }).cells)
+            ? ((
+                operation.data as {
+                  cells: Array<{ rowId: string; columnName: string; value: unknown }>
+                }
+              ).cells ?? [])
+            : []
+          const updatesByRow = new Map<string, Record<string, unknown>>()
+          for (const cell of cells) {
+            const rowId = String(cell.rowId || '')
+            if (!rowId) continue
+            const next = updatesByRow.get(rowId) ?? {}
+            next[cell.columnName] = cell.value
+            updatesByRow.set(rowId, next)
+          }
+          for (const [rowId, updates] of updatesByRow.entries()) {
+            await SpreadsheetApiService.updateRow(appId, sheetId, rowId, updates)
+          }
+          operationResults.push({
+            operationId: operation.operationId,
+            type: operation.type,
+            result: {
+              updatedCells: cells.length,
+              touchedRows: updatesByRow.size
+            }
+          })
+          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
+          continue
+        }
+
+        if (operation.type === 'set_cell') {
+          const rowId = String((operation.data as { rowId?: string }).rowId || '')
+          const columnName =
+            String(
+              (operation.data as { columnName?: string; column?: string }).columnName ||
+                (operation.data as { columnName?: string; column?: string }).column ||
+                ''
+            ) || ''
+          const value = (operation.data as { value?: unknown }).value
+          if (rowId && columnName) {
+            await SpreadsheetApiService.updateRow(appId, sheetId, rowId, { [columnName]: value })
+          }
+          operationResults.push({
+            operationId: operation.operationId,
+            type: operation.type,
+            result: { updated: Boolean(rowId && columnName) }
+          })
+          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
+          continue
+        }
+
+        if (operation.type === 'clear_cell') {
+          const rowId = String((operation.data as { rowId?: string }).rowId || '')
+          const columnName =
+            String(
+              (operation.data as { columnName?: string; column?: string }).columnName ||
+                (operation.data as { columnName?: string; column?: string }).column ||
+                ''
+            ) || ''
+          if (rowId && columnName) {
+            await SpreadsheetApiService.updateRow(appId, sheetId, rowId, { [columnName]: null })
+          }
+          operationResults.push({
+            operationId: operation.operationId,
+            type: operation.type,
+            result: { cleared: Boolean(rowId && columnName) }
+          })
+          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
+          continue
+        }
+
+        if (operation.type === 'delete_rows') {
+          const rowIds = Array.isArray((operation.data as { rowIds?: unknown[] }).rowIds)
+            ? ((operation.data as { rowIds: string[] }).rowIds ?? [])
+            : []
+          for (const rowId of rowIds) {
+            await SpreadsheetApiService.deleteRow(appId, sheetId, String(rowId))
+          }
+          operationResults.push({
+            operationId: operation.operationId,
+            type: operation.type,
+            result: { deletedRows: rowIds.length }
+          })
+          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
+          continue
+        }
+
+        operationResults.push({
+          operationId: operation.operationId,
+          type: operation.type,
+          result: { skipped: true }
+        })
+        appliedOperations.push({ operationId: operation.operationId, type: operation.type })
+      }
+
+      let newVersion = payload.baseVersion
+      try {
+        const sheet = await SpreadsheetApiService.getSheet(appId, sheetId)
+        if (sheet?.version != null) {
+          newVersion = Number(sheet.version)
+        }
+      } catch {
+        newVersion = payload.baseVersion + Math.max(1, payload.operations.length)
+      }
+
+      return {
+        sheetId,
+        newVersion,
+        appliedOperations,
+        operationResults,
+        idempotentReplay: false
+      }
+    }
+
+    if (supportsOperationBatchEndpoint === false) {
+      return applyLegacyFallback()
+    }
+
+    try {
+      const response = await apiRequest<SpreadsheetBatchOperationResponse>(
+        `/spreadsheets/${appId}/sheets/${sheetId}/operations/batch`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }
+      )
+      supportsOperationBatchEndpoint = true
+      return response
+    } catch (error) {
+      if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
+        supportsOperationBatchEndpoint = false
+        console.warn('[SpreadsheetApiService] operations/batch endpoint unavailable; falling back to legacy row APIs')
+        return applyLegacyFallback()
+      }
+      throw error
+    }
   },
 
   async getSheetSnapshot(
@@ -780,10 +966,28 @@ export const SpreadsheetApiService = {
     }
   ): Promise<{ sheetId: string; version: number; saved: boolean }> {
     debugLog('saveUniverSnapshot', appId, sheetId, { version: payload.version })
-    return apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/univer-snapshot`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    })
+    if (supportsUniverSnapshotEndpoint === false) {
+      return { sheetId, version: payload.version, saved: false }
+    }
+
+    try {
+      const response = await apiRequest<{ sheetId: string; version: number; saved: boolean }>(
+        `/spreadsheets/${appId}/sheets/${sheetId}/univer-snapshot`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }
+      )
+      supportsUniverSnapshotEndpoint = true
+      return response
+    } catch (error) {
+      if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
+        supportsUniverSnapshotEndpoint = false
+        console.warn('[SpreadsheetApiService] univer-snapshot endpoint unavailable; snapshot persistence is disabled')
+        return { sheetId, version: payload.version, saved: false }
+      }
+      throw error
+    }
   },
 
   async getUniverSnapshot(
@@ -795,7 +999,27 @@ export const SpreadsheetApiService = {
     updatedAt: string | null
     snapshot: Record<string, unknown> | null
   }> {
-    return apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/univer-snapshot`)
+    if (supportsUniverSnapshotEndpoint === false) {
+      return { sheetId, version: 0, updatedAt: null, snapshot: null }
+    }
+
+    try {
+      const response = await apiRequest<{
+        sheetId: string
+        version: number
+        updatedAt: string | null
+        snapshot: Record<string, unknown> | null
+      }>(`/spreadsheets/${appId}/sheets/${sheetId}/univer-snapshot`)
+      supportsUniverSnapshotEndpoint = true
+      return response
+    } catch (error) {
+      if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
+        supportsUniverSnapshotEndpoint = false
+        console.warn('[SpreadsheetApiService] univer-snapshot endpoint unavailable; using row-data-only initialization')
+        return { sheetId, version: 0, updatedAt: null, snapshot: null }
+      }
+      throw error
+    }
   },
 
   // ============ File Parsing ============
@@ -1021,7 +1245,7 @@ export const SpreadsheetApiService = {
         // and no version-conflict risk).  Fallback path: fetch the latest snapshot
         // from DB (used for auto-restore checkpoints where the DB was just updated).
         const sheetsWithSnapshots = await Promise.all(
-          app.sheets.map(async (sheet) => {
+          app.sheets.map(async sheet => {
             // Fast path: caller provided the live Univer snapshot directly.
             // Only use it when non-null – if null (e.g. grid not yet ready),
             // fall through to the DB fetch so styling is never silently dropped.

@@ -1026,9 +1026,28 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
     // Set up polling interval
     const intervalId = setInterval(fetchBulkCollectionResponses, pollInterval)
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void fetchBulkCollectionResponses()
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleVisibilityOrFocus)
+      window.addEventListener('pageshow', handleVisibilityOrFocus)
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityOrFocus)
+    }
 
     return () => {
       clearInterval(intervalId)
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleVisibilityOrFocus)
+        window.removeEventListener('pageshow', handleVisibilityOrFocus)
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
+      }
     }
   }, [enablePolling, automations, pollInterval, fetchBulkCollectionResponses])
 

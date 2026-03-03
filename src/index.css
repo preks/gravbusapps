@@ -27,6 +27,7 @@
 @import '@newwork/nw-design-system/index.css';
 
 @import 'react-quill/dist/quill.snow.css';
+@import '@univerjs/preset-sheets-core/lib/index.css';
 
 @import '@newwork/nw-design-system/core';
 @import '@newwork/nw-design-system/layout';

@@ -88,6 +88,69 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
   return value
 }
 
+function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellData | null {
+  if (raw === undefined || raw === null || raw === '') return null
+  const normalizedColumnName = String(column.name || '').toLowerCase()
+  const normalizedColumnId = String(column.id || '').toLowerCase()
+  const isAvatarColumn =
+    normalizedColumnName === '_recipient_avatar' ||
+    normalizedColumnId === '_recipient_avatar' ||
+    normalizedColumnName === 'recipient_avatar' ||
+    normalizedColumnId === 'recipient_avatar'
+  const isLinkColumn =
+    normalizedColumnName === '_copy_link' ||
+    normalizedColumnId === '_copy_link' ||
+    normalizedColumnName === 'copy_link' ||
+    normalizedColumnId === 'copy_link'
+
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>
+    const objectValue =
+      typeof obj.v === 'string'
+        ? obj.v
+        : typeof obj.m === 'string'
+          ? obj.m
+          : typeof obj.url === 'string'
+            ? obj.url
+            : typeof obj.src === 'string'
+              ? obj.src
+              : ''
+    if ((column.type === 'image' || isAvatarColumn) && objectValue) {
+      raw = objectValue
+    } else if ((column.type === 'url' || isLinkColumn) && objectValue) {
+      raw = objectValue
+    } else {
+      return raw as UniverCellData
+    }
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if ((column.type === 'url' || isLinkColumn) && /^https?:\/\//i.test(trimmed)) {
+      const safeUrl = trimmed.replace(/"/g, '""')
+      return { f: `=HYPERLINK("${safeUrl}","View Response")` }
+    }
+    if (column.type === 'image' || isAvatarColumn) {
+      const isHttpImage = /^https?:\/\//i.test(trimmed)
+      const isDataImage = /^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed)
+      const looksLikeRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) && trimmed.length > 100
+      const imageUrl = isHttpImage
+        ? trimmed
+        : isDataImage
+          ? trimmed
+          : looksLikeRawBase64
+            ? `data:image/jpeg;base64,${trimmed}`
+            : ''
+      if (imageUrl) {
+        const safeUrl = imageUrl.replace(/"/g, '""')
+        return { f: `=IMAGE("${safeUrl}")` }
+      }
+    }
+  }
+
+  return { v: raw as string | number | boolean }
+}
+
 /**
  * Build Univer workbook snapshot from sheet, data, and columns.
  * Used to initialize Univer with our current sheet data.
@@ -104,12 +167,9 @@ export function buildWorkbookSnapshot(
     const rowCells: Record<number, UniverCellData> = {}
     visibleColumns.forEach((col, colIndex) => {
       const raw = getCellValue(row, col)
-      if (raw !== undefined && raw !== null && raw !== '') {
-        if (typeof raw === 'object' && !Array.isArray(raw)) {
-          rowCells[colIndex] = raw as UniverCellData
-        } else {
-          rowCells[colIndex] = { v: raw as string | number | boolean }
-        }
+      const cell = toUniverCellData(raw, col)
+      if (cell) {
+        rowCells[colIndex] = cell
       }
     })
     if (Object.keys(rowCells).length > 0) {

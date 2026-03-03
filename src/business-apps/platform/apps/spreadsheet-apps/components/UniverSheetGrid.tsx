@@ -10,7 +10,6 @@ import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { CommandType } from '@univerjs/core'
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets'
-import '@univerjs/preset-sheets-core/lib/index.css'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
 import type { DocumentParticipant, DocumentOperation } from '../../shared/services/CollaborationClient'
 import {

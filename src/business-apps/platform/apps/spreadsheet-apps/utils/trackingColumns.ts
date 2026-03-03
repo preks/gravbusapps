@@ -8,6 +8,7 @@
 import type { SpreadsheetColumn } from '../types/spreadsheet'
 import { TRACKING_COLUMNS, getTrackingColumnDefinitions } from '../components/automations/TrackingColumnsConfig'
 import { getSpreadsheetBasePath } from './spreadsheetPaths'
+import { normalizeImageSrc } from './normalizeImageSrc'
 
 const DEFAULT_TRACKING_STATUS_WIDTH = 56
 
@@ -82,7 +83,8 @@ export function buildSentRowTrackingValues(
       case 'recipient_avatar':
         // Only set when we have an avatar URL
         if (recipientInfo.avatar) {
-          values[def.name] = recipientInfo.avatar
+          const normalized = normalizeImageSrc(recipientInfo.avatar)
+          if (normalized) values[def.name] = normalized
         }
         break
       case 'recipient_name':
@@ -133,7 +135,8 @@ export function buildCompletedRowTrackingValues(
         // Only set when we have an avatar URL - avoids overwriting existing avatar
         // with empty when responderId doesn't match GraphQL (e.g. aggregate-bulk format)
         if (recipientInfo.avatar) {
-          values[def.name] = recipientInfo.avatar
+          const normalized = normalizeImageSrc(recipientInfo.avatar)
+          if (normalized) values[def.name] = normalized
         }
         break
       case 'recipient_name':

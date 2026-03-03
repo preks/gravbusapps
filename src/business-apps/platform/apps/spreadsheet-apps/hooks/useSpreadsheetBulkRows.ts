@@ -223,12 +223,32 @@ export function useSpreadsheetBulkRows({
         return newRow
       })
 
+      // Legacy behavior parity: for data collection sheets, first insert a visible
+      // header line with tracking labels when the sheet is empty.
+      const hasTrackingColumns = updatedColumns.some(col => isTrackingColumn(col.name) || isTrackingColumn(col.id))
+      const hasHeaderRowAlready = localSheetDataRef.current.some(row => row._isTrackingHeader === true)
+      const shouldInsertHeaderRow = hasTrackingColumns && !hasHeaderRowAlready
+
+      const headerRow: Record<string, unknown> | null = shouldInsertHeaderRow
+        ? updatedColumns.reduce<Record<string, unknown>>(
+            (acc, col) => {
+              // Keep this row clearly non-workflow so completion updates never match it.
+              if (isTrackingColumn(col.name) || isTrackingColumn(col.id)) {
+                acc[col.name] = col.label || col.name
+              }
+              return acc
+            },
+            { _id: `tmp_header_${crypto.randomUUID()}`, _isTrackingHeader: true }
+          )
+        : null
+
       // Update local data
       const currentData = localSheetDataRef.current
-      const newData = [...currentData, ...newRows]
+      const newData = [...currentData, ...(headerRow ? [headerRow] : []), ...newRows]
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
       console.log('[useSpreadsheetBulkRows][trace] handleAddRows:localUpdated', {
+        insertedHeader: Boolean(headerRow),
         addedRows: newRows.length,
         totalRows: newData.length,
         addedWorkflowIds: newRows.map(r => r._workflow_id)
@@ -261,15 +281,63 @@ export function useSpreadsheetBulkRows({
       }
 
       // Persist row data through the row data channel.
-      // In SpreadsheetAppsHub this maps to updateSheetData() which writes rows via API.
-      console.log('[useSpreadsheetBulkRows][trace] handleAddRows:persistRows:onDataChange', {
-        appId: app.id,
-        sheetId: activeSheet.id,
-        rowsCount: newData.length
-      })
-      onDataChange?.(activeSheet.id, newData)
+      // Prefer explicit row APIs when available (Univer path) to avoid full-sheet replay persistence.
+      if (onRowAdd) {
+        void (async () => {
+          const persistedByTempId = new Map<string, Record<string, unknown>>()
+          const rowsToPersist = [...(headerRow ? [headerRow] : []), ...newRows]
+          for (const row of rowsToPersist) {
+            const tempId = String(row._id ?? '')
+            const rowToPersist = { ...row }
+            delete rowToPersist._id
+            delete rowToPersist._createdAt
+            delete rowToPersist._updatedAt
+            try {
+              const persisted = await onRowAdd(app.id, activeSheet.id, rowToPersist)
+              if (tempId && persisted) {
+                persistedByTempId.set(tempId, persisted)
+              }
+            } catch (err) {
+              console.error('[handleAddRows] onRowAdd failed:', err)
+            }
+          }
+
+          if (persistedByTempId.size > 0) {
+            const reconciled = localSheetDataRef.current.map(row => {
+              const tempId = String(row._id ?? '')
+              const persisted = persistedByTempId.get(tempId)
+              if (!persisted) return row
+              return {
+                ...row,
+                _id: persisted._id ?? row._id,
+                _rowUuid: persisted._rowUuid ?? (persisted as Record<string, unknown>).id ?? row._rowUuid
+              }
+            })
+            localSheetDataRef.current = reconciled
+            setLocalSheetData(reconciled)
+          }
+        })()
+      } else {
+        // Legacy fallback: persist full data through parent callback.
+        console.log('[useSpreadsheetBulkRows][trace] handleAddRows:persistRows:onDataChange', {
+          appId: app.id,
+          sheetId: activeSheet.id,
+          rowsCount: newData.length
+        })
+        onDataChange?.(activeSheet.id, newData)
+      }
     },
-    [activeSheet, app, onDataChange, onAppUpdate, localSheetDataRef, setLocalSheetData, saveTimeoutRef]
+    [
+      activeSheet,
+      app,
+      onDataChange,
+      onAppUpdate,
+      onRowAdd,
+      onSheetUpdate,
+      localSheetDataRef,
+      setLocalSheetData,
+      saveTimeoutRef
+    ]
   )
 
   const handleUpdateRows = useCallback(
@@ -328,15 +396,11 @@ export function useSpreadsheetBulkRows({
 
       // Build update maps for non-Completed (Sent, etc.)
       const updateByWorkflowId = new Map(nonCompletedUpdates.map(u => [u.workflowId, u]))
-      const updateByRecipientId = new Map(
-        nonCompletedUpdates.filter(u => u.recipientId).map(u => [u.recipientId!, u])
-      )
+      const updateByRecipientId = new Map(nonCompletedUpdates.filter(u => u.recipientId).map(u => [u.recipientId!, u]))
 
       // Build maps for Completed updates (for matching existing Completed rows to avoid duplicates)
       const completedByWorkflowId = new Map(completedUpdates.map(u => [u.workflowId, u]))
-      const completedByRecipientId = new Map(
-        completedUpdates.filter(u => u.recipientId).map(u => [u.recipientId!, u])
-      )
+      const completedByRecipientId = new Map(completedUpdates.filter(u => u.recipientId).map(u => [u.recipientId!, u]))
 
       // Track which recipientIds we've already matched (non-Completed)
       const matchedRecipientIds = new Set<string>()
@@ -468,9 +532,7 @@ export function useSpreadsheetBulkRows({
       // - Completed: only if no existing Completed row for this workflowId/recipientId
       // - Non-Completed: only if no matching row found
       const unmatchedNonCompleted = nonCompletedUpdates.filter(
-        u =>
-          !matchedUpdateIds.has(u.workflowId) &&
-          !(u.recipientId && matchedRecipientIds.has(u.recipientId))
+        u => !matchedUpdateIds.has(u.workflowId) && !(u.recipientId && matchedRecipientIds.has(u.recipientId))
       )
       const unmatchedCompleted = completedUpdates.filter(
         u =>
@@ -506,6 +568,26 @@ export function useSpreadsheetBulkRows({
 
           return newRow
         })
+      }
+
+      // Legacy behavior parity: ensure a visible tracking header row exists in report sheets.
+      // Completed updates often flow through handleUpdateRows (not handleAddRows), so we need
+      // the same header insertion logic here as well.
+      const hasTrackingColumns = updatedColumns.some(col => isTrackingColumn(col.name) || isTrackingColumn(col.id))
+      const hasHeaderRowAlready = localSheetDataRef.current.some(row => row._isTrackingHeader === true)
+      const shouldInsertHeaderRow = hasTrackingColumns && !hasHeaderRowAlready
+      if (shouldInsertHeaderRow) {
+        const headerRow = updatedColumns.reduce<Record<string, unknown>>(
+          (acc, col) => {
+            if (isTrackingColumn(col.name) || isTrackingColumn(col.id)) {
+              acc[col.name] = col.label || col.name
+            }
+            return acc
+          },
+          { _id: `tmp_header_${crypto.randomUUID()}`, _isTrackingHeader: true }
+        )
+        // Put headers first so they are immediately visible without scrolling.
+        addedRows = [headerRow, ...addedRows]
       }
 
       const newData = matchCount > 0 || addedRows.length > 0 ? [...updatedExisting, ...addedRows] : updatedExisting

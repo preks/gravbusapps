@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 import type { SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet } from './types'
 import { columnToFormField } from './types'
@@ -338,6 +339,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setLocalSheetData,
     onDataChange,
     onAppUpdate,
+    onSheetUpdate,
+    onRowUpdate,
+    onRowAdd,
     saveTimeoutRef
   })
 
@@ -371,6 +375,87 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     enablePolling: true,
     pollInterval: 10000
   })
+
+  const [hasTaskForCollectionCopy, setHasTaskForCollectionCopy] = useState(false)
+  const fromCollectionLink =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('excel_collection') === '1'
+  const isCollectionCopy = Boolean(
+    (app.settings as Record<string, unknown> | undefined)?.excel_collection_copy ||
+      hasTaskForCollectionCopy ||
+      fromCollectionLink
+  )
+  const isCopyOwner = Boolean(userId && app.createdBy && app.createdBy === userId)
+  const canSubmitCollection = Boolean(
+    (((app.settings as Record<string, unknown> | undefined)?.excel_collection_copy as boolean | undefined) &&
+      isCopyOwner) ||
+      hasTaskForCollectionCopy
+  )
+  const collectionSubmittedAt = ((app.settings as Record<string, unknown> | undefined)?.excel_collection_submitted_at ||
+    null) as string | null
+  const collectionCopyFlagPersistedRef = useRef(false)
+
+  useEffect(() => {
+    if (collectionCopyFlagPersistedRef.current) return
+    if (!fromCollectionLink) return
+    if ((app.settings as Record<string, unknown> | undefined)?.excel_collection_copy === true) return
+
+    collectionCopyFlagPersistedRef.current = true
+    const nextSettings = { ...app.settings, excel_collection_copy: true }
+    void SpreadsheetApiService.updateApp(app.id, { settings: nextSettings })
+      .then(() => {
+        onAppUpdate?.({ ...app, settings: nextSettings })
+      })
+      .catch(() => {
+        collectionCopyFlagPersistedRef.current = false
+      })
+  }, [app, fromCollectionLink, onAppUpdate])
+
+  useEffect(() => {
+    if (
+      (app.settings as Record<string, unknown> | undefined)?.excel_collection_copy ||
+      !userId ||
+      !app.id ||
+      !automations.hasExcelCollectionTaskForApp
+    ) {
+      return
+    }
+    let isUnmounted = false
+    const runCheck = () =>
+      void automations.hasExcelCollectionTaskForApp(app.id).then(has => {
+        if (!isUnmounted && has) setHasTaskForCollectionCopy(true)
+      })
+    runCheck()
+    const retryTimer = window.setTimeout(() => {
+      runCheck()
+    }, 1500)
+    return () => {
+      isUnmounted = true
+      window.clearTimeout(retryTimer)
+    }
+  }, [app.id, app.settings, userId, automations.hasExcelCollectionTaskForApp])
+
+  const handleSubmitCollection = useCallback(async () => {
+    if (!userId || !automations.completeExcelCollectionTask) return
+    const result = await automations.completeExcelCollectionTask(app.id)
+    if (result.success) {
+      const submittedAt = new Date().toISOString()
+      try {
+        await SpreadsheetApiService.updateApp(app.id, {
+          settings: { ...app.settings, excel_collection_submitted_at: submittedAt }
+        })
+        onAppUpdate?.({
+          ...app,
+          settings: { ...app.settings, excel_collection_submitted_at: submittedAt }
+        })
+      } catch {
+        // Non-critical: task completion already succeeded on workflow side.
+      }
+      toast.success('Submitted successfully. Your task is now complete.')
+      onBack?.()
+    } else {
+      toast.error(result.error || 'Failed to submit')
+    }
+  }, [app, automations.completeExcelCollectionTask, onAppUpdate, onBack, userId])
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -1378,6 +1463,59 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [processUniverDataChange]
   )
 
+  const flushPendingPersistenceNow = useCallback(() => {
+    if (entityEnabled) return
+
+    if (univerDataChangeTimeoutRef.current) {
+      clearTimeout(univerDataChangeTimeoutRef.current)
+      univerDataChangeTimeoutRef.current = null
+    }
+    if (pendingCellPersistTimeoutRef.current) {
+      clearTimeout(pendingCellPersistTimeoutRef.current)
+      pendingCellPersistTimeoutRef.current = null
+    }
+    if (persistenceTriggeredSnapshotTimeoutRef.current) {
+      clearTimeout(persistenceTriggeredSnapshotTimeoutRef.current)
+      persistenceTriggeredSnapshotTimeoutRef.current = null
+    }
+
+    const run = async () => {
+      await processUniverDataChange()
+      await flushPendingCellChanges()
+      const enqueue = enqueueSnapshotCheckpointRef.current
+      if (enqueue) {
+        await enqueue()
+      }
+    }
+
+    const nextRun = operationQueueRef.current.then(run, run)
+    operationQueueRef.current = nextRun.then(
+      () => undefined,
+      () => undefined
+    )
+    void nextRun.catch(() => undefined)
+  }, [entityEnabled, flushPendingCellChanges, processUniverDataChange])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+
+    const handlePageHide = () => {
+      flushPendingPersistenceNow()
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingPersistenceNow()
+      }
+    }
+
+    window.addEventListener('pagehide', handlePageHide)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [flushPendingPersistenceNow])
+
   useEffect(() => {
     return () => {
       if (univerDataChangeTimeoutRef.current) {
@@ -1503,6 +1641,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onOpenAutomations={() => setIsAutomationsOpen(true)}
         onEdit={onEdit}
         onExport={() => void handleExportToExcel()}
+        isCollectionCopy={isCollectionCopy}
+        collectionSubmittedAt={collectionSubmittedAt}
+        onSubmitCollection={canSubmitCollection && !collectionSubmittedAt ? handleSubmitCollection : undefined}
         testId={testId}
       />
 

@@ -4,9 +4,9 @@
  * Top navigation bar with breadcrumbs, status indicators, and actions.
  */
 
-import React, { memo } from 'react'
+import React, { memo, useCallback, useState } from 'react'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { ChevronRight, Eye, Home, FileSpreadsheet, MessageSquare, Lock } from 'lucide-react'
+import { ChevronRight, Eye, Home, FileSpreadsheet, MessageSquare, Lock, Send, CheckCircle2 } from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
 import { SpreadsheetActionsMenu } from './SpreadsheetActionsMenu'
@@ -62,6 +62,9 @@ export interface SpreadsheetHeaderProps {
   onOpenAutomations: () => void
   onEdit?: () => void
   onExport?: () => void
+  isCollectionCopy?: boolean
+  onSubmitCollection?: () => Promise<void>
+  collectionSubmittedAt?: string | null
 
   testId: string
 }
@@ -90,8 +93,28 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onOpenAutomations,
   onEdit,
   onExport,
+  isCollectionCopy,
+  onSubmitCollection,
+  collectionSubmittedAt,
   testId
 }) {
+  const [isSubmittingCollection, setIsSubmittingCollection] = useState(false)
+  const handleSubmitCollection = useCallback(async () => {
+    if (!onSubmitCollection || isSubmittingCollection) return
+    setIsSubmittingCollection(true)
+    try {
+      await onSubmitCollection()
+    } finally {
+      setIsSubmittingCollection(false)
+    }
+  }, [isSubmittingCollection, onSubmitCollection])
+
+  const formattedSubmittedAt = collectionSubmittedAt
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+        new Date(collectionSubmittedAt)
+      )
+    : null
+
   return (
     <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
       <div className="gba:flex gba:items-center gba:justify-between gba:min-w-0 gba:w-full">
@@ -200,6 +223,28 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               {/* Status badge */}
               <StatusBadge status={publishingStatus || 'draft'} />
             </div>
+          )}
+
+          {isCollectionCopy && collectionSubmittedAt && formattedSubmittedAt && (
+            <Badge
+              variant="success"
+              className="gba:flex gba:items-center gba:gap-1.5"
+              data-testid="spreadsheet-submitted-badge"
+            >
+              <CheckCircle2 className="gba:w-3.5 gba:h-3.5" />
+              <span>Submitted - {formattedSubmittedAt}</span>
+            </Badge>
+          )}
+          {isCollectionCopy && !collectionSubmittedAt && onSubmitCollection && (
+            <Button
+              size="sm"
+              onClick={() => void handleSubmitCollection()}
+              disabled={isSubmittingCollection}
+              data-testid="spreadsheet-submit-collection"
+            >
+              <Send className="gba:w-4 gba:h-4 gba:mr-2" />
+              {isSubmittingCollection ? 'Submitting...' : 'Submit'}
+            </Button>
           )}
 
           <div className="gba:h-6 gba:w-px gba:bg-border/50" />
