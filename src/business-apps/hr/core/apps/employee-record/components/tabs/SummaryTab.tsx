@@ -10,16 +10,7 @@ import { Employee } from '../../hooks/useEmployeeData'
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
 import { Card, CardContent, Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
-import {
-  PiBriefcase,
-  PiStack,
-  PiListNumbers,
-  PiFunction,
-  PiClock,
-  PiCalendarCheck,
-  PiCalendarX,
-  PiCheckCircle
-} from 'react-icons/pi'
+import { BriefcaseIcon, StackIcon, ListNumbersIcon, FunctionIcon, ClockIcon, CalendarCheckIcon, CalendarXIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -332,7 +323,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
               </div>
               <div className="gba:space-y-4">
                 <div className="gba:flex gba:items-center">
-                  <PiBriefcase className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                  <BriefcaseIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-profile')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">
@@ -344,7 +335,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {/* Optional Job Family section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiStack className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <StackIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-family')}</div>
                       <button
@@ -369,7 +360,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {/* Optional Job Function section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiFunction className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <FunctionIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:flex gba:justify-between gba:w-full">
                         <div className="gba:text-sm gba:font-medium gba:text-foreground">
@@ -396,7 +387,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {/* Optional Job Level section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <ListNumbersIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-level')}</div>
                       <button
@@ -419,7 +410,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {/* SAP Number (HR Reference Code) */}
                 {employee?.hrReferenceCode && (
                   <div className="gba:flex gba:items-center">
-                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <ListNumbersIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div>
                       <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-sap-number')}</div>
                       <div className="gba:text-sm gba:text-muted-foreground">{String(employee.hrReferenceCode)}</div>
@@ -447,7 +438,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                       data-testid="current-status-icon"
                     />
                   ) : (
-                    <PiCheckCircle
+                    <CheckCircleIcon
                       className="gba:h-5 gba:w-5 gba:text-success gba:mr-3"
                       data-testid="current-status-icon"
                     />
@@ -491,7 +482,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
 
                 {/* Timezone */}
                 <div className="gba:flex gba:items-center">
-                  <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                  <ClockIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-timezone')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">Europe/Berlin</div>
@@ -500,7 +491,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
 
                 {/* Working hours */}
                 <div className="gba:flex gba:items-center">
-                  <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                  <CalendarCheckIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-weekly-hours')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">{computedWorkingHours}</div>
@@ -514,7 +505,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                     data-testid="upcoming-absence-section"
                   >
                     <div className="gba:flex gba:items-center gba:mb-3">
-                      <PiCalendarX className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                      <CalendarXIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                       <div
                         className="gba:text-sm gba:font-medium gba:text-foreground"
                         data-testid="upcoming-absence-heading"

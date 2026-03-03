@@ -2,7 +2,7 @@ import React from 'react'
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { DashboardData, TimeFilter, AbsenceDetailsFilter } from '../../../../types'
 import { WidgetGroup, WidgetItem } from '../../../../../../../../../components/widget-group'
-import { PiUsers, PiClock, PiCalendar, PiPercent } from 'react-icons/pi'
+import { UsersIcon, ClockIcon, CalendarIcon, PercentIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel, getAbsenceStatusColor } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { DepartmentBarChart, StatusPieChart, VacationEntitlementsCard, VacationLiabilityCard } from './components'
@@ -67,7 +67,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
         'Total Absences'
       ),
       value: totalAbsences,
-      prefix: <PiUsers />,
+      prefix: <UsersIcon />,
       color: 'var(--nw-info)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.all_absences_this_year',
@@ -84,7 +84,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       value: averageDuration,
       suffix: ` ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}`,
       precision: 1,
-      prefix: <PiCalendar />,
+      prefix: <CalendarIcon />,
       color: 'var(--nw-success)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.average_absence_length',
@@ -100,7 +100,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       ),
       value: approvalRate,
       suffix: '%',
-      prefix: <PiPercent />,
+      prefix: <PercentIcon />,
       color: 'var(--nw-info)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.approved_vs_total_requests',
@@ -115,7 +115,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
         'Pending Review'
       ),
       value: pendingAbsences,
-      prefix: <PiClock />,
+      prefix: <ClockIcon />,
       color: 'var(--nw-warning)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.awaiting_approval',

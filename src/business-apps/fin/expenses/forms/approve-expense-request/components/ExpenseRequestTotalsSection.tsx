@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Label, Separator } from '@newwork/nw-design-system'
-import { PiWallet } from 'react-icons/pi'
+import { WalletIcon } from '@phosphor-icons/react'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 
 interface ExpenseRequestTotalsSectionProps {
@@ -62,7 +62,7 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
     <Card data-testid="approve-expense-request-v2-financial-overview">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiWallet className="gba:h-5 gba:w-5" />
+          <WalletIcon className="gba:h-5 gba:w-5" />
           {t('section-financial-overview')}
         </CardTitle>
       </CardHeader>

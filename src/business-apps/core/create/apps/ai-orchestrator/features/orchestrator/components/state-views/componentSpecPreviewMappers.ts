@@ -25,12 +25,30 @@ export function mapDataModelSpec(spec: DataModelSpec): DataModelPreviewDefinitio
   const mappedColumns = spec.fields.map(f => {
     // Convert type to lowercase for case-insensitive lookup
     const mappedType = FIELD_TYPE_MAP[f.type.toLowerCase()] ?? 'TEXT'
+
+    // Handle options: can be strings or objects
+    let mappedOptions: Array<{ value: string; label: string }> | undefined
+    if (f.options && Array.isArray(f.options)) {
+      mappedOptions = f.options.map((o: any) => {
+        // If option is a string, use it for both value and label
+        if (typeof o === 'string') {
+          return { value: o, label: o }
+        }
+        // If option is an object with code/value, map them
+        if (typeof o === 'object' && o !== null) {
+          return { value: o.code || o.value, label: o.value || o.label || o.code }
+        }
+        // Fallback
+        return { value: String(o), label: String(o) }
+      })
+    }
+
     return {
       name: f.name,
       label: f.label,
       type: mappedType,
       required: f.required,
-      options: f.options?.map(o => ({ value: o.value, label: o.label }))
+      options: mappedOptions
     }
   })
 
