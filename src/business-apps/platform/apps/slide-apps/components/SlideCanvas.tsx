@@ -728,6 +728,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
       <div
         key={element.id}
         data-slide-element="true"
+        data-element-id={element.id}
         style={wrapperStyle}
         onMouseDown={e => handleElementMouseDown(e, element)}
         onDoubleClick={() => element.type === 'text' && onEditText(element.id)}

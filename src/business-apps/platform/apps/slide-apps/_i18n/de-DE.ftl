@@ -522,3 +522,13 @@ template-public = Öffentlich
 template-private = Privat
 template-delete = Löschen
 template-delete-confirm = Diese Vorlage löschen?
+
+# Voice Input
+editor-voice-listening = Hört zu... Sprechen Sie jetzt
+editor-voice-not-supported = Spracheingabe wird in diesem Browser nicht unterstützt
+editor-voice-start = Spracheingabe starten
+editor-voice-stop = Spracheingabe stoppen
+editor-voice-recognizing = Erkannt
+editor-voice-recording = Aufnahme läuft...
+editor-voice-hint = Tipp: Klicken Sie auf "Spracheingabe", um zu diktieren
+editor-text-placeholder = Geben Sie hier Ihren Text ein...

@@ -522,3 +522,13 @@ template-public = Public
 template-private = Privat
 template-delete = Șterge
 template-delete-confirm = Ștergeți acest șablon?
+
+# Voice Input
+editor-voice-listening = Ascultare... Vorbiți acum
+editor-voice-not-supported = Introducerea vocală nu este suportată în acest browser
+editor-voice-start = Pornește introducerea vocală
+editor-voice-stop = Oprește introducerea vocală
+editor-voice-recognizing = Se recunoaște
+editor-voice-recording = Înregistrare...
+editor-voice-hint = Sfat: Apăsați "Introducere vocală" pentru a dicta
+editor-text-placeholder = Introduceți textul aici...

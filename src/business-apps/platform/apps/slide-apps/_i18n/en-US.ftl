@@ -520,3 +520,13 @@ template-public = Public
 template-private = Private
 template-delete = Delete
 template-delete-confirm = Delete this template?
+
+# Voice Input
+editor-voice-listening = Listening... Speak now
+editor-voice-not-supported = Voice input not supported in this browser
+editor-voice-start = Start voice input
+editor-voice-stop = Stop voice input
+editor-voice-recognizing = Recognizing
+editor-voice-recording = Recording...
+editor-voice-hint = Tip: Click "Voice Input" to dictate
+editor-text-placeholder = Enter your text here...
