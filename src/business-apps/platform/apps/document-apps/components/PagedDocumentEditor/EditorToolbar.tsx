@@ -5,7 +5,7 @@
  * with comprehensive formatting options.
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Editor } from '@tiptap/react'
 import {
   Button,
@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
+import { VoiceInputButton, VoiceVisualizer, useVoiceInput } from '../../../shared'
 import translations from '../../_i18n'
 import {
   Bold,
@@ -273,6 +274,78 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   'data-testid': testId = 'editor-toolbar'
 }) => {
   const { t } = useTranslation(translations)
+  const editorRef = useRef(editor)
+  editorRef.current = editor
+  const dictationStartRef = useRef<number | null>(null)
+  const dictationEndRef = useRef<number | null>(null)
+
+  const applyDictationToEditor = useCallback((text: string) => {
+    const ed = editorRef.current
+    if (!ed || !text) return
+    let start = dictationStartRef.current
+    const end = dictationEndRef.current ?? start ?? ed.state.selection.from
+    try {
+      if (start == null) {
+        start = ed.state.selection.from
+        ed.chain().focus().deleteSelection().insertContent(text).run()
+        dictationStartRef.current = start
+        dictationEndRef.current = ed.state.selection.from
+        return
+      }
+      if (start === end) {
+        ed.chain().focus().setTextSelection(start).insertContent(text).run()
+      } else {
+        ed.chain().focus().setTextSelection({ from: start, to: end }).deleteSelection().insertContent(text).run()
+      }
+      dictationEndRef.current = ed.state.selection.from
+    } catch (err) {
+      console.error('[EditorToolbar] dictate insert failed', err)
+    }
+  }, [])
+
+  const voiceInput = useVoiceInput({
+    language: 'en-US',
+    continuous: true,
+    interimResults: true,
+    autoStopOnSilence: false,
+    onTranscript: (transcript: string) => {
+      const text = transcript.trim()
+      if (!text) return
+      requestAnimationFrame(() => applyDictationToEditor(text))
+    },
+    onEnd: (finalTranscript: string) => {
+      const text = finalTranscript.trim()
+      if (!text) {
+        dictationStartRef.current = null
+        dictationEndRef.current = null
+        return
+      }
+      const ed = editorRef.current
+      if (!ed) return
+      requestAnimationFrame(() => {
+        applyDictationToEditor(text)
+        dictationStartRef.current = null
+        dictationEndRef.current = null
+      })
+    }
+  })
+
+  useEffect(() => {
+    if (voiceInput.isListening && editor) {
+      const from = editor.state.selection.from
+      dictationStartRef.current = from
+      dictationEndRef.current = from
+    } else if (!voiceInput.isListening) {
+      dictationStartRef.current = null
+      dictationEndRef.current = null
+    }
+  }, [voiceInput.isListening, editor])
+
+  useEffect(() => {
+    if (!editor && voiceInput.isListening) {
+      voiceInput.stopListening()
+    }
+  }, [editor, voiceInput.isListening, voiceInput.stopListening])
 
   const handleLinkClick = useCallback(() => {
     if (!editor) return
@@ -374,473 +447,503 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const fontSizeDisplay = fontSizeInputValue ?? currentFontSize
 
   return (
-    <div
-      className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:p-2 gba:border-b gba:bg-muted/30"
-      data-testid={testId}
-    >
-      {/* Undo/Redo */}
-      <div className="gba:flex gba:items-center gba:gap-0.5">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
-          tooltip={t('editor-toolbar-undo')}
-        >
-          <Undo className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
-          tooltip={t('editor-toolbar-redo')}
-        >
-          <Redo className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-      </div>
-
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-      {/* Heading/Paragraph Style */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:min-w-[100px] gba:justify-between">
-            <span className="gba:text-xs">{getCurrentHeading()}</span>
-            <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          {HEADING_LEVELS.map(({ label, value }) => (
-            <DropdownMenuItem
-              key={label}
-              onClick={() => {
-                if (value === 0) {
-                  editor.chain().focus().setParagraph().run()
-                } else {
-                  editor
-                    .chain()
-                    .focus()
-                    .toggleHeading({ level: value as 1 | 2 | 3 | 4 | 5 | 6 })
-                    .run()
-                }
-              }}
-            >
-              {value === 0 ? t('editor-heading-normal') : t(`editor-heading-${value}`)}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Font Family — shows the font at the current cursor position */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gba:h-8 gba:min-w-[100px] gba:justify-between"
-            data-testid="editor-toolbar-font"
-          >
-            <Type className="gba:h-3 gba:w-3 gba:mr-1" />
-            <span className="gba:text-xs gba:truncate" style={{ fontFamily: currentFont.value || 'inherit' }}>
-              {currentFont.label}
-            </span>
-            <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          {FONT_FAMILIES.map(({ value }) => (
-            <DropdownMenuItem
-              key={value || 'default'}
-              onClick={() => {
-                if (value) {
-                  editor.chain().focus().setFontFamily(value).run()
-                } else {
-                  editor.chain().focus().unsetFontFamily().run()
-                }
-              }}
-              style={{ fontFamily: value || 'inherit' }}
-            >
-              {t(FONT_FAMILY_KEYS[value] ?? 'editor-font-default')}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Font Size — editable like MS Word: type any value or pick from presets */}
+    <>
       <div
-        className="gba:flex gba:items-center gba:h-8 gba:border gba:rounded-md gba:border-border gba:overflow-hidden gba:min-w-0"
-        data-testid="editor-toolbar-font-size"
+        className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:p-2 gba:border-b gba:bg-muted/30"
+        data-testid={testId}
       >
-        <Input
-          type="text"
-          inputMode="decimal"
-          value={fontSizeDisplay}
-          onChange={e => setFontSizeInputValue(e.target.value)}
-          onFocus={() => setFontSizeInputValue(currentFontSize)}
-          onBlur={() => applyCustomFontSize(fontSizeDisplay)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              applyCustomFontSize(fontSizeDisplay)
-              ;(e.target as HTMLInputElement).blur()
-            } else if (e.key === 'Escape') {
-              setFontSizeInputValue(null)
-              ;(e.target as HTMLInputElement).blur()
-            }
-          }}
-          className="gba:h-8 gba:w-12 gba:border-0 gba:rounded-none gba:text-xs gba:text-center gba:focus-visible:ring-0"
-        />
+        {/* Undo/Redo */}
+        <div className="gba:flex gba:items-center gba:gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            tooltip={t('editor-toolbar-undo')}
+          >
+            <Undo className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            tooltip={t('editor-toolbar-redo')}
+          >
+            <Redo className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+        </div>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+        {/* Dictate */}
+        {voiceInput.isSupported && (
+          <>
+            <VoiceInputButton
+              isListening={voiceInput.isListening}
+              isSupported={voiceInput.isSupported}
+              volume={voiceInput.volume}
+              error={voiceInput.error}
+              onStartListening={voiceInput.startListening}
+              onStopListening={voiceInput.stopListening}
+              size="sm"
+              data-testid={`${testId}-dictate`}
+            />
+            <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+          </>
+        )}
+
+        {/* Heading/Paragraph Style */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gba:h-8 gba:min-w-[100px] gba:justify-between">
+              <span className="gba:text-xs">{getCurrentHeading()}</span>
+              <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            {HEADING_LEVELS.map(({ label, value }) => (
+              <DropdownMenuItem
+                key={label}
+                onClick={() => {
+                  if (value === 0) {
+                    editor.chain().focus().setParagraph().run()
+                  } else {
+                    editor
+                      .chain()
+                      .focus()
+                      .toggleHeading({ level: value as 1 | 2 | 3 | 4 | 5 | 6 })
+                      .run()
+                  }
+                }}
+              >
+                {value === 0 ? t('editor-heading-normal') : t(`editor-heading-${value}`)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Font Family — shows the font at the current cursor position */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className="gba:h-8 gba:w-7 gba:p-0 gba:rounded-none gba:border-l gba:border-border"
+              className="gba:h-8 gba:min-w-[100px] gba:justify-between"
+              data-testid="editor-toolbar-font"
             >
-              <ChevronDown className="gba:h-3 gba:w-3" />
+              <Type className="gba:h-3 gba:w-3 gba:mr-1" />
+              <span className="gba:text-xs gba:truncate" style={{ fontFamily: currentFont.value || 'inherit' }}>
+                {currentFont.label}
+              </span>
+              <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="gba:max-h-64 gba:overflow-y-auto">
-            {FONT_SIZES.map(({ label, value }) => (
+          <DropdownMenuContent>
+            {FONT_FAMILIES.map(({ value }) => (
               <DropdownMenuItem
-                key={label}
+                key={value || 'default'}
                 onClick={() => {
-                  editor.chain().focus().setFontSize(value).run()
-                  setFontSizeInputValue(null)
+                  if (value) {
+                    editor.chain().focus().setFontFamily(value).run()
+                  } else {
+                    editor.chain().focus().unsetFontFamily().run()
+                  }
                 }}
+                style={{ fontFamily: value || 'inherit' }}
               >
-                {label}
+                {t(FONT_FAMILY_KEYS[value] ?? 'editor-font-default')}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-      {/* Text Formatting */}
-      <div className="gba:flex gba:items-center gba:gap-0.5">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          isActive={editor.isActive('bold')}
-          tooltip={t('editor-toolbar-bold')}
+        {/* Font Size — editable like MS Word: type any value or pick from presets */}
+        <div
+          className="gba:flex gba:items-center gba:h-8 gba:border gba:rounded-md gba:border-border gba:overflow-hidden gba:min-w-0"
+          data-testid="editor-toolbar-font-size"
         >
-          <Bold className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          isActive={editor.isActive('italic')}
-          tooltip={t('editor-toolbar-italic')}
-        >
-          <Italic className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          isActive={editor.isActive('underline')}
-          tooltip={t('editor-toolbar-underline')}
-        >
-          <Underline className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          isActive={editor.isActive('strike')}
-          tooltip={t('editor-toolbar-strike')}
-        >
-          <Strikethrough className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleSubscript().run()}
-          isActive={editor.isActive('subscript')}
-          tooltip={t('editor-toolbar-subscript')}
-        >
-          <Subscript className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleSuperscript().run()}
-          isActive={editor.isActive('superscript')}
-          tooltip={t('editor-toolbar-superscript')}
-        >
-          <Superscript className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-      </div>
-
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-      {/* Text Color */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
-            <Palette className="gba:h-4 gba:w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="gba:w-64 gba:p-2">
-          <div className="gba:text-xs gba:font-medium gba:mb-2">{t('editor-toolbar-text-color')}</div>
-          <div className="gba:grid gba:grid-cols-10 gba:gap-1">
-            {COLORS.map(color => (
-              <button
-                key={color}
-                onClick={() => editor.chain().focus().setColor(color).run()}
-                className="gba:w-5 gba:h-5 gba:rounded gba:border gba:border-border hover:gba:scale-110 gba:transition-transform"
-                style={{ backgroundColor: color }}
-                title={color}
-              />
-            ))}
-          </div>
-          <DropdownMenuSeparator className="gba:my-2" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => editor.chain().focus().unsetColor().run()}
-            className="gba:w-full gba:text-xs"
-          >
-            {t('editor-toolbar-remove-color')}
-          </Button>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Highlight Color */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
-            <Highlighter className="gba:h-4 gba:w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="gba:p-2">
-          <div className="gba:text-xs gba:font-medium gba:mb-2">{t('editor-toolbar-highlight')}</div>
-          <div className="gba:grid gba:grid-cols-4 gba:gap-1">
-            {HIGHLIGHT_COLORS.map(color => (
-              <button
-                key={color}
-                onClick={() => editor.chain().focus().toggleHighlight({ color }).run()}
-                className="gba:w-6 gba:h-6 gba:rounded gba:border gba:border-border hover:gba:scale-110 gba:transition-transform"
-                style={{ backgroundColor: color }}
-                title={color}
-              />
-            ))}
-          </div>
-          <DropdownMenuSeparator className="gba:my-2" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => editor.chain().focus().unsetHighlight().run()}
-            className="gba:w-full gba:text-xs"
-          >
-            {t('editor-toolbar-remove-highlight')}
-          </Button>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-      {/* Alignment */}
-      <div className="gba:flex gba:items-center gba:gap-0.5">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign('left').run()}
-          isActive={editor.isActive({ textAlign: 'left' })}
-          tooltip={t('editor-toolbar-align-left')}
-        >
-          <AlignLeft className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign('center').run()}
-          isActive={editor.isActive({ textAlign: 'center' })}
-          tooltip={t('editor-toolbar-align-center')}
-        >
-          <AlignCenter className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign('right').run()}
-          isActive={editor.isActive({ textAlign: 'right' })}
-          tooltip={t('editor-toolbar-align-right')}
-        >
-          <AlignRight className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-          isActive={editor.isActive({ textAlign: 'justify' })}
-          tooltip={t('editor-toolbar-justify')}
-        >
-          <AlignJustify className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* Line and paragraph spacing */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gba:h-8 gba:w-8 gba:p-0"
-            data-testid="editor-toolbar-line-spacing"
-            title={t('editor-toolbar-line-paragraph-spacing')}
-          >
-            <AlignVerticalJustifyCenter className="gba:h-4 gba:w-4" />
-            <ChevronDown className="gba:h-3 gba:w-3 gba:ml-0.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          onCloseAutoFocus={e => {
-            e.preventDefault()
-            editor.commands.focus()
-          }}
-        >
-          {LINE_SPACING_OPTIONS.map(({ key, value }) => {
-            const spacing = getCurrentSpacing(editor)
-            const effective = spacing.lineHeight ?? 1.15
-            const isActive = Math.abs(Number(effective) - value) < 0.01
-            return (
-              <DropdownMenuItem
-                key={key}
-                onSelect={() => {
-                  const v = value
-                  requestAnimationFrame(() => {
-                    editor.chain().focus().setLineHeight(v).run()
-                  })
-                }}
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={fontSizeDisplay}
+            onChange={e => setFontSizeInputValue(e.target.value)}
+            onFocus={() => setFontSizeInputValue(currentFontSize)}
+            onBlur={() => applyCustomFontSize(fontSizeDisplay)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                applyCustomFontSize(fontSizeDisplay)
+                ;(e.target as HTMLInputElement).blur()
+              } else if (e.key === 'Escape') {
+                setFontSizeInputValue(null)
+                ;(e.target as HTMLInputElement).blur()
+              }
+            }}
+            className="gba:h-8 gba:w-12 gba:border-0 gba:rounded-none gba:text-xs gba:text-center gba:focus-visible:ring-0"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gba:h-8 gba:w-7 gba:p-0 gba:rounded-none gba:border-l gba:border-border"
               >
-                {isActive ? <Check className="gba:h-4 gba:w-4 gba:mr-2" /> : <span className="gba:w-4 gba:mr-2" />}
-                {t(`editor-line-spacing-${key}`)}
-              </DropdownMenuItem>
-            )
-          })}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => {
-              requestAnimationFrame(() => {
-                editor.chain().focus().setMarginBefore(PARAGRAPH_SPACING_EM).run()
-              })
-            }}
-          >
-            {t('editor-paragraph-spacing-before')}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => {
-              requestAnimationFrame(() => {
-                editor.chain().focus().setMarginAfter(PARAGRAPH_SPACING_EM).run()
-              })
-            }}
-          >
-            {t('editor-paragraph-spacing-after')}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => {
-              requestAnimationFrame(() => {
-                editor.chain().focus().unsetMarginBefore().run()
-              })
-            }}
-          >
-            {t('editor-paragraph-spacing-remove-before')}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => {
-              requestAnimationFrame(() => {
-                editor.chain().focus().unsetMarginAfter().run()
-              })
-            }}
-          >
-            {t('editor-paragraph-spacing-remove-after')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+                <ChevronDown className="gba:h-3 gba:w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="gba:max-h-64 gba:overflow-y-auto">
+              {FONT_SIZES.map(({ label, value }) => (
+                <DropdownMenuItem
+                  key={label}
+                  onClick={() => {
+                    editor.chain().focus().setFontSize(value).run()
+                    setFontSizeInputValue(null)
+                  }}
+                >
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 
-      {/* Lists & Indentation */}
-      <div className="gba:flex gba:items-center gba:gap-0.5">
+        {/* Text Formatting */}
+        <div className="gba:flex gba:items-center gba:gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            isActive={editor.isActive('bold')}
+            tooltip={t('editor-toolbar-bold')}
+          >
+            <Bold className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            isActive={editor.isActive('italic')}
+            tooltip={t('editor-toolbar-italic')}
+          >
+            <Italic className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            isActive={editor.isActive('underline')}
+            tooltip={t('editor-toolbar-underline')}
+          >
+            <Underline className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            isActive={editor.isActive('strike')}
+            tooltip={t('editor-toolbar-strike')}
+          >
+            <Strikethrough className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleSubscript().run()}
+            isActive={editor.isActive('subscript')}
+            tooltip={t('editor-toolbar-subscript')}
+          >
+            <Subscript className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleSuperscript().run()}
+            isActive={editor.isActive('superscript')}
+            tooltip={t('editor-toolbar-superscript')}
+          >
+            <Superscript className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+        </div>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+        {/* Text Color */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
+              <Palette className="gba:h-4 gba:w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="gba:w-64 gba:p-2">
+            <div className="gba:text-xs gba:font-medium gba:mb-2">{t('editor-toolbar-text-color')}</div>
+            <div className="gba:grid gba:grid-cols-10 gba:gap-1">
+              {COLORS.map(color => (
+                <button
+                  key={color}
+                  onClick={() => editor.chain().focus().setColor(color).run()}
+                  className="gba:w-5 gba:h-5 gba:rounded gba:border gba:border-border hover:gba:scale-110 gba:transition-transform"
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+            <DropdownMenuSeparator className="gba:my-2" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().unsetColor().run()}
+              className="gba:w-full gba:text-xs"
+            >
+              {t('editor-toolbar-remove-color')}
+            </Button>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Highlight Color */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
+              <Highlighter className="gba:h-4 gba:w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="gba:p-2">
+            <div className="gba:text-xs gba:font-medium gba:mb-2">{t('editor-toolbar-highlight')}</div>
+            <div className="gba:grid gba:grid-cols-4 gba:gap-1">
+              {HIGHLIGHT_COLORS.map(color => (
+                <button
+                  key={color}
+                  onClick={() => editor.chain().focus().toggleHighlight({ color }).run()}
+                  className="gba:w-6 gba:h-6 gba:rounded gba:border gba:border-border hover:gba:scale-110 gba:transition-transform"
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+            <DropdownMenuSeparator className="gba:my-2" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => editor.chain().focus().unsetHighlight().run()}
+              className="gba:w-full gba:text-xs"
+            >
+              {t('editor-toolbar-remove-highlight')}
+            </Button>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+        {/* Alignment */}
+        <div className="gba:flex gba:items-center gba:gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('left').run()}
+            isActive={editor.isActive({ textAlign: 'left' })}
+            tooltip={t('editor-toolbar-align-left')}
+          >
+            <AlignLeft className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('center').run()}
+            isActive={editor.isActive({ textAlign: 'center' })}
+            tooltip={t('editor-toolbar-align-center')}
+          >
+            <AlignCenter className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('right').run()}
+            isActive={editor.isActive({ textAlign: 'right' })}
+            tooltip={t('editor-toolbar-align-right')}
+          >
+            <AlignRight className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+            isActive={editor.isActive({ textAlign: 'justify' })}
+            tooltip={t('editor-toolbar-justify')}
+          >
+            <AlignJustify className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+        </div>
+
+        {/* Line and paragraph spacing */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gba:h-8 gba:w-8 gba:p-0"
+              data-testid="editor-toolbar-line-spacing"
+              title={t('editor-toolbar-line-paragraph-spacing')}
+            >
+              <AlignVerticalJustifyCenter className="gba:h-4 gba:w-4" />
+              <ChevronDown className="gba:h-3 gba:w-3 gba:ml-0.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            onCloseAutoFocus={e => {
+              e.preventDefault()
+              editor.commands.focus()
+            }}
+          >
+            {LINE_SPACING_OPTIONS.map(({ key, value }) => {
+              const spacing = getCurrentSpacing(editor)
+              const effective = spacing.lineHeight ?? 1.15
+              const isActive = Math.abs(Number(effective) - value) < 0.01
+              return (
+                <DropdownMenuItem
+                  key={key}
+                  onSelect={() => {
+                    const v = value
+                    requestAnimationFrame(() => {
+                      editor.chain().focus().setLineHeight(v).run()
+                    })
+                  }}
+                >
+                  {isActive ? <Check className="gba:h-4 gba:w-4 gba:mr-2" /> : <span className="gba:w-4 gba:mr-2" />}
+                  {t(`editor-line-spacing-${key}`)}
+                </DropdownMenuItem>
+              )
+            })}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => {
+                requestAnimationFrame(() => {
+                  editor.chain().focus().setMarginBefore(PARAGRAPH_SPACING_EM).run()
+                })
+              }}
+            >
+              {t('editor-paragraph-spacing-before')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                requestAnimationFrame(() => {
+                  editor.chain().focus().setMarginAfter(PARAGRAPH_SPACING_EM).run()
+                })
+              }}
+            >
+              {t('editor-paragraph-spacing-after')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => {
+                requestAnimationFrame(() => {
+                  editor.chain().focus().unsetMarginBefore().run()
+                })
+              }}
+            >
+              {t('editor-paragraph-spacing-remove-before')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                requestAnimationFrame(() => {
+                  editor.chain().focus().unsetMarginAfter().run()
+                })
+              }}
+            >
+              {t('editor-paragraph-spacing-remove-after')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+        {/* Lists & Indentation */}
+        <div className="gba:flex gba:items-center gba:gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            isActive={editor.isActive('bulletList')}
+            tooltip={t('editor-toolbar-bullet-list')}
+          >
+            <List className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            isActive={editor.isActive('orderedList')}
+            tooltip={t('editor-toolbar-numbered-list')}
+          >
+            <ListOrdered className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().liftListItem('listItem').run()}
+            disabled={!editor.can().liftListItem('listItem')}
+            tooltip={t('editor-toolbar-decrease-indent')}
+          >
+            <IndentDecrease className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
+            disabled={!editor.can().sinkListItem('listItem')}
+            tooltip={t('editor-toolbar-increase-indent')}
+          >
+            <IndentIncrease className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+        </div>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+        {/* Block Elements */}
+        <div className="gba:flex gba:items-center gba:gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            isActive={editor.isActive('blockquote')}
+            tooltip={t('editor-toolbar-quote')}
+          >
+            <Quote className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            isActive={editor.isActive('codeBlock')}
+            tooltip={t('editor-toolbar-code-block')}
+          >
+            <Code className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            tooltip={t('editor-toolbar-horizontal-rule')}
+          >
+            <Minus className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+        </div>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+        {/* Insert Elements */}
+        <div className="gba:flex gba:items-center gba:gap-0.5">
+          <ToolbarButton
+            onClick={handleLinkClick}
+            isActive={editor.isActive('link')}
+            tooltip={t('editor-toolbar-insert-link')}
+          >
+            <Link className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton onClick={addImage} tooltip={t('editor-toolbar-insert-image')}>
+            <Image className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+          <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
+            <Table className="gba:h-4 gba:w-4" />
+          </ToolbarButton>
+        </div>
+
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+        {/* Page Break */}
         <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          isActive={editor.isActive('bulletList')}
-          tooltip={t('editor-toolbar-bullet-list')}
+          onClick={() => {
+            editor.chain().focus().setPageBreak().run()
+            onInsertPageBreak?.()
+          }}
+          tooltip={t('editor-toolbar-page-break')}
         >
-          <List className="gba:h-4 gba:w-4" />
+          <SeparatorHorizontal className="gba:h-4 gba:w-4" />
         </ToolbarButton>
+
+        {/* Clear Formatting */}
         <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          isActive={editor.isActive('orderedList')}
-          tooltip={t('editor-toolbar-numbered-list')}
+          onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+          tooltip={t('editor-toolbar-clear-formatting')}
         >
-          <ListOrdered className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().liftListItem('listItem').run()}
-          disabled={!editor.can().liftListItem('listItem')}
-          tooltip={t('editor-toolbar-decrease-indent')}
-        >
-          <IndentDecrease className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
-          disabled={!editor.can().sinkListItem('listItem')}
-          tooltip={t('editor-toolbar-increase-indent')}
-        >
-          <IndentIncrease className="gba:h-4 gba:w-4" />
+          <RemoveFormatting className="gba:h-4 gba:w-4" />
         </ToolbarButton>
       </div>
 
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-      {/* Block Elements */}
-      <div className="gba:flex gba:items-center gba:gap-0.5">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          isActive={editor.isActive('blockquote')}
-          tooltip={t('editor-toolbar-quote')}
-        >
-          <Quote className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          isActive={editor.isActive('codeBlock')}
-          tooltip={t('editor-toolbar-code-block')}
-        >
-          <Code className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          tooltip={t('editor-toolbar-horizontal-rule')}
-        >
-          <Minus className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-      </div>
-
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-      {/* Insert Elements */}
-      <div className="gba:flex gba:items-center gba:gap-0.5">
-        <ToolbarButton
-          onClick={handleLinkClick}
-          isActive={editor.isActive('link')}
-          tooltip={t('editor-toolbar-insert-link')}
-        >
-          <Link className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton onClick={addImage} tooltip={t('editor-toolbar-insert-image')}>
-          <Image className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
-          <Table className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-      </div>
-
-      <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-      {/* Page Break */}
-      <ToolbarButton
-        onClick={() => {
-          editor.chain().focus().setPageBreak().run()
-          onInsertPageBreak?.()
-        }}
-        tooltip={t('editor-toolbar-page-break')}
-      >
-        <SeparatorHorizontal className="gba:h-4 gba:w-4" />
-      </ToolbarButton>
-
-      {/* Clear Formatting */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
-        tooltip={t('editor-toolbar-clear-formatting')}
-      >
-        <RemoveFormatting className="gba:h-4 gba:w-4" />
-      </ToolbarButton>
-    </div>
+      {voiceInput.isListening && (
+        <div className="gba:px-2 gba:py-2 gba:border-b gba:bg-muted/20" data-testid={`${testId}-voice-visualizer`}>
+          <VoiceVisualizer
+            volume={voiceInput.volume}
+            isListening={voiceInput.isListening}
+            interimText={voiceInput.interimTranscript}
+            data-testid="document-toolbar-voice-visualizer"
+          />
+        </div>
+      )}
+    </>
   )
 }
 
