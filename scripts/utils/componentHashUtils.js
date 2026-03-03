@@ -15,24 +15,54 @@ export function calculateFileHash(filePath) {
 
 /**
  * Calculate combined hash for all artifacts in a screen's build directory
- * Combines hashes of all .js and .css files
+ * Combines hashes of:
+ * - all .js/.css files in the screen directory
+ * - referenced shared chunk files under dist/chunks (if any)
  */
 export function calculateScreenHash(buildOutputDir) {
-  const files = glob.sync('**/*.{js,css}', { cwd: buildOutputDir, nodir: true })
+  const screenFiles = glob.sync('**/*.{js,css}', { cwd: buildOutputDir, nodir: true })
 
-  if (files.length === 0) {
+  if (screenFiles.length === 0) {
     throw new Error(`No artifacts found in ${buildOutputDir}`)
   }
 
-  // Sort files for deterministic hash
-  files.sort()
+  const distMarker = `${path.sep}dist${path.sep}`
+  const markerIndex = buildOutputDir.lastIndexOf(distMarker)
+  const distRootDir = markerIndex >= 0 ? buildOutputDir.slice(0, markerIndex + distMarker.length - 1) : null
+
+  // Detect shared chunk dependencies referenced from screen JS output.
+  // This captures shared component changes that end up in dist/chunks/*.js|css.
+  const referencedChunkFiles = new Set()
+  if (distRootDir) {
+    for (const relativeFile of screenFiles) {
+      if (!relativeFile.endsWith('.js')) continue
+      const absoluteFilePath = path.join(buildOutputDir, relativeFile)
+      const content = fs.readFileSync(absoluteFilePath, 'utf8')
+      const chunkPathMatches = content.match(/chunks\/[A-Za-z0-9._/-]+\.(js|css)/g) || []
+      for (const chunkRelPath of chunkPathMatches) {
+        const normalized = chunkRelPath.replace(/\//g, path.sep)
+        const absoluteChunkPath = path.join(distRootDir, normalized)
+        if (fs.existsSync(absoluteChunkPath)) {
+          referencedChunkFiles.add(absoluteChunkPath)
+        }
+      }
+    }
+  }
+
+  // Sort for deterministic hash
+  const screenFilesSorted = [...screenFiles].sort()
+  const chunkFilesSorted = [...referencedChunkFiles].sort()
 
   // Combine all file hashes
   const combinedHash = crypto.createHash('md5')
-  for (const file of files) {
+  for (const file of screenFilesSorted) {
     const filePath = path.join(buildOutputDir, file)
     const fileHash = calculateFileHash(filePath)
     combinedHash.update(fileHash)
+  }
+  for (const chunkPath of chunkFilesSorted) {
+    const chunkHash = calculateFileHash(chunkPath)
+    combinedHash.update(chunkHash)
   }
 
   return combinedHash.digest('hex') // Full 32-char MD5 hash
