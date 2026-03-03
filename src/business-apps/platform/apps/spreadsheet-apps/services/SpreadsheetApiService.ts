@@ -80,10 +80,14 @@ const getAuthToken = (): string | null => {
     const authData = localStorage.getItem('keycloak-token')
     if (authData) {
       try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
+        const parsed = JSON.parse(authData) as { token?: unknown; access_token?: unknown }
+        if (parsed && typeof parsed === 'object') {
+          const value = parsed.token ?? parsed.access_token
+          if (typeof value === 'string') return value
+        }
+        return authData
       } catch {
-        return authData // Return as-is if not JSON
+        return authData
       }
     }
 
@@ -132,7 +136,12 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   const text = await response.text()
   // Some endpoints return no body (204/empty). Avoid returning `null` for generic `T`.
-  return text ? (JSON.parse(text) as T) : (undefined as unknown as T)
+  if (!text) return undefined as unknown as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new SpreadsheetApiRequestError('Invalid JSON response', response.status, { raw: text })
+  }
 }
 
 interface PaginatedResponse<T> {

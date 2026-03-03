@@ -24,6 +24,25 @@ function areParticipantsEquivalent(a: DocumentParticipant[], b: DocumentParticip
   return true
 }
 
+/**
+ * Safely extract JWT payload for display purposes only.
+ * Does NOT verify signatures. Token is from our own auth system (Keycloak/IDE).
+ */
+function safeParseJwtPayload(
+  token: string
+): { sub?: string; userId?: string; name?: string; preferred_username?: string } | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3 || !parts[1]) return null
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const json = atob(base64)
+    const payload = JSON.parse(json)
+    return typeof payload === 'object' && payload !== null ? payload : null
+  } catch {
+    return null
+  }
+}
+
 function areCursorParticipantsEquivalent(a: DocumentParticipant[], b: DocumentParticipant[]): boolean {
   if (a === b) return true
   if (a.length !== b.length) return false
@@ -130,7 +149,8 @@ export function useSpreadsheetViewerCollaboration({
       try {
         const token = localStorage.getItem('business-app-ide-access-token')
         if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]))
+          const payload = safeParseJwtPayload(token)
+          if (!payload) return
           currentUserIdRef.current = payload.sub || payload.userId
           setCurrentUserName(payload.name || payload.preferred_username || 'User')
 
@@ -220,17 +240,13 @@ export function useSpreadsheetViewerCollaboration({
   useEffect(() => {
     async function fetchCursorAvatars() {
       if (!rawParticipants.length || !authToken) {
-        setCursorParticipants(prev =>
-          areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants
-        )
+        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
 
       const ids = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (ids.length === 0) {
-        setCursorParticipants(prev =>
-          areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants
-        )
+        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
 
@@ -294,9 +310,7 @@ export function useSpreadsheetViewerCollaboration({
         setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, enriched) ? prev : enriched))
       } catch (error) {
         console.error('[SpreadsheetViewerCollaboration] Failed to fetch cursor participant avatars:', error)
-        setCursorParticipants(prev =>
-          areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants
-        )
+        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
       }
     }
 

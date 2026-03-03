@@ -496,6 +496,17 @@ export function useExcelParser(): UseExcelParserResult {
       setState(prev => ({ ...prev, isLoading: true, error: null, progress: 0 }))
 
       try {
+        const parsed = (() => {
+          try {
+            return new URL(url)
+          } catch {
+            return null
+          }
+        })()
+        if (!parsed || !['http:', 'https:'].includes(parsed.protocol)) {
+          throw new Error('Invalid URL: only http and https protocols are allowed')
+        }
+
         const response = await fetch(url)
         if (!response.ok) {
           throw new Error(`Failed to fetch file: ${response.statusText}`)
