@@ -1,7 +1,17 @@
 import { Button } from '@newwork/nw-design-system'
-import { MessageSquare, X } from 'lucide-react'
+import { MessageSquare, X, Trash2, AlertCircle } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@newwork/nw-design-system'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import type { BuildPlan } from '../../types'
+import { createOrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
+import { useState } from 'react'
 
 const formatRelativeTime = (dateStr: string): string => {
   const date = new Date(dateStr)
@@ -23,6 +33,8 @@ interface CreateSessionSidebarProps {
   loading: boolean
   onSelectSession: (jobId: string) => void
   onClose: () => void
+  onRefresh?: () => void
+  accessToken?: string
   testId?: string
 }
 
@@ -32,8 +44,57 @@ export const CreateSessionSidebar = ({
   loading,
   onSelectSession,
   onClose,
+  onRefresh,
+  accessToken,
   testId = 'create-session-sidebar'
 }: CreateSessionSidebarProps) => {
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<{ title: string; message: string } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<{ jobId: string; name: string } | null>(null)
+
+  const deleteSinglePlan = async (jobId: string, planName: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!accessToken) {
+      setDeleteError({ title: 'Error', message: 'No access token available' })
+      return
+    }
+
+    // Show confirmation dialog
+    setConfirmDelete({ jobId, name: planName })
+  }
+
+  const executeDelete = async () => {
+    if (!confirmDelete || !accessToken) return
+
+    const { jobId } = confirmDelete
+    setConfirmDelete(null)
+    setIsDeleting(true)
+
+    try {
+      const client = createOrchestratorClient(accessToken)
+      await client.cancelBuild(jobId)
+      onRefresh?.()
+    } catch (error: any) {
+      console.error('Failed to delete plan:', error)
+      const errorMsg = error?.message || 'Failed to delete plan.'
+
+      // Determine error type and show appropriate dialog
+      if (errorMsg.toLowerCase().includes('cannot delete') || errorMsg.toLowerCase().includes('not published')) {
+        setDeleteError({
+          title: 'Cannot Delete Plan',
+          message: errorMsg
+        })
+      } else {
+        setDeleteError({
+          title: 'Delete Failed',
+          message: errorMsg
+        })
+      }
+    } finally {
+      setIsDeleting(false)
+    }
+  }
   return (
     <div className="gba:flex gba:flex-col gba:h-full" data-testid={testId}>
       {/* Header */}
@@ -72,10 +133,9 @@ export const CreateSessionSidebar = ({
             const isActive = plan.jobId === currentPlanId
 
             return (
-              <button
+              <div
                 key={plan.jobId}
-                type="button"
-                className={`gba:w-full gba:text-left gba:flex gba:items-start gba:gap-2.5 gba:rounded-xl gba:px-2.5 gba:py-2 gba:cursor-pointer gba:group gba:transition-all gba:duration-150 ${
+                className={`gba:flex gba:items-start gba:gap-2.5 gba:rounded-xl gba:px-2.5 gba:py-2 gba:cursor-pointer gba:group gba:transition-all gba:duration-150 ${
                   isActive ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:hover:bg-muted/70'
                 }`}
                 onClick={() => onSelectSession(plan.jobId)}
@@ -93,10 +153,67 @@ export const CreateSessionSidebar = ({
                     {formatRelativeTime(plan.createdAt)}
                   </span>
                 </div>
-              </button>
+                {accessToken && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="gba:h-6 gba:w-6 gba:rounded-md gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:flex-shrink-0"
+                    onClick={e => {
+                      e.stopPropagation()
+                      deleteSinglePlan(plan.jobId, appName || planTitle, e)
+                    }}
+                    disabled={isDeleting}
+                    data-testid={`${testId}-delete-${plan.jobId}`}
+                  >
+                    <Trash2 className="gba:h-3 gba:w-3" />
+                  </Button>
+                )}
+              </div>
             )
           })}
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={!!confirmDelete} onOpenChange={open => !open && setConfirmDelete(null)}>
+        <DialogContent className="gba:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Plan</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{confirmDelete?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gba:flex gba:gap-2 gba:justify-end">
+            <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={executeDelete} disabled={isDeleting}>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog open={!!deleteError} onOpenChange={open => !open && setDeleteError(null)}>
+        <DialogContent className="gba:max-w-2xl">
+          <DialogHeader>
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <div className="gba:rounded-full gba:bg-destructive/10 gba:p-2">
+                <AlertCircle className="gba:h-5 gba:w-5 gba:text-destructive" />
+              </div>
+              <div className="gba:flex-1">
+                <DialogTitle>{deleteError?.title}</DialogTitle>
+                <DialogDescription className="gba:mt-2 gba:whitespace-pre-wrap">
+                  {deleteError?.message}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setDeleteError(null)}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
