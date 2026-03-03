@@ -610,19 +610,41 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
     )
 
-    // Set local awareness state (user meta shown in cursors/selections)
+    // Set local awareness state (user meta shown in cursors/selections).
+    // Defer until editor view is mounted so collaboration cursor does not dispatch before view exists.
     useEffect(() => {
       if (!document?.id) return
       if (!currentUserId) return
       if (!isYjsSynced) return
 
-      awareness.setLocalStateField('user', {
+      const userState = {
         id: currentUserId,
         userId: currentUserId,
         name: currentUserName || t('editor-user-fallback'),
         color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
-        avatar: currentUserAvatar // Include avatar URL for cursor rendering
-      })
+        avatar: currentUserAvatar
+      }
+
+      let cancelled = false
+      const deadline = Date.now() + 5000
+      const applyWhenViewReady = () => {
+        if (cancelled) return
+        try {
+          const ed = editorRef.current as { view?: unknown } | null
+          if (ed?.view) {
+            awareness.setLocalStateField('user', userState)
+            return
+          }
+        } catch {
+          // view getter may throw when not mounted
+        }
+        if (Date.now() > deadline) return
+        setTimeout(applyWhenViewReady, 50)
+      }
+      setTimeout(applyWhenViewReady, 0)
+      return () => {
+        cancelled = true
+      }
     }, [document?.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
 
     // Broadcast document activity to Spaces app

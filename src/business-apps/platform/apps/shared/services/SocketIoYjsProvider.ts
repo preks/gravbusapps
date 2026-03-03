@@ -60,6 +60,8 @@ export interface SocketIoYjsProviderOptions {
   onSyncedChange?: (isSynced: boolean) => void
   onBootstrapRequired?: (html: string) => Promise<void> | void
   onLocalDocumentChange?: () => void
+  /** Resolve before first apply of doc/awareness state so the editor view can mount. */
+  onBeforeFirstSync?: () => Promise<void>
 }
 
 /**
@@ -85,6 +87,8 @@ export class SocketIoYjsProvider {
   private onSyncedChange?: (isSynced: boolean) => void
   private onBootstrapRequired?: (html: string) => Promise<void> | void
   private onLocalDocumentChange?: () => void
+  private onBeforeFirstSync?: () => Promise<void>
+  private hasWaitedForReady = false
 
   private retrySyncTimeout: number | null = null
 
@@ -97,6 +101,13 @@ export class SocketIoYjsProvider {
     this.onSyncedChange = options.onSyncedChange
     this.onBootstrapRequired = options.onBootstrapRequired
     this.onLocalDocumentChange = options.onLocalDocumentChange
+    this.onBeforeFirstSync = options.onBeforeFirstSync
+  }
+
+  private async waitReadyIfNeeded(): Promise<void> {
+    if (!this.onBeforeFirstSync || this.hasWaitedForReady) return
+    await this.onBeforeFirstSync()
+    this.hasWaitedForReady = true
   }
 
   start() {
@@ -181,16 +192,25 @@ export class SocketIoYjsProvider {
     this.scheduleSyncRetry()
   }
 
-  private handleReadyStatus(
+  private async handleReadyStatus(
     response: Extract<YjsSyncResponse, { success: true; status: 'ready' | 'already_ready' }>
-  ): boolean {
+  ): Promise<boolean> {
     if (response.status !== 'ready' && response.status !== 'already_ready') return false
+
+    await this.waitReadyIfNeeded()
+    if (this.destroyed) return false
 
     console.log('[SocketIoYjsProvider] Applying ready state, status:', response.status)
     if (response.status === 'ready') {
       this.applyDocState(response.state)
-      if (response.awareness) {
-        this.applyAwarenessState(response.awareness)
+      const awarenessPayload = response.awareness
+      if (awarenessPayload) {
+        // Defer awareness so the view finishes applying doc state before we dispatch again.
+        await new Promise<void>(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        })
+        if (this.destroyed) return false
+        this.applyAwarenessState(awarenessPayload)
       }
     }
     this.setSynced(true)
@@ -251,7 +271,12 @@ export class SocketIoYjsProvider {
       return
     }
 
-    if (this.handleReadyStatus(response)) return
+    if (
+      await this.handleReadyStatus(
+        response as Extract<YjsSyncResponse, { success: true; status: 'ready' | 'already_ready' }>
+      )
+    )
+      return
     if (
       await this.handleBootstrapInitializer(
         response as Extract<YjsSyncResponse, { success: true; status: 'bootstrap'; role: 'initializer' }>
@@ -286,18 +311,18 @@ export class SocketIoYjsProvider {
   private handleSyncResponseEvent = (event: YjsSyncResponseEvent) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
-    // Check entityType matches (default to 'document' for backwards compatibility)
     const eventEntityType = event.entityType || 'document'
     if (eventEntityType !== this.entityType) return
-
-    // Only use this as a bootstrap/waiting escape hatch.
     if (this.synced) return
 
-    this.applyDocState(event.state)
-    if (event.awareness) {
-      this.applyAwarenessState(event.awareness)
-    }
-    this.setSynced(true)
+    void this.waitReadyIfNeeded().then(() => {
+      if (this.destroyed) return
+      this.applyDocState(event.state)
+      if (event.awareness) {
+        this.applyAwarenessState(event.awareness)
+      }
+      this.setSynced(true)
+    })
   }
 
   private handleRemoteYjsUpdate = (event: {
@@ -307,10 +332,12 @@ export class SocketIoYjsProvider {
   }) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
-    // Check entityType matches
     const eventEntityType = event.entityType || 'document'
     if (eventEntityType !== this.entityType) return
-    this.applyDocState(event.update)
+    void this.waitReadyIfNeeded().then(() => {
+      if (this.destroyed) return
+      this.applyDocState(event.update)
+    })
   }
 
   private handleRemoteAwarenessUpdate = (event: {
@@ -320,10 +347,12 @@ export class SocketIoYjsProvider {
   }) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
-    // Check entityType matches
     const eventEntityType = event.entityType || 'document'
     if (eventEntityType !== this.entityType) return
-    this.applyAwarenessState(event.update)
+    void this.waitReadyIfNeeded().then(() => {
+      if (this.destroyed) return
+      this.applyAwarenessState(event.update)
+    })
   }
 
   private handleLocalYjsUpdate = (_update: Uint8Array, origin: unknown) => {

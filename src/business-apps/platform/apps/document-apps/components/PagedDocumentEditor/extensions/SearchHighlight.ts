@@ -35,13 +35,21 @@ export const SearchHighlight = Extension.create({
       setSearchHighlights:
         (matches: SearchHighlightMatch[], selectedIndex: number) =>
         ({ editor }) => {
-          editor.view.dispatch(editor.state.tr.setMeta(SearchHighlightPluginKey, { matches, selectedIndex }))
+          try {
+            editor.view.dispatch(editor.state.tr.setMeta(SearchHighlightPluginKey, { matches, selectedIndex }))
+          } catch {
+            // Editor view may not be mounted yet; no-op.
+          }
           return true
         },
       clearSearchHighlights:
         () =>
         ({ editor }) => {
-          editor.view.dispatch(editor.state.tr.setMeta(SearchHighlightPluginKey, { matches: [], selectedIndex: -1 }))
+          try {
+            editor.view.dispatch(editor.state.tr.setMeta(SearchHighlightPluginKey, { matches: [], selectedIndex: -1 }))
+          } catch {
+            // Editor view may not be mounted yet; no-op.
+          }
           return true
         }
     }

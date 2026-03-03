@@ -108,10 +108,14 @@ export function NavigationPanel({ editor, onClose, 'data-testid': testId = 'navi
       if (!editor) return
       editor.commands.focus()
       editor.commands.setTextSelection(pos)
-      const view = editor.view
-      const dom = view.domAtPos(pos)
-      const node = dom.node instanceof Element ? dom.node : dom.node.parentElement
-      node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      try {
+        const view = editor.view
+        const dom = view.domAtPos(pos)
+        const node = dom.node instanceof Element ? dom.node : dom.node.parentElement
+        node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } catch {
+        // View may not be mounted yet; selection was still set.
+      }
     },
     [editor]
   )
@@ -132,10 +136,14 @@ export function NavigationPanel({ editor, onClose, 'data-testid': testId = 'navi
       if (!editor) return
       editor.commands.focus()
       editor.commands.setTextSelection({ from, to })
-      const view = editor.view
-      const dom = view.domAtPos(from)
-      const node = dom.node instanceof Element ? dom.node : dom.node.parentElement
-      node?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      try {
+        const view = editor.view
+        const dom = view.domAtPos(from)
+        const node = dom.node instanceof Element ? dom.node : dom.node.parentElement
+        node?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } catch {
+        // View may not be mounted yet; selection was still set.
+      }
     },
     [editor, matches]
   )
