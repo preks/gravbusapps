@@ -22,6 +22,7 @@ export const formatFeedbackList = (
       mode === 'received'
         ? (feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail ?? null)
         : ((feedback as any)?.employee?.employeePosition?.employee?.pictureThumbnail ?? null)
+    const senderId = mode === 'received' ? feedback.senderEmployeeId : ((feedback as any).employeeId ?? undefined)
 
     return {
       id: feedback.id,
@@ -30,7 +31,7 @@ export const formatFeedbackList = (
       rawDate,
       content: feedback.feedback ?? '',
       avatar,
-      senderId: feedback.senderEmployeeId,
+      senderId,
       firstName,
       lastName,
       rating: feedback.rating,
