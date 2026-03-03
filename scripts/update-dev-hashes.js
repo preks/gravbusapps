@@ -12,6 +12,7 @@ async function main() {
   // Read the list of successfully published screens from changed-tsx.txt
   const fs = await import('node:fs')
   const changedFile = 'changed-tsx.txt'
+  const hashBaselineFile = 'hash-build-screen-hashes.json'
 
   if (!fs.existsSync(changedFile)) {
     console.log('⚠️  No changed-tsx.txt file found, skipping hash update')
@@ -37,6 +38,20 @@ async function main() {
 
   const projectRootDir = process.cwd()
   const hashFilePath = path.join(projectRootDir, 'component-hashes.json')
+  const hashBaselinePath = path.join(projectRootDir, hashBaselineFile)
+
+  let hashBuildBaseline = {}
+  if (fs.existsSync(hashBaselinePath)) {
+    try {
+      hashBuildBaseline = JSON.parse(fs.readFileSync(hashBaselinePath, 'utf8'))
+      console.log(
+        `   ℹ️  Using hash-only baseline from ${hashBaselineFile} (${Object.keys(hashBuildBaseline).length} entries)`
+      )
+    } catch (error) {
+      console.log(`   ⚠️  Could not parse ${hashBaselineFile}: ${error.message}`)
+      hashBuildBaseline = {}
+    }
+  }
 
   // Load current hashes
   const componentHashes = loadHashFile(hashFilePath)
@@ -53,7 +68,7 @@ async function main() {
     }
 
     try {
-      const screenHash = calculateScreenHash(buildOutputDir)
+      const screenHash = hashBuildBaseline[screen] || calculateScreenHash(buildOutputDir)
       componentHashes[screen] = screenHash
       updatedCount++
       console.log(`   ✅ ${screen}: ${screenHash}`)

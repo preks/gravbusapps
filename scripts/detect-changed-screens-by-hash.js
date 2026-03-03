@@ -5,6 +5,7 @@
  *
  * Output:
  * - Writes changed screen paths to changed-tsx.txt (one per line, prefixed with src/business-apps/)
+ * - Writes hash-only baseline map to hash-build-screen-hashes.json
  */
 
 import fs from 'node:fs'
@@ -34,9 +35,11 @@ async function main() {
   const projectRootDir = process.cwd()
   const hashFilePath = path.join(projectRootDir, 'component-hashes.json')
   const outputFilePath = path.join(projectRootDir, 'changed-tsx.txt')
+  const hashBaselineOutputPath = path.join(projectRootDir, 'hash-build-screen-hashes.json')
 
   const previousHashes = loadPreviousHashes(projectRootDir, hashFilePath)
   const screenDirs = await getScreenDirectories({ cwd: projectRootDir })
+  const currentBuildHashes = {}
 
   const changedScreens = []
   let checkedScreens = 0
@@ -64,6 +67,7 @@ async function main() {
     }
 
     checkedScreens++
+    currentBuildHashes[screenPath] = currentHash
     const previousHash = previousHashes[screenPath]
     if (!previousHash || previousHash !== currentHash) {
       changedScreens.push(`src/business-apps/${screenPath}`)
@@ -77,6 +81,7 @@ async function main() {
   } else {
     fs.writeFileSync(outputFilePath, '', 'utf8')
   }
+  fs.writeFileSync(hashBaselineOutputPath, JSON.stringify(currentBuildHashes, null, 2) + '\n', 'utf8')
 
   console.log('')
   console.log('Hash detection summary:')
@@ -84,6 +89,7 @@ async function main() {
   console.log(`  Screens skipped (no build output): ${skippedWithoutBuildOutput}`)
   console.log(`  Screens to publish: ${changedScreens.length}`)
   console.log(`  Output file: ${outputFilePath}`)
+  console.log(`  Hash baseline file: ${hashBaselineOutputPath}`)
 }
 
 main().catch(error => {
