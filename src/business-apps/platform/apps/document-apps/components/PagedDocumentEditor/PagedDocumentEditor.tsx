@@ -227,6 +227,45 @@ function getAvatarUrl(picture?: string): string | undefined {
   return `data:image/png;base64,${picture}`
 }
 
+function stripHtmlTagsLinear(input: string): string {
+  let result = ''
+  let insideTag = false
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i]
+    if (char === '<') {
+      insideTag = true
+      continue
+    }
+    if (char === '>' && insideTag) {
+      insideTag = false
+      continue
+    }
+    if (!insideTag) {
+      result += char
+    }
+  }
+  return result
+}
+
+function collapseWhitespaceLinear(input: string): string {
+  let result = ''
+  let previousWasWhitespace = false
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i]
+    const isWhitespace = /\s/.test(char)
+    if (isWhitespace) {
+      if (!previousWasWhitespace) {
+        result += ' '
+        previousWasWhitespace = true
+      }
+      continue
+    }
+    result += char
+    previousWasWhitespace = false
+  }
+  return result.trim()
+}
+
 function normalizeHtmlForComparison(html: string): string {
   try {
     if (globalThis.window === undefined) {
@@ -544,16 +583,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!html) return ''
 
       if (globalThis.window === undefined) {
-        return html
-          .split(/<[^>]+>/)
-          .join(' ')
-          .split(/\s+/)
-          .join(' ')
-          .trim()
+        return collapseWhitespaceLinear(stripHtmlTagsLinear(html))
       }
 
       const parsed = new globalThis.DOMParser().parseFromString(html, 'text/html')
-      return (parsed.body.textContent || '').split(/\s+/).join(' ').trim()
+      return collapseWhitespaceLinear(parsed.body.textContent || '')
     }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
     const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
 
