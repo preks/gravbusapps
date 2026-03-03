@@ -60,7 +60,7 @@ export function DocumentImageView({ node, editor, getPos, selected, getAccessTok
   const displayHeight = dragSize?.height ?? attrsHeight
   const imgStyle: React.CSSProperties =
     displayWidth != null && displayHeight != null
-      ? { width: displayWidth, height: displayHeight, maxWidth: '100%', objectFit: 'contain' }
+      ? { width: displayWidth, height: displayHeight, maxWidth: '100%' }
       : { maxWidth: '100%', height: 'auto' }
 
   const onResizeHandleMouseDown = useCallback(
@@ -79,8 +79,11 @@ export function DocumentImageView({ node, editor, getPos, selected, getAccessTok
       const onMove = (e: MouseEvent) => {
         const dx = e.clientX - startX
         const dy = e.clientY - startY
-        const w = Math.max(MIN_SIZE, startW + dx)
-        const h = Math.max(MIN_SIZE, startH + dy)
+        const scaleX = (startW + dx) / startW
+        const scaleY = (startH + dy) / startH
+        const scale = Math.min(scaleX, scaleY)
+        const w = Math.max(MIN_SIZE, Math.round(startW * scale))
+        const h = Math.max(MIN_SIZE, Math.round(startH * scale))
         const next = { width: w, height: h }
         setDragSize(next)
         dragSizeRef.current = next
@@ -166,7 +169,7 @@ export function DocumentImageView({ node, editor, getPos, selected, getAccessTok
         src={displaySrc}
         alt={node.attrs.alt ?? ''}
         title={node.attrs.title ?? undefined}
-        className="editor-image gba:rounded gba:block"
+        className="editor-image gba:rounded gba:block gba:max-w-full"
         style={imgStyle}
         contentEditable={false}
         draggable={false}
