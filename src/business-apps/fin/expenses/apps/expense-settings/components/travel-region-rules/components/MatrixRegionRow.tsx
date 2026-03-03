@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, TableCell, TableRow } from '@newwork/nw-design-system'
-import { PiMapPin, PiTrash } from 'react-icons/pi'
+import { MapPinIcon, TrashIcon } from '@phosphor-icons/react'
 import { MatrixRuleCell } from './MatrixRuleCell'
 import type { MatrixCellCallbacks, MatrixCellState, MatrixCellDataProps } from '../types'
 
@@ -47,7 +47,7 @@ export const MatrixRegionRow: React.FC<MatrixRegionRowProps> = ({
       <TableCell className="gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r gba:w-48">
         <div className="gba:p-3">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <PiMapPin className="gba:text-primary gba:w-5 gba:h-5" />
+            <MapPinIcon className="gba:text-primary gba:w-5 gba:h-5" />
             <div className="gba:flex-1">
               <div className="gba:mb-1">
                 <div className="gba:text-xs gba:text-muted-foreground gba:px-1 gba:py-0.5">{region.code}</div>
@@ -69,7 +69,7 @@ export const MatrixRegionRow: React.FC<MatrixRegionRowProps> = ({
               disabled={regionHasSavedDetails(region.id)}
               data-testid={`${prefixDataTestId}-delete-region-button-${region.id}`}
             >
-              <PiTrash className="gba:w-4 gba:h-4" />
+              <TrashIcon className="gba:w-4 gba:h-4" />
             </Button>
           </div>
         </div>

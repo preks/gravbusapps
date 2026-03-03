@@ -9,7 +9,7 @@ import {
   Spinner,
   Button
 } from '@newwork/nw-design-system'
-import { PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { UserIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -65,8 +65,8 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
 
   const renderSortIcon = (field: keyof Employee) => {
     if (sortConfig?.key !== field) return null
-    if (sortConfig.direction === 'asc') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-    if (sortConfig.direction === 'desc') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+    if (sortConfig.direction === 'asc') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+    if (sortConfig.direction === 'desc') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
     return null
   }
 
@@ -269,7 +269,7 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
                     }}
                     data-testid={`${DATA_TEST_ID_PREFIX}-employee-name-${record.id}`}
                   >
-                    <PiUser size={16} className="gba:text-muted-foreground" />
+                    <UserIcon size={16} className="gba:text-muted-foreground" />
                     <span className="gba:text-sm">
                       {record.firstName} {record.lastName}
                     </span>

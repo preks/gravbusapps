@@ -1,16 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Tree, Card, Space, Typography, Tag, Tooltip, Input, Button } from 'antd'
-import {
-  PiCube,
-  PiGear,
-  PiStack,
-  PiWarning,
-  PiInfo,
-  PiMagnifyingGlass,
-  PiTreeStructure,
-  PiPlus,
-  PiMinus
-} from 'react-icons/pi'
+import { CubeIcon, GearIcon, StackIcon, WarningIcon, InfoIcon, MagnifyingGlassIcon, TreeStructureIcon, PlusIcon, MinusIcon } from '@phosphor-icons/react'
 import { BomTreeNode } from '../../../types'
 
 const { Text, Title } = Typography
@@ -40,19 +30,19 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
   const getComponentTypeIcon = (type: string) => {
     switch (type) {
       case 'ASSEMBLY':
-        return <PiCube className="gba:text-blue-500" />
+        return <CubeIcon className="gba:text-blue-500" />
       case 'MATERIAL':
-        return <PiGear className="gba:text-green-500" />
+        return <GearIcon className="gba:text-green-500" />
       case 'PHANTOM':
-        return <PiStack className="gba:text-purple-500" />
+        return <StackIcon className="gba:text-purple-500" />
       case 'REFERENCE':
-        return <PiInfo className="gba:text-gray-500" />
+        return <InfoIcon className="gba:text-gray-500" />
       case 'TOOL':
-        return <PiWarning className="gba:text-orange-500" />
+        return <WarningIcon className="gba:text-orange-500" />
       case 'RESOURCE':
-        return <PiTreeStructure className="gba:text-cyan-500" />
+        return <TreeStructureIcon className="gba:text-cyan-500" />
       default:
-        return <PiGear className="gba:text-gray-400" />
+        return <GearIcon className="gba:text-gray-400" />
     }
   }
 
@@ -212,7 +202,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
       title={
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <PiTreeStructure />
+            <TreeStructureIcon />
             <Title level={5} className="gba:m-0">
               BOM Structure
             </Title>
@@ -230,7 +220,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
           <Tooltip title="Expand All">
             <Button
               type="text"
-              icon={<PiPlus />}
+              icon={<PlusIcon />}
               onClick={handleExpandAll}
               size="small"
               data-testid="expand-all-button"
@@ -239,7 +229,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
           <Tooltip title="Collapse All">
             <Button
               type="text"
-              icon={<PiMinus />}
+              icon={<MinusIcon />}
               onClick={handleCollapseAll}
               size="small"
               data-testid="collapse-all-button"
@@ -255,7 +245,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
           placeholder="Search components..."
           value={searchValue}
           onChange={e => handleSearch(e.target.value)}
-          prefix={<PiMagnifyingGlass />}
+          prefix={<MagnifyingGlassIcon />}
           allowClear
           data-testid="tree-search-input"
         />
@@ -282,27 +272,27 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
         <Text className="gba:text-sm gba:text-gray-500 gba:mb-2 gba:block">Component Types:</Text>
         <div className="gba:flex gba:flex-wrap gba:gap-2">
           <Tag color="blue" size="small">
-            <PiCube className="gba:mr-1" />
+            <CubeIcon className="gba:mr-1" />
             Assembly
           </Tag>
           <Tag color="green" size="small">
-            <PiGear className="gba:mr-1" />
+            <GearIcon className="gba:mr-1" />
             Material
           </Tag>
           <Tag color="purple" size="small">
-            <PiStack className="gba:mr-1" />
+            <StackIcon className="gba:mr-1" />
             Phantom
           </Tag>
           <Tag color="gray" size="small">
-            <PiInfo className="gba:mr-1" />
+            <InfoIcon className="gba:mr-1" />
             Reference
           </Tag>
           <Tag color="orange" size="small">
-            <PiWarning className="gba:mr-1" />
+            <WarningIcon className="gba:mr-1" />
             Tool
           </Tag>
           <Tag color="cyan" size="small">
-            <PiTreeStructure className="gba:mr-1" />
+            <TreeStructureIcon className="gba:mr-1" />
             Resource
           </Tag>
         </div>

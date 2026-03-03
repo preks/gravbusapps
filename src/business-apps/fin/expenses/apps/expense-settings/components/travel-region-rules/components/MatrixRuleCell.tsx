@@ -1,7 +1,7 @@
 import React from 'react'
 import dayjs from 'dayjs'
 import { Button, TableCell } from '@newwork/nw-design-system'
-import { PiPlus } from 'react-icons/pi'
+import { PlusIcon } from '@phosphor-icons/react'
 import { MatrixCellContent } from './MatrixCellContent'
 import type { EditableCell, MatrixCellCallbacks, MatrixCellState, MatrixCellDataProps } from '../types'
 
@@ -124,7 +124,7 @@ export const MatrixRuleCell: React.FC<MatrixRuleCellProps> = ({
           disabled={isSavingCell}
           data-testid={`${prefixDataTestId}-add-cell-${rule.id}-${region.id}`}
         >
-          <PiPlus className="gba:w-4 gba:h-4 gba:mr-1" />
+          <PlusIcon className="gba:w-4 gba:h-4 gba:mr-1" />
           <span className="gba:text-xs">Add Detail</span>
         </Button>
       </div>

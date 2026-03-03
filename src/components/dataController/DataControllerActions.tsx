@@ -6,8 +6,7 @@ import {
   DropdownMenuCheckboxItem,
   Button
 } from '@newwork/nw-design-system'
-import { PiColumns, PiEye, PiEyeClosed } from 'react-icons/pi'
-
+import { ColumnsIcon, EyeIcon, EyeClosedIcon } from '@phosphor-icons/react'
 import { ColumnVisibilityConfig } from './DataController'
 
 export interface DataControllerActionsProps {
@@ -69,7 +68,7 @@ const ColumnVisibilityDropdown: React.FC<ColumnVisibilityConfig> = ({
           className="gba:flex gba:items-center gba:gap-2"
           data-testid={`${dataTestId}-trigger`}
         >
-          <PiColumns className="gba:h-4 gba:w-4" />
+          <ColumnsIcon className="gba:h-4 gba:w-4" />
           <span className="gba:hidden sm:gba:inline">Columns</span>
           <span className="gba:text-xs gba:text-gray-500">
             ({visibleCount}/{totalCount})
@@ -98,9 +97,9 @@ const ColumnVisibilityDropdown: React.FC<ColumnVisibilityConfig> = ({
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
               {column.visible ? (
-                <PiEye className="gba:h-4 gba:w-4 gba:text-green-600" />
+                <EyeIcon className="gba:h-4 gba:w-4 gba:text-green-600" />
               ) : (
-                <PiEyeClosed className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <EyeClosedIcon className="gba:h-4 gba:w-4 gba:text-gray-400" />
               )}
               <span className={column.disabled ? 'gba:text-gray-400' : ''}>{column.label}</span>
               {column.disabled && <span className="gba:text-xs gba:text-gray-400 gba:ml-auto">(Required)</span>}

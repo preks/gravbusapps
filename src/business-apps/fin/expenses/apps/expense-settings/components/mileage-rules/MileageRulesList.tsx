@@ -46,7 +46,7 @@ import DeleteMileageRuleDialog from './DeleteMileageRuleDialog'
 import TimePeriodFilter from './filters/TimePeriodFilter'
 import RulePeriodFilter from './filters/RulePeriodFilter'
 import { MileageRulePeriod } from '../../types/ExpenseEnums'
-import { PiPlus, PiPencil, PiTrash, PiDotsThreeVertical } from 'react-icons/pi'
+import { PlusIcon, PencilIcon, TrashIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { toast, Toaster } from 'sonner'
 
 // Re-export the enhanced interface for external use
@@ -302,7 +302,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
     filterLabelMap: {},
     actions: (
       <Button onClick={() => setIsCreateModalVisible(true)} data-testid={`${PREFIX}-create-button`}>
-        <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+        <PlusIcon className="gba:mr-2 gba:h-4 gba:w-4" />
         {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.addRate', 'Add Rate')}
       </Button>
     )
@@ -434,7 +434,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                                         onClick={e => e.stopPropagation()}
                                         data-testid={`${PREFIX}-actions-trigger-${index}`}
                                       >
-                                        <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                        <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
@@ -445,7 +445,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                                         }}
                                         data-testid={`${PREFIX}-edit-rule-${index}`}
                                       >
-                                        <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                        <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                         {getTranslationFromI18nKeyAndLabel(
                                           'lowcoder:expense_calculation_rule.edit',
                                           'Update'
@@ -460,7 +460,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                                         className="gba:text-destructive"
                                         data-testid={`${PREFIX}-delete-rule-${index}`}
                                       >
-                                        <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                        <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                         {getTranslationFromI18nKeyAndLabel(
                                           'lowcoder:expense_calculation_rule.delete',
                                           'Delete'

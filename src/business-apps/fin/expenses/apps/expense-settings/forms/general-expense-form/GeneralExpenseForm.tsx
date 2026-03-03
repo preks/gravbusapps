@@ -26,7 +26,7 @@ import {
   Checkbox,
   DateInput
 } from '@newwork/nw-design-system'
-import { PiWarning } from 'react-icons/pi'
+import { WarningIcon } from '@phosphor-icons/react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
@@ -323,7 +323,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
             className="gba:mb-4 gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning"
             data-testid="general-expense-restricted-alert"
           >
-            <PiWarning className="gba:h-4 gba:w-4" />
+            <WarningIcon className="gba:h-4 gba:w-4" />
             <AlertDescription>{usageInfo.message}</AlertDescription>
           </Alert>
         )}

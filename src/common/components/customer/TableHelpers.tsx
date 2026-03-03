@@ -1,7 +1,6 @@
 import React from 'react'
 import { TableHead, TableCell, Button } from '@newwork/nw-design-system'
-import { PiCalendar, PiArrowUp, PiArrowDown } from 'react-icons/pi'
-
+import { CalendarIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 /**
  * Shared table helper components for customer-related tables
  * Used across campaigns, leads, accounts, contacts, opportunities to eliminate duplication
@@ -33,8 +32,8 @@ export const useTableSorting = (
   // Render sort icon based on current state
   const renderSortIcon = (field: string) => {
     if (currentSortField !== field || !currentSortField) return null
-    if (currentSortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-    if (currentSortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+    if (currentSortOrder === 'ASC') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+    if (currentSortOrder === 'DESC') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
     return null
   }
 
@@ -91,7 +90,7 @@ export const DateCell: React.FC<DateCellProps> = ({ dateString, testId }) => {
   return (
     <TableCell className="gba:py-4 gba:px-6" data-testid={testId}>
       <div className="gba:flex gba:items-center gba:gap-2">
-        <PiCalendar size={14} style={{ color: 'var(--color-text-secondary)' }} />
+        <CalendarIcon size={14} style={{ color: 'var(--color-text-secondary)' }} />
         <span className="gba:text-sm">{formattedDate}</span>
       </div>
     </TableCell>

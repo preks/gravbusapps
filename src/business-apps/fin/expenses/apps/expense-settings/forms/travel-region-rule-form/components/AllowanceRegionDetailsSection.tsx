@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { PiPlus } from 'react-icons/pi'
+import { PlusIcon } from '@phosphor-icons/react'
 import { RegionGroupCard } from './RegionGroupCard'
 import { SmartColumnGroup, CatalogOption } from '../types'
 
@@ -41,7 +41,7 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle>Allowance Region Details</CardTitle>
           <Button onClick={onAddGroup} size="sm" className="gba:flex gba:items-center gba:gap-2">
-            <PiPlus className="gba:h-4 gba:w-4" />
+            <PlusIcon className="gba:h-4 gba:w-4" />
             Add Group
           </Button>
         </div>

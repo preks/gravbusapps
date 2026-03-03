@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Label, Spinner } from '@newwork/nw-design-system'
-import { PiReceipt } from 'react-icons/pi'
+import { ReceiptIcon } from '@phosphor-icons/react'
 import { formatDateTime } from '@/common/utils/dateFormatter'
 
 interface ExpenseRequestDetailsSectionProps {
@@ -70,7 +70,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
     <Card data-testid={`${prefixDataTestId}-request-details-section`}>
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiReceipt className="gba:h-5 gba:w-5" />
+          <ReceiptIcon className="gba:h-5 gba:w-5" />
           {t('section-expense-request-details')}
         </CardTitle>
       </CardHeader>
