@@ -341,7 +341,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     if (!editor) return '12'
     const fontSize = editor.getAttributes('textStyle').fontSize as string | undefined
     if (!fontSize) return '12'
-    const match = fontSize.match(/^(\d+(?:\.\d+)?)/)
+    const re = /^(\d+(?:\.\d+)?)/
+    const match = re.exec(fontSize)
     return match ? match[1] : '12'
   }
 
@@ -353,7 +354,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         setFontSizeInputValue(null)
         return
       }
-      const num = parseFloat(trimmed.replace(',', '.'))
+      const num = Number.parseFloat(trimmed.replace(',', '.'))
       if (Number.isNaN(num) || num < 0.5 || num > 1638) {
         setFontSizeInputValue(null)
         return
@@ -370,7 +371,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   const currentFont = getCurrentFont()
   const currentFontSize = getCurrentFontSize()
-  const fontSizeDisplay = fontSizeInputValue !== null ? fontSizeInputValue : currentFontSize
+  const fontSizeDisplay = fontSizeInputValue ?? currentFontSize
 
   return (
     <div

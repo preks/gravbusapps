@@ -21,9 +21,9 @@ export function useEditorImageHandlers({ editorRef, documentId, accessToken }: U
     (_view: unknown, event: ClipboardEvent) => {
       const items = event.clipboardData?.items
       if (!items) return false
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile()
+      for (const item of items) {
+        if (item.type.includes('image')) {
+          const file = item.getAsFile()
           if (file) {
             event.preventDefault()
             uploadDocumentImage(file, documentId, accessToken)
@@ -71,7 +71,9 @@ export function useEditorImageHandlers({ editorRef, documentId, accessToken }: U
           const urls = results.map(r => r.url)
           const ed = editorRef.current
           if (!ed || urls.length === 0) return
-          if (dropPos != null) {
+          if (dropPos == null) {
+            urls.forEach(url => ed.chain().focus().setImage({ src: url }).run())
+          } else {
             ed.chain()
               .focus()
               .insertContentAt(dropPos, { type: 'image', attrs: { src: urls[0] } })
@@ -79,8 +81,6 @@ export function useEditorImageHandlers({ editorRef, documentId, accessToken }: U
             for (let i = 1; i < urls.length; i++) {
               ed.chain().focus().setImage({ src: urls[i] }).run()
             }
-          } else {
-            urls.forEach(url => ed.chain().focus().setImage({ src: url }).run())
           }
         })
         .catch(() => {

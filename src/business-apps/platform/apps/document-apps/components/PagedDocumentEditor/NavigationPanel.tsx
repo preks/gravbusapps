@@ -3,7 +3,7 @@
  * Word/Google Docs style. Used when showNavigationPanel is true in PagedDocumentEditor.
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import type { Editor } from '@tiptap/react'
 import {
   Button,
@@ -27,9 +27,9 @@ import {
 } from '../../utils/navigationPanelUtils'
 
 export interface NavigationPanelProps {
-  editor: Editor | null
-  onClose: () => void
-  'data-testid'?: string
+  readonly editor: Editor | null
+  readonly onClose: () => void
+  readonly 'data-testid'?: string
 }
 
 type NavTab = 'headings' | 'find' | 'replace'
@@ -40,9 +40,9 @@ function SnippetWithHighlight({
   searchTerm,
   caseSensitive
 }: {
-  snippet: string
-  searchTerm: string
-  caseSensitive: boolean
+  readonly snippet: string
+  readonly searchTerm: string
+  readonly caseSensitive: boolean
 }) {
   if (!searchTerm.trim()) return <>{snippet}</>
   const idx = caseSensitive ? snippet.indexOf(searchTerm) : snippet.toLowerCase().indexOf(searchTerm.toLowerCase())

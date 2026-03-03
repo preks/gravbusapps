@@ -28,13 +28,13 @@ export interface LinkDialogInitialValues {
 }
 
 export interface LinkDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  mode: LinkDialogMode
-  initialValues?: LinkDialogInitialValues
-  onApply: (values: { href: string; displayText?: string; openInNewTab: boolean }) => void
-  onRemoveLink?: () => void
-  'data-testid'?: string
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly mode: LinkDialogMode
+  readonly initialValues?: LinkDialogInitialValues
+  readonly onApply: (values: { href: string; displayText?: string; openInNewTab: boolean }) => void
+  readonly onRemoveLink?: () => void
+  readonly 'data-testid'?: string
 }
 
 export function LinkDialog({

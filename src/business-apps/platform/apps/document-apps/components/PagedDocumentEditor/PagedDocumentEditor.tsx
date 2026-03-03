@@ -447,12 +447,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     type RightSidebar = 'closed' | 'comments' | 'ai'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [showNavigationPanel, setShowNavigationPanel] = useState(() => {
-      if (typeof window === 'undefined') return false
-      return window.localStorage.getItem('document-editor-navigation-panel-open') === 'true'
+      if (typeof globalThis.window === 'undefined') return false
+      return globalThis.window.localStorage.getItem('document-editor-navigation-panel-open') === 'true'
     })
     useEffect(() => {
-      if (typeof window === 'undefined') return
-      window.localStorage.setItem('document-editor-navigation-panel-open', String(showNavigationPanel))
+      if (typeof globalThis.window === 'undefined') return
+      globalThis.window.localStorage.setItem('document-editor-navigation-panel-open', String(showNavigationPanel))
     }, [showNavigationPanel])
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
@@ -1293,7 +1293,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         /<img([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*)>/gi,
         (match, before: string, _src: string, after: string) => {
           const dataUrl = dataUrls[idx++]
-          return dataUrl != null ? `<img${before}src="${dataUrl}"${after}>` : match
+          return dataUrl == null ? match : `<img${before}src="${dataUrl}"${after}>`
         }
       )
       return html

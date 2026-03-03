@@ -10,9 +10,9 @@ import translations from '../../_i18n'
 import { isAllowedHref } from '../../utils/linkUtils'
 
 export interface LinkBubbleMenuProps {
-  editor: Editor
-  onEdit: () => void
-  'data-testid'?: string
+  readonly editor: Editor
+  readonly onEdit: () => void
+  readonly 'data-testid'?: string
 }
 
 export function LinkBubbleMenu({ editor, onEdit, 'data-testid': testId = 'link-bubble-menu' }: LinkBubbleMenuProps) {
@@ -26,12 +26,12 @@ export function LinkBubbleMenu({ editor, onEdit, 'data-testid': testId = 'link-b
 
   const handleOpenLink = useCallback(() => {
     if (!href || !isAllowedHref(href)) return
-    window.location.href = href
+    globalThis.location.href = href
   }, [href])
 
   const handleOpenInNewTab = useCallback(() => {
     if (!href || !isAllowedHref(href)) return
-    window.open(href, '_blank', 'noopener,noreferrer')
+    globalThis.open(href, '_blank', 'noopener,noreferrer')
   }, [href])
 
   return (

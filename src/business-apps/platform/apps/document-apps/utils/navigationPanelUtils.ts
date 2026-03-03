@@ -101,7 +101,7 @@ export function getMatchSnippet(doc: PMNode, from: number, to: number, maxContex
   const size = doc.content.size
   const start = Math.max(0, from - maxContext)
   const end = Math.min(size, to + maxContext)
-  let text = doc.textBetween(start, end).replace(/\s+/g, ' ').trim()
+  let text = doc.textBetween(start, end).replaceAll(/\s+/g, ' ').trim()
   if (start > 0) text = ELLIPSIS + text
   if (end < size) text = text + ELLIPSIS
   return text || ''

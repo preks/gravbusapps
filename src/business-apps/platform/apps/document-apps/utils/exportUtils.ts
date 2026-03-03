@@ -46,7 +46,7 @@ export function sanitizeHtmlForExport(
   const preserveBlockSpacing = options?.preserveBlockSpacing === true
   const allowDataUriInImg = options?.allowDataUriInImg === true
 
-  if (!allowDataUriInImg && typeof window !== 'undefined') {
+  if (!allowDataUriInImg && typeof globalThis.window !== 'undefined') {
     try {
       const config: Parameters<typeof DOMPurify.sanitize>[1] = {
         FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
@@ -103,7 +103,7 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error)
+    reader.onerror = () => reject(new Error(reader.error?.message ?? 'Failed to read'))
     reader.readAsDataURL(blob)
   })
 }
@@ -120,10 +120,10 @@ export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageD
   while ((m = imgRegex.exec(html)) !== null) {
     result += html.slice(lastIndex, m.index)
     const dataUrl = await getImageDataUrl(m[2])
-    if (dataUrl != null) {
-      result += `<img${m[1]}src="${dataUrl}"${m[3]}>`
-    } else {
+    if (dataUrl == null) {
       result += m[0]
+    } else {
+      result += `<img${m[1]}src="${dataUrl}"${m[3]}>`
     }
     lastIndex = imgRegex.lastIndex
   }
@@ -204,7 +204,7 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
 
   const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document
   if (!iframeDoc) {
-    document.body.removeChild(iframe)
+    iframe.remove()
     console.error('[exportUtils] Iframe document not accessible')
     return
   }
@@ -221,7 +221,7 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
     } finally {
       setTimeout(() => {
         try {
-          if (iframe.parentNode) document.body.removeChild(iframe)
+          if (iframe.parentNode) iframe.remove()
         } catch {}
       }, 1000)
     }
@@ -478,7 +478,7 @@ export async function exportToPDF(
   targetWindow?: Window | null,
   options?: ExportImageOptions
 ): Promise<void> {
-  let content = htmlContent.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
+  let content = htmlContent.replaceAll(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }

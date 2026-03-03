@@ -12,7 +12,7 @@ const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
 
 function getMimeType(file: File): string {
-  if (file.type && file.type.startsWith('image/')) {
+  if (file.type?.startsWith('image/')) {
     return file.type
   }
   const ext = file.name.split('.').pop()?.toLowerCase()
@@ -87,16 +87,29 @@ export async function uploadDocumentImage(
     }
   }
 
-  const fileInfo = result.fileInfo ?? result
-  // Prefer explicit URL from response (may be absolute or relative)
-  let imageUrl = result.url ?? result.downloadUrl ?? fileInfo.downloadPath ?? fileInfo.path ?? ''
-
-  // If we got a full URL from the API, use it as-is
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return { url: imageUrl }
+  const imageUrl = resolveImageUrlFromApiResult(result)
+  if (!imageUrl || (!imageUrl.startsWith('/files') && !imageUrl.startsWith('http'))) {
+    return toDataUrl(file)
   }
+  const finalUrl = toAbsoluteFileUrlIfNeeded(imageUrl)
+  return { url: finalUrl }
+}
 
-  // Build path for same-origin proxy: ensure /files prefix so platform can proxy to file service
+type ApiUploadResult = {
+  url?: string
+  downloadUrl?: string
+  path?: string
+  downloadPath?: string
+  fileId?: string
+  fileInfo?: { fileId?: string; path?: string; downloadPath?: string }
+}
+
+function resolveImageUrlFromApiResult(result: ApiUploadResult): string {
+  const fileInfo = result.fileInfo ?? result
+  let imageUrl = result.url ?? result.downloadUrl ?? fileInfo.downloadPath ?? fileInfo.path ?? ''
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl
+  }
   if (imageUrl && !imageUrl.startsWith('/files') && !imageUrl.startsWith('http')) {
     const pathPart = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
     imageUrl = pathPart.startsWith('/api/')
@@ -109,28 +122,22 @@ export async function uploadDocumentImage(
   if (fileInfo.fileId && !imageUrl) {
     imageUrl = `/files/api/v1/tenant/downloads/document-app/${fileInfo.fileId}`
   }
-
-  if (!imageUrl || (!imageUrl.startsWith('/files') && !imageUrl.startsWith('http'))) {
-    return toDataUrl(file)
-  }
-
-  // When file service is on another origin, use absolute URL so <img> can load (no proxy)
-  const finalUrl = toAbsoluteFileUrlIfNeeded(imageUrl)
-  return { url: finalUrl }
+  return imageUrl
 }
 
 /** If FILES_ENDPOINT is an absolute URL on another origin, return absolute URL so img loads without proxy. */
 function toAbsoluteFileUrlIfNeeded(relativePath: string): string {
-  const isAbsoluteEndpoint = FILES_ENDPOINT.startsWith('http://') || FILES_ENDPOINT.startsWith('https://')
-  if (!FILES_ENDPOINT || !isAbsoluteEndpoint) {
+  const endpoint = FILES_ENDPOINT
+  const isAbsoluteEndpoint = Boolean(endpoint && (endpoint.startsWith('http://') || endpoint.startsWith('https://')))
+  if (!endpoint || !isAbsoluteEndpoint) {
     return relativePath
   }
   if (relativePath.startsWith('data:') || relativePath.startsWith('http')) {
     return relativePath
   }
   try {
-    const base = new URL(FILES_ENDPOINT) // typically: https://<host>/files/api/v1
-    const isSameOrigin = typeof window !== 'undefined' && window.location.origin === base.origin
+    const base = new URL(endpoint) // typically: https://<host>/files/api/v1
+    const isSameOrigin = typeof globalThis.window !== 'undefined' && globalThis.window.location.origin === base.origin
     if (isSameOrigin) {
       return relativePath
     }

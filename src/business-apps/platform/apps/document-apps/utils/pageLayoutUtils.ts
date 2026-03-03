@@ -118,9 +118,9 @@ export function getPaginationConfigFromFormatting(
 
 /** Paper size labels with dimensions in cm (width x height for portrait). */
 export const PAGE_SIZE_LABELS: Record<PageSizeId, { labelKey: string; widthCm: number; heightCm: number }> = {
-  A4: { labelKey: 'page-size-a4', widthCm: 21.0, heightCm: 29.7 },
-  A3: { labelKey: 'page-size-a3', widthCm: 29.7, heightCm: 42.0 },
-  A5: { labelKey: 'page-size-a5', widthCm: 14.8, heightCm: 21.0 },
+  A4: { labelKey: 'page-size-a4', widthCm: 21, heightCm: 29.7 },
+  A3: { labelKey: 'page-size-a3', widthCm: 29.7, heightCm: 42 },
+  A5: { labelKey: 'page-size-a5', widthCm: 14.8, heightCm: 21 },
   LETTER: { labelKey: 'page-size-letter', widthCm: 21.6, heightCm: 27.9 },
   LEGAL: { labelKey: 'page-size-legal', widthCm: 21.6, heightCm: 35.6 },
   TABLOID: { labelKey: 'page-size-tabloid', widthCm: 27.9, heightCm: 43.2 }

@@ -13,7 +13,7 @@ const MIN_SIZE = 50
 function isFileServiceSrc(src: string): boolean {
   if (!src || src.startsWith('data:')) return false
   try {
-    const u = new URL(src, window.location.origin)
+    const u = new URL(src, globalThis.location.origin)
     return u.pathname.includes('/tenant/downloads/')
   } catch {
     return false
@@ -30,8 +30,8 @@ function getPathFromFileServiceUrl(fullUrl: string): string {
 }
 
 export interface DocumentImageViewProps {
-  node: {
-    attrs: {
+  readonly node: {
+    readonly attrs: {
       src?: string
       alt?: string
       title?: string
@@ -39,10 +39,10 @@ export interface DocumentImageViewProps {
       height?: number | null
     }
   }
-  editor: Editor | null
-  getPos: () => number | undefined
-  selected: boolean
-  getAccessToken: () => string
+  readonly editor: Editor | null
+  readonly getPos: () => number | undefined
+  readonly selected: boolean
+  readonly getAccessToken: () => string
 }
 
 export function DocumentImageView({ node, editor, getPos, selected, getAccessToken }: DocumentImageViewProps) {
@@ -86,8 +86,8 @@ export function DocumentImageView({ node, editor, getPos, selected, getAccessTok
         dragSizeRef.current = next
       }
       const onUp = () => {
-        window.removeEventListener('mousemove', onMove)
-        window.removeEventListener('mouseup', onUp)
+        globalThis.removeEventListener('mousemove', onMove)
+        globalThis.removeEventListener('mouseup', onUp)
         const final = dragSizeRef.current ?? { width: startW, height: startH }
         setDragSize(null)
         dragSizeRef.current = null
@@ -101,8 +101,8 @@ export function DocumentImageView({ node, editor, getPos, selected, getAccessTok
           })
           .run()
       }
-      window.addEventListener('mousemove', onMove)
-      window.addEventListener('mouseup', onUp)
+      globalThis.addEventListener('mousemove', onMove)
+      globalThis.addEventListener('mouseup', onUp)
     },
     [editor, getPos]
   )
@@ -172,7 +172,8 @@ export function DocumentImageView({ node, editor, getPos, selected, getAccessTok
       />
       {selected && (
         <span
-          role="presentation"
+          role="button"
+          aria-label="Resize image"
           className="gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:border-t-2 gba:border-l-2 gba:border-primary gba:rounded-tl gba:cursor-nwse-resize gba:bg-muted"
           onMouseDown={onResizeHandleMouseDown}
           data-testid="document-editor-image-resize-handle"

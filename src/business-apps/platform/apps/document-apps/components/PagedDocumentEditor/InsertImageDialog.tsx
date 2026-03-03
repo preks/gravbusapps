@@ -25,12 +25,12 @@ import translations from '../../_i18n'
 import { uploadDocumentImage } from '../../services/DocumentImageUploadService'
 
 export interface InsertImageDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  editor: Editor | null
-  documentId: string | null
-  accessToken: string
-  'data-testid'?: string
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly editor: Editor | null
+  readonly documentId: string | null
+  readonly accessToken: string
+  readonly 'data-testid'?: string
 }
 
 export function InsertImageDialog({
@@ -94,7 +94,7 @@ export function InsertImageDialog({
   const onFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
-      if (file && file.type.startsWith('image/')) {
+      if (file?.type?.startsWith('image/')) {
         handleFile(file)
       }
       e.target.value = ''
@@ -107,7 +107,7 @@ export function InsertImageDialog({
       e.preventDefault()
       setIsDragging(false)
       const file = e.dataTransfer.files?.[0]
-      if (file && file.type.startsWith('image/')) {
+      if (file?.type?.startsWith('image/')) {
         handleFile(file)
       } else {
         setError(t('insert-image-upload-failed'))
@@ -158,15 +158,15 @@ export function InsertImageDialog({
           </TabsList>
 
           <TabsContent value="upload" className="gba:space-y-4 gba:pt-4">
-            <div
-              role="button"
+            <button
+              type="button"
               tabIndex={0}
               onClick={() => fileInputRef.current?.click()}
               onDrop={onDrop}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onKeyDown={e => e.key === 'Enter' && fileInputRef.current?.click()}
-              className={`gba:border-2 gba:border-dashed gba:rounded-md gba:p-8 gba:text-center gba:cursor-pointer gba:transition-colors ${
+              className={`gba:w-full gba:border-2 gba:border-dashed gba:rounded-md gba:p-8 gba:text-center gba:cursor-pointer gba:transition-colors gba:bg-transparent ${
                 isDragging
                   ? 'gba:border-primary gba:bg-primary/5'
                   : 'gba:border-muted-foreground/25 gba:hover:border-muted-foreground/50'
@@ -189,7 +189,7 @@ export function InsertImageDialog({
                   <p className="gba:text-sm gba:text-muted-foreground">{t('insert-image-drop-here')}</p>
                 </>
               )}
-            </div>
+            </button>
           </TabsContent>
 
           <TabsContent value="url" className="gba:space-y-4 gba:pt-4">
