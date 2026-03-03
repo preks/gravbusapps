@@ -239,11 +239,12 @@ export function buildPrintHtmlDocument({
   extraCss = ''
 }: PrintHtmlDocumentOptions): string {
   const safeTitle = escapeHtmlText(title || 'Document')
+  const titleHeading = includeTitleHeading ? `<h1>${safeTitle}</h1>` : ''
+  // CWE-79: only sanitized body HTML is embedded to prevent DOM XSS when written to document
   const safeBodyHtml = sanitizeHtmlForExport(htmlContent, {
     preserveBlockSpacing: true,
     allowDataUriInImg: true
   })
-  const titleHeading = includeTitleHeading ? `<h1>${safeTitle}</h1>` : ''
 
   return `<!DOCTYPE html>
 <html>
@@ -366,10 +367,6 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
 
   if (useExistingWindow) {
     const safeTitleText = options.title || 'Document'
-    const sanitizedBodyHtml = sanitizeHtmlForExport(options.htmlContent, {
-      preserveBlockSpacing: true,
-      allowDataUriInImg: true
-    })
     const { includeTitleHeading = false, extraCss = '' } = options
 
     try {
@@ -413,7 +410,11 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
         doc.body.appendChild(heading)
       }
       const container = doc.createElement('div')
-      container.innerHTML = sanitizedBodyHtml
+      // CWE-79: assign only sanitized output to innerHTML to prevent DOM XSS
+      container.innerHTML = sanitizeHtmlForExport(options.htmlContent, {
+        preserveBlockSpacing: true,
+        allowDataUriInImg: true
+      })
       doc.body.appendChild(container)
 
       let printed = false
@@ -1008,9 +1009,9 @@ ${odfContent}
 function htmlToOdfXml(html: string): string {
   if (!html) return '      <text:p/>'
 
-  const safeHtml = sanitizeHtmlForExport(html)
   const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = safeHtml
+  // CWE-79: assign only sanitized output to innerHTML to prevent DOM XSS
+  tempDiv.innerHTML = sanitizeHtmlForExport(html)
 
   const odfParts: string[] = []
   convertHtmlChildrenToOdf(tempDiv, odfParts, 6)
