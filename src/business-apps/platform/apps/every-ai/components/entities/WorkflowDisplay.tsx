@@ -57,8 +57,11 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
     // Prefer backend-provided link (draft handoff, special routes, etc.)
     if (link) {
       // Draft handoff: the link contains `draftId` so it can be copy/pasted across browsers.
-      navigateTo(link, { forceReload: true })
-      return
+      const isDraftLink = link.includes('/flow/draft') || link.includes('draftId=')
+      if (isDraftLink) {
+        navigateTo(link, { forceReload: true })
+        return
+      }
     }
 
     // workflowId is the template_id
