@@ -45,6 +45,7 @@ import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import PersonalAbsences from '@/business-apps/hr/absences/apps/personal-absences'
 
+const EMPLOYEE_RECORD_RESOURCE_URL = '/platform/employee-record'
 const TAB_KEYS = {
   summary: 'summary',
   timeTracking: 'timeTracking',
@@ -402,32 +403,32 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     hasPermission: hasNotesScopePermission,
     loading: scopePermissionLoading,
     error: scopePermissionError
-  } = useScopePermissionCheck('/platform/employee-record', 'employee-record-notes', accessToken)
+  } = useScopePermissionCheck(EMPLOYEE_RECORD_RESOURCE_URL, 'employee-record-notes', accessToken)
   const employeeRecordHrBackoffice = useScopePermissionCheck(
-    '/platform/employee-record',
+    EMPLOYEE_RECORD_RESOURCE_URL,
     'employee-record-hr-backoffice',
     accessToken
   )
 
   const employeeRecordAllHrBackoffice = useScopePermissionCheck(
-    '/platform/employee-record',
+    EMPLOYEE_RECORD_RESOURCE_URL,
     'employee-record-all-hr-backoffice',
     accessToken
   )
 
   const employeeRecordAllItAdmin = useScopePermissionCheck(
-    '/platform/employee-record',
+    EMPLOYEE_RECORD_RESOURCE_URL,
     'employee-record-all-IT-admin',
     accessToken
   )
 
   const employeeRecordAllEmployees = useScopePermissionCheck(
-    '/platform/employee-record',
+    EMPLOYEE_RECORD_RESOURCE_URL,
     'employee-record-all-employees',
     accessToken
   )
 
-  const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
+  const employeeGrowthPermission = useScopePermissionCheck(EMPLOYEE_RECORD_RESOURCE_URL, 'employee-growth', accessToken)
 
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
