@@ -385,6 +385,16 @@ editor-font-corbel = Corbel
 editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = Bild-URL
 
+# Ribbon tabs and groups
+editor-ribbon-tab-home = Start
+editor-ribbon-tab-insert = Einfügen
+editor-ribbon-group-clipboard = Zwischenablage
+editor-ribbon-group-font = Schriftart
+editor-ribbon-group-paragraph = Absatz
+editor-ribbon-group-styles = Formatvorlagen
+editor-ribbon-group-voice = Sprache
+editor-ribbon-group-insert = Einfügen
+
 # Insert image dialog
 insert-image-dialog-title = Bild einfügen
 insert-image-dialog-title-replace = Bild ersetzen

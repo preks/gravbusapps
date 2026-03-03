@@ -385,6 +385,16 @@ editor-font-corbel = Corbel
 editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = URL imagine
 
+# Ribbon tabs and groups
+editor-ribbon-tab-home = Acasă
+editor-ribbon-tab-insert = Inserare
+editor-ribbon-group-clipboard = Clipboard
+editor-ribbon-group-font = Font
+editor-ribbon-group-paragraph = Paragraf
+editor-ribbon-group-styles = Stiluri
+editor-ribbon-group-voice = Voce
+editor-ribbon-group-insert = Inserare
+
 # Insert image dialog
 insert-image-dialog-title = Inserați imagine
 insert-image-dialog-title-replace = Schimbați imaginea
