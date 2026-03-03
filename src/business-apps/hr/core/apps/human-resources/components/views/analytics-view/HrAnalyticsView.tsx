@@ -6,7 +6,8 @@ import {
   TeamOutlined,
   ApartmentOutlined,
   DollarOutlined,
-  LineChartOutlined
+  LineChartOutlined,
+  EnvironmentOutlined
 } from '@ant-design/icons'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -16,6 +17,7 @@ import Workforce from './components/views/workforce'
 import StructuralAnalysisReport from './components/views/structural-analysis/StructuralAnalysisReport'
 import Compensation from './components/views/compensation'
 import Forecasting from './components/views/forecasting'
+import OfficeUsage from '@/business-apps/hr/core/apps/office-usage'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
@@ -66,6 +68,14 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.structural_analysis_tab_label',
         'Structural Analysis'
+      )
+    },
+    {
+      key: 'office-presence',
+      icon: <EnvironmentOutlined />,
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.office_presence_tab_label',
+        'Office Presence'
       )
     }
   ]
@@ -207,6 +217,12 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
         return (
           <TabsContent value="structural-analysis" data-testid="analytics-structural-analysis-content">
             <StructuralAnalysisReport {...context} />
+          </TabsContent>
+        )
+      case 'office-presence':
+        return (
+          <TabsContent value="office-presence" data-testid="analytics-office-presence-content">
+            <OfficeUsage {...context} />
           </TabsContent>
         )
       default:
