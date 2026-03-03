@@ -3,6 +3,42 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { flowbotClient, type EvalsDashboardQueryParams } from '@/common/network/flowbot/FlowbotClient'
 import type { BucketGranularity, DashboardResponse } from '../types'
 
+const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
+
+const normalizeDashboardResponse = (raw: unknown): DashboardResponse => {
+  const obj = (raw ?? {}) as Record<string, unknown>
+  const distributions = (obj['distributions'] ?? {}) as Record<string, unknown>
+  const quantiles = (v: unknown) => {
+    const q = (v ?? {}) as Record<string, unknown>
+    return {
+      p50: typeof q['p50'] === 'number' ? (q['p50'] as number) : null,
+      p95: typeof q['p95'] === 'number' ? (q['p95'] as number) : null,
+      p99: typeof q['p99'] === 'number' ? (q['p99'] as number) : null
+    }
+  }
+
+  return {
+    workflow: (typeof obj['workflow'] === 'string' ? (obj['workflow'] as string) : null) ?? null,
+    include_split_view:
+      typeof obj['include_split_view'] === 'boolean' ? (obj['include_split_view'] as boolean) : undefined,
+    from_ts: typeof obj['from_ts'] === 'string' ? (obj['from_ts'] as string) : '',
+    to_ts: typeof obj['to_ts'] === 'string' ? (obj['to_ts'] as string) : '',
+    cards: asArray(obj['cards']),
+    distributions: {
+      total_ms: quantiles(distributions['total_ms']),
+      ttft_ms: quantiles(distributions['ttft_ms']),
+      total_tokens: quantiles(distributions['total_tokens'])
+    },
+    timeseries: asArray(obj['timeseries']),
+    error_breakdown: asArray(obj['error_breakdown']),
+    tool_breakdown: asArray(obj['tool_breakdown']),
+    token_breakdown: (obj['token_breakdown'] as any) ?? undefined,
+    tool_token_stats: (obj['tool_token_stats'] as any) ?? undefined,
+    top_cost_runs: asArray(obj['top_cost_runs']),
+    recent_runs: asArray(obj['recent_runs'])
+  }
+}
+
 const dateFromDateInput = (value: string | undefined): string | undefined => {
   const v = (value || '').trim()
   if (!v) return undefined
@@ -67,7 +103,8 @@ export function useEvalsDashboard(context: BusinessAppContextProps, filters: Das
     setState(prev => ({ ...prev, isLoading: true, error: null, isEmpty: false }))
     try {
       flowbotClient.setAccessToken(context.accessToken)
-      const data = await flowbotClient.getEvalsDashboard<DashboardResponse>(queryParams)
+      const raw = await flowbotClient.getEvalsDashboard<unknown>(queryParams)
+      const data = normalizeDashboardResponse(raw)
       setState({ data, isLoading: false, error: null, isEmpty: false })
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
