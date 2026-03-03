@@ -4,7 +4,7 @@
  */
 
 /** Blocklist of URL protocols that must not be allowed in hrefs (used only to reject in isAllowedHref; no code execution). */
-const FORBIDDEN_PROTOCOLS = ['javascript:', 'data:', 'vbscript:', 'file:'].map(p => p.toLowerCase())
+const FORBIDDEN_PROTOCOLS = ['javascript:', 'data:', 'vbscript:', 'file:'].map(p => p.toLowerCase()) // NOSONAR S1523 blocklist only; never executed
 
 /**
  * Returns true if the URL is safe to use as an href (no executable protocols).

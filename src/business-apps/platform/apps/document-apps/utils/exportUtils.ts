@@ -54,10 +54,16 @@ export function sanitizeHtmlForExport(
       }
       const purified = DOMPurify.sanitize(html, config)
       if (preserveBlockSpacing) {
-        return purified.replace(
-          /\s+style\s*=\s*("[^"]*"|'[^']*')/g,
-          (_, quoted) => ` style="${filterStyleToBlockSpacing(quoted.slice(1, -1))}"`
-        )
+        // Linear regexes (no alternation) to avoid ReDoS
+        return purified
+          .replace(
+            /\s+style\s*=\s*"[^"]*"/g,
+            m => ` style="${filterStyleToBlockSpacing(m.replace(/^\s+style\s*=\s*"|"$/g, ''))}"`
+          )
+          .replace(
+            /\s+style\s*=\s*'[^']*'/g,
+            m => ` style="${filterStyleToBlockSpacing(m.replace(/^\s+style\s*=\s*'|'$/g, ''))}"`
+          )
       }
       return purified
     } catch {
@@ -73,17 +79,29 @@ export function sanitizeHtmlForExport(
   out = out.replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, '')
   out = out.replace(/<embed[\s\S]*?>/gi, '')
 
-  // Remove inline event handlers (quoted or unquoted); use negated classes to avoid ReDoS
-  out = out.replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  // Remove inline event handlers (linear regexes to avoid ReDoS)
+  out = out
+    .replace(/\s+on[a-z]+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*'[^']*'/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*[^\s>]+/gi, '')
 
   if (!preserveBlockSpacing) {
-    // Remove inline styles entirely (safer for exports/print); use negated classes to avoid ReDoS
-    out = out.replace(/\s+style\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    // Remove inline styles entirely (linear regexes to avoid ReDoS)
+    out = out
+      .replace(/\s+style\s*=\s*"[^"]*"/gi, '')
+      .replace(/\s+style\s*=\s*'[^']*'/gi, '')
+      .replace(/\s+style\s*=\s*[^\s>]+/gi, '')
   } else {
-    out = out.replace(
-      /\s+style\s*=\s*("[^"]*"|'[^']*')/g,
-      (_, quoted) => ` style="${filterStyleToBlockSpacing(quoted.slice(1, -1))}"`
-    )
+    // Linear regexes to avoid ReDoS
+    out = out
+      .replace(
+        /\s+style\s*=\s*"[^"]*"/g,
+        m => ` style="${filterStyleToBlockSpacing(m.replace(/^\s+style\s*=\s*"|"$/g, ''))}"`
+      )
+      .replace(
+        /\s+style\s*=\s*'[^']*'/g,
+        m => ` style="${filterStyleToBlockSpacing(m.replace(/^\s+style\s*=\s*'|'$/g, ''))}"`
+      )
   }
 
   // Remove dangerous protocols in href/src (keep attribute-less element instead)
