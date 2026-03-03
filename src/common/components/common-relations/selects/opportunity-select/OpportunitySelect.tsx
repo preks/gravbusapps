@@ -8,7 +8,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { PiPlus, PiX } from 'react-icons/pi'
+import { PlusIcon, XIcon } from '@phosphor-icons/react'
 import { Briefcase } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -206,7 +206,7 @@ const OpportunitySelect: React.FC<OpportunitySelectProps> = ({
           onClick={() => setShowAddExisting(true)}
           data-testid={formatDataTestId(dataTestId || 'opportunity-list', 'empty-state')}
         >
-          <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
+          <PlusIcon className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
           <p className="gba:text-sm gba:text-muted-foreground">
             No opportunities selected. Click to add an opportunity.
           </p>
@@ -266,7 +266,7 @@ const OpportunitySelect: React.FC<OpportunitySelectProps> = ({
           className="gba:w-full"
           data-testid={formatDataTestId(dataTestId || 'opportunity-list', 'add-button')}
         >
-          <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+          <PlusIcon className="gba:mr-2 gba:h-4 gba:w-4" />
           Add Opportunity
         </Button>
       )}
@@ -335,7 +335,7 @@ const OpportunitySelect: React.FC<OpportunitySelectProps> = ({
                   data-testid={formatDataTestId(dataTestId || 'opportunity-list', `remove-${index}`)}
                   aria-label={`Remove ${opportunityData.label}`}
                 >
-                  <PiX className="gba:h-4 gba:w-4" />
+                  <XIcon className="gba:h-4 gba:w-4" />
                 </Button>
               </div>
             )

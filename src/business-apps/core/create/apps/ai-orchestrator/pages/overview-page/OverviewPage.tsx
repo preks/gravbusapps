@@ -5,10 +5,14 @@
  */
 
 import React from 'react'
-import { Sparkles, Plus, Loader2 } from 'lucide-react'
-import { Button, Card } from '@newwork/nw-design-system'
+import { AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription, Button } from '@newwork/nw-design-system'
 import { useListPlans } from '../../features/orchestrator/hooks'
-import { AppIconBadge } from '../../features/orchestrator/components/ui/AppIconBadge'
+import { useSelectMode } from './hooks/useSelectMode'
+import { useDeletePlans } from './hooks/useDeletePlans'
+import { OverviewHeader } from './components/OverviewHeader'
+import { BulkActionsToolbar } from './components/BulkActionsToolbar'
+import { PlanList } from './components/PlanList'
 
 export interface OverviewPageProps {
   accessToken: string
@@ -16,88 +20,85 @@ export interface OverviewPageProps {
   onOpenPlan: (jobId: string) => void
 }
 
-function planTitle(plan: { userSummary?: { title?: string }; originalPrompt?: string }): string {
-  const title = plan.userSummary?.title?.trim()
-  if (title) return title
-  const prompt = plan.originalPrompt?.trim() ?? ''
-  return prompt.length > 60 ? `${prompt.slice(0, 60)}…` : prompt || 'Untitled plan'
-}
-
 export const OverviewPage: React.FC<OverviewPageProps> = ({ accessToken, onNewPlan, onOpenPlan }) => {
   const {
     data: plans,
     paging,
     loading,
-    error
+    error,
+    refetch
   } = useListPlans({
     accessToken,
     params: { limit: 25, offset: 0, sort: '-createdAt' },
     enabled: Boolean(accessToken)
   })
 
+  const { isSelectMode, selectedPlanIds, toggleSelectMode, togglePlanSelection, selectAllPlans, clearSelection } =
+    useSelectMode()
+
+  const { isDeleting, deleteError, deleteSelectedPlans, deleteSinglePlan, clearError } = useDeletePlans({
+    accessToken,
+    refetch,
+    onDeleteComplete: () => {
+      clearSelection()
+      toggleSelectMode()
+    }
+  })
+
+  const handleDeleteSelected = () => {
+    deleteSelectedPlans(Array.from(selectedPlanIds))
+  }
+
+  const handleSelectAll = () => {
+    selectAllPlans(plans.map(p => p.jobId))
+  }
+
   return (
     <div className="gba:min-h-screen gba:flex gba:flex-col gba:bg-background gba:px-6 gba:py-8">
       <div className="gba:max-w-2xl gba:mx-auto gba:w-full gba:space-y-8">
-        <div className="gba:text-center gba:space-y-4">
-          <div className="gba:inline-flex gba:p-4 gba:rounded-2xl gba:bg-primary/10">
-            <Sparkles className="gba:w-12 gba:h-12 gba:text-primary" />
-          </div>
-          <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">AI Orchestrator</h1>
-          <p className="gba:text-muted-foreground">
-            Create build plans and generate screens, flows, and data models from a single prompt.
-          </p>
-          <Button size="lg" onClick={onNewPlan} className="gba:gap-2" data-testid="ai-orchestrator-new-plan">
-            <Plus className="gba:w-4 gba:h-4" />
-            New plan
-          </Button>
-        </div>
+        <OverviewHeader
+          onNewPlan={onNewPlan}
+          hasPlans={plans.length > 0}
+          isSelectMode={isSelectMode}
+          toggleSelectMode={toggleSelectMode}
+          isDeleting={isDeleting}
+        />
 
         <section className="gba:space-y-3">
           <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Recent plans</h2>
-          {loading && (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-8 gba:text-muted-foreground">
-              <Loader2 className="gba:w-6 gba:h-6 gba:animate-spin gba:mr-2" />
-              Loading…
-            </div>
+
+          {deleteError && (
+            <Alert variant="destructive">
+              <AlertCircle className="gba:h-4 gba:w-4" />
+              <AlertDescription className="gba:whitespace-pre-wrap">{deleteError}</AlertDescription>
+              <Button variant="outline" size="sm" onClick={clearError} className="gba:mt-2">
+                Dismiss
+              </Button>
+            </Alert>
           )}
-          {error && (
-            <p className="gba:text-destructive gba:py-4" data-testid="ai-orchestrator-list-error">
-              {error}
-            </p>
+
+          {isSelectMode && plans.length > 0 && (
+            <BulkActionsToolbar
+              selectedCount={selectedPlanIds.size}
+              totalCount={plans.length}
+              onSelectAll={handleSelectAll}
+              onClear={clearSelection}
+              onDeleteSelected={handleDeleteSelected}
+              isDeleting={isDeleting}
+            />
           )}
-          {!loading && !error && plans.length === 0 && (
-            <p className="gba:text-muted-foreground gba:py-4">No plans yet. Create one with &quot;New plan&quot;.</p>
-          )}
-          {!loading && plans.length > 0 && (
-            <ul className="gba:space-y-2" data-testid="ai-orchestrator-plan-list">
-              {plans.map(plan => (
-                <li key={plan.jobId}>
-                  <Card
-                    className="gba:cursor-pointer gba:transition-colors hover:gba:bg-muted/50"
-                    onClick={() => onOpenPlan(plan.jobId)}
-                    data-testid={`ai-orchestrator-plan-${plan.jobId}`}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-3 gba:p-4">
-                      <AppIconBadge iconName={plan.appMetadata?.icon} size="sm" />
-                      <div className="gba:min-w-0 gba:flex-1">
-                        <p className="gba:font-medium gba:text-foreground gba:truncate">
-                          {plan.appMetadata?.name || planTitle(plan)}
-                        </p>
-                        <p className="gba:text-sm gba:text-muted-foreground">
-                          {plan.status} · {plan.createdAt ? new Date(plan.createdAt).toLocaleDateString() : ''}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                </li>
-              ))}
-            </ul>
-          )}
-          {!loading && paging && paging.totalRecords > plans.length && (
-            <p className="gba:text-sm gba:text-muted-foreground">
-              Showing {plans.length} of {paging.totalRecords} plans.
-            </p>
-          )}
+
+          <PlanList
+            plans={plans}
+            loading={loading}
+            error={error}
+            paging={paging}
+            isSelectMode={isSelectMode}
+            selectedPlanIds={selectedPlanIds}
+            onToggleSelection={togglePlanSelection}
+            onOpenPlan={onOpenPlan}
+            onDeleteSingle={deleteSinglePlan}
+          />
         </section>
       </div>
     </div>

@@ -42,6 +42,8 @@ export interface PendingRequestRow {
   createdAt?: string | null
   employeeId?: string | null
   requesterEmployeeId?: string | null
+  endpoint?: string | null
+  processInstanceId?: string | null
   requestedOn?: string | null
   dueDate?: string | null
   message?: string | null

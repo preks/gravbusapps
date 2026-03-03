@@ -20,7 +20,7 @@ import {
   Label,
   Separator
 } from '@newwork/nw-design-system'
-import { PiMagnifyingGlass } from 'react-icons/pi'
+import { ArrowLeftIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamSpendingAnalytics, DateRangeOption } from '../../hooks/useTeamSpendingAnalytics'
@@ -903,7 +903,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             )}
           </Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+            <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <DebouncedInput
               placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.search_locations',
@@ -981,7 +981,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             )}
           </Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+            <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <DebouncedInput
               placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.search_departments',
@@ -1035,6 +1035,22 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
 
   return (
     <div data-testid="team-spending-analytics-page-container">
+      {/* Back Button Above Everything */}
+      <div className="gba:px-6 gba:pt-6 gba:pb-0">
+        <button
+          onClick={onNavigateBack}
+          className="gba:flex gba:items-center gba:text-primary gba:hover:text-primary/80 gba:transition-colors"
+          data-testid="team-spending-analytics-back-button"
+        >
+          <ArrowLeftIcon className="gba:mr-2" />
+          <span>
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
+              'Back to Dashboard'
+            )}
+          </span>
+        </button>
+      </div>
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis',

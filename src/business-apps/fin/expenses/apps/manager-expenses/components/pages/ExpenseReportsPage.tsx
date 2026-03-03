@@ -14,7 +14,7 @@ import {
   CardContent,
   PageLayout
 } from '@newwork/nw-design-system'
-import { PiMagnifyingGlass, PiDownload, PiFileText } from 'react-icons/pi'
+import { MagnifyingGlassIcon, DownloadIcon, ArrowLeftIcon, FileTextIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseReportData, ReportType } from '../../hooks/useExpenseReportData'
@@ -466,6 +466,19 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     <div data-testid="expense-reports-page-container">
       <div className="gba:px-6 gba:pt-6 gba:pb-0">
         <div className="gba:flex gba:items-center gba:justify-between">
+          <button
+            onClick={onNavigateBack}
+            className="gba:flex gba:items-center gba:text-foreground gba:hover:text-primary"
+            data-testid="expense-reports-back-button"
+          >
+            <ArrowLeftIcon className="gba:mr-2" />
+            <span>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
+                'Back to Dashboard'
+              )}
+            </span>
+          </button>
           <div className="gba:flex gba:items-center gba:gap-2">
             <Button
               variant="outline"
@@ -473,7 +486,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
               className="gba:flex gba:items-center gba:gap-2"
               data-testid="expense-reports-download-button"
             >
-              <PiDownload className="gba:text-sm" />
+              <DownloadIcon className="gba:text-sm" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.download_report',
                 'Download CSV'
@@ -485,7 +498,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
               className="gba:flex gba:items-center gba:gap-2"
               data-testid="expense-reports-download-excel-button"
             >
-              <PiDownload className="gba:text-sm" />
+              <DownloadIcon className="gba:text-sm" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
                 'Download Excel'
@@ -504,7 +517,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
           'lowcoder:team_expenses_page.dashboard_tab.expense_reports_subheader',
           'Generate and download comprehensive expense reports across different categories and time periods'
         )}
-        headerIcon={PiFileText as any}
+        headerIcon={FileTextIcon as any}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6 gba:h-full gba:flex gba:gap-6" data-testid="expense-reports-page">
@@ -520,7 +533,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
 
               {/* Search Report Types */}
               <div className="gba:relative gba:mb-4">
-                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+                <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
                 <DebouncedInput
                   placeholder={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:team_expenses_page.dashboard_tab.search_report_types',
@@ -567,7 +580,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
             {/* Search Bar for Table Data */}
             <div className="gba:mb-4">
               <div className="gba:relative gba:w-64">
-                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+                <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
                 <DebouncedInput
                   placeholder={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:team_expenses_page.dashboard_tab.search_report_data',

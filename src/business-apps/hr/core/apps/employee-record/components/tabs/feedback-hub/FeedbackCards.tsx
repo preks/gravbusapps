@@ -3,6 +3,7 @@
 import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Card, CardContent } from '@newwork/nw-design-system'
 import { CalendarIcon, ChatCircleIcon, GlobeIcon, LockIcon } from '@phosphor-icons/react'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { FormattedFeedback } from './types'
 import { toAvatarSrc } from './avatar'
 
@@ -44,9 +45,27 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
                 </div>
                 <div className="gba:flex-grow">
                   <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
-                    <span className="gba:font-semibold gba:text-foreground" data-testid={`feedback-sender-${index}`}>
-                      {feedback.sender}
-                    </span>
+                    {feedback.senderId ? (
+                      <button
+                        type="button"
+                        className="gba:font-semibold gba:text-info gba:hover:underline gba:bg-transparent gba:border-none gba:p-0"
+                        data-testid={`feedback-sender-${index}`}
+                        onClick={() =>
+                          navigateTo(
+                            buildPlatformUrl('/platform/employee-record', {
+                              employeeId: feedback.senderId ?? ''
+                            })
+                          )
+                        }
+                        title={feedback.sender}
+                      >
+                        {feedback.sender}
+                      </button>
+                    ) : (
+                      <span className="gba:font-semibold gba:text-foreground" data-testid={`feedback-sender-${index}`}>
+                        {feedback.sender}
+                      </span>
+                    )}
                     {feedback.type && (
                       <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
                         <span className="gba:inline-flex gba:items-center gba:gap-1">

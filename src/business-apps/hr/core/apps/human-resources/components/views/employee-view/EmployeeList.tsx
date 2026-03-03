@@ -6,7 +6,7 @@ import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetE
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters'
 import { EmployeeTable } from './components/EmployeeTable'
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
-import { PiUser, PiUsersThree } from 'react-icons/pi'
+import { UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -151,7 +151,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
             'lowcoder:human_resources_page.employees_section.tab_label',
             'Employees'
           ),
-          listIcon: <PiUsersThree size={20} />,
+          listIcon: <UsersThreeIcon size={20} />,
           listAmount: total,
           actions: (
             <AppActionMenu
@@ -207,7 +207,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
           selectedEmployee
             ? {
                 title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
-                icon: <PiUser size={20} />,
+                icon: <UserIcon size={20} />,
                 content: (
                   <EmployeeDetails
                     employeeId={selectedEmployee.id}

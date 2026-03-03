@@ -17,7 +17,7 @@ import {
   CardTitle,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash, PiLightbulb } from 'react-icons/pi'
+import { PlusIcon, TrashIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -33,7 +33,7 @@ const SkillItem: React.FC<{
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
-            <PiLightbulb className="gba:w-5 gba:h-5" />
+            <LightbulbIcon className="gba:w-5 gba:h-5" />
             Skill {skillIndex + 1}
           </CardTitle>
           <Button
@@ -45,7 +45,7 @@ const SkillItem: React.FC<{
             data-testid={formatDataTestId('job-candidate-form', `skill-remove-${skillIndex}`)}
             aria-label="Remove skill"
           >
-            <PiTrash className="gba:w-4 gba:h-4" />
+            <TrashIcon className="gba:w-4 gba:h-4" />
           </Button>
         </div>
       </CardHeader>
@@ -141,7 +141,7 @@ export const SkillsArrayField: React.FC = () => {
     <div className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
         <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-          <PiLightbulb className="gba:w-5 gba:h-5" />
+          <LightbulbIcon className="gba:w-5 gba:h-5" />
           Skills & Competencies
         </h3>
       </div>
@@ -164,7 +164,7 @@ export const SkillsArrayField: React.FC = () => {
         className="gba:w-full gba:mt-2"
         data-testid={formatDataTestId('job-candidate-form', 'skill-add')}
       >
-        <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+        <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
         Add Skill
       </Button>
     </div>

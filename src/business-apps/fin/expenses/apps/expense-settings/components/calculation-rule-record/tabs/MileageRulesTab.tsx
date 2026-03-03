@@ -42,7 +42,7 @@ import {
   Textarea
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog, AdditionalPropertiesDisplay } from '../shared'
-import { PiPlus, PiCalendar, PiCar, PiPercent, PiDotsThreeVertical, PiPencil, PiTrash, PiWarning } from 'react-icons/pi'
+import { PlusIcon, CalendarIcon, CarIcon, PercentIcon, DotsThreeVerticalIcon, PencilIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -705,7 +705,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
           </p>
         </div>
         <Button onClick={handleAdd} data-testid="add-mileage-rule-button">
-          <PiPlus className="gba:mr-2" />
+          <PlusIcon className="gba:mr-2" />
           Add Mileage Rule
         </Button>
       </div>
@@ -826,7 +826,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                               {isCheckingUsage ? (
                                 <Spinner className="gba:h-4 gba:w-4" />
                               ) : (
-                                <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                               )}
                             </Button>
                           </DropdownMenuTrigger>
@@ -838,7 +838,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                               }}
                               data-testid={`mileage-rule-edit-${record.id}`}
                             >
-                              <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                              <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                               Update
                             </DropdownMenuItem>
                             {/* Only show delete option if mileage rule is not used */}
@@ -853,7 +853,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                                   className="gba:text-destructive"
                                   data-testid={`mileage-rule-delete-${record.id}`}
                                 >
-                                  <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                  <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                   Delete
                                 </DropdownMenuItem>
                               </>
@@ -865,7 +865,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
 
                     <TableCell data-testid={`mileage-rule-code-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCar
+                        <CarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`mileage-rule-code-icon-${record.id}`}
                         />
@@ -909,7 +909,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
 
                     <TableCell data-testid={`mileage-rule-tax-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiPercent
+                        <PercentIcon
                           className="gba:text-muted-foreground"
                           data-testid={`mileage-rule-tax-icon-${record.id}`}
                         />
@@ -921,7 +921,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
 
                     <TableCell data-testid={`mileage-rule-validity-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiCalendar
+                        <CalendarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`mileage-rule-validity-icon-${record.id}`}
                         />
@@ -984,7 +984,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
               className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
               data-testid="mileage-rule-restricted-alert"
             >
-              <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+              <WarningIcon className="gba:h-4 gba:w-4 gba:text-warning" />
               <AlertDescription>
                 This mileage rule is used in expense items. Only &quot;Valid To&quot; can be edited.
               </AlertDescription>

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { PiFunction, PiUsers } from 'react-icons/pi'
+import { FunctionIcon, UsersIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { Button, Spinner } from '@newwork/nw-design-system'
 import { Employee } from '../../../hooks/useEmployeeData'
@@ -104,7 +104,7 @@ const JobFunctionDrawerContent: React.FC<JobFunctionDrawerContentProps> = ({
           size="lg"
         >
           <span>View All Assigned Employees</span>
-          <PiUsers className="gba:ml-2" size={18} />
+          <UsersIcon className="gba:ml-2" size={18} />
         </Button>
       </div>
     </div>
@@ -112,7 +112,7 @@ const JobFunctionDrawerContent: React.FC<JobFunctionDrawerContentProps> = ({
 }
 
 // Helper function to get the icon for this drawer
-export const getJobFunctionIcon = () => <PiFunction className="gba:h-5 gba:w-5" />
+export const getJobFunctionIcon = () => <FunctionIcon className="gba:h-5 gba:w-5" />
 
 // Export the title to use for the drawer
 export const getJobFunctionTitle = (employee: Employee) =>

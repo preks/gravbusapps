@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 import { Building2 } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -215,7 +215,7 @@ const AccountItem: React.FC<{
         aria-label={`Remove ${accountData.name}`}
         disabled={disabled}
       >
-        <PiX className="gba:w-4 gba:h-4" />
+        <XIcon className="gba:w-4 gba:h-4" />
       </Button>
     </div>
   )
