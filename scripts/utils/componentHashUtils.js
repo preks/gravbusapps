@@ -31,14 +31,14 @@ export function calculateScreenHash(buildOutputDir) {
   const distRootDir = markerIndex >= 0 ? buildOutputDir.slice(0, markerIndex + distMarker.length - 1) : null
 
   // Detect shared chunk dependencies referenced from screen JS output.
-  // This captures shared component changes that end up in dist/chunks/*.js|css.
+  // This captures shared component changes that end up in dist/chunks/* or dist/_chunks/*.
   const referencedChunkFiles = new Set()
   if (distRootDir) {
     for (const relativeFile of screenFiles) {
       if (!relativeFile.endsWith('.js')) continue
       const absoluteFilePath = path.join(buildOutputDir, relativeFile)
       const content = fs.readFileSync(absoluteFilePath, 'utf8')
-      const chunkPathMatches = content.match(/chunks\/[A-Za-z0-9._/-]+\.(js|css)/g) || []
+      const chunkPathMatches = content.match(/_?chunks\/[A-Za-z0-9._/-]+\.(js|css)/g) || []
       for (const chunkRelPath of chunkPathMatches) {
         const normalized = chunkRelPath.replace(/\//g, path.sep)
         const absoluteChunkPath = path.join(distRootDir, normalized)
