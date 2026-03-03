@@ -1,9 +1,6 @@
 // Refactored Team Spending Analytics Hook (< 300 lines)
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import dayjs from 'dayjs'
-import weekday from 'dayjs/plugin/weekday'
-import localeData from 'dayjs/plugin/localeData'
 
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -17,28 +14,16 @@ import type {
 } from './teamSpendingAnalytics/types'
 import { DateRangeOption as DateRangeEnum } from './teamSpendingAnalytics/types'
 import { fetchAnalyticsData } from './teamSpendingAnalytics/dataFetch'
-import { filterAllData } from './teamSpendingAnalytics/filterUtils'
-import {
-  processExpenseItemsByCategory,
-  processTimeSeriesData,
-  processStatusData,
-  processOrgUnitData,
-  processLocationData,
-  mapToOrgUnitBreakdown,
-  mapToLocationBreakdown,
-  calculateTotalAmount,
-  extractAvailableCurrencies
-} from './teamSpendingAnalytics/utils'
+import { extractAvailableCurrencies } from './teamSpendingAnalytics/utils'
 import {
   computeDateRangeBounds,
   buildLocationFilters,
   buildDepartmentFilters,
   toggleFilterById,
-  filterBySearch
+  filterBySearch,
+  getSelectedFilterIds,
+  buildCoreProcessedAnalyticsData
 } from './teamSpendingAnalytics/shared'
-
-dayjs.extend(weekday)
-dayjs.extend(localeData)
 
 export { DateRangeOption } from './teamSpendingAnalytics/types'
 export type { LocationFilter, DepartmentFilter } from './teamSpendingAnalytics/types'
@@ -153,43 +138,13 @@ export const useTeamSpendingAnalytics = (accessToken: string, managerId: string,
   const processedData: ProcessedAnalyticsData | null = useMemo(() => {
     if (!rawData) return null
 
-    const selectedLocationIds = locationFilters.filter(l => l.selected).map(l => l.id)
-    const selectedDepartmentIds = departmentFilters.filter(d => d.selected).map(d => d.id)
-
-    const { filteredExpenseItems, filteredExpenseRequests, filteredExpensePlans, filteredAdvancePayments } =
-      filterAllData(rawData, selectedLocationIds, selectedDepartmentIds)
-
-    // Process data using utility functions
-    const orgUnitMap = new Map<string, { count: number; amount: number }>()
-    const locationMap = new Map<string, { count: number; amount: number }>()
-
-    processOrgUnitData(filteredExpenseItems, orgUnitMap)
-    processOrgUnitData(filteredExpenseRequests, orgUnitMap)
-    processOrgUnitData(filteredExpensePlans, orgUnitMap)
-    processOrgUnitData(filteredAdvancePayments, orgUnitMap, 'amount')
-
-    processLocationData(filteredExpenseItems, locationMap)
-    processLocationData(filteredExpenseRequests, locationMap)
-    processLocationData(filteredExpensePlans, locationMap)
-    processLocationData(filteredAdvancePayments, locationMap, 'amount')
-
-    return {
-      expenseItemsByCategory: processExpenseItemsByCategory(filteredExpenseItems),
-      expenseItemsByMonth: processTimeSeriesData(filteredExpenseItems, 'totalAmount', 'expenseDate'),
-      expenseItemsByStatus: processStatusData(filteredExpenseItems),
-      expenseRequestsByMonth: processTimeSeriesData(filteredExpenseRequests, 'totalAmount', 'createdAt'),
-      expenseRequestsByStatus: processStatusData(filteredExpenseRequests),
-      expensePlansByMonth: processTimeSeriesData(filteredExpensePlans, 'totalAmount', 'createdAt'),
-      expensePlansByStatus: processStatusData(filteredExpensePlans),
-      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount', 'createdAt'),
-      advancePaymentsByStatus: processStatusData(filteredAdvancePayments, 'amount'),
-      expensesByOrgUnit: mapToOrgUnitBreakdown(orgUnitMap),
-      expensesByLocation: mapToLocationBreakdown(locationMap),
-      totalExpenseAmount: calculateTotalAmount(filteredExpenseItems),
-      totalRequestAmount: calculateTotalAmount(filteredExpenseRequests),
-      totalPlanAmount: calculateTotalAmount(filteredExpensePlans),
-      totalAdvanceAmount: calculateTotalAmount(filteredAdvancePayments, 'amount')
-    }
+    const { selectedLocationIds, selectedDepartmentIds } = getSelectedFilterIds(locationFilters, departmentFilters)
+    const { processedData: coreProcessedData } = buildCoreProcessedAnalyticsData(
+      rawData,
+      selectedLocationIds,
+      selectedDepartmentIds
+    )
+    return coreProcessedData
   }, [rawData, locationFilters, departmentFilters, dateRange, currencyFilter])
 
   return {

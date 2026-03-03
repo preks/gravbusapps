@@ -1,6 +1,17 @@
 import dayjs from 'dayjs'
-import type { AnalyticsData, DateRangeOption, DepartmentFilter, LocationFilter } from './types'
+import type { AnalyticsData, DateRangeOption, DepartmentFilter, LocationFilter, ProcessedAnalyticsData } from './types'
 import { DateRangeOption as DateRangeEnum } from './types'
+import { filterAllData } from './filterUtils'
+import {
+  processExpenseItemsByCategory,
+  processTimeSeriesData,
+  processStatusData,
+  processOrgUnitData,
+  processLocationData,
+  mapToOrgUnitBreakdown,
+  mapToLocationBreakdown,
+  calculateTotalAmount
+} from './utils'
 
 type NamedOption = { id: string; name: string }
 
@@ -105,4 +116,86 @@ export const filterBySearch = <T extends { name: string }>(filters: T[], searchT
   if (!searchTerm) return filters
   const normalizedTerm = searchTerm.toLowerCase()
   return filters.filter(filter => filter.name.toLowerCase().includes(normalizedTerm))
+}
+
+export type CorePaidClosedData = {
+  paidClosedExpenseItems: any[]
+  paidClosedExpenseRequests: any[]
+  paidClosedExpensePlans: any[]
+  paidClosedAdvancePayments: any[]
+}
+
+export const getSelectedFilterIds = (
+  locationFilters: LocationFilter[],
+  departmentFilters: DepartmentFilter[]
+): { selectedLocationIds: string[]; selectedDepartmentIds: string[] } => {
+  return {
+    selectedLocationIds: locationFilters.filter(location => location.selected).map(location => location.id),
+    selectedDepartmentIds: departmentFilters.filter(department => department.selected).map(department => department.id)
+  }
+}
+
+export const buildCorePaidClosedData = (
+  rawData: AnalyticsData,
+  selectedLocationIds: string[],
+  selectedDepartmentIds: string[]
+): CorePaidClosedData => {
+  const { filteredExpenseItems, filteredExpenseRequests, filteredExpensePlans, filteredAdvancePayments } =
+    filterAllData(rawData, selectedLocationIds, selectedDepartmentIds)
+
+  const isPaidOrClosedStatus = (status?: string | null): boolean => {
+    const normalizedStatus = String(status || '').toUpperCase()
+    return normalizedStatus === 'PAID' || normalizedStatus === 'CLOSED'
+  }
+
+  return {
+    paidClosedExpenseItems: filteredExpenseItems.filter(item => isPaidOrClosedStatus(item?.status)),
+    paidClosedExpenseRequests: filteredExpenseRequests.filter(item => isPaidOrClosedStatus(item?.status)),
+    paidClosedExpensePlans: filteredExpensePlans.filter(item => isPaidOrClosedStatus(item?.status)),
+    paidClosedAdvancePayments: filteredAdvancePayments.filter(item => isPaidOrClosedStatus(item?.status))
+  }
+}
+
+export const buildCoreProcessedAnalyticsData = (
+  rawData: AnalyticsData,
+  selectedLocationIds: string[],
+  selectedDepartmentIds: string[]
+): { processedData: ProcessedAnalyticsData; corePaidClosedData: CorePaidClosedData } => {
+  const corePaidClosedData = buildCorePaidClosedData(rawData, selectedLocationIds, selectedDepartmentIds)
+  const { paidClosedExpenseItems, paidClosedExpenseRequests, paidClosedExpensePlans, paidClosedAdvancePayments } =
+    corePaidClosedData
+
+  const orgUnitMap = new Map<string, { count: number; amount: number }>()
+  const locationMap = new Map<string, { count: number; amount: number }>()
+
+  processOrgUnitData(paidClosedExpenseItems, orgUnitMap)
+  processOrgUnitData(paidClosedExpenseRequests, orgUnitMap)
+  processOrgUnitData(paidClosedExpensePlans, orgUnitMap)
+  processOrgUnitData(paidClosedAdvancePayments, orgUnitMap, 'amount')
+
+  processLocationData(paidClosedExpenseItems, locationMap)
+  processLocationData(paidClosedExpenseRequests, locationMap)
+  processLocationData(paidClosedExpensePlans, locationMap)
+  processLocationData(paidClosedAdvancePayments, locationMap, 'amount')
+
+  return {
+    processedData: {
+      expenseItemsByCategory: processExpenseItemsByCategory(paidClosedExpenseItems),
+      expenseItemsByMonth: processTimeSeriesData(paidClosedExpenseItems, 'totalAmount', 'expenseDate'),
+      expenseItemsByStatus: processStatusData(paidClosedExpenseItems),
+      expenseRequestsByMonth: processTimeSeriesData(paidClosedExpenseRequests, 'totalAmount', 'createdAt'),
+      expenseRequestsByStatus: processStatusData(paidClosedExpenseRequests),
+      expensePlansByMonth: processTimeSeriesData(paidClosedExpensePlans, 'totalAmount', 'createdAt'),
+      expensePlansByStatus: processStatusData(paidClosedExpensePlans),
+      advancePaymentsByMonth: processTimeSeriesData(paidClosedAdvancePayments, 'amount', 'createdAt'),
+      advancePaymentsByStatus: processStatusData(paidClosedAdvancePayments, 'amount'),
+      expensesByOrgUnit: mapToOrgUnitBreakdown(orgUnitMap),
+      expensesByLocation: mapToLocationBreakdown(locationMap),
+      totalExpenseAmount: calculateTotalAmount(paidClosedExpenseItems),
+      totalRequestAmount: calculateTotalAmount(paidClosedExpenseRequests),
+      totalPlanAmount: calculateTotalAmount(paidClosedExpensePlans),
+      totalAdvanceAmount: calculateTotalAmount(paidClosedAdvancePayments, 'amount')
+    },
+    corePaidClosedData
+  }
 }

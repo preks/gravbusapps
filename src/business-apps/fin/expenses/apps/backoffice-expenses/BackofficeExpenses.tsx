@@ -35,7 +35,7 @@ const isValidBackofficeTab = (value?: string | null): value is BackofficeTabKey 
   Boolean(value && (BACKOFFICE_TAB_KEYS as readonly string[]).includes(value))
 
 const getViewFromUrl = (): BackofficeView => {
-  if (typeof globalThis.window === 'undefined') {
+  if (globalThis.window === undefined) {
     return 'tabs'
   }
   const params = new URLSearchParams(globalThis.window.location.search)
@@ -44,7 +44,7 @@ const getViewFromUrl = (): BackofficeView => {
 }
 
 const getTabFromUrl = (): BackofficeTabKey | null => {
-  if (typeof globalThis.window === 'undefined') {
+  if (globalThis.window === undefined) {
     return null
   }
   const params = new URLSearchParams(globalThis.window.location.search)
@@ -105,7 +105,7 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
       return tabFromUrl
     }
     const defaultTab = BACKOFFICE_TAB_KEYS[0]
-    if (typeof globalThis.window !== 'undefined') {
+    if (globalThis.window !== undefined) {
       const url = new URL(globalThis.window.location.href)
       if (url.searchParams.get('tab') !== defaultTab) {
         url.searchParams.set('tab', defaultTab)
@@ -130,7 +130,7 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
 
   const updateUrl = useCallback(
     (view: BackofficeView, tab?: BackofficeTabKey, mode: 'push' | 'replace' = 'replace') => {
-      if (typeof globalThis.window === 'undefined') {
+      if (globalThis.window === undefined) {
         return
       }
       const url = new URL(globalThis.window.location.href)
@@ -198,7 +198,7 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
   }, [])
 
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined') {
+    if (globalThis.window === undefined) {
       return
     }
     const params = new URLSearchParams(globalThis.window.location.search)

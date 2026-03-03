@@ -25,16 +25,25 @@ export const getSettledAdvancePaidAmount = (advancePayments: any[]): number => {
     .reduce((sum: number, payment: any) => sum + Number(payment?.amount || 0), 0)
 }
 
+const toPrimitiveString = (value: unknown): string => {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value)
+  }
+  return ''
+}
+
 export const parseDateOrNull = (value: unknown): Date | null => {
   if (!value) return null
-  const parsed = new Date(String(value))
+  const parsed = new Date(toPrimitiveString(value))
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
 export const isPaidLikeStatus = (value: unknown): boolean =>
-  ['PAID', 'CLOSED'].includes(String(value || '').toUpperCase())
+  ['PAID', 'CLOSED'].includes(toPrimitiveString(value).toUpperCase())
 
-export const toUpperText = (value: unknown): string => String(value || '').toUpperCase()
+export const toUpperText = (value: unknown): string => toPrimitiveString(value).toUpperCase()
 export const toUpperSafeText = (value: unknown): string => {
   if (value === null || value === undefined) return ''
   if (typeof value === 'string') return value.toUpperCase()
@@ -84,7 +93,7 @@ export const hasFromToTransition = (text: string, fromStatuses: string[], toStat
 
 export const pickEarliest = (values: Array<unknown>): string => {
   const sorted = values
-    .map(value => String(value || '').trim())
+    .map(value => toPrimitiveString(value).trim())
     .filter(Boolean)
     .map(value => ({ raw: value, date: parseDateOrNull(value) }))
     .filter(value => value.date)
@@ -106,7 +115,7 @@ const getObjectPathValue = (source: Record<string, any>, path: string): unknown 
 export const parsePositiveNumber = (value: unknown): number | null => {
   if (value === null || value === undefined) return null
   if (typeof value === 'object') return null
-  const normalized = Number(String(value).replace(',', '.'))
+  const normalized = Number(toPrimitiveString(value).replace(',', '.'))
   if (!Number.isFinite(normalized)) return null
   return normalized >= 0 ? normalized : null
 }
