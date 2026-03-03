@@ -128,11 +128,11 @@ function postProcessExportHtml(
 
       const lower = raw.trim().toLowerCase()
       // NOSONAR S1523 - literal used only to detect and remove dangerous URLs; no code execution
-      if (lower.startsWith('javascript:') || lower.startsWith('data:text/html')) {
+      if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:text/html')) {
         el.removeAttribute(urlAttr)
         continue
       }
-
+      // Block data: URIs except when explicitly allowed for img (handled below)
       if (lower.startsWith('data:')) {
         const isImgSrc = urlAttr === 'src' && el.tagName.toLowerCase() === 'img'
         if (!(options.allowDataUriInImg && isImgSrc)) {
@@ -570,7 +570,11 @@ export async function exportToPDF(
   targetWindow?: Window | null,
   options?: ExportImageOptions
 ): Promise<void> {
-  let content = htmlContent.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
+  let content = sanitizeHtmlForExport(htmlContent, {
+    preserveBlockSpacing: true,
+    allowDataUriInImg: true
+  })
+  content = content.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }

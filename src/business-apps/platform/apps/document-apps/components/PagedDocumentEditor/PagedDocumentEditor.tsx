@@ -89,7 +89,13 @@ import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
 import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
-import { exportToWord, exportToPDF, printHtmlDocument, blobToDataUrl } from '../../utils/exportUtils'
+import {
+  exportToWord,
+  exportToPDF,
+  printHtmlDocument,
+  blobToDataUrl,
+  sanitizeHtmlForExport
+} from '../../utils/exportUtils'
 import { fileClient } from '@/common/network/files/FileClient'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
@@ -1327,7 +1333,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setIsExporting(true)
       try {
         const htmlWithImages = await getExportHtmlWithEmbeddedImages()
-        await exportToWord(title, htmlWithImages)
+        const safeHtml = sanitizeHtmlForExport(htmlWithImages, {
+          preserveBlockSpacing: true,
+          allowDataUriInImg: true
+        })
+        await exportToWord(title, safeHtml)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to Word failed:', error)
       } finally {
@@ -1341,7 +1351,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setIsExporting(true)
       try {
         const htmlWithImages = await getExportHtmlWithEmbeddedImages()
-        await exportToPDF(title, htmlWithImages)
+        const safeHtml = sanitizeHtmlForExport(htmlWithImages, {
+          preserveBlockSpacing: true,
+          allowDataUriInImg: true
+        })
+        await exportToPDF(title, safeHtml)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to PDF failed:', error)
       } finally {
@@ -1354,9 +1368,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!editor) return
       try {
         const htmlContent = await getExportHtmlWithEmbeddedImages()
+        const safeHtml = sanitizeHtmlForExport(htmlContent, {
+          preserveBlockSpacing: true,
+          allowDataUriInImg: true
+        })
         printHtmlDocument({
           title,
-          htmlContent,
+          htmlContent: safeHtml,
           extraCss: `
         .page-break { page-break-after: always; break-after: page; }
         @media print { .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }

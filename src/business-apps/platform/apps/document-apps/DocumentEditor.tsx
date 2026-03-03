@@ -36,7 +36,7 @@ import {
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document } from './types'
-import { exportToWord, exportToPDF, printHtmlDocument } from './utils/exportUtils'
+import { exportToWord, exportToPDF, printHtmlDocument, sanitizeHtmlForExport } from './utils/exportUtils'
 import translations from './_i18n'
 
 // Import Quill styles
@@ -244,7 +244,11 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const handleExportPDF = useCallback(async () => {
     setIsExporting(true)
     try {
-      await exportToPDF(title, content)
+      const safeContent = sanitizeHtmlForExport(content, {
+        preserveBlockSpacing: true,
+        allowDataUriInImg: true
+      })
+      await exportToPDF(title, safeContent)
     } catch (error) {
       console.error('[DocumentEditor] Export to PDF failed:', error)
     } finally {
@@ -256,9 +260,13 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
    * Print document
    */
   const handlePrint = useCallback(() => {
+    const safeContent = sanitizeHtmlForExport(content, {
+      preserveBlockSpacing: true,
+      allowDataUriInImg: true
+    })
     printHtmlDocument({
       title,
-      htmlContent: content,
+      htmlContent: safeContent,
       includeTitleHeading: true,
       extraCss: `
         h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; }
