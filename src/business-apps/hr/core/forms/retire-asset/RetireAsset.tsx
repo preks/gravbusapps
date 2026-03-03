@@ -30,23 +30,11 @@ import { useAssetService } from '../../apps/assets/services/useAssetService'
 import { useAssetFormData } from '../return-asset/hooks/useAssetFormData'
 import { useAssetVersion } from '../return-asset/hooks/useAssetVersion'
 import { dispatchProcessCompletionEvents } from '../return-asset/utils/processEventUtils'
+import { useDisposalOutcomeCatalog } from './hooks/useDisposalOutcomeCatalog'
+import { useSanitizationMethodCatalog } from './hooks/useSanitizationMethodCatalog'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import translations from './_i18n'
-
-const DISPOSAL_OUTCOME_OPTIONS = [
-  { value: 'scrap', labelKey: 'disposal-outcome-scrap' as const },
-  { value: 'sold', labelKey: 'disposal-outcome-sold' as const },
-  { value: 'returned', labelKey: 'disposal-outcome-returned' as const },
-  { value: 'destroyed', labelKey: 'disposal-outcome-destroyed' as const },
-  { value: 'other', labelKey: 'disposal-outcome-other' as const }
-]
-
-const SANITIZATION_METHOD_OPTIONS = [
-  { value: 'wipe', labelKey: 'sanitization-method-wipe' as const },
-  { value: 'crypto-erase', labelKey: 'sanitization-method-crypto-erase' as const },
-  { value: 'destroy_media', labelKey: 'sanitization-method-destroy-media' as const },
-  { value: 'other', labelKey: 'sanitization-method-other' as const }
-]
 
 type FormValues = {
   disposalOutcomeRef: string
@@ -70,6 +58,11 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [labelsReady, setLabelsReady] = useState(false)
+
+  useEffect(() => {
+    setLabelsReady(true)
+  }, [])
 
   const defaultResponsibleEmployee = userInfo?.employeeDetails?.employeeId ?? ''
   const defaultResponsibleDisplayName =
@@ -112,6 +105,17 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
 
   const assetService = useAssetService(context)
 
+  const {
+    options: disposalOutcomeOptions,
+    isLoading: disposalOutcomeLoading,
+    error: disposalOutcomeError
+  } = useDisposalOutcomeCatalog(accessToken)
+  const {
+    options: sanitizationMethodOptions,
+    isLoading: sanitizationMethodLoading,
+    error: sanitizationMethodError
+  } = useSanitizationMethodCatalog(accessToken)
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as Resolver<FormValues>,
     mode: 'onChange',
@@ -122,7 +126,7 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
       disposalReason: '',
       requireSanitization: 'no',
       sanitizationMethod: '',
-      sanitizationExecutionDate: '',
+      sanitizationExecutionDate: new Date().toISOString().split('T')[0],
       performedBy: defaultResponsibleDisplayName
     }
   })
@@ -137,14 +141,21 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
   }, [defaultResponsibleEmployee, defaultResponsibleDisplayName, form])
 
   const requireSanitization = form.watch('requireSanitization')
+  const currentLocale = getCurrentActiveUserLocale()
 
-  const title = useMemo(() => t('retire-asset'), [t])
-  const submitButtonText = useMemo(() => t('retire-asset'), [t])
-  const cancelButtonText = useMemo(() => t('cancel-button'), [t])
+  const title = useMemo(() => t('retire-asset'), [t, labelsReady])
+  const submitButtonText = useMemo(() => t('retire-asset'), [t, labelsReady])
+  const cancelButtonText = useMemo(() => t('cancel-button'), [t, labelsReady])
 
   const isSubmitDisabled = useMemo(
-    () => isSubmitting || !form.formState.isValid || !existingAsset || !assetId,
-    [isSubmitting, form.formState.isValid, existingAsset, assetId]
+    () =>
+      isSubmitting ||
+      !form.formState.isValid ||
+      !existingAsset ||
+      !assetId ||
+      disposalOutcomeLoading ||
+      sanitizationMethodLoading,
+    [isSubmitting, form.formState.isValid, existingAsset, assetId, disposalOutcomeLoading, sanitizationMethodLoading]
   )
 
   const formFields = (
@@ -173,16 +184,22 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
             <Label htmlFor="disposalOutcomeRef" data-testid="disposal-outcome-label">
               {t('final-disposal-outcome')} *
             </Label>
-            <Select onValueChange={field.onChange} value={field.value}>
+            <Select onValueChange={field.onChange} value={field.value} disabled={disposalOutcomeLoading}>
               <SelectTrigger id="disposalOutcomeRef" data-testid="disposal-outcome-select">
-                <SelectValue placeholder={t('select-disposal-outcome')} />
+                <SelectValue placeholder={disposalOutcomeLoading ? t('loading') : t('select-disposal-outcome')} />
               </SelectTrigger>
               <SelectContent>
-                {DISPOSAL_OUTCOME_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} data-testid={`disposal-outcome-option-${opt.value}`}>
-                    {t(opt.labelKey)}
-                  </SelectItem>
-                ))}
+                {disposalOutcomeOptions.length === 0 && !disposalOutcomeLoading ? (
+                  <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                    {disposalOutcomeError || t('no-disposal-outcomes')}
+                  </div>
+                ) : (
+                  disposalOutcomeOptions.map(opt => (
+                    <SelectItem key={opt.id} value={opt.value} data-testid={`disposal-outcome-option-${opt.id}`}>
+                      {opt.label}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </FormItem>
@@ -289,20 +306,22 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
                 <Label htmlFor="sanitizationMethod" data-testid="sanitization-method-label">
                   {t('sanitization-method')} *
                 </Label>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={sanitizationMethodLoading}>
                   <SelectTrigger id="sanitizationMethod" data-testid="sanitization-method-select">
-                    <SelectValue placeholder={t('select-method')} />
+                    <SelectValue placeholder={sanitizationMethodLoading ? t('loading') : t('select-method')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {SANITIZATION_METHOD_OPTIONS.map(opt => (
-                      <SelectItem
-                        key={opt.value}
-                        value={opt.value}
-                        data-testid={`sanitization-method-option-${opt.value}`}
-                      >
-                        {t(opt.labelKey)}
-                      </SelectItem>
-                    ))}
+                    {sanitizationMethodOptions.length === 0 && !sanitizationMethodLoading ? (
+                      <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                        {sanitizationMethodError || t('no-sanitization-methods')}
+                      </div>
+                    ) : (
+                      sanitizationMethodOptions.map(opt => (
+                        <SelectItem key={opt.id} value={opt.value} data-testid={`sanitization-method-option-${opt.id}`}>
+                          {opt.label}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -359,6 +378,7 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
       <div
         className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
         data-testid="retire-asset-container"
+        lang={currentLocale}
       >
         <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
         <div className="gba:p-6 gba:text-destructive">{t('asset-not-found')}</div>
@@ -367,7 +387,11 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
   }
 
   return (
-    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full" data-testid="retire-asset-container">
+    <div
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
+      data-testid="retire-asset-container"
+      lang={currentLocale}
+    >
       <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
 
       <div
@@ -446,7 +470,8 @@ const RetireAssetContent: React.FC<BusinessAppContextProps> = context => {
                       disposalReason: values.disposalReason || undefined,
                       responsibleEmployee: values.responsibleEmployee || undefined,
                       requireSanitization: values.requireSanitization === 'yes',
-                      sanitizationMethod: values.requireSanitization === 'yes' ? values.sanitizationMethod : undefined,
+                      sanitizationMethodRef:
+                        values.requireSanitization === 'yes' ? values.sanitizationMethod : undefined,
                       sanitizationExecutionDate:
                         values.requireSanitization === 'yes' ? values.sanitizationExecutionDate : undefined,
                       performerEmployee:

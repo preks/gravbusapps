@@ -23,7 +23,7 @@ disposal-outcome-destroyed = Distrus
 disposal-outcome-other = Altul
 disposal-date = Data eliminării
 disposal-reason = Motiv
-disposal-reason-placeholder = Motiv în text liber pentru eliminare...
+disposal-reason-placeholder = Scrieți un motiv...
 
 # Responsible
 responsible-person = Persoană responsabilă
@@ -40,7 +40,7 @@ sanitization-method-crypto-erase = Ștergere criptografică
 sanitization-method-destroy-media = Distrugere suport
 sanitization-method-other = Altul
 sanitization-execution-date = Data executării sanitizării
-performed-by = Efectuat de (utilizator intern sau furnizor extern)
+performed-by = Efectuat de
 performed-by-placeholder = Nume sau furnizor
 
 # Validation

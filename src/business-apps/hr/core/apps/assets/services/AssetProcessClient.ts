@@ -43,7 +43,7 @@ export interface UpdateAssetPayload {
   disposalDate?: string
   disposalReason?: string
   requireSanitization?: boolean
-  sanitizationMethod?: string
+  sanitizationMethodRef?: string
   sanitizationExecutionDate?: string
   responsibleEmployee?: string
   performerEmployee?: string

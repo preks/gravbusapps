@@ -23,7 +23,7 @@ disposal-outcome-destroyed = Destroyed
 disposal-outcome-other = Other
 disposal-date = Disposal date
 disposal-reason = Reason
-disposal-reason-placeholder = Free-text reason for disposal...
+disposal-reason-placeholder = Write a reason...
 
 # Responsible
 responsible-person = Responsible person
@@ -40,7 +40,7 @@ sanitization-method-crypto-erase = Crypto-erase
 sanitization-method-destroy-media = Destroy media
 sanitization-method-other = Other
 sanitization-execution-date = Sanitization execution date
-performed-by = Performed by (internal user or external vendor)
+performed-by = Performed by
 performed-by-placeholder = Name or vendor
 
 # Validation

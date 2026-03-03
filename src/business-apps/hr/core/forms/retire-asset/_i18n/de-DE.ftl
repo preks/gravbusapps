@@ -23,7 +23,7 @@ disposal-outcome-destroyed = Zerstört
 disposal-outcome-other = Sonstiges
 disposal-date = Entsorgungsdatum
 disposal-reason = Grund
-disposal-reason-placeholder = Freitextgrund für die Entsorgung...
+disposal-reason-placeholder = Grund angeben...
 
 # Responsible
 responsible-person = Verantwortliche Person
@@ -40,7 +40,7 @@ sanitization-method-crypto-erase = Krypto-Löschung
 sanitization-method-destroy-media = Datenträger zerstören
 sanitization-method-other = Sonstiges
 sanitization-execution-date = Datum der Sanierungsdurchführung
-performed-by = Durchgeführt von (interner Benutzer oder externer Anbieter)
+performed-by = Durchgeführt von
 performed-by-placeholder = Name oder Anbieter
 
 # Validation
