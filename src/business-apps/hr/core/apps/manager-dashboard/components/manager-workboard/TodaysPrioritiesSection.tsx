@@ -263,6 +263,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
   const [isNotClockedInPanelOpen, setIsNotClockedInPanelOpen] = useState(false)
   const [sendingBlinkFor, setSendingBlinkFor] = useState<string | null>(null)
   const [sendingNudgeFor, setSendingNudgeFor] = useState<string | null>(null)
+  const unallocatedDailyCost = Math.round(unallocatedMonthlyCost / 30)
 
   const handleSendGoalReminder = useCallback(
     async (employeeUserId: string, employeeName: string, goalTitle: string, goalId: string) => {
@@ -386,9 +387,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
               <div>
                 <p className="gba:font-medium">{counts.unallocated} team members unallocated</p>
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {unallocatedMonthlyCost > 0
-                    ? `Estimated monthly cost: €${unallocatedMonthlyCost.toLocaleString()}`
-                    : 'Impact: delivery & engagement risk'}
+                  {`Estimated cost: €${unallocatedDailyCost.toLocaleString()} per day`}
                 </p>
               </div>
             </div>
@@ -495,9 +494,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
             </button>
             <SheetTitle className="gba:text-xl gba:font-semibold">Unallocated Team Members</SheetTitle>
             <p className="gba:text-sm gba:text-muted-foreground gba:pt-2">
-              {unallocatedMonthlyCost > 0
-                ? `Estimated monthly cost: €${unallocatedMonthlyCost.toLocaleString()}`
-                : `${counts.unallocated} members need project allocation`}
+              {`Estimated cost: €${unallocatedDailyCost.toLocaleString()} per day`}
             </p>
           </SheetHeader>
 
