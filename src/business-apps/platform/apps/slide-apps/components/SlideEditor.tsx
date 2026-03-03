@@ -95,6 +95,7 @@ import { TemplateBrowserButton } from './TemplateBrowserButton'
 import { VoiceInputButton } from './VoiceInputButton'
 import { VoiceVisualizer } from './VoiceVisualizer'
 import { FloatingTextActions } from './FloatingTextActions'
+import { PdfExportDialog } from './PdfExportDialog'
 import { useVoiceInput } from '../hooks/useVoiceInput'
 import { exportToPptx } from '../utils/exportUtils'
 import translations from '../_i18n'
@@ -327,6 +328,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [videoUrl, setVideoUrl] = useState('')
   const [showBackgroundDialog, setShowBackgroundDialog] = useState(false)
   const [showRenameDialog, setShowRenameDialog] = useState(false)
+  const [showPdfExportDialog, setShowPdfExportDialog] = useState(false)
   const [presentationTitle, setPresentationTitle] = useState(slide.title)
   const [newTitle, setNewTitle] = useState(slide.title)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -1500,7 +1502,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('editor-export-pptx')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast.info(t('editor-export-pdf-coming'))}>
+                  <DropdownMenuItem onClick={() => setShowPdfExportDialog(true)}>
                     <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('editor-export-pdf')}
                   </DropdownMenuItem>
@@ -2364,6 +2366,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* PDF Export Dialog */}
+      <PdfExportDialog
+        open={showPdfExportDialog}
+        onOpenChange={setShowPdfExportDialog}
+        slides={slides}
+        currentSlideIndex={currentSlideIndex}
+        theme={currentTheme}
+        title={presentationTitle}
+        t={t}
+      />
     </div>
   )
 }

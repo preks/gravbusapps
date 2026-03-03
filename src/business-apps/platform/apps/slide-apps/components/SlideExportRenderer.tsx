@@ -1,0 +1,473 @@
+/**
+ * SlideExportRenderer - Read-only slide renderer for PDF/image export.
+ * Renders slides at full 1280x720 resolution without interactive elements.
+ */
+
+import React from 'react'
+import type {
+  SlideData,
+  AnySlideElement,
+  TextElement,
+  ShapeElement,
+  ImageElement,
+  VideoElement,
+  TableElement
+} from './slideElements'
+import { gradientToCss } from './slideElements'
+
+const SLIDE_WIDTH = 1280
+const SLIDE_HEIGHT = 720
+
+interface SlideExportRendererProps {
+  slides: SlideData[]
+  slideIndices: number[]
+}
+
+/**
+ * Renders a single shape element.
+ */
+const renderShape = (element: ShapeElement): React.ReactNode => {
+  const { shapeType, fill, gradient, strokeColor, strokeWidth, strokeStyle, cornerRadius, shadow } = element
+  const fillStyle = gradient ? gradientToCss(gradient) : fill
+
+  const baseStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    background: fillStyle,
+    border: strokeWidth > 0 ? `${strokeWidth}px ${strokeStyle} ${strokeColor}` : 'none',
+    boxShadow: shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
+  }
+
+  switch (shapeType) {
+    case 'rectangle':
+      return <div style={baseStyle} />
+    case 'rounded-rectangle':
+      return <div style={{ ...baseStyle, borderRadius: cornerRadius }} />
+    case 'circle':
+    case 'ellipse':
+      return <div style={{ ...baseStyle, borderRadius: '50%' }} />
+    case 'triangle':
+      return (
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="50,5 95,95 5,95"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    case 'diamond':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="50,5 95,50 50,95 5,50"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    case 'star':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    case 'hexagon':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="25,5 75,5 100,50 75,95 25,95 0,50"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    case 'arrow-right':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="0,20 65,20 65,5 100,30 65,55 65,40 0,40"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+            />
+          </svg>
+        </div>
+      )
+    case 'arrow-left':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 60" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="100,20 35,20 35,5 0,30 35,55 35,40 100,40"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+            />
+          </svg>
+        </div>
+      )
+    case 'arrow-up':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 60 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="30,0 55,35 40,35 40,100 20,100 20,35 5,35"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+            />
+          </svg>
+        </div>
+      )
+    case 'arrow-down':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 60 100" style={{ width: '100%', height: '100%' }}>
+            <polygon
+              points="30,100 55,65 40,65 40,0 20,0 20,65 5,65"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+            />
+          </svg>
+        </div>
+      )
+    case 'line':
+      return (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
+          <div style={{ width: '100%', height: strokeWidth || 4, backgroundColor: fill }} />
+        </div>
+      )
+    case 'callout':
+      return (
+        <div style={{ width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
+            <path
+              d="M5,5 H95 V70 H40 L25,95 L30,70 H5 Z"
+              fill={fillStyle}
+              stroke={strokeWidth > 0 ? strokeColor : 'none'}
+              strokeWidth={strokeWidth}
+              style={{ filter: shadow ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none' }}
+            />
+          </svg>
+        </div>
+      )
+    default:
+      return <div style={baseStyle} />
+  }
+}
+
+/**
+ * Renders a single slide element without interactive features.
+ */
+const renderElement = (element: AnySlideElement): React.ReactNode => {
+  const wrapperStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: element.position.x,
+    top: element.position.y,
+    width: element.size.width,
+    height: element.size.height,
+    transform: `rotate(${element.rotation}deg)`,
+    opacity: element.opacity,
+    zIndex: element.zIndex
+  }
+
+  return (
+    <div key={element.id} style={wrapperStyle}>
+      {element.type === 'text' && (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            backgroundColor: (element as TextElement).gradient ? undefined : (element as TextElement).backgroundColor,
+            background: (element as TextElement).gradient
+              ? gradientToCss((element as TextElement).gradient!)
+              : undefined,
+            padding: (element as TextElement).padding,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent:
+              (element as TextElement).verticalAlign === 'top'
+                ? 'flex-start'
+                : (element as TextElement).verticalAlign === 'bottom'
+                  ? 'flex-end'
+                  : 'center',
+            overflow: 'hidden'
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              fontFamily: (element as TextElement).fontFamily,
+              fontSize: (element as TextElement).fontSize,
+              fontWeight: (element as TextElement).fontWeight,
+              fontStyle: (element as TextElement).fontStyle,
+              textDecoration: (element as TextElement).textDecoration,
+              textAlign: (element as TextElement).textAlign,
+              color: (element as TextElement).color,
+              lineHeight: (element as TextElement).lineHeight,
+              letterSpacing: (element as TextElement).letterSpacing,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word'
+            }}
+          >
+            {(element as TextElement).content}
+          </div>
+        </div>
+      )}
+
+      {element.type === 'shape' && renderShape(element as ShapeElement)}
+
+      {element.type === 'image' && (
+        <img
+          src={(element as ImageElement).src}
+          alt={(element as ImageElement).alt}
+          crossOrigin="anonymous"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: (element as ImageElement).objectFit,
+            borderRadius: (element as ImageElement).borderRadius,
+            border:
+              (element as ImageElement).borderWidth > 0
+                ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
+                : 'none',
+            boxShadow: (element as ImageElement).shadow
+              ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+              : 'none'
+          }}
+          draggable={false}
+        />
+      )}
+
+      {element.type === 'code' && (
+        <pre
+          style={{
+            width: '100%',
+            height: '100%',
+            margin: 0,
+            padding: '1rem',
+            backgroundColor: (element as any).theme === 'dark' ? '#1e1e1e' : '#f8f8f8',
+            color: (element as any).theme === 'dark' ? '#d4d4d4' : '#333',
+            fontFamily: 'monospace',
+            fontSize: (element as any).fontSize,
+            overflow: 'hidden',
+            borderRadius: '8px'
+          }}
+        >
+          <code>{(element as any).code}</code>
+        </pre>
+      )}
+
+      {element.type === 'video' && (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'hsl(var(--foreground))',
+            borderRadius: (element as VideoElement).borderRadius,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'hsl(var(--background))',
+            fontSize: '14px'
+          }}
+        >
+          <span>Video: {(element as VideoElement).src}</span>
+        </div>
+      )}
+
+      {element.type === 'table' && (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            overflow: 'hidden',
+            borderRadius: (element as TableElement).borderRadius,
+            border: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
+          }}
+        >
+          <table
+            style={{
+              width: '100%',
+              height: '100%',
+              borderCollapse: 'collapse',
+              tableLayout: 'fixed'
+            }}
+          >
+            <thead>
+              <tr>
+                {(element as TableElement).headers.map((header, idx) => (
+                  <th
+                    key={`header-${idx}`}
+                    style={{
+                      backgroundColor: (element as TableElement).headerBackground,
+                      color: (element as TableElement).headerTextColor,
+                      fontSize: (element as TableElement).headerFontSize,
+                      fontWeight: 'bold',
+                      padding: (element as TableElement).cellPadding,
+                      textAlign: 'left',
+                      borderBottom: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`,
+                      borderRight:
+                        idx < (element as TableElement).headers.length - 1
+                          ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
+                          : 'none'
+                    }}
+                  >
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(element as TableElement).rows.map((row, rowIdx) => (
+                <tr key={`row-${rowIdx}`}>
+                  {row.map((cell, cellIdx) => (
+                    <td
+                      key={`cell-${rowIdx}-${cellIdx}`}
+                      style={{
+                        backgroundColor:
+                          (element as TableElement).rowAlternateBackground && rowIdx % 2 === 1
+                            ? (element as TableElement).rowAlternateBackground
+                            : (element as TableElement).rowBackground,
+                        color: (element as TableElement).rowTextColor,
+                        fontSize: (element as TableElement).fontSize,
+                        padding: (element as TableElement).cellPadding,
+                        textAlign: 'left',
+                        borderBottom:
+                          rowIdx < (element as TableElement).rows.length - 1
+                            ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
+                            : 'none',
+                        borderRight:
+                          cellIdx < row.length - 1
+                            ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
+                            : 'none',
+                        verticalAlign: 'middle',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Get background style for a slide.
+ */
+const getBackgroundStyle = (background: SlideData['background']): React.CSSProperties => {
+  switch (background.type) {
+    case 'gradient':
+      return background.gradient ? { background: gradientToCss(background.gradient) } : {}
+    case 'image':
+      return background.imageUrl
+        ? {
+            backgroundImage: `url(${background.imageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }
+        : {}
+    case 'video':
+      return { backgroundColor: '#000000' }
+    default:
+      return { backgroundColor: background.color || '#ffffff' }
+  }
+}
+
+/**
+ * Renders a single slide for export.
+ */
+const ExportSlide: React.FC<{ slide: SlideData }> = ({ slide }) => {
+  const sortedElements = [...slide.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+
+  return (
+    <div
+      data-export-slide="true"
+      style={{
+        width: SLIDE_WIDTH,
+        height: SLIDE_HEIGHT,
+        position: 'relative',
+        overflow: 'hidden',
+        flexShrink: 0,
+        ...getBackgroundStyle(slide.background)
+      }}
+    >
+      {slide.background.type === 'video' && slide.background.videoUrl && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'hsl(var(--foreground))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'hsl(var(--background))',
+            fontSize: '16px'
+          }}
+        >
+          Video Background
+        </div>
+      )}
+      {sortedElements.map(element => renderElement(element))}
+    </div>
+  )
+}
+
+/**
+ * Container component that renders multiple slides for export.
+ * Positioned off-screen for capturing.
+ */
+export const SlideExportRenderer: React.FC<SlideExportRendererProps> = ({ slides, slideIndices }) => {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: '-9999px',
+        top: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        backgroundColor: 'hsl(var(--muted))',
+        padding: '8px'
+      }}
+    >
+      {slideIndices.map(index => {
+        const slide = slides[index]
+        if (!slide) return null
+        return <ExportSlide key={`export-${slide.id}-${index}`} slide={slide} />
+      })}
+    </div>
+  )
+}
+
+export default SlideExportRenderer
