@@ -2,19 +2,12 @@
  * Backoffice Team Spending Analytics hook - global data (no supervisor/manager filter).
  * Adapted from manager useTeamSpendingAnalytics; does not filter by managerId.
  */
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-import type {
-  AnalyticsData,
-  ProcessedAnalyticsData,
-  DateRangeOption,
-  LocationFilter,
-  DepartmentFilter
-} from '../../manager-expenses/hooks/teamSpendingAnalytics/types'
-import { DateRangeOption as DateRangeEnum } from '../../manager-expenses/hooks/teamSpendingAnalytics/types'
+import type { ProcessedAnalyticsData } from '../../manager-expenses/hooks/teamSpendingAnalytics/types'
 import { fetchBackofficeAnalyticsData } from './teamSpendingAnalytics/backofficeDataFetch'
 import {
   processTimeSeriesData,
@@ -33,7 +26,8 @@ import {
   filterBySearch,
   getSelectedFilterIds,
   buildCoreProcessedAnalyticsData,
-  buildCorePaidClosedData
+  buildCorePaidClosedData,
+  useAnalyticsBaseState
 } from '../../manager-expenses/hooks/teamSpendingAnalytics/shared'
 
 export { DateRangeOption } from '../../manager-expenses/hooks/teamSpendingAnalytics/types'
@@ -44,14 +38,24 @@ export const useBackofficeTeamSpendingAnalytics = (
   currencyFilter?: string | null,
   availableDepartmentOptions?: Array<{ id: string; name: string }>
 ) => {
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeEnum.LAST_30_DAYS)
-  const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([])
-  const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([])
-  const [searchTerm, setSearchTerm] = useState<string>('')
-  const [departmentSearchTerm, setDepartmentSearchTerm] = useState<string>('')
-  const [rawData, setRawData] = useState<AnalyticsData | null>(null)
+  const {
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+    dateRange,
+    setDateRange,
+    locationFilters,
+    setLocationFilters,
+    departmentFilters,
+    setDepartmentFilters,
+    searchTerm,
+    setSearchTerm,
+    departmentSearchTerm,
+    setDepartmentSearchTerm,
+    rawData,
+    setRawData
+  } = useAnalyticsBaseState()
 
   const graphqlClient = useGraphQLClient(accessToken)
   const analyticsDebugEnabled =

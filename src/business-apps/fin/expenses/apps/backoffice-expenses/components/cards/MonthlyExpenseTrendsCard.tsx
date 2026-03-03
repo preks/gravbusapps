@@ -111,19 +111,21 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
     return monthName
   }
 
+  const renderCardTitle = () => (
+    <CardTitle className="gba:flex gba:items-center gba:gap-2">
+      <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
+      {getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
+        'Monthly Expense Trends'
+      )}{' '}
+      {currentYear}
+    </CardTitle>
+  )
+
   if (loading) {
     return (
       <Card data-testid="monthly-expense-trends-loading">
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-              'Monthly Expense Trends'
-            )}{' '}
-            {currentYear}
-          </CardTitle>
-        </CardHeader>
+        <CardHeader>{renderCardTitle()}</CardHeader>
         <CardContent>
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner size="lg" />
@@ -136,16 +138,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
   if (error) {
     return (
       <Card data-testid="monthly-expense-trends-error">
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-              'Monthly Expense Trends'
-            )}{' '}
-            {currentYear}
-          </CardTitle>
-        </CardHeader>
+        <CardHeader>{renderCardTitle()}</CardHeader>
         <CardContent>
           <Alert variant="destructive">
             <div>
@@ -169,16 +162,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
 
   return (
     <Card data-testid="monthly-expense-trends-card">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <IconAvatar icon={ChartBarIcon} variant={safeVariant as any} size="md" decorative />
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-            'Monthly Expense Trends'
-          )}{' '}
-          {currentYear}
-        </CardTitle>
-      </CardHeader>
+      <CardHeader>{renderCardTitle()}</CardHeader>
       <CardContent>
         {monthlyTrends.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid="monthly-expense-trends-empty-state">

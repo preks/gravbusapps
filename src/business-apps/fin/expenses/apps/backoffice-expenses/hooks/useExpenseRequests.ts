@@ -4,6 +4,7 @@ import { GET_EXPENSE_REQUESTS, PROCESS_PAYMENT_MUTATION } from '../queries'
 import { ExpenseData, ExpenseRequestQueryData } from '../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDateLocalized } from '../utils/dateUtils'
+import { buildNumericRangeCondition, buildSearchCondition as buildSearchConditionBase } from './queryFilterUtils'
 
 type GqlBoolExp = Record<string, unknown>
 
@@ -192,15 +193,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
   // Helper: Build amount filter condition (reduces cognitive complexity)
   const buildAmountFilterCondition = (amountMin?: string, amountMax?: string): any[] => {
-    if (!amountMin && !amountMax) return []
-
-    const amountConditions: any = {}
-    if (amountMin) amountConditions._gte = Number.parseFloat(amountMin)
-    if (amountMax) amountConditions._lte = Number.parseFloat(amountMax)
-
-    if (Object.keys(amountConditions).length === 0) return []
-
-    return [{ totalAmount: amountConditions }]
+    return buildNumericRangeCondition(amountMin, amountMax, amountConditions => ({ totalAmount: amountConditions }))
   }
 
   // Helper: Build date range filter conditions (reduces cognitive complexity)
@@ -229,26 +222,19 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
   // Helper: Build search condition (reduces cognitive complexity)
   const buildSearchCondition = (searchTerm: string): any[] => {
-    if (!searchTerm || searchTerm.trim() === '') return []
-
-    const searchValue = `%${searchTerm.trim()}%`
-    return [
-      {
-        _or: [
-          { employee: { firstName: { _ilike: searchValue } } },
-          { employee: { lastName: { _ilike: searchValue } } },
-          { employee: { displayName: { _ilike: searchValue } } },
-          { employee: { code: { _ilike: searchValue } } },
-          { title: { _ilike: searchValue } },
-          { code: { _ilike: searchValue } },
-          { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } },
-          { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } },
-          { requestType: { value: { _ilike: searchValue } } },
-          { requestType: { translations: { value: { _ilike: searchValue } } } },
-          { currency: { code: { _ilike: searchValue } } }
-        ]
-      }
-    ]
+    return buildSearchConditionBase(searchTerm, searchValue => [
+      { employee: { firstName: { _ilike: searchValue } } },
+      { employee: { lastName: { _ilike: searchValue } } },
+      { employee: { displayName: { _ilike: searchValue } } },
+      { employee: { code: { _ilike: searchValue } } },
+      { title: { _ilike: searchValue } },
+      { code: { _ilike: searchValue } },
+      { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } },
+      { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } },
+      { requestType: { value: { _ilike: searchValue } } },
+      { requestType: { translations: { value: { _ilike: searchValue } } } },
+      { currency: { code: { _ilike: searchValue } } }
+    ])
   }
 
   // Helper: Build effective date filter condition (matching manager/personal pattern)

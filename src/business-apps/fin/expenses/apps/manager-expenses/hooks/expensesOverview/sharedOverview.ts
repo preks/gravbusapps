@@ -1,5 +1,20 @@
 export type DateRangeInput = { from?: string | null; to?: string | null } | null | undefined
 export type GqlBoolExp = Record<string, unknown>
+type RequestTypeMode = 'plan' | 'request'
+type PaginationParams = {
+  currencyRef?: string | null
+  searchTerm?: string | null
+  monthStart?: string | null
+  monthEnd?: string | null
+  yearStart?: string | null
+  requests?: { limit?: number; offset?: number; orderBy?: any[] }
+  plans?: { limit?: number; offset?: number; orderBy?: any[] }
+  payments?: { limit?: number; offset?: number; orderBy?: any[] }
+  requestsStatus?: string[]
+  plansStatus?: string[]
+  plansStatusExclude?: readonly string[]
+  paymentsStatus?: string[]
+}
 
 export type OverviewDateFilterParams = {
   plansEffectiveDateRange?: DateRangeInput
@@ -31,17 +46,26 @@ export function wrapFieldCondition(field: string, condition: GqlBoolExp | null):
   return condition ? ({ [field]: condition } as unknown as GqlBoolExp) : null
 }
 
-export function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
+function buildEffectiveDateFilter(range: DateRangeInput, mode: RequestTypeMode): GqlBoolExp | null {
   if (!range?.from && !range?.to) return null
   const tripAnd: GqlBoolExp[] = []
   const expenseAnd: GqlBoolExp[] = []
+
+  const assignExpenseDateCondition = (operator: '_gte' | '_lte', value: string) => {
+    if (mode === 'plan') {
+      expenseAnd.push({ expensePlanItem: { expenseDate: { [operator]: value } } })
+      return
+    }
+    expenseAnd.push({ expenseItem: { expenseDate: { [operator]: value } } })
+  }
+
   if (range.from) {
     tripAnd.push({ startDate: { _gte: range.from } })
-    expenseAnd.push({ expensePlanItem: { expenseDate: { _gte: range.from } } })
+    assignExpenseDateCondition('_gte', range.from)
   }
   if (range.to) {
     tripAnd.push({ startDate: { _lte: range.to } })
-    expenseAnd.push({ expensePlanItem: { expenseDate: { _lte: range.to } } })
+    assignExpenseDateCondition('_lte', range.to)
   }
   if (tripAnd.length === 0 && expenseAnd.length === 0) return null
   return {
@@ -52,25 +76,12 @@ export function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp 
   } as unknown as GqlBoolExp
 }
 
+export function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
+  return buildEffectiveDateFilter(range, 'plan')
+}
+
 export function buildRequestEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
-  if (!range?.from && !range?.to) return null
-  const tripAnd: GqlBoolExp[] = []
-  const expenseAnd: GqlBoolExp[] = []
-  if (range.from) {
-    tripAnd.push({ startDate: { _gte: range.from } })
-    expenseAnd.push({ expenseItem: { expenseDate: { _gte: range.from } } })
-  }
-  if (range.to) {
-    tripAnd.push({ startDate: { _lte: range.to } })
-    expenseAnd.push({ expenseItem: { expenseDate: { _lte: range.to } } })
-  }
-  if (tripAnd.length === 0 && expenseAnd.length === 0) return null
-  return {
-    _or: [
-      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
-      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
-    ]
-  } as unknown as GqlBoolExp
+  return buildEffectiveDateFilter(range, 'request')
 }
 
 export function buildPlanTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
@@ -229,5 +240,185 @@ export function buildOverviewCoreState(result: any) {
     totalRequestsAll: Number(result?.TotalRequestsAllCountAggregate?.aggregate?.count ?? 0),
     totalPlansAll: Number(result?.TotalPlansAllCountAggregate?.aggregate?.count ?? 0),
     totalPaymentsAll: Number(result?.TotalPaymentsAllCountAggregate?.aggregate?.count ?? 0)
+  }
+}
+
+export function buildOverviewBaseVariables(
+  params: PaginationParams,
+  defaults: { reqOrder: any[]; planOrder: any[]; payOrder: any[] }
+): Record<string, unknown> {
+  const currencyRef = params.currencyRef || null
+  const searchTerm = buildSearchPattern(params.searchTerm)
+  const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+
+  return {
+    currencyRef,
+    searchTerm,
+    reqLimit: params.requests?.limit ?? 20,
+    reqOffset: params.requests?.offset ?? 0,
+    reqOrderBy: params.requests?.orderBy ?? defaults.reqOrder,
+    planLimit: params.plans?.limit ?? 20,
+    planOffset: params.plans?.offset ?? 0,
+    planOrderBy: params.plans?.orderBy ?? defaults.planOrder,
+    payLimit: params.payments?.limit ?? 20,
+    payOffset: params.payments?.offset ?? 0,
+    payOrderBy: params.payments?.orderBy ?? defaults.payOrder,
+    monthStart: params.monthStart ?? undefined,
+    monthEnd: params.monthEnd ?? undefined,
+    yearStart: params.yearStart ?? undefined,
+    reqCurrencyWhere,
+    planCurrencyWhere,
+    payCurrencyWhere
+  }
+}
+
+export function buildOverviewState(
+  result: any,
+  distinctCurrencies: string[],
+  distinctCurrenciesFromPayments: string[],
+  monthlyExpenseTrends: Array<{ month: string; amount: number }>,
+  expenseCategories: Array<{ name: string; amount: number }>
+) {
+  return {
+    distinctCurrencies,
+    distinctCurrenciesFromPayments,
+    monthlyExpenseTrends,
+    expenseCategories,
+    ...buildOverviewCoreState(result)
+  }
+}
+
+const OVERVIEW_CURRENCY_KEYS = [
+  'DistinctCurrenciesFromItems',
+  'DistinctCurrenciesFromRequests',
+  'DistinctCurrenciesFromPlans',
+  'DistinctCurrenciesFromPayments'
+]
+
+export function extractDistinctOverviewCurrencies(result: any): string[] {
+  const currencyRefs = new Set<string>()
+
+  if (Array.isArray(result?.DistinctCurrencies)) {
+    for (const row of result.DistinctCurrencies) {
+      if (row?.currency_ref) currencyRefs.add(row.currency_ref)
+    }
+  } else {
+    extractDistinctCurrenciesByKeys(result, OVERVIEW_CURRENCY_KEYS).forEach(currencyRef => {
+      currencyRefs.add(currencyRef)
+    })
+  }
+
+  return Array.from(currencyRefs).sort((left, right) => left.localeCompare(right))
+}
+
+export function extractDistinctOverviewPaymentCurrencies(result: any): string[] {
+  return extractDistinctCurrenciesByKeys(result, ['DistinctCurrenciesFromPayments'])
+}
+
+export function buildOverviewStateFromResult(result: any) {
+  const distinctCurrencies = extractDistinctOverviewCurrencies(result)
+  const distinctCurrenciesFromPayments = extractDistinctOverviewPaymentCurrencies(result)
+  const trendItems = Array.isArray(result?.MonthlyExpenseItemsForTrends) ? result.MonthlyExpenseItemsForTrends : []
+  const monthlyExpenseTrends = buildMonthlyTrends(trendItems)
+  const expenseCategories = aggregateExpenseCategories(trendItems)
+
+  return buildOverviewState(
+    result,
+    distinctCurrencies,
+    distinctCurrenciesFromPayments,
+    monthlyExpenseTrends,
+    expenseCategories
+  )
+}
+
+export function buildOverviewCoreDependencies(params: PaginationParams): unknown[] {
+  return [
+    params.currencyRef,
+    params.searchTerm,
+    params.requests?.limit,
+    params.requests?.offset,
+    params.requests?.orderBy,
+    params.plans?.limit,
+    params.plans?.offset,
+    params.plans?.orderBy,
+    params.payments?.limit,
+    params.payments?.offset,
+    params.payments?.orderBy,
+    params.monthStart,
+    params.monthEnd,
+    params.yearStart,
+    JSON.stringify(params.requestsStatus || []),
+    JSON.stringify(params.plansStatus || []),
+    JSON.stringify(params.plansStatusExclude || []),
+    JSON.stringify(params.paymentsStatus || [])
+  ]
+}
+
+type CachedState<T> = { ts: number; data: T }
+type ExecuteWithCacheOptions<TState> = {
+  signature: string
+  latestSignatureRef: { current: string }
+  cacheBySignature: Map<string, CachedState<TState>>
+  inFlightBySignature: Map<string, Promise<any>>
+  cacheTtlMs: number
+  setError: (value: string | null) => void
+  setIsLoading: (value: boolean) => void
+  setState: (value: TState) => void
+  requestFactory: () => Promise<any>
+  resultToState: (result: any) => TState
+  fallbackErrorMessage: string
+}
+
+export async function executeOverviewWithCache<TState>(options: ExecuteWithCacheOptions<TState>): Promise<void> {
+  const {
+    signature,
+    latestSignatureRef,
+    cacheBySignature,
+    inFlightBySignature,
+    cacheTtlMs,
+    setError,
+    setIsLoading,
+    setState,
+    requestFactory,
+    resultToState,
+    fallbackErrorMessage
+  } = options
+
+  setError(null)
+  const cached = cacheBySignature.get(signature)
+  if (cached && Date.now() - cached.ts < cacheTtlMs) {
+    latestSignatureRef.current = signature
+    setState(cached.data)
+    setIsLoading(false)
+    return
+  }
+
+  latestSignatureRef.current = signature
+  setIsLoading(true)
+
+  try {
+    let requestPromise = inFlightBySignature.get(signature)
+    if (!requestPromise) {
+      requestPromise = requestFactory().finally(() => {
+        inFlightBySignature.delete(signature)
+      })
+      inFlightBySignature.set(signature, requestPromise)
+    }
+
+    const result = await requestPromise
+    if (latestSignatureRef.current !== signature) return
+
+    const nextState = resultToState(result)
+    setState(nextState)
+    cacheBySignature.set(signature, { ts: Date.now(), data: nextState })
+  } catch (error: any) {
+    if (latestSignatureRef.current !== signature) return
+    setError(error?.message || fallbackErrorMessage)
+  } finally {
+    if (latestSignatureRef.current === signature) {
+      setIsLoading(false)
+    }
   }
 }

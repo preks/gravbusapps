@@ -606,6 +606,48 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     }
   }, [])
 
+  const renderMinMaxNumberFilter = useCallback(
+    (
+      minValue: string,
+      maxValue: string,
+      setMinValue: (value: string) => void,
+      setMaxValue: (value: string) => void,
+      testIdPrefix: string
+    ) => (
+      <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
+          <input
+            type="number"
+            value={minValue}
+            onChange={event => {
+              setMinValue(event.target.value)
+              setCurrentPage(1)
+            }}
+            className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            placeholder="Min"
+            data-testid={`${testIdPrefix}-min-filter-input`}
+          />
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
+          <input
+            type="number"
+            value={maxValue}
+            onChange={event => {
+              setMaxValue(event.target.value)
+              setCurrentPage(1)
+            }}
+            className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            placeholder="Max"
+            data-testid={`${testIdPrefix}-max-filter-input`}
+          />
+        </div>
+      </div>
+    ),
+    []
+  )
+
   // Filter groups for DataContainer
   const filterGroups: DataFilterGroup[] = [
     {
@@ -656,37 +698,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       id: 'amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
       type: 'custom',
-      customComponent: (
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
-            <input
-              type="number"
-              value={amountMinFilter}
-              onChange={e => {
-                setAmountMinFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Min"
-              data-testid="amount-min-filter-input"
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
-            <input
-              type="number"
-              value={amountMaxFilter}
-              onChange={e => {
-                setAmountMaxFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Max"
-              data-testid="amount-max-filter-input"
-            />
-          </div>
-        </div>
+      customComponent: renderMinMaxNumberFilter(
+        amountMinFilter,
+        amountMaxFilter,
+        setAmountMinFilter,
+        setAmountMaxFilter,
+        'amount'
       )
     },
     {
@@ -696,37 +713,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         'Advance'
       ),
       type: 'custom',
-      customComponent: (
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
-            <input
-              type="number"
-              value={advanceMinFilter}
-              onChange={e => {
-                setAdvanceMinFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Min"
-              data-testid="advance-min-filter-input"
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
-            <input
-              type="number"
-              value={advanceMaxFilter}
-              onChange={e => {
-                setAdvanceMaxFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Max"
-              data-testid="advance-max-filter-input"
-            />
-          </div>
-        </div>
+      customComponent: renderMinMaxNumberFilter(
+        advanceMinFilter,
+        advanceMaxFilter,
+        setAdvanceMinFilter,
+        setAdvanceMaxFilter,
+        'advance'
       )
     }
   ]

@@ -3,13 +3,12 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { MANAGER_EXPENSES_OVERVIEW } from '../queries/ManagerExpensesOverview'
 import {
-  buildSearchPattern,
   buildPlanDateWhereClause,
   buildRequestDateWhereClause,
-  extractDistinctCurrenciesByKeys,
-  buildMonthlyTrends,
-  aggregateExpenseCategories,
-  buildOverviewCoreState,
+  buildOverviewBaseVariables,
+  buildOverviewStateFromResult,
+  buildOverviewCoreDependencies,
+  executeOverviewWithCache,
   type GqlBoolExp
 } from './expensesOverview/sharedOverview'
 
@@ -131,32 +130,15 @@ function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]):
 }
 
 function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Record<string, unknown> {
-  const currencyRef = params.currencyRef || null
-  const searchTerm = buildSearchPattern(params.searchTerm)
-
-  const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-  const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-  const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const baseVariables = buildOverviewBaseVariables(params, {
+    reqOrder: DEFAULT_REQ_ORDER,
+    planOrder: DEFAULT_PLAN_ORDER,
+    payOrder: DEFAULT_PAY_ORDER
+  })
 
   return {
+    ...baseVariables,
     managerId: params.managerId,
-    currencyRef,
-    searchTerm,
-    reqLimit: params.requests?.limit ?? 20,
-    reqOffset: params.requests?.offset ?? 0,
-    reqOrderBy: params.requests?.orderBy ?? DEFAULT_REQ_ORDER,
-    planLimit: params.plans?.limit ?? 20,
-    planOffset: params.plans?.offset ?? 0,
-    planOrderBy: params.plans?.orderBy ?? DEFAULT_PLAN_ORDER,
-    payLimit: params.payments?.limit ?? 20,
-    payOffset: params.payments?.offset ?? 0,
-    payOrderBy: params.payments?.orderBy ?? DEFAULT_PAY_ORDER,
-    monthStart: params.monthStart ?? undefined,
-    monthEnd: params.monthEnd ?? undefined,
-    yearStart: params.yearStart ?? undefined,
-    reqCurrencyWhere,
-    planCurrencyWhere,
-    payCurrencyWhere,
     planDateWhere: buildPlanDateWhereClause(params),
     reqDateWhere: buildRequestDateWhereClause(params),
     reqStatusWhere: buildStatusWhere(params.requestsStatus),
@@ -170,45 +152,6 @@ const inFlightBySignature: Map<string, Promise<any>> = new Map()
 // Small memory cache to keep recent results for smooth tab transitions
 const cacheBySignature: Map<string, { ts: number; data: ManagerExpensesOverviewState }> = new Map()
 const CACHE_TTL_MS = 30_000 // 30s TTL for smooth transitions
-
-function extractDistinctCurrencies(result: any): string[] {
-  const currencyRefs = new Set<string>()
-
-  if (Array.isArray(result?.DistinctCurrencies)) {
-    for (const row of result.DistinctCurrencies) {
-      if (row?.currency_ref) currencyRefs.add(row.currency_ref)
-    }
-  } else {
-    extractDistinctCurrenciesByKeys(result, [
-      'DistinctCurrenciesFromItems',
-      'DistinctCurrenciesFromRequests',
-      'DistinctCurrenciesFromPlans',
-      'DistinctCurrenciesFromPayments'
-    ]).forEach(currencyRef => currencyRefs.add(currencyRef))
-  }
-
-  return Array.from(currencyRefs).sort((left, right) => left.localeCompare(right))
-}
-
-function extractDistinctCurrenciesFromPayments(result: any): string[] {
-  return extractDistinctCurrenciesByKeys(result, ['DistinctCurrenciesFromPayments'])
-}
-
-function transformResultToState(
-  result: any,
-  distinctCurrencies: string[],
-  distinctCurrenciesFromPayments: string[],
-  monthlyExpenseTrends: Array<{ month: string; amount: number }>,
-  expenseCategories: Array<{ name: string; amount: number }>
-): ManagerExpensesOverviewState {
-  return {
-    distinctCurrencies,
-    distinctCurrenciesFromPayments,
-    monthlyExpenseTrends,
-    expenseCategories,
-    ...buildOverviewCoreState(result)
-  }
-}
 
 export const useManagerExpensesOverview = (
   context: BusinessAppContextProps,
@@ -226,25 +169,7 @@ export const useManagerExpensesOverview = (
     return buildOverviewVariables(params)
   }, [
     params.managerId,
-    params.currencyRef,
-    params.searchTerm,
-    params.requests?.limit,
-    params.requests?.offset,
-    params.requests?.orderBy,
-    params.plans?.limit,
-    params.plans?.offset,
-    params.plans?.orderBy,
-    params.payments?.limit,
-    params.payments?.offset,
-    params.payments?.orderBy,
-    params.monthStart,
-    params.monthEnd,
-    params.yearStart,
-    // Serialize status arrays for dependency comparison
-    JSON.stringify(params.requestsStatus || []),
-    JSON.stringify(params.plansStatus || []),
-    JSON.stringify(params.plansStatusExclude || []),
-    JSON.stringify(params.paymentsStatus || []),
+    ...buildOverviewCoreDependencies(params),
     // Date range filters
     params.plansEffectiveDateRange?.from,
     params.plansEffectiveDateRange?.to,
@@ -272,57 +197,19 @@ export const useManagerExpensesOverview = (
   const run = useCallback(async () => {
     if (!context.accessToken || !variables.managerId) return
     const signature = JSON.stringify(variables)
-
-    setError(null)
-    // Use cache to avoid flashes on tab switches
-    const cached = cacheBySignature.get(signature)
-    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-      latestSignatureRef.current = signature
-      setState(cached.data)
-      setIsLoading(false)
-      return
-    }
-
-    latestSignatureRef.current = signature
-    setIsLoading(true)
-    try {
-      let requestPromise = inFlightBySignature.get(signature)
-      if (!requestPromise) {
-        requestPromise = graphqlClient.request(MANAGER_EXPENSES_OVERVIEW, variables).finally(() => {
-          inFlightBySignature.delete(signature)
-        })
-        inFlightBySignature.set(signature, requestPromise)
-      }
-      const result: any = await requestPromise
-
-      // Ignore stale response if a newer request was started (e.g. filter + page reset)
-      if (latestSignatureRef.current !== signature) return
-
-      // Extract and aggregate data using helper functions
-      const distinctCurrencies = extractDistinctCurrencies(result)
-      const distinctCurrenciesFromPayments = extractDistinctCurrenciesFromPayments(result)
-
-      const trendItems = Array.isArray(result?.MonthlyExpenseItemsForTrends) ? result.MonthlyExpenseItemsForTrends : []
-      const monthlyExpenseTrends = buildMonthlyTrends(trendItems)
-      const expenseCategories = aggregateExpenseCategories(trendItems)
-
-      // Transform result into final state
-      const nextState = transformResultToState(
-        result,
-        distinctCurrencies,
-        distinctCurrenciesFromPayments,
-        monthlyExpenseTrends,
-        expenseCategories
-      )
-
-      setState(nextState)
-      cacheBySignature.set(signature, { ts: Date.now(), data: nextState })
-    } catch (e: any) {
-      if (latestSignatureRef.current !== signature) return
-      setError(e?.message || 'Failed to load manager expenses overview')
-    } finally {
-      if (latestSignatureRef.current === signature) setIsLoading(false)
-    }
+    await executeOverviewWithCache({
+      signature,
+      latestSignatureRef,
+      cacheBySignature,
+      inFlightBySignature,
+      cacheTtlMs: CACHE_TTL_MS,
+      setError,
+      setIsLoading,
+      setState,
+      requestFactory: () => graphqlClient.request(MANAGER_EXPENSES_OVERVIEW, variables),
+      resultToState: (result: any) => buildOverviewStateFromResult(result) as ManagerExpensesOverviewState,
+      fallbackErrorMessage: 'Failed to load manager expenses overview'
+    })
   }, [context.accessToken, graphqlClient, variables])
 
   useEffect(() => {

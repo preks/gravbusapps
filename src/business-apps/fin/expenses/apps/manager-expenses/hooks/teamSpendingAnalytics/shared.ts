@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import { useState } from 'react'
 import type { AnalyticsData, DateRangeOption, DepartmentFilter, LocationFilter, ProcessedAnalyticsData } from './types'
 import { DateRangeOption as DateRangeEnum } from './types'
 import { filterAllData } from './filterUtils'
@@ -123,6 +124,36 @@ export type CorePaidClosedData = {
   paidClosedExpenseRequests: any[]
   paidClosedExpensePlans: any[]
   paidClosedAdvancePayments: any[]
+}
+
+export const useAnalyticsBaseState = () => {
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeEnum.LAST_30_DAYS)
+  const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([])
+  const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([])
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [departmentSearchTerm, setDepartmentSearchTerm] = useState<string>('')
+  const [rawData, setRawData] = useState<AnalyticsData | null>(null)
+
+  return {
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+    dateRange,
+    setDateRange,
+    locationFilters,
+    setLocationFilters,
+    departmentFilters,
+    setDepartmentFilters,
+    searchTerm,
+    setSearchTerm,
+    departmentSearchTerm,
+    setDepartmentSearchTerm,
+    rawData,
+    setRawData
+  }
 }
 
 export const getSelectedFilterIds = (

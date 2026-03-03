@@ -55,21 +55,22 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
   // ⚡ REMOVED: Automatic currency setting to prevent override of user selections
   // The dashboard will handle all currency initialization
 
+  const toParentFilters = (value: FilterOptions): FilterOptions => ({
+    ...value,
+    department: value.department === 'all' ? '' : value.department,
+    currency: value.currency === 'all' ? '' : value.currency
+  })
+
+  const applyFilters = (nextFilters: FilterOptions) => {
+    if (!currentFilters) {
+      setInternalFilters(nextFilters)
+    }
+    onFiltersChange(toParentFilters(nextFilters))
+  }
+
   const handleFilterChange = (key: keyof FilterOptions, value: string) => {
     const newFilters = { ...filters, [key]: value } as FilterOptions
-
-    // Update internal state if not controlled by parent
-    if (!currentFilters) {
-      setInternalFilters(newFilters)
-    }
-
-    // Convert "all" values to empty strings for the parent component
-    const filtersForParent = {
-      ...newFilters,
-      department: newFilters.department === 'all' ? '' : newFilters.department,
-      currency: newFilters.currency === 'all' ? '' : newFilters.currency
-    }
-    onFiltersChange(filtersForParent)
+    applyFilters(newFilters)
   }
 
   const clearFilter = (filterKey: keyof FilterOptions) => {
@@ -90,18 +91,7 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
         delete newFilters[filterKey]
     }
 
-    // Update internal state if not controlled by parent
-    if (!currentFilters) {
-      setInternalFilters(newFilters)
-    }
-
-    // Convert "all" values to empty strings for the parent component
-    const filtersForParent = {
-      ...newFilters,
-      department: newFilters.department === 'all' ? '' : newFilters.department,
-      currency: newFilters.currency === 'all' ? '' : newFilters.currency
-    }
-    onFiltersChange(filtersForParent)
+    applyFilters(newFilters)
   }
 
   return (

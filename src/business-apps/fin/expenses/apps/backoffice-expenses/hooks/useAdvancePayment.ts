@@ -7,6 +7,7 @@ import {
   GET_ADVANCE_PAYMENT_REPORTERS
 } from '../queries/advancePayment.queries'
 import { AdvancePaymentItem, AdvancePaymentStatisticsData } from '../types'
+import { buildNumericRangeCondition, buildSearchCondition as buildSearchConditionBase } from './queryFilterUtils'
 
 // ⚡ BEST PRACTICE: Query limit enforcement for safety (like leads)
 const MAX_QUERY_LIMIT = 1000
@@ -86,40 +87,23 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
 
   // Helper: Build search condition (reduces cognitive complexity)
   const buildSearchCondition = (searchTerm: string): any[] => {
-    if (!searchTerm || searchTerm.trim() === '') return []
-
-    const searchValue = `%${searchTerm.trim()}%`
-    return [
-      {
-        _or: [
-          { code: { _ilike: searchValue } },
-          { description: { _ilike: searchValue } },
-          { expensePlan: { code: { _ilike: searchValue } } },
-          { expensePlan: { title: { _ilike: searchValue } } },
-          { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
-          { expensePlan: { employee: { lastName: { _ilike: searchValue } } } }
-        ]
-      }
-    ]
+    return buildSearchConditionBase(searchTerm, searchValue => [
+      { code: { _ilike: searchValue } },
+      { description: { _ilike: searchValue } },
+      { expensePlan: { code: { _ilike: searchValue } } },
+      { expensePlan: { title: { _ilike: searchValue } } },
+      { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
+      { expensePlan: { employee: { lastName: { _ilike: searchValue } } } }
+    ])
   }
 
   // Helper: Build amount filter condition (reduces cognitive complexity)
   const buildAmountFilterCondition = (amountMin?: string, amountMax?: string): any[] => {
-    if (!amountMin && !amountMax) return []
-
-    const amountConditions: any = {}
-    if (amountMin) amountConditions._gte = Number.parseFloat(amountMin)
-    if (amountMax) amountConditions._lte = Number.parseFloat(amountMax)
-
-    if (Object.keys(amountConditions).length === 0) return []
-
-    return [
-      {
-        expensePlan: {
-          totalAmount: amountConditions
-        }
+    return buildNumericRangeCondition(amountMin, amountMax, amountConditions => ({
+      expensePlan: {
+        totalAmount: amountConditions
       }
-    ]
+    }))
   }
 
   // Helper: Build advance filter condition (reduces cognitive complexity)

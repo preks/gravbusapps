@@ -10,13 +10,12 @@ import {
   BACKOFFICE_EXPENSES_OVERVIEW_TABLE
 } from '../queries/backofficeExpensesOverview'
 import {
-  buildSearchPattern,
   buildPlanDateWhereClause,
   buildRequestDateWhereClause,
-  extractDistinctCurrenciesByKeys,
-  buildMonthlyTrends,
-  aggregateExpenseCategories,
-  buildOverviewCoreState,
+  buildOverviewBaseVariables,
+  buildOverviewStateFromResult,
+  buildOverviewCoreDependencies,
+  executeOverviewWithCache,
   type GqlBoolExp
 } from '../../manager-expenses/hooks/expensesOverview/sharedOverview'
 
@@ -180,30 +179,14 @@ function combineWithAnd(baseWhere: GqlBoolExp, extraWhere: GqlBoolExp): GqlBoolE
 }
 
 function buildBackofficeOverviewVariables(params: UseBackofficeExpensesOverviewParams): Record<string, unknown> {
-  const currencyRef = params.currencyRef || null
-  const searchTerm = buildSearchPattern(params.searchTerm)
-  const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-  const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-  const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const baseVariables = buildOverviewBaseVariables(params, {
+    reqOrder: DEFAULT_REQ_ORDER,
+    planOrder: DEFAULT_PLAN_ORDER,
+    payOrder: DEFAULT_PAY_ORDER
+  })
 
   return {
-    currencyRef,
-    searchTerm,
-    reqLimit: params.requests?.limit ?? 20,
-    reqOffset: params.requests?.offset ?? 0,
-    reqOrderBy: params.requests?.orderBy ?? DEFAULT_REQ_ORDER,
-    planLimit: params.plans?.limit ?? 20,
-    planOffset: params.plans?.offset ?? 0,
-    planOrderBy: params.plans?.orderBy ?? DEFAULT_PLAN_ORDER,
-    payLimit: params.payments?.limit ?? 20,
-    payOffset: params.payments?.offset ?? 0,
-    payOrderBy: params.payments?.orderBy ?? DEFAULT_PAY_ORDER,
-    monthStart: params.monthStart ?? undefined,
-    monthEnd: params.monthEnd ?? undefined,
-    yearStart: params.yearStart ?? undefined,
-    reqCurrencyWhere,
-    planCurrencyWhere,
-    payCurrencyWhere,
+    ...baseVariables,
     planDateWhere: combineWithAnd(
       combineWithAnd(buildPlanDateWhereClause(params), buildEmployeeNameWhere(params.plansEmployeeNames, 'employee')),
       buildDepartmentNameWhere(params.plansDepartmentNames, 'employee')
@@ -302,35 +285,6 @@ const inFlightBySignature: Map<string, Promise<any>> = new Map()
 const cacheBySignature: Map<string, { ts: number; data: BackofficeExpensesOverviewState }> = new Map()
 const CACHE_TTL_MS = 30_000
 
-function extractDistinctCurrenciesFromPayments(result: any): string[] {
-  return extractDistinctCurrenciesByKeys(result, ['DistinctCurrenciesFromPayments'])
-}
-
-function extractDistinctCurrencies(result: any): string[] {
-  return extractDistinctCurrenciesByKeys(result, [
-    'DistinctCurrenciesFromItems',
-    'DistinctCurrenciesFromRequests',
-    'DistinctCurrenciesFromPlans',
-    'DistinctCurrenciesFromPayments'
-  ])
-}
-
-function transformResultToState(
-  result: any,
-  distinctCurrencies: string[],
-  distinctCurrenciesFromPayments: string[],
-  monthlyExpenseTrends: Array<{ month: string; amount: number }>,
-  expenseCategories: Array<{ name: string; amount: number }>
-): BackofficeExpensesOverviewState {
-  return {
-    distinctCurrencies,
-    distinctCurrenciesFromPayments,
-    monthlyExpenseTrends,
-    expenseCategories,
-    ...buildOverviewCoreState(result)
-  }
-}
-
 export const useBackofficeExpensesOverview = (
   context: BusinessAppContextProps,
   params: UseBackofficeExpensesOverviewParams
@@ -344,24 +298,7 @@ export const useBackofficeExpensesOverview = (
   const variables = useMemo(
     () => buildBackofficeOverviewVariables(params),
     [
-      params.currencyRef,
-      params.searchTerm,
-      params.requests?.limit,
-      params.requests?.offset,
-      params.requests?.orderBy,
-      params.plans?.limit,
-      params.plans?.offset,
-      params.plans?.orderBy,
-      params.payments?.limit,
-      params.payments?.offset,
-      params.payments?.orderBy,
-      params.monthStart,
-      params.monthEnd,
-      params.yearStart,
-      JSON.stringify(params.requestsStatus || []),
-      JSON.stringify(params.plansStatus || []),
-      JSON.stringify(params.plansStatusExclude || []),
-      JSON.stringify(params.paymentsStatus || []),
+      ...buildOverviewCoreDependencies(params),
       JSON.stringify(params.requestsEmployeeNames || []),
       JSON.stringify(params.plansEmployeeNames || []),
       JSON.stringify(params.paymentsEmployeeNames || []),
@@ -402,62 +339,32 @@ export const useBackofficeExpensesOverview = (
     const tableVariables = pickTableQueryVariables(variables)
     const kpiVariables = pickKpiQueryVariables(variables)
     const signature = JSON.stringify({ tableVariables, kpiVariables, shouldFetchTable, shouldFetchKpis })
-    setError(null)
-    const cached = cacheBySignature.get(signature)
-    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-      latestSignatureRef.current = signature
-      setState(cached.data)
-      setIsLoading(false)
-      return
-    }
-    latestSignatureRef.current = signature
-    setIsLoading(true)
-    try {
-      let requestPromise = inFlightBySignature.get(signature)
-      if (!requestPromise) {
-        requestPromise = Promise.all([
+    await executeOverviewWithCache({
+      signature,
+      latestSignatureRef,
+      cacheBySignature,
+      inFlightBySignature,
+      cacheTtlMs: CACHE_TTL_MS,
+      setError,
+      setIsLoading,
+      setState,
+      requestFactory: () =>
+        Promise.all([
           shouldFetchTable
             ? graphqlClient.request(BACKOFFICE_EXPENSES_OVERVIEW_TABLE, tableVariables)
             : Promise.resolve(undefined),
           shouldFetchKpis
             ? graphqlClient.request(BACKOFFICE_EXPENSES_OVERVIEW_KPI, kpiVariables)
             : Promise.resolve(undefined)
-        ])
-          .then(([tableResult, kpiResult]) =>
-            mergeOverviewResults(
-              tableResult as Record<string, unknown> | undefined,
-              kpiResult as Record<string, unknown> | undefined
-            )
+        ]).then(([tableResult, kpiResult]) =>
+          mergeOverviewResults(
+            tableResult as Record<string, unknown> | undefined,
+            kpiResult as Record<string, unknown> | undefined
           )
-          .finally(() => {
-            inFlightBySignature.delete(signature)
-          })
-        inFlightBySignature.set(signature, requestPromise)
-      }
-      const result: any = await requestPromise
-      if (latestSignatureRef.current !== signature) return
-
-      const distinctCurrencies = extractDistinctCurrencies(result)
-      const distinctCurrenciesFromPayments = extractDistinctCurrenciesFromPayments(result)
-      const trendItems = Array.isArray(result?.MonthlyExpenseItemsForTrends) ? result.MonthlyExpenseItemsForTrends : []
-      const monthlyExpenseTrends = buildMonthlyTrends(trendItems)
-      const expenseCategories = aggregateExpenseCategories(trendItems)
-
-      const nextState = transformResultToState(
-        result,
-        distinctCurrencies,
-        distinctCurrenciesFromPayments,
-        monthlyExpenseTrends,
-        expenseCategories
-      )
-      setState(nextState)
-      cacheBySignature.set(signature, { ts: Date.now(), data: nextState })
-    } catch (e: any) {
-      if (latestSignatureRef.current !== signature) return
-      setError(e?.message || 'Failed to load backoffice expenses overview')
-    } finally {
-      if (latestSignatureRef.current === signature) setIsLoading(false)
-    }
+        ),
+      resultToState: (result: any) => buildOverviewStateFromResult(result) as BackofficeExpensesOverviewState,
+      fallbackErrorMessage: 'Failed to load backoffice expenses overview'
+    })
   }, [
     context.accessToken,
     graphqlClient,

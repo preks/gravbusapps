@@ -1,18 +1,11 @@
 // Refactored Team Spending Analytics Hook (< 300 lines)
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Import modularized code
-import type {
-  AnalyticsData,
-  ProcessedAnalyticsData,
-  DateRangeOption,
-  LocationFilter,
-  DepartmentFilter
-} from './teamSpendingAnalytics/types'
-import { DateRangeOption as DateRangeEnum } from './teamSpendingAnalytics/types'
+import type { ProcessedAnalyticsData } from './teamSpendingAnalytics/types'
 import { fetchAnalyticsData } from './teamSpendingAnalytics/dataFetch'
 import { extractAvailableCurrencies } from './teamSpendingAnalytics/utils'
 import {
@@ -22,21 +15,32 @@ import {
   toggleFilterById,
   filterBySearch,
   getSelectedFilterIds,
-  buildCoreProcessedAnalyticsData
+  buildCoreProcessedAnalyticsData,
+  useAnalyticsBaseState
 } from './teamSpendingAnalytics/shared'
 
 export { DateRangeOption } from './teamSpendingAnalytics/types'
 export type { LocationFilter, DepartmentFilter } from './teamSpendingAnalytics/types'
 
 export const useTeamSpendingAnalytics = (accessToken: string, managerId: string, currencyFilter?: string | null) => {
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeEnum.LAST_30_DAYS)
-  const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([])
-  const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([])
-  const [searchTerm, setSearchTerm] = useState<string>('')
-  const [departmentSearchTerm, setDepartmentSearchTerm] = useState<string>('')
-  const [rawData, setRawData] = useState<AnalyticsData | null>(null)
+  const {
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+    dateRange,
+    setDateRange,
+    locationFilters,
+    setLocationFilters,
+    departmentFilters,
+    setDepartmentFilters,
+    searchTerm,
+    setSearchTerm,
+    departmentSearchTerm,
+    setDepartmentSearchTerm,
+    rawData,
+    setRawData
+  } = useAnalyticsBaseState()
 
   const graphqlClient = useGraphQLClient(accessToken)
 

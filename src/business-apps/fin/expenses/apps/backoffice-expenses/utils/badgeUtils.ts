@@ -13,6 +13,34 @@ export interface ExpenseStatusConfig {
   variant: BadgeProps['variant']
 }
 
+const STATUS_CONFIG_BY_CODE: Record<string, ExpenseStatusConfig> = {
+  PREPARED: { label: 'Prepared', variant: 'secondary' },
+  CREATED: { label: 'Draft', variant: 'secondary' },
+  ASSIGNED: { label: 'Assigned', variant: 'info' },
+  PENDING: { label: 'In Approval', variant: 'info' },
+  APPROVED: { label: 'Verification Required', variant: 'warning' },
+  VERIFIED: { label: 'Booking Required', variant: 'warning' },
+  BOOKED: { label: 'Transfer Required', variant: 'warning' },
+  TRANSFERRED: { label: 'Payment Required', variant: 'warning' },
+  PAID: { label: 'Paid', variant: 'success' },
+  REJECTED: { label: 'Revision Required', variant: 'info' },
+  CLOSED: { label: 'Closed', variant: 'success' },
+  DISCARDED: { label: 'Discarded', variant: 'secondary' }
+}
+
+const getExpenseStatusConfig = (status?: string): ExpenseStatusConfig => {
+  if (!status) {
+    return { label: 'Unknown', variant: 'outline' }
+  }
+
+  const mappedConfig = STATUS_CONFIG_BY_CODE[status.toUpperCase()]
+  if (mappedConfig) {
+    return mappedConfig
+  }
+
+  return { label: status, variant: 'secondary' }
+}
+
 /**
  * Maps expense request statuses to appropriate Badge display configuration
  * Based on the exact status mapping provided with correct labels and colors
@@ -20,89 +48,7 @@ export interface ExpenseStatusConfig {
  * @returns Object with user-friendly label and Badge variant
  */
 export function getExpenseRequestStatusConfig(status?: string): ExpenseStatusConfig {
-  if (!status) {
-    return { label: 'Unknown', variant: 'outline' }
-  }
-
-  switch (status.toUpperCase()) {
-    case 'PREPARED':
-      return {
-        label: 'Prepared',
-        variant: 'secondary' // rgba(55, 99, 153, 0.55) - Blue-gray
-      }
-
-    case 'CREATED':
-      return {
-        label: 'Draft',
-        variant: 'secondary' // rgba(55, 99, 153, 0.55) - Blue-gray
-      }
-
-    case 'ASSIGNED':
-      return {
-        label: 'Assigned',
-        variant: 'info' // rgba(0, 148, 209, 0.55) - Blue
-      }
-
-    case 'PENDING':
-      return {
-        label: 'In Approval',
-        variant: 'info' // rgba(0, 148, 209, 0.55) - Blue
-      }
-
-    case 'APPROVED':
-      return {
-        label: 'Verification Required',
-        variant: 'warning' // rgba(255, 158, 2, 0.55) - Orange
-      }
-
-    case 'VERIFIED':
-      return {
-        label: 'Booking Required',
-        variant: 'warning' // rgba(255, 158, 2, 0.55) - Orange
-      }
-
-    case 'BOOKED':
-      return {
-        label: 'Transfer Required',
-        variant: 'warning' // rgba(255, 158, 2, 0.55) - Orange
-      }
-
-    case 'TRANSFERRED':
-      return {
-        label: 'Payment Required',
-        variant: 'warning' // rgba(255, 158, 2, 0.55) - Orange
-      }
-
-    case 'PAID':
-      return {
-        label: 'Paid',
-        variant: 'success' // rgba(13, 188, 123, 0.55) - Green
-      }
-
-    case 'REJECTED':
-      return {
-        label: 'Revision Required',
-        variant: 'info' // rgba(0, 148, 209, 1) - Blue (full opacity)
-      }
-
-    case 'CLOSED':
-      return {
-        label: 'Closed',
-        variant: 'success' // rgba(13, 188, 123, 0.55) - Green
-      }
-
-    case 'DISCARDED':
-      return {
-        label: 'Discarded',
-        variant: 'secondary' // rgba(55, 99, 153, 0.55) - Blue-gray
-      }
-
-    default:
-      return {
-        label: status,
-        variant: 'secondary' // Default to secondary variant
-      }
-  }
+  return getExpenseStatusConfig(status)
 }
 
 /**
@@ -129,89 +75,7 @@ export interface AdvancePaymentStatusConfig {
  * @returns Object with user-friendly label and Badge variant
  */
 export function getAdvancePaymentStatusConfig(status?: string): AdvancePaymentStatusConfig {
-  if (!status) {
-    return { label: 'Unknown', variant: 'outline' }
-  }
-
-  switch (status.toUpperCase()) {
-    case 'PREPARED':
-      return {
-        label: 'Prepared',
-        variant: 'secondary' // rgba(55, 99, 153, 0.55) - Blue-gray
-      }
-
-    case 'CREATED':
-      return {
-        label: 'Draft',
-        variant: 'secondary' // rgba(55, 99, 153, 0.55) - Blue-gray
-      }
-
-    case 'ASSIGNED':
-      return {
-        label: 'Assigned',
-        variant: 'info' // rgba(0, 148, 209, 0.55) - Blue
-      }
-
-    case 'PENDING':
-      return {
-        label: 'In Approval',
-        variant: 'info' // rgba(0, 148, 209, 0.55) - Blue
-      }
-
-    case 'APPROVED':
-      return {
-        label: 'Verification Required',
-        variant: 'warning' // rgba(255, 158, 2, 0.55) - Orange
-      }
-
-    case 'VERIFIED':
-      return {
-        label: 'Booking Required',
-        variant: 'warning' // rgba(255, 158, 2, 0.55) - Orange
-      }
-
-    case 'BOOKED':
-      return {
-        label: 'Transfer Required',
-        variant: 'warning' // rgba(255, 158, 2, 0.55) - Orange
-      }
-
-    case 'TRANSFERRED':
-      return {
-        label: 'Payment Required',
-        variant: 'warning' // rgba(255, 158, 2, 0.55) - Orange
-      }
-
-    case 'PAID':
-      return {
-        label: 'Paid',
-        variant: 'success' // rgba(13, 188, 123, 0.55) - Green
-      }
-
-    case 'REJECTED':
-      return {
-        label: 'Revision Required',
-        variant: 'info' // rgba(0, 148, 209, 1) - Blue (full opacity)
-      }
-
-    case 'CLOSED':
-      return {
-        label: 'Closed',
-        variant: 'success' // rgba(13, 188, 123, 0.55) - Green
-      }
-
-    case 'DISCARDED':
-      return {
-        label: 'Discarded',
-        variant: 'secondary' // rgba(55, 99, 153, 0.55) - Blue-gray
-      }
-
-    default:
-      return {
-        label: status,
-        variant: 'secondary' // Default to secondary variant
-      }
-  }
+  return getExpenseStatusConfig(status)
 }
 
 /**

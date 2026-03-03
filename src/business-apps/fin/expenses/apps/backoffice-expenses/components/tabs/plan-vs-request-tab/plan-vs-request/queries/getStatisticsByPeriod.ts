@@ -103,6 +103,57 @@ export interface QueryWithVariables {
   variables: Record<string, string>
 }
 
+const validateYear = (year: number) => {
+  const currentYear = dayjs().year()
+  if (year < 2000 || year > currentYear + 10) {
+    throw new Error(`Invalid year: ${year}. Year must be between 2000 and ${currentYear + 10}.`)
+  }
+}
+
+const validateMonthRange = (startMonth: number, endMonth: number) => {
+  if (startMonth < 0 || startMonth > 11) {
+    throw new Error(`Invalid startMonth: ${startMonth}. Month must be between 0 (January) and 11 (December).`)
+  }
+  if (endMonth < 0 || endMonth > 11) {
+    throw new Error(`Invalid endMonth: ${endMonth}. Month must be between 0 (January) and 11 (December).`)
+  }
+  if (startMonth > endMonth) {
+    throw new Error(`Invalid month range: startMonth (${startMonth}) cannot be greater than endMonth (${endMonth}).`)
+  }
+}
+
+const generateExpenseStatisticsQuery = (
+  queryName: string,
+  startMonth: number,
+  endMonth: number,
+  year: number,
+  includeDepartment: boolean
+): QueryWithVariables => {
+  validateMonthRange(startMonth, endMonth)
+  validateYear(year)
+
+  const variables: Record<string, string> = {}
+
+  let consolidatedQuery = `
+    query ${queryName}(
+      $currency: String!${includeDepartment ? ',\n      $selectedDepartment: uuid' : ''}`
+
+  for (let month = startMonth; month <= endMonth; month++) {
+    consolidatedQuery += `,\n      $startDate_${month}: timestamp!,\n      $endDate_${month}: timestamp!`
+    const monthDate = dayjs().year(year).month(month)
+    variables[`startDate_${month}`] = monthDate.startOf('month').format('YYYY-MM-DDTHH:mm:ss')
+    variables[`endDate_${month}`] = monthDate.endOf('month').format('YYYY-MM-DDTHH:mm:ss')
+  }
+
+  consolidatedQuery += `\n    ) {\n`
+  for (let month = startMonth; month <= endMonth; month++) {
+    consolidatedQuery += buildMonthSubquery(month, includeDepartment)
+  }
+  consolidatedQuery += `}`
+
+  return { query: consolidatedQuery, variables }
+}
+
 /**
  * Generate a consolidated query for yearly expense statistics with GraphQL variables
  * @param currentMonth - The current month (0-indexed, 0 = January)
@@ -116,48 +167,10 @@ export const generateYearlyExpenseStatisticsQuery = (
   year: number,
   includeDepartment: boolean
 ): QueryWithVariables => {
-  // Input validation for month parameter
   if (currentMonth < 0 || currentMonth > 11) {
     throw new Error(`Invalid month: ${currentMonth}. Month must be between 0 (January) and 11 (December).`)
   }
-
-  // Input validation for year parameter
-  const currentYear = dayjs().year()
-  if (year < 2000 || year > currentYear + 10) {
-    throw new Error(`Invalid year: ${year}. Year must be between 2000 and ${currentYear + 10}.`)
-  }
-
-  const variables: Record<string, string> = {}
-
-  // Build query signature with variable declarations
-  let consolidatedQuery = `
-    query GetYearlyExpenseStatistics(
-      $currency: String!${includeDepartment ? ',\n      $selectedDepartment: uuid' : ''}`
-
-  // Add variable declarations for each month's date range
-  for (let month = 0; month <= currentMonth; month++) {
-    consolidatedQuery += `,\n      $startDate_${month}: timestamp!,\n      $endDate_${month}: timestamp!`
-
-    // Compute and store month boundaries in variables object
-    const monthDate = dayjs().year(year).month(month)
-    variables[`startDate_${month}`] = monthDate.startOf('month').format('YYYY-MM-DDTHH:mm:ss')
-    variables[`endDate_${month}`] = monthDate.endOf('month').format('YYYY-MM-DDTHH:mm:ss')
-  }
-
-  consolidatedQuery += `\n    ) {\n`
-
-  // Add subqueries for each month using the shared helper
-  for (let month = 0; month <= currentMonth; month++) {
-    consolidatedQuery += buildMonthSubquery(month, includeDepartment)
-  }
-
-  // Close the query
-  consolidatedQuery += `}`
-
-  return {
-    query: consolidatedQuery,
-    variables
-  }
+  return generateExpenseStatisticsQuery('GetYearlyExpenseStatistics', 0, currentMonth, year, includeDepartment)
 }
 
 /**
@@ -175,52 +188,5 @@ export const generateQuarterlyExpenseStatisticsQuery = (
   year: number,
   includeDepartment: boolean
 ): QueryWithVariables => {
-  // Input validation for month parameters
-  if (startMonth < 0 || startMonth > 11) {
-    throw new Error(`Invalid startMonth: ${startMonth}. Month must be between 0 (January) and 11 (December).`)
-  }
-  if (endMonth < 0 || endMonth > 11) {
-    throw new Error(`Invalid endMonth: ${endMonth}. Month must be between 0 (January) and 11 (December).`)
-  }
-  if (startMonth > endMonth) {
-    throw new Error(`Invalid month range: startMonth (${startMonth}) cannot be greater than endMonth (${endMonth}).`)
-  }
-
-  // Input validation for year parameter
-  const currentYear = dayjs().year()
-  if (year < 2000 || year > currentYear + 10) {
-    throw new Error(`Invalid year: ${year}. Year must be between 2000 and ${currentYear + 10}.`)
-  }
-
-  const variables: Record<string, string> = {}
-
-  // Build query signature with variable declarations
-  let consolidatedQuery = `
-    query GetQuarterlyExpenseStatistics(
-      $currency: String!${includeDepartment ? ',\n      $selectedDepartment: uuid' : ''}`
-
-  // Add variable declarations for each month's date range
-  for (let month = startMonth; month <= endMonth; month++) {
-    consolidatedQuery += `,\n      $startDate_${month}: timestamp!,\n      $endDate_${month}: timestamp!`
-
-    // Compute and store month boundaries in variables object
-    const monthDate = dayjs().year(year).month(month)
-    variables[`startDate_${month}`] = monthDate.startOf('month').format('YYYY-MM-DDTHH:mm:ss')
-    variables[`endDate_${month}`] = monthDate.endOf('month').format('YYYY-MM-DDTHH:mm:ss')
-  }
-
-  consolidatedQuery += `\n    ) {\n`
-
-  // Add subqueries for each month using the shared helper
-  for (let month = startMonth; month <= endMonth; month++) {
-    consolidatedQuery += buildMonthSubquery(month, includeDepartment)
-  }
-
-  // Close the query
-  consolidatedQuery += `}`
-
-  return {
-    query: consolidatedQuery,
-    variables
-  }
+  return generateExpenseStatisticsQuery('GetQuarterlyExpenseStatistics', startMonth, endMonth, year, includeDepartment)
 }
