@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { getScreenDirectories } from './utils/screenDiscovery.js'
+import { logPhase } from './utils/logPhase.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -30,17 +31,17 @@ async function findAllScreenDirectories() {
 }
 
 async function main() {
-  console.log('🚀 Publishing ALL screens to DEV (non-interactive)...')
+  logPhase('PUBLISH ALL SCREENS TO DEV')
+  console.log('Publishing in non-interactive mode...')
 
   const allScreens = await findAllScreenDirectories()
   if (allScreens.length === 0) {
-    console.log('✅ No screens found under src/business-apps.')
+    console.log('No screens found under src/business-apps.')
     return
   }
 
-  console.log('Screens to publish:')
+  logPhase(`SCREENS TO PUBLISH (${allScreens.length})`)
   allScreens.forEach(s => console.log(' - ' + s))
-  console.log('---')
 
   const failed = []
   const skipped = []
@@ -48,7 +49,7 @@ async function main() {
   for (const publishPath of allScreens) {
     const indexFile = path.join('src', 'business-apps', publishPath, 'index.ts')
     if (!fs.existsSync(indexFile)) {
-      console.log(`⚠️  Skipping removed screen: ${publishPath} (${indexFile} not found)`)
+      console.log(`WARNING: Skipping removed screen: ${publishPath} (${indexFile} not found)`)
       skipped.push(publishPath)
       continue
     }
@@ -65,8 +66,7 @@ async function main() {
     }
   }
 
-  console.log('---')
-  console.log('Publishing Summary:')
+  logPhase('PUBLISHING SUMMARY')
   if (skipped.length > 0) {
     console.log(`Skipped removed screens (${skipped.length}):`)
     skipped.forEach(s => console.log(' - ' + s))
@@ -81,6 +81,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('❌ Unexpected error:', err)
+  console.error('Unexpected error:', err)
   process.exit(1)
 })

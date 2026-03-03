@@ -5,7 +5,7 @@
  * analyzing prompts and executing build plans.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
 import type {
   AnalyzeRequest,
@@ -88,6 +88,12 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   // Create memoized client
   const client = useMemo(() => new OrchestratorClient(accessToken), [accessToken])
 
+  // Reset publish state when viewing a different plan (e.g. selecting another session from history)
+  useEffect(() => {
+    setPublishSuccess(false)
+    setPublishError(null)
+  }, [currentPlan?.jobId])
+
   /**
    * Analyze a prompt and generate a build plan
    */
@@ -99,7 +105,10 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
       setLastContext(context)
 
       try {
-        const request: AnalyzeRequest = { prompt, context }
+        const request: AnalyzeRequest = {
+          prompt,
+          context
+        }
         const response = await client.analyze(request)
 
         if (response.success && response.plan) {
@@ -117,7 +126,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         setIsAnalyzing(false)
       }
     },
-    [client]
+    [client, lastRepoId, currentPlan]
   )
 
   /**
@@ -155,7 +164,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         setIsAnalyzing(false)
       }
     },
-    [client, lastPrompt, lastContext]
+    [client, lastPrompt, lastContext, lastRepoId, lastSessionId]
   )
 
   /**
@@ -260,14 +269,19 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     setLastContext(undefined)
     setLastSessionId(null)
     setLastRepoId(null)
+    setPublishSuccess(false)
+    setPublishError(null)
   }, [])
 
   /**
-   * Store shared session from build_complete event for preview and execute-again
+   * Store shared session from build_complete event for preview and execute-again.
+   * Clears publish state so the UI shows "Publish" until the user actually publishes.
    */
   const setSessionFromBuild = useCallback((sessionId: string | undefined, repoId: string | undefined) => {
     setLastSessionId(sessionId ?? null)
     setLastRepoId(repoId ?? null)
+    setPublishSuccess(false)
+    setPublishError(null)
   }, [])
 
   /**
@@ -282,8 +296,12 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     setPublishError(null)
     setPublishSuccess(false)
     try {
-      await client.publishApp(lastRepoId, lastSessionId)
-      setPublishSuccess(true)
+      const result = await client.publishApp(lastRepoId, lastSessionId)
+      if (result.success) {
+        setPublishSuccess(true)
+      } else {
+        setPublishError(result.message || 'Publish failed')
+      }
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : 'Publish failed')
     } finally {

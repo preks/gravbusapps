@@ -3,7 +3,7 @@
  * The old OverviewPage is no longer used — the IdleCanvas serves as the entry point.
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PlanDetailPage } from './pages/plan-detail-page/PlanDetailPage'
 
@@ -22,7 +22,8 @@ function getQueryParams(): { jobId: string | null; initialPrompt: string | null 
 }
 
 export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
-  const { jobId, initialPrompt } = getQueryParams()
+  // Capture URL params only on mount — replaceState during session must not re-trigger restore
+  const [{ jobId, initialPrompt }] = useState(() => getQueryParams())
 
   return (
     <div className="gba:h-full gba:w-full">
@@ -31,7 +32,6 @@ export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
         userInfo={context.userInfo}
         jobId={jobId}
         initialPrompt={initialPrompt ?? undefined}
-        onBack={() => {}}
       />
     </div>
   )

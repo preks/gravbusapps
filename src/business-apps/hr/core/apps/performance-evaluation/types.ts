@@ -41,6 +41,8 @@ export interface RatingScale {
   version?: number
   name: string
   values: string[]
+  /** API scale type e.g. STAR_RATING_SCALE_TYPE, NUMERIC_RATING_SCALE_TYPE; used to pre-select Display in edit modal */
+  scaleType?: string | null
 }
 
 export interface ValueItemStored {

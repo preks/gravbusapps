@@ -146,7 +146,7 @@ dimension-capability = Capability
 # StatusBadge
 status-badge-archived = Archived
 status-badge-draft = Draft
-status-badge-in-review = In Review
+status-badge-in-review = In review
 status-badge-published = Published
 
 # Pagination labels

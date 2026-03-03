@@ -40,6 +40,7 @@ export interface AgentSpec {
   userPromptTemplate: string
   tools: string[]
   agentType: 'flow' | 'everyai' | 'general'
+  modelId?: string
   specialty?: string
   responseStyle: 'formal' | 'conversational' | 'technical'
   citationMode: 'always' | 'when_needed' | 'never'
@@ -89,7 +90,7 @@ export interface DataModelFieldSpec {
   type: 'text' | 'number' | 'date' | 'boolean' | 'reference' | 'select'
   label: string
   required: boolean
-  options?: Array<{ value: string; label: string }>
+  options?: Array<string | { code: string; value: string }>
   referenceEntity?: string
 }
 

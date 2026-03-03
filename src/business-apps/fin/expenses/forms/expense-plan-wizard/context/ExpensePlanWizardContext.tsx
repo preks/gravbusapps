@@ -35,7 +35,8 @@ export interface ExpensePlanWizardContextProps {
     endLocation: LocationData,
     expenseRulesData: any,
     event: string,
-    skipStep?: boolean
+    skipStep?: boolean,
+    overrideEmployeeRuleId?: string
   ) => boolean
   showExpenseItem: boolean
   setShowExpenseItem: (show: boolean) => void
@@ -111,8 +112,10 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
     try {
       if (!accessToken || !employeeRuleId || !userInfo || !additionalData) return
 
-      // Only set loading to true if we're not already loading
-      if (!loading) {
+      // Only show full-screen loading on initial load (no plan data yet).
+      // When refetching after e.g. trip Next, keep current screen visible with existing data.
+      const isInitialLoad = !expensePlanData
+      if (isInitialLoad && !loading) {
         setLoading(true)
       }
 
@@ -211,7 +214,6 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
         // Get current date
         const currentDate = new Date().toISOString()
 
-        // Fetch employee rule using the imported function
         const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken)
 
         if (employeeRuleData && employeeRuleData.expenseRuleId) {
@@ -275,12 +277,15 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
     endLocation: LocationData,
     expenseRulesData: any,
     event: string,
-    skipStep?: boolean
+    skipStep?: boolean,
+    overrideEmployeeRuleId?: string
   ): boolean => {
-    // Determine currency based on trip data
-    const determinedCurrency = getCurrencyWithFallback(startLocation, destinations, endLocation, expenseRulesData)
+    const ruleIdToUse = overrideEmployeeRuleId ?? employeeRuleId ?? ''
+    if (overrideEmployeeRuleId) {
+      setEmployeeRuleId(overrideEmployeeRuleId)
+    }
 
-    // Update currency in context
+    const determinedCurrency = getCurrencyWithFallback(startLocation, destinations, endLocation, expenseRulesData)
     setCurrentCurrency(determinedCurrency)
 
     return handleTripSubmitAction(
@@ -289,7 +294,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       endLocation,
       expenseRulesData,
       expensePlanData,
-      employeeRuleId || '',
+      ruleIdToUse,
       currentTitle,
       determinedCurrency,
       event,

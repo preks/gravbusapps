@@ -246,8 +246,8 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         await onCancel()
       }
 
-      // Dispatch cancel event to close the modal
-      dispatchProcessContinueEvent('pse_cancel', {})
+      // Dispatch abort event to close the modal
+      dispatchProcessContinueEvent('pse_abort', {})
     } catch (err) {
       // Silent error handling for cancellation
       console.error('Error :', err)

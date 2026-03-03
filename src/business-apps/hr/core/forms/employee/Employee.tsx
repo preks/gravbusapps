@@ -10,8 +10,10 @@ interface EmployeeProps extends BusinessAppContextProps {
   isEdit?: boolean
 }
 
-const Employee: React.FC<EmployeeProps> = ({ accessToken, initialValues = {}, isEdit = false }) => {
+const Employee: React.FC<EmployeeProps> = ({ accessToken, initialValues = {}, isEdit = false, additionalData }) => {
   const structureId = getCurrentActiveStructureId()
+  const targetOrgUnitId = additionalData?.psi_taskPayload?.psi_initialParameters?.orgUnitId
+  const targetJobPositionId = additionalData?.psi_taskPayload?.psi_initialParameters?.jobPositionId
 
   if (!accessToken) {
     return (
@@ -30,7 +32,14 @@ const Employee: React.FC<EmployeeProps> = ({ accessToken, initialValues = {}, is
   }
 
   return (
-    <EmployeeProvider accessToken={accessToken} structureId={structureId} initialValues={initialValues} isEdit={isEdit}>
+    <EmployeeProvider
+      accessToken={accessToken}
+      structureId={structureId}
+      targetOrgUnitId={targetOrgUnitId}
+      targetJobPositionId={targetJobPositionId}
+      initialValues={initialValues}
+      isEdit={isEdit}
+    >
       <EmployeeForm />
     </EmployeeProvider>
   )

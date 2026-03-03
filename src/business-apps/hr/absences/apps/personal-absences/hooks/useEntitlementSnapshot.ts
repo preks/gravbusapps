@@ -5,6 +5,7 @@ import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '../queries/graphql'
 
 export interface SnapshotEntitlement {
   type: string
+  typeRef: string
   color?: string
   used: number
   total: number
@@ -71,6 +72,7 @@ export function useEntitlementSnapshot(
         const mapped = mapType ? mapType(code) : undefined
         return {
           type: mapped?.label || code,
+          typeRef: code,
           color: mapped?.color,
           used: v.usedApproved,
           total: v.total,

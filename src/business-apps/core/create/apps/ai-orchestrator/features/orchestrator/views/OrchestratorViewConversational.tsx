@@ -19,6 +19,8 @@ import { CreateAgentChat } from '../components/chat/CreateAgentChat'
 import { CreateSessionSidebar } from '../components/chat/CreateSessionSidebar'
 import { OrchestratorCanvasContent } from './OrchestratorCanvasContent.tsx'
 import { useListPlans } from '../hooks/useListPlans'
+import { useCachedPlans } from '../hooks/useCachedPlans'
+import { ScreenBuildingLoader } from '../components/widgets/ScreenBuildingLoader'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
@@ -49,26 +51,11 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   // Track which state transitions we already posted chat messages for
   const lastChatStateRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    if (!initialJobId || !accessToken) return
-    orchestratorClient
-      .refreshPlan(initialJobId)
-      .then(plan => {
-        if (!plan) return
-        const alreadyBuilt =
-          plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
-        if (alreadyBuilt) {
-          const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
-          orchestratorClient.setSessionFromBuild(
-            firstWithSession?.metadata?.sessionId,
-            firstWithSession?.metadata?.repoId
-          )
-        }
-        state.setChatActive(true)
-        state.setViewState(alreadyBuilt ? 'complete' : 'review')
-      })
-      .catch(() => {})
-  }, [initialJobId, accessToken])
+  // Prevents the viewState effect from adding messages mid-restore (race condition guard)
+  const isRestoringSessionRef = useRef(false)
+
+  // Track session restoration loading state for UI feedback
+  const [isRestoringSession, setIsRestoringSession] = useState(false)
 
   const buildProgress = useBuildProgress({
     client: orchestratorClient.client,
@@ -188,12 +175,64 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     onFixSend: handleFixSend
   })
 
+  // --- Shared session restore logic (used on mount and when selecting from history) ---
+  const applyRestoredPlan = useCallback(
+    (plan: NonNullable<Awaited<ReturnType<typeof orchestratorClient.refreshPlan>>>) => {
+      if (plan.originalPrompt) {
+        chat.addUserMessage(plan.originalPrompt, 'prompt')
+      }
+      const alreadyBuilt =
+        plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
+      if (alreadyBuilt) {
+        const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
+        orchestratorClient.setSessionFromBuild(
+          firstWithSession?.metadata?.sessionId,
+          firstWithSession?.metadata?.repoId
+        )
+      }
+      lastChatStateRef.current = null
+      state.setChatActive(true)
+      state.setViewState(alreadyBuilt ? 'complete' : 'review')
+    },
+    [chat, orchestratorClient, state]
+  )
+
+  // Keep ?jobId= in sync with the active plan so page refresh restores the session
+  useEffect(() => {
+    const jobId = orchestratorClient.currentPlan?.jobId ?? null
+    const urlParams = new URLSearchParams(globalThis.location.search)
+    if (jobId) {
+      urlParams.set('jobId', jobId)
+    } else {
+      urlParams.delete('jobId')
+    }
+    const newUrl = urlParams.toString()
+      ? `${globalThis.location.pathname}?${urlParams.toString()}`
+      : globalThis.location.pathname
+    globalThis.history.replaceState({}, '', newUrl)
+  }, [orchestratorClient.currentPlan?.jobId])
+
+  useEffect(() => {
+    if (!initialJobId || !accessToken) return
+    isRestoringSessionRef.current = true
+    setIsRestoringSession(true)
+    orchestratorClient
+      .refreshPlan(initialJobId)
+      .then(plan => {
+        if (!plan) return
+        applyRestoredPlan(plan)
+      })
+      .catch(() => {})
+      .finally(() => {
+        isRestoringSessionRef.current = false
+        setIsRestoringSession(false)
+      })
+  }, [initialJobId, accessToken])
+
   const handleIdleSubmit = useCallback(
     async (prompt: string) => {
       state.setChatActive(true)
-      // Add user's initial prompt to chat history
       chat.addUserMessage(prompt, 'prompt')
-      // Add analyzing feedback to chat
       chat.addAssistantMessage('Analyzing your request and planning the solution...', 'system')
       await handlers.handleAnalyze(prompt)
     },
@@ -206,6 +245,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   const planTitle = orchestratorClient.currentPlan?.userSummary?.title
 
   useEffect(() => {
+    if (isRestoringSessionRef.current) return
     const stateKey = `${viewState}:${planJobId ?? ''}`
     if (stateKey === lastChatStateRef.current) return
     lastChatStateRef.current = stateKey
@@ -254,13 +294,12 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     data: plans,
     loading: plansLoading,
     refetch: refetchPlans
-  } = useListPlans({
+  } = useCachedPlans({
     accessToken,
     enabled: sidebarOpen
   })
 
   const handleOpenHistory = useCallback(() => {
-    // If called from the idle screen, transition to the chat layout first
     if (!state.chatActive) {
       state.setChatActive(true)
     }
@@ -271,27 +310,22 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   const handleSelectSession = useCallback(
     async (jobId: string) => {
       setSidebarOpen(false)
+      isRestoringSessionRef.current = true
+      setIsRestoringSession(true)
       chat.resetMessages()
-      lastChatStateRef.current = null
 
       const plan = await orchestratorClient.refreshPlan(jobId)
-      if (!plan) return
-
-      const alreadyBuilt =
-        plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
-
-      if (alreadyBuilt) {
-        const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
-        orchestratorClient.setSessionFromBuild(
-          firstWithSession?.metadata?.sessionId,
-          firstWithSession?.metadata?.repoId
-        )
+      if (!plan) {
+        isRestoringSessionRef.current = false
+        setIsRestoringSession(false)
+        return
       }
 
-      state.setChatActive(true)
-      state.setViewState(alreadyBuilt ? 'complete' : 'review')
+      applyRestoredPlan(plan)
+      isRestoringSessionRef.current = false
+      setIsRestoringSession(false)
     },
-    [chat, orchestratorClient, state]
+    [chat, orchestratorClient, applyRestoredPlan]
   )
 
   // --- Idle: full-screen (square top so banner has no top border radius) ---
@@ -314,7 +348,14 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
   // --- Chat + Canvas layout ---
   return (
-    <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background" data-testid={testId}>
+    <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:relative" data-testid={testId}>
+      {/* Session restoration loading overlay */}
+      {isRestoringSession && (
+        <div className="gba:absolute gba:inset-0 gba:bg-background/98 gba:backdrop-blur-md gba:z-100 gba:flex gba:items-center gba:justify-center">
+          <ScreenBuildingLoader />
+        </div>
+      )}
+
       <CreateLayout
         sidebarOpen={sidebarOpen}
         sidebar={
@@ -325,11 +366,12 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             onSelectSession={handleSelectSession}
             onClose={() => {
               setSidebarOpen(false)
-              // Return to idle if no conversation has started yet
               if (chat.messages.length === 0) {
                 state.setChatActive(false)
               }
             }}
+            accessToken={accessToken}
+            onRefresh={refetchPlans}
           />
         }
         chatPanel={
@@ -344,6 +386,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             onSend={chat.handleSend}
             onNewSession={handleNewSession}
             onOpenHistory={handleOpenHistory}
+            userInfo={userInfo}
+            accessToken={accessToken}
           />
         }
         canvasPanel={
@@ -356,6 +400,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             accessToken={accessToken}
             userInfo={userInfo}
             previewRefreshToken={previewRefreshToken}
+            isRestoringSession={isRestoringSession}
           />
         }
       />

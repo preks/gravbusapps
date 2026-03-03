@@ -55,7 +55,6 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
     const formattedDate = formatDateWithTimezone(date)
     const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
 
-    // Use the getResource method
     return await flowClient.getResource(path)
   } catch {
     showToast(
@@ -280,6 +279,7 @@ export const getNewTypes = `query MyQuery($expenseRuleId: uuid, $objectFilter: j
     code
     name
     reimbursable
+    additionalProperties
     activeFrom
     activeTo
     expenseGroupRef

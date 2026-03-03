@@ -36,7 +36,8 @@ import {
   handleExpenseTypeChange,
   handleSubmit,
   handleFileUpload,
-  setByEdit
+  setByEdit,
+  normalizeReceiptData
 } from './services'
 import { showToast } from '../../../utils/notificationUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -51,6 +52,9 @@ interface ExpenseItemContextProps {
   isInitialized: boolean
   fileList: any[]
   setFileList: (files: any[]) => void
+  supportingFileList: any[]
+  setSupportingFileList: (files: any[]) => void
+  requiredAttachmentInstructions: string[]
   isProcessingFiles: boolean
   setIsProcessingFiles: (isProcessing: boolean) => void
   isFormDisabled: boolean
@@ -117,6 +121,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [loading, setLoading] = useState<boolean>(false)
   const [isInitialized, setIsInitialized] = useState<boolean>(false)
   const [fileList, setFileListState] = useState<any[]>([])
+  const [supportingFileList, setSupportingFileListState] = useState<any[]>([])
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false)
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false)
   const [multiPosition, setMultiPosition] = useState<boolean>(false)
@@ -336,6 +341,30 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
     return result
   }, [generalDataResponse, employeeRuleId])
+
+  const requiredAttachmentInstructions = useMemo(() => {
+    const instructions = new Set<string>()
+
+    positions.forEach(position => {
+      if (!position.expenseGroup || !position.expenseType) {
+        return
+      }
+
+      const typeConfig = expenseTypes[position.expenseGroup]?.find(type => type.id === position.expenseType)
+      const instruction = typeConfig?.attachmentInstruction?.trim()
+      if (instruction) {
+        instructions.add(instruction)
+      }
+    })
+
+    return Array.from(instructions)
+  }, [positions, expenseTypes])
+
+  useEffect(() => {
+    if (requiredAttachmentInstructions.length === 0 && supportingFileList.length > 0) {
+      setSupportingFileListState([])
+    }
+  }, [requiredAttachmentInstructions.length, supportingFileList.length])
 
   const addRequestsWrapper = () => {
     if (!accessToken) {
@@ -790,7 +819,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     if (!receiptData?.data) return
 
     try {
-      const data = receiptData.data
+      const rawData = receiptData.data
+      const data = normalizeReceiptData(rawData)
 
       // Ensure we can validate against the configured request currency when provided
       if (
@@ -893,11 +923,13 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         setLoading,
         t,
         fileList,
+        supportingFileList,
         accessToken,
         userInfo?.employeeDetails?.employeeId,
         additionalData,
         userInfo,
         itemValues || undefined,
+        setSupportingFileListState,
         getIsProcessEventDispatched,
         dispatchProcessContinueEventIfEnabled
       )
@@ -918,6 +950,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         form.resetFields()
         setPositions([DEFAULT_POSITION])
         setFileList([])
+        setSupportingFileListState([])
         setCurrentStep('start')
       } else {
         dispatchProcessContinueEventIfEnabled(EVENTS.ABORT, {
@@ -937,6 +970,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       form.resetFields()
       setPositions([DEFAULT_POSITION])
       setFileListState([])
+      setSupportingFileListState([])
       setCurrentStep('start')
     }
   }
@@ -1088,6 +1122,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }
 
+  const setSupportingFileList = (files: any[]) => {
+    setSupportingFileListState(files)
+  }
+
   const contextValue: ExpenseItemContextProps = useMemo(
     () => ({
       form,
@@ -1098,6 +1136,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       isInitialized,
       fileList,
       setFileList,
+      supportingFileList,
+      setSupportingFileList,
+      requiredAttachmentInstructions,
       isProcessingFiles,
       setIsProcessingFiles,
       isFormDisabled,
@@ -1140,6 +1181,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       loading,
       isInitialized,
       fileList,
+      supportingFileList,
       isProcessingFiles,
       isFormDisabled,
       multiPosition,
@@ -1157,6 +1199,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       receiptCurrencyError,
       hasLinkedExpenseRequest,
       additionalData,
+      requiredAttachmentInstructions,
       calculateTotalWrapper,
       handleFileUploadWrapper,
       handleSubmitWrapper,

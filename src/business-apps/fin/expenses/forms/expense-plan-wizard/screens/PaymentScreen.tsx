@@ -249,11 +249,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
     }
 
     // Store the normalized value for calculations
-    console.log('[PaymentScreen] handleAmountChange:', {
-      rawInput: field.target.value,
-      normalizedValue: value,
-      locale: getCurrentActiveUserLocale()
-    })
     setAmount(value)
 
     // Validate amount
@@ -275,14 +270,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
 
   const handleAmountBlur = () => {
     const currentValue = form.getFieldValue('amount')
-    console.log('[PaymentScreen] handleAmountBlur START:', {
-      currentValue,
-      currentAmountState: amount,
-      locale: getCurrentActiveUserLocale()
-    })
 
     if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
-      console.log('[PaymentScreen] handleAmountBlur: empty value, returning')
       return
     }
     const normalized = String(currentValue)
@@ -290,11 +279,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
       .replace(/,(?=\d{1,2}$)/, '.')
       .replace(/,/g, '')
 
-    console.log('[PaymentScreen] handleAmountBlur normalized:', normalized)
-
     const num = parseFloat(normalized)
     if (isNaN(num)) {
-      console.log('[PaymentScreen] handleAmountBlur: NaN, returning')
       return
     }
 
@@ -306,19 +292,9 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
 
     const finalDisplay = platformFormatted && platformFormatted !== String(num) ? platformFormatted : intlFormatted
 
-    console.log('[PaymentScreen] handleAmountBlur formatting:', {
-      num,
-      platformFormatted,
-      intlFormatted,
-      finalDisplay,
-      willSetStateTo: num.toFixed(2)
-    })
-
     form.setFieldsValue({ amount: finalDisplay })
     // Update state with normalized value (period as decimal) for saving
     setAmount(num.toFixed(2))
-
-    console.log('[PaymentScreen] handleAmountBlur END')
   }
 
   // Validation functions
@@ -389,14 +365,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
         expensePlanData
       )
 
-      console.log('[PaymentScreen] handleSave:', {
-        currency,
-        amount,
-        amountState: amount,
-        paymentMethod,
-        advanceObject
-      })
-
       const logObject = createPaymentScreenLogObject(
         expensePlanData.ExpensePlanByPk,
         employeeRuleId || '',
@@ -423,14 +391,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
         paymentMethod,
         expensePlanData
       )
-
-      console.log('[PaymentScreen] handleNext:', {
-        currency,
-        amount,
-        amountState: amount,
-        paymentMethod,
-        advanceObject
-      })
 
       const logObject = createPaymentScreenLogObject(
         expensePlanData.ExpensePlanByPk,

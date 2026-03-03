@@ -51,20 +51,17 @@ export const formatDateToISOString = (date: Date | string | undefined): string =
 }
 
 /**
- * Formats a date string with proper timezone information for API requests
- * @param date - ISO date string
- * @returns Formatted date string with proper timezone offset
+ * Formats a date for getEmployeeRule (allowanceDate). API expects calendar date at midnight UTC
+ * (e.g. 2026-01-01T00:00:00.000+0000). Non-UTC offset can yield wrong UTC date for rule lookup.
+ *
+ * @param date - ISO date string (e.g. from toISOString() or YYYY-MM-DDTHH:mm:ss)
+ * @returns Local calendar date at midnight UTC (YYYY-MM-DDT00:00:00.000+0000)
  */
 export const formatDateWithTimezone = (date: string): string => {
-  // Get the local timezone offset
-  const timezone = dayjs().format('Z') // Returns format like '+03:00' or '-05:00'
-
-  // Format date by replacing 'Z' with the actual timezone offset
-  if (date.includes('Z')) {
-    return date.replace('Z', timezone.replace(':', ''))
-  }
-
-  // If date doesn't have 'Z', ensure it has the proper timezone
   const parsedDate = dayjs(date)
-  return parsedDate.format('YYYY-MM-DDTHH:mm:ss.SSS') + timezone.replace(':', '')
+  if (!parsedDate.isValid()) {
+    return date
+  }
+  const localDate = parsedDate.format('YYYY-MM-DD')
+  return `${localDate}T00:00:00.000+0000`
 }
