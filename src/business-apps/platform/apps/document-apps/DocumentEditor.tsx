@@ -139,7 +139,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const { t } = useTranslation(translations)
 
   // Editor state
-  const [title, setTitle] = useState(document?.title || initialTitle)
+  const [title, setTitle] = useState(document?.title ?? initialTitle ?? '')
   const [content, setContent] = useState(document?.content || initialContent)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(document ? new Date(document.updatedAt) : null)
@@ -162,7 +162,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
       setIsSaving(true)
       try {
-        await onSave(title, content)
+        await onSave(title ?? '', content ?? '')
         setLastSaved(new Date())
         setHasUnsavedChanges(false)
         if (!isAutoSave) {
