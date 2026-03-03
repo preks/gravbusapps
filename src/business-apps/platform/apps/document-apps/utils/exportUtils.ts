@@ -284,9 +284,35 @@ export function buildPrintHtmlDocument({
 </html>`
 }
 
+const IMAGE_LOAD_TIMEOUT_MS = 15000
+
+/**
+ * Wait for all img elements in the document to load or fail so print/PDF shows pictures.
+ */
+function waitForImagesInDocument(doc: Document): Promise<void> {
+  const imgs = Array.from(doc.body.querySelectorAll('img'))
+  if (imgs.length === 0) return Promise.resolve()
+  return Promise.race([
+    Promise.all(
+      imgs.map(
+        img =>
+          new Promise<void>(resolve => {
+            if (img.complete) {
+              resolve()
+              return
+            }
+            img.onload = () => resolve()
+            img.onerror = () => resolve()
+          })
+      )
+    ).then(() => undefined),
+    new Promise<void>(resolve => setTimeout(resolve, IMAGE_LOAD_TIMEOUT_MS))
+  ])
+}
+
 /**
  * Print document via a hidden iframe to avoid popup blockers.
- * Uses same document as buildPrintHtmlDocument; triggers native print dialog (Print / Save as PDF).
+ * Waits for images to load so pictures appear in print/PDF.
  */
 function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   const fullHtml = buildPrintHtmlDocument(options)
@@ -305,7 +331,10 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   iframeDoc.write(fullHtml)
   iframeDoc.close()
 
+  let printed = false
   const doPrint = () => {
+    if (printed) return
+    printed = true
     try {
       iframe.contentWindow?.print()
     } catch (error) {
@@ -319,11 +348,15 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
     }
   }
 
+  const run = () => {
+    waitForImagesInDocument(iframeDoc).then(() => setTimeout(doPrint, 100))
+  }
+
   if (iframeDoc.readyState === 'complete') {
-    doPrint()
+    run()
   } else {
-    iframe.onload = () => setTimeout(doPrint, 50)
-    setTimeout(doPrint, 500)
+    iframe.onload = () => setTimeout(run, 50)
+    setTimeout(run, 500)
   }
 }
 
@@ -383,7 +416,10 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
       container.innerHTML = sanitizedBodyHtml
       doc.body.appendChild(container)
 
+      let printed = false
       const doPrint = () => {
+        if (printed) return
+        printed = true
         try {
           targetWindow.focus()
           targetWindow.print()
@@ -397,8 +433,11 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
           }, 1000)
         }
       }
-      targetWindow.addEventListener('load', () => setTimeout(doPrint, 50), { once: true })
-      setTimeout(doPrint, 800)
+      const run = () => {
+        waitForImagesInDocument(doc).then(() => setTimeout(doPrint, 100))
+      }
+      targetWindow.addEventListener('load', () => setTimeout(run, 50), { once: true })
+      setTimeout(run, 800)
     } catch {
       console.error('[exportUtils] Failed to prepare print window')
       try {

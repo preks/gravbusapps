@@ -94,7 +94,8 @@ import {
   exportToPDF,
   printHtmlDocument,
   blobToDataUrl,
-  sanitizeHtmlForExport
+  sanitizeHtmlForExport,
+  embedImagesInHtml
 } from '../../utils/exportUtils'
 import { fileClient } from '@/common/network/files/FileClient'
 import { DocumentApiService } from '../../services/DocumentApiService'
@@ -1307,24 +1308,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [accessToken]
     )
 
-    // Build HTML with images embedded from document model (srcs from image nodes, resolved in order)
+    // Build HTML with images embedded (each img src resolved to data URL so PDF/print show pictures)
     const getExportHtmlWithEmbeddedImages = useCallback(async (): Promise<string> => {
       if (!editor) return ''
-      const srcs: string[] = []
-      editor.state.doc.descendants((node: { type: { name: string }; attrs?: { src?: string } }) => {
-        if (node.type.name === 'image' && node.attrs?.src) srcs.push(node.attrs.src)
-      })
-      const dataUrls = await Promise.all(srcs.map(src => getImageDataUrl(src)))
-      let html = editor.getHTML()
-      let idx = 0
-      html = html.replace(
-        /<img([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*)>/gi,
-        (match, before: string, _src: string, after: string) => {
-          const dataUrl = dataUrls[idx++]
-          return dataUrl == null ? match : `<img${before}src="${dataUrl}"${after}>`
-        }
-      )
-      return html
+      return embedImagesInHtml(editor.getHTML(), getImageDataUrl)
     }, [editor, getImageDataUrl])
 
     // Export to Word

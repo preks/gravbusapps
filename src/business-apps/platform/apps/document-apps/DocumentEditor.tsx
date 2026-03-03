@@ -36,7 +36,15 @@ import {
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document } from './types'
-import { exportToWord, exportToPDF, printHtmlDocument, sanitizeHtmlForExport } from './utils/exportUtils'
+import {
+  exportToWord,
+  exportToPDF,
+  printHtmlDocument,
+  sanitizeHtmlForExport,
+  embedImagesInHtml,
+  blobToDataUrl
+} from './utils/exportUtils'
+import { fileClient } from '@/common/network/files/FileClient'
 import translations from './_i18n'
 
 // Import Quill styles
@@ -134,9 +142,63 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   onSaveAsTemplate,
   onSendForApproval,
   isReadOnly = false,
+  accessToken,
   'data-testid': testId = 'document-editor'
 }) => {
   const { t } = useTranslation(translations)
+
+  const getImageDataUrl = useCallback(
+    async (src: string): Promise<string | null> => {
+      if (!src) return null
+      const s = src.trim()
+      if (s.startsWith('data:')) return s
+      if (s.startsWith('blob:')) {
+        try {
+          const res = await fetch(s)
+          const blob = await res.blob()
+          return blobToDataUrl(blob)
+        } catch {
+          return null
+        }
+      }
+      if (accessToken && (s.startsWith('http://') || s.startsWith('https://'))) {
+        try {
+          const u = new URL(s)
+          const pathWithQuery = `${u.pathname}${u.search}`
+          const isTenantDownload =
+            u.pathname.includes('/tenant/downloads/') || u.pathname.includes('/tenant/Downloads/')
+          const looksLikeApiV1 = u.pathname.startsWith('/api/v1/')
+          if (isTenantDownload || looksLikeApiV1) {
+            const blob = await fileClient.downloadFileByPath(pathWithQuery, accessToken)
+            return blobToDataUrl(blob)
+          }
+          const res = await fetch(s, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            credentials: 'omit'
+          })
+          if (!res.ok) return null
+          const blob = await res.blob()
+          return blobToDataUrl(blob)
+        } catch {
+          return null
+        }
+      }
+      const rawPath = s.startsWith('/') ? s : `/${s}`
+      const hasFileServicePath =
+        rawPath.includes('/tenant/') || rawPath.startsWith('/files/') || rawPath.startsWith('/api/v1/')
+      if (accessToken && hasFileServicePath) {
+        try {
+          const path = rawPath.replace(/^\/files(?=\/api\/v1\/)/, '')
+          const blob = await fileClient.downloadFileByPath(path, accessToken)
+          return blobToDataUrl(blob)
+        } catch {
+          return null
+        }
+      }
+      return null
+    },
+    [accessToken]
+  )
 
   // Editor state
   const [title, setTitle] = useState(document?.title ?? initialTitle ?? '')
@@ -248,32 +310,42 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         preserveBlockSpacing: true,
         allowDataUriInImg: true
       })
-      await exportToPDF(title, safeContent)
+      const htmlWithImages = await embedImagesInHtml(safeContent, getImageDataUrl)
+      const finalContent = sanitizeHtmlForExport(htmlWithImages, {
+        preserveBlockSpacing: true,
+        allowDataUriInImg: true
+      })
+      await exportToPDF(title, finalContent)
     } catch (error) {
       console.error('[DocumentEditor] Export to PDF failed:', error)
     } finally {
       setIsExporting(false)
     }
-  }, [title, content])
+  }, [title, content, getImageDataUrl])
 
   /**
    * Print document
    */
-  const handlePrint = useCallback(() => {
+  const handlePrint = useCallback(async () => {
     const safeContent = sanitizeHtmlForExport(content, {
+      preserveBlockSpacing: true,
+      allowDataUriInImg: true
+    })
+    const htmlWithImages = await embedImagesInHtml(safeContent, getImageDataUrl)
+    const finalContent = sanitizeHtmlForExport(htmlWithImages, {
       preserveBlockSpacing: true,
       allowDataUriInImg: true
     })
     printHtmlDocument({
       title,
-      htmlContent: safeContent,
+      htmlContent: finalContent,
       includeTitleHeading: true,
       extraCss: `
         h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; }
         p { margin-bottom: 0.5em; }
       `
     })
-  }, [title, content])
+  }, [title, content, getImageDataUrl])
 
   /**
    * Get word count
