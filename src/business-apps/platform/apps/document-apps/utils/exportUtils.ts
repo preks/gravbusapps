@@ -323,9 +323,15 @@ function waitForImagesInDocument(doc: Document): Promise<void> {
 /**
  * Print document via a hidden iframe to avoid popup blockers.
  * Waits for images to load so pictures appear in print/PDF.
+ * CWE-79: body content is sanitized with DOMPurify before building fullHtml so srcdoc/appendChild get safe input.
  */
 function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
-  const fullHtml = buildPrintHtmlDocument(options)
+  const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: [],
+    ALLOW_DATA_ATTR: true
+  })
+  const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
   const iframe = document.createElement('iframe')
   iframe.setAttribute('style', 'position:absolute;width:0;height:0;border:0;visibility:hidden')
   iframe.srcdoc = fullHtml

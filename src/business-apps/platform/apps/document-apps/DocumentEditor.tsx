@@ -36,13 +36,8 @@ import {
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document } from './types'
-import {
-  exportToWord,
-  exportToPDF,
-  printHtmlDocument,
-  sanitizeHtmlForExport,
-  embedImagesInHtml
-} from './utils/exportUtils'
+import DOMPurify from 'dompurify'
+import { exportToWord, exportToPDF, printHtmlDocument, embedImagesInHtml } from './utils/exportUtils'
 import { useImageDataUrlResolver } from './hooks/useImageDataUrlResolver'
 import translations from './_i18n'
 
@@ -234,14 +229,15 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   }, [])
 
   /**
-   * Export to Word
+   * Export to Word — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
    */
   const handleExportWord = useCallback(async () => {
     setIsExporting(true)
     try {
-      const safeContent = sanitizeHtmlForExport(content, {
-        preserveBlockSpacing: true,
-        allowDataUriInImg: true
+      const safeContent = DOMPurify.sanitize(content, {
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: [],
+        ALLOW_DATA_ATTR: true
       })
       await exportToWord(title, safeContent, { getImageDataUrl })
     } catch (error) {
@@ -252,19 +248,21 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   }, [title, content, getImageDataUrl])
 
   /**
-   * Export to PDF
+   * Export to PDF — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
    */
   const handleExportPDF = useCallback(async () => {
     setIsExporting(true)
     try {
-      const safeContent = sanitizeHtmlForExport(content, {
-        preserveBlockSpacing: true,
-        allowDataUriInImg: true
+      const safeContent = DOMPurify.sanitize(content, {
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: [],
+        ALLOW_DATA_ATTR: true
       })
       const htmlWithImages = await embedImagesInHtml(safeContent, getImageDataUrl)
-      const finalContent = sanitizeHtmlForExport(htmlWithImages, {
-        preserveBlockSpacing: true,
-        allowDataUriInImg: true
+      const finalContent = DOMPurify.sanitize(htmlWithImages, {
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: [],
+        ALLOW_DATA_ATTR: true
       })
       await exportToPDF(title, finalContent)
     } catch (error) {
@@ -275,17 +273,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   }, [title, content, getImageDataUrl])
 
   /**
-   * Print document
+   * Print document — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
    */
   const handlePrint = useCallback(async () => {
-    const safeContent = sanitizeHtmlForExport(content, {
-      preserveBlockSpacing: true,
-      allowDataUriInImg: true
+    const safeContent = DOMPurify.sanitize(content, {
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      FORBID_ATTR: [],
+      ALLOW_DATA_ATTR: true
     })
     const htmlWithImages = await embedImagesInHtml(safeContent, getImageDataUrl)
-    const finalContent = sanitizeHtmlForExport(htmlWithImages, {
-      preserveBlockSpacing: true,
-      allowDataUriInImg: true
+    const finalContent = DOMPurify.sanitize(htmlWithImages, {
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      FORBID_ATTR: [],
+      ALLOW_DATA_ATTR: true
     })
     printHtmlDocument({
       title,

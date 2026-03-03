@@ -392,9 +392,23 @@ function applyPunctuationReplacements(text: string, lang: string): string {
   return out
 }
 
+const PUNCTUATION_BEFORE_WHICH_SPACE_IS_REMOVED = ',.!?;:])"\''
+
 /** Remove space immediately before punctuation that should follow the previous word. */
 function trimSpaceBeforePunctuation(text: string): string {
-  return text.replaceAll(/\s+([,.!?;:\])"'])/g, '$1')
+  const result: string[] = []
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    if (PUNCTUATION_BEFORE_WHICH_SPACE_IS_REMOVED.includes(c)) {
+      while (result.length > 0 && /\s/.test(result[result.length - 1] ?? '')) {
+        result.pop()
+      }
+      result.push(c)
+    } else {
+      result.push(c)
+    }
+  }
+  return result.join('')
 }
 
 /**
