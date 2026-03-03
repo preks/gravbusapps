@@ -1,8 +1,7 @@
 import React from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { PiCalendar } from 'react-icons/pi'
-
+import { CalendarIcon } from '@phosphor-icons/react'
 interface QuickActionsSectionProps {
   data: any
   onNavigateToWorkLifeBalance?: () => void
@@ -50,7 +49,7 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                 </div>
               </div>
               <div className="gba:text-info">
-                <PiCalendar className="gba:text-2xl" />
+                <CalendarIcon className="gba:text-2xl" />
               </div>
             </div>
           </CardContent>
@@ -82,7 +81,7 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                 </div>
               </div>
               <div className="gba:text-info">
-                <PiCalendar className="gba:text-2xl" />
+                <CalendarIcon className="gba:text-2xl" />
               </div>
             </div>
           </CardContent>
@@ -106,7 +105,7 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                 </div>
               </div>
               <div className="gba:text-muted-foreground">
-                <PiCalendar className="gba:text-2xl" />
+                <CalendarIcon className="gba:text-2xl" />
               </div>
             </div>
           </CardContent>

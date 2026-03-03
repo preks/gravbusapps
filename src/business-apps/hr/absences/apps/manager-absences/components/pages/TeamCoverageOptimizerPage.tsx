@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Card, Badge, Button, Tabs, TabsContent } from '@newwork/nw-design-system'
-import { PiArrowLeft, PiBuilding, PiGraph } from 'react-icons/pi'
+import { ArrowLeftIcon, BuildingIcon, GraphIcon } from '@phosphor-icons/react'
 import { useTeamCoverageData } from '../../hooks/useTeamCoverageData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -737,7 +737,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
             className="gba:flex gba:items-center gba:gap-2"
             data-testid="team-coverage-back-button"
           >
-            <PiArrowLeft className="gba:text-lg" />
+            <ArrowLeftIcon className="gba:text-lg" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_manager.statistics_tab.back_to_statistics',
               'Back to Statistics'
@@ -772,7 +772,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
               className="gba:flex gba:items-center gba:gap-2"
               data-testid="org-units-tab-button"
             >
-              <PiBuilding className="gba:text-lg" />
+              <BuildingIcon className="gba:text-lg" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_manager.statistics_tab.organizational_units',
                 'Organizational Units'
@@ -784,7 +784,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
               className="gba:flex gba:items-center gba:gap-2"
               data-testid="matrix-tab-button"
             >
-              <PiGraph className="gba:text-lg" />
+              <GraphIcon className="gba:text-lg" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_manager.statistics_tab.matrix_teams',
                 'Matrix Teams'

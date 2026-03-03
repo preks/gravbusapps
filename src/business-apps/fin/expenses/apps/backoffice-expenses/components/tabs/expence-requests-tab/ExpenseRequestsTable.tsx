@@ -33,7 +33,7 @@ import {
   Sheet,
   SheetContent
 } from '@newwork/nw-design-system'
-import { PiArrowUp, PiArrowDown, PiDownload, PiFileXls } from 'react-icons/pi'
+import { ArrowUpIcon, ArrowDownIcon, DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
@@ -883,7 +883,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const renderSortIcon = useCallback(
     (field: string) => {
       if (isActiveSort(field)) {
-        return isAsc ? <PiArrowUp size={12} className="gba:ml-1" /> : <PiArrowDown size={12} className="gba:ml-1" />
+        return isAsc ? <ArrowUpIcon size={12} className="gba:ml-1" /> : <ArrowDownIcon size={12} className="gba:ml-1" />
       }
       return <span className="gba:ml-1 gba:inline-block gba:w-[12px] gba:h-[12px]" />
     },
@@ -1708,7 +1708,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             data-testid="expense-requests-export-csv-button"
             title={getExportCsvTitle()}
           >
-            <PiDownload className="gba:mr-2" />
+            <DownloadIcon className="gba:mr-2" />
             {isExporting ? 'Exporting...' : getTranslationFromI18nKeyAndLabel('lowcoder:export_csv', 'CSV')}
           </Button>
           <Button
@@ -1719,7 +1719,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             data-testid="expense-requests-export-excel-button"
             title={getExportExcelTitle()}
           >
-            <PiFileXls className="gba:mr-2" />
+            <FileXlsIcon className="gba:mr-2" />
             {isExporting ? 'Exporting...' : getTranslationFromI18nKeyAndLabel('lowcoder:export_excel', 'Excel')}
           </Button>
         </div>

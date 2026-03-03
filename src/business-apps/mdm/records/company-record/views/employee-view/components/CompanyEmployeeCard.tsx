@@ -4,7 +4,7 @@
  */
 import React from 'react'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { PiOfficeChairBold, PiBuildingsBold } from 'react-icons/pi'
+import { OfficeChairIcon, BuildingsIcon } from '@phosphor-icons/react'
 import type { CompanyEmployee } from '@/common/data/orgchart/hooks/useCompanyEmployees'
 
 export interface CompanyEmployeeCardProps {
@@ -67,7 +67,7 @@ export const CompanyEmployeeCard: React.FC<CompanyEmployeeCardProps> = ({ employ
 
             {jobTitle && (
               <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-                <PiOfficeChairBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
+                <OfficeChairIcon weight="bold" className="gba:text-muted-foreground gba:mr-1.5" size={14} />
                 <span className="gba:truncate" title={jobTitle}>
                   {jobTitle}
                 </span>
@@ -76,7 +76,7 @@ export const CompanyEmployeeCard: React.FC<CompanyEmployeeCardProps> = ({ employ
 
             {organizationalUnit && (
               <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-                <PiBuildingsBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
+                <BuildingsIcon weight="bold" className="gba:text-muted-foreground gba:mr-1.5" size={14} />
                 <span className="gba:truncate" title={organizationalUnit}>
                   {organizationalUnit}
                 </span>

@@ -983,7 +983,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
         '@dnd-kit/utilities',
         'zustand',
         'react',
-        'react-icons',
         'react-dom'
       ],
       // Optimize caching strategy
@@ -1075,8 +1074,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
           'clsx',
           'tailwind-merge',
           'react-i18next',
-          'react-icons',
-          'react-icons/pi',
           '@phosphor-icons/react',
           '@newwork/gravity-ui-catalog',
           '@remixicon/react',
@@ -1094,8 +1091,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
             antd: 'antd',
             '@ant-design/icons': 'antDesignIcons',
             'react-i18next': 'reactI18next',
-            'react-icons': 'reactIcons',
-            'react-icons/pi': 'reactIconsPi',
+            '@phosphor-icons/react': 'PhosphorIconsReact',
             clsx: 'clsx',
             'tailwind-merge': 'tailwindMerge',
             '@dnd-kit/core': 'DNDKitCore',

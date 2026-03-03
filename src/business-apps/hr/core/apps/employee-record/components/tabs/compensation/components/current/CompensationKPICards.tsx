@@ -3,7 +3,7 @@
 import React from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
 import { CompensationData } from '../../types/compensationTypes'
-import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
+import { CurrencyEurIcon, GiftIcon, HeartbeatIcon } from '@phosphor-icons/react'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -135,7 +135,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
           {/* Icon container - fixed position at bottom right of card */}
           <div className="gba:absolute gba:bottom-4 gba:right-4">
             <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiCurrencyEur className="gba:w-6 gba:h-6 gba:text-primary" />
+              <CurrencyEurIcon className="gba:w-6 gba:h-6 gba:text-primary" />
             </div>
           </div>
         </CardContent>
@@ -184,7 +184,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
           {/* Icon container - fixed position at bottom right of card */}
           <div className="gba:absolute gba:bottom-4 gba:right-4">
             <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiGift className="gba:w-6 gba:h-6 gba:text-primary" />
+              <GiftIcon className="gba:w-6 gba:h-6 gba:text-primary" />
             </div>
           </div>
         </CardContent>
@@ -203,7 +203,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
           {/* Icon container - fixed position at bottom right of card */}
           <div className="gba:absolute gba:bottom-4 gba:right-4">
             <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiHeartbeat className="gba:w-6 gba:h-6 gba:text-primary" />
+              <HeartbeatIcon className="gba:w-6 gba:h-6 gba:text-primary" />
             </div>
           </div>
         </CardContent>
