@@ -1,6 +1,5 @@
-import { Button } from '@newwork/nw-design-system'
-import { MessageSquare, X, Trash2, AlertCircle } from 'lucide-react'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -8,6 +7,7 @@ import {
   DialogDescription,
   DialogFooter
 } from '@newwork/nw-design-system'
+import { MessageSquare, X, Trash2, AlertCircle } from 'lucide-react'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import type { BuildPlan } from '../../types'
 import { createOrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
@@ -133,9 +133,10 @@ export const CreateSessionSidebar = ({
             const isActive = plan.jobId === currentPlanId
 
             return (
-              <div
+              <button
+                type="button"
                 key={plan.jobId}
-                className={`gba:flex gba:items-start gba:gap-2.5 gba:rounded-xl gba:px-2.5 gba:py-2 gba:cursor-pointer gba:group gba:transition-all gba:duration-150 ${
+                className={`gba:w-full gba:text-left gba:flex gba:items-start gba:gap-2.5 gba:rounded-xl gba:px-2.5 gba:py-2 gba:cursor-pointer gba:group gba:transition-all gba:duration-150 gba:border-0 gba:bg-transparent ${
                   isActive ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:hover:bg-muted/70'
                 }`}
                 onClick={() => onSelectSession(plan.jobId)}
@@ -157,7 +158,7 @@ export const CreateSessionSidebar = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="gba:h-6 gba:w-6 gba:rounded-md gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:flex-shrink-0"
+                    className="gba:h-6 gba:w-6 gba:rounded-md gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:shrink-0"
                     onClick={e => {
                       e.stopPropagation()
                       deleteSinglePlan(plan.jobId, appName || planTitle, e)
@@ -168,7 +169,7 @@ export const CreateSessionSidebar = ({
                     <Trash2 className="gba:h-3 gba:w-3" />
                   </Button>
                 )}
-              </div>
+              </button>
             )
           })}
       </div>
