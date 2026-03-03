@@ -292,13 +292,17 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const handleExportWord = useCallback(async () => {
     setIsExporting(true)
     try {
-      await exportToWord(title, content)
+      const safeContent = sanitizeHtmlForExport(content, {
+        preserveBlockSpacing: true,
+        allowDataUriInImg: true
+      })
+      await exportToWord(title, safeContent, { getImageDataUrl })
     } catch (error) {
       console.error('[DocumentEditor] Export to Word failed:', error)
     } finally {
       setIsExporting(false)
     }
-  }, [title, content])
+  }, [title, content, getImageDataUrl])
 
   /**
    * Export to PDF

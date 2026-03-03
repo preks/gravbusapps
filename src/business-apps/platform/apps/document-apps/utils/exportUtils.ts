@@ -460,18 +460,107 @@ function downloadBlob(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+/** Minimum pixel size on the longer side; below this we upscale 2x for Word so images stay sharp. */
+const WORD_IMAGE_UPSCALE_THRESHOLD = 600
+/** Maximum pixel dimension for the upscaled image to avoid huge payloads. */
+const WORD_IMAGE_MAX_DIMENSION = 2400
+
+/**
+ * Convert a single data:image/... URL to PNG via canvas (for Word compatibility).
+ * If the image is small, render at 2x resolution so Word gets a sharper image.
+ */
+function dataUrlToPngForWord(dataUrl: string): Promise<{ dataUrl: string; width: number; height: number }> {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth
+        const h = img.naturalHeight
+        const maxDim = Math.max(w, h)
+        const scale = maxDim < WORD_IMAGE_UPSCALE_THRESHOLD ? Math.min(2, WORD_IMAGE_MAX_DIMENSION / maxDim) : 1
+        const outW = Math.round(w * scale)
+        const outH = Math.round(h * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = outW
+        canvas.height = outH
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve({ dataUrl, width: w, height: h })
+          return
+        }
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        ctx.drawImage(img, 0, 0, w, h, 0, 0, outW, outH)
+        resolve({
+          dataUrl: canvas.toDataURL('image/png'),
+          width: w,
+          height: h
+        })
+      } catch {
+        resolve({ dataUrl, width: img.naturalWidth, height: img.naturalHeight })
+      }
+    }
+    img.onerror = () => resolve({ dataUrl, width: 0, height: 0 })
+    img.src = dataUrl
+  })
+}
+
+/**
+ * Process all data-URL images in HTML for Word: convert to PNG, upscale small images, add width/height.
+ * Improves sharpness when the source image was low resolution (e.g. screenshots or small embeds).
+ */
+async function prepareImagesForWordExport(html: string): Promise<string> {
+  const imgDataUrlRegex = /<img([^>]*?)src\s*=\s*["'](data:image\/[^"']+)["']([^>]*)>/gi
+  const matches = [...html.matchAll(imgDataUrlRegex)]
+  if (matches.length === 0) return html
+
+  const replacements: { full: string; before: string; src: string; after: string }[] = []
+  let m: RegExpExecArray | null
+  imgDataUrlRegex.lastIndex = 0
+  while ((m = imgDataUrlRegex.exec(html)) !== null) {
+    replacements.push({
+      full: m[0],
+      before: m[1],
+      src: m[2],
+      after: m[3]
+    })
+  }
+
+  let result = html
+  for (const { full, before, src, after } of replacements) {
+    const { dataUrl, width, height } = await dataUrlToPngForWord(src)
+    const dims = width > 0 && height > 0 ? ` width="${width}" height="${height}"` : ''
+    const newTag = `<img${before}src="${dataUrl}"${dims}${after}>`
+    result = result.replace(full, newTag)
+  }
+  return result
+}
+
+/**
+ * Wrap images in Word-friendly markup and add inline styles Word respects.
+ */
+function makeWordFriendlyImages(html: string): string {
+  return html.replace(/<img([^>]*)>/gi, (_match, attrs: string) => {
+    const styleMatch = attrs.match(/\sstyle\s*=\s*["']([^"']*)["']/i)
+    const existingStyle = styleMatch ? styleMatch[1] : ''
+    const wordStyle = 'display:block;max-width:100%;height:auto;margin:0;'
+    const mergedStyle = existingStyle ? `${existingStyle};${wordStyle}` : wordStyle
+    const newAttrs = styleMatch
+      ? attrs.replace(/\sstyle\s*=\s*["'][^"']*["']/i, ` style="${mergedStyle}"`)
+      : attrs + ` style="${wordStyle}"`
+    return `<p class="MsoNormal" style="margin:10pt 0;text-align:left;"><img${newAttrs}></p>`
+  })
+}
+
 /**
  * Convert HTML content to Word-compatible markup
  */
 function htmlToWordML(html: string): string {
-  // Clean up the HTML and convert page breaks
   const content = html
-    // Convert page breaks to Word-compatible format
     .replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<br clear="all" style="page-break-after:always"/>')
-    // Clean up empty paragraphs that might interfere
     .replace(/<p><\/p>/gi, '<p>&nbsp;</p>')
-
-  return content
+  return makeWordFriendlyImages(content)
 }
 
 export interface ExportImageOptions {
@@ -492,6 +581,7 @@ export async function exportToWord(title: string, htmlContent: string, options?:
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }
+  content = await prepareImagesForWordExport(content)
   const wordContent = htmlToWordML(content)
   const safeTitle = escapeHtmlText(title || 'Document')
 
