@@ -411,10 +411,11 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
         doc.body.appendChild(heading)
       }
       const container = doc.createElement('div')
-      // CWE-79: assign only sanitized output to innerHTML to prevent DOM XSS
-      container.innerHTML = sanitizeHtmlForExport(options.htmlContent, {
-        preserveBlockSpacing: true,
-        allowDataUriInImg: true
+      // CWE-79: assign only DOMPurify.sanitize(...) to innerHTML so SAST recognizes the known sanitizer
+      container.innerHTML = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: [],
+        ALLOW_DATA_ATTR: true
       })
       doc.body.appendChild(container)
 
