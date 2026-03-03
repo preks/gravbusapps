@@ -2,7 +2,7 @@
  * Page setup dialog (Google Docs-style): Pages tab (size, orientation, margins, page colour) and Pageless tab.
  */
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,7 @@ export function PageSetupDialog({
   formatting,
   onApply,
   'data-testid': testId = 'page-setup-dialog'
-}: PageSetupDialogProps) {
+}: Readonly<PageSetupDialogProps>) {
   const { t } = useTranslation(translations)
   const layout = resolvePageLayout(formatting)
 

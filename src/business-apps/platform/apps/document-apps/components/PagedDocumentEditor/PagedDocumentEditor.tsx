@@ -412,6 +412,36 @@ function handleTabKeyInPagedEditor(event: KeyboardEvent, editorRef: React.RefObj
   return true
 }
 
+function getSpaceIdFromWindow(): string | null {
+  if (globalThis.window === undefined) return null
+  return new URLSearchParams(globalThis.window.location.search).get('spaceId')
+}
+
+function useNavigationPanelState(): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
+  const [show, setShow] = useState(() => {
+    if (globalThis.window === undefined) return false
+    return globalThis.window.localStorage.getItem('document-editor-navigation-panel-open') === 'true'
+  })
+  useEffect(() => {
+    if (globalThis.window === undefined) return
+    globalThis.window.localStorage.setItem('document-editor-navigation-panel-open', String(show))
+  }, [show])
+  return [show, setShow]
+}
+
+function useCollaborationCursorStyles(): void {
+  useEffect(() => {
+    if (globalThis.window === undefined) return
+    const styleId = 'collaboration-cursor-styles'
+    const doc = globalThis.window.document
+    if (doc.getElementById(styleId)) return
+    const styleEl = doc.createElement('style')
+    styleEl.id = styleId
+    styleEl.textContent = CURSOR_STYLES
+    doc.head.appendChild(styleEl)
+  }, [])
+}
+
 /**
  * PagedDocumentEditor Component
  */
@@ -486,14 +516,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     type RightSidebar = 'closed' | 'comments' | 'ai'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
-    const [showNavigationPanel, setShowNavigationPanel] = useState(() => {
-      if (typeof globalThis.window === 'undefined') return false
-      return globalThis.window.localStorage.getItem('document-editor-navigation-panel-open') === 'true'
-    })
-    useEffect(() => {
-      if (typeof globalThis.window === 'undefined') return
-      globalThis.window.localStorage.setItem('document-editor-navigation-panel-open', String(showNavigationPanel))
-    }, [showNavigationPanel])
+    const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
@@ -693,10 +716,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       const activityType = isReadOnly ? 'viewing' : 'editing'
       const docTitle = document.title || t('title-untitled-document')
-      const urlSpaceId =
-        typeof globalThis.window !== 'undefined'
-          ? new URLSearchParams(globalThis.window.location.search).get('spaceId')
-          : null
+      const urlSpaceId = getSpaceIdFromWindow()
 
       // Emit activity when starting
       emitDocumentActivity({
@@ -882,23 +902,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       ]
     )
 
-    // Inject collaboration cursor styles once on mount
-    useEffect(() => {
-      // Guard against SSR / non-browser environments
-      if (typeof globalThis.window === 'undefined') return
-
-      const styleId = 'collaboration-cursor-styles'
-      // Use globalThis.window.document to avoid shadowing from the 'document' prop
-      if (!globalThis.window.document.getElementById(styleId)) {
-        const styleEl = globalThis.window.document.createElement('style')
-        styleEl.id = styleId
-        styleEl.textContent = CURSOR_STYLES
-        globalThis.window.document.head.appendChild(styleEl)
-      }
-      return () => {
-        // Don't remove on unmount - other editors might need it
-      }
-    }, [])
+    useCollaborationCursorStyles()
 
     // Update refs when values change
     useEffect(() => {
@@ -1053,9 +1057,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!container) return
 
       // Prefer the actual editor DOM root if available.
-      const root: HTMLElement | null =
-        (editor?.view?.dom as unknown as HTMLElement | null) ??
-        (container.querySelector('.ProseMirror') as HTMLElement | null)
+      const root: HTMLElement | null = (editor?.view?.dom ??
+        container.querySelector('.ProseMirror')) as HTMLElement | null
 
       if (!root) return
 

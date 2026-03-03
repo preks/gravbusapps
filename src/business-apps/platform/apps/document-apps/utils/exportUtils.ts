@@ -49,8 +49,7 @@ function stripTagsToText(html: string): string {
   const out: string[] = []
   let inTag = false
 
-  for (let i = 0; i < html.length; i++) {
-    const ch = html[i]
+  for (const ch of html) {
     if (ch === '<') {
       inTag = true
       continue
@@ -66,7 +65,7 @@ function stripTagsToText(html: string): string {
 }
 
 function preserveDataUriImgsForPurify(html: string): string {
-  if (typeof globalThis.DOMParser === 'undefined') return html
+  if (globalThis.DOMParser === undefined) return html
 
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
@@ -142,7 +141,7 @@ function postProcessExportHtml(
   html: string,
   options: { preserveBlockSpacing: boolean; allowDataUriInImg: boolean }
 ): string {
-  if (typeof globalThis.DOMParser === 'undefined') return html
+  if (globalThis.DOMParser === undefined) return html
 
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
@@ -174,7 +173,7 @@ export function sanitizeHtmlForExport(
   const preserveBlockSpacing = options?.preserveBlockSpacing === true
   const allowDataUriInImg = options?.allowDataUriInImg === true
 
-  if (typeof globalThis.window === 'undefined' || typeof globalThis.DOMParser === 'undefined') {
+  if (globalThis.window === undefined || globalThis.DOMParser === undefined) {
     return stripTagsToText(html)
   }
 
@@ -339,7 +338,7 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   }
 
   iframeDoc.open()
-  iframeDoc.write(fullHtml)
+  ;(iframeDoc.write as (html: string) => void)(fullHtml)
   iframeDoc.close()
 
   let printed = false
@@ -554,8 +553,9 @@ async function prepareImagesForWordExport(html: string): Promise<string> {
  * Wrap images in Word-friendly markup and add inline styles Word respects.
  */
 function makeWordFriendlyImages(html: string): string {
-  return html.replace(/<img([^>]*)>/gi, (_match, attrs: string) => {
-    const styleMatch = attrs.match(/\sstyle\s*=\s*["']([^"']*)["']/i)
+  return html.replace(/<img([^>]*)>/gi, (_match: string, attrs: string) => {
+    const styleRe = /\sstyle\s*=\s*["']([^"']*)["']/i
+    const styleMatch = styleRe.exec(attrs)
     const existingStyle = styleMatch ? styleMatch[1] : ''
     const wordStyle = 'display:block;max-width:100%;height:auto;margin:0;'
     const mergedStyle = existingStyle ? `${existingStyle};${wordStyle}` : wordStyle

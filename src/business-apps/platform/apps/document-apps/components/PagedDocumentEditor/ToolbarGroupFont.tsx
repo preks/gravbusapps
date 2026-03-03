@@ -2,7 +2,7 @@
  * Ribbon group: Font family, size, bold/italic/underline, color, highlight.
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import {
   Button,
@@ -44,15 +44,16 @@ interface ToolbarGroupFontProps {
 
 export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly<ToolbarGroupFontProps>) {
   const { t } = useTranslation(translations)
-  // Sonar S6754: value + setter pair; setter used for selection sync, value intentionally unused
-  const [selectionTick, setSelectionTick] = useState(0)
-  void selectionTick
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setter used for selection sync; value intentionally unused (Sonar S3735)
+  const [_selectionTick, setSelectionTick] = useState(0)
   const [fontSizeInputValue, setFontSizeInputValue] = useState<string | null>(null)
 
   useEffect(() => {
     const onSelectionUpdate = () => setSelectionTick(s => s + 1)
     editor.on('selectionUpdate', onSelectionUpdate)
-    return () => editor.off('selectionUpdate', onSelectionUpdate)
+    return () => {
+      editor.off('selectionUpdate', onSelectionUpdate)
+    }
   }, [editor])
 
   const getCurrentFont = (): { label: string; value: string } => {

@@ -113,9 +113,8 @@ const WaveformBars: React.FC<WaveformBarsProps> = ({ volume }) => {
   const minHeight = 4
   const maxHeight = 20
   const animationRef = useRef<number>(0)
-  // Sonar S6754: value + setter pair; setter used to force re-render for animation, value intentionally unused
-  const [animationTick, forceUpdate] = React.useState({})
-  void animationTick
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setter used to force re-render for animation; value intentionally unused (Sonar S3735)
+  const [_animationTick, forceUpdate] = React.useState({})
 
   useEffect(() => {
     let running = true

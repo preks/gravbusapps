@@ -33,10 +33,10 @@ export function normalizeLinkHref(url: string, defaultProtocol: string = 'https'
 
 /** Escape for HTML attribute value (e.g. href). */
 export function escapeHtmlAttr(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return s.replace('&', '&amp;').replace('"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
 }
 
 /** Escape for HTML text content. */
 export function escapeHtmlText(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 }

@@ -27,7 +27,7 @@ declare module '@tiptap/core' {
 function parseLineHeight(element: HTMLElement): number | null {
   const v = element.style?.lineHeight || element.dataset.lineHeight
   if (v == null || v === '') return null
-  const n = parseFloat(String(v))
+  const n = Number.parseFloat(String(v))
   return Number.isFinite(n) ? n : null
 }
 
@@ -97,16 +97,16 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
           let num: number | null = null
           if (value != null) {
             if (typeof value === 'string') {
-              const parsed = parseFloat(value)
+              const parsed = Number.parseFloat(value)
               num = Number.isFinite(parsed) ? parsed : null
             } else {
               num = value
             }
           }
-          const attrs = num != null ? { lineHeight: num } : {}
+          const attrs = num == null ? {} : { lineHeight: num }
           return this.options.types
             .map(type =>
-              num != null ? commands.updateAttributes(type, attrs) : commands.resetAttributes(type, 'lineHeight')
+              num == null ? commands.resetAttributes(type, 'lineHeight') : commands.updateAttributes(type, attrs)
             )
             .some(Boolean)
         },
@@ -115,9 +115,9 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
         ({ commands }) => {
           return this.options.types
             .map(type =>
-              value != null
-                ? commands.updateAttributes(type, { marginBefore: value })
-                : commands.resetAttributes(type, 'marginBefore')
+              value == null
+                ? commands.resetAttributes(type, 'marginBefore')
+                : commands.updateAttributes(type, { marginBefore: value })
             )
             .some(Boolean)
         },
@@ -126,9 +126,9 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
         ({ commands }) => {
           return this.options.types
             .map(type =>
-              value != null
-                ? commands.updateAttributes(type, { marginAfter: value })
-                : commands.resetAttributes(type, 'marginAfter')
+              value == null
+                ? commands.resetAttributes(type, 'marginAfter')
+                : commands.updateAttributes(type, { marginAfter: value })
             )
             .some(Boolean)
         },
