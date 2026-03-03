@@ -47,7 +47,7 @@ export interface DocumentImageViewProps {
 
 export function DocumentImageView({ node, editor, getPos, selected, getAccessToken }: DocumentImageViewProps) {
   const src = node.attrs.src ?? ''
-  const [displaySrc, setDisplaySrc] = useState<string>(src)
+  const [displaySrc, setDisplaySrc] = useState<string>(() => (isFileServiceSrc(src) ? '' : src))
   const [error, setError] = useState(false)
   const objectUrlRef = useRef<string | null>(null)
   const imgRef = useRef<HTMLImageElement | null>(null)
@@ -123,6 +123,8 @@ export function DocumentImageView({ node, editor, getPos, selected, getAccessTok
       setDisplaySrc(src)
       return
     }
+    // Avoid the browser performing an unauthenticated <img src="..."> request while we fetch via FileClient.
+    setDisplaySrc('')
     const path = getPathFromFileServiceUrl(src)
     fileClient
       .downloadFileByPath(path, token)

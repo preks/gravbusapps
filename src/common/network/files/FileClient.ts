@@ -136,13 +136,17 @@ export class FileClient extends RestClient {
     // Our RestClient baseUrl for FileClient is NEXT_PUBLIC_FILE_SERVICE_ENDPOINT, usually:
     //   https://<host>/files/api/v1
     // For /api/v1/... paths, we must call https://<host>/files + <path> (NOT /files/api/v1 + /api/v1/...).
+    // Some clients also store fully prefixed paths like /files/api/v1/tenant/... which must be used as-is.
     const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`
     const fileServiceEndpoint = this.baseUrl // e.g. https://newwork-dev.newwork.com/files/api/v1
     const filesBaseUrl = fileServiceEndpoint.replace(/\/api\/v1\/?$/, '') // -> https://newwork-dev.newwork.com/files
+    const hostBaseUrl = fileServiceEndpoint.replace(/\/files\/api\/v1\/?$/, '') // -> https://newwork-dev.newwork.com
 
-    const url = normalizedPath.startsWith('/api/v1/')
-      ? `${filesBaseUrl}${normalizedPath}`
-      : `${fileServiceEndpoint}${normalizedPath}`
+    const url = normalizedPath.startsWith('/files/api/v1/')
+      ? `${hostBaseUrl}${normalizedPath}`
+      : normalizedPath.startsWith('/api/v1/')
+        ? `${filesBaseUrl}${normalizedPath}`
+        : `${fileServiceEndpoint}${normalizedPath}`
 
     try {
       const response = await fetch(url, {
