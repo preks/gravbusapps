@@ -53,12 +53,13 @@ export const BackButton: React.FC<BackButtonProps> = ({
     }
   }
 
+  const variant = 'ghost'
   const backText =
     customBackText || getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back')
 
   return (
     <Button
-      variant="ghost"
+      variant={variant}
       size="sm"
       onClick={handleBackClick}
       className={`gba:flex gba:items-center gba:gap-2 ${className}`}
