@@ -13,6 +13,8 @@ import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 import { FlowProposalFileUploadProvider } from './context/FlowProposalFileUploadContext'
 import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
+import { UserPreferencesProvider, useUserPreferencesContext } from './context/UserPreferencesContext'
+import { UserPreferences } from './components/UserPreferences'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -28,9 +30,11 @@ export interface EveryAIProps extends BusinessAppContextProps {
  */
 export const EveryAI: React.FC<EveryAIProps> = props => {
   return (
-    <VoiceFormProvider>
-      <EveryAIInner {...props} />
-    </VoiceFormProvider>
+    <UserPreferencesProvider accessToken={props.accessToken}>
+      <VoiceFormProvider>
+        <EveryAIInner {...props} />
+      </VoiceFormProvider>
+    </UserPreferencesProvider>
   )
 }
 
@@ -47,6 +51,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
+
+  // User preferences context for personalization
+  const userPreferences = useUserPreferencesContext()
 
   const {
     conversation,
@@ -629,12 +636,17 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   compactSuggestions={compactSuggestions}
                   // Access token for entity mentions
                   accessToken={accessToken}
+                  // User preferences
+                  onOpenPreferences={userPreferences.openModal}
                 />
               </div>
             </div>
           </div>
         </FlowProposalFileUploadProvider>
       </FormSubmissionProvider>
+
+      {/* User Preferences Modal */}
+      <UserPreferences darkMode={isEmptyState} />
     </div>
   )
 }
