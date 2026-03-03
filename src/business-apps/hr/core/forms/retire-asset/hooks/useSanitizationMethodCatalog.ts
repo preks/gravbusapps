@@ -1,80 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useCatalogEntriesOptions, type CatalogOption } from './useCatalogEntriesOptions'
 
-const SANITIZATION_METHOD_CATALOG = 'SanitizationMethod'
-const CATALOG_VERSION = 'v1'
+export type SanitizationMethodOption = CatalogOption
 
-export interface SanitizationMethodOption {
-  id: string
-  value: string
-  label: string
+const SANITIZATION_METHOD_CONFIG = {
+  catalogIdentifier: 'SanitizationMethod',
+  version: 'v1' as const,
+  errorMessage: 'Failed to fetch sanitization methods'
 }
-
-function buildCatalogRef(version: string, entryId: string): string {
-  return `${SANITIZATION_METHOD_CATALOG}:${version}:${entryId}`
-}
-
-type RawEntry = { id: string; value?: string; code?: string; translations?: { value?: string; localeCode?: string }[] }
 
 export const useSanitizationMethodCatalog = (accessToken: string) => {
-  const [entries, setEntries] = useState<RawEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const locale = getCurrentActiveUserLocale()
-
-  const catalogClient = useCatalogManagerClient(accessToken)
-
-  const fetchOptions = useCallback(async () => {
-    if (!accessToken) {
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const response = await catalogClient.getCatalogEntriesList(
-        {
-          catalogIdentifier: SANITIZATION_METHOD_CATALOG,
-          version: CATALOG_VERSION
-        },
-        {
-          limit: 100,
-          offset: 0,
-          returnTotalRecords: true,
-          includeChildCatalogEntries: true,
-          includeTranslations: true,
-          localeCode: getCurrentActiveUserLocale()
-        }
-      )
-
-      setEntries(response.data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch sanitization methods')
-      setEntries([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [accessToken, catalogClient])
-
-  useEffect(() => {
-    fetchOptions()
-  }, [fetchOptions])
-
-  const options = useMemo(
-    () =>
-      entries.map((entry: RawEntry) => {
-        const refCode = entry.code ?? entry.id
-        return {
-          id: entry.id,
-          value: buildCatalogRef(CATALOG_VERSION, refCode),
-          label: getCatalogValue(entry) || entry.value || entry.code || entry.id
-        }
-      }),
-    [entries, locale]
-  )
-
-  return { options, isLoading, error, refetch: fetchOptions }
+  return useCatalogEntriesOptions(accessToken, SANITIZATION_METHOD_CONFIG)
 }
