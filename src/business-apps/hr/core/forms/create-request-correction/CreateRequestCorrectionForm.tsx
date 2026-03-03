@@ -20,6 +20,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import translations from '../_i18n'
+import { parseDurationToMinutes, minutesToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 // Query to fetch employee header info
 const GET_EMPLOYEE_HEADER_INFO = `
@@ -215,30 +216,13 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return m ? m[1] : ''
   }
 
-  // Parse duration strings like "7h 30m" / "8h" / "30m" into minutes
-  const parseDurationToMinutes = (text?: string): number => {
-    if (!text) return 0
-    let hours = 0
-    let minutes = 0
-    const tokens = String(text).trim().split(/\s+/)
-    for (const token of tokens) {
-      if (/^\d+h$/i.test(token)) {
-        hours = Number.parseInt(token.slice(0, -1), 10) || 0
-      } else if (/^\d+m$/i.test(token)) {
-        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
-      }
-    }
-    return hours * 60 + minutes
-  }
-
-  // Format minutes as "Xh Ym" or "Xh" and keep minus sign for negative values
-  const formatMinutes = (minutes: number): string => {
-    const sign = minutes < 0 ? '-' : ''
-    const abs = Math.abs(minutes)
+  // Format minutes as HH:MM for BE; negative difference as "-HH:MM"
+  const minutesToHHMMPayload = (minutes: number): string => {
+    const abs = Math.abs(Math.floor(minutes))
     const h = Math.floor(abs / 60)
     const m = abs % 60
-    if (m === 0) return `${sign}${h}h`
-    return `${sign}${h}h ${m}m`
+    const str = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+    return minutes < 0 ? `-${str}` : str
   }
 
   // Render the calendar with a preselected date, constrained behavior, and selection handling
@@ -325,11 +309,11 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           correctionDescription: notes,
           employee: requestEmployeeId,
           employeeAttendance: payloadObject?.timeEntryId,
-          recordedTime: formatMinutes(recordedMinutes),
-          breakTime: payloadObject?.breakTime,
-          effectiveTime: formatMinutes(effectiveMinutes),
-          plannedTime: payloadObject?.plannedTime,
-          differenceTime: formatMinutes(differenceMinutes)
+          recordedTime: minutesToHHMM(recordedMinutes),
+          breakTime: minutesToHHMM(breakMinutes),
+          effectiveTime: minutesToHHMM(effectiveMinutes),
+          plannedTime: minutesToHHMM(plannedMinutes),
+          differenceTime: minutesToHHMMPayload(differenceMinutes)
         },
         employeeInfo: {
           userId: payloadObject?.userId,

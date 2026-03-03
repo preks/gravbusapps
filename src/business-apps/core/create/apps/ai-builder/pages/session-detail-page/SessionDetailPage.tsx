@@ -27,18 +27,37 @@ import { SessionDetailHero } from './components/SessionDetailHero'
 
 type MessageRole = 'user' | 'assistant'
 
+interface MessageBlock {
+  type: 'thinking' | 'response'
+  content: string
+  collapsed?: boolean
+  order?: number
+}
+
+type ToolDisplayKind = 'info' | 'success' | 'warning' | 'error'
+type ToolDisplayStep = 'call' | 'progress' | 'result'
+
+interface ToolCall {
+  tool: string
+  args?: string
+  result?: string
+  status: 'running' | 'complete'
+  id: string
+  order?: number
+  displayTitle?: string
+  displayDetail?: string
+  displayKind?: ToolDisplayKind
+  displayStep?: ToolDisplayStep
+  progressLines?: string[]
+}
+
 interface Message {
   role: MessageRole
   content: string
-  toolCalls?: Array<{
-    tool: string
-    args?: string
-    result?: string
-    status: 'running' | 'complete'
-    id: string
-  }>
+  toolCalls?: ToolCall[]
   thinkingLog?: string
   thinkingCollapsed?: boolean
+  blocks?: MessageBlock[]
   cost?: {
     inputTokens: number
     outputTokens: number
@@ -144,6 +163,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
 
   const builderClient = useBuilderClient(context.accessToken)
   const toolIdCounter = useRef(0)
+  const toolIdPrefix = useRef(`tool-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`)
   const previewSandboxRef = useRef<PreviewSandboxHandle>(null)
   const previousChangeCountRef = useRef(0)
   const publishProgressRef = useRef<string[]>([])
@@ -172,6 +192,220 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   }
 
+  const createToolCallId = (ctx: StreamCtx): string => {
+    ctx.toolIdCounter.current += 1
+    return `${ctx.toolIdPrefix.current}-${ctx.toolIdCounter.current}`
+  }
+
+  const normalizeDisplayKind = (value: unknown): ToolDisplayKind | undefined => {
+    if (value === 'info' || value === 'success' || value === 'warning' || value === 'error') {
+      return value
+    }
+    return undefined
+  }
+
+  const normalizeDisplayStep = (value: unknown): ToolDisplayStep | undefined => {
+    if (value === 'call' || value === 'progress' || value === 'result') {
+      return value
+    }
+    return undefined
+  }
+
+  const getDisplayMetadataFromEvent = (
+    data: Record<string, unknown>
+  ): Pick<ToolCall, 'displayTitle' | 'displayDetail' | 'displayKind' | 'displayStep'> => {
+    const displayTitle =
+      typeof data.displayTitle === 'string' && data.displayTitle.trim() ? data.displayTitle.trim() : undefined
+    const displayDetail =
+      typeof data.displayDetail === 'string' && data.displayDetail.trim() ? data.displayDetail.trim() : undefined
+    return {
+      displayTitle,
+      displayDetail,
+      displayKind: normalizeDisplayKind(data.displayKind),
+      displayStep: normalizeDisplayStep(data.displayStep)
+    }
+  }
+
+  const stringifyToolArgs = (value: unknown): string | undefined => {
+    if (typeof value === 'string') {
+      return value.trim() ? value : undefined
+    }
+    if (value && typeof value === 'object') {
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return undefined
+      }
+    }
+    return undefined
+  }
+
+  const parseLegacyToolArgsFromContent = (value: string): string | undefined => {
+    if (!value) return undefined
+    const parenMatch = /\(([^)]*)\)/.exec(value)
+    return parenMatch?.[1]
+  }
+
+  const extractToolPath = (value: string | undefined): string | undefined => {
+    if (!value) return undefined
+    const pathRegex = /(?:file_path|filePath|path|target_file|targetPath):\s*"([^"]+)"/
+    const match = pathRegex.exec(value)
+    return match?.[1]
+  }
+
+  const fallbackToolCallDisplay = (
+    toolName: string,
+    toolArgs: string | undefined
+  ): Pick<ToolCall, 'displayTitle' | 'displayDetail' | 'displayKind' | 'displayStep'> => {
+    const path = extractToolPath(toolArgs)
+    if (toolName === 'read_file') {
+      return {
+        displayTitle: path ? `Reading ${path.split('/').pop()}` : 'Reading file',
+        displayDetail: path,
+        displayKind: 'info',
+        displayStep: 'call'
+      }
+    }
+    if (toolName === 'write_file') {
+      return {
+        displayTitle: path ? `Updating ${path.split('/').pop()}` : 'Updating file',
+        displayDetail: path,
+        displayKind: 'info',
+        displayStep: 'call'
+      }
+    }
+    if (toolName === 'delete_file') {
+      return {
+        displayTitle: path ? `Deleting ${path.split('/').pop()}` : 'Deleting file',
+        displayDetail: path,
+        displayKind: 'warning',
+        displayStep: 'call'
+      }
+    }
+    if (toolName === 'screen_build') {
+      return {
+        displayTitle: 'Validating preview build',
+        displayKind: 'info',
+        displayStep: 'call'
+      }
+    }
+    return {
+      displayTitle: toolName.replace(/_/g, ' '),
+      displayKind: 'info',
+      displayStep: 'call'
+    }
+  }
+
+  const fallbackToolProgressDisplay = (
+    toolName: string,
+    content: string
+  ): Pick<ToolCall, 'displayTitle' | 'displayDetail' | 'displayKind' | 'displayStep'> => {
+    const normalizedContent = content.trim()
+    if (!normalizedContent) {
+      return {
+        displayTitle: toolName.replace(/_/g, ' '),
+        displayKind: 'info',
+        displayStep: 'progress'
+      }
+    }
+    return {
+      displayTitle: normalizedContent,
+      displayKind: 'info',
+      displayStep: 'progress'
+    }
+  }
+
+  const fallbackToolResultDisplay = (
+    toolName: string,
+    toolResult: Record<string, unknown> | null,
+    resultContent: string
+  ): Pick<ToolCall, 'displayTitle' | 'displayDetail' | 'displayKind' | 'displayStep'> => {
+    const success =
+      toolResult?.success === true ||
+      resultContent.includes('"success": true') ||
+      resultContent.includes('"success":true')
+    if (toolName === 'screen_build') {
+      return {
+        displayTitle: success ? 'Preview build completed' : 'Preview build failed',
+        displayDetail:
+          (typeof toolResult?.message === 'string' && toolResult.message) ||
+          (typeof toolResult?.error === 'string' ? toolResult.error : undefined),
+        displayKind: success ? 'success' : 'error',
+        displayStep: 'result'
+      }
+    }
+    return {
+      displayTitle: success ? `${toolName.replace(/_/g, ' ')} completed` : `${toolName.replace(/_/g, ' ')} failed`,
+      displayDetail: typeof toolResult?.error === 'string' ? toolResult.error : undefined,
+      displayKind: success ? 'success' : 'error',
+      displayStep: 'result'
+    }
+  }
+
+  const normalizeToolCalls = (
+    toolCalls: Message['toolCalls'],
+    messageId: string | undefined
+  ): { toolCalls?: Message['toolCalls']; updated: boolean } => {
+    if (!Array.isArray(toolCalls) || toolCalls.length === 0) {
+      return { toolCalls, updated: false }
+    }
+
+    const seenIds = new Set<string>()
+    let updated = false
+    const normalized = toolCalls.map((call, index) => {
+      const originalId = typeof call.id === 'string' ? call.id.trim() : ''
+      let nextId = originalId
+
+      if (!nextId || seenIds.has(nextId)) {
+        updated = true
+        const baseId = messageId ? `${messageId}-tool-${index + 1}` : `tool-${index + 1}`
+        nextId = baseId
+        let suffix = 1
+        while (seenIds.has(nextId)) {
+          nextId = `${baseId}-${suffix}`
+          suffix += 1
+        }
+      }
+
+      seenIds.add(nextId)
+      const normalizedOrder = typeof call.order === 'number' && Number.isFinite(call.order) ? call.order : undefined
+      const normalizedDisplayTitle =
+        typeof call.displayTitle === 'string' && call.displayTitle.trim() ? call.displayTitle.trim() : undefined
+      const normalizedDisplayDetail =
+        typeof call.displayDetail === 'string' && call.displayDetail.trim() ? call.displayDetail.trim() : undefined
+      const normalizedDisplayKind = normalizeDisplayKind(call.displayKind)
+      const normalizedDisplayStep = normalizeDisplayStep(call.displayStep)
+      const normalizedProgressLines =
+        Array.isArray(call.progressLines) && call.progressLines.length > 0
+          ? call.progressLines.filter(line => typeof line === 'string' && line.trim().length > 0)
+          : undefined
+      if (
+        nextId !== call.id ||
+        normalizedOrder !== call.order ||
+        normalizedDisplayTitle !== call.displayTitle ||
+        normalizedDisplayDetail !== call.displayDetail ||
+        normalizedDisplayKind !== call.displayKind ||
+        normalizedDisplayStep !== call.displayStep ||
+        JSON.stringify(normalizedProgressLines ?? []) !== JSON.stringify(call.progressLines ?? [])
+      ) {
+        updated = true
+        return {
+          ...call,
+          id: nextId,
+          order: normalizedOrder,
+          displayTitle: normalizedDisplayTitle,
+          displayDetail: normalizedDisplayDetail,
+          displayKind: normalizedDisplayKind,
+          displayStep: normalizedDisplayStep,
+          progressLines: normalizedProgressLines
+        }
+      }
+      return call
+    })
+
+    return { toolCalls: normalized, updated }
+  }
+
   const buildMessage = (role: MessageRole, content: string, extras?: Partial<Message>): Message => ({
     role,
     content,
@@ -181,22 +415,262 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     ...extras
   })
 
+  const sanitizeVisibleResponseText = (value: string): string => {
+    if (!value) return ''
+    return value.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').replace(/<\/?thinking>/gi, '')
+  }
+
+  const normalizeBlocks = (blocks: unknown): MessageBlock[] | undefined => {
+    if (!Array.isArray(blocks)) return undefined
+    const normalized = blocks.reduce<MessageBlock[]>((acc, block: any) => {
+      const type = block?.type === 'thinking' ? 'thinking' : block?.type === 'response' ? 'response' : null
+      const content = typeof block?.content === 'string' ? block.content : ''
+      const order = typeof block?.order === 'number' && Number.isFinite(block.order) ? block.order : undefined
+      if (!type || !content.trim()) return acc
+
+      if (type === 'thinking') {
+        acc.push({
+          type,
+          content,
+          collapsed: block?.collapsed !== false,
+          order
+        })
+      } else {
+        acc.push({
+          type,
+          content: sanitizeVisibleResponseText(content),
+          order
+        })
+      }
+      return acc
+    }, [])
+    return normalized.length > 0 ? normalized : undefined
+  }
+
+  const normalizeMessageTimelineOrder = (
+    blocks: MessageBlock[] | undefined,
+    toolCalls: Message['toolCalls']
+  ): { blocks: MessageBlock[] | undefined; toolCalls: Message['toolCalls']; updated: boolean } => {
+    const hasBlocks = Array.isArray(blocks) && blocks.length > 0
+    const hasToolCalls = Array.isArray(toolCalls) && toolCalls.length > 0
+    if (!hasBlocks && !hasToolCalls) return { blocks, toolCalls, updated: false }
+
+    const usedOrders = new Set<number>()
+    let nextOrder = 1
+    let updated = false
+
+    const claimOrder = (candidate: number | undefined): number => {
+      if (typeof candidate === 'number' && Number.isFinite(candidate) && !usedOrders.has(candidate)) {
+        usedOrders.add(candidate)
+        if (candidate >= nextOrder) nextOrder = candidate + 1
+        return candidate
+      }
+      while (usedOrders.has(nextOrder)) {
+        nextOrder += 1
+      }
+      const assigned = nextOrder
+      usedOrders.add(assigned)
+      nextOrder += 1
+      return assigned
+    }
+
+    const normalizedBlocks = hasBlocks
+      ? blocks!.map(block => {
+          const assignedOrder = claimOrder(block.order)
+          if (assignedOrder !== block.order) {
+            updated = true
+            return {
+              ...block,
+              order: assignedOrder
+            }
+          }
+          return block
+        })
+      : undefined
+
+    const normalizedToolCalls = hasToolCalls
+      ? toolCalls!.map(call => {
+          const assignedOrder = claimOrder(call.order)
+          if (assignedOrder !== call.order) {
+            updated = true
+            return {
+              ...call,
+              order: assignedOrder
+            }
+          }
+          return call
+        })
+      : toolCalls
+
+    return { blocks: normalizedBlocks, toolCalls: normalizedToolCalls, updated }
+  }
+
+  const getNextMessageOrder = (message: Message): number => {
+    let maxOrder = 0
+    if (Array.isArray(message.blocks)) {
+      for (const block of message.blocks) {
+        if (typeof block.order === 'number' && Number.isFinite(block.order) && block.order > maxOrder) {
+          maxOrder = block.order
+        }
+      }
+    }
+    if (Array.isArray(message.toolCalls)) {
+      for (const toolCall of message.toolCalls) {
+        if (typeof toolCall.order === 'number' && Number.isFinite(toolCall.order) && toolCall.order > maxOrder) {
+          maxOrder = toolCall.order
+        }
+      }
+    }
+    return maxOrder + 1
+  }
+
+  const getLatestToolOrder = (message: Message): number => {
+    if (!Array.isArray(message.toolCalls) || message.toolCalls.length === 0) return 0
+    let maxOrder = 0
+    message.toolCalls.forEach((toolCall, index) => {
+      const order = typeof toolCall.order === 'number' && Number.isFinite(toolCall.order) ? toolCall.order : index + 1
+      if (order > maxOrder) maxOrder = order
+    })
+    return maxOrder
+  }
+
+  const findLatestRunningToolCall = (message: Message, toolName: string): ToolCall | undefined => {
+    if (!Array.isArray(message.toolCalls) || message.toolCalls.length === 0) return undefined
+    for (let i = message.toolCalls.length - 1; i >= 0; i -= 1) {
+      const candidate = message.toolCalls[i]
+      if (candidate.tool === toolName && candidate.status === 'running') {
+        return candidate
+      }
+    }
+    return undefined
+  }
+
+  const deriveResponseContent = (blocks?: MessageBlock[]): string => {
+    if (!Array.isArray(blocks) || blocks.length === 0) return ''
+    return blocks
+      .filter(block => block.type === 'response')
+      .map(block => block.content)
+      .join('')
+  }
+
+  const deriveThinkingLog = (blocks?: MessageBlock[]): string | undefined => {
+    if (!Array.isArray(blocks) || blocks.length === 0) return undefined
+    const thinking = blocks
+      .filter(block => block.type === 'thinking')
+      .map(block => block.content)
+      .join('\n\n')
+    return thinking.trim() ? thinking : undefined
+  }
+
   const ensureMessageMetadata = (history: Message[]): { messages: Message[]; updated: boolean } => {
     let updated = false
     const messages = history.map(message => {
       const needsId = !message.messageId
       const needsCreatedAt = !message.createdAt
       const needsCreatedBy = message.role === 'user' && !message.createdBy
-      if (!needsId && !needsCreatedAt && !needsCreatedBy) return message
+      const normalizedBlocks = normalizeBlocks(message.blocks)
+      const contentFromBlocks = deriveResponseContent(normalizedBlocks)
+      const sanitizedContent = sanitizeVisibleResponseText(message.content || '')
+      const normalizedContent = contentFromBlocks || sanitizedContent
+      const normalizedThinking = deriveThinkingLog(normalizedBlocks) ?? message.thinkingLog
+      const normalizedToolCalls = normalizeToolCalls(message.toolCalls, message.messageId)
+      const normalizedTimeline = normalizeMessageTimelineOrder(normalizedBlocks, normalizedToolCalls.toolCalls)
+      const needsBlocks =
+        JSON.stringify(normalizedTimeline.blocks ?? []) !==
+        JSON.stringify(Array.isArray(message.blocks) ? message.blocks : [])
+      const needsContent = normalizedContent !== (message.content || '')
+      const needsThinking = normalizedThinking !== message.thinkingLog
+      const needsToolCalls =
+        normalizedToolCalls.updated ||
+        normalizedTimeline.updated ||
+        JSON.stringify(normalizedTimeline.toolCalls ?? []) !==
+          JSON.stringify(Array.isArray(message.toolCalls) ? message.toolCalls : [])
+      if (
+        !needsId &&
+        !needsCreatedAt &&
+        !needsCreatedBy &&
+        !needsBlocks &&
+        !needsContent &&
+        !needsThinking &&
+        !needsToolCalls
+      ) {
+        return message
+      }
       updated = true
       return {
         ...message,
+        content: normalizedContent,
+        blocks: normalizedTimeline.blocks,
+        thinkingLog: normalizedThinking,
+        toolCalls: normalizedTimeline.toolCalls,
         messageId: message.messageId ?? createMessageId(),
         createdAt: message.createdAt ?? new Date().toISOString(),
         createdBy: message.createdBy ?? (message.role === 'user' ? UNKNOWN_AUTHOR_ID : undefined)
       }
     })
     return { messages, updated }
+  }
+
+  const isPersistableMessage = (message: Message): boolean => {
+    const hasContent = !!message.content?.trim()
+    const hasThinking = !!message.thinkingLog?.trim()
+    const hasBlocks =
+      Array.isArray(message.blocks) &&
+      message.blocks.some(block => typeof block.content === 'string' && block.content.trim())
+    const hasToolCalls = Array.isArray(message.toolCalls) && message.toolCalls.length > 0
+
+    if (message.role === 'user') {
+      return hasContent
+    }
+    return hasContent || hasThinking || hasBlocks || hasToolCalls
+  }
+
+  const getMessageRichnessScore = (message: Message): number => {
+    const contentChars = message.content?.length ?? 0
+    const thinkingChars = message.thinkingLog?.length ?? 0
+    const blockChars = message.blocks?.reduce((acc, block) => acc + (block.content?.length ?? 0), 0) ?? 0
+    const toolCallsScore = (message.toolCalls?.length ?? 0) * 200
+    return contentChars + thinkingChars + blockChars + toolCallsScore
+  }
+
+  const mergeMessagesById = (current: Message[], incoming: Message[]): Message[] => {
+    const result: Message[] = []
+    const indexById = new Map<string, number>()
+    const currentById = new Map<string, Message>()
+
+    current.forEach(message => {
+      if (message.messageId) {
+        currentById.set(message.messageId, message)
+      }
+    })
+
+    incoming.forEach(message => {
+      if (!message.messageId) {
+        result.push(message)
+        return
+      }
+      const currentVersion = currentById.get(message.messageId)
+      const preferred =
+        currentVersion && getMessageRichnessScore(currentVersion) > getMessageRichnessScore(message)
+          ? currentVersion
+          : message
+      indexById.set(message.messageId, result.length)
+      result.push(preferred)
+    })
+
+    current.forEach(message => {
+      if (!message.messageId) {
+        if (message.localOnly) {
+          result.push(message)
+        }
+        return
+      }
+      if (!indexById.has(message.messageId)) {
+        result.push(message)
+      }
+    })
+
+    return result
   }
 
   useEffect(() => {
@@ -529,19 +1003,23 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           if (normalized.updated) {
             builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
           }
-          setMessages(normalized.messages as Message[])
+          setMessages(prev =>
+            activeStreamReaderRef.current
+              ? mergeMessagesById(prev, normalized.messages as Message[])
+              : (normalized.messages as Message[])
+          )
           return
         }
-        setMessages([])
+        setMessages(prev => (activeStreamReaderRef.current ? prev : []))
       })
       .catch(error => {
         console.error('Failed to load chat history:', error)
-        setMessages([])
+        setMessages(prev => (activeStreamReaderRef.current ? prev : []))
       })
   }, [sessionId])
 
   useEffect(() => {
-    const persistableMessages = debouncedMessages.filter(message => !message.localOnly)
+    const persistableMessages = debouncedMessages.filter(message => !message.localOnly && isPersistableMessage(message))
     if (sessionId && persistableMessages.length > 0) {
       builderClient.saveChatHistory(repositoryId, sessionId, persistableMessages)
     }
@@ -710,8 +1188,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         if (normalized.updated) {
           builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
         }
-        setMessages([
-          ...(normalized.messages as Message[]),
+        setMessages(prev => [
+          ...mergeMessagesById(prev, normalized.messages as Message[]).filter(
+            message => message.messageId !== tempMessageId
+          ),
           buildMessage('assistant', formatRestoreProgress(restoreProgressRef.current), {
             messageId: tempMessageId,
             localOnly: true
@@ -804,7 +1284,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         editHistory: [...(message.editHistory ?? []), { userId: editorId, editedAt: new Date().toISOString() }]
       }
 
-      const nextHistory = [...(normalized.messages as Message[]), editedMessage]
+      const mergedHistory = mergeMessagesById(messagesRef.current, normalized.messages as Message[])
+      const nextHistory = [...mergedHistory.filter(item => item.messageId !== editedMessage.messageId), editedMessage]
       setMessages(nextHistory)
       await builderClient.saveChatHistory(repositoryId, sessionId, nextHistory)
 
@@ -833,6 +1314,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     setThinking: (v: boolean) => void
     setThinkingContent: (v: React.SetStateAction<string>) => void
     toolIdCounter: React.MutableRefObject<number>
+    toolIdPrefix: React.MutableRefObject<string>
     markScreenBuildUsed: () => void
     markScreenBuildSucceeded: () => void
     setPreviewBuildStatus: React.Dispatch<
@@ -844,9 +1326,80 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     >
     markFilesChanged: () => void
   }
-  type StreamState = { assistantMessage: string; needsNewMessage: boolean; hasCreatedInitialMessage: boolean }
+  type StreamState = { assistantMessageId: string | null }
 
-  const applyUsageEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+  const getActiveAssistantMessageIndex = (messages: Message[], streamState: StreamState): number => {
+    if (streamState.assistantMessageId) {
+      const byId = messages.findIndex(message => message.messageId === streamState.assistantMessageId)
+      if (byId !== -1) {
+        return byId
+      }
+    }
+
+    // Start a new assistant message for each new user prompt:
+    // only reuse when the last message is already assistant.
+    if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
+      return messages.length - 1
+    }
+
+    return -1
+  }
+
+  const ensureActiveAssistantMessage = (
+    messages: Message[],
+    streamState: StreamState
+  ): { messages: Message[]; index: number } => {
+    const next = [...messages]
+    let index = getActiveAssistantMessageIndex(next, streamState)
+    if (index === -1) {
+      const assistant = buildMessage('assistant', '', { blocks: [] })
+      next.push(assistant)
+      index = next.length - 1
+    }
+    streamState.assistantMessageId = next[index].messageId ?? streamState.assistantMessageId
+    return { messages: next, index }
+  }
+
+  const appendAssistantBlock = (message: Message, type: 'thinking' | 'response', content: string): Message => {
+    const normalizedContent = type === 'response' ? sanitizeVisibleResponseText(content) : content
+    if (!normalizedContent) return message
+
+    const blocks = [...(normalizeBlocks(message.blocks) ?? [])]
+    const last = blocks.length > 0 ? blocks[blocks.length - 1] : null
+    const latestToolOrder = getLatestToolOrder(message)
+    const lastBlockOrder =
+      last && typeof last.order === 'number' && Number.isFinite(last.order) ? last.order : blocks.length
+    const canAppendToLastBlock = last?.type === type && lastBlockOrder >= latestToolOrder
+
+    if (canAppendToLastBlock && last) {
+      last.content += normalizedContent
+    } else {
+      const nextOrder = getNextMessageOrder(message)
+      blocks.push({
+        type,
+        content: normalizedContent,
+        collapsed: type === 'thinking' ? false : undefined,
+        order: nextOrder
+      })
+    }
+
+    if (type === 'response' && blocks.length > 1) {
+      const previous = blocks[blocks.length - 2]
+      if (previous.type === 'thinking') {
+        previous.collapsed = true
+      }
+    }
+
+    return {
+      ...message,
+      blocks,
+      content: deriveResponseContent(blocks),
+      thinkingLog: deriveThinkingLog(blocks),
+      thinkingCollapsed: undefined
+    }
+  }
+
+  const applyUsageEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
     const usageData = typeof data.content === 'string' ? JSON.parse(data.content as string) : data.content
     const u = usageData as Record<string, number>
     ctx.setUsage(prev => ({
@@ -857,59 +1410,52 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }))
     ctx.setMessages(prev => {
       const newMessages = [...prev]
-      for (let i = newMessages.length - 1; i >= 0; i--) {
-        if (newMessages[i].role === 'assistant') {
-          newMessages[i] = {
-            ...newMessages[i],
-            cost: {
-              inputTokens: u.totalInputTokens || 0,
-              outputTokens: u.totalOutputTokens || 0,
-              totalCost: u.totalCost || 0
-            }
+      let assistantIndex = getActiveAssistantMessageIndex(newMessages, streamState)
+      if (assistantIndex === -1) {
+        for (let i = newMessages.length - 1; i >= 0; i -= 1) {
+          if (newMessages[i].role === 'assistant') {
+            assistantIndex = i
+            break
           }
-          break
+        }
+      }
+      if (assistantIndex !== -1) {
+        newMessages[assistantIndex] = {
+          ...newMessages[assistantIndex],
+          cost: {
+            inputTokens: u.totalInputTokens || 0,
+            outputTokens: u.totalOutputTokens || 0,
+            totalCost: u.totalCost || 0
+          }
         }
       }
       return newMessages
     })
   }
 
-  const applyThinkingEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+  const applyThinkingEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    const chunk = typeof data.content === 'string' ? data.content : ''
+    if (!chunk) return
     ctx.setThinking(true)
-    ctx.setThinkingContent(prev => prev + (data.content as string))
+    ctx.setThinkingContent(prev => prev + chunk)
     ctx.setMessages(prev => {
-      const next = [...prev]
-      if (next.length === 0 || next[next.length - 1].role !== 'assistant') {
-        next.push(buildMessage('assistant', '', { thinkingLog: '', thinkingCollapsed: false }))
-      }
-      const last = next[next.length - 1]
-      last.thinkingLog = (last.thinkingLog || '') + (data.content as string)
-      if (typeof last.thinkingCollapsed !== 'boolean') last.thinkingCollapsed = false
+      const ensured = ensureActiveAssistantMessage(prev, streamState)
+      const next = [...ensured.messages]
+      next[ensured.index] = appendAssistantBlock(next[ensured.index], 'thinking', chunk)
       return next
     })
   }
 
   const applyTokenOrResponseEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    const chunk = typeof data.content === 'string' ? data.content : ''
+    if (!chunk) return
     ctx.setThinking(false)
     ctx.setThinkingContent('')
     ctx.setMessages(prev => {
-      const next = [...prev]
-      if (next.length > 0 && next[next.length - 1].role === 'assistant' && next[next.length - 1].thinkingLog) {
-        next[next.length - 1].thinkingCollapsed = true
-      }
+      const ensured = ensureActiveAssistantMessage(prev, streamState)
+      const next = [...ensured.messages]
+      next[ensured.index] = appendAssistantBlock(next[ensured.index], 'response', chunk)
       return next
-    })
-    if (!streamState.hasCreatedInitialMessage || streamState.needsNewMessage) {
-      ctx.setMessages(prev => [...prev, buildMessage('assistant', '')])
-      streamState.hasCreatedInitialMessage = true
-      streamState.needsNewMessage = false
-      streamState.assistantMessage = ''
-    }
-    streamState.assistantMessage += data.content as string
-    ctx.setMessages(prev => {
-      const newMessages = [...prev]
-      newMessages[newMessages.length - 1].content = streamState.assistantMessage
-      return newMessages
     })
   }
 
@@ -922,43 +1468,82 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         error: null
       })
     }
-    if (!streamState.hasCreatedInitialMessage) {
-      ctx.setMessages(prev => [...prev, buildMessage('assistant', '')])
-      streamState.hasCreatedInitialMessage = true
-      streamState.assistantMessage = ''
-    }
+    const toolName = String(data.toolName)
     const contentStr = data.content != null ? String(data.content) : ''
-    const parenMatch = /\(([^)]*)\)/.exec(contentStr)
-    const toolArgs = parenMatch?.[1]
+    const toolArgs = stringifyToolArgs(data.toolArgs) ?? parseLegacyToolArgsFromContent(contentStr)
+    const fallbackDisplay = fallbackToolCallDisplay(toolName, toolArgs)
+    const eventDisplay = getDisplayMetadataFromEvent(data)
     ctx.setMessages(prev => {
-      const newMessages = [...prev]
-      const lastMsg = newMessages[newMessages.length - 1]
+      const ensured = ensureActiveAssistantMessage(prev, streamState)
+      const newMessages = [...ensured.messages]
+      const lastMsg = newMessages[ensured.index]
       lastMsg.toolCalls ??= []
-      const alreadyExists = lastMsg.toolCalls.some(t => t.tool === data.toolName && t.args === toolArgs)
-      if (!alreadyExists) {
-        ctx.toolIdCounter.current += 1
-        lastMsg.toolCalls.push({
-          tool: String(data.toolName),
-          args: toolArgs,
-          status: 'running',
-          id: `tool-${ctx.toolIdCounter.current}`
-        })
-      }
+      lastMsg.toolCalls.push({
+        tool: toolName,
+        args: toolArgs,
+        status: 'running',
+        id: createToolCallId(ctx),
+        order: getNextMessageOrder(lastMsg),
+        displayTitle: eventDisplay.displayTitle ?? fallbackDisplay.displayTitle,
+        displayDetail: eventDisplay.displayDetail ?? fallbackDisplay.displayDetail,
+        displayKind: eventDisplay.displayKind ?? fallbackDisplay.displayKind,
+        displayStep: eventDisplay.displayStep ?? fallbackDisplay.displayStep,
+        progressLines: []
+      })
       return newMessages
     })
   }
 
-  const applyToolResultEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+  const applyToolProgressEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    const toolName = typeof data.toolName === 'string' ? data.toolName : ''
+    const content = typeof data.content === 'string' ? data.content.trim() : ''
+    if (!toolName || !content) return
+
+    if (toolName === 'screen_build') {
+      ctx.setPreviewBuildStatus(prev => ({
+        ...prev,
+        active: true,
+        lines: [...prev.lines, content].slice(-6),
+        error: null
+      }))
+    }
+
+    const fallbackDisplay = fallbackToolProgressDisplay(toolName, content)
+    const eventDisplay = getDisplayMetadataFromEvent(data)
+
+    ctx.setMessages(prev => {
+      const ensured = ensureActiveAssistantMessage(prev, streamState)
+      const newMessages = [...ensured.messages]
+      const lastMsg = newMessages[ensured.index]
+      lastMsg.toolCalls ??= []
+      const title = eventDisplay.displayTitle ?? fallbackDisplay.displayTitle
+      const detail = eventDisplay.displayDetail ?? fallbackDisplay.displayDetail
+      const targetTool = findLatestRunningToolCall(lastMsg, toolName)
+      if (!targetTool) return newMessages
+      const nextProgressLines = [...(targetTool.progressLines ?? [])]
+      const progressLabel = detail ? `${title} — ${detail}` : title
+      if (progressLabel && !nextProgressLines.includes(progressLabel)) {
+        nextProgressLines.push(progressLabel)
+      }
+      targetTool.progressLines = nextProgressLines
+      return newMessages
+    })
+  }
+
+  const applyToolResultEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    const toolName = String(data.toolName)
     const resultContent =
       typeof data.content === 'string'
         ? data.content
         : data.toolResult && typeof data.toolResult === 'object'
           ? JSON.stringify(data.toolResult)
           : ''
+    const toolResult =
+      data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+    const fallbackDisplay = fallbackToolResultDisplay(toolName, toolResult, resultContent)
+    const eventDisplay = getDisplayMetadataFromEvent(data)
 
-    if (data.toolName === 'screen_build') {
-      const toolResult =
-        data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+    if (toolName === 'screen_build') {
       const statusLines =
         Array.isArray(toolResult?.lines) && toolResult?.lines.length > 0
           ? (toolResult.lines.filter(line => typeof line === 'string') as string[])
@@ -997,9 +1582,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         }))
       }
     }
-    if (data.toolName === 'write_file' || data.toolName === 'delete_file') {
-      const toolResult =
-        data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+    if (toolName === 'write_file' || toolName === 'delete_file') {
       if (
         toolResult?.success === true ||
         resultContent.includes('"success": true') ||
@@ -1010,28 +1593,52 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
     ctx.setMessages(prev => {
       const newMessages = [...prev]
-      const lastMsg = newMessages[newMessages.length - 1]
+      const assistantIndex = getActiveAssistantMessageIndex(newMessages, streamState)
+      if (assistantIndex === -1) {
+        return newMessages
+      }
+      const lastMsg = newMessages[assistantIndex]
       if (!lastMsg.toolCalls) return newMessages
-      const runningTools = lastMsg.toolCalls.filter(t => t.tool === data.toolName && t.status === 'running')
-      if (runningTools.length === 0) return newMessages
-      const tool = runningTools[runningTools.length - 1]
-      tool.status = 'complete'
-      tool.result = resultContent
+      const latestRunningTool = findLatestRunningToolCall(lastMsg, toolName)
+      const title = eventDisplay.displayTitle ?? fallbackDisplay.displayTitle
+      const detail = eventDisplay.displayDetail ?? fallbackDisplay.displayDetail
+      const normalizedDetail = detail === title ? undefined : detail
+      if (latestRunningTool) {
+        if (Array.isArray(latestRunningTool.progressLines) && title) {
+          latestRunningTool.progressLines = latestRunningTool.progressLines.filter(line => line !== title)
+        }
+        latestRunningTool.status = 'complete'
+        latestRunningTool.result = resultContent
+        latestRunningTool.displayTitle = title
+        latestRunningTool.displayDetail = normalizedDetail
+        latestRunningTool.displayKind = eventDisplay.displayKind ?? fallbackDisplay.displayKind
+        latestRunningTool.displayStep = eventDisplay.displayStep ?? fallbackDisplay.displayStep
+      } else {
+        lastMsg.toolCalls.push({
+          tool: toolName,
+          status: 'complete',
+          id: createToolCallId(ctx),
+          order: getNextMessageOrder(lastMsg),
+          result: resultContent,
+          displayTitle: title,
+          displayDetail: normalizedDetail,
+          displayKind: eventDisplay.displayKind ?? fallbackDisplay.displayKind,
+          displayStep: eventDisplay.displayStep ?? fallbackDisplay.displayStep,
+          progressLines: []
+        })
+      }
       return newMessages
     })
   }
 
   const processStreamEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
-    if (data.type === 'iteration_complete') {
-      streamState.needsNewMessage = true
-      return
-    }
+    if (data.type === 'iteration_complete') return
     if (data.type === 'usage' && data.content) {
-      applyUsageEvent(data, ctx)
+      applyUsageEvent(data, streamState, ctx)
       return
     }
     if (data.type === 'thinking' && data.content) {
-      applyThinkingEvent(data, ctx)
+      applyThinkingEvent(data, streamState, ctx)
       return
     }
     if ((data.type === 'token' || data.type === 'response') && data.content) {
@@ -1043,16 +1650,11 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       return
     }
     if (data.type === 'tool_result' && data.toolName) {
-      applyToolResultEvent(data, ctx)
+      applyToolResultEvent(data, streamState, ctx)
       return
     }
-    if (data.type === 'tool_progress' && data.toolName === 'screen_build' && data.content) {
-      ctx.setPreviewBuildStatus(prev => ({
-        ...prev,
-        active: true,
-        lines: [...prev.lines, data.content as string].slice(-6),
-        error: null
-      }))
+    if (data.type === 'tool_progress' && data.toolName && data.content) {
+      applyToolProgressEvent(data, streamState, ctx)
     }
   }
 
@@ -1126,9 +1728,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       const reader = stream.getReader()
       activeStreamReaderRef.current = reader
       const streamState: StreamState = {
-        assistantMessage: '',
-        needsNewMessage: false,
-        hasCreatedInitialMessage: false
+        assistantMessageId: null
       }
       const ctx: StreamCtx = {
         setMessages,
@@ -1136,6 +1736,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         setThinking,
         setThinkingContent,
         toolIdCounter,
+        toolIdPrefix,
         markScreenBuildUsed: () => {
           screenBuildUsedRef.current = true
         },
@@ -1282,13 +1883,47 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     await runPrompt(userInput, messages)
   }
 
+  const toggleThinkingBlockCollapse = (messageIndex: number, blockIndex?: number) => {
+    setMessages(prev => {
+      const next = [...prev]
+      const target = next[messageIndex]
+      if (!target || target.role !== 'assistant') return prev
+
+      if (
+        typeof blockIndex === 'number' &&
+        Array.isArray(target.blocks) &&
+        target.blocks[blockIndex]?.type === 'thinking'
+      ) {
+        const blocks = [...target.blocks]
+        const current = blocks[blockIndex]
+        blocks[blockIndex] = {
+          ...current,
+          collapsed: !(current.collapsed !== false)
+        }
+        next[messageIndex] = {
+          ...target,
+          blocks,
+          content: deriveResponseContent(blocks),
+          thinkingLog: deriveThinkingLog(blocks)
+        }
+        return next
+      }
+
+      next[messageIndex] = {
+        ...target,
+        thinkingCollapsed: !target.thinkingCollapsed
+      }
+      return next
+    })
+  }
+
   const restoreMessagePreview = pendingRestoreMessage?.content ? pendingRestoreMessage.content.slice(0, 160) : ''
   const restoreMessageTimeValue = pendingRestoreMessage?.createdAt || pendingRestoreMessage?.serverCreatedAt || ''
   const restoreMessageTimestamp = restoreMessageTimeValue ? new Date(restoreMessageTimeValue).toLocaleString() : ''
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background">
-      <SessionDetailHero sessionId={sessionId} onBackToSessions={backToSessionList} />
+      <SessionDetailHero onBackToSessions={backToSessionList} />
 
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
         {fileExplorerEnabled && showFileExplorer && sessionId && (
@@ -1339,13 +1974,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
                   }
                   userAvatar={userPictureThumbnail ? `data:image/jpeg;base64,${userPictureThumbnail}` : undefined}
-                  onToggleThinking={idx =>
-                    setMessages(prev => {
-                      const next = [...prev]
-                      next[idx].thinkingCollapsed = !next[idx].thinkingCollapsed
-                      return next
-                    })
-                  }
+                  onToggleThinking={toggleThinkingBlockCollapse}
                   examplePrompts={[
                     getTranslationFromI18nKeyAndLabel(
                       'lowcoder:ai_builder.example_prompt_1',
@@ -1427,13 +2056,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
                 }
                 userAvatar={userPictureThumbnail ? `data:image/jpeg;base64,${userPictureThumbnail}` : undefined}
-                onToggleThinking={idx =>
-                  setMessages(prev => {
-                    const next = [...prev]
-                    next[idx].thinkingCollapsed = !next[idx].thinkingCollapsed
-                    return next
-                  })
-                }
+                onToggleThinking={toggleThinkingBlockCollapse}
                 examplePrompts={[
                   getTranslationFromI18nKeyAndLabel(
                     'lowcoder:ai_builder.example_prompt_1',
@@ -1505,8 +2128,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
             <CardContent className="gba:space-y-4">
               <div className="gba:text-sm gba:text-foreground gba:space-y-2">
                 <p>
-                  You are about to restore to this chat message. Any publish you did after the restore point is
-                  still deployed.
+                  You are about to restore to this chat message. Any publish you did after the restore point is still
+                  deployed.
                 </p>
                 {restoreMessageTimestamp && (
                   <p className="gba:text-xs gba:text-muted-foreground">{restoreMessageTimestamp}</p>

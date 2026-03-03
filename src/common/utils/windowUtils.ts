@@ -134,13 +134,15 @@ export const formatDate = (
   if (!dateValue) return dateValue
 
   const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return undefined
 
-  // Prefer platform formatter when available
+  // Prefer platform formatter when available; fall back if it returns nothing useful
   if (typeof window?.lowcoder?.i18n?.formatDate === 'function') {
-    return window.lowcoder.i18n.formatDate(date, format, customSpecificFormat)
+    const out = window.lowcoder.i18n.formatDate(date, format, customSpecificFormat)
+    if (out != null && out !== '' && out !== '-') return out
   }
 
-  // Fallback: format locally for dev/local without platform i18n
+  // Fallback: format locally for dev/local or when platform returned invalid
   try {
     // If a specific format is provided, use dayjs to respect it
     if (customSpecificFormat) {
@@ -155,6 +157,8 @@ export const formatDate = (
     switch (format) {
       case 'date.short':
         return toLocale({ year: '2-digit', month: '2-digit', day: '2-digit' })
+      case 'date.monthDay':
+        return toLocale({ month: 'short', day: 'numeric' })
       case 'date.medium':
         return toLocale({ year: 'numeric', month: 'short', day: '2-digit' })
       case 'date.long':

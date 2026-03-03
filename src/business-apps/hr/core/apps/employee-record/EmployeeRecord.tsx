@@ -31,7 +31,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { postToPlatform } from '@/common/utils/postToPlatform'
 import { useEmployeeWorkCommunications } from './hooks/useEmployeeWorkCommunications'
 import SummaryTab from './components/tabs/SummaryTab'
-import AbsencesTab from './components/tabs/AbsencesTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import HrAdminTab from './components/tabs/HrAdminTab'
 import HrGrowthTab from './components/tabs/HrGrowthTab'
@@ -44,6 +43,7 @@ import { getEmployeeFullName } from './utils/formatters'
 import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import PersonalAbsences from '@/business-apps/hr/absences/apps/personal-absences'
 
 const TAB_KEYS = {
   summary: 'summary',
@@ -141,7 +141,8 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
         subViewMap: {
           skills: 'skills',
           feedback: 'feedback',
-          performance: 'performance'
+          performance: 'performance',
+          performanceEvaluation: 'performanceEvaluation'
         }
       },
       compensation: {
@@ -225,7 +226,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     globalThis.history.replaceState({}, '', newUrl)
   }, [activeTab, employeeIdToShow, currentUserEmployeeId])
 
-  const { loading, error, employee, feedback, absenceEntitlements, performanceGoals, refetch } = useEmployeeData(
+  const { loading, error, employee, feedback, performanceGoals, silentRefetch } = useEmployeeData(
     accessToken,
     activeStructureId,
     employeeIdToShow
@@ -236,7 +237,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
       const resolution = customEvent.detail.resolution
       if (resolution === 'success') {
-        refetch()
+        // Use silent refetch — avoids the full-page loading spinner for background saves
+        silentRefetch()
       }
     }
 
@@ -245,7 +247,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     return () => {
       globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
-  }, [refetch])
+  }, [silentRefetch])
 
   // Use the hook to fetch employee work communications
   const { employee: employeeWithComms, loading: commsLoading } = useEmployeeWorkCommunications({
@@ -583,14 +585,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         icon: <CalendarIcon className="gba:mr-2" size={20} />,
         content: (
           <div className="gba:col-span-full">
-            <AbsencesTab
-              employee={employee}
-              employeeAbsenceEntitlement={absenceEntitlements ?? []}
-              accessToken={accessToken}
-              employeeId={employeeIdToShow}
-              userInfo={userInfo}
-              isSelfView={isSelfView}
-            />
+            <PersonalAbsences accessToken={accessToken} userInfo={userInfo} employeeIdOverride={employee.id} embedded />
           </div>
         )
       },

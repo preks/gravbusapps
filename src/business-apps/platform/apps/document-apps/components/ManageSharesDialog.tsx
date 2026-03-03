@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ import { DocumentApiService } from '../services/DocumentApiService'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 import type { DocumentShare } from '../types'
+import translations from '../_i18n'
 
 export interface ManageSharesDialogProps {
   open: boolean
@@ -68,27 +70,6 @@ const getInitials = (name: string): string => {
 }
 
 /**
- * Format date to relative time
- */
-const formatRelativeDate = (dateString: string): string => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) {
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    if (diffHours === 0) {
-      return 'Just now'
-    }
-    return `${diffHours}h ago`
-  }
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-/**
  * ManageSharesDialog Component
  */
 export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
@@ -101,6 +82,27 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   onAddMoreUsers,
   'data-testid': testId = 'manage-shares-dialog'
 }) => {
+  const { t } = useTranslation(translations)
+
+  const formatRelativeDate = useCallback(
+    (dateString: string): string => {
+      const date = new Date(dateString)
+      const now = new Date()
+      const diffMs = now.getTime() - date.getTime()
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+      if (diffDays === 0) {
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+        if (diffHours === 0) return t('time-shared-just-now')
+        return t('time-shared-hours-ago', { count: diffHours })
+      }
+      if (diffDays === 1) return t('time-yesterday')
+      if (diffDays < 7) return t('time-shared-days-ago', { count: diffDays })
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    },
+    [t]
+  )
+
   const [shares, setShares] = useState<ShareWithUserInfo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -173,7 +175,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
             const userInfo = userInfoMap.get(s.userId)
             return {
               ...s,
-              userName: userInfo?.displayName || `User ${s.userId.slice(0, 8)}...`,
+              userName: userInfo?.displayName || t('manage-shares-user-unknown'),
               userAvatar: userInfo?.pictureThumbnail
                 ? userInfo.pictureThumbnail.startsWith('data:')
                   ? userInfo.pictureThumbnail
@@ -186,11 +188,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       }
     } catch (err) {
       console.error('Failed to load shares:', err)
-      setError('Failed to load shared users')
+      setError(t('manage-shares-error'))
     } finally {
       setIsLoading(false)
     }
-  }, [documentId, graphqlClient])
+  }, [documentId, graphqlClient, t])
 
   /**
    * Fetch shares when dialog opens
@@ -212,18 +214,18 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         const success = await DocumentApiService.updateSharePermission(shareId, newPermission)
         if (success) {
           setShares(prev => prev.map(s => (s.id === shareId ? { ...s, permission: newPermission } : s)))
-          toast.success('Permission updated')
+          toast.success(t('manage-shares-toast-updated'))
           onSharesChanged?.()
         } else {
-          toast.error('Failed to update permission')
+          toast.error(t('manage-shares-toast-update-failed'))
         }
       } catch {
-        toast.error('Failed to update permission')
+        toast.error(t('manage-shares-toast-update-failed'))
       } finally {
         setUpdatingShareId(null)
       }
     },
-    [onSharesChanged]
+    [onSharesChanged, t]
   )
 
   /**
@@ -231,7 +233,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
    */
   const handleRemoveShare = useCallback(
     async (shareId: string, userName: string) => {
-      if (!confirm(`Remove access for ${userName}?`)) return
+      if (!confirm(t('manage-shares-confirm-remove', { name: userName }))) return
 
       setRemovingShareId(shareId)
 
@@ -239,18 +241,18 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         const success = await DocumentApiService.revokeShareById(shareId)
         if (success) {
           setShares(prev => prev.filter(s => s.id !== shareId))
-          toast.success(`Removed access for ${userName}`)
+          toast.success(t('manage-shares-toast-removed', { name: userName }))
           onSharesChanged?.()
         } else {
-          toast.error('Failed to remove access')
+          toast.error(t('manage-shares-toast-remove-failed'))
         }
       } catch {
-        toast.error('Failed to remove access')
+        toast.error(t('manage-shares-toast-remove-failed'))
       } finally {
         setRemovingShareId(null)
       }
     },
-    [onSharesChanged]
+    [onSharesChanged, t]
   )
 
   return (
@@ -259,9 +261,9 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Users className="gba:w-5 gba:h-5 gba:text-primary" />
-            Manage Sharing
+            {t('manage-shares-title')}
           </DialogTitle>
-          <DialogDescription>People who have access to "{documentTitle}"</DialogDescription>
+          <DialogDescription>{t('manage-shares-description', { title: documentTitle })}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:py-4">
@@ -284,11 +286,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           {!isLoading && !error && shares.length === 0 && (
             <div className="gba:text-center gba:py-8">
               <Users className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
-              <p className="gba:text-muted-foreground gba:mb-4">This document hasn't been shared with anyone yet.</p>
+              <p className="gba:text-muted-foreground gba:mb-4">{t('manage-shares-empty')}</p>
               {onAddMoreUsers && (
                 <Button onClick={onAddMoreUsers} variant="outline">
                   <UserPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Share with someone
+                  {t('manage-shares-share-someone')}
                 </Button>
               )}
             </div>
@@ -298,7 +300,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           {!isLoading && shares.length > 0 && (
             <div className="gba:space-y-1">
               <div className="gba:text-sm gba:text-muted-foreground gba:mb-3">
-                {shares.length} {shares.length === 1 ? 'person has' : 'people have'} access
+                {t('manage-shares-person-has', { count: shares.length })}
               </div>
 
               <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-80 gba:overflow-y-auto">
@@ -320,11 +322,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                     <div className="gba:flex-1 gba:min-w-0">
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <p className="gba:font-medium gba:text-sm gba:truncate">
-                          {share.isLoading ? <Spinner size="sm" /> : share.userName || 'Loading...'}
+                          {share.isLoading ? <Spinner size="sm" /> : share.userName || t('manage-shares-loading')}
                         </p>
                       </div>
                       <p className="gba:text-xs gba:text-muted-foreground">
-                        Shared {formatRelativeDate(share.sharedAt)}
+                        {t('manage-shares-shared-at', { time: formatRelativeDate(share.sharedAt) })}
                       </p>
                     </div>
 
@@ -341,19 +343,19 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                         <SelectItem value="view">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <Eye className="gba:w-3 gba:h-3" />
-                            <span>View</span>
+                            <span>{t('share-permission-view')}</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="comment">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <MessageSquare className="gba:w-3 gba:h-3" />
-                            <span>Comment</span>
+                            <span>{t('share-permission-comment')}</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="edit">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <Pencil className="gba:w-3 gba:h-3" />
-                            <span>Edit</span>
+                            <span>{t('share-permission-edit')}</span>
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -364,7 +366,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                       variant="ghost"
                       size="icon"
                       className="gba:h-8 gba:w-8 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity hover:gba:bg-destructive/10 hover:gba:text-destructive"
-                      onClick={() => handleRemoveShare(share.id, share.userName || 'this user')}
+                      onClick={() => handleRemoveShare(share.id, share.userName || t('manage-shares-user-fallback'))}
                       disabled={removingShareId === share.id}
                       data-testid={`${testId}-remove-${share.id}`}
                     >
@@ -381,10 +383,10 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           {onAddMoreUsers && shares.length > 0 && (
             <Button variant="outline" onClick={onAddMoreUsers}>
               <UserPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add more
+              {t('manage-shares-add-more')}
             </Button>
           )}
-          <Button onClick={() => onOpenChange(false)}>Done</Button>
+          <Button onClick={() => onOpenChange(false)}>{t('manage-shares-done')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

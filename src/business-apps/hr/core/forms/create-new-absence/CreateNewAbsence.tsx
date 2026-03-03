@@ -102,6 +102,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const {
     isValidating,
+    isCheckingBankHoliday,
     hasValidationErrors,
     overlapErrors,
     balanceErrors,
@@ -292,13 +293,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
           } catch {}
         }
       }
-
       const payload =
         isUpdateMode && existingSickLeave
           ? {
               employeeId: employeeId,
               absenceType: formData.selectedType,
               event: 'pse_submit',
+              shouldBECustomErrorMessage: true,
               employeeAbsence: {
                 ...baseAbsenceData,
                 id: existingSickLeave.id,
@@ -310,6 +311,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               employeeId: employeeId,
               absenceType: formData.selectedType,
               event: 'pse_submit',
+              shouldBECustomErrorMessage: true,
               employeeAbsence: baseAbsenceData,
               ...(employeeDocuments.length > 0 && { employeeDocuments })
             }
@@ -381,7 +383,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               )
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
         }
-        isSubmitDisabled={!isFormValid || isValidating}
+        isSubmitDisabled={!isFormValid || isValidating || isCheckingBankHoliday}
         submitEventType="pse_submit"
         cancelEventType="pse_abort"
         data-testid="create-new-absence-form"

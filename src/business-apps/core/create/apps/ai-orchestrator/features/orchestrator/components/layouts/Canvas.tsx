@@ -6,21 +6,6 @@
 import React from 'react'
 import { cn } from '@newwork/nw-design-system'
 
-const GRADIENT_TOP =
-  'linear-gradient(to bottom, black 0%, rgba(0,0,0,0.9) 20%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0.4) 65%, rgba(0,0,0,0.15) 85%, transparent 100%)'
-const GRADIENT_BOTTOM =
-  'linear-gradient(to top, black 0%, rgba(0,0,0,0.95) 12%, rgba(0,0,0,0.85) 25%, rgba(0,0,0,0.65) 42%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.15) 82%, transparent 100%)'
-
-const maskStyle = (gradient: string) => ({
-  maskImage: gradient,
-  WebkitMaskImage: gradient
-})
-
-const GradientFadeOverlay: React.FC<{
-  gradient: string
-  className: string
-}> = ({ gradient, className }) => <div className={className} style={maskStyle(gradient)} />
-
 const HEADER_HEIGHT_CLASS = 'gba:h-[73px]'
 const hasHeader = (title?: string, subtitle?: string, actions?: React.ReactNode) =>
   Boolean(title || subtitle || actions)
@@ -31,7 +16,6 @@ export interface CanvasProps {
   subtitle?: string
   actions?: React.ReactNode
   floatingAction?: React.ReactNode
-  showGradientFade?: boolean
   className?: string
   'data-testid'?: string
 }
@@ -42,7 +26,6 @@ export const Canvas: React.FC<CanvasProps> = ({
   subtitle,
   actions,
   floatingAction,
-  showGradientFade = false,
   className,
   'data-testid': testId = 'canvas'
 }) => {
@@ -74,22 +57,6 @@ export const Canvas: React.FC<CanvasProps> = ({
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-8 gba:py-6 gba:relative">
         <div className={cn('gba:max-w-5xl gba:mx-auto', floatingAction && 'gba:pb-24')}>{children}</div>
       </div>
-
-      {showGradientFade && (
-        <>
-          <GradientFadeOverlay
-            gradient={GRADIENT_TOP}
-            className={cn(
-              'gba:absolute gba:left-0 gba:right-0 gba:pointer-events-none gba:z-10 gba:h-16 gba:bg-background',
-              withHeader ? 'gba:top-[73px]' : 'gba:top-0'
-            )}
-          />
-          <GradientFadeOverlay
-            gradient={GRADIENT_BOTTOM}
-            className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-64 gba:pointer-events-none gba:z-10 gba:bg-background"
-          />
-        </>
-      )}
 
       {floatingAction && (
         <div

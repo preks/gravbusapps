@@ -5,8 +5,16 @@
  */
 
 import React, { useState } from 'react'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { Send } from 'lucide-react'
+import sharedTranslations from '../_i18n'
+
+export interface CommentEditorMessages {
+  cancel?: string
+  send?: string
+  sending?: string
+  sendHint?: string
+}
 
 export interface CommentEditorProps {
   initialValue?: string
@@ -14,6 +22,7 @@ export interface CommentEditorProps {
   onCancel?: () => void
   isSubmitting?: boolean
   placeholder?: string
+  messages?: CommentEditorMessages
   'data-testid'?: string
 }
 
@@ -25,9 +34,19 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
   onSubmit,
   onCancel,
   isSubmitting = false,
-  placeholder = 'Write a comment...',
+  placeholder,
+  messages: messagesProp,
   'data-testid': testId = 'comment-editor'
 }) => {
+  const { t } = useTranslation(sharedTranslations)
+  const defaultCommentEditorMessages = {
+    cancel: t('comment-editor-cancel'),
+    send: t('comment-editor-send'),
+    sending: t('comment-editor-sending'),
+    sendHint: t('comment-editor-send-hint')
+  }
+  const messages = { ...defaultCommentEditorMessages, ...messagesProp }
+  const resolvedPlaceholder = placeholder ?? t('comment-editor-placeholder-default')
   const [content, setContent] = useState(initialValue)
 
   const handleSubmit = async () => {
@@ -59,14 +78,14 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
         value={content}
         onChange={e => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         rows={3}
         disabled={isSubmitting}
         className="gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20"
         data-testid={`${testId}-textarea`}
       />
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-        <p className="gba:text-xs gba:text-muted-foreground gba:flex-1">⌘+Enter to send</p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:flex-1">{messages.sendHint}</p>
         <div className="gba:flex gba:gap-1.5">
           {onCancel && (
             <Button
@@ -77,7 +96,7 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
               data-testid={`${testId}-cancel`}
               className="gba:h-8"
             >
-              Cancel
+              {messages.cancel}
             </Button>
           )}
           <Button
@@ -88,7 +107,7 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
             className="gba:h-8 gba:px-3"
           >
             <Send className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-            {isSubmitting ? 'Sending...' : 'Send'}
+            {isSubmitting ? messages.sending : messages.send}
           </Button>
         </div>
       </div>

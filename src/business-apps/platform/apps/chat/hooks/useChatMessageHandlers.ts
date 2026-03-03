@@ -17,7 +17,13 @@ export interface UseChatMessageHandlersParams {
   activeConversation: Conversation | null
   messages: Array<{ metadata?: Record<string, unknown> }>
   currentUser: User | null
-  sendMessage: (conversationId: string, content: string, metadata?: Record<string, unknown>) => Promise<unknown>
+  sendMessage: (
+    conversationId: string,
+    content: string,
+    metadata?: Record<string, unknown>,
+    parentId?: string,
+    quotedMessageId?: string
+  ) => Promise<unknown>
   apiClient: {
     uploadFiles: (
       conversationId: string,
@@ -69,7 +75,9 @@ export interface UseChatMessageHandlersReturn {
   handleSendMessage: (
     content: string,
     entityReferences?: MessageEntityReference[],
-    attachments?: Array<{ file: File }>
+    attachments?: Array<{ file: File }>,
+    parentId?: string,
+    quotedMessageId?: string
   ) => Promise<void>
   handleAISendMessage: (content: string, metadata?: Record<string, unknown>) => Promise<void>
   handleReplyToAI: () => void
@@ -109,7 +117,9 @@ export function useChatMessageHandlers({
     async (
       content: string,
       entityReferences?: MessageEntityReference[],
-      attachments?: Array<{ file: File }>
+      attachments?: Array<{ file: File }>,
+      parentId?: string,
+      quotedMessageId?: string
     ): Promise<void> => {
       if (!activeConversationId) return
       try {
@@ -134,7 +144,13 @@ export function useChatMessageHandlers({
             // continue without attachments
           }
         }
-        await sendMessage(activeConversationId, content, Object.keys(metadata).length > 0 ? metadata : undefined)
+        await sendMessage(
+          activeConversationId,
+          content,
+          Object.keys(metadata).length > 0 ? metadata : undefined,
+          parentId,
+          quotedMessageId
+        )
         setDraftMessage('')
         const expertMention = entityReferences?.find(ref => ref.type === 'every_expert')
         const mentionedExpert = expertMention ? activeExperts.find(e => e.expertId === expertMention.id) : null

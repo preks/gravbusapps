@@ -1,11 +1,6 @@
 /**
- * BuildPlanReview - Component for reviewing and confirming a build plan
- *
- * Shows:
- * - Analysis summary
- * - List of components to be built
- * - Clarifying questions (if any)
- * - Confirm/Cancel actions
+ * BuildPlanReview - Component for reviewing and confirming a build plan.
+ * Refinement is now handled via the agent chat side panel.
  */
 
 import React from 'react'
@@ -19,30 +14,19 @@ export interface BuildPlanReviewProps {
   onCancel: () => void
   onReanalyze?: (answers: Record<string, string>) => void
   onEdit?: () => void
-  onRefine?: (feedback: string) => void
   isLoading?: boolean
-  isRefining?: boolean
-  refinementSummary?: string | null
-  refineError?: string | null
   hideActions?: boolean
   onSkippedComponentsChange?: (skippedIds: string[]) => void
   'data-testid'?: string
 }
 
-/**
- * BuildPlanReview component - orchestrator for plan review views
- */
 export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
   plan,
   onConfirm,
   onCancel,
   onReanalyze,
   onEdit,
-  onRefine,
   isLoading = false,
-  isRefining = false,
-  refinementSummary,
-  refineError,
   hideActions = false,
   onSkippedComponentsChange,
   'data-testid': testId = 'build-plan-review'
@@ -50,8 +34,6 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
   const {
     answers,
     skippedComponents,
-    feedback,
-    setFeedback,
     hasQuestions,
     allQuestionsAnswered,
     handleAnswerChange,
@@ -62,8 +44,6 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
     plan,
     onConfirm,
     onReanalyze,
-    onRefine,
-    refinementSummary,
     onSkippedComponentsChange
   })
 
@@ -72,20 +52,14 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
       plan={plan}
       answers={answers}
       skippedComponents={skippedComponents}
-      feedback={feedback}
       hasQuestions={hasQuestions}
       allQuestionsAnswered={allQuestionsAnswered}
       isLoading={isLoading}
-      isRefining={isRefining}
-      refinementSummary={refinementSummary}
-      refineError={refineError}
       hideActions={hideActions}
       onAnswerChange={handleAnswerChange}
       onToggleComponent={toggleComponentSkip}
       onReanalyze={handleReanalyze}
       onEdit={onEdit}
-      onRefine={onRefine}
-      onFeedbackChange={setFeedback}
       onConfirm={handleConfirm}
       onCancel={onCancel}
       testId={testId}

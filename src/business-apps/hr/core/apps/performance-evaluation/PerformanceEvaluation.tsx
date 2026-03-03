@@ -7,6 +7,7 @@ import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { startProcess, getPlatformContext } from '@/common/utils/start-process'
+import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
 import { usePerformanceCycles } from './hooks/usePerformanceCycles'
 import { useRatingScales } from './hooks/useRatingScales'
 import { useCompanyValues } from './hooks/useCompanyValues'
@@ -54,7 +55,7 @@ enum PerformanceTabEnum {
   Values = 'values'
 }
 
-export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const { t } = useTranslation(translations)
   const {
@@ -90,12 +91,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const { managerUserId } = useManagerUserId({
     accessToken,
     managerId: platformContext.managerId
-  })
-
-  // Fetch current employee's userId (not to be confused with employeeId)
-  const { managerUserId: currentEmployeeUserId } = useManagerUserId({
-    accessToken,
-    managerId: platformContext.employeeId // Using the hook to get userId for current employee
   })
 
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
@@ -251,7 +246,12 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     setStartingCycleId(cycleId)
   }
 
-  const handleConfirmStartCycle = (options: { runFor: 'self' | 'team'; teamIds: string[] }) => {
+  const handleConfirmStartCycle = async (options: {
+    runFor: 'self' | 'team'
+    teamIds: string[]
+    employeeId?: string
+    employeeUserId?: string
+  }) => {
     if (!startingCycleId) return
 
     const cycle = cycles.find(c => c.id === startingCycleId)
@@ -267,27 +267,76 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       return
     }
 
-    try {
-      // Build the payload according to the API specification
-      const payload = {
-        employeePerformanceEvaluation: {
-          employee: platformContext.employeeId,
-          performanceCycle: cycle.id
-        },
-        managerUserId: managerUserId || '',
-        employeeUserId: userInfo?.id || currentEmployeeUserId || ''
-      }
-
-      // Start the Kogito process
-      startProcess({
-        domain: 'employee',
-        processName: 'performanceEvaluation',
-        payload
+    if (runFor === 'team' && !accessToken) {
+      toast.error('Unable to start evaluation: not authenticated', {
+        position: 'bottom-right',
+        className: 'gba:text-base'
       })
+      return
+    }
+
+    try {
+      if (runFor === 'self' && options.employeeId) {
+        const payload = {
+          employeePerformanceEvaluation: {
+            employee: options.employeeId,
+            performanceCycle: cycle.id
+          },
+          managerUserId: managerUserId || '',
+          employeeUserId: options.employeeUserId || '',
+          performanceCycleId: cycle.id
+        }
+        startProcess({
+          domain: 'employee',
+          processName: 'performanceEvaluation',
+          payload
+        })
+      } else if (runFor === 'team') {
+        const orgClient = new OrgDirectoryClient(accessToken!)
+        const teamRequests: Array<{
+          employeeUserIds: string[]
+          managerUserId: string
+          teamId: string
+        }> = []
+        for (const teamId of selectedTeamIds) {
+          const [users, teamManagerUserId] = await Promise.all([
+            orgClient.getUsersByOrganizationalUnit(teamId),
+            orgClient.getTeamManagerUserId(teamId)
+          ])
+          const employeeUserIds = users.map(u => u.id).filter(Boolean)
+          if (employeeUserIds.length === 0) {
+            toast.warning('Team has no members with user accounts; skipping.', {
+              position: 'bottom-right',
+              className: 'gba:text-base'
+            })
+            continue
+          }
+          teamRequests.push({
+            employeeUserIds,
+            managerUserId: teamManagerUserId ?? '',
+            teamId: ''
+          })
+        }
+        if (teamRequests.length > 0) {
+          const payload = {
+            performanceCycleId: cycle.id,
+            employeePerformanceEvaluation: {
+              statusRef: 'EvaluationStatus:v1:DRAFT',
+              notes: ''
+            },
+            teamRequests
+          }
+          startProcess({
+            domain: 'employee',
+            processName: 'teamPerformanceEvaluation',
+            payload
+          })
+        }
+      }
 
       const message =
         runFor === 'self'
-          ? (t('cycle-started', { name: cycle.name }) ?? `Starting evaluation for: ${cycle.name} (yourself)`)
+          ? (t('cycle-started', { name: cycle.name }) ?? `Starting evaluation for: ${cycle.name}`)
           : (t('cycle-started', { name: cycle.name }) ??
             `Starting evaluation for: ${cycle.name} (${selectedTeamIds.length} team${selectedTeamIds.length > 1 ? 's' : ''})`)
       toast.success(message)
@@ -300,11 +349,11 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   }
 
   const handleSaveFromScaleModal = async (values: RatingScaleValues) => {
-    const isNewScale = !values.id || values.id.startsWith('scale_')
-    if (accessToken && isNewScale) {
+    if (accessToken) {
       try {
         await saveRatingScale({
           id: values.id,
+          version: values.version,
           name: values.name,
           values: values.values,
           numValues: values.numValues,
@@ -484,6 +533,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         open={startingCycleId !== null}
         cycle={cycles.find(c => c.id === startingCycleId) || null}
         accessToken={accessToken}
+        defaultEmployeeId={platformContext.employeeId}
         onConfirm={handleConfirmStartCycle}
         onCancel={() => setStartingCycleId(null)}
       />

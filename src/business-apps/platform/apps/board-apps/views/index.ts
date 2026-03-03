@@ -1,0 +1,6 @@
+export { BoardTableView } from './BoardTableView'
+export { BoardKanbanView } from './BoardKanbanView'
+export { BoardCalendarView } from './BoardCalendarView'
+export { BoardTimelineView } from './BoardTimelineView'
+export { BoardFormView } from './BoardFormView'
+export { BoardDashboardView } from './BoardDashboardView'

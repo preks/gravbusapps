@@ -12,6 +12,18 @@ function normalize(value?: string): string | undefined {
   return trimmed ? trimmed : undefined
 }
 
+/** Error with i18n code for user-facing config messages */
+export class OAuthConfigError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string
+  ) {
+    super(message)
+    this.name = 'OAuthConfigError'
+    Object.setPrototypeOf(this, OAuthConfigError.prototype)
+  }
+}
+
 const MICROSOFT_OIDC_SCOPES = new Set(['openid', 'profile', 'email', 'offline_access'])
 
 function normalizeMicrosoftScopes(scopes: string): string {
@@ -72,18 +84,21 @@ export const MicrosoftOAuthService = {
     const scopes = normalize(tenantConfig?.scopes)
 
     if (!clientId) {
-      throw new Error(
-        'Microsoft OAuth client ID is not configured. Please ask your admin to configure the Microsoft provider.'
+      throw new OAuthConfigError(
+        'Microsoft OAuth client ID is not configured. Please ask your admin to configure the Microsoft provider.',
+        'oauth-ms-client-id-not-configured'
       )
     }
     if (!authority) {
-      throw new Error(
-        'Microsoft OAuth authority (tenant) is not configured. Please ask your admin to configure the Microsoft provider.'
+      throw new OAuthConfigError(
+        'Microsoft OAuth authority (tenant) is not configured. Please ask your admin to configure the Microsoft provider.',
+        'oauth-ms-authority-not-configured'
       )
     }
     if (!scopes) {
-      throw new Error(
-        'Microsoft OAuth scopes are not configured. Please ask your admin to configure the Microsoft provider.'
+      throw new OAuthConfigError(
+        'Microsoft OAuth scopes are not configured. Please ask your admin to configure the Microsoft provider.',
+        'oauth-ms-scopes-not-configured'
       )
     }
 

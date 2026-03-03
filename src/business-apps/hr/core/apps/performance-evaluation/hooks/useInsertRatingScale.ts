@@ -7,13 +7,13 @@ import {
 
 export type DisplayMode = 'value' | 'letters' | 'stars' | 'custom'
 
-/** API RatingScaleType enum: NUMERIC_RATING_SCALE_TYPE | CUSTOM_LABEL_RATING_SCALE_TYPE | ALPHABETIC_RATING_SCALE_TYPE. */
+/** API RatingScaleType enum: NUMERIC_RATING_SCALE_TYPE | CUSTOM_LABEL_RATING_SCALE_TYPE | ALPHABETIC_RATING_SCALE_TYPE | STAR_RATING_SCALE_TYPE. */
 function displayModeToScaleType(mode: DisplayMode): string {
   switch (mode) {
     case 'letters':
       return 'ALPHABETIC_RATING_SCALE_TYPE'
     case 'stars':
-      return 'CUSTOM_LABEL_RATING_SCALE_TYPE'
+      return 'STAR_RATING_SCALE_TYPE'
     case 'custom':
       return 'CUSTOM_LABEL_RATING_SCALE_TYPE'
     default:
@@ -21,8 +21,25 @@ function displayModeToScaleType(mode: DisplayMode): string {
   }
 }
 
+/** Map API scaleType to modal Display mode for edit pre-selection. */
+export function scaleTypeToDisplayMode(scaleType: string | null | undefined): DisplayMode {
+  switch (scaleType) {
+    case 'STAR_RATING_SCALE_TYPE':
+      return 'stars'
+    case 'ALPHABETIC_RATING_SCALE_TYPE':
+      return 'letters'
+    case 'CUSTOM_LABEL_RATING_SCALE_TYPE':
+      return 'custom'
+    case 'NUMERIC_RATING_SCALE_TYPE':
+      return 'value'
+    default:
+      return 'value'
+  }
+}
+
 export interface RatingScaleFormValues {
   id?: string
+  version?: number
   name: string
   values: string[]
   numValues?: number
@@ -41,6 +58,11 @@ function labelForApi(displayMode: DisplayMode, formLabel: string, index: number)
   return formLabel.trim() || String(index + 1)
 }
 
+/** True when form has an existing scale id from the backend (not a temp client id). */
+function isUpdate(form: RatingScaleFormValues): boolean {
+  return Boolean(form.id && !String(form.id).startsWith('scale_'))
+}
+
 /** Build REST API payload from modal form (value -> label pairs). */
 function buildSavePayload(form: RatingScaleFormValues): SaveRatingScalePayload {
   const displayMode = form.displayMode ?? 'value'
@@ -52,9 +74,12 @@ function buildSavePayload(form: RatingScaleFormValues): SaveRatingScalePayload {
     numericEquivalent: i + 1,
     displayOrder: i + 1
   }))
+  const update = isUpdate(form)
   return {
-    changeMode: 'INSERT',
+    changeMode: update ? 'UPDATE' : 'INSERT',
     ratingScale: {
+      ...(update && form.id ? { id: form.id } : {}),
+      ...(update && form.version !== undefined ? { version: form.version } : {}),
       name: form.name.trim(),
       description: '',
       scaleType,

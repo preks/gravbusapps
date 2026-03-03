@@ -17,7 +17,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Separator,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
@@ -36,6 +37,7 @@ import {
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document } from './types'
 import { exportToWord, exportToPDF, printHtmlDocument } from './utils/exportUtils'
+import translations from './_i18n'
 
 // Import Quill styles
 import 'react-quill/dist/quill.snow.css'
@@ -126,7 +128,7 @@ const QUILL_FORMATS = [
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   document,
   initialContent = '',
-  initialTitle = 'Untitled Document',
+  initialTitle,
   onSave,
   onBack,
   onSaveAsTemplate,
@@ -134,6 +136,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   isReadOnly = false,
   'data-testid': testId = 'document-editor'
 }) => {
+  const { t } = useTranslation(translations)
+
   // Editor state
   const [title, setTitle] = useState(document?.title || initialTitle)
   const [content, setContent] = useState(document?.content || initialContent)
@@ -285,18 +289,21 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   /**
    * Format last saved time
    */
-  const formatLastSaved = useCallback((date: Date | null): string => {
-    if (!date) return 'Not saved'
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMinutes = Math.floor(diffMs / 60000)
+  const formatLastSaved = useCallback(
+    (date: Date | null): string => {
+      if (!date) return t('editor-status-not-saved')
+      const now = new Date()
+      const diffMs = now.getTime() - date.getTime()
+      const diffMinutes = Math.floor(diffMs / 60000)
 
-    if (diffMinutes < 1) return 'Saved just now'
-    if (diffMinutes === 1) return 'Saved 1 minute ago'
-    if (diffMinutes < 60) return `Saved ${diffMinutes} minutes ago`
+      if (diffMinutes < 1) return t('editor-status-saved-now')
+      if (diffMinutes === 1) return t('editor-status-saved-minute')
+      if (diffMinutes < 60) return t('editor-status-saved-minutes', { count: diffMinutes })
 
-    return `Saved at ${date.toLocaleTimeString()}`
-  }, [])
+      return t('editor-status-saved-at', { time: date.toLocaleTimeString() })
+    },
+    [t]
+  )
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
@@ -306,7 +313,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
             {/* Left side - Back button and title */}
             <div className="gba:flex gba:items-center gba:gap-4 gba:min-w-0 gba:flex-1">
-              <Button variant="ghost" size="icon" onClick={onBack} title="Back to documents" className="gba:shrink-0">
+              <Button variant="ghost" size="icon" onClick={onBack} title={t('editor-back')} className="gba:shrink-0">
                 <ArrowLeft className="gba:w-5 gba:h-5" />
               </Button>
 
@@ -319,14 +326,14 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                     ref={titleInputRef}
                     value={title}
                     onChange={handleTitleChange}
-                    placeholder="Document Title"
+                    placeholder={t('editor-title-placeholder')}
                     disabled={isReadOnly}
                     className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:min-w-0 gba:w-full gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
                   />
                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-                    <span>{wordCount.toLocaleString()} words</span>
+                    <span>{t('editor-word-count', { count: wordCount.toLocaleString() })}</span>
                     <span>-</span>
-                    <span>{charCount.toLocaleString()} characters</span>
+                    <span>{t('editor-character-count', { count: charCount.toLocaleString() })}</span>
                   </div>
                 </div>
               </div>
@@ -339,12 +346,12 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 {isSaving ? (
                   <Badge variant="secondary" className="gba:gap-1">
                     <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                    Saving...
+                    {t('editor-saving')}
                   </Badge>
                 ) : hasUnsavedChanges ? (
                   <Badge variant="outline" className="gba:gap-1">
                     <Clock className="gba:w-3 gba:h-3" />
-                    Unsaved changes
+                    {t('editor-unsaved')}
                   </Badge>
                 ) : lastSaved ? (
                   <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
@@ -361,22 +368,22 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" disabled={isExporting}>
                     <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export
+                    {t('editor-export')}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={handleExportWord}>
                     <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export as Word (.doc)
+                    {t('editor-export-word')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleExportPDF}>
                     <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export as PDF
+                    {t('editor-export-pdf')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handlePrint}>
                     <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Print
+                    {t('editor-print')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -392,19 +399,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                   {onSaveAsTemplate && (
                     <DropdownMenuItem onClick={() => onSaveAsTemplate(title, content)}>
                       <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Save as Template
+                      {t('editor-save-template')}
                     </DropdownMenuItem>
                   )}
                   {onSendForApproval && (
                     <DropdownMenuItem onClick={onSendForApproval}>
                       <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Send for Approval
+                      {t('menu-send-for-approval')}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
                     <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Share
+                    {t('menu-share')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -413,7 +420,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               {!isReadOnly && (
                 <Button onClick={() => handleSave()} disabled={isSaving || !hasUnsavedChanges}>
                   <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isSaving ? 'Saving...' : 'Save'}
+                  {isSaving ? t('editor-saving') : t('editor-save')}
                 </Button>
               )}
             </div>
@@ -563,7 +570,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               modules={QUILL_MODULES}
               formats={QUILL_FORMATS}
               readOnly={isReadOnly}
-              placeholder="Start writing your document..."
+              placeholder={t('editor-content-placeholder')}
             />
           </div>
         </div>

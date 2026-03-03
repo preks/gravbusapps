@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDate, formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-design-system'
+import { Alert, LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-design-system'
+import { WarningCircleIcon } from '@phosphor-icons/react'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AdjustEmployeeSalaryProvider, useAdjustEmployeeSalary } from './AdjustEmployeeSalaryContext'
 import { useForm } from 'react-hook-form'
@@ -13,9 +14,10 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { calculateSalaryAdjustment } from './utils/calculateSalaryAdjustment'
 import { findActiveSalary } from './utils/findActiveSalary'
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
+import { useExistingSalaryAdjustmentForMonth } from './hooks/useExistingSalaryAdjustmentForMonth'
 import translations from '../_i18n'
 
-const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
+const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
   const { t } = useTranslation(translations)
   const { data, isLoading } = useAdjustEmployeeSalary()
 
@@ -207,9 +209,12 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
     )
   }, [watchedValues])
 
-  // Dynamic title based on mode
+  // Dynamic title based on mode (with defaultValue so the key is never shown when translations aren't loaded)
   const title = useMemo(
-    () => (formMode === 'assign' ? t('assign-salary-title') : t('adjust-salary-title')),
+    () =>
+      formMode === 'assign'
+        ? t('assign-salary-title', { defaultValue: 'Assign Employee Salary' })
+        : t('adjust-salary-title', { defaultValue: 'Adjust Employee Salary' }),
     [t, formMode]
   )
 
@@ -227,11 +232,28 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
   const employeeId =
     externalContext?.employeeId || // From AppAction externalContextData (highest priority)
     additionalData?.psi_taskPayload?.employeeId ||
-    additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
     additionalData?.employeeId ||
-    employee?.code ||
     employee?.id ||
+    employee?.code ||
     ''
+
+  const duplicateCheckEffectiveDate = formMode === 'adjust' ? effectiveDate : ''
+  const {
+    hasDuplicate: hasSameMonthSalaryAdjustment,
+    isLoading: isDuplicateCheckLoading,
+    existingStartDate
+  } = useExistingSalaryAdjustmentForMonth(accessToken, employeeId, duplicateCheckEffectiveDate)
+
+  const existingStartDateLabel = useMemo(
+    () => (existingStartDate ? formatDate(existingStartDate, 'date.short') || existingStartDate : ''),
+    [existingStartDate]
+  )
+
+  const isSubmitDisabled =
+    !form.formState.isValid ||
+    isUnchangedNow ||
+    (formMode === 'adjust' && !!effectiveDate && (isDuplicateCheckLoading || hasSameMonthSalaryAdjustment))
 
   // Show loading state while fetching data to prevent displaying zero values
   if (isLoading) {
@@ -293,7 +315,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
           cancelEventType="pse_abort"
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
-          isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          isSubmitDisabled={isSubmitDisabled}
           // Shows cancel button - default cancelEventType="pse_abort" handles process abort
           onCancel={() => {
             markAsCancelled()
@@ -446,6 +468,18 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                 locale={locale}
                 salaryAdjustReasonEntries={salaryAdjustReasonEntries}
               />
+            )}
+            {formMode === 'adjust' && hasSameMonthSalaryAdjustment && (
+              <Alert className="gba:mb-2" data-testid="same-month-adjustment-warning">
+                <WarningCircleIcon className="gba:h-4 gba:w-4" />
+                <span>
+                  {t('adjust-salary-duplicate-month-warning', {
+                    date: existingStartDateLabel,
+                    defaultValue:
+                      'A salary adjustment already exists for this month on {date}. Please choose another effective date.'
+                  })}
+                </span>
+              </Alert>
             )}
           </div>
         </AppActionForm>

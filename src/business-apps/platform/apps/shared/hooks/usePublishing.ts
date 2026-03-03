@@ -23,6 +23,8 @@ export interface UsePublishingOptions {
   onUnpublished?: () => void
   onStatusChanged?: (status: PublishStatus) => void
   onError?: (error: Error) => void
+  /** Translation function for user-facing error messages */
+  t?: (key: string, vars?: Record<string, string | number>) => string
 }
 
 export interface UsePublishingState {
@@ -58,7 +60,8 @@ export function usePublishing(options: UsePublishingOptions): UsePublishingRetur
     onPublished,
     onUnpublished,
     onStatusChanged,
-    onError
+    onError,
+    t
   } = options
 
   // State
@@ -111,7 +114,7 @@ export function usePublishing(options: UsePublishingOptions): UsePublishingRetur
         setState(prev => ({ ...prev, isPublishing: false }))
         return false
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to publish'
+        const errorMessage = t ? t('shared-error-publish') : error instanceof Error ? error.message : String(error)
         setState(prev => ({
           ...prev,
           error: errorMessage,
@@ -125,7 +128,7 @@ export function usePublishing(options: UsePublishingOptions): UsePublishingRetur
         return false
       }
     },
-    [entityId, apiService, onPublished, onStatusChanged, onError]
+    [entityId, apiService, onPublished, onStatusChanged, onError, t]
   )
 
   /**
@@ -162,7 +165,7 @@ export function usePublishing(options: UsePublishingOptions): UsePublishingRetur
 
       return success
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to unpublish'
+      const errorMessage = t ? t('shared-error-unpublish') : error instanceof Error ? error.message : String(error)
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -175,7 +178,7 @@ export function usePublishing(options: UsePublishingOptions): UsePublishingRetur
 
       return false
     }
-  }, [entityId, apiService, onUnpublished, onStatusChanged, onError])
+  }, [entityId, apiService, onUnpublished, onStatusChanged, onError, t])
 
   /**
    * Update status to any value
@@ -209,7 +212,11 @@ export function usePublishing(options: UsePublishingOptions): UsePublishingRetur
         setState(prev => ({ ...prev, isUpdating: false }))
         return false
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to update status'
+        const errorMessage = t
+          ? t('shared-error-update-status')
+          : error instanceof Error
+            ? error.message
+            : String(error)
         setState(prev => ({
           ...prev,
           error: errorMessage,
@@ -223,7 +230,7 @@ export function usePublishing(options: UsePublishingOptions): UsePublishingRetur
         return false
       }
     },
-    [entityId, apiService, onStatusChanged, onError]
+    [entityId, apiService, onStatusChanged, onError, t]
   )
 
   /**

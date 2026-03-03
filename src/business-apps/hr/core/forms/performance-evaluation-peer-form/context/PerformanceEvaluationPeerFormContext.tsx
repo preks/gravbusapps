@@ -115,12 +115,9 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
   const handleSubmit = useCallback(async () => {
     try {
       setIsLoading(true)
-      const ad = businessAppContext?.additionalData as Record<string, unknown> | undefined
-      const evaluationId = (ad?.psi_taskId as string) ?? ''
 
       const payload = {
         peerNominationRequest: {
-          evaluationId,
           nominatedEmployeeIds: formValues.peerEmployeeIds ?? []
         }
       }

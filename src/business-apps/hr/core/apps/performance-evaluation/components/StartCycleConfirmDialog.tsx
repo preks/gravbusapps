@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,11 +14,11 @@ import {
   RadioGroupItem,
   useTranslation
 } from '@newwork/nw-design-system'
+import { EmployeeSelect } from '@/components/employee-select'
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { PerformanceCycle } from '../types'
-import {
-  useOrganizationalUnits,
-  type OrganizationalUnit
-} from '@/business-apps/hr/core/apps/performance-evaluation/hooks/useOrganizationalUnits'
+import { useStructureEmployees } from '@/business-apps/hr/core/forms/performance-evaluation-form/hooks/useStructureEmployees'
+import { useOrganizationalUnits, type OrganizationalUnit } from '../hooks/useOrganizationalUnits'
 import translations from '../_i18n'
 
 export type RunForOption = 'self' | 'team'
@@ -26,12 +26,16 @@ export type RunForOption = 'self' | 'team'
 export interface StartCycleConfirmOptions {
   runFor: RunForOption
   teamIds: string[]
+  employeeId?: string
+  employeeUserId?: string
 }
 
 interface StartCycleConfirmDialogProps {
   open: boolean
   cycle: PerformanceCycle | null
   accessToken: string
+  /** Pre-select this employee when runFor is 'self' (e.g. current user's employeeId) */
+  defaultEmployeeId?: string | null
   onConfirm: (options: StartCycleConfirmOptions) => void
   onCancel: () => void
 }
@@ -40,27 +44,88 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
   open,
   cycle,
   accessToken,
+  defaultEmployeeId,
   onConfirm,
   onCancel
 }) => {
   const { t } = useTranslation(translations)
   const [runFor, setRunFor] = useState<RunForOption>('self')
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
-  const { organizationalUnits, loading, error } = useOrganizationalUnits(accessToken, open && runFor === 'team')
 
-  // Reset selection when dialog opens
+  const {
+    employees,
+    isLoading: employeesLoading,
+    fetchStructureEmployees,
+    getEmployeeById
+  } = useStructureEmployees(accessToken, open && runFor === 'self')
+
+  const {
+    organizationalUnits,
+    loading: teamsLoading,
+    error: teamsError
+  } = useOrganizationalUnits(accessToken, open && runFor === 'team')
+
+  const searchEmployees = useCallback(
+    async (search: string) => {
+      await fetchStructureEmployees(search)
+    },
+    [fetchStructureEmployees]
+  )
+
+  const employeeOptionsForSelect = useMemo<Employee[]>(
+    () =>
+      employees.map(emp => ({
+        id: emp.id,
+        displayName: emp.name,
+        firstName: emp.name.split(' ')[0] || '',
+        lastName: emp.name.split(' ').slice(1).join(' ') || '',
+        pictureThumbnail: emp.pictureThumbnail,
+        userId: emp.userId,
+        employeePosition: {
+          jobPosition: emp.jobTitle ? { name: emp.jobTitle } : undefined,
+          organizationalUnit: emp.department ? { name: emp.department } : undefined
+        }
+      })),
+    [employees]
+  )
+
+  const prevOpenRef = useRef(false)
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
+      prevOpenRef.current = true
       setRunFor('self')
+      setSelectedEmployeeId(defaultEmployeeId ?? null)
       setSelectedTeamIds([])
+      if (defaultEmployeeId) fetchStructureEmployees()
     }
-  }, [open])
+    if (!open) prevOpenRef.current = false
+  }, [open, defaultEmployeeId, fetchStructureEmployees])
+
+  const hasValidEmployee = Boolean(selectedEmployeeId && String(selectedEmployeeId).trim())
+  const hasValidTeam = selectedTeamIds.length > 0
 
   const handleConfirm = () => {
-    onConfirm({ runFor, teamIds: runFor === 'team' ? selectedTeamIds : [] })
+    if (runFor === 'self') {
+      if (!hasValidEmployee) return
+      const selected = getEmployeeById(selectedEmployeeId!)
+      onConfirm({
+        runFor: 'self',
+        teamIds: [],
+        employeeId: selectedEmployeeId!,
+        employeeUserId: selected?.userId ?? ''
+      })
+    } else {
+      if (!hasValidTeam) return
+      onConfirm({
+        runFor: 'team',
+        teamIds: selectedTeamIds
+      })
+    }
   }
 
-  const isConfirmDisabled = runFor === 'team' ? selectedTeamIds.length === 0 || loading : false
+  const isConfirmDisabled =
+    runFor === 'self' ? !hasValidEmployee || employeesLoading : runFor === 'team' ? !hasValidTeam || teamsLoading : true
 
   return (
     <AlertDialog open={open} onOpenChange={open => !open && onCancel()}>
@@ -84,8 +149,8 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
               data-testid="performance-evaluation-run-for"
             >
               <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                <RadioGroupItem value="self" id="run-for-self" />
-                <span>{t('start-confirm-run-for-self')}</span>
+                <RadioGroupItem value="self" id="run-for-employee" />
+                <span>{t('start-confirm-run-for-employee')}</span>
               </label>
               <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
                 <RadioGroupItem value="team" id="run-for-team" />
@@ -94,6 +159,26 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
             </RadioGroup>
           </div>
 
+          {runFor === 'self' && (
+            <div className="gba:space-y-2">
+              <Label>{t('start-confirm-select-employee')}</Label>
+              <EmployeeSelect
+                value={selectedEmployeeId}
+                onValueChange={id => setSelectedEmployeeId(id ?? null)}
+                placeholder={
+                  employeesLoading
+                    ? t('start-confirm-placeholder-loading-employees')
+                    : t('start-confirm-placeholder-employee')
+                }
+                employees={employeeOptionsForSelect}
+                loading={employeesLoading}
+                onSearch={searchEmployees}
+                data-testid="performance-evaluation-start-employee-select"
+                className="gba:w-full"
+              />
+            </div>
+          )}
+
           {runFor === 'team' && (
             <div className="gba:space-y-2">
               <Label>{t('start-confirm-select-teams')}</Label>
@@ -101,30 +186,30 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
                 <Combobox
                   mode="multiple"
                   value={selectedTeamIds}
-                  onValueChange={(ids: string[] | string) => {
-                    const next = Array.isArray(ids) ? ids : ids ? [ids] : []
-                    setSelectedTeamIds(next)
+                  onValueChange={(id: string[] | string) => {
+                    const next = Array.isArray(id) ? id : typeof id === 'string' && id ? [id] : []
+                    setSelectedTeamIds([...new Set(next)])
                   }}
                   options={organizationalUnits.map((unit: OrganizationalUnit) => ({
                     label: unit.name,
                     value: unit.id
                   }))}
                   placeholder={
-                    loading
+                    teamsLoading
                       ? t('start-confirm-placeholder-loading')
-                      : error
-                        ? error.message
+                      : teamsError
+                        ? teamsError.message
                         : t('start-confirm-placeholder-teams')
                   }
                   searchPlaceholder={t('start-confirm-search-teams')}
                   emptyText={t('start-confirm-empty-teams')}
-                  disabled={loading || Boolean(error)}
-                  className="gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:gba:max-w-full gba:[&_button]:gba:min-w-0 gba:[&_button]:gba:overflow-hidden gba:[&_button_span]:gba:truncate gba:[&_button]:gba:h-auto gba:[&_button>div]:gba:flex-wrap gba:[&_button>div]:gba:gap-2"
+                  disabled={teamsLoading || Boolean(teamsError)}
+                  className="gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:gba:max-w-full gba:[&_button]:gba:min-w-0 gba:[&_button]:gba:overflow-hidden gba:[&_button_span]:gba:truncate gba:[&_button]:gba:h-auto"
                 />
               </div>
-              {error && (
+              {teamsError && (
                 <p className="gba:text-sm gba:text-destructive" data-testid="performance-evaluation-teams-error">
-                  {error.message}
+                  {teamsError.message}
                 </p>
               )}
             </div>

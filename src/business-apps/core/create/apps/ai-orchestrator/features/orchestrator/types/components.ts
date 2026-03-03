@@ -40,6 +40,7 @@ export interface AgentSpec {
   userPromptTemplate: string
   tools: string[]
   agentType: 'flow' | 'everyai' | 'general'
+  modelId?: string
   specialty?: string
   responseStyle: 'formal' | 'conversational' | 'technical'
   citationMode: 'always' | 'when_needed' | 'never'

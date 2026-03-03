@@ -10,6 +10,9 @@ export const PERFORMANCE_VALIDATION = {
   /** Maximum length for rating scale names (e.g., "5-Star Rating Scale") */
   SCALE_NAME_MAX_LENGTH: 64,
 
+  /** Max length for rating scale option label in cycle editor (name + values); longer labels are truncated with "..." */
+  RATING_SCALE_OPTION_LABEL_MAX_LENGTH: 56,
+
   /** Maximum length for individual rating scale values/labels */
   SCALE_VALUE_MAX_LENGTH: 10,
 

@@ -2,11 +2,13 @@
  * ScreenPreview - Live preview of generated screens using AI Builder PreviewSandbox
  */
 
-import React, { useEffect, useRef } from 'react'
-import { Alert, AlertDescription, AlertTitle, Spinner, cn } from '@newwork/nw-design-system'
-import { AlertCircle } from 'lucide-react'
+import React, { useMemo, useEffect, useRef } from 'react'
+import { Alert, AlertDescription, AlertTitle, Button, cn } from '@newwork/nw-design-system'
+import { AlertCircle, ExternalLink } from 'lucide-react'
 import { PreviewSandbox, type PreviewSandboxHandle } from '@/common/components/ai-builder/sandbox/PreviewSandbox'
+import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import type { ComponentSpec } from '../../types'
+import { ScreenBuildingLoader } from '../widgets/ScreenBuildingLoader'
 
 export interface ScreenPreviewProps {
   component: ComponentSpec
@@ -14,6 +16,7 @@ export interface ScreenPreviewProps {
   userInfo?: any
   refreshToken?: number
   isFixWorking?: boolean
+  isRestoringSession?: boolean
 }
 
 export const ScreenPreview: React.FC<ScreenPreviewProps> = ({
@@ -21,20 +24,31 @@ export const ScreenPreview: React.FC<ScreenPreviewProps> = ({
   accessToken,
   userInfo,
   refreshToken,
-  isFixWorking = false
+  isFixWorking = false,
+  isRestoringSession = false
 }) => {
   const previewRef = useRef<PreviewSandboxHandle>(null)
+  const builderClient = useBuilderClient(accessToken)
+
+  const previewUrlForNewTab = useMemo(() => {
+    const sessionId = component.metadata?.sessionId
+    if (!sessionId) return null
+    const app = (component.screenSpec?.name || component.name.replace(/\s+/g, '')).trim()
+    const query: Record<string, string | boolean> = { v: Date.now().toString() }
+    if (app) query.app = app
+    return builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
+  }, [component.metadata?.sessionId, component.screenSpec?.name, component.name, builderClient])
 
   useEffect(() => {
     if (!refreshToken) return
-    previewRef.current?.reload({ forceRebuild: true })
+    previewRef.current?.reload()
   }, [refreshToken])
 
   // Loading state
   if (!accessToken) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[400px]">
-        <Spinner size="lg" />
+        <ScreenBuildingLoader />
       </div>
     )
   }
@@ -57,24 +71,40 @@ export const ScreenPreview: React.FC<ScreenPreviewProps> = ({
   }
 
   return (
-    <div className="gba:h-full gba:min-h-[600px] gba:flex gba:flex-col gba:p-3">
-      <div
-        className={cn(
-          'gba:flex-1 gba:min-h-0 gba:rounded-xl gba:border gba:bg-card/30 gba:overflow-hidden gba:transition-all gba:duration-300',
-          isFixWorking
-            ? 'gba:border-blue-400/80 dark:gba:border-blue-400/60 gba:shadow-[0_0_0_1px_rgba(96,165,250,0.5),0_0_20px_rgba(59,130,246,0.35),0_10px_28px_rgba(37,99,235,0.18)] gba:animate-pulse'
-            : 'gba:border-blue-300/70 dark:gba:border-blue-500/40 gba:shadow-[0_0_0_1px_rgba(147,197,253,0.25),0_10px_28px_rgba(37,99,235,0.12)]'
-        )}
-      >
-        <PreviewSandbox
-          ref={previewRef}
-          repoId={component.metadata!.repoId!}
-          sessionId={component.metadata!.sessionId!}
-          previewAppName={component.screenSpec?.name || component.name.replace(/\s+/g, '')}
-          accessToken={accessToken}
-          userInfo={userInfo}
-        />
-      </div>
+    <div className="gba:h-full gba:min-h-[600px] gba:flex gba:flex-col gba:relative">
+      {previewUrlForNewTab && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open(previewUrlForNewTab, '_blank', 'noopener,noreferrer')}
+          className="gba:absolute gba:top-2 gba:left-2 gba:z-10 gba:gap-1.5 gba:bg-background/95"
+          data-testid="orchestrator-screen-preview-open-new-tab"
+        >
+          <ExternalLink className="gba:w-3.5 gba:h-3.5" />
+          Open screen in new tab
+        </Button>
+      )}
+      {isRestoringSession ? (
+        <div className="gba:flex-1 gba:min-h-0 gba:bg-card gba:overflow-hidden gba:flex gba:items-center gba:justify-center">
+          <ScreenBuildingLoader />
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'gba:flex-1 gba:min-h-0 gba:bg-card gba:overflow-hidden gba:transition-opacity gba:duration-300',
+            isFixWorking && 'gba:opacity-70'
+          )}
+        >
+          <PreviewSandbox
+            ref={previewRef}
+            repoId={component.metadata!.repoId!}
+            sessionId={component.metadata!.sessionId!}
+            previewAppName={component.screenSpec?.name || component.name.replace(/\s+/g, '')}
+            accessToken={accessToken}
+            userInfo={userInfo}
+          />
+        </div>
+      )}
     </div>
   )
 }

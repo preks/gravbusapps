@@ -45,13 +45,22 @@ export const fetchExpenseTypes = async (
       return []
     }
 
-    const expenseTypesList = response.data.ExpenseRuleGeneralExpense.map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      code: item.code,
-      classId: item.expenseGroupRef,
-      reimbursable: item.reimbursable
-    }))
+    const expenseTypesList = response.data.ExpenseRuleGeneralExpense.map((item: any) => {
+      const attachmentInstruction =
+        typeof item?.additionalProperties?.postingDetails?.attachment === 'string'
+          ? item.additionalProperties.postingDetails.attachment.trim()
+          : ''
+
+      return {
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        classId: item.expenseGroupRef,
+        reimbursable: item.reimbursable,
+        additionalProperties: item.additionalProperties,
+        attachmentInstruction
+      }
+    })
 
     const expenseTypesByGroup = expenseTypesList.reduce((acc: { [key: string]: ExpenseType[] }, item: ExpenseType) => {
       if (!acc[item.classId]) {

@@ -259,13 +259,11 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       title: t('hr-analytics-span-of-control'),
       testId: 'span-control',
       rows: data.spanOfControlData.map(item => ({
-        manager: item.managerName,
         unit: item.organizationalUnit,
         reports: item.directReports,
         efficiency: item.efficiency
       })),
       columns: [
-        { key: 'manager', header: t('hr-analytics-top-manager') },
         { key: 'unit', header: t('hr-analytics-entity-organizational-unit') },
         { key: 'reports', header: t('hr-analytics-value') },
         { key: 'efficiency', header: t('hr-analytics-status') }
@@ -280,7 +278,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         { key: 'unit', header: t('hr-analytics-entity-organizational-unit') },
         { key: 'value', header: t('hr-analytics-value') },
         { key: 'level', header: t('hr-analytics-level') },
-        { key: 'parent', header: t('hr-analytics-top-manager') }
+        { key: 'parent', header: t('hr-analytics-parent-organizational-unit') }
       ]
     }
   } else if (activeTab === 'reporting-chains') {

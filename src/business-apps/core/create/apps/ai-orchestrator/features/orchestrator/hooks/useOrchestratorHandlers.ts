@@ -33,6 +33,7 @@ export const useOrchestratorHandlers = ({
   const handleAnalyze = useCallback(
     async (prompt: string) => {
       state.setUserPrompt(prompt)
+      state.setChatActive(true)
       state.setViewState('analyzing')
 
       const response = await orchestratorClient.analyze(prompt)
@@ -47,7 +48,7 @@ export const useOrchestratorHandlers = ({
         state.setViewState('error')
       }
     },
-    [orchestratorClient.analyze, state]
+    [orchestratorClient, state]
   )
 
   // Handle re-analyze
@@ -62,7 +63,7 @@ export const useOrchestratorHandlers = ({
         state.setViewState('error')
       }
     },
-    [orchestratorClient.reanalyze, state]
+    [orchestratorClient, state]
   )
 
   // Handle edit plan
@@ -76,7 +77,7 @@ export const useOrchestratorHandlers = ({
       try {
         await orchestratorClient.updatePlan(orchestratorClient.currentPlan.jobId, {
           components: updatedComponents,
-          update_reason: 'User modified plan from UI'
+          updateReason: 'User modified plan from UI'
         })
 
         // Close modal on success
@@ -122,11 +123,11 @@ export const useOrchestratorHandlers = ({
       state.loggedPhasesRef.current.clear()
       state.lastCompletedCountRef.current = 0
 
-      await buildProgress.startBuild(
-        skipComponents,
-        orchestratorClient.lastSessionId ?? undefined,
-        orchestratorClient.lastRepoId ?? undefined
-      )
+      // Use session/repo from last build (lastSessionId/lastRepoId)
+      const sessionId = orchestratorClient.lastSessionId
+      const repoId = orchestratorClient.lastRepoId
+
+      await buildProgress.startBuild(skipComponents, sessionId ?? undefined, repoId ?? undefined)
     },
     [buildProgress.startBuild, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state]
   )
@@ -154,12 +155,12 @@ export const useOrchestratorHandlers = ({
     state.loggedPhasesRef.current.clear()
     state.lastCompletedCountRef.current = 0
 
+    // Use session/repo from last build (lastSessionId/lastRepoId)
+    const sessionId = orchestratorClient.lastSessionId
+    const repoId = orchestratorClient.lastRepoId
+
     // Re-execute the build with the same plan; pass stored session for execute-again
-    await buildProgress.startBuild(
-      undefined,
-      orchestratorClient.lastSessionId ?? undefined,
-      orchestratorClient.lastRepoId ?? undefined
-    )
+    await buildProgress.startBuild(undefined, sessionId ?? undefined, repoId ?? undefined)
   }, [buildProgress, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state])
 
   // Handle cancel
@@ -167,6 +168,7 @@ export const useOrchestratorHandlers = ({
     buildProgress.cancelBuild()
     orchestratorClient.clearPlan()
     state.setViewState('idle')
+    state.setChatActive(false)
     state.setBuildLogs([])
     state.loggedPhasesRef.current.clear()
     state.lastCompletedCountRef.current = 0
@@ -185,6 +187,7 @@ export const useOrchestratorHandlers = ({
     buildProgress.resetProgress()
     orchestratorClient.clearPlan()
     state.setViewState('idle')
+    state.setChatActive(false)
     state.setUserPrompt('')
     state.setBuildLogs([])
     state.setThinkingSteps([])
