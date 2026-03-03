@@ -22,7 +22,7 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { VoiceInputButton, VoiceVisualizer, useVoiceInput } from '../../../shared'
+import { VoiceInputButton, VoiceVisualizer, useVoiceInput, normalizeDictationTranscript } from '../../../shared'
 import translations from '../../_i18n'
 import {
   Bold,
@@ -54,7 +54,8 @@ import {
   RemoveFormatting,
   SeparatorHorizontal,
   Check,
-  AlignVerticalJustifyCenter
+  AlignVerticalJustifyCenter,
+  ListChecks
 } from 'lucide-react'
 import { getCurrentSpacing } from './extensions/LineAndParagraphSpacing'
 
@@ -273,11 +274,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onOpenInsertImageDialog,
   'data-testid': testId = 'editor-toolbar'
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const editorRef = useRef(editor)
   editorRef.current = editor
   const dictationStartRef = useRef<number | null>(null)
   const dictationEndRef = useRef<number | null>(null)
+  const dictationLanguage = locale ?? 'en-US'
 
   const applyDictationToEditor = useCallback((text: string) => {
     const ed = editorRef.current
@@ -285,17 +287,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     let start = dictationStartRef.current
     const end = dictationEndRef.current ?? start ?? ed.state.selection.from
     try {
+      const content = { type: 'paragraph' as const, content: [{ type: 'text' as const, text }] }
       if (start == null) {
         start = ed.state.selection.from
-        ed.chain().focus().deleteSelection().insertContent(text).run()
+        ed.chain().focus().deleteSelection().insertContent(content).run()
         dictationStartRef.current = start
         dictationEndRef.current = ed.state.selection.from
         return
       }
       if (start === end) {
-        ed.chain().focus().setTextSelection(start).insertContent(text).run()
+        ed.chain().focus().setTextSelection(start).insertContent(content).run()
       } else {
-        ed.chain().focus().setTextSelection({ from: start, to: end }).deleteSelection().insertContent(text).run()
+        ed.chain().focus().setTextSelection({ from: start, to: end }).deleteSelection().insertContent(content).run()
       }
       dictationEndRef.current = ed.state.selection.from
     } catch (err) {
@@ -304,13 +307,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   }, [])
 
   const voiceInput = useVoiceInput({
-    language: 'en-US',
+    language: dictationLanguage,
     continuous: true,
     interimResults: true,
     autoStopOnSilence: false,
     onTranscript: (transcript: string) => {
-      const text = transcript.trim()
-      if (!text) return
+      const raw = transcript.trim()
+      if (!raw) return
+      const text = normalizeDictationTranscript(raw, dictationLanguage)
       requestAnimationFrame(() => applyDictationToEditor(text))
     },
     onEnd: () => {
@@ -320,16 +324,20 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     }
   })
 
+  const handleStartListening = useCallback(() => {
+    if (editor) {
+      dictationStartRef.current = editor.state.selection.from
+      dictationEndRef.current = editor.state.selection.from
+    }
+    voiceInput.startListening()
+  }, [editor, voiceInput.startListening])
+
   useEffect(() => {
-    if (voiceInput.isListening && editor) {
-      const from = editor.state.selection.from
-      dictationStartRef.current = from
-      dictationEndRef.current = from
-    } else if (!voiceInput.isListening) {
+    if (!voiceInput.isListening) {
       dictationStartRef.current = null
       dictationEndRef.current = null
     }
-  }, [voiceInput.isListening, editor])
+  }, [voiceInput.isListening])
 
   useEffect(() => {
     if (!editor && voiceInput.isListening) {
@@ -470,7 +478,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               isSupported={voiceInput.isSupported}
               volume={voiceInput.volume}
               error={voiceInput.error}
-              onStartListening={voiceInput.startListening}
+              onStartListening={handleStartListening}
               onStopListening={voiceInput.stopListening}
               size="sm"
               data-testid={`${testId}-dictate`}
@@ -824,32 +832,76 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
         <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 
-        {/* Lists & Indentation */}
+        {/* List dropdown (Bullet, Ordered, Task) & Indentation */}
         <div className="gba:flex gba:items-center gba:gap-0.5">
+          <DropdownMenu>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={
+                        editor.isActive('bulletList') || editor.isActive('orderedList') || editor.isActive('taskList')
+                          ? 'secondary'
+                          : 'ghost'
+                      }
+                      size="sm"
+                      className="gba:h-8 gba:min-w-8 gba:px-1"
+                      data-testid={testId ? `${testId}-list-dropdown-trigger` : undefined}
+                    >
+                      <List className="gba:h-4 gba:w-4" />
+                      <ChevronDown className="gba:h-3.5 gba:w-3.5 gba:ml-0.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>{t('editor-toolbar-bullet-list')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <DropdownMenuContent align="start" className="gba:min-w-[10rem]">
+              <DropdownMenuItem
+                onSelect={() => editor.chain().focus().toggleBulletList().run()}
+                data-testid={testId ? `${testId}-list-dropdown-bullet` : undefined}
+              >
+                <List className="gba:h-4 gba:w-4 gba:mr-2" />
+                {t('editor-toolbar-bullet-list')}
+                {editor.isActive('bulletList') && <Check className="gba:ml-auto gba:h-4 gba:w-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => editor.chain().focus().toggleOrderedList().run()}
+                data-testid={testId ? `${testId}-list-dropdown-ordered` : undefined}
+              >
+                <ListOrdered className="gba:h-4 gba:w-4 gba:mr-2" />
+                {t('editor-toolbar-numbered-list')}
+                {editor.isActive('orderedList') && <Check className="gba:ml-auto gba:h-4 gba:w-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => editor.chain().focus().toggleTaskList().run()}
+                data-testid={testId ? `${testId}-list-dropdown-task` : undefined}
+              >
+                <ListChecks className="gba:h-4 gba:w-4 gba:mr-2" />
+                {t('editor-toolbar-task-list')}
+                {editor.isActive('taskList') && <Check className="gba:ml-auto gba:h-4 gba:w-4" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            isActive={editor.isActive('bulletList')}
-            tooltip={t('editor-toolbar-bullet-list')}
-          >
-            <List className="gba:h-4 gba:w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            isActive={editor.isActive('orderedList')}
-            tooltip={t('editor-toolbar-numbered-list')}
-          >
-            <ListOrdered className="gba:h-4 gba:w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().liftListItem('listItem').run()}
-            disabled={!editor.can().liftListItem('listItem')}
+            onClick={() => {
+              const itemType = editor.isActive('taskList') ? 'taskItem' : 'listItem'
+              editor.chain().focus().liftListItem(itemType).run()
+            }}
+            disabled={!editor.can().liftListItem('listItem') && !editor.can().liftListItem('taskItem')}
             tooltip={t('editor-toolbar-decrease-indent')}
           >
             <IndentDecrease className="gba:h-4 gba:w-4" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
-            disabled={!editor.can().sinkListItem('listItem')}
+            onClick={() => {
+              const itemType = editor.isActive('taskList') ? 'taskItem' : 'listItem'
+              editor.chain().focus().sinkListItem(itemType).run()
+            }}
+            disabled={!editor.can().sinkListItem('listItem') && !editor.can().sinkListItem('taskItem')}
             tooltip={t('editor-toolbar-increase-indent')}
           >
             <IndentIncrease className="gba:h-4 gba:w-4" />

@@ -352,6 +352,7 @@ editor-paragraph-spacing-remove-before = Abstand vor Absatz entfernen
 editor-paragraph-spacing-remove-after = Abstand nach Absatz entfernen
 editor-toolbar-bullet-list = Aufzählung
 editor-toolbar-numbered-list = Nummerierte Liste
+editor-toolbar-task-list = Aufgabenliste
 editor-toolbar-decrease-indent = Einzug verringern
 editor-toolbar-increase-indent = Einzug vergrößern
 editor-toolbar-quote = Zitat
@@ -438,6 +439,7 @@ image-alt-text-dialog-title = Alt-Text
 image-alt-text-label = Beschreibung (für Barrierefreiheit)
 image-alt-text-save = Speichern
 
+# Paged document editor
 editor-back-title = Zurück zu Dokumenten
 editor-save-document = Dokument speichern
 editor-approval-pending = Genehmigung ausstehend
@@ -455,6 +457,9 @@ editor-lock-document = Dokument sperren
 editor-publish = Veröffentlichen...
 editor-save-as-template = Als Vorlage speichern
 editor-send-for-approval = Zur Genehmigung senden
+editor-export-word = Als Word (.docx) exportieren
+editor-export-pdf = Als PDF exportieren
+editor-print = Drucken
 editor-ai-edit = KI-Bearbeitung
 
 # Navigation panel (Headings, Find, Replace)

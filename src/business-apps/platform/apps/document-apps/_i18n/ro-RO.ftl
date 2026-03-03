@@ -352,6 +352,7 @@ editor-paragraph-spacing-remove-before = Elimină spațiul înainte de paragraf
 editor-paragraph-spacing-remove-after = Elimină spațiul după paragraf
 editor-toolbar-bullet-list = Listă cu marcatori
 editor-toolbar-numbered-list = Listă numerotată
+editor-toolbar-task-list = Listă de sarcini
 editor-toolbar-decrease-indent = Micșorați alinierea
 editor-toolbar-increase-indent = Măriți alinierea
 editor-toolbar-quote = Citat
@@ -438,6 +439,7 @@ image-alt-text-dialog-title = Text alternativ
 image-alt-text-label = Descriere (pentru accesibilitate)
 image-alt-text-save = Salvare
 
+# Paged document editor
 editor-back-title = Înapoi la documente
 editor-save-document = Salvați documentul
 editor-approval-pending = Aprobare în așteptare
@@ -455,6 +457,9 @@ editor-lock-document = Blocați documentul
 editor-publish = Publicare...
 editor-save-as-template = Salvați ca șablon
 editor-send-for-approval = Trimiteți pentru aprobare
+editor-export-word = Exportați ca Word (.docx)
+editor-export-pdf = Exportați ca PDF
+editor-print = Tipărire
 editor-ai-edit = Editare AI
 
 # Navigation panel (Headings, Find, Replace)

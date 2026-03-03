@@ -280,11 +280,8 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         } else if (normalizedLast && normalizedLast.includes(normalizedPrev)) {
           // Some WebViews return cumulative results; replace instead of append.
           final = lastTrimmed
-        } else if (normalizedPrev && normalizedPrev.includes(normalizedLast)) {
-          // Ignore regressions (shorter text than what we already had).
-          final = previousFinal
         } else {
-          // Standard SpeechRecognition behavior: append new final segment.
+          // Append new final segment (preserves repeated phrases, e.g. "one two three ... one two three").
           final = `${previousFinal} ${lastTrimmed}`.trim()
         }
         cleanedInterim = ''

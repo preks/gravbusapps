@@ -1003,13 +1003,14 @@ ${odfContent}
 /**
  * Convert HTML content to ODF XML elements.
  * Maps common HTML tags to their ODF text:* equivalents.
+ * Sanitizes input before DOM assignment to prevent DOM XSS.
  */
 function htmlToOdfXml(html: string): string {
   if (!html) return '      <text:p/>'
 
-  // Parse the HTML using a temporary DOM element
+  const safeHtml = sanitizeHtmlForExport(html)
   const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
+  tempDiv.innerHTML = safeHtml
 
   const odfParts: string[] = []
   convertHtmlChildrenToOdf(tempDiv, odfParts, 6)

@@ -38,6 +38,7 @@ export { CellCollaboratorIndicator, type CellCollaboratorIndicatorProps } from '
 export { DimensionPicker, type DimensionPickerProps } from './components/DimensionPicker'
 export { VoiceInputButton, type VoiceInputButtonProps } from './components/voice-input/VoiceInputButton'
 export { VoiceVisualizer, type VoiceVisualizerProps } from './components/voice-input/VoiceVisualizer'
+export { normalizeDictationTranscript } from './utils/normalizeDictationTranscript'
 
 // Types
 export {

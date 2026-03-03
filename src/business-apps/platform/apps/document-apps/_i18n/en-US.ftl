@@ -354,6 +354,7 @@ editor-paragraph-spacing-remove-before = Remove space before paragraph
 editor-paragraph-spacing-remove-after = Remove space after paragraph
 editor-toolbar-bullet-list = Bullet List
 editor-toolbar-numbered-list = Numbered List
+editor-toolbar-task-list = Task List
 editor-toolbar-decrease-indent = Decrease Indent
 editor-toolbar-increase-indent = Increase Indent
 editor-toolbar-quote = Quote

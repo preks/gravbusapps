@@ -26,6 +26,8 @@ import { FontSize } from '@tiptap/extension-text-style/font-size'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
 import { Typography } from '@tiptap/extension-typography'
+import { TaskList } from '@tiptap/extension-task-list'
+import { TaskItem } from '@tiptap/extension-task-item'
 import {
   Button,
   Input,
@@ -89,6 +91,7 @@ import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
 import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
+import DOMPurify from 'dompurify'
 import {
   exportToWord,
   exportToPDF,
@@ -761,6 +764,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           Subscript,
           Superscript,
           Typography,
+          TaskList,
+          TaskItem.configure({
+            nested: true,
+            HTMLAttributes: {
+              class: 'editor-task-item'
+            }
+          }),
           PageBreak,
           SearchHighlight,
           ...(paginationConfig
@@ -893,7 +903,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       () => ({
         insertAtCursor(htmlOrText: string) {
           const ed = editorRef.current
-          if (ed) ed.commands.insertContent(htmlOrText)
+          if (ed) {
+            const sanitized = DOMPurify.sanitize(htmlOrText, { USE_PROFILES: { html: true } }) || ''
+            if (sanitized) ed.commands.insertContent(sanitized)
+          }
         }
       }),
       []
@@ -1135,6 +1148,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       (values: { href: string; displayText?: string; openInNewTab: boolean }) => {
         if (!editor) return
         const { href, displayText: displayTextVal, openInNewTab } = values
+        if (!isAllowedHref(href)) return
         const target = openInNewTab ? '_blank' : undefined
         if (linkDialogMode === 'edit') {
           editor.chain().focus().extendMarkRange('link').setLink({ href, target }).run()
@@ -1838,6 +1852,44 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           list-style-position: outside;
           padding-inline-start: 24pt;
           margin: 0 0 12pt 0;
+        }
+
+        /* Task list: no bullets, checkbox per item (NodeView uses .editor-task-item) */
+        .paged-document-editor .ProseMirror ul[data-type="taskList"] {
+          list-style: none;
+          padding-inline-start: 24pt;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] {
+          display: flex;
+          align-items: flex-start;
+          gap: 8pt;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > label,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > label {
+          flex-shrink: 0;
+          cursor: pointer;
+          margin: 0.2em 0 0 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > label input[type="checkbox"],
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > label input[type="checkbox"] {
+          cursor: pointer;
+          width: 1em;
+          height: 1em;
+          margin: 0;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > div,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > div {
+          flex: 1;
+          min-width: 0;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item[data-checked="true"] > div,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"][data-checked="true"] > div {
+          text-decoration: line-through;
+          color: var(--nw-muted-foreground, #6b7280);
         }
 
         .paged-document-editor .ProseMirror li {
