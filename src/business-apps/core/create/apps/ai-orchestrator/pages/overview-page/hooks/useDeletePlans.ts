@@ -8,7 +8,7 @@ import { createOrchestratorClient } from '@/common/network/ai/orchestrator/Orche
 
 export interface UseDeletePlansParams {
   accessToken: string
-  refetch: () => void
+  refetch: () => void | Promise<void>
   onDeleteComplete?: () => void
 }
 
