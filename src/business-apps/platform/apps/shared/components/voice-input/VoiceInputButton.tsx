@@ -1,4 +1,4 @@
-// Enterprise-grade voice input button with smooth animations and clear state feedback.
+// Voice input button with smooth animations and clear state feedback.
 
 import React from 'react'
 import { Button, Tooltip, TooltipContent, TooltipTrigger, cn } from '@newwork/nw-design-system'

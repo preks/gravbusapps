@@ -1,4 +1,4 @@
-// Enterprise-grade voice visualizer with smooth waveform animation.
+// Voice visualizer with smooth waveform animation.
 
 import React, { useEffect, useRef } from 'react'
 import { cn } from '@newwork/nw-design-system'

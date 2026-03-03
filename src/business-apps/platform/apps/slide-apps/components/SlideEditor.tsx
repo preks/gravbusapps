@@ -93,13 +93,11 @@ import { GeneratePresentationButton } from './GeneratePresentationButton'
 import { RefineSlideButton } from './RefineSlideButton'
 import { SaveTemplateButton } from './SaveTemplateButton'
 import { TemplateBrowserButton } from './TemplateBrowserButton'
-import { VoiceInputButton } from './VoiceInputButton'
-import { VoiceVisualizer } from './VoiceVisualizer'
 import { FloatingTextActions } from './FloatingTextActions'
 import { PdfExportDialog } from './PdfExportDialog'
 import { SpeakerNotesPanel } from './SpeakerNotesPanel'
 import { PresenterView } from './PresenterView'
-import { useVoiceInput } from '../hooks/useVoiceInput'
+import { VoiceInputButton, VoiceVisualizer, useVoiceInput } from '../../shared'
 import { exportToPptx } from '../utils/exportUtils'
 import translations from '../_i18n'
 import type { TextElement } from './slideElements'
@@ -2205,7 +2203,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       >
         <DialogContent className="gba:max-w-2xl gba:p-0 gba:gap-0 gba:overflow-hidden">
           {/* Header with voice toggle */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:bg-muted/30">
+          <div className="gba:flex gba:items-center gba:justify-between gba:pl-6 gba:pr-14 gba:py-4 gba:border-b gba:bg-muted/30">
             <DialogTitle className="gba:text-lg gba:font-semibold">{t('editor-edit-text')}</DialogTitle>
             {voiceInput.isSupported && (
               <VoiceInputButton

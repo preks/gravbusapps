@@ -1,4 +1,4 @@
-// Speech-to-Text hook using Web Speech API for slide text editing.
+// Speech-to-Text hook using Web Speech API for voice input in office applications.
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 
@@ -11,7 +11,7 @@ export interface VoiceInputState {
   volume: number
 }
 
-interface UseVoiceInputOptions {
+export interface UseVoiceInputOptions {
   language?: string
   continuous?: boolean
   interimResults?: boolean
@@ -466,5 +466,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     resetTranscript
   }
 }
+
+export type UseVoiceInputReturn = ReturnType<typeof useVoiceInput>
 
 export default useVoiceInput
