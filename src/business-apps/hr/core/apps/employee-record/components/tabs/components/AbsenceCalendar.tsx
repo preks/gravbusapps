@@ -26,6 +26,19 @@ import 'dayjs/locale/de'
 // Extend plugins
 dayjs.extend(isBetween)
 
+const toDateKey = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const match = value.match(/\d{4}-\d{2}-\d{2}/)
+    if (match?.[0]) return match[0]
+  }
+  const parsed = dayjs(value as any)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : null
+}
+
+const isDateKeyInRange = (dateKey: string, startKey: string, endKey: string) => {
+  return dateKey >= startKey && dateKey <= endKey
+}
+
 // Function to generate tooltip content for absence segments
 const getAbsenceTooltipContent = (
   absence: any,
@@ -204,14 +217,16 @@ const AbsenceCalendar: React.FC<
 
     // Check if the day(s) have any existing absences (vacations or other absences) - if so, don't allow right-click to create new ones
     const hasExistingAbsences = absenceList.some((absence: any) => {
-      const absenceStart = dayjs(absence.startDate)
-      const absenceEnd = dayjs(absence.endDate)
-      // Check if the absence overlaps with the date range we're checking
+      const absenceStartKey = toDateKey(absence.startDate)
+      const absenceEndKey = toDateKey(absence.endDate)
+      const selectedStartKey = dateRangeToCheck.start.format('YYYY-MM-DD')
+      const selectedEndKey = dateRangeToCheck.end.format('YYYY-MM-DD')
+      if (!absenceStartKey || !absenceEndKey) return false
       return (
-        dateRangeToCheck.start.isBetween(absenceStart, absenceEnd, null, '[]') ||
-        dateRangeToCheck.end.isBetween(absenceStart, absenceEnd, null, '[]') ||
-        absenceStart.isBetween(dateRangeToCheck.start, dateRangeToCheck.end, null, '[]') ||
-        absenceEnd.isBetween(dateRangeToCheck.start, dateRangeToCheck.end, null, '[]')
+        isDateKeyInRange(selectedStartKey, absenceStartKey, absenceEndKey) ||
+        isDateKeyInRange(selectedEndKey, absenceStartKey, absenceEndKey) ||
+        isDateKeyInRange(absenceStartKey, selectedStartKey, selectedEndKey) ||
+        isDateKeyInRange(absenceEndKey, selectedStartKey, selectedEndKey)
       )
     })
 
@@ -540,26 +555,30 @@ const AbsenceCalendar: React.FC<
                       {isCurrentMonth &&
                         (() => {
                           // Rendering rules:
-                          // - If effectiveDates present: paint only days explicitly marked effective by BE.
-                          // - If no effectiveDates (fallback): do not paint holidays, dates in nonWorkingDates, and paint weekends only if parent allowed it
-                          if (effectiveDates) {
-                            if (!effectiveDates.has(dayKey)) return null
-                          } else {
-                            if (isHolidayDay) return null
-                            if (nonWorkingDates && nonWorkingDates.has(dayKey)) return null
-                            if (isWeekend && !allowWeekendPaintingInFallback) return null
-                          }
+                          // - With effectiveDates: apply BE effective-day filtering only to APPROVED absences.
+                          // - Without effectiveDates: fallback non-working/holiday/weekend filtering should also only constrain APPROVED absences.
                           const overlappingAbsences = absenceList.filter((absence: any) => {
-                            const absenceStart = dayjs(absence.startDate)
-                            const absenceEnd = dayjs(absence.endDate)
-                            return currentDay.isBetween(absenceStart, absenceEnd, null, '[]')
+                            const absenceStartKey = toDateKey(absence.startDate)
+                            const absenceEndKey = toDateKey(absence.endDate)
+                            if (!absenceStartKey || !absenceEndKey) return false
+                            return isDateKeyInRange(dayKey, absenceStartKey, absenceEndKey)
                           })
 
-                          if (overlappingAbsences.length === 0) return null
+                          const renderableAbsences = overlappingAbsences.filter((absence: any) => {
+                            const status = String(absence.originalStatus || absence.status || '').toUpperCase()
+                            if (status !== 'APPROVED') return true
+                            if (effectiveDates) return effectiveDates.has(dayKey)
+                            if (isHolidayDay) return false
+                            if (nonWorkingDates && nonWorkingDates.has(dayKey)) return false
+                            if (isWeekend && !allowWeekendPaintingInFallback) return false
+                            return true
+                          })
+
+                          if (renderableAbsences.length === 0) return null
 
                           // Render small colored segments for each overlapping absence (max 3)
                           const maxSegments = 3
-                          const segments = overlappingAbsences.slice(0, maxSegments)
+                          const segments = renderableAbsences.slice(0, maxSegments)
 
                           const resolveSegmentTextClass = (a: any): string =>
                             getAbsenceStatusTextClass(a.originalStatus || a.status)
