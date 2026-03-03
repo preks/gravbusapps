@@ -128,7 +128,7 @@ function isTruthyFlag(value: string | null | undefined): boolean {
 }
 
 function isAutocompleteRolloutEnabled(): boolean {
-  if (typeof globalThis.window !== 'undefined') {
+  if (globalThis.window !== undefined) {
     const localOverride = globalThis.localStorage.getItem(AUTOCOMPLETE_ROLLOUT_STORAGE_KEY)
     if (localOverride !== null) {
       return isTruthyFlag(localOverride)
@@ -229,21 +229,21 @@ function getAvatarUrl(picture?: string): string | undefined {
 
 function normalizeHtmlForComparison(html: string): string {
   try {
-    if (typeof globalThis.window === 'undefined') {
+    if (globalThis.window === undefined) {
       return html.trim()
     }
     const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
     const normalized = doc.body.innerHTML
-      .replaceAll(/\u200B/g, '')
-      .replaceAll(/>\s+</g, '><')
-      .replaceAll(/\s+/g, ' ')
+      .replace(/\u200B/g, '')
+      .replace(/>\s+</g, '><')
+      .replace(/\s+/g, ' ')
       .trim()
     return normalized
   } catch {
     return html
-      .replaceAll(/\u200B/g, '')
-      .replaceAll(/>\s+</g, '><')
-      .replaceAll(/\s+/g, ' ')
+      .replace(/\u200B/g, '')
+      .replace(/>\s+</g, '><')
+      .replace(/\s+/g, ' ')
       .trim()
   }
 }
@@ -255,11 +255,11 @@ function areHtmlSemanticallyEquivalent(left: string, right: string): boolean {
   if (normalizedLeft === normalizedRight) return true
 
   try {
-    if (typeof globalThis.window !== 'undefined') {
+    if (globalThis.window !== undefined) {
       const leftDoc = new globalThis.DOMParser().parseFromString(left, 'text/html')
       const rightDoc = new globalThis.DOMParser().parseFromString(right, 'text/html')
-      const leftText = (leftDoc.body.textContent || '').replaceAll(/\s+/g, ' ').trim()
-      const rightText = (rightDoc.body.textContent || '').replaceAll(/\s+/g, ' ').trim()
+      const leftText = (leftDoc.body.textContent || '').replace(/\s+/g, ' ').trim()
+      const rightText = (rightDoc.body.textContent || '').replace(/\s+/g, ' ').trim()
       return leftText === rightText
     }
   } catch {
@@ -486,7 +486,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
   ) {
     const { t } = useTranslation(translations)
     // Editor state
-    const [title, setTitle] = useState((document?.title || initialTitle) ?? t('title-untitled-document'))
+    const [title, setTitle] = useState(document?.title || initialTitle || t('title-untitled-document'))
     const [isSaving, setIsSaving] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date | null>(document ? new Date(document.updatedAt) : null)
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -529,8 +529,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [autocompleteSuggestion, setAutocompleteSuggestion] = useState('')
     const [autocompleteCursorPos, setAutocompleteCursorPos] = useState<number | null>(null)
     const [currentSelectionRange, setCurrentSelectionRange] = useState<{ from: number; to: number } | null>(null)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [_isAutocompleteLoading, setIsAutocompleteLoading] = useState(false)
+    const isAutocompleteLoadingRef = useRef(false)
     const autocompleteSuggestionRef = useRef('')
     const autocompleteCursorPosRef = useRef<number | null>(null)
     const autocompleteDebounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -545,16 +544,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const html = aiSelectionSnapshotHtml.trim()
       if (!html) return ''
 
-      if (typeof globalThis.window === 'undefined') {
+      if (globalThis.window === undefined) {
         return html
-          .replaceAll(/<[^>]+>/g, ' ')
-          .replaceAll(/\s+/g, ' ')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
           .trim()
       }
 
       const container = globalThis.document.createElement('div')
       container.innerHTML = html
-      return (container.textContent || container.innerText || '').replaceAll(/\s+/g, ' ').trim()
+      return (container.textContent || container.innerText || '').replace(/\s+/g, ' ').trim()
     }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
     const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
 
@@ -687,7 +686,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const clearAutocompleteSuggestion = useCallback(() => {
       setAutocompleteSuggestion('')
       setAutocompleteCursorPos(null)
-      setIsAutocompleteLoading(false)
+      isAutocompleteLoadingRef.current = false
     }, [])
 
     const getAutocompleteContext = useCallback(() => {
@@ -715,7 +714,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         autocompleteRequestControllerRef.current?.abort()
         const controller = new AbortController()
         autocompleteRequestControllerRef.current = controller
-        setIsAutocompleteLoading(true)
+        isAutocompleteLoadingRef.current = true
 
         try {
           const response = await flowbotClient.getDocumentAutocomplete(
@@ -749,7 +748,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           if (autocompleteRequestControllerRef.current === controller) {
             autocompleteRequestControllerRef.current = null
           }
-          setIsAutocompleteLoading(false)
+          isAutocompleteLoadingRef.current = false
         }
       },
       [clearAutocompleteSuggestion, document?.id, isAutocompleteActive, title]
@@ -1283,8 +1282,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!document?.id) return
 
       const useLegacyPanel =
-        typeof globalThis.window !== 'undefined' &&
-        globalThis.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
+        globalThis.window !== undefined && globalThis.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
       if (useLegacyPanel) {
         setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))
         return
@@ -1840,10 +1838,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   <p className="gba:text-xs gba:text-muted-foreground" data-testid="document-ai-selection-hint">
                     Selection detected. Edits will focus on this content unless you say otherwise.
                   </p>
-                  <div
-                    role="button"
-                    tabIndex={hasLongAiSelectionPreview ? 0 : undefined}
-                    className={`gba:overflow-y-auto gba:rounded-md gba:border gba:bg-muted/30 gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground ${
+                  <button
+                    type="button"
+                    className={`gba:overflow-y-auto gba:rounded-md gba:border gba:bg-muted/30 gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground gba:text-left gba:w-full gba:appearance-none ${
                       isAiSelectionPreviewExpanded ? 'gba:max-h-52' : 'gba:max-h-24'
                     } ${hasLongAiSelectionPreview ? 'gba:cursor-pointer' : ''}`}
                     data-testid="document-ai-selection-preview"
@@ -1852,16 +1849,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                         setIsAiSelectionPreviewExpanded(prev => !prev)
                       }
                     }}
-                    onKeyDown={e => {
-                      if (hasLongAiSelectionPreview && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault()
-                        setIsAiSelectionPreviewExpanded(prev => !prev)
-                      }
-                    }}
                     title={hasLongAiSelectionPreview ? 'Double-click to expand/collapse preview' : undefined}
                   >
                     <div className="gba:whitespace-pre-wrap">{aiSelectionPreviewText}</div>
-                  </div>
+                  </button>
                   {hasLongAiSelectionPreview && (
                     <p className="gba:text-[10px] gba:text-muted-foreground">
                       Double-click to {isAiSelectionPreviewExpanded ? 'collapse' : 'expand'}.
