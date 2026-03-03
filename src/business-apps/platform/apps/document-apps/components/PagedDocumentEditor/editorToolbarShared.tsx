@@ -196,11 +196,11 @@ export function RibbonGroup({
   label,
   children,
   'data-testid': testId
-}: {
+}: Readonly<{
   label: string
   children: React.ReactNode
   'data-testid'?: string
-}) {
+}>) {
   return (
     <div
       className="gba:flex gba:items-center gba:gap-1.5 gba:border-r gba:border-border gba:pr-2 gba:mr-2 gba:last:border-r-0 gba:last:pr-0 gba:last:mr-0"

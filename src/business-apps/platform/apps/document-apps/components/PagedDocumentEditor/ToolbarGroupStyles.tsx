@@ -10,9 +10,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { RibbonGroup, HEADING_LEVELS } from './editorToolbarShared'
 
@@ -21,7 +21,7 @@ interface ToolbarGroupStylesProps {
   testId?: string
 }
 
-export function ToolbarGroupStyles({ editor, testId = 'editor-toolbar' }: ToolbarGroupStylesProps) {
+export function ToolbarGroupStyles({ editor, testId = 'editor-toolbar' }: Readonly<ToolbarGroupStylesProps>) {
   const { t } = useTranslation(translations)
   const getCurrentHeading = () => {
     for (let i = 1; i <= 6; i++) {

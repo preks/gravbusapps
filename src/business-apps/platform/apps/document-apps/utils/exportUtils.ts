@@ -86,6 +86,58 @@ function preserveDataUriImgsForPurify(html: string): string {
   return doc.body.innerHTML
 }
 
+function removeDangerousNodes(doc: Document): void {
+  for (const el of Array.from(doc.body.querySelectorAll('script,iframe,object,embed'))) {
+    el.remove()
+  }
+}
+
+function stripEventHandlers(el: Element): void {
+  for (const attrName of el.getAttributeNames()) {
+    if (attrName.toLowerCase().startsWith('on')) {
+      el.removeAttribute(attrName)
+    }
+  }
+}
+
+function applyStyleSanitization(el: Element, options: { preserveBlockSpacing: boolean }): void {
+  const style = el.getAttribute('style')
+  if (style == null) return
+  if (!options.preserveBlockSpacing) {
+    el.removeAttribute('style')
+    return
+  }
+  const filtered = filterStyleToBlockSpacing(style)
+  if (filtered) el.setAttribute('style', filtered)
+  else el.removeAttribute('style')
+}
+
+function sanitizeUrlAttribute(el: Element, urlAttr: 'href' | 'src', options: { allowDataUriInImg: boolean }): void {
+  const raw = el.getAttribute(urlAttr)
+  if (!raw) return
+
+  const lower = raw.trim().toLowerCase()
+  // NOSONAR S1523 - literal used only to detect and remove dangerous URLs; no code execution
+  if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:text/html')) {
+    el.removeAttribute(urlAttr)
+    return
+  }
+  if (lower.startsWith('data:')) {
+    const isImgSrc = urlAttr === 'src' && el.tagName.toLowerCase() === 'img'
+    if (!(options.allowDataUriInImg && isImgSrc)) {
+      el.removeAttribute(urlAttr)
+    }
+  }
+}
+
+function restoreAndCleanDataUriAttr(el: Element, options: { allowDataUriInImg: boolean }): void {
+  if (options.allowDataUriInImg && el.tagName.toLowerCase() === 'img') {
+    const preserved = el.getAttribute(EXPORT_DATA_URI_ATTR)
+    if (preserved) el.setAttribute('src', preserved)
+  }
+  if (el.hasAttribute(EXPORT_DATA_URI_ATTR)) el.removeAttribute(EXPORT_DATA_URI_ATTR)
+}
+
 function postProcessExportHtml(
   html: string,
   options: { preserveBlockSpacing: boolean; allowDataUriInImg: boolean }
@@ -95,58 +147,16 @@ function postProcessExportHtml(
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
 
-  // Remove potentially executable / embeddable tags completely
-  for (const el of Array.from(doc.body.querySelectorAll('script,iframe,object,embed'))) {
-    el.remove()
-  }
+  removeDangerousNodes(doc)
 
   const allElements = Array.from(doc.body.querySelectorAll('*'))
   for (const el of allElements) {
-    // Remove inline event handlers
-    for (const attrName of el.getAttributeNames()) {
-      if (attrName.toLowerCase().startsWith('on')) {
-        el.removeAttribute(attrName)
-      }
-    }
-
-    // Remove/limit inline styles
-    const style = el.getAttribute('style')
-    if (style != null) {
-      if (!options.preserveBlockSpacing) {
-        el.removeAttribute('style')
-      } else {
-        const filtered = filterStyleToBlockSpacing(style)
-        if (filtered) el.setAttribute('style', filtered)
-        else el.removeAttribute('style')
-      }
-    }
-
-    // Remove dangerous protocols in href/src (blocklist only; we strip these, never execute)
+    stripEventHandlers(el)
+    applyStyleSanitization(el, options)
     for (const urlAttr of ['href', 'src'] as const) {
-      const raw = el.getAttribute(urlAttr)
-      if (!raw) continue
-
-      const lower = raw.trim().toLowerCase()
-      // NOSONAR S1523 - literal used only to detect and remove dangerous URLs; no code execution
-      if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:text/html')) {
-        el.removeAttribute(urlAttr)
-        continue
-      }
-      // Block data: URIs except when explicitly allowed for img (handled below)
-      if (lower.startsWith('data:')) {
-        const isImgSrc = urlAttr === 'src' && el.tagName.toLowerCase() === 'img'
-        if (!(options.allowDataUriInImg && isImgSrc)) {
-          el.removeAttribute(urlAttr)
-        }
-      }
+      sanitizeUrlAttribute(el, urlAttr, options)
     }
-
-    // Restore preserved data URI images (if we staged them before DOMPurify)
-    if (options.allowDataUriInImg && el.tagName.toLowerCase() === 'img') {
-      const preserved = el.getAttribute(EXPORT_DATA_URI_ATTR)
-      if (preserved) el.setAttribute('src', preserved)
-    }
-    if (el.hasAttribute(EXPORT_DATA_URI_ATTR)) el.removeAttribute(EXPORT_DATA_URI_ATTR)
+    restoreAndCleanDataUriAttr(el, options)
   }
 
   return doc.body.innerHTML

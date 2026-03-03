@@ -92,8 +92,8 @@ import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
 import DOMPurify from 'dompurify'
-import { exportToWord, exportToPDF, printHtmlDocument, blobToDataUrl, embedImagesInHtml } from '../../utils/exportUtils'
-import { fileClient } from '@/common/network/files/FileClient'
+import { exportToWord, exportToPDF, printHtmlDocument, embedImagesInHtml } from '../../utils/exportUtils'
+import { useImageDataUrlResolver } from '../../hooks/useImageDataUrlResolver'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
@@ -373,6 +373,43 @@ function scrollInlineCommentDomIntoView(commentId: string) {
     const element = document.querySelector(`[data-comment-id="${commentId}"]`)
     element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, 100)
+}
+
+interface TabKeyEditorRef {
+  state: { selection: { $from: { depth: number; node: (d: number) => { type: { name: string } } } } }
+  commands: {
+    goToPreviousCell: () => void
+    goToNextCell: () => boolean
+    insertContent: (c: string) => void
+  }
+  chain: () => { addRowAfter: () => { goToNextCell: () => { run: () => void } } }
+}
+
+/** Tab key handler for editor: table cell navigation or insert tab. Extracted to keep component complexity low. */
+function handleTabKeyInPagedEditor(event: KeyboardEvent, editorRef: React.RefObject<TabKeyEditorRef | null>): boolean {
+  if (event.key !== 'Tab') return false
+  event.preventDefault()
+  const ed = editorRef.current
+  if (!ed) return true
+  const $from = ed.state.selection.$from
+  let inTableCell = false
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type.name === 'tableCell') {
+      inTableCell = true
+      break
+    }
+  }
+  if (inTableCell) {
+    if (event.shiftKey) {
+      ed.commands.goToPreviousCell()
+    } else {
+      const moved = ed.commands.goToNextCell()
+      if (!moved) ed.chain().addRowAfter().goToNextCell().run()
+    }
+  } else if (!event.shiftKey) {
+    ed.commands.insertContent('\t')
+  }
+  return true
 }
 
 /**
@@ -657,7 +694,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const activityType = isReadOnly ? 'viewing' : 'editing'
       const docTitle = document.title || t('title-untitled-document')
       const urlSpaceId =
-        typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
+        typeof globalThis.window !== 'undefined'
+          ? new URLSearchParams(globalThis.window.location.search).get('spaceId')
+          : null
 
       // Emit activity when starting
       emitDocumentActivity({
@@ -811,31 +850,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           },
           handlePaste: imageHandlers.handlePaste,
           handleDrop: imageHandlers.handleDrop,
-          handleKeyDown: (_view, event) => {
-            if (event.key !== 'Tab') return false
-            event.preventDefault()
-            const ed = editorRef.current
-            if (!ed) return true
-            const $from = ed.state.selection.$from
-            let inTableCell = false
-            for (let d = $from.depth; d > 0; d--) {
-              if ($from.node(d).type.name === 'tableCell') {
-                inTableCell = true
-                break
-              }
-            }
-            if (inTableCell) {
-              if (event.shiftKey) {
-                ed.commands.goToPreviousCell()
-              } else {
-                const moved = ed.commands.goToNextCell()
-                if (!moved) ed.chain().addRowAfter().goToNextCell().run()
-              }
-            } else {
-              if (!event.shiftKey) ed.commands.insertContent('\t')
-            }
-            return true
-          }
+          handleKeyDown: (_view, event) => handleTabKeyInPagedEditor(event, editorRef)
         },
         onUpdate: () => {
           schedulePaginationRebuild()
@@ -870,15 +885,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Inject collaboration cursor styles once on mount
     useEffect(() => {
       // Guard against SSR / non-browser environments
-      if (typeof window === 'undefined') return
+      if (typeof globalThis.window === 'undefined') return
 
       const styleId = 'collaboration-cursor-styles'
-      // Use window.document to avoid shadowing from the 'document' prop
-      if (!window.document.getElementById(styleId)) {
-        const styleEl = window.document.createElement('style')
+      // Use globalThis.window.document to avoid shadowing from the 'document' prop
+      if (!globalThis.window.document.getElementById(styleId)) {
+        const styleEl = globalThis.window.document.createElement('style')
         styleEl.id = styleId
         styleEl.textContent = CURSOR_STYLES
-        window.document.head.appendChild(styleEl)
+        globalThis.window.document.head.appendChild(styleEl)
       }
       return () => {
         // Don't remove on unmount - other editors might need it
@@ -929,8 +944,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       setPendingSelection({ from, to, text: selectedText })
       setInlineCommentPosition({
-        top: coords.top + window.scrollY + 30,
-        left: coords.left + window.scrollX
+        top: coords.top + globalThis.window.scrollY + 30,
+        left: coords.left + globalThis.window.scrollX
       })
       setShowInlineCommentPopover(true)
     }, [editor])
@@ -1021,8 +1036,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     useEffect(() => {
       schedulePaginationRebuild(true)
       const onResize = () => schedulePaginationRebuild(true)
-      window.addEventListener('resize', onResize)
-      return () => window.removeEventListener('resize', onResize)
+      globalThis.window.addEventListener('resize', onResize)
+      return () => globalThis.window.removeEventListener('resize', onResize)
     }, [schedulePaginationRebuild])
 
     // Keep pagination model synced in edit/collaboration mode (DOM updates are async).
@@ -1259,61 +1274,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     useEditorKeyboardIsolation(editorContainerRef)
 
-    // Resolve image src to data URL for export so Word/PDF/print contain embedded images
-    const getImageDataUrl = useCallback(
-      async (src: string): Promise<string | null> => {
-        if (!src) return null
-        const t = src.trim()
-        if (t.startsWith('data:')) return t
-        if (t.startsWith('blob:')) {
-          try {
-            const res = await fetch(t)
-            const blob = await res.blob()
-            return blobToDataUrl(blob)
-          } catch {
-            return null
-          }
-        }
-        if (!accessToken) return null
-        if (t.startsWith('http://') || t.startsWith('https://')) {
-          try {
-            // Prefer FileClient for file-service download URLs (handles "/files/api/v1" base correctly).
-            // This also fixes older stored URLs that were missing the "/files" prefix and would 404.
-            const u = new URL(t)
-            const pathWithQuery = `${u.pathname}${u.search}`
-            const isTenantDownload =
-              u.pathname.includes('/tenant/downloads/') || u.pathname.includes('/tenant/Downloads/')
-            const looksLikeApiV1 = u.pathname.startsWith('/api/v1/')
-            if (isTenantDownload || looksLikeApiV1) {
-              const blob = await fileClient.downloadFileByPath(pathWithQuery, accessToken)
-              return blobToDataUrl(blob)
-            }
-
-            const res = await fetch(t, {
-              headers: { Authorization: `Bearer ${accessToken}` },
-              credentials: 'omit'
-            })
-            if (!res.ok) return null
-            const blob = await res.blob()
-            return blobToDataUrl(blob)
-          } catch {
-            return null
-          }
-        }
-        const rawPath = t.startsWith('/') ? t : `/${t}`
-        const hasFileServicePath =
-          rawPath.includes('/tenant/') || rawPath.startsWith('/files/') || rawPath.startsWith('/api/v1/')
-        if (!hasFileServicePath) return null
-        try {
-          const path = rawPath.replace(/^\/files(?=\/api\/v1\/)/, '')
-          const blob = await fileClient.downloadFileByPath(path, accessToken)
-          return blobToDataUrl(blob)
-        } catch {
-          return null
-        }
-      },
-      [accessToken]
-    )
+    const getImageDataUrl = useImageDataUrlResolver(accessToken)
 
     // Build HTML with images embedded (each img src resolved to data URL so PDF/print show pictures)
     const getExportHtmlWithEmbeddedImages = useCallback(async (): Promise<string> => {

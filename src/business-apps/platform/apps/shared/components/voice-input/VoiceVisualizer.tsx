@@ -80,12 +80,16 @@ interface PulseRingsProps {
 const PulseRings: React.FC<PulseRingsProps> = ({ volume }) => {
   const ringCount = 2
   const baseOpacity = Math.min(0.4, volume * 0.8)
+  const ringKeys = React.useMemo(
+    () => Array.from({ length: ringCount }, (_, i) => `voice-visualizer-ring-${i}`),
+    [ringCount]
+  )
 
   return (
     <>
-      {Array.from({ length: ringCount }).map((_, i) => (
+      {ringKeys.map((ringId, i) => (
         <div
-          key={i}
+          key={ringId}
           className="gba:absolute gba:inset-0 gba:rounded-full gba:border-2 gba:border-primary/30 gba:animate-ping"
           style={{
             animationDelay: `${i * 400}ms`,
@@ -102,12 +106,16 @@ interface WaveformBarsProps {
   volume: number
 }
 
+const WAVEFORM_BAR_COUNT = 12
+const WAVEFORM_BAR_IDS = Array.from({ length: WAVEFORM_BAR_COUNT }, (_, i) => `voice-visualizer-bar-${i}`)
+
 const WaveformBars: React.FC<WaveformBarsProps> = ({ volume }) => {
-  const barCount = 12
   const minHeight = 4
   const maxHeight = 20
   const animationRef = useRef<number>(0)
-  const [, forceUpdate] = React.useState({})
+  // Sonar S6754: value + setter pair; setter used to force re-render for animation, value intentionally unused
+  const [animationTick, forceUpdate] = React.useState({})
+  void animationTick
 
   useEffect(() => {
     let running = true
@@ -125,16 +133,16 @@ const WaveformBars: React.FC<WaveformBarsProps> = ({ volume }) => {
 
   return (
     <div className="gba:flex gba:items-center gba:gap-[2px] gba:h-5">
-      {Array.from({ length: barCount }).map((_, i) => {
+      {WAVEFORM_BAR_IDS.map((barId, i) => {
         const time = Date.now() / 100
-        const phase = (i / barCount) * Math.PI * 2
+        const phase = (i / WAVEFORM_BAR_COUNT) * Math.PI * 2
         const wave = Math.sin(time + phase) * 0.5 + 0.5
         const volumeBoost = Math.max(0.15, volume)
         const heightMultiplier = wave * volumeBoost
 
         return (
           <div
-            key={i}
+            key={barId}
             className="gba:w-[3px] gba:bg-primary gba:rounded-full gba:transition-[height] gba:duration-75"
             style={{
               height: `${minHeight + (maxHeight - minHeight) * heightMultiplier}px`,

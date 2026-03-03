@@ -107,17 +107,17 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
   const getNativeBridgeMode = useCallback((): 'none' | 'nwMobileSpeech' | 'webkitMessageHandlers' => {
     if (
-      window.NWMobileSpeech &&
-      typeof window.NWMobileSpeech.start === 'function' &&
-      typeof window.NWMobileSpeech.stop === 'function'
+      globalThis.NWMobileSpeech &&
+      typeof globalThis.NWMobileSpeech.start === 'function' &&
+      typeof globalThis.NWMobileSpeech.stop === 'function'
     ) {
       return 'nwMobileSpeech'
     }
     if (
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart'] &&
-      typeof window.webkit.messageHandlers['com.newwork.NWMobileSpeechStart'].postMessage === 'function' &&
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop'] &&
-      typeof window.webkit.messageHandlers['com.newwork.NWMobileSpeechStop'].postMessage === 'function'
+      globalThis.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart'] &&
+      typeof globalThis.webkit.messageHandlers['com.newwork.NWMobileSpeechStart'].postMessage === 'function' &&
+      globalThis.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop'] &&
+      typeof globalThis.webkit.messageHandlers['com.newwork.NWMobileSpeechStop'].postMessage === 'function'
     ) {
       return 'webkitMessageHandlers'
     }
@@ -127,17 +127,17 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   const stopNativeBridge = useCallback(() => {
     const mode = nativeBridgeModeRef.current
     if (mode === 'nwMobileSpeech') {
-      window.NWMobileSpeech?.stop()
+      globalThis.NWMobileSpeech?.stop()
       return
     }
     if (mode === 'webkitMessageHandlers') {
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop']?.postMessage({})
+      globalThis.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop']?.postMessage({})
     }
   }, [])
 
   // Check for browser support
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition
     const nativeMode = getNativeBridgeMode()
     nativeBridgeModeRef.current = nativeMode
     setState(prev => ({ ...prev, isSupported: nativeMode !== 'none' || !!SpeechRecognition }))
@@ -196,7 +196,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [])
 
   const startListening = useCallback(async () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition
     const nativeMode = getNativeBridgeMode()
     nativeBridgeModeRef.current = nativeMode
 
@@ -227,13 +227,13 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     if (nativeMode !== 'none') {
       let started: boolean | void = false
       if (nativeMode === 'nwMobileSpeech') {
-        started = window.NWMobileSpeech?.start({
+        started = globalThis.NWMobileSpeech?.start({
           language,
           continuous,
           interimResults
         })
       } else if (nativeMode === 'webkitMessageHandlers') {
-        window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart']?.postMessage({
+        globalThis.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart']?.postMessage({
           language,
           continuous,
           interimResults
@@ -277,7 +277,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
         if (!previousFinal) {
           final = lastTrimmed
-        } else if (normalizedLast && normalizedLast.includes(normalizedPrev)) {
+        } else if (normalizedLast?.includes(normalizedPrev)) {
           // Some WebViews return cumulative results; replace instead of append.
           final = lastTrimmed
         } else {
@@ -435,11 +435,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       stopVolumeAnalysis()
       setState(prev => ({ ...prev, isListening: false }))
     }
-    window.addEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
-    window.addEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
+    globalThis.addEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
+    globalThis.addEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
     return () => {
-      window.removeEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
-      window.removeEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
+      globalThis.removeEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
+      globalThis.removeEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
     }
   }, [startVolumeAnalysis, stopVolumeAnalysis])
 
@@ -477,9 +477,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       }
     }
 
-    window.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    globalThis.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     return () => {
-      window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+      globalThis.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     }
   }, [onTranscript])
 

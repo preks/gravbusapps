@@ -44,7 +44,7 @@ interface ToolbarGroupParagraphProps {
   testId?: string
 }
 
-export function ToolbarGroupParagraph({ editor, testId = 'editor-toolbar' }: ToolbarGroupParagraphProps) {
+export function ToolbarGroupParagraph({ editor, testId = 'editor-toolbar' }: Readonly<ToolbarGroupParagraphProps>) {
   const { t } = useTranslation(translations)
   return (
     <RibbonGroup

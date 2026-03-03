@@ -41,10 +41,9 @@ import {
   exportToPDF,
   printHtmlDocument,
   sanitizeHtmlForExport,
-  embedImagesInHtml,
-  blobToDataUrl
+  embedImagesInHtml
 } from './utils/exportUtils'
-import { fileClient } from '@/common/network/files/FileClient'
+import { useImageDataUrlResolver } from './hooks/useImageDataUrlResolver'
 import translations from './_i18n'
 
 // Import Quill styles
@@ -146,59 +145,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   'data-testid': testId = 'document-editor'
 }) => {
   const { t } = useTranslation(translations)
-
-  const getImageDataUrl = useCallback(
-    async (src: string): Promise<string | null> => {
-      if (!src) return null
-      const s = src.trim()
-      if (s.startsWith('data:')) return s
-      if (s.startsWith('blob:')) {
-        try {
-          const res = await fetch(s)
-          const blob = await res.blob()
-          return blobToDataUrl(blob)
-        } catch {
-          return null
-        }
-      }
-      if (accessToken && (s.startsWith('http://') || s.startsWith('https://'))) {
-        try {
-          const u = new URL(s)
-          const pathWithQuery = `${u.pathname}${u.search}`
-          const isTenantDownload =
-            u.pathname.includes('/tenant/downloads/') || u.pathname.includes('/tenant/Downloads/')
-          const looksLikeApiV1 = u.pathname.startsWith('/api/v1/')
-          if (isTenantDownload || looksLikeApiV1) {
-            const blob = await fileClient.downloadFileByPath(pathWithQuery, accessToken)
-            return blobToDataUrl(blob)
-          }
-          const res = await fetch(s, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            credentials: 'omit'
-          })
-          if (!res.ok) return null
-          const blob = await res.blob()
-          return blobToDataUrl(blob)
-        } catch {
-          return null
-        }
-      }
-      const rawPath = s.startsWith('/') ? s : `/${s}`
-      const hasFileServicePath =
-        rawPath.includes('/tenant/') || rawPath.startsWith('/files/') || rawPath.startsWith('/api/v1/')
-      if (accessToken && hasFileServicePath) {
-        try {
-          const path = rawPath.replace(/^\/files(?=\/api\/v1\/)/, '')
-          const blob = await fileClient.downloadFileByPath(path, accessToken)
-          return blobToDataUrl(blob)
-        } catch {
-          return null
-        }
-      }
-      return null
-    },
-    [accessToken]
-  )
+  const getImageDataUrl = useImageDataUrlResolver(accessToken)
 
   // Editor state
   const [title, setTitle] = useState(document?.title ?? initialTitle ?? '')

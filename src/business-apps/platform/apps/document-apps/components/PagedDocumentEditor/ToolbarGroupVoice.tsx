@@ -20,7 +20,7 @@ interface ToolbarGroupVoiceProps {
   testId?: string
 }
 
-export function ToolbarGroupVoice({ voiceProps, testId = 'editor-toolbar' }: ToolbarGroupVoiceProps) {
+export function ToolbarGroupVoice({ voiceProps, testId = 'editor-toolbar' }: Readonly<ToolbarGroupVoiceProps>) {
   const { t } = useTranslation(translations)
   return (
     <RibbonGroup label={t('editor-ribbon-group-voice')} data-testid={testId ? `${testId}-group-voice` : undefined}>

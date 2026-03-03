@@ -87,7 +87,7 @@ export class SocketIoYjsProvider {
   private onSyncedChange?: (isSynced: boolean) => void
   private onBootstrapRequired?: (html: string) => Promise<void> | void
   private onLocalDocumentChange?: () => void
-  private onBeforeFirstSync?: () => Promise<void>
+  private readonly onBeforeFirstSync?: () => Promise<void>
   private hasWaitedForReady = false
 
   private retrySyncTimeout: number | null = null
@@ -325,7 +325,7 @@ export class SocketIoYjsProvider {
     })
   }
 
-  private handleRemoteYjsUpdate = (event: {
+  private readonly handleRemoteYjsUpdate = (event: {
     documentId: string
     entityType?: 'document' | 'note' | 'slide'
     update: string

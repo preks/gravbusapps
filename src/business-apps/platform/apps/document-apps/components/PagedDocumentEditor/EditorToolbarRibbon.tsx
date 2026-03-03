@@ -33,13 +33,20 @@ export function EditorToolbarRibbon({
   onOpenInsertImageDialog,
   voiceProps,
   'data-testid': testId = 'editor-toolbar'
-}: EditorToolbarRibbonProps) {
+}: Readonly<EditorToolbarRibbonProps>) {
   const { t } = useTranslation(translations)
 
   const [activeTab, setActiveTab] = useState<'home' | 'insert'>('home')
 
   if (!editor) {
     return null
+  }
+
+  let ribbonTestId: string | undefined
+  if (testId) {
+    ribbonTestId = activeTab === 'home' ? `${testId}-ribbon-home` : `${testId}-ribbon-insert`
+  } else {
+    ribbonTestId = undefined
   }
 
   return (
@@ -71,11 +78,10 @@ export function EditorToolbarRibbon({
         </ToggleGroup>
       </div>
 
-      <div
+      <section
         className="gba:flex gba:flex-wrap gba:items-center gba:gap-0 gba:p-2 gba:min-h-[40px]"
-        data-testid={testId ? (activeTab === 'home' ? `${testId}-ribbon-home` : `${testId}-ribbon-insert`) : undefined}
-        role="region"
         aria-label={activeTab === 'home' ? t('editor-ribbon-tab-home') : t('editor-ribbon-tab-insert')}
+        data-testid={ribbonTestId}
       >
         {activeTab === 'home' ? (
           <HomeTabContent editor={editor} voiceProps={voiceProps} testId={testId} />
@@ -88,7 +94,7 @@ export function EditorToolbarRibbon({
             testId={testId}
           />
         )}
-      </div>
+      </section>
     </div>
   )
 }

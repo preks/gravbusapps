@@ -142,11 +142,14 @@ export class FileClient extends RestClient {
     const filesBaseUrl = fileServiceEndpoint.replace(/\/api\/v1\/?$/, '') // -> https://newwork-dev.newwork.com/files
     const hostBaseUrl = fileServiceEndpoint.replace(/\/files\/api\/v1\/?$/, '') // -> https://newwork-dev.newwork.com
 
-    const url = normalizedPath.startsWith('/files/api/v1/')
-      ? `${hostBaseUrl}${normalizedPath}`
-      : normalizedPath.startsWith('/api/v1/')
-        ? `${filesBaseUrl}${normalizedPath}`
-        : `${fileServiceEndpoint}${normalizedPath}`
+    let url: string
+    if (normalizedPath.startsWith('/files/api/v1/')) {
+      url = `${hostBaseUrl}${normalizedPath}`
+    } else if (normalizedPath.startsWith('/api/v1/')) {
+      url = `${filesBaseUrl}${normalizedPath}`
+    } else {
+      url = `${fileServiceEndpoint}${normalizedPath}`
+    }
 
     try {
       const response = await fetch(url, {

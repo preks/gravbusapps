@@ -23,7 +23,7 @@ export function InsertTabContent({
   onOpenInsertImageDialog,
   onInsertPageBreak,
   testId = 'editor-toolbar'
-}: InsertTabContentProps) {
+}: Readonly<InsertTabContentProps>) {
   const { t } = useTranslation(translations)
 
   const handleLinkClick = useCallback(() => {
@@ -31,7 +31,7 @@ export function InsertTabContent({
       onOpenLinkDialog()
     } else {
       const previousUrl = editor.getAttributes('link').href
-      const url = window.prompt(t('editor-toolbar-link-prompt'), previousUrl)
+      const url = globalThis.prompt(t('editor-toolbar-link-prompt'), previousUrl)
       if (url === null) return
       if (url === '') {
         editor.chain().focus().extendMarkRange('link').unsetLink().run()
@@ -46,7 +46,7 @@ export function InsertTabContent({
       onOpenInsertImageDialog()
       return
     }
-    const url = window.prompt(t('editor-toolbar-image-prompt'))
+    const url = globalThis.prompt(t('editor-toolbar-image-prompt'))
     if (url) editor.chain().focus().setImage({ src: url }).run()
   }, [editor, t, onOpenInsertImageDialog])
 
@@ -60,25 +60,23 @@ export function InsertTabContent({
   }, [editor, onInsertPageBreak])
 
   return (
-    <>
-      <RibbonGroup label={t('editor-ribbon-group-insert')} data-testid={`${testId}-group-insert`}>
-        <ToolbarButton
-          onClick={handleLinkClick}
-          isActive={editor.isActive('link')}
-          tooltip={t('editor-toolbar-insert-link')}
-        >
-          <Link className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton onClick={addImage} tooltip={t('editor-toolbar-insert-image')}>
-          <Image className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
-          <Table className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-        <ToolbarButton onClick={insertPageBreak} tooltip={t('editor-toolbar-page-break')}>
-          <SeparatorHorizontal className="gba:h-4 gba:w-4" />
-        </ToolbarButton>
-      </RibbonGroup>
-    </>
+    <RibbonGroup label={t('editor-ribbon-group-insert')} data-testid={`${testId}-group-insert`}>
+      <ToolbarButton
+        onClick={handleLinkClick}
+        isActive={editor.isActive('link')}
+        tooltip={t('editor-toolbar-insert-link')}
+      >
+        <Link className="gba:h-4 gba:w-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={addImage} tooltip={t('editor-toolbar-insert-image')}>
+        <Image className="gba:h-4 gba:w-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
+        <Table className="gba:h-4 gba:w-4" />
+      </ToolbarButton>
+      <ToolbarButton onClick={insertPageBreak} tooltip={t('editor-toolbar-page-break')}>
+        <SeparatorHorizontal className="gba:h-4 gba:w-4" />
+      </ToolbarButton>
+    </RibbonGroup>
   )
 }

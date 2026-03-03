@@ -25,7 +25,7 @@ declare module '@tiptap/core' {
 }
 
 function parseLineHeight(element: HTMLElement): number | null {
-  const v = element.style?.lineHeight || element.getAttribute('data-line-height')
+  const v = element.style?.lineHeight || element.dataset.lineHeight
   if (v == null || v === '') return null
   const n = parseFloat(String(v))
   return Number.isFinite(n) ? n : null
@@ -65,7 +65,7 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
             rendered: true,
             parseHTML: element => {
               const el = element as HTMLElement
-              return parseMargin(el.style?.marginTop ?? el.getAttribute('data-margin-before'))
+              return parseMargin(el.style?.marginTop ?? el.dataset.marginBefore)
             },
             renderHTML: attributes => {
               if (attributes.marginBefore == null) return {}
@@ -77,7 +77,7 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
             rendered: true,
             parseHTML: element => {
               const el = element as HTMLElement
-              return parseMargin(el.style?.marginBottom ?? el.getAttribute('data-margin-after'))
+              return parseMargin(el.style?.marginBottom ?? el.dataset.marginAfter)
             },
             renderHTML: attributes => {
               if (attributes.marginAfter == null) return {}
@@ -94,14 +94,15 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
       setLineHeight:
         (value: number | string | null) =>
         ({ commands }) => {
-          const num =
-            value == null
-              ? null
-              : typeof value === 'string'
-                ? Number.isFinite(parseFloat(value))
-                  ? parseFloat(value)
-                  : null
-                : value
+          let num: number | null = null
+          if (value != null) {
+            if (typeof value === 'string') {
+              const parsed = parseFloat(value)
+              num = Number.isFinite(parsed) ? parsed : null
+            } else {
+              num = value
+            }
+          }
           const attrs = num != null ? { lineHeight: num } : {}
           return this.options.types
             .map(type =>

@@ -42,9 +42,11 @@ interface ToolbarGroupFontProps {
   testId?: string
 }
 
-export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: ToolbarGroupFontProps) {
+export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly<ToolbarGroupFontProps>) {
   const { t } = useTranslation(translations)
-  const [, setSelectionTick] = useState(0)
+  // Sonar S6754: value + setter pair; setter used for selection sync, value intentionally unused
+  const [selectionTick, setSelectionTick] = useState(0)
+  void selectionTick
   const [fontSizeInputValue, setFontSizeInputValue] = useState<string | null>(null)
 
   useEffect(() => {

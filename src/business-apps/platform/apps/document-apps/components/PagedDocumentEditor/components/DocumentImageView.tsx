@@ -176,10 +176,10 @@ export function DocumentImageView({ node, editor, getPos, selected, getAccessTok
         data-testid="document-editor-image"
       />
       {selected && (
-        <span
-          role="button"
+        <button
+          type="button"
           aria-label="Resize image"
-          className="gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:border-t-2 gba:border-l-2 gba:border-primary gba:rounded-tl gba:cursor-nwse-resize gba:bg-muted"
+          className="gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:border-t-2 gba:border-l-2 gba:border-primary gba:rounded-tl gba:cursor-nwse-resize gba:bg-muted gba:p-0 gba:border-b-0 gba:border-r-0"
           onMouseDown={onResizeHandleMouseDown}
           data-testid="document-editor-image-resize-handle"
         />

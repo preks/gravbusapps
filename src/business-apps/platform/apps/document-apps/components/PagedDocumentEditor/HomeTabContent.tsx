@@ -23,7 +23,7 @@ interface HomeTabContentProps {
   testId?: string
 }
 
-export function HomeTabContent({ editor, voiceProps, testId = 'editor-toolbar' }: HomeTabContentProps) {
+export function HomeTabContent({ editor, voiceProps, testId = 'editor-toolbar' }: Readonly<HomeTabContentProps>) {
   return (
     <>
       <ToolbarGroupClipboard editor={editor} testId={testId} />

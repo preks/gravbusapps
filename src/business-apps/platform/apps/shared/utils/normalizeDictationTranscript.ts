@@ -299,7 +299,7 @@ function parseNumberWords(words: string[], lang: string): number | null {
 function isCompoundNumberRun(words: string[], lang: string): boolean {
   const lower = words.map(w => w.toLowerCase())
   if (lang === 'de') {
-    const scale = [
+    const scale = new Set([
       'zehn',
       'elf',
       'zwölf',
@@ -322,11 +322,11 @@ function isCompoundNumberRun(words: string[], lang: string): boolean {
       'tausend',
       'million',
       'millionen'
-    ]
-    return lower.some(w => scale.includes(w))
+    ])
+    return lower.some(w => scale.has(w))
   }
   if (lang === 'ro') {
-    const scale = [
+    const scale = new Set([
       'zece',
       'unsprezece',
       'doisprezece',
@@ -351,10 +351,10 @@ function isCompoundNumberRun(words: string[], lang: string): boolean {
       'mii',
       'milion',
       'milioane'
-    ]
-    return lower.some(w => scale.includes(w))
+    ])
+    return lower.some(w => scale.has(w))
   }
-  const scale = [
+  const scale = new Set([
     'ten',
     'eleven',
     'twelve',
@@ -376,8 +376,8 @@ function isCompoundNumberRun(words: string[], lang: string): boolean {
     'hundred',
     'thousand',
     'million'
-  ]
-  return lower.some(w => scale.includes(w))
+  ])
+  return lower.some(w => scale.has(w))
 }
 
 function applyPunctuationReplacements(text: string, lang: string): string {
@@ -385,15 +385,16 @@ function applyPunctuationReplacements(text: string, lang: string): string {
   let out = text
   const byLength = Object.keys(map).sort((a, b) => b.length - a.length)
   for (const phrase of byLength) {
-    const re = new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi')
-    out = out.replace(re, map[phrase])
+    const escaped = phrase.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+    const re = new RegExp(String.raw`\b${escaped}\b`, 'gi')
+    out = out.replaceAll(re, map[phrase])
   }
   return out
 }
 
 /** Remove space immediately before punctuation that should follow the previous word. */
 function trimSpaceBeforePunctuation(text: string): string {
-  return text.replace(/\s+([,.!?;:\])"'])/g, '$1')
+  return text.replaceAll(/\s+([,.!?;:\])"'])/g, '$1')
 }
 
 /**
@@ -413,12 +414,9 @@ function replaceNumberPhrases(text: string, lang: string): string {
     while (j < words.length) {
       segment.push(words[j])
       const n = parseNumberWords(segment, lang)
-      if (n !== null) {
-        num = n
-        j++
-      } else {
-        break
-      }
+      if (n === null) break
+      num = n
+      j++
     }
     if (num !== null && segment.length > 0 && isCompoundNumberRun(segment, lang)) {
       result.push(String(num))

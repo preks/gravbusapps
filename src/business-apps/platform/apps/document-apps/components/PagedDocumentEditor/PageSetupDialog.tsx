@@ -229,6 +229,7 @@ export function PageSetupDialog({
                 type="checkbox"
                 checked={pageless}
                 onChange={e => setPageless(e.target.checked)}
+                aria-label={t('page-setup-use-pageless')}
                 data-testid="page-setup-use-pageless"
                 className="gba:mt-1 gba:rounded"
               />

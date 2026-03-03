@@ -14,7 +14,7 @@ interface ToolbarGroupClipboardProps {
   testId?: string
 }
 
-export function ToolbarGroupClipboard({ editor, testId = 'editor-toolbar' }: ToolbarGroupClipboardProps) {
+export function ToolbarGroupClipboard({ editor, testId = 'editor-toolbar' }: Readonly<ToolbarGroupClipboardProps>) {
   const { t } = useTranslation(translations)
   return (
     <RibbonGroup

@@ -137,7 +137,7 @@ function toAbsoluteFileUrlIfNeeded(relativePath: string): string {
   }
   try {
     const base = new URL(endpoint) // typically: https://<host>/files/api/v1
-    const isSameOrigin = typeof globalThis.window !== 'undefined' && globalThis.window.location.origin === base.origin
+    const isSameOrigin = globalThis.window?.location?.origin === base.origin
     if (isSameOrigin) {
       return relativePath
     }
