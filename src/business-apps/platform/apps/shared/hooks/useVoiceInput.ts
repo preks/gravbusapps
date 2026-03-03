@@ -88,6 +88,8 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     onEnd
   } = options
 
+  const g = globalThis as typeof globalThis & Window
+
   const [state, setState] = useState<VoiceInputState>({
     isListening: false,
     isSupported: false,
@@ -109,17 +111,17 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
   const getNativeBridgeMode = useCallback((): 'none' | 'nwMobileSpeech' | 'webkitMessageHandlers' => {
     if (
-      window.NWMobileSpeech &&
-      typeof window.NWMobileSpeech.start === 'function' &&
-      typeof window.NWMobileSpeech.stop === 'function'
+      g.NWMobileSpeech &&
+      typeof g.NWMobileSpeech.start === 'function' &&
+      typeof g.NWMobileSpeech.stop === 'function'
     ) {
       return 'nwMobileSpeech'
     }
     if (
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart'] &&
-      typeof window.webkit.messageHandlers['com.newwork.NWMobileSpeechStart'].postMessage === 'function' &&
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop'] &&
-      typeof window.webkit.messageHandlers['com.newwork.NWMobileSpeechStop'].postMessage === 'function'
+      g.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart'] &&
+      typeof g.webkit.messageHandlers['com.newwork.NWMobileSpeechStart'].postMessage === 'function' &&
+      g.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop'] &&
+      typeof g.webkit.messageHandlers['com.newwork.NWMobileSpeechStop'].postMessage === 'function'
     ) {
       return 'webkitMessageHandlers'
     }
@@ -129,17 +131,17 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   const stopNativeBridge = useCallback(() => {
     const mode = nativeBridgeModeRef.current
     if (mode === 'nwMobileSpeech') {
-      window.NWMobileSpeech?.stop()
+      g.NWMobileSpeech?.stop()
       return
     }
     if (mode === 'webkitMessageHandlers') {
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop']?.postMessage({})
+      g.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop']?.postMessage({})
     }
   }, [])
 
   // Check for browser support
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = g.SpeechRecognition || g.webkitSpeechRecognition
     const nativeMode = getNativeBridgeMode()
     nativeBridgeModeRef.current = nativeMode
     setState(prev => ({ ...prev, isSupported: nativeMode !== 'none' || !!SpeechRecognition }))
@@ -198,7 +200,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [])
 
   const startListening = useCallback(async () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = g.SpeechRecognition || g.webkitSpeechRecognition
     const nativeMode = getNativeBridgeMode()
     nativeBridgeModeRef.current = nativeMode
 
@@ -229,13 +231,13 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     if (nativeMode !== 'none') {
       let started: boolean | void = false
       if (nativeMode === 'nwMobileSpeech') {
-        started = window.NWMobileSpeech?.start({
+        started = g.NWMobileSpeech?.start({
           language,
           continuous,
           interimResults
         })
       } else if (nativeMode === 'webkitMessageHandlers') {
-        window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart']?.postMessage({
+        g.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart']?.postMessage({
           language,
           continuous,
           interimResults
@@ -437,11 +439,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       stopVolumeAnalysis()
       setState(prev => ({ ...prev, isListening: false }))
     }
-    window.addEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
-    window.addEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
+    globalThis.addEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
+    globalThis.addEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
     return () => {
-      window.removeEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
-      window.removeEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
+      globalThis.removeEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
+      globalThis.removeEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
     }
   }, [startVolumeAnalysis, stopVolumeAnalysis])
 
@@ -479,9 +481,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       }
     }
 
-    window.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    globalThis.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     return () => {
-      window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+      globalThis.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     }
   }, [onTranscript])
 

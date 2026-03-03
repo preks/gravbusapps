@@ -54,7 +54,7 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
           lineHeight: {
             default: null,
             rendered: true,
-            parseHTML: element => parseLineHeight(element as HTMLElement),
+            parseHTML: element => parseLineHeight(element),
             renderHTML: attributes => {
               if (attributes.lineHeight == null) return {}
               return { style: `line-height: ${attributes.lineHeight}` }
@@ -63,10 +63,7 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
           marginBefore: {
             default: null,
             rendered: true,
-            parseHTML: element => {
-              const el = element as HTMLElement
-              return parseMargin(el.style?.marginTop ?? el.dataset.marginBefore)
-            },
+            parseHTML: element => parseMargin(element.style?.marginTop ?? element.dataset.marginBefore),
             renderHTML: attributes => {
               if (attributes.marginBefore == null) return {}
               return { style: `margin-top: ${attributes.marginBefore}` }
@@ -75,10 +72,7 @@ export const LineAndParagraphSpacing = Extension.create<LineAndParagraphSpacingO
           marginAfter: {
             default: null,
             rendered: true,
-            parseHTML: element => {
-              const el = element as HTMLElement
-              return parseMargin(el.style?.marginBottom ?? el.dataset.marginAfter)
-            },
+            parseHTML: element => parseMargin(element.style?.marginBottom ?? element.dataset.marginAfter),
             renderHTML: attributes => {
               if (attributes.marginAfter == null) return {}
               return { style: `margin-bottom: ${attributes.marginAfter}` }

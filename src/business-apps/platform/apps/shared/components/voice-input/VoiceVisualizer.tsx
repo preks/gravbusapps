@@ -1,6 +1,6 @@
 // Voice visualizer with smooth waveform animation. Uses minimal inline styles for dynamic volume/position values.
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { cn } from '@newwork/nw-design-system'
 import { Mic } from 'lucide-react'
 
@@ -114,13 +114,13 @@ const WaveformBars: React.FC<WaveformBarsProps> = ({ volume }) => {
   const maxHeight = 20
   const animationRef = useRef<number>(0)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setter used to force re-render for animation; value intentionally unused (Sonar S3735)
-  const [_animationTick, forceUpdate] = React.useState({})
+  const [_animationTick, setAnimationTick] = useState({})
 
   useEffect(() => {
     let running = true
     const animate = () => {
       if (!running) return
-      forceUpdate({})
+      setAnimationTick({})
       animationRef.current = requestAnimationFrame(animate)
     }
     animate()

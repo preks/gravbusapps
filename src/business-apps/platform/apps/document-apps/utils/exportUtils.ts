@@ -328,18 +328,8 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   const fullHtml = buildPrintHtmlDocument(options)
   const iframe = document.createElement('iframe')
   iframe.setAttribute('style', 'position:absolute;width:0;height:0;border:0;visibility:hidden')
+  iframe.srcdoc = fullHtml
   document.body.appendChild(iframe)
-
-  const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document
-  if (!iframeDoc) {
-    iframe.remove()
-    console.error('[exportUtils] Iframe document not accessible')
-    return
-  }
-
-  iframeDoc.open()
-  ;(iframeDoc.write as (html: string) => void)(fullHtml)
-  iframeDoc.close()
 
   let printed = false
   const doPrint = () => {
@@ -359,15 +349,16 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   }
 
   const run = () => {
+    const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document
+    if (!iframeDoc) {
+      setTimeout(run, 50)
+      return
+    }
     waitForImagesInDocument(iframeDoc).then(() => setTimeout(doPrint, 100))
   }
 
-  if (iframeDoc.readyState === 'complete') {
-    run()
-  } else {
-    iframe.onload = () => setTimeout(run, 50)
-    setTimeout(run, 500)
-  }
+  iframe.onload = () => setTimeout(run, 50)
+  setTimeout(run, 500)
 }
 
 export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {

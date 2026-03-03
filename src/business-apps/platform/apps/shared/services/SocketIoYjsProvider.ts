@@ -9,9 +9,11 @@ type YjsSyncResponse =
   | { success: true; status: 'already_ready' }
   | { success: false; error: string }
 
+type YjsEntityType = 'document' | 'note' | 'slide'
+
 type YjsSyncResponseEvent = {
   documentId: string
-  entityType?: 'document' | 'note' | 'slide'
+  entityType?: YjsEntityType
   state: string
   awareness: string | null
 }
@@ -54,7 +56,7 @@ function emitWithAck<TResponse>(
 export interface SocketIoYjsProviderOptions {
   socket: Socket
   documentId: string
-  entityType?: 'document' | 'note' | 'slide'
+  entityType?: YjsEntityType
   ydoc: Y.Doc
   awareness: Awareness
   onSyncedChange?: (isSynced: boolean) => void
@@ -77,7 +79,7 @@ export class SocketIoYjsProvider {
 
   private socket: Socket
   private documentId: string
-  private entityType: 'document' | 'note' | 'slide'
+  private entityType: YjsEntityType
   private ydoc: Y.Doc
 
   private destroyed = false
@@ -327,7 +329,7 @@ export class SocketIoYjsProvider {
 
   private readonly handleRemoteYjsUpdate = (event: {
     documentId: string
-    entityType?: 'document' | 'note' | 'slide'
+    entityType?: YjsEntityType
     update: string
   }) => {
     if (this.destroyed) return
@@ -340,11 +342,7 @@ export class SocketIoYjsProvider {
     })
   }
 
-  private handleRemoteAwarenessUpdate = (event: {
-    documentId: string
-    entityType?: 'document' | 'note' | 'slide'
-    update: string
-  }) => {
+  private handleRemoteAwarenessUpdate = (event: { documentId: string; entityType?: YjsEntityType; update: string }) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
     const eventEntityType = event.entityType || 'document'
