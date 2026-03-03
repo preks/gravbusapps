@@ -62,7 +62,13 @@ import {
   Redo2,
   ClipboardPaste,
   CopyPlus,
-  StickyNote
+  StickyNote,
+  BarChart2,
+  LineChart,
+  PieChart,
+  AreaChart,
+  Activity,
+  Target
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -70,6 +76,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { Slide as SlideType } from '../types'
 import { SlidesApiService } from '../services'
 import { SlideCanvas } from './SlideCanvas'
+import { SlideChartRenderer } from './SlideChartRenderer'
 import { PropertyPanel } from './PropertyPanel'
 import { CollaboratorCursors } from './CollaboratorCursors'
 import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
@@ -79,11 +86,13 @@ import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
 import {
   type AnySlideElement,
   type SlideData,
+  type ChartElement,
   createTextElement,
   createImageElement,
   createShapeElement,
   createCodeElement,
   createVideoElement,
+  createChartElement,
   PRESET_GRADIENTS,
   gradientToCss,
   COLOR_PRESETS
@@ -1809,6 +1818,44 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           {t('editor-video')}
         </Button>
 
+        {/* Add Chart */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <BarChart2 className="gba:w-4 gba:h-4 gba:mr-1" />
+              {t('editor-chart')}
+              <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="gba:w-48">
+            <DropdownMenuItem onClick={() => addElement(createChartElement('bar'))}>
+              <BarChart2 className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('editor-bar-chart')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => addElement(createChartElement('line'))}>
+              <LineChart className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('editor-line-chart')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => addElement(createChartElement('area'))}>
+              <AreaChart className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('editor-area-chart')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => addElement(createChartElement('pie'))}>
+              <PieChart className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('editor-pie-chart')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => addElement(createChartElement('radar'))}>
+              <Activity className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('editor-radar-chart')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => addElement(createChartElement('radial'))}>
+              <Target className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('editor-radial-chart')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
 
         {/* Design Group */}
@@ -2017,6 +2064,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                             )}
                             {el.type === 'image' && (
                               <img src={(el as any).src} alt="" className="gba:w-full gba:h-full gba:object-cover" />
+                            )}
+                            {el.type === 'chart' && (
+                              <SlideChartRenderer
+                                element={el as ChartElement}
+                                width={el.size.width}
+                                height={el.size.height}
+                                disableAnimations
+                              />
                             )}
                           </div>
                         ))}

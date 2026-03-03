@@ -576,3 +576,21 @@ editor-image-background = Image Background
 editor-upload-background-image = Upload Image
 editor-background-image-url = Or paste image URL
 editor-image-load-error = Image failed to load
+
+# Charts
+editor-chart = Chart
+editor-bar-chart = Bar Chart
+editor-line-chart = Line Chart
+editor-area-chart = Area Chart
+editor-pie-chart = Pie Chart
+editor-radar-chart = Radar Chart
+editor-radial-chart = Radial Chart
+props-chart-settings = Chart Settings
+props-chart-title = Title
+props-chart-title-placeholder = Enter chart title...
+props-chart-type = Chart Type
+props-chart-display = Display Options
+props-show-legend = Show Legend
+props-show-grid = Show Grid
+props-show-tooltip = Show Tooltip
+props-chart-styling = Chart Styling

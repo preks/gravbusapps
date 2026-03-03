@@ -2,7 +2,7 @@
  * Slide Element Types - Define all element types for the slide editor
  */
 
-export type ElementType = 'text' | 'image' | 'shape' | 'code' | 'video' | 'table'
+export type ElementType = 'text' | 'image' | 'shape' | 'code' | 'video' | 'table' | 'chart'
 
 export type ShapeType =
   | 'rectangle'
@@ -130,7 +130,40 @@ export interface TableElement extends SlideElement {
   borderRadius: number
 }
 
-export type AnySlideElement = TextElement | ImageElement | ShapeElement | CodeElement | VideoElement | TableElement
+export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'radar' | 'radial'
+
+export interface ChartDataPoint {
+  label: string
+  [key: string]: string | number
+}
+
+export interface ChartSeries {
+  key: string
+  label: string
+  color?: string
+}
+
+export interface ChartElement extends SlideElement {
+  type: 'chart'
+  chartType: ChartType
+  title: string
+  data: ChartDataPoint[]
+  series: ChartSeries[]
+  showLegend: boolean
+  showGrid: boolean
+  showTooltip: boolean
+  backgroundColor: string
+  borderRadius: number
+}
+
+export type AnySlideElement =
+  | TextElement
+  | ImageElement
+  | ShapeElement
+  | CodeElement
+  | VideoElement
+  | TableElement
+  | ChartElement
 
 export interface SlideData {
   id: string
@@ -275,6 +308,46 @@ export const createTableElement = (
   borderRadius: 8,
   ...partial
 })
+
+export const createChartElement = (chartType: ChartType, partial?: Partial<ChartElement>): ChartElement => ({
+  id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'chart',
+  position: { x: 100, y: 100 },
+  size: { width: 500, height: 300 },
+  rotation: 0,
+  opacity: 1,
+  locked: false,
+  zIndex: 1,
+  chartType,
+  title: 'Chart Title',
+  data: [
+    { label: 'Jan', value1: 186, value2: 80 },
+    { label: 'Feb', value1: 305, value2: 200 },
+    { label: 'Mar', value1: 237, value2: 120 },
+    { label: 'Apr', value1: 73, value2: 190 },
+    { label: 'May', value1: 209, value2: 130 },
+    { label: 'Jun', value1: 214, value2: 140 }
+  ],
+  series: [
+    { key: 'value1', label: 'Series 1' },
+    { key: 'value2', label: 'Series 2' }
+  ],
+  showLegend: true,
+  showGrid: true,
+  showTooltip: true,
+  backgroundColor: 'transparent',
+  borderRadius: 8,
+  ...partial
+})
+
+export const CHART_TYPES: { value: ChartType; label: string; icon: string }[] = [
+  { value: 'bar', label: 'Bar Chart', icon: '📊' },
+  { value: 'line', label: 'Line Chart', icon: '📈' },
+  { value: 'area', label: 'Area Chart', icon: '📉' },
+  { value: 'pie', label: 'Pie Chart', icon: '🥧' },
+  { value: 'radar', label: 'Radar Chart', icon: '🕸️' },
+  { value: 'radial', label: 'Radial Chart', icon: '⭕' }
+]
 
 // Font options
 export const FONT_FAMILIES = [

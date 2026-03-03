@@ -12,10 +12,12 @@ import type {
   ImageElement,
   VideoElement,
   TableElement,
+  ChartElement,
   Position,
   Size
 } from './slideElements'
 import { gradientToCss } from './slideElements'
+import { SlideChartRenderer } from './SlideChartRenderer'
 
 interface SlideCanvasProps {
   elements: AnySlideElement[]
@@ -941,6 +943,14 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
               </tbody>
             </table>
           </div>
+        )}
+
+        {element.type === 'chart' && (
+          <SlideChartRenderer
+            element={element as ChartElement}
+            width={element.size.width}
+            height={element.size.height}
+          />
         )}
 
         {/* Resize handles - only for single selection */}
