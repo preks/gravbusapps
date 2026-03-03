@@ -234,17 +234,16 @@ function normalizeHtmlForComparison(html: string): string {
     }
     const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
     const normalized = doc.body.innerHTML
-      .replace(/\u200B/g, '')
-      .replace(/>\s+</g, '><')
-      .replace(/\s+/g, ' ')
+      .split('\u200B')
+      .join('')
+      .split(/>\s+</)
+      .join('><')
+      .split(/\s+/)
+      .join(' ')
       .trim()
     return normalized
   } catch {
-    return html
-      .replace(/\u200B/g, '')
-      .replace(/>\s+</g, '><')
-      .replace(/\s+/g, ' ')
-      .trim()
+    return html.split('\u200B').join('').split(/>\s+</).join('><').split(/\s+/).join(' ').trim()
   }
 }
 
@@ -258,8 +257,8 @@ function areHtmlSemanticallyEquivalent(left: string, right: string): boolean {
     if (globalThis.window !== undefined) {
       const leftDoc = new globalThis.DOMParser().parseFromString(left, 'text/html')
       const rightDoc = new globalThis.DOMParser().parseFromString(right, 'text/html')
-      const leftText = (leftDoc.body.textContent || '').replace(/\s+/g, ' ').trim()
-      const rightText = (rightDoc.body.textContent || '').replace(/\s+/g, ' ').trim()
+      const leftText = (leftDoc.body.textContent || '').split(/\s+/).join(' ').trim()
+      const rightText = (rightDoc.body.textContent || '').split(/\s+/).join(' ').trim()
       return leftText === rightText
     }
   } catch {
@@ -546,14 +545,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       if (globalThis.window === undefined) {
         return html
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
+          .split(/<[^>]+>/)
+          .join(' ')
+          .split(/\s+/)
+          .join(' ')
           .trim()
       }
 
       const container = globalThis.document.createElement('div')
       container.innerHTML = html
-      return (container.textContent || container.innerText || '').replace(/\s+/g, ' ').trim()
+      return (container.textContent || container.innerText || '').split(/\s+/).join(' ').trim()
     }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
     const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
 
