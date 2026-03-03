@@ -137,11 +137,12 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           res?.EntitlementUsageSnapshotView || res?.entitlement_usage_snapshot_view || []
 
         // Aggregate all rows per typeRef for Entitlements tab and donut use
+        const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
         const byType: Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }> =
           {}
         rows.forEach(r => {
           const key = r?.typeRef
-          if (!key) return
+          if (!key || UNSAFE_OBJECT_KEYS.has(key)) return
           const acc = byType[key] || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
           acc.total += Number(r?.totalEntitlement) || 0
           acc.usedApproved += Number(r?.usedApproved) || 0
