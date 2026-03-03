@@ -55,8 +55,8 @@ export function sanitizeHtmlForExport(
       const purified = DOMPurify.sanitize(html, config)
       if (preserveBlockSpacing) {
         return purified.replace(
-          /\s+style\s*=\s*["']([^"']*)["']/g,
-          (_, content) => ` style="${filterStyleToBlockSpacing(content)}"`
+          /\s+style\s*=\s*("[^"]*"|'[^']*')/g,
+          (_, quoted) => ` style="${filterStyleToBlockSpacing(quoted.slice(1, -1))}"`
         )
       }
       return purified
@@ -73,16 +73,16 @@ export function sanitizeHtmlForExport(
   out = out.replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, '')
   out = out.replace(/<embed[\s\S]*?>/gi, '')
 
-  // Remove inline event handlers (quoted or unquoted)
-  out = out.replace(/\s+on[a-z]+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
+  // Remove inline event handlers (quoted or unquoted); use negated classes to avoid ReDoS
+  out = out.replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
 
   if (!preserveBlockSpacing) {
-    // Remove inline styles entirely (safer for exports/print)
-    out = out.replace(/\s+style\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
+    // Remove inline styles entirely (safer for exports/print); use negated classes to avoid ReDoS
+    out = out.replace(/\s+style\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
   } else {
     out = out.replace(
-      /\s+style\s*=\s*["']([^"']*)["']/g,
-      (_, content) => ` style="${filterStyleToBlockSpacing(content)}"`
+      /\s+style\s*=\s*("[^"]*"|'[^']*')/g,
+      (_, quoted) => ` style="${filterStyleToBlockSpacing(quoted.slice(1, -1))}"`
     )
   }
 

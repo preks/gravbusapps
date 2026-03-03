@@ -3,6 +3,7 @@
  * Aligns with export sanitization (no javascript:, data:, etc.).
  */
 
+/** Blocklist of URL protocols that must not be allowed in hrefs (used only to reject in isAllowedHref; no code execution). */
 const FORBIDDEN_PROTOCOLS = ['javascript:', 'data:', 'vbscript:', 'file:'].map(p => p.toLowerCase())
 
 /**
