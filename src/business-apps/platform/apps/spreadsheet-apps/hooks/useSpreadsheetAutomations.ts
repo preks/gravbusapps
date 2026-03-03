@@ -147,6 +147,16 @@ function generateId(): string {
   return `auto_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 }
 
+/** Min/max poll interval (ms) - prevents abuse from untrusted pollInterval values */
+const POLL_INTERVAL_MIN = 5000
+const POLL_INTERVAL_MAX = 300000
+const POLL_INTERVAL_DEFAULT = 30000
+
+function sanitizePollInterval(value: unknown): number {
+  const num = typeof value === 'number' && Number.isFinite(value) ? value : POLL_INTERVAL_DEFAULT
+  return Math.max(POLL_INTERVAL_MIN, Math.min(POLL_INTERVAL_MAX, Math.floor(num)))
+}
+
 /**
  * useSpreadsheetAutomations Hook
  */
@@ -182,7 +192,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
   useEffect(() => {
     if (accessToken) {
       automationServiceRef.current = createSpreadsheetAutomationService(accessToken)
-      syncServiceRef.current = createWorkflowStatusSyncService(accessToken, { pollInterval })
+      syncServiceRef.current = createWorkflowStatusSyncService(accessToken, {
+        pollInterval: sanitizePollInterval(pollInterval)
+      })
     }
     return () => {
       syncServiceRef.current?.stopPolling()
@@ -1024,8 +1036,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     // Initial fetch
     fetchBulkCollectionResponses()
 
-    // Set up polling interval
-    const intervalId = setInterval(fetchBulkCollectionResponses, pollInterval)
+    // Set up polling interval (use sanitized value to prevent code injection from untrusted inputs)
+    const sanitizedInterval = sanitizePollInterval(pollInterval)
+    const intervalId = setInterval(fetchBulkCollectionResponses, sanitizedInterval)
     const handleVisibilityOrFocus = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         void fetchBulkCollectionResponses()
