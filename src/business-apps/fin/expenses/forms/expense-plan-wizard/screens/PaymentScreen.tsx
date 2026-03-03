@@ -489,7 +489,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                   data-testid="payment-amount-input"
                   onChange={field => {
                     const prev = amount || ''
-                    const nextRaw = String(field.value)
+                    const nextRaw = String(field.value).replace(/[^0-9.,]/g, '')
                     const isZeroVariant = (v: string) => {
                       const digits = String(v).replace(/\D/g, '')
                       return digits.length > 0 && /^0+$/.test(digits)

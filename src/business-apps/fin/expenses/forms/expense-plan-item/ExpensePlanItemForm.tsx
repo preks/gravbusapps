@@ -323,7 +323,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                 )}
                 data-testid="amount-input"
                 onChange={field => {
-                  let value = String(field.value)
+                  let value = String(field.value).replace(/[^0-9.,]/g, '')
 
                   // Limit to 2 decimal places (accept both . and , as decimal separator)
                   if (value.includes('.') || value.includes(',')) {
