@@ -128,8 +128,8 @@ function isTruthyFlag(value: string | null | undefined): boolean {
 }
 
 function isAutocompleteRolloutEnabled(): boolean {
-  if (typeof window !== 'undefined') {
-    const localOverride = window.localStorage.getItem(AUTOCOMPLETE_ROLLOUT_STORAGE_KEY)
+  if (typeof globalThis.window !== 'undefined') {
+    const localOverride = globalThis.localStorage.getItem(AUTOCOMPLETE_ROLLOUT_STORAGE_KEY)
     if (localOverride !== null) {
       return isTruthyFlag(localOverride)
     }
@@ -229,21 +229,21 @@ function getAvatarUrl(picture?: string): string | undefined {
 
 function normalizeHtmlForComparison(html: string): string {
   try {
-    if (typeof window === 'undefined') {
+    if (typeof globalThis.window === 'undefined') {
       return html.trim()
     }
-    const doc = new window.DOMParser().parseFromString(html, 'text/html')
+    const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
     const normalized = doc.body.innerHTML
-      .replace(/\u200B/g, '')
-      .replace(/>\s+</g, '><')
-      .replace(/\s+/g, ' ')
+      .replaceAll(/\u200B/g, '')
+      .replaceAll(/>\s+</g, '><')
+      .replaceAll(/\s+/g, ' ')
       .trim()
     return normalized
   } catch {
     return html
-      .replace(/\u200B/g, '')
-      .replace(/>\s+</g, '><')
-      .replace(/\s+/g, ' ')
+      .replaceAll(/\u200B/g, '')
+      .replaceAll(/>\s+</g, '><')
+      .replaceAll(/\s+/g, ' ')
       .trim()
   }
 }
@@ -255,11 +255,11 @@ function areHtmlSemanticallyEquivalent(left: string, right: string): boolean {
   if (normalizedLeft === normalizedRight) return true
 
   try {
-    if (typeof window !== 'undefined') {
-      const leftDoc = new window.DOMParser().parseFromString(left, 'text/html')
-      const rightDoc = new window.DOMParser().parseFromString(right, 'text/html')
-      const leftText = (leftDoc.body.textContent || '').replace(/\s+/g, ' ').trim()
-      const rightText = (rightDoc.body.textContent || '').replace(/\s+/g, ' ').trim()
+    if (typeof globalThis.window !== 'undefined') {
+      const leftDoc = new globalThis.DOMParser().parseFromString(left, 'text/html')
+      const rightDoc = new globalThis.DOMParser().parseFromString(right, 'text/html')
+      const leftText = (leftDoc.body.textContent || '').replaceAll(/\s+/g, ' ').trim()
+      const rightText = (rightDoc.body.textContent || '').replaceAll(/\s+/g, ' ').trim()
       return leftText === rightText
     }
   } catch {
@@ -430,6 +430,40 @@ function scrollInlineCommentDomIntoView(commentId: string) {
   }, 100)
 }
 
+function renderSaveStatus(
+  isSaving: boolean,
+  hasUnsavedChanges: boolean,
+  lastSaved: Date | null,
+  formatLastSaved: (d: Date | null) => string,
+  t: (key: string) => string
+): React.ReactNode {
+  if (isSaving) {
+    return (
+      <Badge variant="secondary" className="gba:gap-1">
+        <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
+        {t('editor-saving')}
+      </Badge>
+    )
+  }
+  if (hasUnsavedChanges) {
+    return (
+      <Badge variant="outline" className="gba:gap-1">
+        <Clock className="gba:w-3 gba:h-3" />
+        {t('editor-unsaved')}
+      </Badge>
+    )
+  }
+  if (lastSaved) {
+    return (
+      <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+        <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
+        {formatLastSaved(lastSaved)}
+      </span>
+    )
+  }
+  return null
+}
+
 /**
  * PagedDocumentEditor Component
  */
@@ -495,7 +529,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [autocompleteSuggestion, setAutocompleteSuggestion] = useState('')
     const [autocompleteCursorPos, setAutocompleteCursorPos] = useState<number | null>(null)
     const [currentSelectionRange, setCurrentSelectionRange] = useState<{ from: number; to: number } | null>(null)
-    const [, setIsAutocompleteLoading] = useState(false)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_isAutocompleteLoading, setIsAutocompleteLoading] = useState(false)
     const autocompleteSuggestionRef = useRef('')
     const autocompleteCursorPosRef = useRef<number | null>(null)
     const autocompleteDebounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -510,16 +545,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const html = aiSelectionSnapshotHtml.trim()
       if (!html) return ''
 
-      if (typeof window === 'undefined') {
+      if (typeof globalThis.window === 'undefined') {
         return html
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
+          .replaceAll(/<[^>]+>/g, ' ')
+          .replaceAll(/\s+/g, ' ')
           .trim()
       }
 
-      const container = window.document.createElement('div')
+      const container = globalThis.document.createElement('div')
       container.innerHTML = html
-      return (container.textContent || container.innerText || '').replace(/\s+/g, ' ').trim()
+      return (container.textContent || container.innerText || '').replaceAll(/\s+/g, ' ').trim()
     }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
     const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
 
@@ -546,10 +581,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       flowbotClient.setAccessToken(accessToken)
     }, [accessToken])
 
+    const entityId = document?.id || ''
+
     // Collaboration state
     const { participants: rawParticipants, socket: collaborationSocket } = useCollaboration({
       entityType: 'document',
-      entityId: document?.id || '',
+      entityId,
       enabled: !!document?.id,
       accessToken,
       onError: onErrorCallback
@@ -566,7 +603,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     // Versioning, Comments, Locking, Publishing hooks
     const versioning = useVersioning({
-      entityId: document?.id || '',
+      entityId,
       entityType: 'document',
       apiService: DocumentApiService,
       autoSaveEnabled: !!document?.id && !isReadOnly,
@@ -577,22 +614,24 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const versionUserDisplayMap = useVersionUserDisplays(versioning.versions, accessToken)
 
     const comments = useComments({
-      entityId: document?.id || '',
+      entityId,
       entityType: 'document',
       apiService: DocumentApiService
     })
 
     const fileLock = useFileLock({
-      entityId: document?.id || '',
+      entityId,
       entityType: 'document',
       currentUserId: currentUserId || undefined,
       apiService: DocumentApiService
     })
 
+    const currentPublishStatus = document?.publishMetadata?.status || 'draft'
+
     const publishing = usePublishing({
-      entityId: document?.id || '',
+      entityId,
       entityType: 'document',
-      currentStatus: document?.publishMetadata?.status || 'draft',
+      currentStatus: currentPublishStatus,
       apiService: DocumentApiService
     })
 
@@ -625,7 +664,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         return
       }
       try {
-        const stored = window.localStorage.getItem(autocompleteToggleStorageKey)
+        const stored = globalThis.localStorage.getItem(autocompleteToggleStorageKey)
         if (stored === null) {
           setIsAutocompleteToggleEnabled(false)
         } else {
@@ -639,7 +678,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     useEffect(() => {
       if (!autocompleteRolloutEnabled) return
       try {
-        window.localStorage.setItem(autocompleteToggleStorageKey, String(isAutocompleteToggleEnabled))
+        globalThis.localStorage.setItem(autocompleteToggleStorageKey, String(isAutocompleteToggleEnabled))
       } catch {
         // ignore storage write issues
       }
@@ -1244,7 +1283,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!document?.id) return
 
       const useLegacyPanel =
-        typeof window !== 'undefined' && window.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
+        typeof globalThis.window !== 'undefined' &&
+        globalThis.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
       if (useLegacyPanel) {
         setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))
         return
@@ -1286,8 +1326,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       openEveryAI({ prompt })
 
       // Fallback: if this shell does not handle openEveryAI events, navigate directly.
-      window.setTimeout(() => {
-        const everyAiMounted = Boolean(window.document.querySelector('[data-testid="every-ai-app"]'))
+      globalThis.setTimeout(() => {
+        const everyAiMounted = Boolean(globalThis.document.querySelector('[data-testid="every-ai-app"]'))
         if (!everyAiMounted) {
           navigateTo('/platform/every-ai')
         }
@@ -1402,8 +1442,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         startEveryAiFallbackPoll()
       }
 
-      window.addEventListener('openEveryAI', handleEveryAiOpened)
-      return () => window.removeEventListener('openEveryAI', handleEveryAiOpened)
+      globalThis.addEventListener('openEveryAI', handleEveryAiOpened)
+      return () => globalThis.removeEventListener('openEveryAI', handleEveryAiOpened)
     }, [document?.id, startEveryAiFallbackPoll])
 
     useEffect(() => () => clearEveryAiFallbackPoll(), [clearEveryAiFallbackPoll])
@@ -1504,22 +1544,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 )}
                 {/* Save status - main save flow (lastSaved) so user always sees "Saved" feedback */}
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
-                  {isSaving ? (
-                    <Badge variant="secondary" className="gba:gap-1">
-                      <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                      {t('editor-saving')}
-                    </Badge>
-                  ) : hasUnsavedChanges ? (
-                    <Badge variant="outline" className="gba:gap-1">
-                      <Clock className="gba:w-3 gba:h-3" />
-                      {t('editor-unsaved')}
-                    </Badge>
-                  ) : lastSaved ? (
-                    <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                      <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
-                      {formatLastSaved(lastSaved)}
-                    </span>
-                  ) : null}
+                  {renderSaveStatus(isSaving, hasUnsavedChanges, lastSaved, formatLastSaved, t)}
                 </div>
 
                 <Separator orientation="vertical" className="gba:h-6" />
@@ -1816,12 +1841,20 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     Selection detected. Edits will focus on this content unless you say otherwise.
                   </p>
                   <div
+                    role="button"
+                    tabIndex={hasLongAiSelectionPreview ? 0 : undefined}
                     className={`gba:overflow-y-auto gba:rounded-md gba:border gba:bg-muted/30 gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground ${
                       isAiSelectionPreviewExpanded ? 'gba:max-h-52' : 'gba:max-h-24'
                     } ${hasLongAiSelectionPreview ? 'gba:cursor-pointer' : ''}`}
                     data-testid="document-ai-selection-preview"
                     onDoubleClick={() => {
                       if (hasLongAiSelectionPreview) {
+                        setIsAiSelectionPreviewExpanded(prev => !prev)
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (hasLongAiSelectionPreview && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault()
                         setIsAiSelectionPreviewExpanded(prev => !prev)
                       }
                     }}

@@ -358,7 +358,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     openEveryAI({ prompt })
 
     // Fallback: if this shell does not handle openEveryAI events, navigate directly.
-    window.setTimeout(() => {
+    globalThis.setTimeout(() => {
       const everyAiMounted = Boolean(document.querySelector('[data-testid="every-ai-app"]'))
       if (!everyAiMounted) {
         navigateTo('/platform/every-ai')
