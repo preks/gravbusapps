@@ -313,20 +313,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       if (!text) return
       requestAnimationFrame(() => applyDictationToEditor(text))
     },
-    onEnd: (finalTranscript: string) => {
-      const text = finalTranscript.trim()
-      if (!text) {
-        dictationStartRef.current = null
-        dictationEndRef.current = null
-        return
-      }
-      const ed = editorRef.current
-      if (!ed) return
-      requestAnimationFrame(() => {
-        applyDictationToEditor(text)
-        dictationStartRef.current = null
-        dictationEndRef.current = null
-      })
+    onEnd: () => {
+      // Text is already in the document from onTranscript; only clear dictation range.
+      dictationStartRef.current = null
+      dictationEndRef.current = null
     }
   })
 
