@@ -155,6 +155,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         name: values.name,
         startDate: values.startDate,
         endDate: values.endDate,
+        evaluationPeriodStartDate: values.evaluationPeriodStartDate,
+        evaluationPeriodEndDate: values.evaluationPeriodEndDate,
         frequency: values.frequency as PerformanceCycle['frequency'],
         participants: values.participants as PerformanceCycle['participants'],
         stages: (values.stages as EditorStage[]).map(s => ({
