@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DollarOutlined, TeamOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons'
+import { CurrencyDollarIcon, UsersIcon, ChartBarIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { SalaryStatistics as SalaryStatisticsType } from '../types/salaryTypes'
 import { formatCurrency } from '../utils/salaryCalculations'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -31,7 +31,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       key: 'average-salary',
       title: getTranslationFromI18nKeyAndLabel('salary.statistics.average', 'Average Salary'),
       value: formatCurrency(statistics.averageSalary, statistics.currency, locale),
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon size={16} />,
       color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -44,7 +44,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       key: 'median-salary',
       title: getTranslationFromI18nKeyAndLabel('salary.statistics.median', 'Median Salary'),
       value: formatCurrency(statistics.medianSalary, statistics.currency, locale),
-      prefix: <BarChartOutlined />,
+      prefix: <ChartBarIcon size={16} />,
       color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -57,7 +57,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       key: 'total-compensation',
       title: getTranslationFromI18nKeyAndLabel('salary.statistics.total', 'Total Compensation'),
       value: formatCurrency(statistics.totalCompensation, statistics.currency, locale),
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon size={16} />,
       color: 'var(--nw-success)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -70,7 +70,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       key: 'employee-count',
       title: getTranslationFromI18nKeyAndLabel('salary.statistics.employees', 'Employees'),
       value: statistics.employeeCount.toString(),
-      prefix: <TeamOutlined />,
+      prefix: <UsersIcon size={16} />,
       color: 'var(--nw-warning)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(

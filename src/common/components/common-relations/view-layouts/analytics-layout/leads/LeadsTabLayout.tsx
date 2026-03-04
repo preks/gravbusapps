@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { TeamOutlined, PercentageOutlined, ClockCircleOutlined, RiseOutlined } from '@ant-design/icons'
+import { UsersIcon, PercentIcon, ClockIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { LeadLifecycleChart, TimeFilter } from './widgets/LeadLifecycleChart'
 import { LeadVelocityAnalysis } from './widgets/LeadVelocityAnalysis'
 import { LeadsBySourcePie } from './widgets/LeadsBySourcePie'
@@ -138,7 +138,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
       key: 'total-leads',
       title: 'Total Leads',
       value: totalLeads || 0,
-      prefix: <TeamOutlined />,
+      prefix: <UsersIcon size={16} />,
       description: 'All leads in the system',
       // Add trend data for total leads with custom description format
       ...(trendData && !trendLoading
@@ -152,7 +152,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
       title: 'Conversion Rate',
       value: conversionRate || 0,
       suffix: '%',
-      prefix: <PercentageOutlined />,
+      prefix: <PercentIcon size={16} />,
       description: 'Leads converted to opportunities',
       // Compare current conversion rate to last month's conversion rate
       ...(trendData && !trendLoading
@@ -170,7 +170,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
       title: 'Avg. Conversion Time',
       value: avgTimeToConversion || 0,
       suffix: ' days',
-      prefix: <ClockCircleOutlined />,
+      prefix: <ClockIcon size={16} />,
       description: 'Average time to convert leads',
       // Compare current conversion time to last month's conversion time
       ...(trendData && !trendLoading
@@ -196,7 +196,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
       key: 'leads-this-period',
       title: 'New This Month',
       value: trendData?.currentMonthLeads || 0,
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon size={16} />,
       description: 'Leads created this month',
       // Add trend data for new leads this month vs last month
       ...(trendData && !trendLoading

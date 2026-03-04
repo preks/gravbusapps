@@ -1,13 +1,13 @@
 import React from 'react'
 import { Card, Row, Col, Statistic, Tag, Progress } from 'antd'
 import {
-  UserOutlined,
-  CalendarOutlined,
-  TrophyOutlined,
-  TeamOutlined,
-  BarChartOutlined,
-  CheckCircleOutlined
-} from '@ant-design/icons'
+  UserIcon,
+  CalendarIcon,
+  TrophyIcon,
+  UsersIcon,
+  ChartBarIcon,
+  CheckCircleIcon
+} from '@phosphor-icons/react'
 import { AbsenceStatistics } from '../types/absenceTypes'
 
 interface AbsenceStatisticsDashboardProps {
@@ -46,7 +46,7 @@ const AbsenceStatisticsDashboard: React.FC<AbsenceStatisticsDashboardProps> = ({
             <Statistic
               title="Total Employees"
               value={statistics.totalEmployees}
-              prefix={<UserOutlined />}
+              prefix={<UserIcon size={16} />}
               loading={isLoading}
             />
           </Card>
@@ -56,7 +56,7 @@ const AbsenceStatisticsDashboard: React.FC<AbsenceStatisticsDashboardProps> = ({
             <Statistic
               title="Total Absence Days"
               value={statistics.totalAbsenceDays}
-              prefix={<CalendarOutlined />}
+              prefix={<CalendarIcon size={16} />}
               loading={isLoading}
             />
           </Card>
@@ -67,7 +67,7 @@ const AbsenceStatisticsDashboard: React.FC<AbsenceStatisticsDashboardProps> = ({
               title="Average Days per Employee"
               value={statistics.averageDaysUsed}
               precision={1}
-              prefix={<TrophyOutlined />}
+              prefix={<TrophyIcon size={16} />}
               loading={isLoading}
             />
           </Card>
@@ -77,7 +77,7 @@ const AbsenceStatisticsDashboard: React.FC<AbsenceStatisticsDashboardProps> = ({
             <Statistic
               title="Top Group Usage"
               value={`${topGroups[0]?.usagePercentage || 0}%`}
-              prefix={<BarChartOutlined />}
+              prefix={<ChartBarIcon size={16} />}
               loading={isLoading}
             />
           </Card>
@@ -90,7 +90,7 @@ const AbsenceStatisticsDashboard: React.FC<AbsenceStatisticsDashboardProps> = ({
           <Card
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
-                <TeamOutlined />
+                <UsersIcon size={16} />
                 <span>Absence by Group</span>
               </div>
             }
@@ -132,7 +132,7 @@ const AbsenceStatisticsDashboard: React.FC<AbsenceStatisticsDashboardProps> = ({
           <Card
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
-                <CheckCircleOutlined />
+                <CheckCircleIcon size={16} />
                 <span>Usage Overview</span>
               </div>
             }
@@ -181,7 +181,7 @@ const AbsenceStatisticsDashboard: React.FC<AbsenceStatisticsDashboardProps> = ({
           <Card
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
-                <BarChartOutlined />
+                <ChartBarIcon size={16} />
                 <span>Top Absence Types</span>
                 <Tag color="var(--nw-info)">{statistics.typeStats.length} types</Tag>
               </div>

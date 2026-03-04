@@ -1,6 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import React, { useMemo, useCallback } from 'react'
-import { FileTextOutlined, DollarOutlined, CalendarOutlined, CompassOutlined } from '@ant-design/icons'
+import { FileTextIcon, CurrencyDollarIcon, CalendarIcon, CompassIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyDisplay } from '../../../utils'
 import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
@@ -181,7 +181,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: `${formatCurrencyDisplay(String(totalEstimated ?? '0'), currencyCode)}`,
-        prefix: <DollarOutlined />,
+        prefix: <CurrencyDollarIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -197,7 +197,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'pending-approval',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval', 'Pending Approval'),
         value: pendingApproval,
-        prefix: <CalendarOutlined />,
+        prefix: <CalendarIcon size={16} />,
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 6 },
         footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action', 'Requires action'),
@@ -209,7 +209,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         key: 'top-destinations',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination'),
         value: destinationValue,
-        prefix: <CompassOutlined />,
+        prefix: <CompassIcon size={16} />,
         color: '#722ed1',
         span: { xs: 24, sm: 12, md: 6 },
         valueIsString: true,

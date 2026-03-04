@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react'
 import { Card, Button, CardContent } from '@newwork/nw-design-system'
-import { PlusCircleOutlined, SendOutlined } from '@ant-design/icons'
+import { PlusCircleIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -86,7 +86,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         )
       ],
       buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.add_plan', 'Plan a new Business Trip'),
-      buttonIcon: <PlusCircleOutlined />,
+      buttonIcon: <PlusCircleIcon size={16} />,
       buttonAction: handlePlanTrip
     },
     {
@@ -109,7 +109,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.categorize_for_clarity', 'Categorize for clarity')
       ],
       buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_expense', 'New Expense'),
-      buttonIcon: <PlusCircleOutlined />,
+      buttonIcon: <PlusCircleIcon size={16} />,
       buttonAction: handleRecordExpense
     },
     {
@@ -129,7 +129,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         )
       ],
       buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_request', 'New Request'),
-      buttonIcon: <SendOutlined />,
+      buttonIcon: <PaperPlaneTiltIcon size={16} />,
       buttonAction: handleSubmitRequest
     }
   ]

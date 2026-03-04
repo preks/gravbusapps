@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Card, Typography, Spin, Empty, theme } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import {
   BarChart,
   Bar,
@@ -123,8 +123,9 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
             {t('hr-analytics-probation-rate-by-org-unit')}
           </Title>
           <div className="gba:flex gba:items-center">
-            <InfoCircleOutlined
-              style={{ fontSize: '16px', color: token.colorTextSecondary }}
+            <InfoIcon
+              size={16}
+              className="gba:text-muted-foreground"
               data-testid="probation-rate-by-org-unit-info-icon"
             />
           </div>

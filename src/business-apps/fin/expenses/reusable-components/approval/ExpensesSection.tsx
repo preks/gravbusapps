@@ -1,5 +1,5 @@
 import React from 'react'
-import { FileTextOutlined } from '@ant-design/icons'
+import { FileTextIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseItem {
@@ -44,7 +44,7 @@ const ExpensesSection: React.FC<ExpensesSectionProps> = ({
           <div className="gba:font-semibold gba:text-foreground">{item.title}</div>
           <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
             <div className="gba:text-muted-foreground">
-              <FileTextOutlined className="gba:text-base gba:text-muted-foreground gba:mr-1" />
+              <FileTextIcon size={16} className="gba:text-base gba:text-muted-foreground gba:mr-1" />
               {getCatalogValue(item.expenseClass)}: {item.expenseRuleGeneralExpense?.name}
             </div>
             <div className="gba:font-semibold gba:text-foreground">

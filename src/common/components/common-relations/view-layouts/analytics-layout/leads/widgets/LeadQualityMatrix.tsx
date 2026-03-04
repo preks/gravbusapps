@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Spinner } from '@newwork/nw-design-system'
-import { PercentageOutlined } from '@ant-design/icons'
+import { PercentIcon } from '@phosphor-icons/react'
 
 export interface LeadsBySourceItem {
   source: string
@@ -25,7 +25,7 @@ export const LeadQualityMatrix: React.FC<LeadQualityMatrixProps> = ({ data, isLo
       <Card data-testid="lead-quality-matrix">
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <PercentageOutlined />
+            <PercentIcon size={16} />
             Lead Quality Matrix
           </CardTitle>
         </CardHeader>
@@ -69,7 +69,7 @@ export const LeadQualityMatrix: React.FC<LeadQualityMatrixProps> = ({ data, isLo
     <Card data-testid="lead-quality-matrix">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PercentageOutlined />
+          <PercentIcon size={16} />
           Lead Quality Matrix
         </CardTitle>
       </CardHeader>

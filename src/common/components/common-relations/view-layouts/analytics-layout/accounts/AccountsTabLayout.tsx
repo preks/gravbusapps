@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup } from '@/components/widget-group'
-import { BankOutlined, DollarCircleOutlined, TeamOutlined, RiseOutlined } from '@ant-design/icons'
+import { BankIcon, CurrencyCircleDollarIcon, UsersIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { AccountLifecycleChart } from './widgets/AccountLifecycleChart'
 import { AccountGrowthAnalysis } from './widgets/AccountGrowthAnalysis'
 import { AccountHealthMatrix } from './widgets/AccountHealthMatrix'
@@ -117,7 +117,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       key: 'total-accounts',
       title: 'Total Accounts',
       value: totalAccounts || 0,
-      prefix: <BankOutlined />,
+      prefix: <BankIcon size={16} />,
       description: 'All accounts in the system',
       ...(trendData && !trendLoading
         ? { trend: calculateTrend(totalAccounts || 0, (totalAccounts || 0) - (trendData.currentMonthAccounts || 0)) }
@@ -127,7 +127,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       key: 'accounts-with-opportunities',
       title: 'Accounts with Opportunities',
       value: accountsWithOpportunities || 0,
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon size={16} />,
       description: 'Accounts that have opportunities',
       ...(trendData &&
       !trendLoading &&
@@ -161,7 +161,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       key: 'accounts-this-period',
       title: `New This Month`,
       value: trendData?.currentMonthAccounts || 0,
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon size={16} />,
       description: `Accounts created this month`,
       ...(trendData && !trendLoading
         ? { trend: calculateTrend(trendData.currentMonthAccounts, trendData.previousMonthAccounts) }

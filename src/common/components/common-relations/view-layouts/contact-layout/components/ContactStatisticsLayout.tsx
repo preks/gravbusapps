@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, TeamOutlined, TrophyOutlined, ContactsOutlined } from '@ant-design/icons'
+import { UserIcon, UsersIcon, TrophyIcon, AddressBookIcon } from '@phosphor-icons/react'
 
 interface TrendData {
   current: number
@@ -48,7 +48,7 @@ export const ContactStatisticsLayout: React.FC<ContactStatisticsLayoutProps> = (
       key: 'recent-contacts',
       title: 'Recent Contacts',
       value: recentContacts.current,
-      prefix: <UserOutlined />,
+      prefix: <UserIcon size={16} />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Past 2 weeks',
@@ -76,7 +76,7 @@ export const ContactStatisticsLayout: React.FC<ContactStatisticsLayoutProps> = (
       key: 'total-contacts',
       title: 'Total Contacts',
       value: totalContacts.current,
-      prefix: <TeamOutlined />,
+      prefix: <UsersIcon size={16} />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'All contacts in system',
@@ -90,7 +90,7 @@ export const ContactStatisticsLayout: React.FC<ContactStatisticsLayoutProps> = (
       key: 'this-year',
       title: 'This Year',
       value: contactsThisYear.current,
-      prefix: <TrophyOutlined />,
+      prefix: <TrophyIcon size={16} />,
       color: '#eb2f96',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'New contacts',
