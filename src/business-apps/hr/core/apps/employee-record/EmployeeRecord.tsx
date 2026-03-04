@@ -46,6 +46,7 @@ import { Feature } from '@/common/types/constants/FeatureHub'
 import PersonalAbsences from '@/business-apps/hr/absences/apps/personal-absences'
 
 const EMPLOYEE_RECORD_RESOURCE_URL = '/platform/employee-record'
+const DEFAULT_ICON_SIZE = 20
 const TAB_KEYS = {
   summary: 'summary',
   timeTracking: 'timeTracking',
@@ -473,7 +474,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         value: TAB_KEYS.summary,
         label: t('employee-record-tab-summary'),
-        icon: <UserIcon className="gba:mr-2" size={20} />,
+        icon: <UserIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
         content: (
           <div className="gba:col-span-full">
             <SummaryTab employee={employee} accessToken={accessToken} currentUserEmployeeId={currentUserEmployeeId} />
@@ -483,7 +484,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         value: TAB_KEYS.hrAdmin,
         label: t('employee-record-tab-hr-admin'),
-        icon: <BriefcaseIcon className="gba:mr-2" size={20} />,
+        icon: <BriefcaseIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
         content: (() => {
           let hasHrNotesAccess = false
           if (!scopePermissionLoading && !isSelfView) {
@@ -520,7 +521,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         value: TAB_KEYS.hrGrowth,
         label: t('employee-record-tab-hr-growth'),
-        icon: <ChartBarIcon className="gba:mr-2" size={20} />,
+        icon: <ChartBarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
         content: (
           <div className="gba:col-span-full">
             <HrGrowthTab
@@ -541,7 +542,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             {
               value: TAB_KEYS.compensation,
               label: t('employee-record-tab-compensation'),
-              icon: <CurrencyEurIcon className="gba:mr-2" size={20} />,
+              icon: <CurrencyEurIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
               content: (
                 <div className="gba:col-span-full">
                   <CompensationTab
@@ -565,7 +566,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             {
               value: TAB_KEYS.timeTracking,
               label: t('employee-record-tab-time-tracking'),
-              icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={20} />,
+              icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
               content: (
                 <div className="gba:col-span-full">
                   <TimeTrackingTab
@@ -583,7 +584,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         value: TAB_KEYS.absences,
         label: t('employee-record-tab-absences'),
-        icon: <CalendarIcon className="gba:mr-2" size={20} />,
+        icon: <CalendarIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
         content: (
           <div className="gba:col-span-full">
             <PersonalAbsences accessToken={accessToken} userInfo={userInfo} employeeIdOverride={employee.id} embedded />
@@ -595,7 +596,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             {
               value: TAB_KEYS.assets,
               label: t('employee-record-tab-assets'),
-              icon: <PackageIcon className="gba:mr-2" size={20} />,
+              icon: <PackageIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
               content: (
                 <div className="gba:col-span-full">
                   <AssetsTab
@@ -614,7 +615,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             {
               value: TAB_KEYS.serviceRequests,
               label: t('employee-record-tab-service-requests'),
-              icon: <ReceiptIcon className="gba:mr-2" size={20} />,
+              icon: <ReceiptIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
               content: (
                 <div className="gba:col-span-full">
                   <ServiceRequestsTab

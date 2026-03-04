@@ -1,6 +1,7 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { ArrowLeftIcon } from '@phosphor-icons/react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const DEFAULT_CLASS_NAME = ''
 const DEFAULT_DATA_TEST_ID = 'back-button'
@@ -52,7 +53,8 @@ export const BackButton: React.FC<BackButtonProps> = ({
     }
   }
 
-  const backText = customBackText
+  const backText =
+    customBackText || getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back')
 
   return (
     <Button
