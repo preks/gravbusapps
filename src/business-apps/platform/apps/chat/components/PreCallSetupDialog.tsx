@@ -320,7 +320,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                   aria-hidden
                   data-testid={`${prefixDataTestId}-transcription-indicator`}
                 />
-                {t('chat-call-recordingTranscriptActive')}
+                {t('chat-call-recordingTranscriptNotice')}
               </p>
             )}
           </div>

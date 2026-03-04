@@ -241,7 +241,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 aria-hidden
               />
               <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                {t('chat-call-recordingTranscriptActive')}
+                {t('chat-call-recordingTranscriptNotice')}
               </p>
             </div>
           )}

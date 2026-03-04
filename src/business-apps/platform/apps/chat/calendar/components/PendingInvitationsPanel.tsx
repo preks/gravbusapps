@@ -123,7 +123,7 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
                         aria-hidden
                       />
                       <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                        {t('chat-call-recordingTranscriptActive')}
+                        {t('chat-call-recordingTranscriptNotice')}
                       </p>
                     </div>
                   )}

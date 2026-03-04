@@ -1,5 +1,15 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
-import { Avatar, AvatarFallback, AvatarImage, Button, Skeleton } from '@newwork/nw-design-system'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  Skeleton,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider
+} from '@newwork/nw-design-system'
 import { Calendar, Video, Users, ExternalLink, ListTodo } from 'lucide-react'
 import { createCalendarApiClient } from '../../calendar/calendarApiClient'
 import type { CalendarEvent } from '../../calendar/types'
@@ -108,11 +118,13 @@ interface MeetingCardProps {
  * MeetingCard - Individual meeting item
  */
 const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, 'data-testid': testId }) => {
+  const t = useChatTranslation()
   const timeInfo = formatRelativeTime(meeting.start)
   const joinable = canJoinMeeting(meeting)
   const hasExternalLink = meeting.meetingLink && meeting.meetingLink !== 'auto-generate'
   const agendaItems = getAgendaFromMetadata(meeting.metadata)
   const hasAgenda = agendaItems.length > 0
+  const hasTranscription = meeting.transcriptionEnabled === true || meeting.metadata?.aiTranscriptionEnabled === true
 
   // Get resolved avatar URL for a participant
   const getParticipantAvatar = (participant: { id: string; avatarUrl?: string }): string | undefined => {
@@ -142,7 +154,25 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, '
 
       {/* Meeting info */}
       <div className="gba:flex-1 gba:min-w-0">
-        <h4 className="gba:font-medium gba:text-foreground gba:truncate">{meeting.title}</h4>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+          <h4 className="gba:font-medium gba:text-foreground gba:truncate">{meeting.title}</h4>
+          {hasTranscription && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                    aria-label={t('chat-call-recordingTranscriptNotice')}
+                    data-testid={testId ? `${testId}-recording-dot` : undefined}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="gba:max-w-xs gba:z-50">
+                  {t('chat-call-recordingTranscriptNotice')}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
           {meeting.organizer && (
             <span className="gba:truncate">
@@ -240,7 +270,6 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
   const [lastFetchTime, setLastFetchTime] = useState<number>(0)
   const [isExpanded, setIsExpanded] = useState(false)
 
-  const t = useChatTranslation()
   // Use avatar cache for resolving participant avatars
   const avatarCache = useEmployeeAvatarsCache(accessToken)
 
@@ -426,9 +455,6 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
   const hiddenCount = meetings.length - displayCount
   const canExpand = meetings.length > INITIAL_DISPLAY_COUNT && !isExpanded
   const canCollapse = isExpanded && meetings.length > INITIAL_DISPLAY_COUNT
-  const hasAnyTranscription = displayedMeetings.some(
-    m => m.transcriptionEnabled === true || m.metadata?.aiTranscriptionEnabled === true
-  )
 
   return (
     <section data-testid={testId}>
@@ -441,16 +467,6 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
         </h3>
         <span className="gba:text-xs gba:text-muted-foreground/70">Next 7 days</span>
       </div>
-
-      {hasAnyTranscription && (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2" data-testid="upcoming-meetings-recording-notice">
-          <span
-            className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-            aria-hidden
-          />
-          <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('chat-call-recordingTranscriptNotice')}</p>
-        </div>
-      )}
 
       <div className="gba:rounded-xl gba:bg-card gba:p-2">
         <div className={`gba:space-y-0.5 ${isExpanded ? 'gba:max-h-[400px] gba:overflow-y-auto' : ''}`}>

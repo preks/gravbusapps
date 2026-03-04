@@ -365,7 +365,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                   aria-hidden
                   data-testid={`${prefixDataTestId}-transcription-indicator`}
                 />
-                {t('chat-call-recordingTranscriptActive')}
+                {t('chat-call-recordingTranscriptNotice')}
               </p>
             )}
           </div>
