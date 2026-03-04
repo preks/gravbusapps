@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Alert, Button } from 'antd'
 import { PageLayout } from '@newwork/nw-design-system'
 import {
-  SquaresFourIcon,
+  GaugeIcon,
   UserIcon,
   UsersIcon,
   BuildingsIcon,
@@ -22,12 +22,12 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <SquaresFourIcon size={16} />,
+      icon: <GaugeIcon size={16} />,
       label: 'Dashboard'
     },
     {
       key: 'demographics',
-      icon: <UserOutlined />,
+      icon: <UserIcon />,
       label: 'Demographics'
     },
     {
@@ -209,7 +209,7 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
       <PageLayout
         headerPhosphorIcon={{
           icon: ChartPieIcon,
-          variant: 'premium',
+          variant: 'default',
           size: 'lg',
           label: 'HR Analytics'
         }}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Spin, Alert, Button } from 'antd'
 import {
-  SquaresFourIcon,
+  GaugeIcon,
   UserIcon,
   UsersIcon,
   BuildingsIcon,
   CurrencyDollarIcon,
-  ChartLineIcon
+  ChartLineIcon,
+  MapPinIcon
 } from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -23,7 +24,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <SquaresFourIcon size={16} />,
+      icon: <GaugeIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.dashboard_tab_label',
         'Dashboard'
@@ -71,7 +72,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
     },
     {
       key: 'office-presence',
-      icon: <EnvironmentOutlined />,
+      icon: <MapPinIcon />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.office_presence_tab_label',
         'Office Presence'
