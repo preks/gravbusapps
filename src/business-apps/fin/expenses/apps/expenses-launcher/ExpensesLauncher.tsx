@@ -17,8 +17,6 @@ import { useExpenseDashboardStats } from './hooks/useExpenseDashboardStats'
 import { useExpensePermissions } from './hooks/useExpensePermissions'
 import { startProcess } from '@/common/utils/start-process'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import * as RemixIcons from '@remixicon/react'
-// Import PhosphorIcons for LauncherLayout
 import {
   User,
   Gear,
@@ -31,7 +29,9 @@ import {
   FileText,
   Calendar,
   Wallet,
-  Sliders
+  Sliders,
+  WarningIcon,
+  ArrowsClockwiseIcon
 } from '@phosphor-icons/react'
 import { formatCurrencyLocalized } from '@/business-apps/fin/expenses/apps/expenses-launcher/utils/currencyUtils'
 import { MODULE_COLORS } from '@/common/constants/ui'
@@ -1264,7 +1264,7 @@ const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-decorative-1">
         <div className="max-w-md mx-auto p-6">
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
-            <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
+            <WarningIcon size={16} className="h-4 w-4" />
             <AlertTitle>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:expenses_launcher.permission_check_failed',
@@ -1295,7 +1295,7 @@ const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-decorative-1">
         <div className="max-w-md mx-auto p-6">
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
-            <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
+            <WarningIcon size={16} className="h-4 w-4" />
             <AlertTitle>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:expenses_launcher.error_loading_stats',
@@ -1306,7 +1306,7 @@ const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
               {error}
               <div className="mt-2">
                 <Button size="sm" variant="outline" onClick={refetch}>
-                  <RemixIcons.RiRefreshLine className="h-4 w-4 mr-1" />
+                  <ArrowsClockwiseIcon size={16} className="h-4 w-4 mr-1" />
                   {getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.retry', 'Retry')}
                 </Button>
               </div>

@@ -1,13 +1,13 @@
 import React from 'react'
 import { Card, Row, Col, Statistic, Alert, Typography, Spin } from 'antd'
 import {
-  DollarOutlined,
-  ShoppingCartOutlined,
-  RiseOutlined,
-  BarChartOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined
-} from '@ant-design/icons'
+  CurrencyDollarIcon,
+  ShoppingCartIcon,
+  TrendUpIcon,
+  ChartBarIcon,
+  ArrowUpIcon,
+  ArrowDownIcon
+} from '@phosphor-icons/react'
 import {
   LineChart,
   Line,
@@ -53,7 +53,7 @@ const SalesPerformanceOverviewTab: React.FC<SalesPerformanceOverviewTabProps> = 
   const getTrendDisplay = (trend: number) => {
     const isPositive = trend >= 0
     return {
-      icon: isPositive ? <ArrowUpOutlined /> : <ArrowDownOutlined />,
+      icon: isPositive ? <ArrowUpIcon size={16} /> : <ArrowDownIcon size={16} />,
       color: isPositive ? '#3f8600' : '#cf1322',
       text: `${Math.abs(trend)}%`
     }
@@ -135,7 +135,7 @@ const SalesPerformanceOverviewTab: React.FC<SalesPerformanceOverviewTabProps> = 
             <Statistic
               title="Average Order Value"
               value={kpiData.averageOrderValue.value}
-              prefix={<BarChartOutlined />}
+              prefix={<ChartBarIcon size={16} />}
               valueStyle={{ fontSize: '24px' }}
               formatter={value => formatCurrency(Number(value), kpiData.averageOrderValue.currency)}
             />
@@ -161,7 +161,7 @@ const SalesPerformanceOverviewTab: React.FC<SalesPerformanceOverviewTabProps> = 
             <Statistic
               title="Number of Orders"
               value={kpiData.numberOfOrders.value}
-              prefix={<ShoppingCartOutlined />}
+              prefix={<ShoppingCartIcon size={16} />}
               valueStyle={{ fontSize: '24px' }}
             />
             <div className="gba:mt-1">
@@ -186,7 +186,7 @@ const SalesPerformanceOverviewTab: React.FC<SalesPerformanceOverviewTabProps> = 
             <Statistic
               title="Growth vs Previous Period"
               value={kpiData.growthVsPrevious.value}
-              prefix={<RiseOutlined />}
+              prefix={<TrendUpIcon size={16} />}
               suffix="%"
               valueStyle={{
                 fontSize: '24px',
