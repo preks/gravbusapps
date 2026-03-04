@@ -24,7 +24,7 @@ const getCardPresentation = (key: string) => {
     case 'avg_tool_calls':
       return { icon: WrenchIcon, variant: 'secondary' as const, formatter: formatOneDecimal, unitLabel: 'calls' }
     default:
-      return { icon: ActivityIcon, variant: 'secondary' as const, formatter: (v: number) => String(v), unitLabel: null }
+      return { icon: ActivityIcon, variant: 'secondary' as const, formatter: String, unitLabel: null }
   }
 }
 

@@ -10,19 +10,26 @@ const normalizeDashboardResponse = (raw: unknown): DashboardResponse => {
   const distributions = (obj['distributions'] ?? {}) as Record<string, unknown>
   const quantiles = (v: unknown) => {
     const q = (v ?? {}) as Record<string, unknown>
+    const p50Raw = q['p50']
+    const p95Raw = q['p95']
+    const p99Raw = q['p99']
     return {
-      p50: typeof q['p50'] === 'number' ? (q['p50'] as number) : null,
-      p95: typeof q['p95'] === 'number' ? (q['p95'] as number) : null,
-      p99: typeof q['p99'] === 'number' ? (q['p99'] as number) : null
+      p50: typeof p50Raw === 'number' ? p50Raw : null,
+      p95: typeof p95Raw === 'number' ? p95Raw : null,
+      p99: typeof p99Raw === 'number' ? p99Raw : null
     }
   }
 
+  const workflowRaw = obj['workflow']
+  const includeSplitViewRaw = obj['include_split_view']
+  const fromTsRaw = obj['from_ts']
+  const toTsRaw = obj['to_ts']
+
   return {
-    workflow: (typeof obj['workflow'] === 'string' ? (obj['workflow'] as string) : null) ?? null,
-    include_split_view:
-      typeof obj['include_split_view'] === 'boolean' ? (obj['include_split_view'] as boolean) : undefined,
-    from_ts: typeof obj['from_ts'] === 'string' ? (obj['from_ts'] as string) : '',
-    to_ts: typeof obj['to_ts'] === 'string' ? (obj['to_ts'] as string) : '',
+    workflow: typeof workflowRaw === 'string' ? workflowRaw : null,
+    include_split_view: typeof includeSplitViewRaw === 'boolean' ? includeSplitViewRaw : undefined,
+    from_ts: typeof fromTsRaw === 'string' ? fromTsRaw : '',
+    to_ts: typeof toTsRaw === 'string' ? toTsRaw : '',
     cards: asArray(obj['cards']),
     distributions: {
       total_ms: quantiles(distributions['total_ms']),

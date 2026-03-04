@@ -147,7 +147,7 @@ export function getRuntimeEnvsForIframe(): Record<string, string | undefined> {
   const windowEnvsRaw = globalThis.window?.[WINDOW_ENV_KEY] as unknown
   if (globalThis.window !== undefined && windowEnvsRaw !== undefined && typeof windowEnvsRaw === 'object') {
     const entries = Object.entries(windowEnvsRaw as Record<string, unknown>).filter(
-      ([key, value]) => key.startsWith('NEXT_PUBLIC_') && (typeof value === 'string' || typeof value === 'undefined')
+      ([key, value]) => key.startsWith('NEXT_PUBLIC_') && (typeof value === 'string' || value === undefined)
     )
     return Object.fromEntries(entries) as Record<string, string | undefined>
   }

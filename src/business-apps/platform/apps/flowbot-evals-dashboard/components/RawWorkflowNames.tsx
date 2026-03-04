@@ -48,7 +48,11 @@ export function RawWorkflowNames({
     })
 
     return Array.from(counts.entries())
-      .map(([display, { count, raw }]) => ({ display, rawNames: Array.from(raw).sort(), count }))
+      .map(([display, { count, raw }]) => ({
+        display,
+        rawNames: Array.from(raw).sort((a, b) => a.localeCompare(b)),
+        count
+      }))
       .sort((a, b) => b.count - a.count || a.display.localeCompare(b.display))
   }, [recentRuns, topCostRuns])
 

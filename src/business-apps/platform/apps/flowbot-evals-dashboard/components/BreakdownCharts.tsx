@@ -11,7 +11,7 @@ import {
   ChartLegendContent,
   type ChartConfig
 } from '@newwork/nw-design-system'
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { PieChart, Pie, Sector, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import type { BreakdownItem } from '../types'
 
 const CHART_COLORS = [
@@ -34,15 +34,23 @@ export function BreakdownCharts({
   'data-testid': testId = 'flowbot-evals-breakdowns'
 }: Readonly<BreakdownChartsProps>) {
   const errorData = useMemo(() => errorBreakdown.slice(0, 8), [errorBreakdown])
+  const errorChartData = useMemo(
+    () =>
+      errorData.map((item, i) => ({
+        ...item,
+        color: CHART_COLORS[i % CHART_COLORS.length]
+      })),
+    [errorData]
+  )
   const toolData = useMemo(() => toolBreakdown.slice(0, 10), [toolBreakdown])
 
   const errorConfig = useMemo<ChartConfig>(() => {
     const cfg: ChartConfig = {}
-    errorData.forEach((item, i) => {
-      cfg[item.key] = { label: item.key, color: CHART_COLORS[i % CHART_COLORS.length] }
+    errorChartData.forEach(item => {
+      cfg[item.key] = { label: item.key, color: (item as any).color }
     })
     return cfg
-  }, [errorData])
+  }, [errorChartData])
 
   const toolConfig = useMemo<ChartConfig>(
     () => ({
@@ -62,17 +70,14 @@ export function BreakdownCharts({
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent />} />
               <Pie
-                data={errorData as any[]}
+                data={errorChartData as any[]}
                 dataKey="count"
                 nameKey="key"
                 innerRadius={60}
                 outerRadius={100}
                 paddingAngle={2}
-              >
-                {(errorData as any[]).map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-              </Pie>
+                shape={(props: any) => <Sector {...props} fill={props?.payload?.color} />}
+              />
               <ChartLegend content={<ChartLegendContent nameKey="key" />} />
             </PieChart>
           </ChartContainer>
