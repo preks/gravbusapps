@@ -88,8 +88,18 @@ export const BoardKanbanView: React.FC<BoardKanbanViewProps> = ({
 
   useEffect(() => {
     if (!highlightedRowId || !highlightedCardRef.current) return
-    highlightedCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [highlightedRowId])
+    const card = highlightedCardRef.current
+    const container = scrollParent ?? (card.closest('[class*="overflow-auto"]') as HTMLElement)
+    if (container) {
+      const cardRect = card.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      const offset = cardRect.top - containerRect.top + container.scrollTop
+      container.scrollTo({
+        top: Math.max(0, offset - containerRect.height / 2 + cardRect.height / 2),
+        behavior: 'smooth'
+      })
+    }
+  }, [highlightedRowId, scrollParent])
 
   const statusCol = useMemo(() => {
     const configured = columns.find(c => c.name === viewConfig.statusColumn || c.id === viewConfig.statusColumn)

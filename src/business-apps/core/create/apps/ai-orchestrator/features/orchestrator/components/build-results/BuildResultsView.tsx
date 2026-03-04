@@ -67,7 +67,7 @@ const COMPONENT_TYPE_META: Record<
     icon: Monitor,
     label: 'Screen',
     color: 'gba:text-violet-600',
-    route: (id: string) => `/platform/ai-builder?screenId=${id}`
+    route: (id: string) => `/platform/create/screen-builder?screenId=${id}`
   },
   agent: {
     icon: Bot,

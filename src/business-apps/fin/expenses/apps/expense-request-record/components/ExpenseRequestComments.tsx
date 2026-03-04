@@ -3,7 +3,7 @@ import { Typography } from 'antd'
 import { Card, CardHeader, CardTitle, CardContent, Avatar, AvatarImage, Separator } from '@newwork/nw-design-system'
 import { ExpenseRequestComment } from '../types/expenseRequestRecord.types'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import { UserOutlined, CommentOutlined } from '@ant-design/icons'
+import { UserIcon, ChatsCircleIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 
 interface ExpenseRequestCommentsProps {
@@ -41,7 +41,7 @@ const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comment
       <CardContent>
         {sortedComments.length === 0 ? (
           <div className="gba:text-center gba:py-8">
-            <CommentOutlined className="gba:text-4xl gba:text-gray-300" />
+            <ChatsCircleIcon size={32} className="gba:text-4xl gba:text-gray-300" />
             <Paragraph className="gba:mt-2 gba:text-gray-500">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:expense_request_overview.expense_history.expense_history_table.description',
@@ -56,14 +56,14 @@ const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comment
                 <div className="gba:flex gba:items-start gba:gap-4">
                   <Avatar>
                     {comment.commentType === 'SYSTEM_COMMENT' ? (
-                      <UserOutlined />
+                      <UserIcon size={16} />
                     ) : comment.authorEmployee?.pictureThumbnail ? (
                       <AvatarImage
                         src={getAvatarSrc(comment.authorEmployee.pictureThumbnail)}
                         alt={comment.authorEmployee.fullName || 'User'}
                       />
                     ) : (
-                      <UserOutlined />
+                      <UserIcon size={16} />
                     )}
                   </Avatar>
                   <div className="gba:flex-1">

@@ -69,7 +69,8 @@ import {
   ChevronLeft,
   FileType,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  ExternalLink
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -87,6 +88,7 @@ import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
 import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
+import { ExternalDocumentImportSheet } from './components/external-import'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -199,6 +201,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
+  const [importSheetOpen, setImportSheetOpen] = useState(false)
   const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
   const [createWithAiDialogOpen, setCreateWithAiDialogOpen] = useState(false)
   const [createWithAiTitle, setCreateWithAiTitle] = useState('Untitled Document')
@@ -799,6 +802,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   </div>
                 </div>
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setImportSheetOpen(true)}
+                data-testid="document-apps-hub-new-import-external"
+              >
+                <Database className="gba:w-4 gba:h-4 gba:mr-2 gba:text-teal-500" />
+                <div>
+                  <div className="gba:font-medium">Import external documents</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Confluence, SharePoint, Drive, S3</div>
+                </div>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1365,9 +1379,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           {/* Name & Icon */}
                           <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
                             <div
-                              className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${doc.isPdf ? 'gba:bg-red-500/10' : 'gba:bg-blue-500/10'}`}
+                              className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${
+                                doc.settings?.external
+                                  ? 'gba:bg-info-secondary'
+                                  : doc.isPdf
+                                    ? 'gba:bg-red-500/10'
+                                    : 'gba:bg-blue-500/10'
+                              }`}
                             >
-                              {doc.isPdf ? (
+                              {doc.settings?.external ? (
+                                <ExternalLink className="gba:w-5 gba:h-5 gba:text-info" />
+                              ) : doc.isPdf ? (
                                 <FileType className="gba:w-5 gba:h-5 gba:text-red-600" />
                               ) : (
                                 <FileText className="gba:w-5 gba:h-5 gba:text-blue-600" />
@@ -1394,6 +1416,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                 {doc.isShared && !isOwner && (
                                   <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
                                     {t('status-shared')}
+                                  </Badge>
+                                )}
+                                {doc.settings?.external && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:gap-0.5"
+                                  >
+                                    <ExternalLink className="gba:w-2.5 gba:h-2.5" />
+                                    {doc.settings.external.connectorName}
                                   </Badge>
                                 )}
                                 {isOwner && sharedWith.length > 0 && (
@@ -1551,9 +1582,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                       >
                         {/* Preview area */}
                         <div
-                          className={`gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:flex gba:items-center gba:justify-center gba:rounded-t-lg ${doc.isPdf ? 'gba:from-red-500/10 gba:to-red-600/10' : 'gba:from-blue-500/10 gba:to-indigo-500/10'}`}
+                          className={`gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:flex gba:items-center gba:justify-center gba:rounded-t-lg ${
+                            doc.settings?.external
+                              ? 'gba:from-info-secondary gba:to-info-secondary'
+                              : doc.isPdf
+                                ? 'gba:from-red-500/10 gba:to-red-600/10'
+                                : 'gba:from-blue-500/10 gba:to-indigo-500/10'
+                          }`}
                         >
-                          {doc.isPdf ? (
+                          {doc.settings?.external ? (
+                            <ExternalLink className="gba:w-16 gba:h-16 gba:text-info/50" />
+                          ) : doc.isPdf ? (
                             <FileType className="gba:w-16 gba:h-16 gba:text-red-500/50" />
                           ) : (
                             <FileText className="gba:w-16 gba:h-16 gba:text-blue-500/50" />
@@ -1594,6 +1633,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                             <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                               <Users className="gba:w-3 gba:h-3 gba:mr-1" />
                               {t('status-shared')}
+                            </Badge>
+                          )}
+
+                          {/* External source badge */}
+                          {doc.settings?.external && (
+                            <Badge
+                              variant="secondary"
+                              className="gba:absolute gba:bottom-2 gba:right-2 gba:text-[10px] gba:gap-0.5"
+                            >
+                              <ExternalLink className="gba:w-2.5 gba:h-2.5" />
+                              {doc.settings.external.connectorName}
                             </Badge>
                           )}
                         </div>
@@ -1766,6 +1816,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* External Document Import Sheet */}
+      <ExternalDocumentImportSheet
+        open={importSheetOpen}
+        onOpenChange={setImportSheetOpen}
+        accessToken={accessToken}
+        onAfterImport={() => refreshDocuments()}
+        data-testid={`${testId}-import-external`}
+      />
     </div>
   )
 }

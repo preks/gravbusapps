@@ -2,13 +2,13 @@
 import React, { useState } from 'react'
 import { Button, Card, Input, Alert, Typography, Space, Row, Col, Tag, Collapse, Select } from 'antd'
 import {
-  PlayCircleOutlined,
-  SearchOutlined,
-  DatabaseOutlined,
-  ReloadOutlined,
-  BugOutlined,
-  FileTextOutlined
-} from '@ant-design/icons'
+  PlayCircleIcon,
+  MagnifyingGlassIcon,
+  DatabaseIcon,
+  ArrowsClockwiseIcon,
+  BugIcon,
+  FileTextIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   buildContentEntriesQuery,
@@ -242,7 +242,7 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
       {/* Header */}
       <div>
         <Title level={2}>
-          <BugOutlined /> Content Data Foundation Debug
+          <BugIcon size={20} /> Content Data Foundation Debug
         </Title>
         <Paragraph>
           Validate the content data foundation queries (entries, documents, reactions) with real data from GraphQL
@@ -262,7 +262,7 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
       <Card
         title={
           <>
-            <DatabaseOutlined /> Test Controls
+            <DatabaseIcon size={20} /> Test Controls
           </>
         }
         data-testid="content-debug-controls-card"
@@ -277,7 +277,7 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
                 placeholder="Enter search term..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                prefix={<SearchOutlined />}
+                prefix={<MagnifyingGlassIcon size={16} />}
               />
               <Text strong>Content Entry ID:</Text>
               <Input
@@ -285,7 +285,7 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
                 placeholder="Content Entry ID"
                 value={contentEntryId}
                 onChange={e => setContentEntryId(e.target.value)}
-                prefix={<FileTextOutlined />}
+                prefix={<FileTextIcon size={16} />}
               />
             </Space>
           </Col>
@@ -329,14 +329,14 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
                     data-testid="content-debug-run-all-button"
                     type="primary"
                     onClick={runAllTests}
-                    icon={<PlayCircleOutlined />}
+                    icon={<PlayCircleIcon size={16} />}
                   >
                     Run All Tests
                   </Button>
                   <Button
                     data-testid="content-debug-clear-results-button"
                     onClick={clearResults}
-                    icon={<ReloadOutlined />}
+                    icon={<ArrowsClockwiseIcon size={16} />}
                   >
                     Clear Results
                   </Button>
@@ -357,7 +357,7 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
                   data-testid={`content-debug-${t.key}-button`}
                   onClick={t.run}
                   loading={testResults[t.key]?.status === 'loading'}
-                  icon={<PlayCircleOutlined />}
+                  icon={<PlayCircleIcon size={16} />}
                   block
                 >
                   {t.label}

@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react'
-import { FileTextOutlined, DollarOutlined, CalendarOutlined, BankOutlined } from '@ant-design/icons'
+import { FileTextIcon, CurrencyDollarIcon, CalendarIcon, BankIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetAdvancePaymentStatistics } from '../../../hooks/useGetAdvancePaymentStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -141,7 +141,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: statistics.currentMonthPayments || 0,
-        prefix: <FileTextOutlined />,
+        prefix: <FileTextIcon size={16} />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -159,7 +159,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), selectedCurrencyRef?.split(':').pop() || 'EUR')}`,
-        prefix: <DollarOutlined />,
+        prefix: <CurrencyDollarIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -175,7 +175,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         key: 'pending-payments',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payments', 'Pending Payments'),
         value: statistics.pendingPayments || 0,
-        prefix: <CalendarOutlined />,
+        prefix: <CalendarIcon size={16} />,
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 6 },
         footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_approval', 'Awaiting approval'),
@@ -187,7 +187,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         key: 'approved-payments',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.approved_payments', 'Approved Payments'),
         value: statistics.approvedPayments || 0,
-        prefix: <BankOutlined />,
+        prefix: <BankIcon size={16} />,
         color: '#52c41a',
         span: { xs: 24, sm: 12, md: 6 },
         footer: getTranslationFromI18nKeyAndLabel(

@@ -147,7 +147,7 @@ export const GeneratedCodeViewer: React.FC<GeneratedCodeViewerProps> = ({
     if (jobId) params.set('jobId', jobId)
     if (createdId) params.set('createdId', createdId)
 
-    navigateTo(buildPlatformUrl(`/platform/ai-builder?${params.toString()}`))
+    navigateTo(buildPlatformUrl(`/platform/create/screen-builder?${params.toString()}`))
   }
 
   if (loading) {
@@ -198,7 +198,7 @@ export const GeneratedCodeViewer: React.FC<GeneratedCodeViewerProps> = ({
         </div>
         <Button variant="outline" size="sm" onClick={handleOpenInAIBuilder}>
           <ExternalLink className="gba:w-4 gba:h-4 gba:mr-2" />
-          Open in AI Builder
+          Open in Screen Builder
         </Button>
       </div>
 
