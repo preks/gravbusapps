@@ -123,10 +123,7 @@ function toBorderStyle(s: number | undefined): ExcelJS.BorderStyle | undefined {
   return map[s]
 }
 
-function applyStyle(cell: ExcelJS.Cell, style: UniverStyle | undefined): void {
-  if (!style) return
-
-  // Font
+function buildFont(style: UniverStyle): ExcelJS.Font | undefined {
   const font: Partial<ExcelJS.Font> = {}
   if (style.bl) font.bold = true
   if (style.it) font.italic = true
@@ -136,9 +133,48 @@ function applyStyle(cell: ExcelJS.Cell, style: UniverStyle | undefined): void {
   if (style.ff) font.name = style.ff
   const fgColor = toArgb(style.cl?.rgb)
   if (fgColor) font.color = { argb: fgColor }
-  if (Object.keys(font).length) cell.font = font as ExcelJS.Font
+  return Object.keys(font).length ? (font as ExcelJS.Font) : undefined
+}
 
-  // Fill
+function buildAlignment(style: UniverStyle): ExcelJS.Alignment | undefined {
+  const alignment: Partial<ExcelJS.Alignment> = {}
+  if (style.ht !== undefined) alignment.horizontal = H_ALIGN[style.ht]
+  if (style.vt !== undefined) alignment.vertical = V_ALIGN[style.vt]
+  if (style.tb === 2) alignment.wrapText = true
+  return Object.keys(alignment).length ? (alignment as ExcelJS.Alignment) : undefined
+}
+
+function buildBorderSide(side: UniverBorderSide | undefined): ExcelJS.Border | undefined {
+  if (!side) return undefined
+  const borderStyle = toBorderStyle(side.s)
+  if (!borderStyle) return undefined
+
+  const borderDef: Partial<ExcelJS.Border> = { style: borderStyle }
+  const borderColor = toArgb(side.cl?.rgb)
+  if (borderColor) borderDef.color = { argb: borderColor }
+  return borderDef as ExcelJS.Border
+}
+
+function buildBorders(style: UniverStyle): ExcelJS.Borders | undefined {
+  if (!style.bd) return undefined
+  const border: Partial<ExcelJS.Borders> = {}
+  const top = buildBorderSide(style.bd.t)
+  if (top) border.top = top
+  const bottom = buildBorderSide(style.bd.b)
+  if (bottom) border.bottom = bottom
+  const left = buildBorderSide(style.bd.l)
+  if (left) border.left = left
+  const right = buildBorderSide(style.bd.r)
+  if (right) border.right = right
+  return Object.keys(border).length ? (border as ExcelJS.Borders) : undefined
+}
+
+function applyStyle(cell: ExcelJS.Cell, style: UniverStyle | undefined): void {
+  if (!style) return
+
+  const font = buildFont(style)
+  if (font) cell.font = font
+
   const bgArgb = toArgb(style.bg?.rgb)
   if (bgArgb) {
     cell.fill = {
@@ -148,37 +184,83 @@ function applyStyle(cell: ExcelJS.Cell, style: UniverStyle | undefined): void {
     }
   }
 
-  // Alignment
-  const alignment: Partial<ExcelJS.Alignment> = {}
-  if (style.ht !== undefined) alignment.horizontal = H_ALIGN[style.ht]
-  if (style.vt !== undefined) alignment.vertical = V_ALIGN[style.vt]
-  if (style.tb === 2) alignment.wrapText = true
-  if (Object.keys(alignment).length) cell.alignment = alignment as ExcelJS.Alignment
+  const alignment = buildAlignment(style)
+  if (alignment) cell.alignment = alignment
 
-  // Number format
   if (style.n?.pattern) cell.numFmt = style.n.pattern
 
-  // Borders
-  if (style.bd) {
-    const makeSide = (side: UniverBorderSide | undefined): Partial<ExcelJS.Border> | undefined => {
-      if (!side) return undefined
-      const bs = toBorderStyle(side.s)
-      if (!bs) return undefined
-      const borderDef: Partial<ExcelJS.Border> = { style: bs }
-      const bc = toArgb(side.cl?.rgb)
-      if (bc) borderDef.color = { argb: bc }
-      return borderDef
+  const borders = buildBorders(style)
+  if (borders) cell.border = borders
+}
+
+function applyColumnMetadata(ws: ExcelJS.Worksheet, columnData: UniverWorksheet['columnData']): void {
+  if (!columnData) return
+  for (const [colIdxStr, colMeta] of Object.entries(columnData)) {
+    const colIdx = Number(colIdxStr) + 1
+    if (typeof colMeta.w === 'number' && colMeta.w > 0) ws.getColumn(colIdx).width = Math.max(colMeta.w / 7, 4)
+    if (colMeta.hd) ws.getColumn(colIdx).hidden = true
+  }
+}
+
+function applyRowMetadata(ws: ExcelJS.Worksheet, rowData: UniverWorksheet['rowData']): void {
+  if (!rowData) return
+  for (const [rowIdxStr, rowMeta] of Object.entries(rowData)) {
+    const rowIdx = Number(rowIdxStr) + 1
+    if (typeof rowMeta.h === 'number' && rowMeta.h > 0) ws.getRow(rowIdx).height = rowMeta.h
+    if (rowMeta.hd) ws.getRow(rowIdx).hidden = true
+  }
+}
+
+function toExcelCellValue(univerCell: UniverCell): ExcelJS.CellValue | undefined {
+  if (univerCell.f) {
+    const result = univerCell.v ?? ''
+    return {
+      formula: univerCell.f.startsWith('=') ? univerCell.f.slice(1) : univerCell.f,
+      result: typeof result === 'number' ? result : String(result)
     }
-    const border: Partial<ExcelJS.Borders> = {}
-    const t = makeSide(style.bd.t)
-    if (t) border.top = t as ExcelJS.Border
-    const b = makeSide(style.bd.b)
-    if (b) border.bottom = b as ExcelJS.Border
-    const l = makeSide(style.bd.l)
-    if (l) border.left = l as ExcelJS.Border
-    const r = makeSide(style.bd.r)
-    if (r) border.right = r as ExcelJS.Border
-    if (Object.keys(border).length) cell.border = border as ExcelJS.Borders
+  }
+  if (univerCell.v !== undefined && univerCell.v !== null) return univerCell.v
+  return undefined
+}
+
+function resolveCellStyle(univerCell: UniverCell, globalStyles: Record<string, UniverStyle>): UniverStyle | undefined {
+  if (typeof univerCell.s === 'string') return globalStyles[univerCell.s]
+  if (univerCell.s && typeof univerCell.s === 'object') return univerCell.s as UniverStyle
+  return undefined
+}
+
+function applyCellDataToWorksheet(
+  ws: ExcelJS.Worksheet,
+  cellData: UniverWorksheet['cellData'],
+  globalStyles: Record<string, UniverStyle>
+): void {
+  const safeCellData = cellData ?? {}
+  for (const [rowIdxStr, rowCells] of Object.entries(safeCellData)) {
+    const rowIdx = Number(rowIdxStr) + 1
+    if (Number.isNaN(rowIdx) || !rowCells) continue
+
+    for (const [colIdxStr, univerCell] of Object.entries(rowCells)) {
+      const colIdx = Number(colIdxStr) + 1
+      if (Number.isNaN(colIdx) || !univerCell) continue
+
+      const cell = ws.getCell(rowIdx, colIdx)
+      const value = toExcelCellValue(univerCell)
+      if (value !== undefined) cell.value = value
+
+      const style = resolveCellStyle(univerCell, globalStyles)
+      applyStyle(cell, style)
+    }
+  }
+}
+
+function applyMerges(ws: ExcelJS.Worksheet, mergeData: UniverWorksheet['mergeData']): void {
+  if (!Array.isArray(mergeData)) return
+  for (const merge of mergeData) {
+    try {
+      ws.mergeCells(merge.startRow + 1, merge.startColumn + 1, merge.endRow + 1, merge.endColumn + 1)
+    } catch {
+      // ignore overlapping / invalid merge ranges
+    }
   }
 }
 
@@ -208,80 +290,10 @@ export async function snapshotToXlsxBlob(snapshot: Record<string, unknown>, file
 
     const ws = workbook.addWorksheet(sheetData.name ?? filename)
 
-    // ── Column widths ────────────────────────────────────────────────────────
-    if (sheetData.columnData) {
-      for (const [colIdxStr, colMeta] of Object.entries(sheetData.columnData)) {
-        const colIdx = Number(colIdxStr) + 1 // ExcelJS is 1-based
-        if (typeof colMeta.w === 'number' && colMeta.w > 0) {
-          // Univer stores width in pixels. ExcelJS uses character units (~7px per char).
-          ws.getColumn(colIdx).width = Math.max(colMeta.w / 7, 4)
-        }
-        if (colMeta.hd) {
-          ws.getColumn(colIdx).hidden = true
-        }
-      }
-    }
-
-    // ── Row heights ──────────────────────────────────────────────────────────
-    if (sheetData.rowData) {
-      for (const [rowIdxStr, rowMeta] of Object.entries(sheetData.rowData)) {
-        const rowIdx = Number(rowIdxStr) + 1
-        if (typeof rowMeta.h === 'number' && rowMeta.h > 0) {
-          // Univer and ExcelJS both use pixel-like units for row height
-          ws.getRow(rowIdx).height = rowMeta.h
-        }
-        if (rowMeta.hd) {
-          ws.getRow(rowIdx).hidden = true
-        }
-      }
-    }
-
-    // ── Cell data & styles ───────────────────────────────────────────────────
-    const cellData = sheetData.cellData ?? {}
-
-    for (const [rowIdxStr, rowCells] of Object.entries(cellData)) {
-      const rowIdx = Number(rowIdxStr) + 1 // 1-based for ExcelJS
-      if (Number.isNaN(rowIdx) || !rowCells) continue
-
-      for (const [colIdxStr, univerCell] of Object.entries(rowCells)) {
-        const colIdx = Number(colIdxStr) + 1
-        if (Number.isNaN(colIdx) || !univerCell) continue
-
-        const cell = ws.getCell(rowIdx, colIdx)
-
-        // Value / formula
-        if (univerCell.f) {
-          // formula – ExcelJS wants the result too for display without recalc
-          const result = univerCell.v ?? ''
-          cell.value = {
-            formula: univerCell.f.startsWith('=') ? univerCell.f.slice(1) : univerCell.f,
-            result: typeof result === 'number' ? result : String(result)
-          }
-        } else if (univerCell.v !== undefined && univerCell.v !== null) {
-          cell.value = univerCell.v
-        }
-
-        // Resolve style
-        let style: UniverStyle | undefined
-        if (typeof univerCell.s === 'string') {
-          style = globalStyles[univerCell.s] as UniverStyle | undefined
-        } else if (univerCell.s && typeof univerCell.s === 'object') {
-          style = univerCell.s as UniverStyle
-        }
-        applyStyle(cell, style)
-      }
-    }
-
-    // ── Merged cells ─────────────────────────────────────────────────────────
-    if (Array.isArray(sheetData.mergeData)) {
-      for (const merge of sheetData.mergeData) {
-        try {
-          ws.mergeCells(merge.startRow + 1, merge.startColumn + 1, merge.endRow + 1, merge.endColumn + 1)
-        } catch {
-          // ignore overlapping / invalid merge ranges
-        }
-      }
-    }
+    applyColumnMetadata(ws, sheetData.columnData)
+    applyRowMetadata(ws, sheetData.rowData)
+    applyCellDataToWorksheet(ws, sheetData.cellData, globalStyles)
+    applyMerges(ws, sheetData.mergeData)
   }
 
   const buffer = await workbook.xlsx.writeBuffer()

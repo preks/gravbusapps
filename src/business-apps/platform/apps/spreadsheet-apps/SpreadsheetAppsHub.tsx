@@ -113,6 +113,21 @@ type HubView = 'list' | 'upload' | 'analysis' | 'viewer' | 'editor'
 type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'tasks' | 'trash'
 type UploadMode = 'simple' | 'create-app'
 
+const resolveCurrentUserId = (userInfo?: SpreadsheetAppsHubProps['userInfo']): string =>
+  userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+const filterTaskDisplayedApps = (
+  activeSection: SidebarSection,
+  taskStatusFilter: 'pending' | 'completed',
+  filteredApps: SpreadsheetAppSummary[]
+): SpreadsheetAppSummary[] => {
+  if (activeSection !== 'tasks') return filteredApps
+  if (taskStatusFilter === 'pending') {
+    return filteredApps.filter(app => !isSubmittedExcelCollectionCopy(app))
+  }
+  return filteredApps.filter(app => isSubmittedExcelCollectionCopy(app))
+}
+
 /** Get initials from a name */
 function getInitials(name: string): string {
   return name
@@ -244,7 +259,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [appToPromote, setAppToPromote] = useState<SpreadsheetApp | null>(null)
 
   // Get current user ID
-  const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+  const currentUserId = resolveCurrentUserId(userInfo)
 
   // Ensure SpreadsheetApiService can authenticate in published screens (token might not be in localStorage)
   useEffect(() => {
@@ -359,11 +374,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [activeSection, filteredApps]
   )
 
-  const taskDisplayedApps = useMemo(() => {
-    if (activeSection !== 'tasks') return filteredApps
-    if (taskStatusFilter === 'pending') return filteredApps.filter(app => !isSubmittedExcelCollectionCopy(app))
-    return filteredApps.filter(app => isSubmittedExcelCollectionCopy(app))
-  }, [activeSection, filteredApps, taskStatusFilter])
+  const taskDisplayedApps = useMemo(
+    () => filterTaskDisplayedApps(activeSection, taskStatusFilter, filteredApps),
+    [activeSection, filteredApps, taskStatusFilter]
+  )
 
   const {
     paginatedItems: paginatedApps,

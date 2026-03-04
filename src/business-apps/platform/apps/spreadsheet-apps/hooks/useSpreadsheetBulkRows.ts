@@ -153,6 +153,39 @@ function mergeColumns(existingColumns: SpreadsheetColumn[], newColumns: Spreadsh
   }))
 }
 
+function buildColumnLookupMap(columns: SpreadsheetColumn[]): Map<string, SpreadsheetColumn> {
+  const columnMap = new Map<string, SpreadsheetColumn>()
+  columns.forEach(col => {
+    columnMap.set(col.id, col)
+    columnMap.set(col.name, col)
+  })
+  return columnMap
+}
+
+function mapCellsToColumnNames(
+  cells: Record<string, unknown>,
+  columnMap: Map<string, SpreadsheetColumn>
+): Record<string, unknown> {
+  const mappedCells: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(cells)) {
+    const column = columnMap.get(key)
+    mappedCells[column ? column.name : key] = value
+  }
+  return mappedCells
+}
+
+function createTrackingHeaderRow(updatedColumns: SpreadsheetColumn[]): Record<string, unknown> {
+  return updatedColumns.reduce<Record<string, unknown>>(
+    (acc, col) => {
+      if (isTrackingColumn(col.name) || isTrackingColumn(col.id)) {
+        acc[col.name] = col.label || col.name
+      }
+      return acc
+    },
+    { _id: `tmp_header_${crypto.randomUUID()}`, _isTrackingHeader: true }
+  )
+}
+
 export function useSpreadsheetBulkRows({
   app,
   activeSheet,
@@ -184,12 +217,7 @@ export function useSpreadsheetBulkRows({
       const newColumns = createColumnsForFields(newFieldNames)
       const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
 
-      // Build column lookup map
-      const columnMap = new Map<string, SpreadsheetColumn>()
-      updatedColumns.forEach(col => {
-        columnMap.set(col.id, col)
-        columnMap.set(col.name, col)
-      })
+      const columnMap = buildColumnLookupMap(updatedColumns)
 
       // Build new rows
       const newRows = rows.map(rowData => {
@@ -200,14 +228,7 @@ export function useSpreadsheetBulkRows({
           ...rowData.metadata
         }
 
-        for (const [key, value] of Object.entries(rowData.cells)) {
-          const column = columnMap.get(key)
-          if (column) {
-            newRow[column.name] = value
-          } else {
-            newRow[key] = value
-          }
-        }
+        Object.assign(newRow, mapCellsToColumnNames(rowData.cells, columnMap))
 
         return newRow
       })
@@ -219,16 +240,7 @@ export function useSpreadsheetBulkRows({
       const shouldInsertHeaderRow = hasTrackingColumns && !hasHeaderRowAlready
 
       const headerRow: Record<string, unknown> | null = shouldInsertHeaderRow
-        ? updatedColumns.reduce<Record<string, unknown>>(
-            (acc, col) => {
-              // Keep this row clearly non-workflow so completion updates never match it.
-              if (isTrackingColumn(col.name) || isTrackingColumn(col.id)) {
-                acc[col.name] = col.label || col.name
-              }
-              return acc
-            },
-            { _id: `tmp_header_${crypto.randomUUID()}`, _isTrackingHeader: true }
-          )
+        ? createTrackingHeaderRow(updatedColumns)
         : null
 
       // Update local data
@@ -334,12 +346,7 @@ export function useSpreadsheetBulkRows({
       const newColumns = createColumnsForFields(newFieldNames)
       const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
 
-      // Build column lookup map
-      const columnMap = new Map<string, SpreadsheetColumn>()
-      updatedColumns.forEach(col => {
-        columnMap.set(col.id, col)
-        columnMap.set(col.name, col)
-      })
+      const columnMap = buildColumnLookupMap(updatedColumns)
 
       // Completed updates: add new row only if no existing Completed row matches (workflowId or recipientId).
       // When polling re-sends the same Completed response, we UPDATE the existing Completed row instead of adding another.
@@ -406,25 +413,12 @@ export function useSpreadsheetBulkRows({
         const recipientId = row.recipientId as string | undefined
         const status = String((row._workflow_status as string) ?? '').toLowerCase()
 
-        const mapCellsToColumnNames = (cells: Record<string, unknown>): Record<string, unknown> => {
-          const mappedCells: Record<string, unknown> = {}
-          for (const [key, value] of Object.entries(cells)) {
-            const column = columnMap.get(key)
-            if (column) {
-              mappedCells[column.name] = value
-            } else {
-              mappedCells[key] = value
-            }
-          }
-          return mappedCells
-        }
-
         // 1. Non-Completed: match by workflowId
         if (workflowId && updateByWorkflowId.has(workflowId)) {
           matchCount++
           const update = updateByWorkflowId.get(workflowId)!
           matchedUpdateIds.add(update.workflowId)
-          return { ...row, ...mapCellsToColumnNames(update.cells), _updatedAt: new Date().toISOString() }
+          return { ...row, ...mapCellsToColumnNames(update.cells, columnMap), _updatedAt: new Date().toISOString() }
         }
 
         // 2. Non-Completed: match by recipientId (best row per recipient)
@@ -440,7 +434,7 @@ export function useSpreadsheetBulkRows({
           matchedUpdateIds.add(update.workflowId)
           return {
             ...row,
-            ...mapCellsToColumnNames(update.cells),
+            ...mapCellsToColumnNames(update.cells, columnMap),
             _workflow_id: update.workflowId,
             _updatedAt: new Date().toISOString()
           }
@@ -454,7 +448,7 @@ export function useSpreadsheetBulkRows({
             const update = completedByWorkflowId.get(workflowId)!
             matchedCompletedWorkflowIds.add(workflowId)
             matchedUpdateIds.add(update.workflowId)
-            return { ...row, ...mapCellsToColumnNames(update.cells), _updatedAt: new Date().toISOString() }
+            return { ...row, ...mapCellsToColumnNames(update.cells, columnMap), _updatedAt: new Date().toISOString() }
           }
         }
 
@@ -473,7 +467,7 @@ export function useSpreadsheetBulkRows({
             matchedUpdateIds.add(update.workflowId)
             return {
               ...row,
-              ...mapCellsToColumnNames(update.cells),
+              ...mapCellsToColumnNames(update.cells, columnMap),
               _workflow_id: update.workflowId,
               _updatedAt: new Date().toISOString()
             }
@@ -532,15 +526,7 @@ export function useSpreadsheetBulkRows({
       const hasHeaderRowAlready = localSheetDataRef.current.some(row => row._isTrackingHeader === true)
       const shouldInsertHeaderRow = hasTrackingColumns && !hasHeaderRowAlready
       if (shouldInsertHeaderRow) {
-        const headerRow = updatedColumns.reduce<Record<string, unknown>>(
-          (acc, col) => {
-            if (isTrackingColumn(col.name) || isTrackingColumn(col.id)) {
-              acc[col.name] = col.label || col.name
-            }
-            return acc
-          },
-          { _id: `tmp_header_${crypto.randomUUID()}`, _isTrackingHeader: true }
-        )
+        const headerRow = createTrackingHeaderRow(updatedColumns)
         // Put headers first so they are immediately visible without scrolling.
         addedRows = [headerRow, ...addedRows]
       }
@@ -584,15 +570,7 @@ export function useSpreadsheetBulkRows({
             const rowId = String(updatedRow._id ?? updatedRow.id ?? '')
             if (rowId) {
               // Map the cells to column names for persistence
-              const mappedCells: Record<string, unknown> = {}
-              for (const [key, value] of Object.entries(update.cells)) {
-                const column = columnMap.get(key)
-                if (column) {
-                  mappedCells[column.name] = value
-                } else {
-                  mappedCells[key] = value
-                }
-              }
+              const mappedCells = mapCellsToColumnNames(update.cells, columnMap)
 
               // Try to update the row, but if it fails (returns null), fall back to adding the row
               onRowUpdate(app.id, activeSheet.id, rowId, mappedCells)

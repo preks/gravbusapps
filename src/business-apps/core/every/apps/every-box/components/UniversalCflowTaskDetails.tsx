@@ -620,24 +620,20 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     setIsCompleting(true)
     try {
-      switch (action) {
-        case 'claim':
-          await handleClaimTask()
-          break
-        case 'complete':
-          await handleCompleteTask()
-          break
-        case 'reject':
-          await handleRejectTask(data)
-          break
-        case 'reassign':
+      const actionHandlers: Record<string, () => Promise<void>> = {
+        claim: handleClaimTask,
+        complete: handleCompleteTask,
+        reject: () => handleRejectTask(data),
+        reassign: async () => {
           toast.info(t('task-details-reassign-coming'))
-          break
-        case 'unclaim':
-          await handleUnclaimTask()
-          break
-        default:
-          toast.warning(t('task-details-unknown-action', { action }))
+        },
+        unclaim: handleUnclaimTask
+      }
+      const handler = actionHandlers[action]
+      if (!handler) {
+        toast.warning(t('task-details-unknown-action', { action }))
+      } else {
+        await handler()
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('task-details-action-failed', { action })

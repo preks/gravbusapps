@@ -52,64 +52,102 @@ export function isFormula(value: unknown): boolean {
  * Evaluate an expression (recursive)
  */
 function evaluateExpression(expr: string, context: FormulaContext): unknown {
-  // Remove whitespace
-  expr = expr.trim()
-
-  if (!expr) {
+  const normalizedExpr = expr.trim()
+  if (!normalizedExpr) {
     return null
   }
 
-  // Handle quoted string literals (e.g. "APAC")
+  const literalValue = getQuotedLiteral(normalizedExpr)
+  if (literalValue !== null) {
+    return literalValue
+  }
+
+  const functionCall = parseFunctionCall(normalizedExpr)
+  if (functionCall) {
+    return evaluateFunction(functionCall.name, functionCall.args, context)
+  }
+
+  const cellReferenceValue = getCellReferenceValue(normalizedExpr, context)
+  if (cellReferenceValue.found) {
+    return cellReferenceValue.value
+  }
+
+  const columnReferenceValue = getCurrentRowColumnValue(normalizedExpr, context)
+  if (columnReferenceValue.found) {
+    return columnReferenceValue.value
+  }
+
+  return evaluateArithmetic(normalizedExpr, context)
+}
+
+function getQuotedLiteral(expr: string): string | null {
   const quotedLiteral = expr.match(/^"(.*)"$/)
-  if (quotedLiteral) {
-    return quotedLiteral[1]
-  }
+  return quotedLiteral ? quotedLiteral[1] : null
+}
 
-  // Handle function calls (e.g., SUM(A1:A10), IF(A1>0, B1, C1))
+function parseFunctionCall(expr: string): { name: string; args: string } | null {
   const functionMatch = expr.match(/^([A-Z]+)\s*\((.*)\)$/i)
-  if (functionMatch) {
-    const functionName = functionMatch[1].toUpperCase()
-    const args = functionMatch[2]
-    return evaluateFunction(functionName, args, context)
+  if (!functionMatch) return null
+  return {
+    name: functionMatch[1].toUpperCase(),
+    args: functionMatch[2]
   }
+}
 
-  // Handle single cell references directly (e.g., A1, B2, or column names)
+function getCellReferenceValue(
+  expr: string,
+  context: FormulaContext
+): {
+  found: boolean
+  value: unknown
+} {
   const cellRef = parseCellReference(expr, context)
-  if (cellRef) {
-    const { colIndex, rowIndex } = cellRef
-    if (rowIndex >= 0 && rowIndex < context.allRows.length && colIndex >= 0 && colIndex < context.columns.length) {
-      const row = context.allRows[rowIndex]
-      const col = context.columns[colIndex]
-      const colName = col.name
-
-      // Try multiple ways to get the value
-      let value = row[colName]
-      if (value === undefined) value = row[col.id]
-      if (value === undefined) {
-        const rowKeys = Object.keys(row)
-        const matchingKey = rowKeys.find(
-          key => key.toLowerCase() === colName.toLowerCase() || key.toLowerCase() === col.id.toLowerCase()
-        )
-        if (matchingKey) value = row[matchingKey]
-      }
-
-      // Return the value (even if undefined/null, let SUM handle it)
-      return value
-    }
-    return null
+  if (!cellRef) {
+    return { found: false, value: null }
   }
 
-  // Check if it's a column name reference (for current row)
+  const { colIndex, rowIndex } = cellRef
+  if (rowIndex < 0 || rowIndex >= context.allRows.length || colIndex < 0 || colIndex >= context.columns.length) {
+    return { found: true, value: null }
+  }
+
+  const row = context.allRows[rowIndex]
+  const col = context.columns[colIndex]
+  return { found: true, value: getRowValueByColumn(row, col.name, col.id) }
+}
+
+function getCurrentRowColumnValue(
+  expr: string,
+  context: FormulaContext
+): {
+  found: boolean
+  value: unknown
+} {
   const col = context.columns.find(
     c => c.name.toLowerCase() === expr.toLowerCase() || c.id.toLowerCase() === expr.toLowerCase()
   )
-  if (col) {
-    const value = context.row[col.name] ?? context.row[col.id]
-    return value
+  if (!col) {
+    return { found: false, value: null }
   }
 
-  // Handle arithmetic expressions
-  return evaluateArithmetic(expr, context)
+  return {
+    found: true,
+    value: context.row[col.name] ?? context.row[col.id]
+  }
+}
+
+function getRowValueByColumn(row: Record<string, unknown>, colName: string, colId: string): unknown {
+  let value = row[colName]
+  if (value === undefined) value = row[colId]
+  if (value !== undefined) return value
+
+  const rowKeys = Object.keys(row)
+  const matchingKey = rowKeys.find(key => {
+    const lowerKey = key.toLowerCase()
+    return lowerKey === colName.toLowerCase() || lowerKey === colId.toLowerCase()
+  })
+
+  return matchingKey ? row[matchingKey] : undefined
 }
 
 /**
@@ -670,45 +708,56 @@ function matchesCriteria(value: unknown, criteriaRaw: string, context: FormulaCo
   const operatorMatch = typeof parsedCriterion === 'string' ? parsedCriterion.match(/^(<=|>=|<>|=|<|>)(.*)$/) : null
 
   if (!operatorMatch) {
-    if (typeof parsedCriterion === 'number') return toNumber(value) === parsedCriterion
-    return (
-      String(value ?? '')
-        .trim()
-        .toLowerCase() ===
-      String(parsedCriterion ?? '')
-        .trim()
-        .toLowerCase()
-    )
+    return compareWithoutOperator(value, parsedCriterion)
   }
 
   const operator = operatorMatch[1]
   const operandRaw = operatorMatch[2].trim()
+  return compareWithOperator(value, operator, operandRaw)
+}
+
+function compareWithoutOperator(value: unknown, parsedCriterion: string | number): boolean {
+  if (typeof parsedCriterion === 'number') {
+    return toNumber(value) === parsedCriterion
+  }
+
+  return normalizedString(value) === normalizedString(parsedCriterion)
+}
+
+function compareWithOperator(value: unknown, operator: string, operandRaw: string): boolean {
   const operandMaybeNumber = Number(operandRaw)
   const operandIsNumber = operandRaw !== '' && Number.isFinite(operandMaybeNumber)
-  const leftNumber = toNumber(value)
 
   if (operator === '=') {
-    if (operandIsNumber) return leftNumber === operandMaybeNumber
-    return (
-      String(value ?? '')
-        .trim()
-        .toLowerCase() === operandRaw.toLowerCase()
-    )
+    return operandIsNumber
+      ? toNumber(value) === operandMaybeNumber
+      : normalizedString(value) === normalizedString(operandRaw)
   }
+
   if (operator === '<>') {
-    if (operandIsNumber) return leftNumber !== operandMaybeNumber
-    return (
-      String(value ?? '')
-        .trim()
-        .toLowerCase() !== operandRaw.toLowerCase()
-    )
+    return operandIsNumber
+      ? toNumber(value) !== operandMaybeNumber
+      : normalizedString(value) !== normalizedString(operandRaw)
   }
+
   if (!operandIsNumber) return false
-  if (operator === '>') return leftNumber > operandMaybeNumber
-  if (operator === '>=') return leftNumber >= operandMaybeNumber
-  if (operator === '<') return leftNumber < operandMaybeNumber
-  if (operator === '<=') return leftNumber <= operandMaybeNumber
-  return false
+
+  const leftNumber = toNumber(value)
+  const numericComparator: Record<string, (left: number, right: number) => boolean> = {
+    '>': (left, right) => left > right,
+    '>=': (left, right) => left >= right,
+    '<': (left, right) => left < right,
+    '<=': (left, right) => left <= right
+  }
+
+  const comparator = numericComparator[operator]
+  return comparator ? comparator(leftNumber, operandMaybeNumber) : false
+}
+
+function normalizedString(value: unknown): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
 }
 
 function parseCriteriaToken(criteriaRaw: string, context: FormulaContext): string | number {

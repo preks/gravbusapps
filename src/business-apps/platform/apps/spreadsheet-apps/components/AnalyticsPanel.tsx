@@ -69,6 +69,93 @@ export interface AnalyticsPanelProps {
   'data-testid'?: string
 }
 
+function isGenericColumnToken(value: string): boolean {
+  return /^column(?:[_\s-]?[a-z0-9]+)?$/i.test(value.trim())
+}
+
+function extractDisplayValue(raw: unknown): string {
+  if (raw == null || raw === '') return ''
+  if (typeof raw === 'string') return raw.trim()
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>
+    const value = obj.v ?? obj.m ?? obj.url ?? obj.src
+    if (typeof value === 'string') return value.trim()
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  }
+  return String(raw).trim()
+}
+
+function getRowCellValue(row: Record<string, unknown>, column: SpreadsheetColumn) {
+  return row[column.name] ?? row[column.id] ?? row[column.label]
+}
+
+function detectHeaderInfo(
+  columns: SpreadsheetColumn[],
+  sheetData: Record<string, unknown>[],
+  hasGenericColumnNames: boolean
+): { headerMap: Map<string, string>; headerRowIndex: number } {
+  if (sheetData.length === 0 || !hasGenericColumnNames) {
+    return { headerMap: new Map<string, string>(), headerRowIndex: -1 }
+  }
+
+  const maxCandidates = Math.min(sheetData.length, 5)
+  let bestHeaderRowIndex = -1
+  let bestScore = -1
+  let bestMap = new Map<string, string>()
+
+  for (let rowIndex = 0; rowIndex < maxCandidates; rowIndex += 1) {
+    const row = sheetData[rowIndex]
+    const pairs = columns
+      .map(column => {
+        const raw = getRowCellValue(row, column)
+        const headerText = extractDisplayValue(raw)
+        return { key: column.name, headerText }
+      })
+      .filter(pair => pair.headerText.length > 0)
+
+    if (pairs.length < Math.ceil(columns.length * 0.6)) continue
+    const nonGenericCount = pairs.filter(pair => !isGenericColumnToken(pair.headerText)).length
+    const score = nonGenericCount * 2 + pairs.length
+
+    if (score > bestScore) {
+      bestScore = score
+      bestHeaderRowIndex = rowIndex
+      bestMap = new Map<string, string>(pairs.map(pair => [pair.key, pair.headerText]))
+    }
+  }
+
+  if (bestHeaderRowIndex < 0) {
+    return { headerMap: new Map<string, string>(), headerRowIndex: -1 }
+  }
+  return { headerMap: bestMap, headerRowIndex: bestHeaderRowIndex }
+}
+
+function buildFallbackHeaderMap(
+  columns: SpreadsheetColumn[],
+  sheetData: Record<string, unknown>[]
+): Map<string, string> {
+  if (sheetData.length === 0) return new Map<string, string>()
+  const first = sheetData[0]
+  if (!first || typeof first !== 'object') return new Map<string, string>()
+
+  const map = new Map<string, string>()
+  for (const col of columns) {
+    const raw =
+      first[col.name] ?? first[col.id] ?? (first as Record<string, unknown>)[(col as { label?: string }).label]
+    const value =
+      raw != null && typeof raw === 'object' && !Array.isArray(raw)
+        ? ((raw as Record<string, unknown>).v ?? (raw as Record<string, unknown>).m ?? raw)
+        : raw
+    const label = value != null && value !== '' ? String(value).trim() : ''
+    if (label) map.set(col.name, label)
+  }
+  return map
+}
+
+function toggleSelection(values: string[], value: string): string[] {
+  return values.includes(value) ? values.filter(name => name !== value) : [...values, value]
+}
+
 export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function AnalyticsPanel({
   isOpen,
   onClose,
@@ -115,83 +202,21 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
 
   const numericColumns = useMemo(() => columns.filter(isNumericColumn), [columns])
-  const isGenericColumnToken = (value: string) => /^column(?:[_\s-]?[a-z0-9]+)?$/i.test(value.trim())
   const hasGenericColumnNames = useMemo(() => {
     if (columns.length === 0) return false
     const genericCount = columns.filter(column => isGenericColumnToken(column.name)).length
     return genericCount / columns.length >= 0.5
   }, [columns])
 
-  const extractDisplayValue = (raw: unknown): string => {
-    if (raw == null || raw === '') return ''
-    if (typeof raw === 'string') return raw.trim()
-    if (typeof raw === 'object' && !Array.isArray(raw)) {
-      const obj = raw as Record<string, unknown>
-      const v = obj.v ?? obj.m ?? obj.url ?? obj.src
-      if (typeof v === 'string') return v.trim()
-      if (typeof v === 'number' && Number.isFinite(v)) return String(v)
-    }
-    return String(raw).trim()
-  }
-
-  const getRowCellValue = (row: Record<string, unknown>, column: SpreadsheetColumn) =>
-    row[column.name] ?? row[column.id] ?? row[column.label]
-
   const detectedHeaderInfo = useMemo(() => {
-    if (sheetData.length === 0 || !hasGenericColumnNames) {
-      return { headerMap: new Map<string, string>(), headerRowIndex: -1 }
-    }
-    const maxCandidates = Math.min(sheetData.length, 5)
-    let bestHeaderRowIndex = -1
-    let bestScore = -1
-    let bestMap = new Map<string, string>()
-
-    for (let rowIndex = 0; rowIndex < maxCandidates; rowIndex += 1) {
-      const row = sheetData[rowIndex]
-      const pairs = columns
-        .map(column => {
-          const raw = getRowCellValue(row, column)
-          const headerText = extractDisplayValue(raw)
-          return { key: column.name, headerText }
-        })
-        .filter(pair => pair.headerText.length > 0)
-
-      if (pairs.length < Math.ceil(columns.length * 0.6)) continue
-      const nonGenericCount = pairs.filter(pair => !isGenericColumnToken(pair.headerText)).length
-      const score = nonGenericCount * 2 + pairs.length
-
-      if (score > bestScore) {
-        bestScore = score
-        bestHeaderRowIndex = rowIndex
-        bestMap = new Map<string, string>(pairs.map(pair => [pair.key, pair.headerText]))
-      }
-    }
-
-    if (bestHeaderRowIndex < 0) {
-      return { headerMap: new Map<string, string>(), headerRowIndex: -1 }
-    }
-    return { headerMap: bestMap, headerRowIndex: bestHeaderRowIndex }
+    return detectHeaderInfo(columns, sheetData, hasGenericColumnNames)
   }, [columns, hasGenericColumnNames, sheetData])
 
   const gridHeaderMap = isOpen && getHeaderRowFromGrid ? getHeaderRowFromGrid() : null
   const gridSheetData = isOpen && getSheetDataFromGrid ? getSheetDataFromGrid() : null
   const detectedHeaderMap = detectedHeaderInfo.headerMap
   const fallbackHeaderMap = useMemo(() => {
-    if (sheetData.length === 0) return new Map<string, string>()
-    const first = sheetData[0]
-    if (!first || typeof first !== 'object') return new Map<string, string>()
-    const map = new Map<string, string>()
-    for (const col of columns) {
-      const raw =
-        first[col.name] ?? first[col.id] ?? (first as Record<string, unknown>)[(col as { label?: string }).label]
-      const v =
-        raw != null && typeof raw === 'object' && !Array.isArray(raw)
-          ? ((raw as Record<string, unknown>).v ?? (raw as Record<string, unknown>).m ?? raw)
-          : raw
-      const label = v != null && v !== '' ? String(v).trim() : ''
-      if (label) map.set(col.name, label)
-    }
-    return map
+    return buildFallbackHeaderMap(columns, sheetData)
   }, [columns, sheetData])
   const firstRowHeaderMap =
     (gridHeaderMap?.size ? gridHeaderMap : null) ??
@@ -281,6 +306,13 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
   const getColumnHeader = (column: SpreadsheetColumn) =>
     firstRowHeaderMap.get(column.name) || column.label || column.name || column.id
+
+  const handleToggleChartYAxis = useCallback(
+    (columnName: string) => {
+      setChartYAxis(current => toggleSelection(current, columnName))
+    },
+    [setChartYAxis]
+  )
 
   useEffect(() => {
     memoizedEngineRef.current.clear()
@@ -896,11 +928,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                               key={col.id}
                               variant={active ? 'default' : 'secondary'}
                               size="sm"
-                              onClick={() =>
-                                setChartYAxis(prev =>
-                                  prev.includes(col.name) ? prev.filter(name => name !== col.name) : [...prev, col.name]
-                                )
-                              }
+                              onClick={() => handleToggleChartYAxis(col.name)}
                             >
                               {getColumnHeader(col)}
                             </Button>

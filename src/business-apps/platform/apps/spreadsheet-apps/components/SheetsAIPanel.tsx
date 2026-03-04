@@ -45,8 +45,6 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
   isOpen,
   onClose,
   initialTab = 'formula',
-  appId: _appId,
-  sheetId: _sheetId,
   sheetName,
   accessToken,
   columns,
@@ -58,8 +56,6 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
   getSheetDataFromGrid,
   'data-testid': testId = 'sheets-ai-panel'
 }) {
-  void _appId
-  void _sheetId
   const [activeTab, setActiveTab] = useState('formula')
   useEffect(() => {
     if (isOpen) {

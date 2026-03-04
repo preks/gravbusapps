@@ -196,6 +196,68 @@ export interface SpreadsheetBatchOperationResponse {
   idempotentReplay: boolean
 }
 
+type LegacyOperationResult = {
+  result: Record<string, unknown>
+}
+
+const getOperationRows = (operation: SpreadsheetBatchOperation): Array<Record<string, unknown>> => {
+  const rows = (operation.data as { rows?: unknown[] }).rows
+  return Array.isArray(rows) ? (rows as Array<Record<string, unknown>>) : []
+}
+
+const getOperationCells = (
+  operation: SpreadsheetBatchOperation
+): Array<{ rowId: string; columnName: string; value: unknown }> => {
+  const cells = (operation.data as { cells?: unknown[] }).cells
+  return Array.isArray(cells) ? (cells as Array<{ rowId: string; columnName: string; value: unknown }>) : []
+}
+
+const getOperationRowIds = (operation: SpreadsheetBatchOperation): string[] => {
+  const rowIds = (operation.data as { rowIds?: unknown[] }).rowIds
+  return Array.isArray(rowIds) ? (rowIds as string[]) : []
+}
+
+const getOperationCellCoordinates = (operation: SpreadsheetBatchOperation): { rowId: string; columnName: string } => {
+  const rowId = String((operation.data as { rowId?: string }).rowId || '')
+  const columnName = String(
+    (operation.data as { columnName?: string; column?: string }).columnName ||
+      (operation.data as { columnName?: string; column?: string }).column ||
+      ''
+  )
+  return { rowId, columnName }
+}
+
+const toLegacyRowRef = (row: Record<string, unknown>): string =>
+  String((row as Record<string, unknown>)._rowUuid ?? (row as Record<string, unknown>)._id ?? row.id ?? '')
+
+const createLegacyOperationResult = (
+  operation: SpreadsheetBatchOperation,
+  result: Record<string, unknown>
+): SpreadsheetBatchOperationResponse['operationResults'][number] => ({
+  operationId: operation.operationId,
+  type: operation.type,
+  result
+})
+
+async function bulkAddRowsWithLegacyFallback(
+  appId: string,
+  sheetId: string,
+  rows: Array<Record<string, unknown>>
+): Promise<Array<Record<string, unknown>>> {
+  try {
+    return await SpreadsheetApiService.bulkAddRows(appId, sheetId, rows)
+  } catch (error) {
+    if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 405)) {
+      const created: Array<Record<string, unknown>> = []
+      for (const row of rows) {
+        created.push(await SpreadsheetApiService.addRow(appId, sheetId, row))
+      }
+      return created
+    }
+    throw error
+  }
+}
+
 // Cache whether the backend supports ops-v2 batch endpoint.
 // null => unknown, true => available, false => unavailable (fallback to legacy row APIs)
 let supportsOperationBatchEndpoint: boolean | null = null
@@ -765,52 +827,22 @@ export const SpreadsheetApiService = {
       const operationResults: SpreadsheetBatchOperationResponse['operationResults'] = []
       const appliedOperations: SpreadsheetBatchOperationResponse['appliedOperations'] = []
 
-      for (const operation of payload.operations) {
-        if (operation.type === 'add_rows') {
-          const rows = Array.isArray((operation.data as { rows?: unknown[] }).rows)
-            ? ((operation.data as { rows: Array<Record<string, unknown>> }).rows ?? [])
-            : []
-          let created: Array<Record<string, unknown>> = []
-          try {
-            created = await SpreadsheetApiService.bulkAddRows(appId, sheetId, rows)
-          } catch (error) {
-            // Older deployments may not expose /rows/bulk. Fallback to per-row create.
-            if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 405)) {
-              created = []
-              for (const row of rows) {
-                created.push(await SpreadsheetApiService.addRow(appId, sheetId, row))
-              }
-            } else {
-              throw error
+      const operationHandlers: Record<
+        SpreadsheetBatchOperation['type'],
+        (operation: SpreadsheetBatchOperation) => Promise<LegacyOperationResult>
+      > = {
+        add_rows: async operation => {
+          const rows = getOperationRows(operation)
+          const created = await bulkAddRowsWithLegacyFallback(appId, sheetId, rows)
+          return {
+            result: {
+              // Match ops-v2 shape expected by viewer (rows[].id).
+              rows: created.map(row => ({ id: toLegacyRowRef(row) }))
             }
           }
-          operationResults.push({
-            operationId: operation.operationId,
-            type: operation.type,
-            // Match ops-v2 shape expected by viewer (rows[].id).
-            result: {
-              rows: created.map(row => ({
-                id: String(
-                  (row as Record<string, unknown>)._rowUuid ??
-                    (row as Record<string, unknown>)._id ??
-                    (row as Record<string, unknown>).id ??
-                    ''
-                )
-              }))
-            }
-          })
-          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
-          continue
-        }
-
-        if (operation.type === 'set_range') {
-          const cells = Array.isArray((operation.data as { cells?: unknown[] }).cells)
-            ? ((
-                operation.data as {
-                  cells: Array<{ rowId: string; columnName: string; value: unknown }>
-                }
-              ).cells ?? [])
-            : []
+        },
+        set_range: async operation => {
+          const cells = getOperationCells(operation)
           const updatesByRow = new Map<string, Record<string, unknown>>()
           for (const cell of cells) {
             const rowId = String(cell.rowId || '')
@@ -822,80 +854,45 @@ export const SpreadsheetApiService = {
           for (const [rowId, updates] of updatesByRow.entries()) {
             await SpreadsheetApiService.updateRow(appId, sheetId, rowId, updates)
           }
-          operationResults.push({
-            operationId: operation.operationId,
-            type: operation.type,
+          return {
             result: {
               updatedCells: cells.length,
               touchedRows: updatesByRow.size
             }
-          })
-          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
-          continue
-        }
-
-        if (operation.type === 'set_cell') {
-          const rowId = String((operation.data as { rowId?: string }).rowId || '')
-          const columnName =
-            String(
-              (operation.data as { columnName?: string; column?: string }).columnName ||
-                (operation.data as { columnName?: string; column?: string }).column ||
-                ''
-            ) || ''
+          }
+        },
+        set_cell: async operation => {
+          const { rowId, columnName } = getOperationCellCoordinates(operation)
           const value = (operation.data as { value?: unknown }).value
           if (rowId && columnName) {
             await SpreadsheetApiService.updateRow(appId, sheetId, rowId, { [columnName]: value })
           }
-          operationResults.push({
-            operationId: operation.operationId,
-            type: operation.type,
-            result: { updated: Boolean(rowId && columnName) }
-          })
-          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
-          continue
-        }
-
-        if (operation.type === 'clear_cell') {
-          const rowId = String((operation.data as { rowId?: string }).rowId || '')
-          const columnName =
-            String(
-              (operation.data as { columnName?: string; column?: string }).columnName ||
-                (operation.data as { columnName?: string; column?: string }).column ||
-                ''
-            ) || ''
+          return { result: { updated: Boolean(rowId && columnName) } }
+        },
+        clear_cell: async operation => {
+          const { rowId, columnName } = getOperationCellCoordinates(operation)
           if (rowId && columnName) {
             await SpreadsheetApiService.updateRow(appId, sheetId, rowId, { [columnName]: null })
           }
-          operationResults.push({
-            operationId: operation.operationId,
-            type: operation.type,
-            result: { cleared: Boolean(rowId && columnName) }
-          })
-          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
-          continue
-        }
-
-        if (operation.type === 'delete_rows') {
-          const rowIds = Array.isArray((operation.data as { rowIds?: unknown[] }).rowIds)
-            ? ((operation.data as { rowIds: string[] }).rowIds ?? [])
-            : []
+          return { result: { cleared: Boolean(rowId && columnName) } }
+        },
+        delete_rows: async operation => {
+          const rowIds = getOperationRowIds(operation)
           for (const rowId of rowIds) {
             await SpreadsheetApiService.deleteRow(appId, sheetId, String(rowId))
           }
-          operationResults.push({
-            operationId: operation.operationId,
-            type: operation.type,
-            result: { deletedRows: rowIds.length }
-          })
-          appliedOperations.push({ operationId: operation.operationId, type: operation.type })
-          continue
+          return { result: { deletedRows: rowIds.length } }
         }
+      }
 
-        operationResults.push({
-          operationId: operation.operationId,
-          type: operation.type,
-          result: { skipped: true }
-        })
+      for (const operation of payload.operations) {
+        const handler = operationHandlers[operation.type]
+        const handled = handler
+          ? await handler(operation)
+          : {
+              result: { skipped: true }
+            }
+        operationResults.push(createLegacyOperationResult(operation, handled.result))
         appliedOperations.push({ operationId: operation.operationId, type: operation.type })
       }
 

@@ -110,67 +110,82 @@ function toUniverInlineStyle(obj: Record<string, unknown>): Record<string, unkno
   return style
 }
 
+function normalizeColumnToken(value: string): string {
+  return value.toLowerCase()
+}
+
+function isAvatarColumn(column: SpreadsheetColumn): boolean {
+  const normalizedName = normalizeColumnToken(String(column.name || ''))
+  const normalizedId = normalizeColumnToken(String(column.id || ''))
+  return (
+    normalizedName === '_recipient_avatar' ||
+    normalizedId === '_recipient_avatar' ||
+    normalizedName === 'recipient_avatar' ||
+    normalizedId === 'recipient_avatar'
+  )
+}
+
+function isLinkColumn(column: SpreadsheetColumn): boolean {
+  const normalizedName = normalizeColumnToken(String(column.name || ''))
+  const normalizedId = normalizeColumnToken(String(column.id || ''))
+  return (
+    normalizedName === '_copy_link' ||
+    normalizedId === '_copy_link' ||
+    normalizedName === 'copy_link' ||
+    normalizedId === 'copy_link'
+  )
+}
+
+function extractObjectValue(obj: Record<string, unknown>): string {
+  if (typeof obj.v === 'string') return obj.v
+  if (typeof obj.m === 'string') return obj.m
+  if (typeof obj.url === 'string') return obj.url
+  if (typeof obj.src === 'string') return obj.src
+  return ''
+}
+
+function toFormulaCell(obj: Record<string, unknown>): UniverCellData | null {
+  const cell: UniverCellData = {}
+  if (obj.f && typeof obj.f === 'string') cell.f = obj.f.startsWith('=') ? obj.f : `=${obj.f}`
+  const val = obj.v ?? obj.m
+  if (val !== undefined && val !== null) cell.v = val as string | number | boolean
+  else if (obj.m !== undefined) cell.v = obj.m as string | number | boolean
+  const univerStyle = toUniverInlineStyle(obj)
+  if (univerStyle) cell.s = univerStyle
+  return Object.keys(cell).length > 0 ? cell : null
+}
+
+function toImageUrl(raw: string): string {
+  const trimmed = raw.trim()
+  const isHttpImage = /^https?:\/\//i.test(trimmed)
+  const isDataImage = /^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed)
+  const looksLikeRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) && trimmed.length > 100
+  if (isHttpImage || isDataImage) return trimmed
+  if (looksLikeRawBase64) return `data:image/jpeg;base64,${trimmed}`
+  return ''
+}
+
 function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellData | null {
   if (raw === undefined || raw === null || raw === '') return null
-  const normalizedColumnName = String(column.name || '').toLowerCase()
-  const normalizedColumnId = String(column.id || '').toLowerCase()
-  const isAvatarColumn =
-    normalizedColumnName === '_recipient_avatar' ||
-    normalizedColumnId === '_recipient_avatar' ||
-    normalizedColumnName === 'recipient_avatar' ||
-    normalizedColumnId === 'recipient_avatar'
-  const isLinkColumn =
-    normalizedColumnName === '_copy_link' ||
-    normalizedColumnId === '_copy_link' ||
-    normalizedColumnName === 'copy_link' ||
-    normalizedColumnId === 'copy_link'
+  const avatarColumn = isAvatarColumn(column)
+  const linkColumn = isLinkColumn(column)
 
   if (typeof raw === 'object' && !Array.isArray(raw)) {
     const obj = raw as Record<string, unknown>
-    const objectValue =
-      typeof obj.v === 'string'
-        ? obj.v
-        : typeof obj.m === 'string'
-          ? obj.m
-          : typeof obj.url === 'string'
-            ? obj.url
-            : typeof obj.src === 'string'
-              ? obj.src
-              : ''
-    if ((column.type === 'image' || isAvatarColumn) && objectValue) {
+    const objectValue = extractObjectValue(obj)
+    if ((column.type === 'image' || avatarColumn || column.type === 'url' || linkColumn) && objectValue)
       raw = objectValue
-    } else if ((column.type === 'url' || isLinkColumn) && objectValue) {
-      raw = objectValue
-    } else {
-      const cell: UniverCellData = {}
-      if (obj.f && typeof obj.f === 'string') cell.f = obj.f.startsWith('=') ? obj.f : `=${obj.f}`
-      const val = obj.v ?? obj.m
-      if (val !== undefined && val !== null) cell.v = val as string | number | boolean
-      else if (obj.m !== undefined) cell.v = obj.m as string | number | boolean
-      const univerStyle = toUniverInlineStyle(obj)
-      if (univerStyle) cell.s = univerStyle
-      if (Object.keys(cell).length > 0) return cell
-      return raw as UniverCellData
-    }
+    else return toFormulaCell(obj) ?? (raw as UniverCellData)
   }
 
   if (typeof raw === 'string') {
     const trimmed = raw.trim()
-    if ((column.type === 'url' || isLinkColumn) && /^https?:\/\//i.test(trimmed)) {
+    if ((column.type === 'url' || linkColumn) && /^https?:\/\//i.test(trimmed)) {
       const safeUrl = trimmed.replace(/"/g, '""')
       return { f: `=HYPERLINK("${safeUrl}","View Response")` }
     }
-    if (column.type === 'image' || isAvatarColumn) {
-      const isHttpImage = /^https?:\/\//i.test(trimmed)
-      const isDataImage = /^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed)
-      const looksLikeRawBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) && trimmed.length > 100
-      const imageUrl = isHttpImage
-        ? trimmed
-        : isDataImage
-          ? trimmed
-          : looksLikeRawBase64
-            ? `data:image/jpeg;base64,${trimmed}`
-            : ''
+    if (column.type === 'image' || avatarColumn) {
+      const imageUrl = toImageUrl(trimmed)
       if (imageUrl) {
         const safeUrl = imageUrl.replace(/"/g, '""')
         return { f: `=IMAGE("${safeUrl}")` }

@@ -265,6 +265,43 @@ const getAvailableTriggersForType = (type: AutomationType | null): AutomationTri
   }
 }
 
+interface SpreadsheetTemplateItem {
+  id: string
+  name: string
+  settings?: { excel_collection_copy?: boolean }
+}
+
+function toTemplateOptions(
+  items: SpreadsheetTemplateItem[],
+  spreadsheetId: string
+): Array<{ id: string; name: string }> {
+  return items
+    .filter(item => !item.settings?.excel_collection_copy)
+    .map(item => ({
+      id: item.id,
+      name: item.id === spreadsheetId ? `${item.name || 'Untitled'} (this sheet)` : item.name || 'Untitled'
+    }))
+}
+
+function mapExistingFormFields(existingAutomation?: SpreadsheetAutomation): Array<{
+  id: string
+  label: string
+  type: 'text' | 'number' | 'date' | 'textarea' | 'select'
+  required: boolean
+  targetColumn: string
+}> {
+  const formFields = existingAutomation?.collectionConfig?.formFields
+  if (!formFields) return []
+
+  return formFields.map(field => ({
+    id: field.id,
+    label: field.label,
+    type: (field.inputType?.toLowerCase() || 'text') as 'text' | 'number' | 'date' | 'textarea' | 'select',
+    required: field.required || false,
+    targetColumn: field.columnId || field.id
+  }))
+}
+
 /**
  * AutomationWizard Component
  */
@@ -333,7 +370,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
 
   // Helper to add a form field from a column
-  const addFormFieldFromColumn = (col: SpreadsheetColumn) => {
+  const addFormFieldFromColumn = useCallback((col: SpreadsheetColumn) => {
     const fieldType = col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : 'text'
     setFormFields(prev => [
       ...prev,
@@ -345,7 +382,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         targetColumn: col.id
       }
     ])
-  }
+  }, [])
 
   // Helper to remove a form field
   const removeFormField = (fieldId: string) => {
@@ -359,68 +396,34 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
   // Initialize from existing automation
   useEffect(() => {
-    if (existingAutomation) {
-      setName(existingAutomation.name)
-      setDescription(existingAutomation.description || '')
-      setAutomationType(existingAutomation.type)
-      setTrigger(existingAutomation.trigger)
-      setWatchColumns(existingAutomation.triggerConfig.watchColumns || [])
-      setColumnMappings(existingAutomation.workflowConfig.columnMappings || [])
-      setResultMappings(existingAutomation.workflowConfig.resultMappings || [])
-      setStatusColumn(existingAutomation.workflowConfig.statusColumn)
+    if (!existingAutomation) return
 
-      if (existingAutomation.workflowConfig.dynamicTemplate?.steps) {
-        setWorkflowSteps(existingAutomation.workflowConfig.dynamicTemplate.steps)
-      }
+    setName(existingAutomation.name)
+    setDescription(existingAutomation.description || '')
+    setAutomationType(existingAutomation.type)
+    setTrigger(existingAutomation.trigger)
+    setWatchColumns(existingAutomation.triggerConfig.watchColumns || [])
+    setColumnMappings(existingAutomation.workflowConfig.columnMappings || [])
+    setResultMappings(existingAutomation.workflowConfig.resultMappings || [])
+    setStatusColumn(existingAutomation.workflowConfig.statusColumn)
+    setWorkflowSteps(existingAutomation.workflowConfig.dynamicTemplate?.steps || [])
 
-      if (existingAutomation.approvalConfig?.approvalSteps) {
-        setApprovalSteps(existingAutomation.approvalConfig.approvalSteps)
-      }
-
-      // Load bulk collection specific config
-      if (existingAutomation.collectionConfig) {
-        // Load tracking columns (or use defaults)
-        setTrackingColumns(existingAutomation.collectionConfig.trackingColumns || getDefaultTrackingColumns())
-
-        // Load form fields
-        if (existingAutomation.collectionConfig.formFields) {
-          setFormFields(
-            existingAutomation.collectionConfig.formFields.map(f => ({
-              id: f.id,
-              label: f.label,
-              type: (f.inputType?.toLowerCase() || 'text') as 'text' | 'number' | 'date' | 'textarea' | 'select',
-              required: f.required || false,
-              targetColumn: f.columnId || f.id
-            }))
-          )
-        }
-
-        // Load recipient type
-        if (existingAutomation.collectionConfig.recipientType) {
-          setApprovalSteps([{ stepId: 'collect', assignee: existingAutomation.collectionConfig.recipientType }])
-        }
-
-        // Load template for excel_collection
-        if (
-          existingAutomation.type === 'excel_collection' &&
-          existingAutomation.collectionConfig.templateSpreadsheetId
-        ) {
-          setSelectedTemplateId(existingAutomation.collectionConfig.templateSpreadsheetId)
-        }
-
-        // Load message
-        if (existingAutomation.collectionConfig.message) {
-          setCollectionMessage(existingAutomation.collectionConfig.message)
-        }
-      }
-
-      // When editing, skip to the appropriate step based on type
-      if (existingAutomation.type === 'bulk_collection' || existingAutomation.type === 'excel_collection') {
-        setCurrentStep('configure')
-      } else {
-        setCurrentStep('workflow')
-      }
-    }
+    const recipientType = existingAutomation.collectionConfig?.recipientType
+    const explicitApprovalSteps = existingAutomation.approvalConfig?.approvalSteps
+    setApprovalSteps(recipientType ? [{ stepId: 'collect', assignee: recipientType }] : explicitApprovalSteps || [])
+    setTrackingColumns(existingAutomation.collectionConfig?.trackingColumns || getDefaultTrackingColumns())
+    setFormFields(mapExistingFormFields(existingAutomation))
+    setSelectedTemplateId(
+      existingAutomation.type === 'excel_collection'
+        ? existingAutomation.collectionConfig?.templateSpreadsheetId || null
+        : null
+    )
+    setCollectionMessage(existingAutomation.collectionConfig?.message || '')
+    setCurrentStep(
+      existingAutomation.type === 'bulk_collection' || existingAutomation.type === 'excel_collection'
+        ? 'configure'
+        : 'workflow'
+    )
   }, [existingAutomation])
 
   // Reset form when dialog closes
@@ -456,29 +459,26 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     if (!accessToken) return
 
     let cancelled = false
-    setIsLoadingTemplates(true)
-    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const fetchTemplates = async () => {
+      setIsLoadingTemplates(true)
+      const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+      try {
+        const response = await fetch(`${docBase}/spreadsheets?limit=100`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
+        if (!response.ok) throw new Error('Failed to fetch')
 
-    fetch(`${docBase}/spreadsheets?limit=100`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    })
-      .then(res => (res.ok ? res.json() : Promise.reject(new Error('Failed to fetch'))))
-      .then((data: { items?: Array<{ id: string; name: string; settings?: { excel_collection_copy?: boolean } }> }) => {
+        const data = (await response.json()) as { items?: SpreadsheetTemplateItem[] }
         if (cancelled) return
-        const items = (data.items || []).filter(a => !a.settings?.excel_collection_copy)
-        setAvailableTemplates(
-          items.map(a => ({
-            id: a.id,
-            name: a.id === spreadsheetId ? `${a.name || 'Untitled'} (this sheet)` : a.name || 'Untitled'
-          }))
-        )
-      })
-      .catch(() => {
+        setAvailableTemplates(toTemplateOptions(data.items || [], spreadsheetId))
+      } catch {
         if (!cancelled) setAvailableTemplates([])
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setIsLoadingTemplates(false)
-      })
+      }
+    }
+
+    void fetchTemplates()
 
     return () => {
       cancelled = true
@@ -527,6 +527,30 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     }
   }
 
+  const hasConfiguredRecipients = useCallback((): boolean => {
+    const assignee = approvalSteps[0]?.assignee
+    if (assignee === 'specific') return selectedRecipients.length > 0
+    return Boolean(assignee)
+  }, [approvalSteps, selectedRecipients])
+
+  const validateReviewStep = useCallback(
+    (errors: string[]) => {
+      if (!name.trim()) errors.push('Automation name is required')
+      if (!automationType) errors.push('Automation type is required')
+
+      if (automationType === 'bulk_collection') {
+        if (!hasConfiguredRecipients()) errors.push('Please select who should receive this form')
+        if (formFields.length === 0) errors.push('Please add at least one form field')
+      }
+
+      if (automationType === 'excel_collection') {
+        if (!selectedTemplateId) errors.push('Please select a template spreadsheet')
+        if (!hasConfiguredRecipients()) errors.push('Please select who should receive this')
+      }
+    },
+    [name, automationType, hasConfiguredRecipients, formFields.length, selectedTemplateId]
+  )
+
   // Validation
   const validateCurrentStep = useCallback((): boolean => {
     const errors: string[] = []
@@ -561,13 +585,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         break
 
       case 'configure':
-        // Bulk collection configure: recipients + at least one form field
-        // Excel collection configure: template + recipients
-        const hasRecipients =
-          approvalSteps[0]?.assignee === 'specific' ? selectedRecipients.length > 0 : !!approvalSteps[0]?.assignee
-        if (!hasRecipients) {
-          errors.push('Please select who should receive this')
-        }
+        if (!hasConfiguredRecipients()) errors.push('Please select who should receive this')
         if (automationType === 'excel_collection' && !selectedTemplateId) {
           errors.push('Please select a template spreadsheet')
         }
@@ -581,21 +599,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         break
 
       case 'review':
-        // Final validation before save
-        if (!name.trim()) errors.push('Automation name is required')
-        if (!automationType) errors.push('Automation type is required')
-        if (automationType === 'bulk_collection') {
-          const hasRecipients =
-            approvalSteps[0]?.assignee === 'specific' ? selectedRecipients.length > 0 : !!approvalSteps[0]?.assignee
-          if (!hasRecipients) errors.push('Please select who should receive this form')
-          if (formFields.length === 0) errors.push('Please add at least one form field')
-        }
-        if (automationType === 'excel_collection') {
-          if (!selectedTemplateId) errors.push('Please select a template spreadsheet')
-          const hasRecipients =
-            approvalSteps[0]?.assignee === 'specific' ? selectedRecipients.length > 0 : !!approvalSteps[0]?.assignee
-          if (!hasRecipients) errors.push('Please select who should receive this')
-        }
+        validateReviewStep(errors)
         break
     }
 
@@ -604,12 +608,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   }, [
     currentStep,
     automationType,
+    hasConfiguredRecipients,
+    validateReviewStep,
     trigger,
     watchColumns,
     name,
     workflowSteps,
-    approvalSteps,
-    selectedRecipients,
     formFields,
     selectedTemplateId
   ])
@@ -626,12 +630,10 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
       case 'workflow':
         return name.trim().length > 0
       case 'configure': {
-        const hasRecipients =
-          approvalSteps[0]?.assignee === 'specific' ? selectedRecipients.length > 0 : !!approvalSteps[0]?.assignee
         if (automationType === 'excel_collection') {
-          return !!selectedTemplateId && hasRecipients
+          return !!selectedTemplateId && hasConfiguredRecipients()
         }
-        return hasRecipients && formFields.length > 0
+        return hasConfiguredRecipients() && formFields.length > 0
       }
       case 'mapping':
         return true
@@ -646,8 +648,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     trigger,
     watchColumns,
     name,
-    approvalSteps,
-    selectedRecipients,
+    hasConfiguredRecipients,
     formFields,
     selectedTemplateId
   ])
@@ -692,6 +693,116 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     setColumnMappings(prev => prev.filter((_, i) => i !== index))
   }, [])
 
+  const buildDynamicTemplate = useCallback((): AutomationFlowTemplate | undefined => {
+    if (workflowSteps.length === 0) return undefined
+    return {
+      type: 'TEMPLATE',
+      name,
+      description,
+      version: 1,
+      steps: workflowSteps
+    }
+  }, [workflowSteps, name, description])
+
+  const buildApprovalConfig = useCallback(
+    (type: AutomationType): SheetApprovalConfig | undefined => {
+      const isApprovalType = type === 'sheet_approval' || type === 'line_approval'
+      if (!isApprovalType || approvalSteps.length === 0) return undefined
+
+      return {
+        mode: type === 'sheet_approval' ? 'full_sheet' : 'line_item',
+        approvalSteps,
+        onApprove: 'notify',
+        onReject: 'return_to_submitter'
+      }
+    },
+    [approvalSteps]
+  )
+
+  const buildCollectionConfig = useCallback(
+    (type: AutomationType) => {
+      const recipientType = approvalSteps[0]?.assignee as 'team' | 'department' | 'specific' | undefined
+      const recipients = selectedRecipients.map(r => r.userId || r.id)
+      const message = collectionMessage.trim() || undefined
+
+      if (type === 'bulk_collection') {
+        return {
+          recipientType: recipientType || 'specific',
+          recipients,
+          trackingColumns,
+          message,
+          formFields: formFields.map(f => ({
+            id: f.id,
+            label: f.label,
+            type: 'existing_column' as const,
+            columnId: f.targetColumn,
+            inputType: f.type.toUpperCase() as 'TEXT' | 'NUMBER' | 'DATE' | 'TEXTAREA' | 'SELECT',
+            required: f.required
+          })),
+          rowIdentifier: 'assignee' as const,
+          fieldMappings: formFields.map(f => ({
+            workflowOutputPath: `step_0.formData.${f.targetColumn}`,
+            targetColumnId: f.targetColumn
+          })),
+          deduplication: 'append' as const
+        }
+      }
+
+      if (type === 'excel_collection') {
+        return {
+          recipientType: recipientType || 'specific',
+          recipients,
+          trackingColumns,
+          templateSpreadsheetId: selectedTemplateId || undefined,
+          message,
+          rowIdentifier: 'assignee' as const,
+          fieldMappings: [] as ResultMapping[],
+          deduplication: 'append' as const
+        }
+      }
+
+      return undefined
+    },
+    [approvalSteps, selectedRecipients, collectionMessage, trackingColumns, formFields, selectedTemplateId]
+  )
+
+  const getEffectiveColumnMappings = useCallback(
+    (type: AutomationType): ColumnWorkflowMapping[] => {
+      if (type === 'bulk_collection' && formFields.length > 0) {
+        return formFields.map(f => {
+          const col = columns.find(c => c.id === f.targetColumn)
+          return {
+            columnId: f.targetColumn,
+            columnName: col?.name ?? f.targetColumn,
+            workflowParameter: f.targetColumn,
+            direction: 'fromWorkflow' as const
+          }
+        })
+      }
+      if (type === 'excel_collection') return []
+      return columnMappings
+    },
+    [formFields, columns, columnMappings]
+  )
+
+  const syncBulkCollectionColumnLabels = useCallback(() => {
+    if (automationType !== 'bulk_collection' || formFields.length === 0 || !onColumnLabelsUpdate) return
+
+    const labelUpdates = formFields
+      .map(field => {
+        const col = columns.find(c => c.id === field.targetColumn)
+        if (col && field.label.trim() && col.label !== field.label.trim()) {
+          return { columnId: col.id, newLabel: field.label.trim() }
+        }
+        return null
+      })
+      .filter((u): u is { columnId: string; newLabel: string } => u !== null)
+
+    if (labelUpdates.length > 0) {
+      onColumnLabelsUpdate(labelUpdates)
+    }
+  }, [automationType, formFields, onColumnLabelsUpdate, columns])
+
   // Save automation
   const handleSave = useCallback(async () => {
     if (!validateCurrentStep()) return
@@ -699,80 +810,10 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
     setIsSaving(true)
     try {
-      const dynamicTemplate: AutomationFlowTemplate | undefined =
-        workflowSteps.length > 0
-          ? {
-              type: 'TEMPLATE',
-              name,
-              description,
-              version: 1,
-              steps: workflowSteps
-            }
-          : undefined
-
-      const approvalConfig: SheetApprovalConfig | undefined =
-        (automationType === 'sheet_approval' || automationType === 'line_approval') && approvalSteps.length > 0
-          ? {
-              mode: automationType === 'sheet_approval' ? 'full_sheet' : 'line_item',
-              approvalSteps,
-              onApprove: 'notify',
-              onReject: 'return_to_submitter'
-            }
-          : undefined
-
-      // Build collection config for bulk_collection and excel_collection types
-      const recipientType = approvalSteps[0]?.assignee as 'team' | 'department' | 'specific' | undefined
-      const collectionConfig =
-        automationType === 'bulk_collection'
-          ? {
-              recipientType: recipientType || 'specific',
-              recipients: selectedRecipients.map(r => r.userId || r.id),
-              trackingColumns,
-              message: collectionMessage.trim() || undefined,
-              formFields: formFields.map(f => ({
-                id: f.id,
-                label: f.label,
-                type: 'existing_column' as const,
-                columnId: f.targetColumn,
-                inputType: f.type.toUpperCase() as 'TEXT' | 'NUMBER' | 'DATE' | 'TEXTAREA' | 'SELECT',
-                required: f.required
-              })),
-              rowIdentifier: 'assignee' as const,
-              fieldMappings: formFields.map(f => ({
-                workflowOutputPath: `step_0.formData.${f.targetColumn}`,
-                targetColumnId: f.targetColumn
-              })),
-              deduplication: 'append' as const
-            }
-          : automationType === 'excel_collection'
-            ? {
-                recipientType: recipientType || 'specific',
-                recipients: selectedRecipients.map(r => r.userId || r.id),
-                trackingColumns,
-                templateSpreadsheetId: selectedTemplateId || undefined,
-                message: collectionMessage.trim() || undefined,
-                rowIdentifier: 'assignee' as const,
-                fieldMappings: [] as ResultMapping[],
-                deduplication: 'append' as const
-              }
-            : undefined
-
-      // For bulk_collection, build columnMappings from formFields so response formData maps to sheet columns
-      // For excel_collection, no form fields - use empty or default
-      const effectiveColumnMappings =
-        automationType === 'bulk_collection' && formFields.length > 0
-          ? formFields.map(f => {
-              const col = columns.find(c => c.id === f.targetColumn)
-              return {
-                columnId: f.targetColumn,
-                columnName: col?.name ?? f.targetColumn,
-                workflowParameter: f.targetColumn,
-                direction: 'fromWorkflow' as const
-              }
-            })
-          : automationType === 'excel_collection'
-            ? []
-            : columnMappings
+      const dynamicTemplate = buildDynamicTemplate()
+      const approvalConfig = buildApprovalConfig(automationType)
+      const collectionConfig = buildCollectionConfig(automationType)
+      const effectiveColumnMappings = getEffectiveColumnMappings(automationType)
 
       const automation: Omit<SpreadsheetAutomation, 'id' | 'createdAt' | 'updatedAt' | 'runCount'> = {
         name,
@@ -793,21 +834,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         collectionConfig
       }
 
-      // For bulk collection: update column labels to match form field labels (headers)
-      if (automationType === 'bulk_collection' && formFields.length > 0 && onColumnLabelsUpdate) {
-        const labelUpdates = formFields
-          .map(field => {
-            const col = columns.find(c => c.id === field.targetColumn)
-            if (col && field.label.trim() && col.label !== field.label.trim()) {
-              return { columnId: col.id, newLabel: field.label.trim() }
-            }
-            return null
-          })
-          .filter((u): u is { columnId: string; newLabel: string } => u !== null)
-        if (labelUpdates.length > 0) {
-          onColumnLabelsUpdate(labelUpdates)
-        }
-      }
+      syncBulkCollectionColumnLabels()
 
       await onSave(automation)
       onClose()
@@ -823,17 +850,14 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     description,
     trigger,
     watchColumns,
-    columns,
-    columnMappings,
     resultMappings,
     statusColumn,
-    workflowSteps,
-    approvalSteps,
-    selectedRecipients,
-    formFields,
-    trackingColumns,
-    onColumnLabelsUpdate,
     validateCurrentStep,
+    buildDynamicTemplate,
+    buildApprovalConfig,
+    buildCollectionConfig,
+    getEffectiveColumnMappings,
+    syncBulkCollectionColumnLabels,
     onSave,
     onClose
   ])
@@ -852,6 +876,19 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const toggleWatchColumn = useCallback((columnId: string, checked: boolean) => {
     setWatchColumns(prev => (checked ? [...prev, columnId] : prev.filter(id => id !== columnId)))
   }, [])
+
+  const additionalFormColumns = useMemo(
+    () => columns.slice(5).filter(column => !formFields.some(field => field.targetColumn === column.id)),
+    [columns, formFields]
+  )
+
+  const handleAddAdditionalFormColumn = useCallback(
+    (columnId: string) => {
+      const column = columns.find(col => col.id === columnId)
+      if (column) addFormFieldFromColumn(column)
+    },
+    [columns, addFormFieldFromColumn]
+  )
 
   // When on type step with bulk/excel already chosen, show Form/Template sub-choice (e.g. after Back from setup)
   useEffect(() => {
@@ -872,61 +909,65 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     }
   }, [automationType, currentStep, trigger])
 
+  const handleChooseCollectionDeliveryType = useCallback((type: 'bulk_collection' | 'excel_collection') => {
+    setAutomationType(type)
+    setShowCollectionDeliveryChoice(false)
+    setCurrentStep('setup')
+  }, [])
+
+  const renderCollectionDeliveryChoice = () => (
+    <div className="gba:space-y-4">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="gba:mb-2 gba:-ml-1"
+        onClick={() => setShowCollectionDeliveryChoice(false)}
+      >
+        <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
+        Back
+      </Button>
+      <p className="gba:text-muted-foreground">What do you want to send to recipients?</p>
+      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+        {COLLECTION_DELIVERY_OPTIONS.map(opt => {
+          const Icon = opt.icon
+          const isSelected = automationType === opt.type
+          return (
+            <Card
+              key={opt.type}
+              className={`gba:cursor-pointer gba:transition-all ${
+                isSelected ? 'gba:border-primary gba:ring-2 gba:ring-primary/20' : 'gba:hover:border-primary/50'
+              }`}
+              onClick={() => handleChooseCollectionDeliveryType(opt.type)}
+            >
+              <CardContent className="gba:p-4">
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <div
+                    className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center ${
+                      isSelected ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted'
+                    }`}
+                  >
+                    <Icon className="gba:w-5 gba:h-5" />
+                  </div>
+                  <div className="gba:flex-1">
+                    <h3 className="gba:font-semibold gba:text-foreground">{opt.title}</h3>
+                    <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{opt.description}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   // Render step content
   const renderStepContent = () => {
     switch (currentStep) {
       case 'type':
         // Sub-step: Form vs Template when user selected Data Collection
         if (showCollectionDeliveryChoice) {
-          return (
-            <div className="gba:space-y-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:mb-2 gba:-ml-1"
-                onClick={() => setShowCollectionDeliveryChoice(false)}
-              >
-                <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
-                Back
-              </Button>
-              <p className="gba:text-muted-foreground">What do you want to send to recipients?</p>
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                {COLLECTION_DELIVERY_OPTIONS.map(opt => {
-                  const Icon = opt.icon
-                  const isSelected = automationType === opt.type
-                  return (
-                    <Card
-                      key={opt.type}
-                      className={`gba:cursor-pointer gba:transition-all ${
-                        isSelected ? 'gba:border-primary gba:ring-2 gba:ring-primary/20' : 'gba:hover:border-primary/50'
-                      }`}
-                      onClick={() => {
-                        setAutomationType(opt.type)
-                        setShowCollectionDeliveryChoice(false)
-                        setCurrentStep('setup')
-                      }}
-                    >
-                      <CardContent className="gba:p-4">
-                        <div className="gba:flex gba:items-start gba:gap-3">
-                          <div
-                            className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center ${
-                              isSelected ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted'
-                            }`}
-                          >
-                            <Icon className="gba:w-5 gba:h-5" />
-                          </div>
-                          <div className="gba:flex-1">
-                            <h3 className="gba:font-semibold gba:text-foreground">{opt.title}</h3>
-                            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{opt.description}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            </div>
-          )
+          return renderCollectionDeliveryChoice()
         }
 
         return (
@@ -1747,33 +1788,20 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                             </Button>
                           )
                         })}
-                        {columns.length > 5 &&
-                          (() => {
-                            const moreColumns = columns
-                              .slice(5)
-                              .filter(c => !formFields.some(f => f.targetColumn === c.id))
-                            if (moreColumns.length === 0) return null
-                            return (
-                              <Select
-                                value=""
-                                onValueChange={colId => {
-                                  const col = columns.find(c => c.id === colId)
-                                  if (col) addFormFieldFromColumn(col)
-                                }}
-                              >
-                                <SelectTrigger className="gba:w-auto gba:min-w-[120px]">
-                                  <SelectValue placeholder={`+${moreColumns.length} more`} />
-                                </SelectTrigger>
-                                <SelectContent style={{ zIndex: 1000003 }}>
-                                  {moreColumns.map(col => (
-                                    <SelectItem key={col.id} value={col.id}>
-                                      + {col.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )
-                          })()}
+                        {additionalFormColumns.length > 0 && (
+                          <Select value="" onValueChange={handleAddAdditionalFormColumn}>
+                            <SelectTrigger className="gba:w-auto gba:min-w-[120px]">
+                              <SelectValue placeholder={`+${additionalFormColumns.length} more`} />
+                            </SelectTrigger>
+                            <SelectContent style={{ zIndex: 1000003 }}>
+                              {additionalFormColumns.map(col => (
+                                <SelectItem key={col.id} value={col.id}>
+                                  + {col.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                     </div>
                   </CardContent>

@@ -21,6 +21,14 @@ import type { SpreadsheetApp } from '../types/spreadsheet'
 const MAX_COPIES = 20
 const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
 
+const parseSummaryContent = (content: unknown): CollectionSummaryResponse => {
+  let normalized = typeof content === 'string' ? content : JSON.stringify(content)
+  if (normalized.trim().startsWith('```')) {
+    normalized = normalized.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
+  }
+  return JSON.parse(normalized) as CollectionSummaryResponse
+}
+
 export interface ExcelCollectionSummaryResult {
   executiveSummary: string
   perRecipient: Array<{ recipientName: string; summary: string; avatar?: string }>
@@ -59,6 +67,12 @@ export function useExcelCollectionSummary({
   const hasEligibleRows = copyInfos.length > 0
 
   const summarize = useCallback(async (): Promise<SummarizeResult> => {
+    const fail = (message: string): SummarizeResult => {
+      setError(message)
+      setIsSummarizing(false)
+      return { success: false, error: message }
+    }
+
     if (!accessToken || copyInfos.length === 0) {
       const err = 'No completed submissions with responses to summarize'
       setError(err)
@@ -81,10 +95,7 @@ export function useExcelCollectionSummary({
       for (const { copyAppId, recipientName } of copiesToFetch) {
         const app = await SpreadsheetApiService.getApp(copyAppId)
         if (!app) {
-          const err = `Could not load response for ${recipientName}`
-          setError(err)
-          setIsSummarizing(false)
-          return { success: false, error: err }
+          return fail(`Could not load response for ${recipientName}`)
         }
 
         if (!app.sheets?.length || !app.sheets.some(s => (s.data?.length ?? 0) > 0)) {
@@ -108,17 +119,11 @@ export function useExcelCollectionSummary({
           returnTotalRecords: false
         })
       } catch {
-        const err = 'AI service unavailable'
-        setError(err)
-        setIsSummarizing(false)
-        return { success: false, error: err }
+        return fail('AI service unavailable')
       }
 
       if (!modelsResponse.data?.length) {
-        const err = 'No AI models available'
-        setError(err)
-        setIsSummarizing(false)
-        return { success: false, error: err }
+        return fail('No AI models available')
       }
 
       const preferredModel = modelsResponse.data.find(m => m._id === PREFERRED_MODEL_ID)
@@ -135,25 +140,14 @@ export function useExcelCollectionSummary({
       const response = await promptClient.executePrompt(formData)
 
       if (!response.content) {
-        const err = 'No response from AI'
-        setError(err)
-        setIsSummarizing(false)
-        return { success: false, error: err }
+        return fail('No response from AI')
       }
 
       let parsed: CollectionSummaryResponse
       try {
-        let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
-        // Strip markdown code blocks if AI wrapped response in ```json ... ```
-        if (content.trim().startsWith('```')) {
-          content = content.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
-        }
-        parsed = JSON.parse(content) as CollectionSummaryResponse
+        parsed = parseSummaryContent(response.content)
       } catch {
-        const err = 'Failed to parse AI response'
-        setError(err)
-        setIsSummarizing(false)
-        return { success: false, error: err }
+        return fail('Failed to parse AI response')
       }
 
       const avatarByRecipient = new Map<string, string>()

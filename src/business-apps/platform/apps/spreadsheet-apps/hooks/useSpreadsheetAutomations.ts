@@ -157,6 +157,34 @@ function sanitizePollInterval(value: unknown): number {
   return Math.max(POLL_INTERVAL_MIN, Math.min(POLL_INTERVAL_MAX, Math.floor(num)))
 }
 
+const isCollectionAutomation = (automation: SpreadsheetAutomation): boolean =>
+  automation.type === 'bulk_collection' || automation.type === 'excel_collection'
+
+const toExecutionError = (error: string): AutomationExecutionResult => ({
+  success: false,
+  error,
+  workflows: [],
+  executedAt: new Date().toISOString(),
+  totalRows: 0
+})
+
+const buildColumnIdToNameMap = (automation: SpreadsheetAutomation): Map<string, string> => {
+  const columnIdToName = new Map<string, string>()
+  if (automation.workflowConfig.columnMappings) {
+    for (const mapping of automation.workflowConfig.columnMappings) {
+      columnIdToName.set(mapping.columnId, mapping.columnName)
+    }
+  }
+  if (automation.collectionConfig?.formFields) {
+    for (const field of automation.collectionConfig.formFields) {
+      if (!field.columnId || columnIdToName.has(field.columnId)) continue
+      const mapping = automation.workflowConfig.columnMappings?.find(m => m.columnId === field.columnId)
+      columnIdToName.set(field.columnId, mapping?.columnName || field.columnId)
+    }
+  }
+  return columnIdToName
+}
+
 /**
  * useSpreadsheetAutomations Hook
  */
@@ -419,35 +447,18 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
       const automation = automations.find(a => a.id === automationId)
       if (!automation) {
         console.error('[useSpreadsheetAutomations] ERROR: Automation not found:', automationId)
-        return {
-          success: false,
-          error: `Automation ${automationId} not found`,
-          workflows: [],
-          executedAt: new Date().toISOString(),
-          totalRows: 0
-        }
+        return toExecutionError(`Automation ${automationId} not found`)
       }
 
       if (!automation.isEnabled) {
         console.error('[useSpreadsheetAutomations] ERROR: Automation is disabled')
-        return {
-          success: false,
-          error: 'Automation is disabled',
-          workflows: [],
-          executedAt: new Date().toISOString(),
-          totalRows: 0
-        }
+        return toExecutionError('Automation is disabled')
       }
 
-      if (!automationServiceRef.current) {
+      const service = automationServiceRef.current
+      if (!service) {
         console.error('[useSpreadsheetAutomations] ERROR: automationServiceRef.current is null/undefined')
-        return {
-          success: false,
-          error: 'Automation service not initialized - missing access token',
-          workflows: [],
-          executedAt: new Date().toISOString(),
-          totalRows: 0
-        }
+        return toExecutionError('Automation service not initialized - missing access token')
       }
 
       setIsLoading(true)
@@ -460,7 +471,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // Check if we have data to process based on automation type
         // - bulk_collection / excel_collection: requires RECIPIENTS (not rows) - can run on empty sheets
         // - other types: require ROWS to process
-        const isBulkCollection = automation.type === 'bulk_collection' || automation.type === 'excel_collection'
+        const isBulkCollection = isCollectionAutomation(automation)
         const hasRecipients =
           (automation.collectionConfig?.recipients?.length ?? 0) > 0 ||
           automation.collectionConfig?.recipientType === 'team' ||
@@ -481,13 +492,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // For bulk collection, check recipients instead of rows
         if (isBulkCollection && !hasRecipients) {
           console.error('[useSpreadsheetAutomations] Bulk collection has no recipients configured')
-          return {
-            success: false,
-            error: 'No recipients configured for bulk collection. Please edit the automation and add recipients.',
-            workflows: [],
-            executedAt,
-            totalRows: 0
-          }
+          return toExecutionError(
+            'No recipients configured for bulk collection. Please edit the automation and add recipients.'
+          )
         }
 
         // Use the dispatcher that handles different automation types correctly
@@ -495,7 +502,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // - bulk_collection: execute per recipient (not per row!)
         // - sheet_approval: execute once for entire sheet
 
-        const result = await automationServiceRef.current.runAutomation({
+        const result = await service.runAutomation({
           automation,
           rows: rows?.length
             ? rows.map(row => ({
@@ -532,7 +539,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           })
 
           // For bulk_collection and excel_collection: create rows showing "Sent" status when automation starts.
-          if (automation.type === 'bulk_collection' || automation.type === 'excel_collection') {
+          if (isCollectionAutomation(automation)) {
             if (!onAddRowsRef.current) {
               console.error('[useSpreadsheetAutomations] ERROR: onAddRowsRef.current is not set!')
             } else {
@@ -544,12 +551,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
               // Build a lookup from columnId to columnName for proper data mapping
               // The table renders using col.name, so we need to store data with column names, not IDs
-              const columnIdToName = new Map<string, string>()
-              if (automation.workflowConfig.columnMappings) {
-                for (const mapping of automation.workflowConfig.columnMappings) {
-                  columnIdToName.set(mapping.columnId, mapping.columnName)
-                }
-              }
+              const columnIdToName = buildColumnIdToNameMap(automation)
               // Fetch recipient data (name, email, avatar) via GraphQL
               const recipientIds = result.workflows.map(wf => wf.rowId.replace('recipient_', ''))
 
@@ -632,13 +634,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'
         console.error('[useSpreadsheetAutomations] Run automation error:', err)
         setError(errorMessage)
-        return {
-          success: false,
-          error: errorMessage,
-          workflows: [],
-          executedAt: new Date().toISOString(),
-          totalRows: 0
-        }
+        return toExecutionError(errorMessage)
       } finally {
         setIsLoading(false)
       }
@@ -792,9 +788,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     }
 
     // Get all bulk/excel collection automations
-    const bulkCollectionAutomations = automations.filter(
-      a => (a.type === 'bulk_collection' || a.type === 'excel_collection') && a.isEnabled
-    )
+    const bulkCollectionAutomations = automations.filter(a => isCollectionAutomation(a) && a.isEnabled)
     if (bulkCollectionAutomations.length === 0) {
       return
     }
@@ -853,6 +847,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         )
         const statusColumn = automation.workflowConfig.statusColumn
 
+        const columnIdToName = buildColumnIdToNameMap(automation)
         const rowUpdates = newResponses.map(response => {
           const recipientData = response.responderId ? recipientDataMap.get(response.responderId) : undefined
           const displayName =
@@ -883,37 +878,6 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
             copyAppId,
             copyUrl
           )
-
-          // Build a lookup from columnId to columnName for proper data mapping
-          // The table renders using col.name, so we need to store data with column names, not IDs
-          const columnIdToName = new Map<string, string>()
-
-          // First, use workflowConfig.columnMappings if available
-          if (automation.workflowConfig.columnMappings) {
-            for (const mapping of automation.workflowConfig.columnMappings) {
-              columnIdToName.set(mapping.columnId, mapping.columnName)
-            }
-          }
-
-          // For bulk_collection, also use collectionConfig.formFields
-          // The form field's columnId is used as the formData key, and we need to map it to the column name
-          if (automation.collectionConfig?.formFields) {
-            for (const field of automation.collectionConfig.formFields) {
-              // The columnId is both the form field name (key in formData) and the target column ID
-              // We need to look up the column name from columnMappings or use the columnId as-is
-              if (field.columnId && !columnIdToName.has(field.columnId)) {
-                // Try to find the column name from columnMappings
-                const mapping = automation.workflowConfig.columnMappings?.find(m => m.columnId === field.columnId)
-                if (mapping) {
-                  columnIdToName.set(field.columnId, mapping.columnName)
-                } else {
-                  // Fall back to using the columnId as both key and value
-                  // This will let handleUpdateRows resolve it via the column map
-                  columnIdToName.set(field.columnId, field.columnId)
-                }
-              }
-            }
-          }
 
           const cells: Record<string, unknown> = {
             ...trackingValues

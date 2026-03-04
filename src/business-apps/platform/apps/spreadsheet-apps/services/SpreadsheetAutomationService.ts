@@ -311,6 +311,7 @@ export class SpreadsheetAutomationService {
    */
   async runAutomation(params: RunAutomationParams): Promise<AutomationExecutionResult> {
     const { automation, rows, recipients, spreadsheetId, sheetId, initiatorId, accessToken } = params
+    const executedAt = new Date().toISOString()
 
     automationDebug('[SpreadsheetAutomationService] Running automation:', {
       type: automation.type,
@@ -321,171 +322,127 @@ export class SpreadsheetAutomationService {
       hasCollectionConfig: !!automation.collectionConfig
     })
 
-    switch (automation.type) {
-      case 'bulk_collection':
-        // Bulk collection executes per RECIPIENT, not per row
-        let collectionRecipients = recipients || automation.collectionConfig?.recipients || []
-        const recipientType = automation.collectionConfig?.recipientType || 'specific'
+    if (automation.type === 'bulk_collection') {
+      const resolved = await this.resolveCollectionRecipients(automation, recipients, initiatorId, 'bulk_collection')
+      if (!resolved.success) {
+        return this.createExecutionErrorResult(resolved.error, executedAt)
+      }
+      return this.executeBulkCollection({
+        automation,
+        recipients: resolved.recipients,
+        spreadsheetId,
+        sheetId,
+        initiatorId,
+        accessToken
+      })
+    }
 
-        automationDebug('[SpreadsheetAutomationService] Bulk collection config:', {
-          recipientType,
-          explicitRecipients: collectionRecipients.length,
-          configRecipients: automation.collectionConfig?.recipients?.length
-        })
-
-        // If recipientType is 'team' or 'department', resolve to actual user IDs
-        if ((recipientType === 'team' || recipientType === 'department') && collectionRecipients.length === 0) {
-          try {
-            collectionRecipients = await this.resolveRecipientsByType(recipientType, initiatorId)
-            automationDebug(
-              '[SpreadsheetAutomationService] Resolved',
-              recipientType,
-              'recipients:',
-              collectionRecipients
-            )
-          } catch (error) {
-            console.error('[SpreadsheetAutomationService] Failed to resolve recipients:', error)
-            return {
-              success: false,
-              error: `Failed to resolve ${recipientType} members. Please try again or select specific people.`,
-              workflows: [],
-              executedAt: new Date().toISOString(),
-              totalRows: 0
-            }
-          }
-        }
-
-        // Resolve employee IDs to user IDs - flow engine assigns tasks by userId
-        if (recipientType === 'specific' && collectionRecipients.length > 0) {
-          try {
-            const resolved = await this.resolveEmployeeIdsToUserIds(collectionRecipients)
-            if (resolved.length > 0) {
-              collectionRecipients = resolved
-              automationDebug(
-                '[SpreadsheetAutomationService] Resolved specific recipients to user IDs:',
-                resolved.length
-              )
-            }
-          } catch (error) {
-            console.warn('[SpreadsheetAutomationService] Could not resolve some recipients to user IDs:', error)
-          }
-        }
-
-        if (collectionRecipients.length === 0) {
-          console.error('[SpreadsheetAutomationService] ERROR: No recipients for bulk collection!')
-          return {
-            success: false,
-            error:
-              recipientType === 'specific'
-                ? 'No recipients specified for bulk collection. Please edit this automation and select recipients.'
-                : `No ${recipientType} members found. Please check your team/department membership.`,
-            workflows: [],
-            executedAt: new Date().toISOString(),
-            totalRows: 0
-          }
-        }
-        return this.executeBulkCollection({
-          automation,
-          recipients: collectionRecipients,
-          spreadsheetId,
-          sheetId,
-          initiatorId,
-          accessToken
-        })
-
-      case 'excel_collection': {
-        // Excel collection: duplicate template for each recipient, share, create flow task with link
-        const templateId = automation.collectionConfig?.templateSpreadsheetId
-        if (!templateId) {
-          return {
-            success: false,
-            error: 'No template spreadsheet configured for Excel Collection. Please edit the automation.',
-            workflows: [],
-            executedAt: new Date().toISOString(),
-            totalRows: 0
-          }
-        }
-
-        let excelRecipients = recipients || automation.collectionConfig?.recipients || []
-        const excelRecipientType = automation.collectionConfig?.recipientType || 'specific'
-
-        if ((excelRecipientType === 'team' || excelRecipientType === 'department') && excelRecipients.length === 0) {
-          try {
-            excelRecipients = await this.resolveRecipientsByType(excelRecipientType, initiatorId)
-          } catch (error) {
-            console.error('[SpreadsheetAutomationService] Failed to resolve excel collection recipients:', error)
-            return {
-              success: false,
-              error: `Failed to resolve ${excelRecipientType} members. Please try again or select specific people.`,
-              workflows: [],
-              executedAt: new Date().toISOString(),
-              totalRows: 0
-            }
-          }
-        }
-
-        if (excelRecipientType === 'specific' && excelRecipients.length > 0) {
-          try {
-            const resolved = await this.resolveEmployeeIdsToUserIds(excelRecipients)
-            if (resolved.length > 0) excelRecipients = resolved
-          } catch (error) {
-            console.warn('[SpreadsheetAutomationService] Could not resolve some excel recipients to user IDs:', error)
-          }
-        }
-
-        if (excelRecipients.length === 0) {
-          return {
-            success: false,
-            error: 'No recipients configured for Excel Collection. Please edit the automation.',
-            workflows: [],
-            executedAt: new Date().toISOString(),
-            totalRows: 0
-          }
-        }
-
-        return this.executeExcelCollection({
-          automation,
-          recipients: excelRecipients,
-          spreadsheetId,
-          sheetId,
-          initiatorId,
-          accessToken
-        })
+    if (automation.type === 'excel_collection') {
+      if (!automation.collectionConfig?.templateSpreadsheetId) {
+        return this.createExecutionErrorResult(
+          'No template spreadsheet configured for Excel Collection. Please edit the automation.',
+          executedAt
+        )
       }
 
-      case 'sheet_approval':
-        // Sheet approval creates ONE workflow for the entire sheet
-        return this.executeSheetApproval({
-          automation,
-          rows: rows || [],
-          spreadsheetId,
-          sheetId,
-          initiatorId,
-          accessToken
-        })
-
-      case 'line_approval':
-      case 'row_workflow':
-      default:
-        // Row-based automations execute per row
-        if (!rows || rows.length === 0) {
-          return {
-            success: false,
-            error: 'No rows specified for row-based automation',
-            workflows: [],
-            executedAt: new Date().toISOString(),
-            totalRows: 0
-          }
-        }
-        return this.executeBulkRowWorkflows({
-          automation,
-          rows,
-          spreadsheetId,
-          sheetId,
-          initiatorId,
-          accessToken
-        })
+      const resolved = await this.resolveCollectionRecipients(automation, recipients, initiatorId, 'excel_collection')
+      if (!resolved.success) {
+        return this.createExecutionErrorResult(resolved.error, executedAt)
+      }
+      return this.executeExcelCollection({
+        automation,
+        recipients: resolved.recipients,
+        spreadsheetId,
+        sheetId,
+        initiatorId,
+        accessToken
+      })
     }
+
+    if (automation.type === 'sheet_approval') {
+      return this.executeSheetApproval({
+        automation,
+        rows: rows || [],
+        spreadsheetId,
+        sheetId,
+        initiatorId,
+        accessToken
+      })
+    }
+
+    if (!rows || rows.length === 0) {
+      return this.createExecutionErrorResult('No rows specified for row-based automation', executedAt)
+    }
+    return this.executeBulkRowWorkflows({
+      automation,
+      rows,
+      spreadsheetId,
+      sheetId,
+      initiatorId,
+      accessToken
+    })
+  }
+
+  private createExecutionErrorResult(error: string, executedAt: string): AutomationExecutionResult {
+    return {
+      success: false,
+      error,
+      workflows: [],
+      executedAt,
+      totalRows: 0
+    }
+  }
+
+  private async resolveCollectionRecipients(
+    automation: SpreadsheetAutomation,
+    recipients: string[] | undefined,
+    initiatorId: string,
+    mode: 'bulk_collection' | 'excel_collection'
+  ): Promise<{ success: true; recipients: string[] } | { success: false; error: string }> {
+    let resolvedRecipients = recipients || automation.collectionConfig?.recipients || []
+    const recipientType = automation.collectionConfig?.recipientType || 'specific'
+
+    if ((recipientType === 'team' || recipientType === 'department') && resolvedRecipients.length === 0) {
+      try {
+        resolvedRecipients = await this.resolveRecipientsByType(recipientType, initiatorId)
+        automationDebug('[SpreadsheetAutomationService] Resolved recipients by type:', {
+          mode,
+          recipientType,
+          count: resolvedRecipients.length
+        })
+      } catch (error) {
+        console.error('[SpreadsheetAutomationService] Failed to resolve recipients:', error)
+        return {
+          success: false,
+          error: `Failed to resolve ${recipientType} members. Please try again or select specific people.`
+        }
+      }
+    }
+
+    if (recipientType === 'specific' && resolvedRecipients.length > 0) {
+      try {
+        const normalized = await this.resolveEmployeeIdsToUserIds(resolvedRecipients)
+        if (normalized.length > 0) {
+          resolvedRecipients = normalized
+        }
+      } catch (error) {
+        console.warn('[SpreadsheetAutomationService] Could not resolve recipients to user IDs:', error)
+      }
+    }
+
+    if (resolvedRecipients.length === 0) {
+      return {
+        success: false,
+        error:
+          recipientType === 'specific'
+            ? mode === 'excel_collection'
+              ? 'No recipients configured for Excel Collection. Please edit the automation.'
+              : 'No recipients specified for bulk collection. Please edit this automation and select recipients.'
+            : `No ${recipientType} members found. Please check your team/department membership.`
+      }
+    }
+
+    return { success: true, recipients: resolvedRecipients }
   }
 
   /**
@@ -646,45 +603,29 @@ export class SpreadsheetAutomationService {
     const recipientNames = await this.resolveRecipientDisplayNames(recipients)
 
     try {
-      // Call the new BE endpoint that handles all duplication and workflow creation
       const response = await fetch(`${docBase}/automations/${backendId}/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.accessToken}`
         },
-        body: JSON.stringify({
-          recipients,
-          message: automation.collectionConfig?.message,
-          baseUrl: (typeof window !== 'undefined' && window.location?.origin) || env('NEXT_PUBLIC_BASE_URL') || '',
-          managerDisplayName: 'Manager',
-          recipientNames
-        })
+        body: JSON.stringify(this.buildExcelCollectionRunPayload(automation, recipients, recipientNames))
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        let errorMessage: string
-        try {
-          const errorData = JSON.parse(errorText)
-          errorMessage = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`
-        } catch {
-          errorMessage = `HTTP ${response.status}: ${errorText || response.statusText}`
-        }
+        const errorMessage = await this.getErrorMessageFromResponse(response)
         console.error('[SpreadsheetAutomationService] BE excel collection run failed:', {
           status: response.status,
           errorMessage
         })
-        let userError = errorMessage
-        if (
+        const isTemplateMissing =
           (response.status === 404 || errorMessage.toLowerCase().includes('not found')) &&
           errorMessage.toLowerCase().includes('template')
-        ) {
-          userError = `Template spreadsheet not found. If using a local document-service, ensure the spreadsheet app exists there. Check NEXT_PUBLIC_DOCUMENT_SERVICE_DEBUG_URL.`
-        }
         return {
           success: false,
-          error: userError,
+          error: isTemplateMissing
+            ? 'Template spreadsheet not found. If using a local document-service, ensure the spreadsheet app exists there. Check NEXT_PUBLIC_DOCUMENT_SERVICE_DEBUG_URL.'
+            : errorMessage,
           workflows: [],
           executedAt,
           totalRows: recipients.length
@@ -692,38 +633,7 @@ export class SpreadsheetAutomationService {
       }
 
       const result = await response.json()
-      const runData = result.data || result
-
-      automationDebug('[SpreadsheetAutomationService] Excel collection run started:', {
-        runId: runData.run?.id || runData.runId,
-        recipientCount: runData.run?.recipientCount || runData.recipientCount || recipients.length,
-        successCount: runData.successCount,
-        failedCount: runData.failureCount ?? runData.failedCount
-      })
-
-      // Transform BE response to match AutomationExecutionResult format
-      const runCopies = (runData.copies || runData.results || []) as Array<{
-        recipientId: string
-        workflowId?: string
-        error?: string
-      }>
-      const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = runCopies.map(r => ({
-        rowId: `recipient_${r.recipientId}`,
-        workflowId: r.workflowId || '',
-        status: r.workflowId ? 'RUNNING' : ('FAILED' as WorkflowStatus)
-      }))
-
-      const failedRows = runCopies.filter(r => !r.workflowId).map(r => r.recipientId)
-
-      return {
-        success: failedRows.length === 0,
-        error: failedRows.length > 0 ? `Failed to send to ${failedRows.length} recipients` : undefined,
-        workflows,
-        executedAt,
-        totalRows: recipients.length,
-        failedRows: failedRows.length > 0 ? failedRows : undefined,
-        ...(wasCreated && { backendId })
-      }
+      return this.mapExcelCollectionRunResult(result, recipients.length, executedAt, wasCreated ? backendId : undefined)
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Excel collection execution error:', error)
       return {
@@ -733,6 +643,69 @@ export class SpreadsheetAutomationService {
         executedAt,
         totalRows: recipients.length
       }
+    }
+  }
+
+  private buildExcelCollectionRunPayload(
+    automation: SpreadsheetAutomation,
+    recipients: string[],
+    recipientNames: Record<string, string>
+  ): Record<string, unknown> {
+    return {
+      recipients,
+      message: automation.collectionConfig?.message,
+      baseUrl: (typeof window !== 'undefined' && window.location?.origin) || env('NEXT_PUBLIC_BASE_URL') || '',
+      managerDisplayName: 'Manager',
+      recipientNames
+    }
+  }
+
+  private async getErrorMessageFromResponse(response: Response): Promise<string> {
+    const errorText = await response.text()
+    try {
+      const errorData = JSON.parse(errorText)
+      return errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`
+    } catch {
+      return `HTTP ${response.status}: ${errorText || response.statusText}`
+    }
+  }
+
+  private mapExcelCollectionRunResult(
+    result: Record<string, unknown>,
+    recipientCount: number,
+    executedAt: string,
+    backendId?: string
+  ): AutomationExecutionResult {
+    const runData = (result.data || result) as Record<string, unknown>
+    automationDebug('[SpreadsheetAutomationService] Excel collection run started:', {
+      runId: (runData.run as Record<string, unknown> | undefined)?.id || runData.runId,
+      recipientCount:
+        (runData.run as Record<string, unknown> | undefined)?.recipientCount ||
+        runData.recipientCount ||
+        recipientCount,
+      successCount: runData.successCount,
+      failedCount: runData.failureCount ?? runData.failedCount
+    })
+
+    const runCopies = (runData.copies || runData.results || []) as Array<{
+      recipientId: string
+      workflowId?: string
+    }>
+    const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = runCopies.map(copy => ({
+      rowId: `recipient_${copy.recipientId}`,
+      workflowId: copy.workflowId || '',
+      status: copy.workflowId ? 'RUNNING' : ('FAILED' as WorkflowStatus)
+    }))
+    const failedRows = runCopies.filter(copy => !copy.workflowId).map(copy => copy.recipientId)
+
+    return {
+      success: failedRows.length === 0,
+      error: failedRows.length > 0 ? `Failed to send to ${failedRows.length} recipients` : undefined,
+      workflows,
+      executedAt,
+      totalRows: recipientCount,
+      failedRows: failedRows.length > 0 ? failedRows : undefined,
+      ...(backendId ? { backendId } : {})
     }
   }
 
@@ -1290,231 +1263,14 @@ export class SpreadsheetAutomationService {
    * @param initiatorId - The user triggering the workflow (used as default assignee)
    */
   private createDefaultTemplate(automation: SpreadsheetAutomation, initiatorId?: string): AutomationFlowTemplate {
-    const steps: AutomationFlowStep[] = []
-
-    // Default assignment targets to initiator if no specific targets are configured
     const defaultTargets = initiatorId ? { users: [initiatorId] } : null
-
-    switch (automation.type) {
-      /**
-       * ROW_WORKFLOW: Process each spreadsheet row through a multi-step workflow
-       * Use case: Data processing, review workflows, status updates
-       * Example: Process customer requests, review inventory items, handle support tickets
-       */
-      case 'row_workflow':
-        steps.push(
-          {
-            type: 'TASK',
-            title: 'Review Row Data',
-            message:
-              'Review the data in this row and verify it is complete and accurate.\n\nRow Details:\n{{rowSummary}}',
-            form: [
-              {
-                type: 'SELECT',
-                name: 'reviewStatus',
-                label: 'Review Status',
-                required: true,
-                options: [
-                  { label: 'Data Complete', value: 'complete' },
-                  { label: 'Needs Updates', value: 'needs_updates' },
-                  { label: 'Invalid Data', value: 'invalid' }
-                ]
-              },
-              {
-                type: 'TEXTAREA',
-                name: 'reviewNotes',
-                label: 'Review Notes',
-                required: false,
-                placeholder: 'Add any notes about your review...'
-              }
-            ],
-            assignment: {
-              targets: defaultTargets,
-              assignmentMode: 'ASSIGN',
-              allowReassignment: true
-            },
-            dueInMinutes: 1440 // 24 hours
-          },
-          {
-            type: 'TASK',
-            title: 'Process Row',
-            message: 'Complete any required processing for this row based on the review.',
-            form: [
-              {
-                type: 'SELECT',
-                name: 'processingResult',
-                label: 'Processing Result',
-                required: true,
-                options: [
-                  { label: 'Processed Successfully', value: 'success' },
-                  { label: 'Processing Failed', value: 'failed' },
-                  { label: 'Skipped', value: 'skipped' }
-                ]
-              }
-            ],
-            assignment: {
-              targets: defaultTargets,
-              assignmentMode: 'ASSIGN',
-              allowReassignment: true
-            },
-            dueInMinutes: 2880 // 48 hours
-          }
-        )
-        break
-
-      /**
-       * SHEET_APPROVAL: Submit the ENTIRE spreadsheet for approval as one unit
-       * Use case: Budget approvals, quarterly reports, document sign-offs
-       * Example: Q4 Budget approval, Annual plan review, Batch invoice approval
-       * Note: This creates ONE workflow for the whole sheet, not per-row
-       */
-      case 'sheet_approval':
-        steps.push(
-          {
-            type: 'INFORMATION',
-            title: 'Sheet Submitted for Approval',
-            message:
-              'The spreadsheet "{{sheetName}}" has been submitted for approval.\n\nTotal rows: {{rowCount}}\nSubmitted by: {{submittedBy}}\nSubmission date: {{submissionDate}}',
-            assignment: {
-              targets: defaultTargets,
-              assignmentMode: 'ASSIGN',
-              allowReassignment: false
-            }
-          },
-          {
-            type: 'APPROVAL',
-            title: 'Approve Spreadsheet',
-            message:
-              'Review the entire spreadsheet and approve or reject it.\n\nPlease verify:\n- All data is accurate\n- Calculations are correct\n- Required fields are complete',
-            form: [
-              {
-                type: 'TEXTAREA',
-                name: 'approvalComments',
-                label: 'Approval Comments',
-                required: false,
-                placeholder: 'Add any comments about your decision...'
-              },
-              {
-                type: 'SELECT',
-                name: 'approvalCondition',
-                label: 'Approval Condition',
-                required: false,
-                options: [
-                  { label: 'Unconditional Approval', value: 'unconditional' },
-                  { label: 'Approved with Minor Changes', value: 'minor_changes' },
-                  { label: 'Approved Pending Corrections', value: 'pending_corrections' }
-                ]
-              }
-            ],
-            assignment: {
-              targets: defaultTargets,
-              assignmentMode: 'ASSIGN',
-              allowReassignment: true
-            },
-            dueInMinutes: 4320 // 3 days
-          }
-        )
-        break
-
-      /**
-       * LINE_APPROVAL: Each row requires individual approval
-       * Use case: Expense lines, purchase order items, individual records
-       * Example: Expense report line items, PO line approvals, record verifications
-       * Note: Creates one workflow PER ROW for granular approval
-       */
-      case 'line_approval':
-        steps.push({
-          type: 'APPROVAL',
-          title: 'Approve Line Item',
-          message: 'Review and approve or reject this line item.\n\n{{rowSummary}}',
-          form: [
-            {
-              type: 'NUMBER',
-              name: 'approvedAmount',
-              label: 'Approved Amount (if different)',
-              required: false,
-              placeholder: 'Leave blank to approve as-is'
-            },
-            {
-              type: 'SELECT',
-              name: 'rejectionReason',
-              label: 'Rejection Reason (if rejecting)',
-              required: false,
-              options: [
-                { label: 'Policy Violation', value: 'policy_violation' },
-                { label: 'Budget Exceeded', value: 'budget_exceeded' },
-                { label: 'Missing Documentation', value: 'missing_docs' },
-                { label: 'Duplicate Entry', value: 'duplicate' },
-                { label: 'Other', value: 'other' }
-              ]
-            },
-            {
-              type: 'TEXTAREA',
-              name: 'approverComments',
-              label: 'Comments',
-              required: false,
-              placeholder: 'Add any comments about your decision...'
-            }
-          ],
-          assignment: {
-            targets: defaultTargets,
-            assignmentMode: 'ASSIGN',
-            allowReassignment: true
-          },
-          dueInMinutes: 2880 // 48 hours
-        })
-        break
-
-      /**
-       * BULK_COLLECTION: Collect data FROM multiple users INTO the spreadsheet
-       * Use case: Surveys, data gathering, team inputs, status updates
-       * Example: Employee survey, team capacity planning, feedback collection
-       * Note: Workflow is sent to multiple people, their responses become new rows
-       */
-      case 'bulk_collection':
-        steps.push({
-          type: 'TASK',
-          title: 'Submit Your Response',
-          message:
-            'Please complete this form. Your response will be added to the collection.\n\n{{collectionDescription}}',
-          form: [
-            // The form fields should be dynamically generated based on spreadsheet columns
-            // This is a placeholder - actual implementation should map columns to form inputs
-            {
-              type: 'TEXTAREA',
-              name: 'response',
-              label: 'Your Response',
-              required: true,
-              placeholder: 'Enter your response here...'
-            },
-            {
-              type: 'SELECT',
-              name: 'confidence',
-              label: 'Confidence Level',
-              required: false,
-              options: [
-                { label: 'High', value: 'high' },
-                { label: 'Medium', value: 'medium' },
-                { label: 'Low', value: 'low' }
-              ]
-            },
-            {
-              type: 'TEXTAREA',
-              name: 'additionalNotes',
-              label: 'Additional Notes',
-              required: false,
-              placeholder: 'Any additional information...'
-            }
-          ],
-          assignment: {
-            targets: defaultTargets,
-            assignmentMode: 'ASSIGN',
-            allowReassignment: false // Responses should come from assigned users
-          },
-          dueInMinutes: 10080 // 1 week
-        })
-        break
+    const stepBuilders: Partial<Record<SpreadsheetAutomation['type'], () => AutomationFlowStep[]>> = {
+      row_workflow: () => this.buildRowWorkflowDefaultSteps(defaultTargets),
+      sheet_approval: () => this.buildSheetApprovalDefaultSteps(defaultTargets),
+      line_approval: () => this.buildLineApprovalDefaultSteps(defaultTargets),
+      bulk_collection: () => this.buildBulkCollectionDefaultSteps(defaultTargets)
     }
+    const steps = stepBuilders[automation.type]?.() ?? this.buildLineApprovalDefaultSteps(defaultTargets)
 
     return {
       type: 'TEMPLATE',
@@ -1525,22 +1281,214 @@ export class SpreadsheetAutomationService {
     }
   }
 
+  private buildRowWorkflowDefaultSteps(defaultTargets: { users: string[] } | null): AutomationFlowStep[] {
+    return [
+      {
+        type: 'TASK',
+        title: 'Review Row Data',
+        message: 'Review the data in this row and verify it is complete and accurate.\n\nRow Details:\n{{rowSummary}}',
+        form: [
+          {
+            type: 'SELECT',
+            name: 'reviewStatus',
+            label: 'Review Status',
+            required: true,
+            options: [
+              { label: 'Data Complete', value: 'complete' },
+              { label: 'Needs Updates', value: 'needs_updates' },
+              { label: 'Invalid Data', value: 'invalid' }
+            ]
+          },
+          {
+            type: 'TEXTAREA',
+            name: 'reviewNotes',
+            label: 'Review Notes',
+            required: false,
+            placeholder: 'Add any notes about your review...'
+          }
+        ],
+        assignment: {
+          targets: defaultTargets,
+          assignmentMode: 'ASSIGN',
+          allowReassignment: true
+        },
+        dueInMinutes: 1440
+      },
+      {
+        type: 'TASK',
+        title: 'Process Row',
+        message: 'Complete any required processing for this row based on the review.',
+        form: [
+          {
+            type: 'SELECT',
+            name: 'processingResult',
+            label: 'Processing Result',
+            required: true,
+            options: [
+              { label: 'Processed Successfully', value: 'success' },
+              { label: 'Processing Failed', value: 'failed' },
+              { label: 'Skipped', value: 'skipped' }
+            ]
+          }
+        ],
+        assignment: {
+          targets: defaultTargets,
+          assignmentMode: 'ASSIGN',
+          allowReassignment: true
+        },
+        dueInMinutes: 2880
+      }
+    ]
+  }
+
+  private buildSheetApprovalDefaultSteps(defaultTargets: { users: string[] } | null): AutomationFlowStep[] {
+    return [
+      {
+        type: 'INFORMATION',
+        title: 'Sheet Submitted for Approval',
+        message:
+          'The spreadsheet "{{sheetName}}" has been submitted for approval.\n\nTotal rows: {{rowCount}}\nSubmitted by: {{submittedBy}}\nSubmission date: {{submissionDate}}',
+        assignment: {
+          targets: defaultTargets,
+          assignmentMode: 'ASSIGN',
+          allowReassignment: false
+        }
+      },
+      {
+        type: 'APPROVAL',
+        title: 'Approve Spreadsheet',
+        message:
+          'Review the entire spreadsheet and approve or reject it.\n\nPlease verify:\n- All data is accurate\n- Calculations are correct\n- Required fields are complete',
+        form: [
+          {
+            type: 'TEXTAREA',
+            name: 'approvalComments',
+            label: 'Approval Comments',
+            required: false,
+            placeholder: 'Add any comments about your decision...'
+          },
+          {
+            type: 'SELECT',
+            name: 'approvalCondition',
+            label: 'Approval Condition',
+            required: false,
+            options: [
+              { label: 'Unconditional Approval', value: 'unconditional' },
+              { label: 'Approved with Minor Changes', value: 'minor_changes' },
+              { label: 'Approved Pending Corrections', value: 'pending_corrections' }
+            ]
+          }
+        ],
+        assignment: {
+          targets: defaultTargets,
+          assignmentMode: 'ASSIGN',
+          allowReassignment: true
+        },
+        dueInMinutes: 4320
+      }
+    ]
+  }
+
+  private buildLineApprovalDefaultSteps(defaultTargets: { users: string[] } | null): AutomationFlowStep[] {
+    return [
+      {
+        type: 'APPROVAL',
+        title: 'Approve Line Item',
+        message: 'Review and approve or reject this line item.\n\n{{rowSummary}}',
+        form: [
+          {
+            type: 'NUMBER',
+            name: 'approvedAmount',
+            label: 'Approved Amount (if different)',
+            required: false,
+            placeholder: 'Leave blank to approve as-is'
+          },
+          {
+            type: 'SELECT',
+            name: 'rejectionReason',
+            label: 'Rejection Reason (if rejecting)',
+            required: false,
+            options: [
+              { label: 'Policy Violation', value: 'policy_violation' },
+              { label: 'Budget Exceeded', value: 'budget_exceeded' },
+              { label: 'Missing Documentation', value: 'missing_docs' },
+              { label: 'Duplicate Entry', value: 'duplicate' },
+              { label: 'Other', value: 'other' }
+            ]
+          },
+          {
+            type: 'TEXTAREA',
+            name: 'approverComments',
+            label: 'Comments',
+            required: false,
+            placeholder: 'Add any comments about your decision...'
+          }
+        ],
+        assignment: {
+          targets: defaultTargets,
+          assignmentMode: 'ASSIGN',
+          allowReassignment: true
+        },
+        dueInMinutes: 2880
+      }
+    ]
+  }
+
+  private buildBulkCollectionDefaultSteps(defaultTargets: { users: string[] } | null): AutomationFlowStep[] {
+    return [
+      {
+        type: 'TASK',
+        title: 'Submit Your Response',
+        message:
+          'Please complete this form. Your response will be added to the collection.\n\n{{collectionDescription}}',
+        form: [
+          {
+            type: 'TEXTAREA',
+            name: 'response',
+            label: 'Your Response',
+            required: true,
+            placeholder: 'Enter your response here...'
+          },
+          {
+            type: 'SELECT',
+            name: 'confidence',
+            label: 'Confidence Level',
+            required: false,
+            options: [
+              { label: 'High', value: 'high' },
+              { label: 'Medium', value: 'medium' },
+              { label: 'Low', value: 'low' }
+            ]
+          },
+          {
+            type: 'TEXTAREA',
+            name: 'additionalNotes',
+            label: 'Additional Notes',
+            required: false,
+            placeholder: 'Any additional information...'
+          }
+        ],
+        assignment: {
+          targets: defaultTargets,
+          assignmentMode: 'ASSIGN',
+          allowReassignment: false
+        },
+        dueInMinutes: 10080
+      }
+    ]
+  }
+
   /**
    * Get default description for automation type
    */
   private getDefaultDescription(type: string): string {
-    switch (type) {
-      case 'row_workflow':
-        return 'Process each row through a review and processing workflow'
-      case 'sheet_approval':
-        return 'Submit the entire spreadsheet for approval'
-      case 'line_approval':
-        return 'Approve or reject each line item individually'
-      case 'bulk_collection':
-        return 'Collect responses from multiple users into the spreadsheet'
-      default:
-        return 'Spreadsheet automation workflow'
+    const descriptions: Record<string, string> = {
+      row_workflow: 'Process each row through a review and processing workflow',
+      sheet_approval: 'Submit the entire spreadsheet for approval',
+      line_approval: 'Approve or reject each line item individually',
+      bulk_collection: 'Collect responses from multiple users into the spreadsheet'
     }
+    return descriptions[type] || 'Spreadsheet automation workflow'
   }
 
   /**
@@ -1576,31 +1524,8 @@ export class SpreadsheetAutomationService {
     // For row workflows with dynamic template
     if (automation.workflowConfig.dynamicTemplate?.steps) {
       automation.workflowConfig.dynamicTemplate.steps.forEach((step, index) => {
-        // Check if assignment targets reference row data
-        if (step.assignment?.targets) {
-          const resolvedTargets = this.resolveAssignmentTargets(
-            step.assignment.targets as unknown as Record<string, unknown>,
-            rowData
-          )
-          assignments[`step_${index}`] = {
-            assignment: {
-              ...step.assignment,
-              targets: resolvedTargets
-            }
-          }
-        } else if (step.assignment) {
-          // Has assignment config but no targets - use default
-          assignments[`step_${index}`] = {
-            assignment: {
-              ...step.assignment,
-              targets: defaultAssignment?.targets || step.assignment.targets
-            }
-          }
-        } else {
-          // No assignment at all - use default
-          assignments[`step_${index}`] = {
-            assignment: defaultAssignment
-          }
+        assignments[`step_${index}`] = {
+          assignment: this.resolveStepAssignment(step.assignment, rowData, defaultAssignment)
         }
       })
       return assignments
@@ -1618,22 +1543,46 @@ export class SpreadsheetAutomationService {
     return assignments
   }
 
+  private resolveStepAssignment(
+    assignment: AutomationFlowStep['assignment'] | undefined,
+    rowData: Record<string, unknown>,
+    defaultAssignment:
+      | {
+          targets: { users: string[] }
+          assignmentMode: string
+          allowReassignment: boolean
+        }
+      | null
+      | undefined
+  ): unknown {
+    if (!assignment) return defaultAssignment
+    if (!assignment.targets) {
+      return {
+        ...assignment,
+        targets: defaultAssignment?.targets || assignment.targets
+      }
+    }
+    const resolvedTargets = this.resolveAssignmentTargets(
+      assignment.targets as unknown as Record<string, unknown>,
+      rowData
+    )
+    return {
+      ...assignment,
+      targets: resolvedTargets
+    }
+  }
+
   /**
    * Get the number of steps in the default template for an automation type
    */
   private getDefaultStepCount(type: string): number {
-    switch (type) {
-      case 'row_workflow':
-        return 2 // Review + Process
-      case 'sheet_approval':
-        return 2 // Information + Approval
-      case 'line_approval':
-        return 1 // Single approval step
-      case 'bulk_collection':
-        return 1 // Single form submission step
-      default:
-        return 1
+    const stepCounts: Record<string, number> = {
+      row_workflow: 2,
+      sheet_approval: 2,
+      line_approval: 1,
+      bulk_collection: 1
     }
+    return stepCounts[type] || 1
   }
 
   /**
@@ -2244,72 +2193,17 @@ export class SpreadsheetAutomationService {
     userId: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      // 1. Fetch user's assigned/open tasks
-      const tasksRes = await fetch(`${this.apiBaseUrl}/tasks/user/${userId}`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${this.accessToken}` }
-      })
-      if (!tasksRes.ok) {
-        const err = await tasksRes.text()
-        console.error('[SpreadsheetAutomationService] Failed to fetch user tasks:', tasksRes.status, err)
-        // Flow-engine unavailable (e.g. 503) - attempt document-service fallback before giving up
+      const tasks = await this.fetchUserTasks(userId)
+      if (!tasks) {
         const marked = await this.markDocumentRunSubmissionComplete(copyAppId)
-        if (marked) return { success: true }
-        return { success: false, error: 'Failed to load your task' }
+        return marked ? { success: true } : { success: false, error: 'Failed to load your task' }
       }
-
-      const tasksData = (await tasksRes.json()) as {
-        tasks?: Array<Record<string, unknown>>
-        data?: { tasks?: Array<Record<string, unknown>> }
-      }
-      const tasks = tasksData.tasks || tasksData.data?.tasks || []
-      if (!Array.isArray(tasks)) {
+      if (tasks.length === 0) {
         return { success: false, error: 'No tasks found' }
       }
 
-      // 2. Fetch flows/list to find flow with copyAppId tag (excel_collection, RUNNING)
-      let targetTaskId: string | null = null
-      try {
-        const flowsRes = await fetch(`${this.apiBaseUrl}/flows/list`, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${this.accessToken}` }
-        })
-        if (flowsRes.ok) {
-          const flowsData = await flowsRes.json()
-          const flows = flowsData.data?.flows || flowsData.flows || []
-          const matchingFlow = (Array.isArray(flows) ? flows : []).find((f: Record<string, unknown>) => {
-            const tags = (f.tags as Record<string, string>) || {}
-            return (
-              tags.app === 'spreadsheet-automation' &&
-              tags.automationType === 'excel_collection' &&
-              tags.copyAppId === copyAppId &&
-              (f.status === 'RUNNING' || f.status === 'PENDING' || f.status === 'IN_PROGRESS')
-            )
-          }) as Record<string, unknown> | undefined
-
-          if (matchingFlow) {
-            const flowId =
-              (matchingFlow.id as string) ||
-              (matchingFlow.workflowId as string) ||
-              (matchingFlow.flowId as string) ||
-              ''
-            // Find task that belongs to this flow
-            const task = tasks.find(
-              (t: Record<string, unknown>) =>
-                t.flowId === flowId ||
-                t.workflowId === flowId ||
-                t.businessKey === flowId ||
-                (t.flow as Record<string, unknown>)?.id === flowId
-            ) as Record<string, unknown> | undefined
-            if (task) {
-              targetTaskId = (task.id as string) || (task.taskId as string) || ''
-            }
-          }
-        }
-      } catch (e) {
-        console.error('[SpreadsheetAutomationService] Error finding excel collection task:', e)
-      }
-
+      const flowId = await this.findActiveExcelCollectionFlowId(copyAppId)
+      const targetTaskId = flowId ? this.findTaskIdByFlow(tasks, flowId) : null
       if (!targetTaskId) {
         const marked = await this.markDocumentRunSubmissionComplete(copyAppId)
         if (marked) {
@@ -2318,22 +2212,8 @@ export class SpreadsheetAutomationService {
         return { success: false, error: 'Could not find your collection task. It may already be completed.' }
       }
 
-      // 3. Complete the task
-      const completeRes = await fetch(`${this.apiBaseUrl}/tasks/${targetTaskId}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.accessToken}`
-        },
-        body: JSON.stringify({
-          userId,
-          formData: { submitted: true, copyAppId }
-        })
-      })
-
-      if (!completeRes.ok) {
-        const err = await completeRes.text()
-        console.error('[SpreadsheetAutomationService] Task complete failed:', completeRes.status, err)
+      const completed = await this.completeTask(targetTaskId, userId, copyAppId)
+      if (!completed) {
         return { success: false, error: 'Failed to submit' }
       }
 
@@ -2346,6 +2226,84 @@ export class SpreadsheetAutomationService {
       console.error('[SpreadsheetAutomationService] findAndCompleteExcelCollectionTask error:', e)
       return { success: false, error: e instanceof Error ? e.message : 'Submit failed' }
     }
+  }
+
+  private async fetchUserTasks(userId: string): Promise<Array<Record<string, unknown>> | null> {
+    const tasksRes = await fetch(`${this.apiBaseUrl}/tasks/user/${userId}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${this.accessToken}` }
+    })
+    if (!tasksRes.ok) {
+      const err = await tasksRes.text()
+      console.error('[SpreadsheetAutomationService] Failed to fetch user tasks:', tasksRes.status, err)
+      return null
+    }
+    const tasksData = (await tasksRes.json()) as {
+      tasks?: Array<Record<string, unknown>>
+      data?: { tasks?: Array<Record<string, unknown>> }
+    }
+    const tasks = tasksData.tasks || tasksData.data?.tasks || []
+    return Array.isArray(tasks) ? tasks : []
+  }
+
+  private async findActiveExcelCollectionFlowId(copyAppId: string): Promise<string | null> {
+    try {
+      const flowsRes = await fetch(`${this.apiBaseUrl}/flows/list`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${this.accessToken}` }
+      })
+      if (!flowsRes.ok) return null
+      const flowsData = await flowsRes.json()
+      const flows = flowsData.data?.flows || flowsData.flows || []
+      const matchingFlow = (Array.isArray(flows) ? flows : []).find((flow: Record<string, unknown>) => {
+        const tags = (flow.tags as Record<string, string>) || {}
+        return (
+          tags.app === 'spreadsheet-automation' &&
+          tags.automationType === 'excel_collection' &&
+          tags.copyAppId === copyAppId &&
+          (flow.status === 'RUNNING' || flow.status === 'PENDING' || flow.status === 'IN_PROGRESS')
+        )
+      }) as Record<string, unknown> | undefined
+      if (!matchingFlow) return null
+      return (
+        (matchingFlow.id as string) || (matchingFlow.workflowId as string) || (matchingFlow.flowId as string) || null
+      )
+    } catch (e) {
+      console.error('[SpreadsheetAutomationService] Error finding excel collection task:', e)
+      return null
+    }
+  }
+
+  private findTaskIdByFlow(tasks: Array<Record<string, unknown>>, flowId: string): string | null {
+    const task = tasks.find(
+      (t: Record<string, unknown>) =>
+        t.flowId === flowId ||
+        t.workflowId === flowId ||
+        t.businessKey === flowId ||
+        (t.flow as Record<string, unknown>)?.id === flowId
+    ) as Record<string, unknown> | undefined
+    if (!task) return null
+    return ((task.id as string) || (task.taskId as string) || '').trim() || null
+  }
+
+  private async completeTask(taskId: string, userId: string, copyAppId: string): Promise<boolean> {
+    const completeRes = await fetch(`${this.apiBaseUrl}/tasks/${taskId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`
+      },
+      body: JSON.stringify({
+        userId,
+        formData: { submitted: true, copyAppId }
+      })
+    })
+    if (!completeRes.ok) {
+      const err = await completeRes.text()
+      console.error('[SpreadsheetAutomationService] Task complete failed:', completeRes.status, err)
+      return false
+    }
+    return true
   }
 
   private async markDocumentRunSubmissionComplete(copyAppId: string): Promise<boolean> {

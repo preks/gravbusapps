@@ -417,73 +417,61 @@ export class SpreadsheetFileStorageService {
    */
   async getApp(id: string, directFilePath?: string): Promise<SpreadsheetApp | null> {
     debugLog('[SpreadsheetStorage] Loading app:', id, directFilePath ? '(via direct path)' : '')
+    const directPathApp = await this.loadAppFromDirectPath(id, directFilePath)
+    if (directPathApp) return directPathApp
 
-    let app: SpreadsheetApp | null = null
-
-    // If a direct file path is provided (from URL for cross-device access), use it directly
-    if (directFilePath) {
-      debugLog('[SpreadsheetStorage] Loading via direct path:', directFilePath)
-      try {
-        app = await this.readJsonFileByPath<SpreadsheetApp>(directFilePath)
-        if (app) {
-          // Verify access before returning
-          if (!this.hasAccessToApp(app)) {
-            console.warn('[SpreadsheetStorage] Access denied to app:', id)
-            throw new Error('Access denied')
-          }
-          // Add to local index for future access
-          await this.addToLocalIndex(app, directFilePath)
-          return app
-        }
-      } catch (error) {
-        console.warn('[SpreadsheetStorage] Direct path load failed:', error)
-        // Fall through to try local index
-      }
-    }
-
-    // Try local index (own apps)
     const index = await this.getIndex()
-    const entry = index.apps.find(a => a.id === id)
-
-    // If not in own index, try shared apps (e.g. excel collection copies shared with this user)
-    if (!entry) {
-      try {
-        const sharedApps = await this.syncService.getSharedApps()
-        const shared = sharedApps.find(a => a.appId === id)
-        if (shared?.filePath) {
-          debugLog('[SpreadsheetStorage] Loading from shared apps:', id)
-          app = await this.readJsonFileByPath<SpreadsheetApp>(shared.filePath)
-          if (app && app.id === id) {
-            // Verify: shared entry implies recipient has access
-            return app
-          }
-        }
-      } catch (e) {
-        console.warn('[SpreadsheetStorage] Failed to load from shared apps:', e)
-      }
+    const ownEntry = index.apps.find(a => a.id === id)
+    if (!ownEntry) {
+      const sharedApp = await this.loadSharedAppById(id)
+      if (sharedApp) return sharedApp
       console.warn('[SpreadsheetStorage] App not found in index:', id)
       return null
     }
-
-    if (!entry.filePath) {
+    if (!ownEntry.filePath) {
       console.warn('[SpreadsheetStorage] App has no filePath:', id)
       return null
     }
 
-    // Load full app data from file using the download path
-    app = await this.readJsonFileByPath<SpreadsheetApp>(entry.filePath)
-
-    if (!app) {
-      return null
-    }
-
-    // Verify access before returning
+    const app = await this.readJsonFileByPath<SpreadsheetApp>(ownEntry.filePath)
+    if (!app) return null
     if (!this.hasAccessToApp(app)) {
       console.warn('[SpreadsheetStorage] Access denied to app:', id)
       return null
     }
-
     return app
+  }
+
+  private async loadAppFromDirectPath(id: string, directFilePath?: string): Promise<SpreadsheetApp | null> {
+    if (!directFilePath) return null
+    debugLog('[SpreadsheetStorage] Loading via direct path:', directFilePath)
+    try {
+      const app = await this.readJsonFileByPath<SpreadsheetApp>(directFilePath)
+      if (!app) return null
+      if (!this.hasAccessToApp(app)) {
+        console.warn('[SpreadsheetStorage] Access denied to app:', id)
+        return null
+      }
+      await this.addToLocalIndex(app, directFilePath)
+      return app
+    } catch (error) {
+      console.warn('[SpreadsheetStorage] Direct path load failed:', error)
+      return null
+    }
+  }
+
+  private async loadSharedAppById(id: string): Promise<SpreadsheetApp | null> {
+    try {
+      const sharedApps = await this.syncService.getSharedApps()
+      const shared = sharedApps.find(app => app.appId === id)
+      if (!shared?.filePath) return null
+      debugLog('[SpreadsheetStorage] Loading from shared apps:', id)
+      const app = await this.readJsonFileByPath<SpreadsheetApp>(shared.filePath)
+      return app && app.id === id ? app : null
+    } catch (e) {
+      console.warn('[SpreadsheetStorage] Failed to load from shared apps:', e)
+      return null
+    }
   }
 
   /**

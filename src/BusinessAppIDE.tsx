@@ -270,6 +270,28 @@ const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   })
 }
 
+const resolveAppFromUrl = (pathname: string, search: string): string | null => {
+  const urlParams = new URLSearchParams(search)
+  const explicitApp =
+    urlParams.get('app') ||
+    urlParams.get('form') ||
+    urlParams.get('popup') ||
+    urlParams.get('window') ||
+    getAppPathFromPathname(pathname)
+  if (explicitApp) return explicitApp
+  if (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft')) {
+    return 'flow/apps/creator'
+  }
+  return null
+}
+
+const findInitialSelectedApp = (appFromUrl: string | null): BusinessAppInfo | null => {
+  if (!appFromUrl) return null
+  return (
+    businessApps.find(app => app.screenKey === appFromUrl) || businessApps.find(app => app.name === appFromUrl) || null
+  )
+}
+
 export interface BusinessAppIDEProps {
   readonly packageName: string
   readonly packageVersion: string
@@ -281,38 +303,12 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   useRewrapAntDStylesLive()
 
-  const getAppByName = (name: string): BusinessAppInfo | null => {
-    return businessApps.find(app => app.name === name) || null
-  }
-
-  const getAppByPath = (path: string): BusinessAppInfo | null => {
-    return businessApps.find(app => app.screenKey === path) || null
-  }
-
-  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
   const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+  const search = typeof window !== 'undefined' ? window.location.search : ''
 
-  // Check for different parameter types (app, form, popup, window)
-  // Also check pathname for path-based URLs (e.g. flow task links: /platform/apps/spreadsheet-apps?appId=...)
-  const appFromUrl =
-    urlParams.get('app') ||
-    urlParams.get('form') ||
-    urlParams.get('popup') ||
-    urlParams.get('window') ||
-    getAppPathFromPathname(pathname)
+  const effectiveAppFromUrl = resolveAppFromUrl(pathname, search)
 
-  // Dev deep-links may use path-based URLs without `?app=...` (e.g. copy/paste).
-  // Infer the app from the pathname for a small set of known routes.
-  const inferredAppFromPath =
-    !appFromUrl && (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft'))
-      ? 'flow/apps/creator'
-      : null
-  const effectiveAppFromUrl = appFromUrl || inferredAppFromPath
-
-  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
-    // First try to find by full path (new format), then fallback to name (legacy format)
-    getAppByPath(effectiveAppFromUrl || '') || getAppByName(effectiveAppFromUrl || '') || null
-  )
+  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(findInitialSelectedApp(effectiveAppFromUrl))
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   const [userInfo, setUserInfo] = useState<string>('')
   const [userInfoError, setUserInfoError] = useState<string>('')

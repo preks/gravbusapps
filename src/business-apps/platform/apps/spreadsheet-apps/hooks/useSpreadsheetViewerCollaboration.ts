@@ -10,15 +10,25 @@ import { useCollaboration } from '../../shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { DocumentParticipant, CollaborationOperation } from '../../shared/services/CollaborationClient'
 
+function sameBaseParticipant(a: DocumentParticipant, b: DocumentParticipant): boolean {
+  return (
+    a.userId === b.userId && (a.userName || '') === (b.userName || '') && (a.avatarUrl || '') === (b.avatarUrl || '')
+  )
+}
+
+function sameCursorPath(a: string[] = [], b: string[] = []): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
 function areParticipantsEquivalent(a: DocumentParticipant[], b: DocumentParticipant[]): boolean {
   if (a === b) return true
   if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {
-    const pa = a[i]
-    const pb = b[i]
-    if (pa.userId !== pb.userId) return false
-    if ((pa.userName || '') !== (pb.userName || '')) return false
-    if ((pa.avatarUrl || '') !== (pb.avatarUrl || '')) return false
+    if (!sameBaseParticipant(a[i], b[i])) return false
     // Cursor changes frequently; don’t include it in equality check here
   }
   return true
@@ -49,15 +59,8 @@ function areCursorParticipantsEquivalent(a: DocumentParticipant[], b: DocumentPa
   for (let i = 0; i < a.length; i++) {
     const pa = a[i]
     const pb = b[i]
-    if (pa.userId !== pb.userId) return false
-    if ((pa.userName || '') !== (pb.userName || '')) return false
-    if ((pa.avatarUrl || '') !== (pb.avatarUrl || '')) return false
-    const paPath = pa.cursor?.path || []
-    const pbPath = pb.cursor?.path || []
-    if (paPath.length !== pbPath.length) return false
-    for (let j = 0; j < paPath.length; j++) {
-      if (paPath[j] !== pbPath[j]) return false
-    }
+    if (!sameBaseParticipant(pa, pb)) return false
+    if (!sameCursorPath(pa.cursor?.path, pb.cursor?.path)) return false
   }
   return true
 }
@@ -143,6 +146,14 @@ export function useSpreadsheetViewerCollaboration({
   // Enriched participants for cell cursor indicators
   const [cursorParticipants, setCursorParticipants] = useState<DocumentParticipant[]>([])
 
+  const setHeaderFromRawParticipants = useCallback(() => {
+    setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+  }, [rawParticipants])
+
+  const setCursorFromRawParticipants = useCallback(() => {
+    setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+  }, [rawParticipants])
+
   // Fetch current user info
   useEffect(() => {
     const fetchCurrentUserInfo = async () => {
@@ -187,13 +198,13 @@ export function useSpreadsheetViewerCollaboration({
   useEffect(() => {
     async function fetchAvatars() {
       if (!rawParticipants.length || !authToken) {
-        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        setHeaderFromRawParticipants()
         return
       }
 
       const userIds = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (userIds.length === 0) {
-        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        setHeaderFromRawParticipants()
         return
       }
 
@@ -229,24 +240,24 @@ export function useSpreadsheetViewerCollaboration({
         )
       } catch (error) {
         console.error('[SpreadsheetViewerCollaboration] Failed to fetch participant avatars:', error)
-        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        setHeaderFromRawParticipants()
       }
     }
 
     fetchAvatars()
-  }, [rawParticipants, authToken, graphqlClient])
+  }, [rawParticipants, authToken, graphqlClient, setHeaderFromRawParticipants])
 
   // Fetch avatars for cell cursor indicators (more robust resolution)
   useEffect(() => {
     async function fetchCursorAvatars() {
       if (!rawParticipants.length || !authToken) {
-        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        setCursorFromRawParticipants()
         return
       }
 
       const ids = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (ids.length === 0) {
-        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        setCursorFromRawParticipants()
         return
       }
 
@@ -310,12 +321,12 @@ export function useSpreadsheetViewerCollaboration({
         setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, enriched) ? prev : enriched))
       } catch (error) {
         console.error('[SpreadsheetViewerCollaboration] Failed to fetch cursor participant avatars:', error)
-        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        setCursorFromRawParticipants()
       }
     }
 
     fetchCursorAvatars()
-  }, [rawParticipants, authToken, graphqlClient])
+  }, [rawParticipants, authToken, graphqlClient, setCursorFromRawParticipants])
 
   return {
     headerParticipants,

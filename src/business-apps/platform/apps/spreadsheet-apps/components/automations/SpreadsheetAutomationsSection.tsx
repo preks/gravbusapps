@@ -191,6 +191,74 @@ function getAutomationIdentity(automation: SpreadsheetAutomation): string {
   return backendId || id
 }
 
+async function fetchSheetPayload(
+  docServiceUrl: string,
+  accessToken: string,
+  appId: string,
+  sheetId: string
+): Promise<Record<string, unknown> | null> {
+  try {
+    const response = await fetch(`${docServiceUrl}/spreadsheets/${appId}/sheets/${sheetId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!response.ok) return null
+    return (await response.json()) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+async function collectAutomationsFromSpreadsheetPayload(
+  spreadsheetPayload: Record<string, unknown>,
+  appId: string,
+  docServiceUrl: string,
+  accessToken: string
+): Promise<SpreadsheetAutomation[]> {
+  const fromSheetConfig: SpreadsheetAutomation[] = []
+  const appLevelAutomations = extractAutomations(spreadsheetPayload.automations)
+  for (const rawAutomation of appLevelAutomations) {
+    fromSheetConfig.push(normalizeAutomation(rawAutomation))
+  }
+
+  const sheets = extractArray<Record<string, unknown>>(spreadsheetPayload.sheets)
+  const sheetIdsNeedingDetails: string[] = []
+  for (const sheet of sheets) {
+    const sheetAutomations = extractAutomations(sheet.automations)
+    if (sheetAutomations.length > 0) {
+      for (const rawAutomation of sheetAutomations) {
+        fromSheetConfig.push(normalizeAutomation(rawAutomation))
+      }
+      continue
+    }
+
+    const sheetId = typeof sheet.id === 'string' ? sheet.id.trim() : ''
+    if (sheetId) sheetIdsNeedingDetails.push(sheetId)
+  }
+
+  if (sheetIdsNeedingDetails.length === 0) {
+    return fromSheetConfig
+  }
+
+  const sheetResponses = await Promise.all(
+    sheetIdsNeedingDetails.map(sheetId => fetchSheetPayload(docServiceUrl, accessToken, appId, sheetId))
+  )
+
+  for (const sheetPayload of sheetResponses) {
+    if (!sheetPayload) continue
+    const normalizedSheetPayload = unwrapObject(sheetPayload)
+    const sheetAutomations = extractAutomations(normalizedSheetPayload.automations)
+    for (const rawAutomation of sheetAutomations) {
+      fromSheetConfig.push(normalizeAutomation(rawAutomation))
+    }
+  }
+
+  return fromSheetConfig
+}
+
 /**
  * Get icon for automation type
  */
@@ -373,55 +441,13 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
             const fromSheetConfig: SpreadsheetAutomation[] = []
             if (spreadsheetResponse.ok) {
               const spreadsheetPayload = unwrapObject(await spreadsheetResponse.json())
-              const appLevelAutomations = extractAutomations(spreadsheetPayload.automations)
-              for (const rawAutomation of appLevelAutomations) {
-                fromSheetConfig.push(normalizeAutomation(rawAutomation))
-              }
-
-              const sheets = extractArray<Record<string, unknown>>(spreadsheetPayload.sheets)
-              const sheetIdsNeedingDetails: string[] = []
-              for (const sheet of sheets) {
-                const sheetAutomations = extractAutomations(sheet.automations)
-                if (sheetAutomations.length > 0) {
-                  for (const rawAutomation of sheetAutomations) {
-                    fromSheetConfig.push(normalizeAutomation(rawAutomation))
-                  }
-                } else {
-                  const sheetId = typeof sheet.id === 'string' ? sheet.id.trim() : ''
-                  if (sheetId) {
-                    sheetIdsNeedingDetails.push(sheetId)
-                  }
-                }
-              }
-
-              // Fallback: some API payloads omit sheet automations in list view.
-              if (sheetIdsNeedingDetails.length > 0) {
-                const sheetResponses = await Promise.all(
-                  sheetIdsNeedingDetails.map(sheetId =>
-                    fetch(`${docServiceUrl}/spreadsheets/${app.id}/sheets/${sheetId}`, {
-                      method: 'GET',
-                      headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                      }
-                    })
-                      .then(async res => {
-                        if (!res.ok) return null
-                        return (await res.json()) as Record<string, unknown>
-                      })
-                      .catch(() => null)
-                  )
-                )
-
-                for (const sheetPayload of sheetResponses) {
-                  if (!sheetPayload) continue
-                  const normalizedSheetPayload = unwrapObject(sheetPayload)
-                  const sheetAutomations = extractAutomations(normalizedSheetPayload.automations)
-                  for (const rawAutomation of sheetAutomations) {
-                    fromSheetConfig.push(normalizeAutomation(rawAutomation))
-                  }
-                }
-              }
+              const collected = await collectAutomationsFromSpreadsheetPayload(
+                spreadsheetPayload,
+                app.id,
+                docServiceUrl,
+                accessToken
+              )
+              fromSheetConfig.push(...collected)
             }
 
             const seen = new Set<string>()

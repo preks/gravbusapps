@@ -48,6 +48,65 @@ function extractAppIdFromUrl(url: string): string | null {
   }
 }
 
+function getCompletedSubmissions(submissions: SummarizeSubmission[]): SummarizeSubmission[] {
+  return submissions.filter(s => s.status === 'COMPLETED').slice(0, MAX_COPIES)
+}
+
+async function hydrateSubmissionCopy(
+  submission: SummarizeSubmission
+): Promise<{ app: SpreadsheetApp; recipientName: string; avatar?: string } | null> {
+  const appId = extractAppIdFromUrl(submission.copyAppUrl) || submission.id
+  if (!appId) return null
+
+  const app = await SpreadsheetApiService.getApp(appId)
+  if (!app) return null
+
+  if (!app.sheets?.length || !app.sheets.some(s => (s.data?.length ?? 0) > 0)) {
+    for (const sheet of app.sheets ?? []) {
+      const rows = await SpreadsheetApiService.getRows(appId, sheet.id)
+      sheet.data = rows
+    }
+  }
+
+  const hasContent = (app.sheets ?? []).some(sheet => (sheet.data?.length ?? 0) > 0)
+  if (!hasContent) return null
+
+  return {
+    app,
+    recipientName: submission.recipientName,
+    avatar: submission.recipientAvatar
+  }
+}
+
+async function loadCompletedCopies(submissions: SummarizeSubmission[]) {
+  const copies: Array<{ app: SpreadsheetApp; recipientName: string; avatar?: string }> = []
+  for (const submission of submissions) {
+    const copy = await hydrateSubmissionCopy(submission)
+    if (copy) copies.push(copy)
+  }
+  return copies
+}
+
+function parseSummaryResponseContent(content: unknown): CollectionSummaryResponse | null {
+  try {
+    let normalized = typeof content === 'string' ? content : JSON.stringify(content)
+    if (normalized.trim().startsWith('```')) {
+      normalized = normalized.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
+    }
+    return JSON.parse(normalized) as CollectionSummaryResponse
+  } catch {
+    return null
+  }
+}
+
+function getAvatarByRecipient(copies: Array<{ recipientName: string; avatar?: string }>): Map<string, string> {
+  const avatarByRecipient = new Map<string, string>()
+  for (const copy of copies) {
+    if (copy.avatar) avatarByRecipient.set(copy.recipientName, copy.avatar)
+  }
+  return avatarByRecipient
+}
+
 async function buildSummaryPrompt(copies: Array<{ app: SpreadsheetApp; recipientName: string }>): Promise<string> {
   if (copies.length === 0) {
     return ''
@@ -84,31 +143,8 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
     setIsOpen(true)
 
     try {
-      const completedSubmissions = submissions.filter(s => s.status === 'COMPLETED').slice(0, MAX_COPIES)
-      const copies: Array<{ app: SpreadsheetApp; recipientName: string; avatar?: string }> = []
-      for (const submission of completedSubmissions) {
-        const appId = extractAppIdFromUrl(submission.copyAppUrl) || submission.id
-        if (!appId) continue
-
-        const app = await SpreadsheetApiService.getApp(appId)
-        if (!app) continue
-
-        if (!app.sheets?.length || !app.sheets.some(s => (s.data?.length ?? 0) > 0)) {
-          for (const sheet of app.sheets ?? []) {
-            const rows = await SpreadsheetApiService.getRows(appId, sheet.id)
-            sheet.data = rows
-          }
-        }
-
-        const hasContent = (app.sheets ?? []).some(sheet => (sheet.data?.length ?? 0) > 0)
-        if (!hasContent) continue
-
-        copies.push({
-          app,
-          recipientName: submission.recipientName,
-          avatar: submission.recipientAvatar
-        })
-      }
+      const completedSubmissions = getCompletedSubmissions(submissions)
+      const copies = await loadCompletedCopies(completedSubmissions)
 
       const prompt = await buildSummaryPrompt(copies)
       if (!prompt) {
@@ -138,24 +174,13 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
         return
       }
 
-      let parsed: CollectionSummaryResponse
-      try {
-        let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
-        if (content.trim().startsWith('```')) {
-          content = content.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
-        }
-        parsed = JSON.parse(content) as CollectionSummaryResponse
-      } catch {
+      const parsed = parseSummaryResponseContent(response.content)
+      if (!parsed) {
         setError('Failed to parse AI response.')
         return
       }
 
-      const avatarByRecipient = new Map<string, string>()
-      for (const copy of copies) {
-        if (copy.avatar) {
-          avatarByRecipient.set(copy.recipientName, copy.avatar)
-        }
-      }
+      const avatarByRecipient = getAvatarByRecipient(copies)
 
       setSummary({
         executiveSummary: parsed.executiveSummary ?? '',

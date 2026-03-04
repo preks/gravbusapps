@@ -281,6 +281,134 @@ function buildStyledCellValue(cell: ExcelJS.Cell): unknown {
   return styleCell
 }
 
+function buildEmptyParsedSheet(name: string, index: number): ParsedSheet {
+  return {
+    name,
+    index,
+    columns: [],
+    rows: [],
+    rowCount: 0,
+    isEmpty: true
+  }
+}
+
+function getWorksheetMaxColumns(worksheet: ExcelJS.Worksheet): number {
+  const headerRow = worksheet.getRow(1)
+  return Math.max(worksheet.actualColumnCount || 0, headerRow.cellCount || 0)
+}
+
+function buildColumnWidthMap(worksheet: ExcelJS.Worksheet, maxColumns: number): Record<number, number | undefined> {
+  const widths: Record<number, number | undefined> = {}
+  for (let col = 1; col <= maxColumns; col++) {
+    widths[col - 1] = toPixelWidth(worksheet.getColumn(col).width)
+  }
+  return widths
+}
+
+function buildHeaders(
+  worksheet: ExcelJS.Worksheet,
+  maxColumns: number,
+  mode: 'structured' | 'preserve-format'
+): string[] {
+  const headers: string[] = []
+  if (mode === 'preserve-format') {
+    for (let col = 1; col <= maxColumns; col++) headers[col - 1] = `Column_${col}`
+    return headers
+  }
+
+  const headerRow = worksheet.getRow(1)
+  for (let col = 1; col <= maxColumns; col++) {
+    const headerValue = headerRow.getCell(col).value
+    const headerStr = extractHeaderString(headerValue)
+    headers[col - 1] = headerStr || `Column_${col}`
+  }
+  return headers
+}
+
+function parseWorksheetRows(
+  worksheet: ExcelJS.Worksheet,
+  maxColumns: number,
+  mode: 'structured' | 'preserve-format'
+): {
+  dataRows: unknown[][]
+  backgroundByCell: Record<string, string | undefined>
+  rowHeightByIndex: Record<number, number | undefined>
+} {
+  const dataRows: unknown[][] = []
+  const backgroundByCell: Record<string, string | undefined> = {}
+  const rowHeightByIndex: Record<number, number | undefined> = {}
+  const startRow = mode === 'preserve-format' ? 1 : 2
+  const endRow = worksheet.actualRowCount > 0 ? worksheet.actualRowCount : worksheet.rowCount
+
+  for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
+    const row = worksheet.getRow(rowNum)
+    const rowHeight = row.height
+    if (typeof rowHeight === 'number' && rowHeight > 0) rowHeightByIndex[dataRows.length] = rowHeight
+
+    const rowValues: unknown[] = []
+    const rowBackgrounds: Array<string | undefined> = []
+    for (let col = 1; col <= maxColumns; col++) {
+      const cell = row.getCell(col)
+      rowValues[col - 1] =
+        mode === 'preserve-format' ? buildStyledCellValue(cell) : normalizeExcelJsCellValue(cell.value)
+      if (mode !== 'preserve-format') rowBackgrounds[col - 1] = extractCellBackgroundHex(cell) ?? undefined
+    }
+
+    const hasData = rowValues.some(v => v !== null && v !== undefined && v !== '')
+    const hasBackground = rowBackgrounds.some(Boolean)
+    if (!hasData && !hasBackground) continue
+
+    const parsedRowIndex = dataRows.length
+    dataRows.push(rowValues)
+    rowBackgrounds.forEach((backgroundHex, colIndex) => {
+      if (!backgroundHex) return
+      backgroundByCell[`${parsedRowIndex}:${colIndex}`] = backgroundHex
+    })
+  }
+
+  return { dataRows, backgroundByCell, rowHeightByIndex }
+}
+
+function extractFormulaByColumnIndex(
+  worksheet: ExcelJS.Worksheet,
+  maxColumns: number
+): Record<number, string | undefined> {
+  const formulaByColumnIndex: Record<number, string | undefined> = {}
+  const formulaRow = worksheet.getRow(2)
+  for (let col = 1; col <= maxColumns; col++) {
+    const cellValue = formulaRow.getCell(col).value
+    if (isRecord(cellValue) && typeof cellValue.formula === 'string') {
+      formulaByColumnIndex[col - 1] = cellValue.formula
+    }
+  }
+  return formulaByColumnIndex
+}
+
+function parseWorksheet(
+  worksheet: ExcelJS.Worksheet,
+  index: number,
+  mode: 'structured' | 'preserve-format'
+): ParsedSheet {
+  const maxColumns = getWorksheetMaxColumns(worksheet)
+  if (worksheet.actualRowCount === 0 || maxColumns === 0) return buildEmptyParsedSheet(worksheet.name, index)
+
+  const columnWidthByIndex = buildColumnWidthMap(worksheet, maxColumns)
+  const headers = buildHeaders(worksheet, maxColumns, mode)
+  const { dataRows, backgroundByCell, rowHeightByIndex } = parseWorksheetRows(worksheet, maxColumns, mode)
+  const formulaByColumnIndex = extractFormulaByColumnIndex(worksheet, maxColumns)
+
+  return buildParsedSheetFromAoa({
+    name: worksheet.name,
+    index,
+    headers,
+    dataRows,
+    formulaByColumnIndex,
+    backgroundByCell,
+    columnWidthByIndex,
+    rowHeightByIndex
+  })
+}
+
 async function parseXlsxArrayBufferWithMode(
   arrayBuffer: ArrayBuffer,
   mode: 'structured' | 'preserve-format'
@@ -291,95 +419,7 @@ async function parseXlsxArrayBufferWithMode(
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(arrayBuffer)
 
-  const sheets = workbook.worksheets.map((worksheet, index) => {
-    const headerRow = worksheet.getRow(1)
-    const maxColumns = Math.max(worksheet.actualColumnCount || 0, headerRow.cellCount || 0)
-
-    if (worksheet.actualRowCount === 0 || maxColumns === 0) {
-      return {
-        name: worksheet.name,
-        index,
-        columns: [],
-        rows: [],
-        rowCount: 0,
-        isEmpty: true
-      }
-    }
-
-    const columnWidthByIndex: Record<number, number | undefined> = {}
-    for (let col = 1; col <= maxColumns; col++) {
-      const width = worksheet.getColumn(col).width
-      columnWidthByIndex[col - 1] = toPixelWidth(width)
-    }
-
-    const headers: string[] = []
-    if (mode === 'preserve-format') {
-      for (let col = 1; col <= maxColumns; col++) {
-        headers[col - 1] = `Column_${col}`
-      }
-    } else {
-      for (let col = 1; col <= maxColumns; col++) {
-        const headerValue = headerRow.getCell(col).value
-        const headerStr = extractHeaderString(headerValue)
-        headers[col - 1] = headerStr || `Column_${col}`
-      }
-    }
-
-    const dataRows: unknown[][] = []
-    const backgroundByCell: Record<string, string | undefined> = {}
-    const rowHeightByIndex: Record<number, number | undefined> = {}
-    const startRow = mode === 'preserve-format' ? 1 : 2
-    const endRow = worksheet.actualRowCount > 0 ? worksheet.actualRowCount : worksheet.rowCount
-
-    for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
-      const row = worksheet.getRow(rowNum)
-      const rowHeight = row.height
-      if (typeof rowHeight === 'number' && rowHeight > 0) {
-        rowHeightByIndex[dataRows.length] = rowHeight
-      }
-      const rowValues: unknown[] = []
-      const rowBackgrounds: Array<string | undefined> = []
-      for (let col = 1; col <= maxColumns; col++) {
-        const cell = row.getCell(col)
-        rowValues[col - 1] =
-          mode === 'preserve-format' ? buildStyledCellValue(cell) : normalizeExcelJsCellValue(cell.value)
-        if (mode !== 'preserve-format') {
-          rowBackgrounds[col - 1] = extractCellBackgroundHex(cell) ?? undefined
-        }
-      }
-
-      const hasData = rowValues.some(v => v !== null && v !== undefined && v !== '')
-      const hasBackground = rowBackgrounds.some(Boolean)
-      if (hasData || hasBackground) {
-        const parsedRowIndex = dataRows.length
-        dataRows.push(rowValues)
-        rowBackgrounds.forEach((backgroundHex, colIndex) => {
-          if (!backgroundHex) return
-          backgroundByCell[`${parsedRowIndex}:${colIndex}`] = backgroundHex
-        })
-      }
-    }
-
-    const formulaByColumnIndex: Record<number, string | undefined> = {}
-    const formulaRow = worksheet.getRow(2)
-    for (let col = 1; col <= maxColumns; col++) {
-      const cellValue = formulaRow.getCell(col).value
-      if (isRecord(cellValue) && typeof cellValue.formula === 'string') {
-        formulaByColumnIndex[col - 1] = cellValue.formula
-      }
-    }
-
-    return buildParsedSheetFromAoa({
-      name: worksheet.name,
-      index,
-      headers,
-      dataRows,
-      formulaByColumnIndex,
-      backgroundByCell,
-      columnWidthByIndex,
-      rowHeightByIndex
-    })
-  })
+  const sheets = workbook.worksheets.map((worksheet, index) => parseWorksheet(worksheet, index, mode))
 
   const metadata: ExcelMetadata = {
     author: typeof workbook.creator === 'string' ? workbook.creator : undefined,

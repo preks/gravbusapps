@@ -60,6 +60,52 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   clearCurrentApp: () => void
 }
 
+const resolveCurrentAppPermission = (app: SpreadsheetApp, userId?: string): 'owner' | 'edit' | 'view' | null => {
+  if (app.createdBy === userId) return 'owner'
+  const permissionMap: Record<string, 'owner' | 'edit' | 'view'> = {
+    owner: 'owner',
+    admin: 'owner',
+    edit: 'edit',
+    view: 'view'
+  }
+  return app.permission ? (permissionMap[app.permission] ?? null) : null
+}
+
+const stripLocalRowId = (row: Record<string, unknown>): Record<string, unknown> => {
+  const rowWithoutId = { ...row }
+  delete (rowWithoutId as Record<string, unknown>)._id
+  return rowWithoutId
+}
+
+const isValidUUID = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return uuidRegex.test(str)
+}
+
+async function persistSheetRows(appId: string, sheetId: string, data: Record<string, unknown>[]): Promise<void> {
+  for (const row of data) {
+    const rowId = row._id as string | undefined
+    if (!rowId || !isValidUUID(rowId)) {
+      await SpreadsheetApiService.addRow(appId, sheetId, stripLocalRowId(row))
+      continue
+    }
+
+    try {
+      await SpreadsheetApiService.updateRow(appId, sheetId, rowId, row)
+    } catch (updateErr) {
+      // Some local rows carry UUID-like temp IDs that are not persisted in backend.
+      // Fall back to addRow so bulk updates can self-heal instead of looping on 404.
+      console.warn('[useSpreadsheetApps] updateRow failed in updateSheetData, falling back to addRow', {
+        appId,
+        sheetId,
+        rowId,
+        error: updateErr instanceof Error ? updateErr.message : String(updateErr)
+      })
+      await SpreadsheetApiService.addRow(appId, sheetId, stripLocalRowId(row))
+    }
+  }
+}
+
 /**
  * Hook for managing spreadsheet apps using the document-service backend
  */
@@ -152,19 +198,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         }
 
         // Use permission from API response (already mapped: admin -> owner)
-        const isOwner = app.createdBy === userId
-        const backendPermission = app.permission
-        const resolvedPermission: 'owner' | 'edit' | 'view' | null = isOwner
-          ? 'owner'
-          : backendPermission === 'owner'
-            ? 'owner'
-            : backendPermission === 'admin'
-              ? 'owner'
-              : backendPermission === 'edit'
-                ? 'edit'
-                : backendPermission === 'view'
-                  ? 'view'
-                  : null
+        const resolvedPermission = resolveCurrentAppPermission(app, userId)
 
         setState(prev => ({
           ...prev,
@@ -344,14 +378,6 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
   )
 
   /**
-   * Check if a string is a valid UUID
-   */
-  const isValidUUID = (str: string): boolean => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    return uuidRegex.test(str)
-  }
-
-  /**
    * Update sheet data (bulk update rows)
    */
   const updateSheetData = useCallback(
@@ -363,34 +389,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         const sheet = await SpreadsheetApiService.getSheet(appId, sheetId)
         if (!sheet) return null
 
-        // Update rows in bulk via the API
-        for (const row of data) {
-          const rowId = row._id as string | undefined
-          // Only update if row has a valid UUID ID (was created via API)
-          // Otherwise add as new row (for locally-created rows with non-UUID IDs)
-          if (rowId && isValidUUID(rowId)) {
-            try {
-              await SpreadsheetApiService.updateRow(appId, sheetId, rowId, row)
-            } catch (updateErr) {
-              // Some local rows carry UUID-like temp IDs that are not persisted in backend.
-              // Fall back to addRow so bulk updates can self-heal instead of looping on 404.
-              console.warn('[useSpreadsheetApps] updateRow failed in updateSheetData, falling back to addRow', {
-                appId,
-                sheetId,
-                rowId,
-                error: updateErr instanceof Error ? updateErr.message : String(updateErr)
-              })
-              const rowWithoutId = { ...row }
-              delete (rowWithoutId as Record<string, unknown>)._id
-              await SpreadsheetApiService.addRow(appId, sheetId, rowWithoutId)
-            }
-          } else {
-            // Remove the local non-UUID _id before adding via API
-            const rowWithoutId = { ...row }
-            delete (rowWithoutId as Record<string, unknown>)._id
-            await SpreadsheetApiService.addRow(appId, sheetId, rowWithoutId)
-          }
-        }
+        await persistSheetRows(appId, sheetId, data)
 
         // Refresh the sheet data
         const updatedRows = await SpreadsheetApiService.getAllRows(appId, sheetId)

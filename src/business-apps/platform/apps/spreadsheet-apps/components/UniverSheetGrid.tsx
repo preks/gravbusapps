@@ -15,6 +15,7 @@ import type { DocumentParticipant, DocumentOperation } from '../../shared/servic
 import {
   buildWorkbookSnapshot,
   createUniverConversionContext,
+  type ConversionContext,
   type UniverWorkbookSnapshot
 } from '../utils/univerAdapter'
 
@@ -33,6 +34,138 @@ function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   const col = Number(colEntry.slice(4))
   if (!Number.isFinite(row) || !Number.isFinite(col) || row < 0 || col < 0) return null
   return { row, col }
+}
+
+type SheetRangeShape = { startRow: number; endRow: number; startColumn: number; endColumn: number }
+type SheetCellMatrix = Record<number, Record<number, unknown>>
+
+function normalizeCellMatrix(value: unknown): SheetCellMatrix | undefined {
+  return value && typeof value === 'object' ? (value as SheetCellMatrix) : undefined
+}
+
+function deriveCellMatrixFromRanges(
+  worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
+  ranges: SheetRangeShape[],
+  maxCells = 10000
+): SheetCellMatrix | undefined {
+  const derived: SheetCellMatrix = {}
+  let visited = 0
+  for (const range of ranges) {
+    for (let r = range.startRow; r <= range.endRow; r++) {
+      for (let c = range.startColumn; c <= range.endColumn; c++) {
+        if (++visited > maxCells) break
+        const cellRange = worksheet?.getRange?.(r, c)
+        const value =
+          (cellRange as { getValue?: () => unknown })?.getValue?.() ??
+          (cellRange as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
+        if (value === undefined) continue
+        if (!derived[r]) derived[r] = {}
+        derived[r][c] = value
+      }
+      if (visited > maxCells) break
+    }
+    if (visited > maxCells) break
+  }
+  return Object.keys(derived).length > 0 ? derived : undefined
+}
+
+function resolveCellOffsets(
+  range: SheetRangeShape | undefined,
+  cellValue: SheetCellMatrix
+): { rowOffset: number; colOffset: number } {
+  if (!range) return { rowOffset: 0, colOffset: 0 }
+
+  const rowKeys = Object.keys(cellValue)
+    .map(k => Number(k))
+    .filter(n => !Number.isNaN(n))
+  const minRow = rowKeys.length ? Math.min(...rowKeys) : 0
+  const maxRow = rowKeys.length ? Math.max(...rowKeys) : 0
+
+  const colKeys: number[] = []
+  for (const rowKey of Object.keys(cellValue)) {
+    const rowCells = cellValue[Number(rowKey)]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    for (const colKey of Object.keys(rowCells)) {
+      const n = Number(colKey)
+      if (!Number.isNaN(n)) colKeys.push(n)
+    }
+  }
+
+  const minCol = colKeys.length ? Math.min(...colKeys) : 0
+  const maxCol = colKeys.length ? Math.max(...colKeys) : 0
+  const looksAbsoluteRows = minRow >= range.startRow && maxRow <= range.endRow
+  const looksRelativeRows = minRow >= 0 && maxRow <= range.endRow - range.startRow
+  const looksAbsoluteCols = minCol >= range.startColumn && maxCol <= range.endColumn
+  const looksRelativeCols = minCol >= 0 && maxCol <= range.endColumn - range.startColumn
+
+  return {
+    rowOffset: !looksAbsoluteRows && looksRelativeRows ? range.startRow : 0,
+    colOffset: !looksAbsoluteCols && looksRelativeCols ? range.startColumn : 0
+  }
+}
+
+function getNewRowIndices(cellValue: SheetCellMatrix, ctx: ConversionContext, rowOffset: number): number[] {
+  return Object.keys(cellValue)
+    .map(k => Number(k))
+    .filter(ri => !Number.isNaN(ri) && ctx.rowIndexToId.get(ri + rowOffset) === undefined)
+    .sort((a, b) => a - b)
+}
+
+function buildNewRowsFromCellMatrix(params: {
+  newRowIndices: number[]
+  cellValue: SheetCellMatrix
+  ctx: ConversionContext
+  colOffset: number
+  rowOffset: number
+  getClientRowId: (globalRowIndex: number) => string
+}): Record<string, unknown>[] {
+  const { newRowIndices, cellValue, ctx, colOffset, rowOffset, getClientRowId } = params
+  return newRowIndices.map(rowIndex => {
+    const rowCells = cellValue[rowIndex]
+    const globalRowIndex = rowIndex + rowOffset
+    const row: Record<string, unknown> = { _id: getClientRowId(globalRowIndex) }
+    if (!rowCells || typeof rowCells !== 'object') return row
+
+    for (const colKey of Object.keys(rowCells)) {
+      const colIndex = Number(colKey)
+      if (Number.isNaN(colIndex)) continue
+      const columnName =
+        ctx.columnIndexToName.get(colIndex + colOffset) ?? ctx.columnIndexToId.get(colIndex + colOffset)
+      if (columnName === undefined) continue
+      const cell = rowCells[colIndex]
+      row[columnName] = cell ?? { v: '' }
+    }
+    return row
+  })
+}
+
+function collectChangedCells(params: {
+  cellValue: SheetCellMatrix
+  ctx: ConversionContext
+  rowOffset: number
+  colOffset: number
+}): Array<{ rowId: string; columnName: string; value: unknown }> {
+  const { cellValue, ctx, rowOffset, colOffset } = params
+  const changedCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
+  for (const rowKey of Object.keys(cellValue)) {
+    const rowIndex = Number(rowKey)
+    if (Number.isNaN(rowIndex)) continue
+    const rowCells = cellValue[rowIndex]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    const rowId = ctx.rowIndexToId.get(rowIndex + rowOffset)
+    if (rowId === undefined) continue
+
+    for (const colKey of Object.keys(rowCells)) {
+      const colIndex = Number(colKey)
+      if (Number.isNaN(colIndex)) continue
+      const columnName =
+        ctx.columnIndexToName.get(colIndex + colOffset) ?? ctx.columnIndexToId.get(colIndex + colOffset)
+      if (columnName === undefined) continue
+      const cell = rowCells[colIndex]
+      changedCells.push({ rowId, columnName, value: cell ?? { v: '' } })
+    }
+  }
+  return changedCells
 }
 
 export interface UniverSheetGridProps {
@@ -686,41 +819,20 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }) => {
           if (isLocalEditRef.current) return
           const payload = params?.payload
-          const payloadCellValue = payload?.params?.cellValue
-          let cellValue = payloadCellValue
-          if (!cellValue || typeof cellValue !== 'object') {
+          let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
+          if (!cellValue) {
             // Fallback: derive changed values from effected ranges when mutation payload
             // does not provide `cellValue` (observed in some Univer command variants).
             const workbook = univerAPIRef.current?.getActiveWorkbook()
             const worksheet = workbook?.getActiveSheet()
-            const derived: Record<number, Record<number, unknown>> = {}
             const ranges = (payload?.params?.range ??
               params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
               []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
-
-            const MAX_FALLBACK_CELLS = 10000
-            let visited = 0
-            for (const range of ranges) {
-              for (let r = range.startRow; r <= range.endRow; r++) {
-                for (let c = range.startColumn; c <= range.endColumn; c++) {
-                  if (++visited > MAX_FALLBACK_CELLS) break
-                  const cellRange = worksheet?.getRange?.(r, c)
-                  const value =
-                    (cellRange as { getValue?: () => unknown })?.getValue?.() ??
-                    (cellRange as { getCellData?: () => { v?: unknown } })?.getCellData?.()?.v
-                  if (value === undefined) continue
-                  if (!derived[r]) derived[r] = {}
-                  derived[r][c] = value
-                }
-                if (visited > MAX_FALLBACK_CELLS) break
-              }
-              if (visited > MAX_FALLBACK_CELLS) break
-            }
-            cellValue = Object.keys(derived).length > 0 ? derived : undefined
+            cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
           }
           // Paste/edit mutations can use different internal command ids across Univer versions.
           // Persist whenever mutation payload carries concrete cell values.
-          if (!cellValue || typeof cellValue !== 'object') return
+          if (!cellValue) return
           isDirtyRef.current = true
           hasEditedRef.current = true
           scheduleSnapshotCheckpoint()
@@ -734,68 +846,28 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           const currentData = propsRef.current.data
 
           const range = payload.params?.range?.[0] ?? params.effectedRanges?.[0]?.getRange?.()
-          let rowOffset = 0
-          let colOffset = 0
-          if (range) {
-            const rowKeys = Object.keys(cellValue)
-              .map(k => Number(k))
-              .filter(n => !Number.isNaN(n))
-            const minRow = rowKeys.length ? Math.min(...rowKeys) : 0
-            const maxRow = rowKeys.length ? Math.max(...rowKeys) : 0
-
-            const colKeys: number[] = []
-            for (const rowKey of Object.keys(cellValue)) {
-              const rowCells = cellValue[Number(rowKey)]
-              if (!rowCells || typeof rowCells !== 'object') continue
-              for (const colKey of Object.keys(rowCells)) {
-                const n = Number(colKey)
-                if (!Number.isNaN(n)) colKeys.push(n)
-              }
-            }
-            const minCol = colKeys.length ? Math.min(...colKeys) : 0
-            const maxCol = colKeys.length ? Math.max(...colKeys) : 0
-
-            const looksAbsoluteRows = minRow >= range.startRow && maxRow <= range.endRow
-            const looksRelativeRows = minRow >= 0 && maxRow <= range.endRow - range.startRow
-            const looksAbsoluteCols = minCol >= range.startColumn && maxCol <= range.endColumn
-            const looksRelativeCols = minCol >= 0 && maxCol <= range.endColumn - range.startColumn
-
-            if (!looksAbsoluteRows && looksRelativeRows) rowOffset = range.startRow
-            if (!looksAbsoluteCols && looksRelativeCols) colOffset = range.startColumn
-          }
-
-          const newRowIndices = Object.keys(cellValue)
-            .map(k => Number(k))
-            .filter(ri => !Number.isNaN(ri) && ctxBefore.rowIndexToId.get(ri + rowOffset) === undefined)
-            .sort((a, b) => a - b)
+          const { rowOffset, colOffset } = resolveCellOffsets(range, cellValue)
+          const newRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
           if (newRowIndices.length > 0 && onDataChangeCb) {
-            const newRows: Record<string, unknown>[] = newRowIndices.map(rowIndex => {
-              const rowCells = cellValue[rowIndex]
-              const globalRowIndex = rowIndex + rowOffset
+            const getClientRowId = (globalRowIndex: number): string => {
               let clientRowId = newRowClientIdByIndexRef.current.get(globalRowIndex)
-              if (!clientRowId) {
-                try {
-                  clientRowId = `client_${crypto.randomUUID()}`
-                } catch {
-                  clientRowId = `client_${Date.now()}_${Math.random().toString(16).slice(2)}`
-                }
-                newRowClientIdByIndexRef.current.set(globalRowIndex, clientRowId)
+              if (clientRowId) return clientRowId
+              try {
+                clientRowId = `client_${crypto.randomUUID()}`
+              } catch {
+                clientRowId = `client_${Date.now()}_${Math.random().toString(16).slice(2)}`
               }
+              newRowClientIdByIndexRef.current.set(globalRowIndex, clientRowId)
+              return clientRowId
+            }
 
-              const row: Record<string, unknown> = { _id: clientRowId }
-              if (rowCells && typeof rowCells === 'object') {
-                for (const colKey of Object.keys(rowCells)) {
-                  const colIndex = Number(colKey)
-                  if (Number.isNaN(colIndex)) continue
-                  const columnName =
-                    ctxBefore.columnIndexToName.get(colIndex + colOffset) ??
-                    ctxBefore.columnIndexToId.get(colIndex + colOffset)
-                  if (columnName === undefined) continue
-                  const cell = rowCells[colIndex]
-                  row[columnName] = cell ?? { v: '' }
-                }
-              }
-              return row
+            const newRows = buildNewRowsFromCellMatrix({
+              newRowIndices,
+              cellValue,
+              ctx: ctxBefore,
+              colOffset,
+              rowOffset,
+              getClientRowId
             })
             const nextData = [...currentData, ...newRows]
             onDataChangeCb(nextData)
@@ -804,24 +876,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
 
           const ctx = contextRef.current ?? ctxBefore
-          const changedCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
-          for (const rowKey of Object.keys(cellValue)) {
-            const rowIndex = Number(rowKey)
-            if (Number.isNaN(rowIndex)) continue
-            const rowCells = cellValue[rowIndex]
-            if (!rowCells || typeof rowCells !== 'object') continue
-            const rowId = ctx.rowIndexToId.get(rowIndex + rowOffset)
-            if (rowId === undefined) continue
-            for (const colKey of Object.keys(rowCells)) {
-              const colIndex = Number(colKey)
-              if (Number.isNaN(colIndex)) continue
-              const columnName =
-                ctx.columnIndexToName.get(colIndex + colOffset) ?? ctx.columnIndexToId.get(colIndex + colOffset)
-              if (columnName === undefined) continue
-              const cell = rowCells[colIndex]
-              changedCells.push({ rowId, columnName, value: cell ?? { v: '' } })
-            }
-          }
+          const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset })
 
           if (changedCells.length > 0 && onCellsChangeCb) {
             onCellsChangeCb(changedCells)
