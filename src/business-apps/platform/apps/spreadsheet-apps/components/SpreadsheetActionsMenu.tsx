@@ -25,7 +25,8 @@ import {
   Columns,
   Zap,
   BarChart3,
-  Settings
+  Settings,
+  Sparkles
 } from 'lucide-react'
 
 export interface SpreadsheetActionsMenuProps {
@@ -44,6 +45,7 @@ export interface SpreadsheetActionsMenuProps {
 
   // Other actions
   onOpenAnalytics: () => void
+  onOpenSheetsAI: () => void
   onOpenAutomations: () => void
   onEdit?: () => void
   allowExport?: boolean
@@ -63,6 +65,7 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onAddColumn,
   onManageColumns,
   onOpenAnalytics,
+  onOpenSheetsAI,
   onOpenAutomations,
   onEdit,
   allowExport,
@@ -126,6 +129,10 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
           <DropdownMenuItem onClick={onOpenAnalytics}>
             <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
             AI Analytics
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onOpenSheetsAI}>
+            <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
+            Sheets AI
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onOpenAutomations}>
             <Zap className="gba:w-4 gba:h-4 gba:mr-2" />

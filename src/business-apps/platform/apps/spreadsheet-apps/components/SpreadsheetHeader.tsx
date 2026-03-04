@@ -15,7 +15,8 @@ import {
   Lock,
   Send,
   CheckCircle2,
-  BarChart3
+  BarChart3,
+  Sparkles
 } from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
@@ -71,6 +72,7 @@ export interface SpreadsheetHeaderProps {
   onAddColumn: () => void
   onManageColumns: () => void
   onOpenAnalytics: () => void
+  onOpenSheetsAI: () => void
   onOpenAutomations: () => void
   onEdit?: () => void
   onExport?: () => void
@@ -103,6 +105,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onAddColumn,
   onManageColumns,
   onOpenAnalytics,
+  onOpenSheetsAI,
   onOpenAutomations,
   onEdit,
   onExport,
@@ -247,6 +250,17 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                 <BarChart3 className="gba:w-4 gba:h-4" />
                 AI Analytics
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenSheetsAI}
+                title="Sheets AI"
+                data-testid="spreadsheet-sheets-ai-button"
+                className="gba:h-8 gba:px-2 gba:gap-1 gba:border gba:border-primary/25"
+              >
+                <Sparkles className="gba:w-4 gba:h-4" />
+                Sheets AI
+              </Button>
 
               {/* Lock status (compact) */}
               {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
@@ -294,6 +308,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onAddColumn={onAddColumn}
             onManageColumns={onManageColumns}
             onOpenAnalytics={onOpenAnalytics}
+            onOpenSheetsAI={onOpenSheetsAI}
             onOpenAutomations={onOpenAutomations}
             onEdit={onEdit}
             allowExport={activeSheet.settings.allowExport}

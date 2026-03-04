@@ -40,6 +40,7 @@ import {
 import { exportSnapshotAsXlsx } from './utils/exportToExcel'
 import { AutomationsPanel } from './components/AutomationsPanel'
 import { AnalyticsPanel } from './components/AnalyticsPanel'
+import { SheetsAIPanel } from './components/SheetsAIPanel'
 import { EntityDataStatusBar } from './components/EntityDataStatusBar'
 import { SpreadsheetDialogsSection } from './components/SpreadsheetDialogsSection'
 import { SpreadsheetHeader } from './components/SpreadsheetHeader'
@@ -104,6 +105,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [bootstrapSnapshotSeed, setBootstrapSnapshotSeed] = useState<string>('none')
   const [isBootstrapSnapshotLoading, setIsBootstrapSnapshotLoading] = useState<boolean>(true)
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false)
+  const [isSheetsAIOpen, setIsSheetsAIOpen] = useState(false)
   const UNIVER_DATA_CHANGE_DEBOUNCE_MS = 350
   // 400ms debounce batches rapid keystrokes into a single flush without noticeable delay.
   const CELL_PERSIST_DEBOUNCE_MS = 400
@@ -1679,6 +1681,46 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     ]
   )
 
+  const handleApplyFormulaToColumn = useCallback(
+    async (columnName: string, formula: string): Promise<boolean> => {
+      if (!columnName || !formula) return false
+      const normalizedFormula = formula.trim().startsWith('=') ? formula.trim() : `=${formula.trim()}`
+      const cells = localSheetDataRef.current
+        .map(row => {
+          const rowId = String(row._id ?? row.id ?? '')
+          if (!rowId) return null
+          return { rowId, columnName, value: normalizedFormula }
+        })
+        .filter((cell): cell is { rowId: string; columnName: string; value: string } => Boolean(cell))
+
+      if (cells.length === 0) {
+        toast.error('No rows available to apply formula.')
+        return false
+      }
+
+      handleCellsChange(cells)
+      toast.success(`Applied formula to ${cells.length} row${cells.length > 1 ? 's' : ''}.`)
+      return true
+    },
+    [handleCellsChange, localSheetDataRef]
+  )
+
+  const handleCreateReviewComment = useCallback(
+    async (content: string): Promise<boolean> => {
+      const created = await comments.createComment({
+        type: 'document',
+        content
+      })
+      if (!created) {
+        toast.error('Failed to create comment from review finding.')
+        return false
+      }
+      toast.success('Review finding added to comments.')
+      return true
+    },
+    [comments]
+  )
+
   // --- Active view type ---
   const viewType = activeView?.config.type || activeSheet.viewType || 'table'
 
@@ -1779,10 +1821,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onAddColumn={columnsState.handleAddColumn}
         onManageColumns={() => columnsState.setIsManageColumnsDialogOpen(true)}
         onOpenAnalytics={() => {
+          setIsSheetsAIOpen(false)
           setIsAutomationsOpen(false)
           setIsAnalyticsOpen(true)
         }}
+        onOpenSheetsAI={() => {
+          setIsAnalyticsOpen(false)
+          setIsAutomationsOpen(false)
+          setIsSheetsAIOpen(true)
+        }}
         onOpenAutomations={() => {
+          setIsSheetsAIOpen(false)
           setIsAnalyticsOpen(false)
           setIsAutomationsOpen(true)
         }}
@@ -1934,6 +1983,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         getHeaderRowFromGrid={viewType === 'table' ? getHeaderRowFromGrid : undefined}
         getSheetDataFromGrid={viewType === 'table' && !entityEnabled ? getSheetDataFromGrid : undefined}
         data-testid={`${testId}-analytics-panel`}
+      />
+      <SheetsAIPanel
+        isOpen={isSheetsAIOpen}
+        onClose={() => setIsSheetsAIOpen(false)}
+        appId={app.id}
+        sheetId={activeSheetId}
+        sheetName={activeSheet.name}
+        accessToken={accessToken}
+        columns={activeSheet.columns}
+        sheetData={sheetData}
+        onApplyFormula={handleApplyFormulaToColumn}
+        onCreateReviewComment={handleCreateReviewComment}
+        onOpenCheckpointDialog={() => setShowCheckpointDialog(true)}
+        getHeaderRowFromGrid={viewType === 'table' ? getHeaderRowFromGrid : undefined}
+        getSheetDataFromGrid={viewType === 'table' && !entityEnabled ? getSheetDataFromGrid : undefined}
+        data-testid={`${testId}-sheets-ai-panel`}
       />
     </div>
   )

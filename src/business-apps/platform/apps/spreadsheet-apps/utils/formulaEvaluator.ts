@@ -59,6 +59,12 @@ function evaluateExpression(expr: string, context: FormulaContext): unknown {
     return null
   }
 
+  // Handle quoted string literals (e.g. "APAC")
+  const quotedLiteral = expr.match(/^"(.*)"$/)
+  if (quotedLiteral) {
+    return quotedLiteral[1]
+  }
+
   // Handle function calls (e.g., SUM(A1:A10), IF(A1>0, B1, C1))
   const functionMatch = expr.match(/^([A-Z]+)\s*\((.*)\)$/i)
   if (functionMatch) {
@@ -124,6 +130,8 @@ function evaluateFunction(name: string, args: string, context: FormulaContext): 
       return countFunction(args, context)
     case 'IF':
       return ifFunction(args, context)
+    case 'SUMIF':
+      return sumIfFunction(args, context)
     default:
       throw new Error(`Unknown function: ${name}`)
   }
@@ -195,6 +203,44 @@ function ifFunction(args: string, context: FormulaContext): unknown {
   // Evaluate condition - handle comparison operators
   const conditionValue = evaluateCondition(conditionExpr, context)
   return conditionValue ? valueIfTrue : valueIfFalse
+}
+
+/**
+ * SUMIF function: SUMIF(criteria_range, criteria, [sum_range])
+ */
+function sumIfFunction(args: string, context: FormulaContext): number {
+  const parts = splitFunctionArgs(args)
+  if (parts.length < 2) {
+    throw new Error('SUMIF function requires at least 2 arguments')
+  }
+
+  const criteriaRangeRef = parts[0].trim()
+  const criteriaRaw = parts[1].trim()
+  const sumRangeRef = (parts[2] ?? criteriaRangeRef).trim()
+
+  const criteriaValues = resolveRangeExpression(criteriaRangeRef, context)
+  const sumValues = resolveRangeExpression(sumRangeRef, context)
+
+  if (criteriaValues.length === 0 || sumValues.length === 0) return 0
+
+  const rowCount = Math.min(criteriaValues.length, sumValues.length)
+  let total = 0
+  for (let i = 0; i < rowCount; i++) {
+    if (matchesCriteria(criteriaValues[i], criteriaRaw, context)) {
+      const num = toNumber(sumValues[i])
+      if (!isNaN(num)) total += num
+    }
+  }
+  return total
+}
+
+function resolveRangeExpression(rangeExpr: string, context: FormulaContext): unknown[] {
+  const trimmed = rangeExpr.trim()
+  const rangeMatch = trimmed.match(/^(.+):(.+)$/)
+  if (rangeMatch) {
+    return getRangeValues(rangeMatch[1].trim(), rangeMatch[2].trim(), context)
+  }
+  return getRangeValues(trimmed, trimmed, context)
 }
 
 /**
@@ -293,6 +339,16 @@ function splitFunctionArgs(args: string): string[] {
  * Get values from a range (e.g., A1:A10 or price:quantity)
  */
 function getRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] {
+  if (startRef === endRef) {
+    const singleRange = getSingleRangeValues(startRef, context)
+    if (singleRange) return singleRange
+  }
+
+  // Excel full-column range (e.g. B:G)
+  if (isExcelStyleColumnRef(startRef) && isExcelStyleColumnRef(endRef)) {
+    return getExcelColumnRangeValues(startRef, endRef, context)
+  }
+
   if (isExcelStyleCellRef(startRef) && isExcelStyleCellRef(endRef)) {
     return getExcelRangeValues(startRef, endRef, context)
   }
@@ -305,6 +361,42 @@ function getRangeValues(startRef: string, endRef: string, context: FormulaContex
 
 function isExcelStyleCellRef(ref: string): boolean {
   return /^[A-Z]+[0-9]+$/i.test(ref)
+}
+
+function isExcelStyleColumnRef(ref: string): boolean {
+  return /^[A-Z]+$/i.test(ref)
+}
+
+function getSingleRangeValues(ref: string, context: FormulaContext): unknown[] | null {
+  // Column name/id reference
+  const columnByNameOrId = context.columns.find(
+    c => c.name.toLowerCase() === ref.toLowerCase() || c.id.toLowerCase() === ref.toLowerCase()
+  )
+  if (columnByNameOrId) {
+    return context.allRows.map(row => row[columnByNameOrId.name] ?? row[columnByNameOrId.id])
+  }
+
+  // Excel whole-column reference (e.g. B)
+  if (isExcelStyleColumnRef(ref)) {
+    const colIndex = columnLetterToIndex(ref)
+    if (colIndex < 0 || colIndex >= context.columns.length) return null
+    const column = context.columns[colIndex]
+    return context.allRows.map(row => row[column.name] ?? row[column.id])
+  }
+
+  return null
+}
+
+function getExcelColumnRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] {
+  const startCol = columnLetterToIndex(startRef)
+  const endCol = columnLetterToIndex(endRef)
+  return collectValuesFromRect({
+    startCol,
+    endCol,
+    startRow: 0,
+    endRow: Math.max(0, context.allRows.length - 1),
+    context
+  })
 }
 
 function collectValuesFromRect(params: {
@@ -571,6 +663,63 @@ function replaceCellReferences(expr: string, context: FormulaContext): string {
   }
 
   return expr
+}
+
+function matchesCriteria(value: unknown, criteriaRaw: string, context: FormulaContext): boolean {
+  const parsedCriterion = parseCriteriaToken(criteriaRaw, context)
+  const operatorMatch = typeof parsedCriterion === 'string' ? parsedCriterion.match(/^(<=|>=|<>|=|<|>)(.*)$/) : null
+
+  if (!operatorMatch) {
+    if (typeof parsedCriterion === 'number') return toNumber(value) === parsedCriterion
+    return (
+      String(value ?? '')
+        .trim()
+        .toLowerCase() ===
+      String(parsedCriterion ?? '')
+        .trim()
+        .toLowerCase()
+    )
+  }
+
+  const operator = operatorMatch[1]
+  const operandRaw = operatorMatch[2].trim()
+  const operandMaybeNumber = Number(operandRaw)
+  const operandIsNumber = operandRaw !== '' && Number.isFinite(operandMaybeNumber)
+  const leftNumber = toNumber(value)
+
+  if (operator === '=') {
+    if (operandIsNumber) return leftNumber === operandMaybeNumber
+    return (
+      String(value ?? '')
+        .trim()
+        .toLowerCase() === operandRaw.toLowerCase()
+    )
+  }
+  if (operator === '<>') {
+    if (operandIsNumber) return leftNumber !== operandMaybeNumber
+    return (
+      String(value ?? '')
+        .trim()
+        .toLowerCase() !== operandRaw.toLowerCase()
+    )
+  }
+  if (!operandIsNumber) return false
+  if (operator === '>') return leftNumber > operandMaybeNumber
+  if (operator === '>=') return leftNumber >= operandMaybeNumber
+  if (operator === '<') return leftNumber < operandMaybeNumber
+  if (operator === '<=') return leftNumber <= operandMaybeNumber
+  return false
+}
+
+function parseCriteriaToken(criteriaRaw: string, context: FormulaContext): string | number {
+  const trimmed = criteriaRaw.trim()
+  const quoted = trimmed.match(/^"(.*)"$/)
+  if (quoted) return quoted[1]
+  const numberValue = Number(trimmed)
+  if (Number.isFinite(numberValue)) return numberValue
+  const evaluated = evaluateExpression(trimmed, context)
+  if (typeof evaluated === 'number') return evaluated
+  return String(evaluated ?? trimmed)
 }
 
 /**

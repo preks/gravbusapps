@@ -812,9 +812,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
             </TabsContent>
 
             <TabsContent value="charts" className="gba:space-y-4">
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Visualize your data and optionally send the chart to a Slides presentation.
-              </p>
+              <div className="gba:border gba:border-primary/20 gba:bg-primary/5 gba:rounded-md gba:p-3">
+                <p className="gba:text-sm gba:text-primary">
+                  Visualize your data and optionally send the chart to a Slides presentation.
+                </p>
+              </div>
 
               <div className="gba:grid gba:grid-cols-1 gba:gap-3">
                 <label className="gba:text-xs gba:text-muted-foreground">
@@ -962,7 +964,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 </Button>
                 <div
                   ref={chartContainerRef}
-                  className="gba:border gba:border-border/50 gba:rounded-md gba:p-3 gba:bg-background"
+                  className="gba:border gba:border-primary/20 gba:bg-primary/5 gba:rounded-md gba:p-3"
                 >
                   {chartTitle && (
                     <h3 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3 gba:text-center">
@@ -993,18 +995,22 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
               </div>
 
               {insightsError && (
-                <p className="gba:text-xs gba:text-warning-foreground">Using local fallback: {insightsError}</p>
+                <p className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2">
+                  Using local fallback: {insightsError}
+                </p>
               )}
               <div className="gba:space-y-2">
                 {insights.length === 0 ? (
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    Run AI insights to analyze trends and anomalies.
-                  </p>
+                  <div className="gba:border gba:border-secondary/30 gba:bg-secondary/5 gba:rounded-md gba:p-3">
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      Run AI insights to analyze trends and anomalies.
+                    </p>
+                  </div>
                 ) : (
                   insights.map((item, index) => (
                     <div
                       key={index}
-                      className="gba:text-sm gba:p-3 gba:rounded-md gba:bg-muted/30 gba:border gba:border-border/40"
+                      className="gba:text-sm gba:p-3 gba:rounded-md gba:bg-success/5 gba:border gba:border-success/20"
                     >
                       {item}
                     </div>
@@ -1030,15 +1036,19 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
               </div>
 
               {summaryError && (
-                <p className="gba:text-xs gba:text-warning-foreground">Using local fallback: {summaryError}</p>
+                <p className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2">
+                  Using local fallback: {summaryError}
+                </p>
               )}
               {summary ? (
                 <div className="gba:space-y-3">
-                  <p className="gba:text-sm gba:text-foreground">{summary.overview}</p>
+                  <div className="gba:border gba:border-primary/20 gba:bg-primary/5 gba:rounded-md gba:p-3">
+                    <p className="gba:text-sm gba:text-foreground">{summary.overview}</p>
+                  </div>
                   {summary.cards.map(card => (
                     <div
                       key={card.columnName}
-                      className="gba:border gba:border-border/40 gba:rounded-md gba:p-3 gba:space-y-2"
+                      className="gba:border gba:border-secondary/30 gba:bg-secondary/5 gba:rounded-md gba:p-3 gba:space-y-2"
                     >
                       <div className="gba:flex gba:items-center gba:justify-between">
                         <h4 className="gba:text-sm gba:font-medium">{card.columnName}</h4>
@@ -1058,7 +1068,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                               </div>
                               <div className="gba:h-1.5 gba:bg-muted gba:rounded">
                                 <div
-                                  className="gba:h-1.5 gba:bg-warning gba:rounded"
+                                  className={`gba:h-1.5 gba:rounded ${ratio >= 60 ? 'gba:bg-success' : ratio >= 30 ? 'gba:bg-primary' : 'gba:bg-warning'}`}
                                   style={{ width: `${Math.min(100, ratio)}%` }}
                                 />
                               </div>
