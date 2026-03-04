@@ -99,6 +99,22 @@ function getMeetingStatusBadgeVariant(status: string | undefined): 'success' | '
   return 'secondary'
 }
 
+/**
+ * Returns true if content is only a redundant "Complete Meeting Invitation:" title line
+ * (no real body). Uses string operations only to avoid ReDoS.
+ */
+function isRedundantMeetingTitleContent(content: string): boolean {
+  const s = content.trim()
+  if (!s) return false
+  let rest = s
+  rest = rest.replace(/^\s+/, '')
+  if (rest.startsWith('**')) rest = rest.slice(2).trimStart()
+  if (!rest.startsWith('Complete Meeting Invitation:')) return false
+  rest = rest.slice('Complete Meeting Invitation:'.length).trim()
+  if (rest.startsWith('**')) rest = rest.slice(2).trim()
+  return rest === ''
+}
+
 interface UniversalCflowTaskDetailsProps {
   task: UnifiedTask
   accessToken: string
@@ -1190,9 +1206,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             (() => {
               const content = (task.message || task.description || '').trim()
               const isRedundantMeetingTitle =
-                task.tags?.app === 'meeting-invite' &&
-                (/^\s*\*\*Complete Meeting Invitation:.*\*\*\s*$/s.test(content) ||
-                  /^\s*Complete Meeting Invitation:.*\s*$/s.test(content))
+                task.tags?.app === 'meeting-invite' && isRedundantMeetingTitleContent(content)
               if (isRedundantMeetingTitle) return null
               if (task.tags?.app === 'scheduled_task') {
                 return <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
@@ -1777,9 +1791,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           (() => {
             const content = (task.message || task.description || '').trim()
             const isRedundantMeetingTitle =
-              task.tags?.app === 'meeting-invite' &&
-              (/^\s*\*\*Complete Meeting Invitation:.*\*\*\s*$/s.test(content) ||
-                /^\s*Complete Meeting Invitation:.*\s*$/s.test(content))
+              task.tags?.app === 'meeting-invite' && isRedundantMeetingTitleContent(content)
             if (isRedundantMeetingTitle) return null
             if (task.tags?.app === 'scheduled_task') {
               return <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
