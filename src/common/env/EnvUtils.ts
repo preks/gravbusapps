@@ -11,6 +11,10 @@ const PROMPT_MANAGER_OVERRIDE_STORAGE_KEY = 'prompt-manager-url-override'
 const PROMPT_MANAGER_OVERRIDE_QUERY_PARAM = 'promptManagerUrl'
 const PROMPT_MANAGER_ENV_KEYS = new Set(['NEXT_PUBLIC_PROMPT_MANAGER_API_URL'])
 
+const PRODUCT_REPORT_OVERRIDE_STORAGE_KEY = 'product-report-base-url-override'
+const PRODUCT_REPORT_OVERRIDE_QUERY_PARAM = 'productReportBaseUrl'
+const PRODUCT_REPORT_ENV_KEYS = new Set(['NEXT_PUBLIC_PRODUCT_REPORT_BASE_URL'])
+
 function normalizeAbsoluteHttpUrl(value: string | null): string | undefined {
   const v = (value || '').trim()
   if (!v) return undefined
@@ -95,6 +99,43 @@ function setPromptManagerOverrideInStorage(value: string): void {
   }
 }
 
+function getProductReportOverrideFromQuery(): string | undefined {
+  if (typeof window === 'undefined') return undefined
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const value = params.get(PRODUCT_REPORT_OVERRIDE_QUERY_PARAM)
+    return normalizeAbsoluteHttpUrl(value)
+  } catch {
+    return undefined
+  }
+}
+
+function getProductReportOverrideFromStorage(): string | undefined {
+  if (typeof window === 'undefined' || !window.localStorage) return undefined
+  try {
+    const value = window.localStorage.getItem(PRODUCT_REPORT_OVERRIDE_STORAGE_KEY)
+    const normalized = normalizeAbsoluteHttpUrl(value)
+    if (!normalized && value) {
+      window.localStorage.removeItem(PRODUCT_REPORT_OVERRIDE_STORAGE_KEY)
+    }
+    return normalized
+  } catch {
+    return undefined
+  }
+}
+
+export function setProductReportBaseUrlOverride(value: string): boolean {
+  if (typeof window === 'undefined' || !window.localStorage) return false
+  try {
+    const normalized = normalizeAbsoluteHttpUrl(value)
+    if (!normalized) return false
+    window.localStorage.setItem(PRODUCT_REPORT_OVERRIDE_STORAGE_KEY, normalized)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function env(key: string): string | undefined {
   if (typeof window !== 'undefined') {
     if (!key.startsWith('NEXT_PUBLIC_')) {
@@ -122,6 +163,19 @@ export function env(key: string): string | undefined {
       }
 
       const storedOverride = getPromptManagerOverrideFromStorage()
+      if (storedOverride) {
+        return storedOverride
+      }
+    }
+
+    if (PRODUCT_REPORT_ENV_KEYS.has(key)) {
+      const queryOverride = getProductReportOverrideFromQuery()
+      if (queryOverride) {
+        setProductReportBaseUrlOverride(queryOverride)
+        return queryOverride
+      }
+
+      const storedOverride = getProductReportOverrideFromStorage()
       if (storedOverride) {
         return storedOverride
       }

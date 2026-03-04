@@ -1,0 +1,12 @@
+[mcp_servers.gravity-issues]
+url = "https://product.newwork.com/api/mcp"
+http_headers = { "X-Gravity-Issues-Token" = "55555" }
+
+[mcp_servers.gravity-issues-local]
+command = "npx"
+args = ["-y", "gravity-issues-mcp"]
+enabled = false
+
+[mcp_servers.gravity-issues-local.env]
+PRODUCT_REPORT_BASE_URL = "https://product.newwork.com"
+GRAVITY_ISSUES_TOKEN = "55555"
