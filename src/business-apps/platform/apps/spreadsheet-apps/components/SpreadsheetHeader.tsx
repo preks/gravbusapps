@@ -28,8 +28,7 @@ import {
   Sparkles,
   Sigma,
   MessageCircle,
-  ClipboardCheck,
-  Table2
+  ClipboardCheck
 } from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
@@ -276,10 +275,6 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                   <DropdownMenuItem onClick={() => onOpenAICapability('charts')}>
                     <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
                     Generate charts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onOpenAICapability('pivot')}>
-                    <Table2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Generate a pivot table
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onOpenAICapability('formula')}>
                     <Sigma className="gba:w-4 gba:h-4 gba:mr-2" />
