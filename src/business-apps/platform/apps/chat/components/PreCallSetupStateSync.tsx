@@ -88,7 +88,9 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         }
       }
 
-      // Update callbacks FIRST so the subsequent state notify causes UI to read latest callbacks
+      // Update callbacks FIRST so the subsequent state notify causes UI to read latest callbacks.
+      // On cancel: close and release in the manager first so the dialog stays closed even if
+      // the sync effect runs again before React has applied the idle state (avoids modal reopening).
       globalPreCallSetupManager.setCallbacksFrom(
         instanceId,
         preferences => {
@@ -97,6 +99,11 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
           }
         },
         () => {
+          if (globalPreCallSetupManager.getSourceOwnerId() === instanceId) {
+            globalPreCallSetupManager.setCallbacksFrom(instanceId, null, null)
+            globalPreCallSetupManager.setStateFrom(instanceId, { isOpen: false })
+            globalPreCallSetupManager.releaseSourceOwner(instanceId)
+          }
           if (realtimeKitGroupCall.cancelSetup) {
             realtimeKitGroupCall.cancelSetup()
           }
