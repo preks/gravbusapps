@@ -1033,7 +1033,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         if (currentSessionId) {
           try {
             // Save user message
-            await saveUserMessage(currentSessionId, userInputText, files, mentions, accessToken)
+            await saveUserMessage(currentSessionId, userInputText, files, undefined, accessToken)
 
             // Save agent message using tracked outputs
             const agentOutputs = currentAgentOutputsRef.current
