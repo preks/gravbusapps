@@ -160,7 +160,7 @@ export class FlowbotClient extends RestClient {
       formData.append('llm_model', llmModel)
     }
 
-    return this.post<MapFromFileResponse>('/extraction/data/entities/map-from-file', formData, options)
+    return this.post<MapFromFileResponse>('/flowbot/extraction/data/entities/map-from-file', formData, options)
   }
 
   public async extractFromFile(
@@ -182,7 +182,7 @@ export class FlowbotClient extends RestClient {
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())
 
-    return this.post<ExtractFromFileResponse>('/extraction/data/entities/extract-from-file', formData, options)
+    return this.post<ExtractFromFileResponse>('/flowbot/extraction/data/entities/extract-from-file', formData, options)
   }
 }
 
