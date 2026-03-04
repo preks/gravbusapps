@@ -8,7 +8,7 @@ import { setPendingJoinMeeting } from '../pendingJoinMeetingFromPlatform'
 import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
-import { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
+import { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus, EventParticipant } from './types'
 
 interface CalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -65,6 +65,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     selectedEvent,
     isLoading,
     error,
+    apiClient,
     setCurrentDate,
     setView,
     goToToday,
@@ -100,55 +101,73 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const eventsRef = useRef<CalendarEvent[]>(events)
   eventsRef.current = events
 
-  // Fetch avatars when selected event changes
+  // Fetch meeting data (participant responses) and avatars when detail modal opens
   useEffect(() => {
-    const enrichEventWithAvatars = async () => {
+    const enrichEventWithMeetingAndAvatars = async () => {
       if (!selectedEvent || !isDetailModalOpen) {
         setEnrichedSelectedEvent(null)
         return
       }
 
+      const isInternalMeeting = selectedEvent.id && (!selectedEvent.source || selectedEvent.source === 'internal')
+
+      let eventToEnrich: CalendarEvent = selectedEvent
+
+      // For internal meetings, fetch full meeting data so we have up-to-date participant responses
+      if (isInternalMeeting && apiClient) {
+        try {
+          const meeting = await apiClient.getMeeting(selectedEvent.id)
+          const participants: EventParticipant[] =
+            meeting.participants?.map(p => ({
+              id: p.userId,
+              firstName: p.user?.firstName,
+              lastName: p.user?.lastName,
+              displayName: p.user?.displayName,
+              email: p.user?.email ?? '',
+              avatarUrl: p.user?.avatarUrl,
+              status: p.status,
+              isOrganizer: p.isOrganizer,
+              comment: p.responseComment
+            })) ?? []
+          const acceptedCount = meeting.participants?.filter(p => p.status === InvitationStatus.ACCEPTED).length ?? 0
+          eventToEnrich = {
+            ...selectedEvent,
+            participants,
+            participantCount: participants.length,
+            acceptedCount
+          }
+        } catch (error) {
+          console.error('Error fetching meeting data:', error)
+        }
+      }
+
       // Collect all user IDs that need avatars
       const userIds: string[] = []
-
-      // Add organizer
-      if (selectedEvent.organizer?.id) {
-        userIds.push(selectedEvent.organizer.id)
-      }
-
-      // Add participants
-      if (selectedEvent.participants) {
-        selectedEvent.participants.forEach(p => {
-          if (p.id) userIds.push(p.id)
-        })
-      }
+      if (eventToEnrich.organizer?.id) userIds.push(eventToEnrich.organizer.id)
+      eventToEnrich.participants?.forEach(p => {
+        if (p.id) userIds.push(p.id)
+      })
 
       if (userIds.length === 0) {
-        setEnrichedSelectedEvent(selectedEvent)
+        setEnrichedSelectedEvent(eventToEnrich)
         return
       }
 
       try {
-        // Try to get from cache first (non-blocking)
         let employeeInfoMap = requestAvatars(userIds)
-
-        // If cache doesn't have all users, fetch synchronously
         if (employeeInfoMap.size < userIds.length) {
           employeeInfoMap = await fetchAvatarsSync(userIds)
         }
 
-        // Get organizer info
-        const organizerInfo = employeeInfoMap.get(selectedEvent.organizer.id)
-
-        // Enrich the event with avatar URLs and employee IDs
+        const organizerInfo = employeeInfoMap.get(eventToEnrich.organizer.id)
         const enrichedEvent: CalendarEvent = {
-          ...selectedEvent,
+          ...eventToEnrich,
           organizer: {
-            ...selectedEvent.organizer,
-            avatarUrl: organizerInfo?.avatarUrl || selectedEvent.organizer.avatarUrl,
-            employeeId: organizerInfo?.employeeId || selectedEvent.organizer.employeeId
+            ...eventToEnrich.organizer,
+            avatarUrl: organizerInfo?.avatarUrl || eventToEnrich.organizer.avatarUrl,
+            employeeId: organizerInfo?.employeeId || eventToEnrich.organizer.employeeId
           },
-          participants: selectedEvent.participants?.map(p => {
+          participants: eventToEnrich.participants?.map(p => {
             const participantInfo = employeeInfoMap.get(p.id)
             return {
               ...p,
@@ -161,12 +180,12 @@ const CalendarInner: React.FC<CalendarProps> = ({
         setEnrichedSelectedEvent(enrichedEvent)
       } catch (error) {
         console.error('Error fetching participant avatars:', error)
-        setEnrichedSelectedEvent(selectedEvent)
+        setEnrichedSelectedEvent(eventToEnrich)
       }
     }
 
-    enrichEventWithAvatars()
-  }, [selectedEvent, isDetailModalOpen, fetchAvatarsSync, requestAvatars])
+    enrichEventWithMeetingAndAvatars()
+  }, [selectedEvent, isDetailModalOpen, apiClient, fetchAvatarsSync, requestAvatars])
 
   // Handle URL params to navigate to a specific date/meeting (e.g., from MeetingCard click)
   useEffect(() => {
@@ -234,11 +253,12 @@ const CalendarInner: React.FC<CalendarProps> = ({
     }
   }, [events, setCurrentDate, setView, selectEvent, refresh])
 
-  // When events load and meetingId is in URL (e.g. opened from task link), open meeting once events are available
+  // When events load and meetingId is in URL (e.g. opened from task link), open meeting once events are available.
+  // Skip re-opening detail when create/edit modal is open (e.g. user clicked Edit).
   useEffect(() => {
     if (events.length === 0) return
     const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId')
-    if (!meetingIdParam || isDetailModalOpen) return
+    if (!meetingIdParam || isDetailModalOpen || isCreateModalOpen) return
     const meetingEvent = events.find(e => e.id === meetingIdParam)
     if (meetingEvent) {
       setCurrentDate(meetingEvent.start)
@@ -246,7 +266,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
       selectEvent(meetingEvent)
       setIsDetailModalOpen(true)
     }
-  }, [events, isDetailModalOpen, selectEvent, setCurrentDate, setView])
+  }, [events, isDetailModalOpen, isCreateModalOpen, selectEvent, setCurrentDate, setView])
 
   // Sync modal with browser back/forward: open/close modal when URL meetingId appears/disappears
   useEffect(() => {
