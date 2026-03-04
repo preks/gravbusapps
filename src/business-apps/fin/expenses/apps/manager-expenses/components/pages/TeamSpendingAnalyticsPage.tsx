@@ -1136,7 +1136,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                     <div className="gba:flex gba:justify-center gba:p-8">
                       <Spinner data-testid="loading-spinner" />
                     </div>
-                  ) : (
+                  ) : activeTab !== 'expense-items' ? null : (
                     renderExpenseItemsTab()
                   )}
                 </TabsContent>
@@ -1150,7 +1150,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                     <div className="gba:flex gba:justify-center gba:p-8">
                       <Spinner data-testid="loading-spinner" />
                     </div>
-                  ) : (
+                  ) : activeTab !== 'expense-requests' ? null : (
                     renderExpenseRequestsTab()
                   )}
                 </TabsContent>
@@ -1164,7 +1164,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                     <div className="gba:flex gba:justify-center gba:p-8">
                       <Spinner data-testid="loading-spinner" />
                     </div>
-                  ) : (
+                  ) : activeTab !== 'expense-plans' ? null : (
                     renderExpensePlansTab()
                   )}
                 </TabsContent>
@@ -1178,7 +1178,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                     <div className="gba:flex gba:justify-center gba:p-8">
                       <Spinner data-testid="loading-spinner" />
                     </div>
-                  ) : (
+                  ) : activeTab !== 'advance-payments' ? null : (
                     renderAdvancePaymentsTab()
                   )}
                 </TabsContent>

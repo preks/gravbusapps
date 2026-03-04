@@ -43,6 +43,11 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   currency = 'EUR',
   dataTestId
 }) => {
+  const [isChartReady, setIsChartReady] = React.useState(false)
+  React.useEffect(() => {
+    const rafId = window.requestAnimationFrame(() => setIsChartReady(true))
+    return () => window.cancelAnimationFrame(rafId)
+  }, [])
   const resolvedLineColor = React.useMemo(() => resolveCssVar(lineColor), [lineColor])
   const lineName = getTranslationFromI18nKeyAndLabel('lowcoder:charts.legend.amount', 'Amount')
 
@@ -88,46 +93,50 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <ChartContainer
-          config={chartConfig}
-          className="gba:w-full"
-          style={{ height: height }}
-          data-testid={dataTestId ?? 'line-chart'}
-        >
-          <LineChart
-            data={data}
-            margin={{
-              top: 5,
-              right: 30,
-              left: 20,
-              bottom: 5
-            }}
+        {!isChartReady ? (
+          <div className="gba:w-full gba:min-h-[300px]" />
+        ) : (
+          <ChartContainer
+            config={chartConfig}
+            className="gba:w-full gba:min-w-0"
+            style={{ height: height }}
+            data-testid={dataTestId ?? 'line-chart'}
           >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={xAxisDataKey} />
-            <YAxis />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  formatter={value => {
-                    const num = typeof value === 'number' ? value : Number(value ?? 0)
-                    const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0
-                    return formatCurrencyDisplay(fixed, currency)
-                  }}
-                />
-              }
-            />
-            <ChartLegend content={<ChartLegendContent />} />
-            <Line
-              type="monotone"
-              dataKey={lineDataKey}
-              stroke={resolvedLineColor}
-              activeDot={{ r: 8 }}
-              name={lineName}
-            />
-          </LineChart>
-        </ChartContainer>
+            <LineChart
+              data={data}
+              margin={{
+                top: 5,
+                right: 30,
+                left: 20,
+                bottom: 5
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey={xAxisDataKey} />
+              <YAxis />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    formatter={value => {
+                      const num = typeof value === 'number' ? value : Number(value ?? 0)
+                      const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0
+                      return formatCurrencyDisplay(fixed, currency)
+                    }}
+                  />
+                }
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Line
+                type="monotone"
+                dataKey={lineDataKey}
+                stroke={resolvedLineColor}
+                activeDot={{ r: 8 }}
+                name={lineName}
+              />
+            </LineChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )

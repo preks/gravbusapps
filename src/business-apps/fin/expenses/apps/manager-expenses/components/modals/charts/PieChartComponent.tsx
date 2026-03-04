@@ -54,6 +54,11 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   getColor,
   dataTestId
 }) => {
+  const [isChartReady, setIsChartReady] = React.useState(false)
+  React.useEffect(() => {
+    const rafId = window.requestAnimationFrame(() => setIsChartReady(true))
+    return () => window.cancelAnimationFrame(rafId)
+  }, [])
   const resolvedColors = React.useMemo(() => colors.map(resolveCssVar), [colors])
 
   // Create chart config dynamically from data
@@ -110,57 +115,64 @@ const PieChartComponent: React.FC<PieChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto"
-          style={{ minHeight: height, width: '100%' }}
-          data-testid={dataTestId ?? `${title.toLowerCase().replaceAll(/\s+/g, '-')}-chart`}
-        >
-          <PieChart width={500} height={400}>
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  formatter={(value: any, _name: any, props: any) => {
-                    const num = Number(value ?? 0)
-                    if (valueType === 'count') {
-                      const itemsLabel = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.items', countLabel)
-                      return `${num} ${itemsLabel}`
-                    }
-                    const fixed = Number.isFinite(num) ? Math.round(num * 100) / 100 : 0
-                    const count = props?.payload?.count ?? null
-                    const amountText = formatCurrencyDisplay(fixed, currency)
-                    const countLabelText = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.count', 'Count')
-                    return count === null ? amountText : `${amountText} (${countLabelText}: ${count})`
-                  }}
-                  nameKey="name"
-                />
-              }
-            />
-            <Pie
-              data={data}
-              cx="50%"
-              cy="45%"
-              labelLine={false}
-              label={false}
-              outerRadius={100}
-              innerRadius={60}
-              fill="var(--nw-chart-1)"
-              dataKey={dataKey}
-              nameKey="name"
-            >
-              {data.map((entry, index) => {
-                const base = resolvedColors[index % resolvedColors.length]
-                const custom = getColor ? getColor(entry, index) : undefined
-                const resolved = custom ? resolveCssVar(custom) : base
-                // Use entry name or value as key fallback to ensure uniqueness
-                const entryKey = entry.name || entry[dataKey] || index
-                return <Cell key={`cell-${entryKey}`} fill={resolved} />
-              })}
-            </Pie>
-            <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={10} />
-          </PieChart>
-        </ChartContainer>
+        {!isChartReady ? (
+          <div className="gba:w-full gba:min-h-[300px]" />
+        ) : (
+          <ChartContainer
+            config={chartConfig}
+            className="gba:mx-auto gba:min-w-0"
+            style={{ minHeight: height, width: '100%' }}
+            data-testid={dataTestId ?? `${title.toLowerCase().replaceAll(/\s+/g, '-')}-chart`}
+          >
+            <PieChart width={500} height={400}>
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    formatter={(value: any, _name: any, props: any) => {
+                      const num = Number(value ?? 0)
+                      if (valueType === 'count') {
+                        const itemsLabel = getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:charts.tooltip.items',
+                          countLabel
+                        )
+                        return `${num} ${itemsLabel}`
+                      }
+                      const fixed = Number.isFinite(num) ? Math.round(num * 100) / 100 : 0
+                      const count = props?.payload?.count ?? null
+                      const amountText = formatCurrencyDisplay(fixed, currency)
+                      const countLabelText = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.count', 'Count')
+                      return count === null ? amountText : `${amountText} (${countLabelText}: ${count})`
+                    }}
+                    nameKey="name"
+                  />
+                }
+              />
+              <Pie
+                data={data}
+                cx="50%"
+                cy="45%"
+                labelLine={false}
+                label={false}
+                outerRadius={100}
+                innerRadius={60}
+                fill="var(--nw-chart-1)"
+                dataKey={dataKey}
+                nameKey="name"
+              >
+                {data.map((entry, index) => {
+                  const base = resolvedColors[index % resolvedColors.length]
+                  const custom = getColor ? getColor(entry, index) : undefined
+                  const resolved = custom ? resolveCssVar(custom) : base
+                  // Use entry name or value as key fallback to ensure uniqueness
+                  const entryKey = entry.name || entry[dataKey] || index
+                  return <Cell key={`cell-${entryKey}`} fill={resolved} />
+                })}
+              </Pie>
+              <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={10} />
+            </PieChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )
