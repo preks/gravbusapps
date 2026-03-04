@@ -158,9 +158,12 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   }, [rawExternalEvents])
 
   const isInSidepanel = useMemo(() => {
-    if (typeof globalThis.window === 'undefined') return false
+    if (globalThis.window === undefined) return false
 
-    const normalizedPath = globalThis.window.location.pathname.replace(/\/+$/, '')
+    let normalizedPath = globalThis.window.location.pathname
+    while (normalizedPath.length > 1 && normalizedPath.endsWith('/')) {
+      normalizedPath = normalizedPath.slice(0, -1)
+    }
     // Fullscreen Chat can be mounted as canonical (/platform/chat) or as the app path (/platform/apps/chat) in local/dev.
     if (normalizedPath === '/platform/chat' || normalizedPath === '/platform/apps/chat') return false
 
@@ -168,7 +171,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   }, [])
 
   const isNarrowViewport = useMemo(() => {
-    if (typeof globalThis.window === 'undefined') return false
+    if (globalThis.window === undefined) return false
     return globalThis.window.innerWidth < 768
   }, [])
 
@@ -181,7 +184,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     pending: { userId: string; userName?: string; prefilledMessage?: string; metadata?: Record<string, unknown> } | null
   }>(() => {
     try {
-      if (typeof globalThis.window === 'undefined') return { tab: effectiveDefaultTab, pending: null }
+      if (globalThis.window === undefined) return { tab: effectiveDefaultTab, pending: null }
       const raw = sessionStorage.getItem('chatPendingOpenWithUser')
       if (raw) {
         sessionStorage.removeItem('chatPendingOpenWithUser')

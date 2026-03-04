@@ -115,6 +115,119 @@ function isRedundantMeetingTitleContent(content: string): boolean {
   return rest === ''
 }
 
+interface MeetingParticipantDisplay {
+  userId: string
+  displayName: string
+  status?: string
+  isOrganizer: boolean
+}
+
+interface MeetingParticipantRowProps {
+  participant: MeetingParticipantDisplay
+  idx: number
+  employeeMap: Map<
+    string,
+    { id?: string; avatarUrl?: string; pictureThumbnail?: string; firstName?: string; lastName?: string }
+  >
+  formatAvatarUrl: (pictureThumbnail: string | undefined) => string | undefined
+  getInitials: (firstName: string, lastName: string) => string
+  t: (key: string, opts?: { defaultValue?: string; count?: number }) => string
+  navigateTo: (url: string) => void
+  buildPlatformUrl: (path: string, params: { employeeId: string }) => string
+  hasStatus: boolean
+}
+
+function MeetingParticipantRow({
+  participant: p,
+  idx,
+  employeeMap,
+  formatAvatarUrl,
+  getInitials,
+  t,
+  navigateTo,
+  buildPlatformUrl,
+  hasStatus
+}: MeetingParticipantRowProps): React.ReactElement {
+  const isLegacy = p.userId.startsWith('legacy-')
+  const emp = isLegacy ? null : employeeMap.get(p.userId)
+  const employeeId = emp?.id
+  const avatarUrl = emp?.avatarUrl ?? formatAvatarUrl(emp?.pictureThumbnail)
+  const parts = p.displayName.trim().split(/\s+/)
+  let initials: string
+  if (emp && (emp.firstName || emp.lastName)) {
+    initials = getInitials(emp.firstName ?? '', emp.lastName ?? '')
+  } else if (parts.length >= 2) {
+    initials = getInitials(parts[0], parts.slice(1).join(' '))
+  } else {
+    initials = parts[0]?.slice(0, 2).toUpperCase() || '?'
+  }
+  const statusKey = p.status ? `task-details-meeting-status-${p.status}` : null
+  const statusLabel = statusKey ? t(statusKey, { defaultValue: p.status }) : null
+  return (
+    <li key={p.userId || idx} className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+      {employeeId ? (
+        <button
+          type="button"
+          onClick={() => navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId }))}
+          className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:ring-2 gba:ring-transparent hover:gba:ring-primary focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary"
+          aria-label={t('task-details-meeting-participant-view-profile', { defaultValue: 'View profile' })}
+          data-testid={`task-details-meeting-participant-avatar-${idx}`}
+        >
+          <Avatar className="gba:h-8 gba:w-8">
+            <AvatarImage src={avatarUrl} alt={p.displayName} />
+            <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+          </Avatar>
+        </button>
+      ) : (
+        <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+          <AvatarImage src={avatarUrl} alt={p.displayName} />
+          <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+        </Avatar>
+      )}
+      <span className="gba:flex gba:items-center gba:gap-2">
+        {p.displayName}
+        {p.isOrganizer && (
+          <span className="gba:text-muted-foreground gba:font-normal">
+            ({t('task-details-meeting-organiser', { defaultValue: 'Organiser' })})
+          </span>
+        )}
+        {hasStatus && statusLabel && (
+          <Badge variant={getMeetingStatusBadgeVariant(p.status)} className="gba:text-xs">
+            {statusLabel}
+          </Badge>
+        )}
+      </span>
+    </li>
+  )
+}
+
+/**
+ * Renders task message/description: scheduled_task as Markdown, meeting-invite with date/time in a div, else plain paragraph.
+ * Returns null when meeting-invite content is only the redundant "Complete Meeting Invitation:" title.
+ */
+function renderTaskMessageContent(task: UnifiedTask, accessToken: string): React.ReactNode {
+  const content = (task.message || task.description || '').trim()
+  const isRedundantMeetingTitle = task.tags?.app === 'meeting-invite' && isRedundantMeetingTitleContent(content)
+  if (isRedundantMeetingTitle) return null
+  if (task.tags?.app === 'scheduled_task') {
+    return <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+  }
+  if (
+    task.tags?.app === 'meeting-invite' &&
+    (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) &&
+    (task.message || task.description)
+  ) {
+    return (
+      <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+        <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+      </div>
+    )
+  }
+  return (
+    <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">{task.message || task.description}</p>
+  )
+}
+
 interface UniversalCflowTaskDetailsProps {
   task: UnifiedTask
   accessToken: string
@@ -1110,68 +1223,20 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                     })}
                   </div>
                   <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
-                    {visibleList.map(
-                      (
-                        p: { userId: string; displayName: string; status?: string; isOrganizer: boolean },
-                        idx: number
-                      ) => {
-                        const isLegacy = p.userId.startsWith('legacy-')
-                        const emp = isLegacy ? null : meetingParticipantEmployeeMap.get(p.userId)
-                        const employeeId = emp?.id
-                        const avatarUrl = emp?.avatarUrl ?? formatAvatarUrl(emp?.pictureThumbnail)
-                        const parts = p.displayName.trim().split(/\s+/)
-                        let initials: string
-                        if (emp && (emp.firstName || emp.lastName)) {
-                          initials = getInitials(emp.firstName, emp.lastName)
-                        } else if (parts.length >= 2) {
-                          initials = getInitials(parts[0], parts.slice(1).join(' '))
-                        } else {
-                          initials = parts[0]?.slice(0, 2).toUpperCase() || '?'
-                        }
-                        const statusKey = p.status ? `task-details-meeting-status-${p.status}` : null
-                        const statusLabel = statusKey ? t(statusKey, { defaultValue: p.status }) : null
-                        return (
-                          <li key={p.userId || idx} className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-                            {employeeId ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId }))
-                                }
-                                className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:ring-2 gba:ring-transparent hover:gba:ring-primary focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary"
-                                aria-label={t('task-details-meeting-participant-view-profile', {
-                                  defaultValue: 'View profile'
-                                })}
-                                data-testid={`task-details-meeting-participant-avatar-${idx}`}
-                              >
-                                <Avatar className="gba:h-8 gba:w-8">
-                                  <AvatarImage src={avatarUrl} alt={p.displayName} />
-                                  <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-                                </Avatar>
-                              </button>
-                            ) : (
-                              <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
-                                <AvatarImage src={avatarUrl} alt={p.displayName} />
-                                <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-                              </Avatar>
-                            )}
-                            <span className="gba:flex gba:items-center gba:gap-2">
-                              {p.displayName}
-                              {p.isOrganizer && (
-                                <span className="gba:text-muted-foreground gba:font-normal">
-                                  ({t('task-details-meeting-organiser', { defaultValue: 'Organiser' })})
-                                </span>
-                              )}
-                              {hasStatus && statusLabel && (
-                                <Badge variant={getMeetingStatusBadgeVariant(p.status)} className="gba:text-xs">
-                                  {statusLabel}
-                                </Badge>
-                              )}
-                            </span>
-                          </li>
-                        )
-                      }
-                    )}
+                    {visibleList.map((p: MeetingParticipantDisplay, idx: number) => (
+                      <MeetingParticipantRow
+                        key={p.userId || idx}
+                        participant={p}
+                        idx={idx}
+                        employeeMap={meetingParticipantEmployeeMap}
+                        formatAvatarUrl={formatAvatarUrl}
+                        getInitials={getInitials}
+                        t={t}
+                        navigateTo={navigateTo}
+                        buildPlatformUrl={buildPlatformUrl}
+                        hasStatus={hasStatus}
+                      />
+                    ))}
                   </ul>
                   {showCollapse && (
                     <Button
@@ -1181,20 +1246,25 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                       className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
                       data-testid="task-details-meeting-participants-toggle"
                     >
-                      {participantsExpanded ? (
-                        <>
-                          <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
-                          {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
-                          {t('task-details-meeting-participants-show-more', {
-                            defaultValue: 'Show {{count}} more',
-                            count: hiddenCount
-                          })}
-                        </>
-                      )}
+                      {(() => {
+                        if (participantsExpanded) {
+                          return (
+                            <>
+                              <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
+                              {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
+                            </>
+                          )
+                        }
+                        return (
+                          <>
+                            <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
+                            {t('task-details-meeting-participants-show-more', {
+                              defaultValue: 'Show {{count}} more',
+                              count: hiddenCount
+                            })}
+                          </>
+                        )
+                      })()}
                     </Button>
                   )}
                 </div>
@@ -1202,32 +1272,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             })()}
 
           {/* Brief description - skip redundant "Complete Meeting Invitation: ..." for meeting-invite */}
-          {(task.message || task.description) &&
-            (() => {
-              const content = (task.message || task.description || '').trim()
-              const isRedundantMeetingTitle =
-                task.tags?.app === 'meeting-invite' && isRedundantMeetingTitleContent(content)
-              if (isRedundantMeetingTitle) return null
-              if (task.tags?.app === 'scheduled_task') {
-                return <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-              }
-              if (
-                task.tags?.app === 'meeting-invite' &&
-                (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) &&
-                (task.message || task.description)
-              ) {
-                return (
-                  <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-                    <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-                  </div>
-                )
-              }
-              return (
-                <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-                  {task.message || task.description}
-                </p>
-              )
-            })()}
+          {(task.message || task.description) && renderTaskMessageContent(task, accessToken)}
 
           {/* Info Alert for Blink tasks - only show when not completed */}
           {!isCompleted && (
@@ -1686,77 +1731,20 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   })}
                 </div>
                 <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
-                  {visibleList.map(
-                    (
-                      p: { userId: string; displayName: string; status?: string; isOrganizer: boolean },
-                      idx: number
-                    ) => {
-                      const isLegacy = p.userId.startsWith('legacy-')
-                      const emp = isLegacy ? null : meetingParticipantEmployeeMap.get(p.userId)
-                      const employeeId = emp?.id
-                      const avatarUrl = emp?.avatarUrl ?? formatAvatarUrl(emp?.pictureThumbnail)
-                      const parts = p.displayName.trim().split(/\s+/)
-                      let initials: string
-                      if (emp && (emp.firstName || emp.lastName)) {
-                        initials = getInitials(emp.firstName, emp.lastName)
-                      } else if (parts.length >= 2) {
-                        initials = getInitials(parts[0], parts.slice(1).join(' '))
-                      } else {
-                        initials = parts[0]?.slice(0, 2).toUpperCase() || '?'
-                      }
-                      const statusKey = p.status ? `task-details-meeting-status-${p.status}` : null
-                      const statusLabel = statusKey ? t(statusKey, { defaultValue: p.status }) : null
-                      return (
-                        <li key={p.userId || idx} className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-                          {employeeId ? (
-                            <button
-                              type="button"
-                              onClick={() => navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId }))}
-                              className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:ring-2 gba:ring-transparent hover:gba:ring-primary focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary"
-                              aria-label={t('task-details-meeting-participant-view-profile', {
-                                defaultValue: 'View profile'
-                              })}
-                              data-testid={`task-details-meeting-participant-avatar-${idx}`}
-                            >
-                              <Avatar className="gba:h-8 gba:w-8">
-                                <AvatarImage src={avatarUrl} alt={p.displayName} />
-                                <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-                              </Avatar>
-                            </button>
-                          ) : (
-                            <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
-                              <AvatarImage src={avatarUrl} alt={p.displayName} />
-                              <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-                            </Avatar>
-                          )}
-                          <span className="gba:flex gba:items-center gba:gap-2">
-                            {p.displayName}
-                            {p.isOrganizer && (
-                              <span className="gba:text-muted-foreground gba:font-normal">
-                                ({t('task-details-meeting-organiser', { defaultValue: 'Organiser' })})
-                              </span>
-                            )}
-                            {hasStatus && statusLabel && (
-                              <Badge
-                                variant={
-                                  p.status === 'accepted'
-                                    ? 'success'
-                                    : p.status === 'declined'
-                                      ? 'destructive'
-                                      : p.status === 'tentative'
-                                        ? 'warning'
-                                        : 'secondary'
-                                }
-                                className="gba:text-xs"
-                              >
-                                {statusLabel}
-                              </Badge>
-                            )}
-                          </span>
-                        </li>
-                      )
-                    }
-                  )}
+                  {visibleList.map((p: MeetingParticipantDisplay, idx: number) => (
+                    <MeetingParticipantRow
+                      key={p.userId || idx}
+                      participant={p}
+                      idx={idx}
+                      employeeMap={meetingParticipantEmployeeMap}
+                      formatAvatarUrl={formatAvatarUrl}
+                      getInitials={getInitials}
+                      t={t}
+                      navigateTo={navigateTo}
+                      buildPlatformUrl={buildPlatformUrl}
+                      hasStatus={hasStatus}
+                    />
+                  ))}
                 </ul>
                 {showCollapse && (
                   <Button
@@ -1766,20 +1754,25 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                     className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
                     data-testid="task-details-meeting-participants-toggle"
                   >
-                    {participantsExpanded ? (
-                      <>
-                        <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
-                        {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
-                        {t('task-details-meeting-participants-show-more', {
-                          defaultValue: 'Show {{count}} more',
-                          count: hiddenCount
-                        })}
-                      </>
-                    )}
+                    {(() => {
+                      if (participantsExpanded) {
+                        return (
+                          <>
+                            <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
+                            {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
+                          </>
+                        )
+                      }
+                      return (
+                        <>
+                          <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
+                          {t('task-details-meeting-participants-show-more', {
+                            defaultValue: 'Show {{count}} more',
+                            count: hiddenCount
+                          })}
+                        </>
+                      )
+                    })()}
                   </Button>
                 )}
               </div>
@@ -1787,32 +1780,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           })()}
 
         {/* Description - scheduled task markdown; meeting-invite: only location/description (skip redundant "Complete Meeting Invitation: ...") */}
-        {(task.message || task.description) &&
-          (() => {
-            const content = (task.message || task.description || '').trim()
-            const isRedundantMeetingTitle =
-              task.tags?.app === 'meeting-invite' && isRedundantMeetingTitleContent(content)
-            if (isRedundantMeetingTitle) return null
-            if (task.tags?.app === 'scheduled_task') {
-              return <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-            }
-            if (
-              task.tags?.app === 'meeting-invite' &&
-              (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) &&
-              (task.message || task.description)
-            ) {
-              return (
-                <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-                  <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-                </div>
-              )
-            }
-            return (
-              <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-                {task.message || task.description}
-              </p>
-            )
-          })()}
+        {(task.message || task.description) && renderTaskMessageContent(task, accessToken)}
 
         {/* Comment Section - Only for active tasks with complete/reject actions */}
         {!isCompleted && (task.availableActions?.canComplete || task.availableActions?.canReject) && (
