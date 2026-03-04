@@ -38,17 +38,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog } from '../shared'
-import {
-  PiPlus,
-  PiPencil,
-  PiCalendar,
-  PiClock,
-  PiCheck,
-  PiX,
-  PiDotsThreeVertical,
-  PiTrash,
-  PiWarning
-} from 'react-icons/pi'
+import { PlusIcon, PencilIcon, CalendarIcon, ClockIcon, CheckIcon, XIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -647,7 +637,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
               </Badge>
             </div>
             <Button onClick={handleAdd} data-testid="create-allowance-period-button">
-              <PiPlus className="gba:mr-2" />
+              <PlusIcon className="gba:mr-2" />
               Create Allowance Period
             </Button>
           </div>
@@ -797,7 +787,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                               data-testid={`allowance-period-action-${record.id}`}
                               onClick={e => e.stopPropagation()}
                             >
-                              <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                              <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -805,7 +795,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                               onClick={() => handleEdit(record)}
                               data-testid={`edit-allowance-period-${record.id}`}
                             >
-                              <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                              <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                               Update
                             </DropdownMenuItem>
                             {/* Always show delete option, but disable if period is used */}
@@ -826,7 +816,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                               }
                               data-testid={`delete-allowance-period-${record.id}`}
                             >
-                              <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                              <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -854,12 +844,12 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-overnight-cell-${record.id}`}
                       >
                         {record.overnightAccommodation ? (
-                          <PiCheck
+                          <CheckIcon
                             className="gba:text-success gba:text-lg gba:inline-block"
                             data-testid={`allowance-period-overnight-check-${record.id}`}
                           />
                         ) : (
-                          <PiX
+                          <XIcon
                             className="gba:text-muted-foreground gba:text-lg gba:inline-block"
                             data-testid={`allowance-period-overnight-x-${record.id}`}
                           />
@@ -872,7 +862,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-from-time-cell-${record.id}`}
                       >
                         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-center">
-                          <PiClock
+                          <ClockIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-from-time-icon-${record.id}`}
                           />
@@ -888,7 +878,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       {/* Time To Column */}
                       <TableCell className="gba:text-center" data-testid={`allowance-period-to-time-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-center">
-                          <PiClock
+                          <ClockIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-to-time-icon-${record.id}`}
                           />
@@ -917,12 +907,12 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-midnight-cell-${record.id}`}
                       >
                         {record.midnightRule ? (
-                          <PiCheck
+                          <CheckIcon
                             className="gba:text-success gba:text-lg gba:inline-block"
                             data-testid={`allowance-period-midnight-check-${record.id}`}
                           />
                         ) : (
-                          <PiX
+                          <XIcon
                             className="gba:text-muted-foreground gba:text-lg gba:inline-block"
                             data-testid={`allowance-period-midnight-x-${record.id}`}
                           />
@@ -935,7 +925,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-start-after-cell-${record.id}`}
                       >
                         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-center">
-                          <PiClock
+                          <ClockIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-start-after-icon-${record.id}`}
                           />
@@ -954,7 +944,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-return-before-cell-${record.id}`}
                       >
                         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-center">
-                          <PiClock
+                          <ClockIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-return-before-icon-${record.id}`}
                           />
@@ -977,7 +967,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       {/* Valid From Column */}
                       <TableCell data-testid={`allowance-period-valid-from-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiCalendar
+                          <CalendarIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-valid-from-icon-${record.id}`}
                           />
@@ -990,7 +980,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       {/* Valid To Column */}
                       <TableCell data-testid={`allowance-period-valid-to-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiCalendar
+                          <CalendarIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-valid-to-icon-${record.id}`}
                           />
@@ -1054,7 +1044,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     className="gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning"
                     data-testid="allowance-period-restricted-alert"
                   >
-                    <PiWarning className="gba:h-4 gba:w-4" />
+                    <WarningIcon className="gba:h-4 gba:w-4" />
                     <AlertDescription>{currentUsageInfo.message}</AlertDescription>
                   </Alert>
                 )}

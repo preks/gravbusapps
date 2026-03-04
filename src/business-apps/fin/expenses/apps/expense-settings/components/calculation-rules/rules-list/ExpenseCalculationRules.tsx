@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { PiDotsThreeVertical, PiPencil, PiTrash, PiPlus } from 'react-icons/pi'
+import { DotsThreeVerticalIcon, PencilIcon, TrashIcon, PlusIcon } from '@phosphor-icons/react'
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules'
 import {
   Pagination,
@@ -296,7 +296,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
     filterLabelMap: {},
     actions: (
       <Button onClick={openCalculationRuleModal} data-testid={`${PREFIX}-create-button`}>
-        <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+        <PlusIcon className="gba:mr-2 gba:h-4 gba:w-4" />
         {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.flow_button', 'Create Calculation Rule')}
       </Button>
     )
@@ -418,7 +418,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                     data-testid={`${PREFIX}-actions-button-${index}`}
                                     onClick={e => e.stopPropagation()}
                                   >
-                                    <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                    <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -430,7 +430,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                     }}
                                     data-testid={`${PREFIX}-action-edit-${index}`}
                                   >
-                                    <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                    <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                     {getTranslationFromI18nKeyAndLabel(
                                       'lowcoder:expense_calculation_rule.expense_table.edit',
                                       'Edit'
@@ -443,7 +443,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                       className="gba:text-muted-foreground gba:cursor-not-allowed"
                                       data-testid={`${PREFIX}-action-delete-${index}`}
                                     >
-                                      <PiTrash className="gba:h-4 gba:w-4 gba:mr-2 gba:opacity-50" />
+                                      <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2 gba:opacity-50" />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:expense_calculation_rule.expense_table.delete_in_use',
                                         'Delete (in use)'
@@ -460,7 +460,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                       className="gba:text-destructive"
                                       data-testid={`${PREFIX}-action-delete-${index}`}
                                     >
-                                      <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:expense_calculation_rule.expense_table.delete',
                                         'Delete'

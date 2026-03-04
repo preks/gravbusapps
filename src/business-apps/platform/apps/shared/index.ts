@@ -23,6 +23,12 @@ export {
   type UseOrganizationalDimensionsResult
 } from './hooks/useOrganizationalDimensions'
 export { useHubPagination } from './hooks/useHubPagination'
+export {
+  useVoiceInput,
+  type VoiceInputState,
+  type UseVoiceInputOptions,
+  type UseVoiceInputReturn
+} from './hooks/useVoiceInput'
 
 // Components
 export { PresenceIndicator, type PresenceIndicatorProps } from './components/PresenceIndicator'
@@ -35,6 +41,9 @@ export {
   type EmbeddedFlowbotChatPanelProps,
   type EmbeddedFlowbotChatState
 } from './components/EmbeddedFlowbotChatPanel'
+export { VoiceInputButton, type VoiceInputButtonProps } from './components/voice-input/VoiceInputButton'
+export { VoiceVisualizer, type VoiceVisualizerProps } from './components/voice-input/VoiceVisualizer'
+export { normalizeDictationTranscript } from './utils/normalizeDictationTranscript'
 
 // Types
 export {

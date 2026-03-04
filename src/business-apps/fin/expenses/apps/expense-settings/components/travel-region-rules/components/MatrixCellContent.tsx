@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { PiTrash } from 'react-icons/pi'
+import { TrashIcon } from '@phosphor-icons/react'
 import {
   Badge,
   Checkbox,
@@ -108,7 +108,7 @@ const ExistingCellActions: React.FC<{
         disabled={isSavingCell || isCheckingCellUsage}
         title="Delete this detail"
       >
-        <PiTrash className="gba:w-4 gba:h-4" />
+        <TrashIcon className="gba:w-4 gba:h-4" />
       </Button>
     )}
   </div>

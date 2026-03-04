@@ -337,8 +337,22 @@ editor-toolbar-align-left = Linksbündig
 editor-toolbar-align-center = Zentriert
 editor-toolbar-align-right = Rechtsbündig
 editor-toolbar-justify = Blocksatz
+editor-dictate-tooltip = Text per Spracheingabe diktieren
+editor-dictate-listening = Hören…
+editor-dictate-unavailable = Spracheingabe nicht verfügbar
+editor-dictate-hint = Klicken zum Starten der Spracheingabe
+editor-toolbar-line-paragraph-spacing = Zeilen- und Absatzabstand
+editor-line-spacing-single = Einfach
+editor-line-spacing-1-15 = 1,15
+editor-line-spacing-1-5 = 1,5
+editor-line-spacing-double = Doppelt
+editor-paragraph-spacing-before = Abstand vor Absatz hinzufügen
+editor-paragraph-spacing-after = Abstand nach Absatz hinzufügen
+editor-paragraph-spacing-remove-before = Abstand vor Absatz entfernen
+editor-paragraph-spacing-remove-after = Abstand nach Absatz entfernen
 editor-toolbar-bullet-list = Aufzählung
 editor-toolbar-numbered-list = Nummerierte Liste
+editor-toolbar-task-list = Aufgabenliste
 editor-toolbar-decrease-indent = Einzug verringern
 editor-toolbar-increase-indent = Einzug vergrößern
 editor-toolbar-quote = Zitat
@@ -358,8 +372,84 @@ editor-font-verdana = Verdana
 editor-font-courier = Courier New
 editor-font-garamond = Garamond
 editor-font-trebuchet = Trebuchet MS
+editor-font-calibri = Calibri
+editor-font-cambria = Cambria
+editor-font-tahoma = Tahoma
+editor-font-comic-sans = Comic Sans MS
+editor-font-consolas = Consolas
+editor-font-palatino = Palatino Linotype
+editor-font-century-gothic = Century Gothic
+editor-font-constantia = Constantia
+editor-font-candara = Candara
+editor-font-corbel = Corbel
 editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = Bild-URL
+
+# Ribbon tabs and groups
+editor-ribbon-tab-home = Start
+editor-ribbon-tab-insert = Einfügen
+editor-ribbon-group-clipboard = Zwischenablage
+editor-ribbon-group-font = Schriftart
+editor-ribbon-group-paragraph = Absatz
+editor-ribbon-group-styles = Formatvorlagen
+editor-ribbon-group-voice = Sprache
+editor-ribbon-group-insert = Einfügen
+
+# Insert image dialog
+insert-image-dialog-title = Bild einfügen
+insert-image-dialog-title-replace = Bild ersetzen
+insert-image-tab-upload = Hochladen
+insert-image-tab-from-url = Von URL
+insert-image-choose-file = Datei wählen
+insert-image-drop-here = Bild hier ablegen oder klicken zum Durchsuchen
+insert-image-url-placeholder = https://example.com/bild.png
+insert-image-insert = Einfügen
+insert-image-cancel = Abbrechen
+insert-image-uploading = Wird hochgeladen…
+insert-image-upload-failed = Hochladen fehlgeschlagen. Erneut versuchen oder URL verwenden.
+insert-image-invalid-url = Bitte geben Sie eine gültige Bild-URL ein.
+
+# Link dialog
+link-dialog-title-insert = Link einfügen
+link-dialog-title-edit = Link bearbeiten
+link-dialog-url-label = URL
+link-dialog-url-placeholder = https://example.com
+link-dialog-text-label = Anzuzeigender Text
+link-dialog-text-placeholder = Linktext
+link-dialog-open-new-tab = In neuem Tab öffnen
+link-dialog-apply = Übernehmen
+link-dialog-remove-link = Link entfernen
+link-dialog-cancel = Abbrechen
+link-dialog-invalid-url = Bitte geben Sie eine gültige URL ein.
+
+# Link bubble menu
+link-bubble-edit = Bearbeiten
+link-bubble-remove-link = Link entfernen
+link-bubble-open-link = Link öffnen
+link-bubble-open-new-tab = In neuem Tab öffnen
+
+image-context-cut = Ausschneiden
+image-context-copy = Kopieren
+image-context-paste = Einfügen
+image-context-delete = Löschen
+image-context-replace = Bild ersetzen
+image-context-alt-text = Alt-Text
+
+image-context-wrap-text = Textumbruch
+image-wrap-inline = Mit Text in Zeile
+image-wrap-left = Quadrat (Text rechts)
+image-wrap-right = Quadrat (Text links)
+image-wrap-tight = Eng
+image-wrap-through = Durch
+image-wrap-center = Oben und unten
+image-wrap-behind = Hinter Text
+image-wrap-in-front = Vor Text
+
+image-alt-text-dialog-title = Alt-Text
+image-alt-text-label = Beschreibung (für Barrierefreiheit)
+image-alt-text-save = Speichern
+
+# Paged document editor
 editor-back-title = Zurück zu Dokumenten
 editor-save-document = Dokument speichern
 editor-approval-pending = Genehmigung ausstehend
@@ -377,7 +467,62 @@ editor-lock-document = Dokument sperren
 editor-publish = Veröffentlichen...
 editor-save-as-template = Als Vorlage speichern
 editor-send-for-approval = Zur Genehmigung senden
+editor-export-word = Als Word (.docx) exportieren
+editor-export-pdf = Als PDF exportieren
+editor-print = Drucken
 editor-ai-edit = KI-Bearbeitung
+
+# Navigation panel (Headings, Find, Replace)
+navigation-panel-title = Überschriften
+navigation-panel-headings-tab = Überschriften
+navigation-panel-find-tab = Suchen
+navigation-panel-replace-tab = Ersetzen
+navigation-panel-search-placeholder = Im Dokument suchen
+navigation-panel-replace-with-placeholder = Ersetzen durch
+navigation-panel-replace = Ersetzen
+navigation-panel-replace-all = Alle ersetzen
+navigation-panel-find-next = Nächstes
+navigation-panel-find-prev = Vorheriges
+navigation-panel-no-headings = Dieses Dokument enthält keine Überschriften.
+navigation-panel-no-headings-hint = Nutzen Sie Start > Formatvorlagen für eine Gliederung.
+navigation-panel-match-count = { $count } { $count ->
+  [one] Treffer
+ *[other] Treffer
+}
+navigation-panel-result-of = Ergebnis { $current } von { $total }
+navigation-panel-case-sensitive = Groß-/Kleinschreibung
+navigation-panel-whole-words = Nur ganze Wörter
+navigation-panel-replace-hint = Suchen Sie einen Begriff im Dokument und geben Sie den Begriff ein, durch den er ersetzt werden soll.
+navigation-panel-close = Navigationsbereich schließen
+navigation-panel-show = Navigationsbereich einblenden
+
+# Page setup dialog
+page-setup-title = Seiteneinrichtung
+page-setup-tab-pages = Seiten
+page-setup-tab-pageless = Ohne Seiten
+page-setup-apply-to = Anwenden auf
+page-setup-entire-document = Gesamtes Dokument
+page-setup-orientation = Ausrichtung
+page-setup-portrait = Hochformat
+page-setup-landscape = Querformat
+page-setup-paper-size = Papierformat
+page-setup-page-colour = Seitenfarbe
+page-setup-margins-cm = Ränder (cm)
+page-setup-margin-top = Oben
+page-setup-margin-bottom = Unten
+page-setup-margin-left = Links
+page-setup-margin-right = Rechts
+page-setup-use-pageless = Ohne Seitenumbrüche
+page-setup-pageless-description = Dokument als eine durchgehende Seite ohne Seitenumbrüche anzeigen.
+page-setup-cancel = Abbrechen
+page-setup-ok = OK
+page-size-a4 = A4
+page-size-a3 = A3
+page-size-a5 = A5
+page-size-letter = Letter
+page-size-legal = Legal
+page-size-tabloid = Tabloid
+
 editor-comments-title = Kommentare (Rechtsklick für Inline-Kommentar)
 editor-locked = Gesperrt
 editor-zoom-in = Vergrößern

@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage, Button } from '@newwork/nw-design-
 import { CaretLeftIcon, CaretRightIcon, PencilSimpleIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { DataDetails } from '@/components/data-details'
 import { toAvatarSrc } from './avatar'
 import { PendingRequestRow } from './types'
@@ -97,6 +98,7 @@ const PendingRequestsSheet: React.FC<PendingRequestsSheetProps> = ({
               const dateRaw = row.requestedOn ?? row.createdAt ?? row.dueDate ?? ''
               const dateLabel = dateRaw ? (formatDate(dateRaw, 'date.short') ?? '') : ''
               const avatar = toAvatarSrc(row.requesterEmployee?.employeePosition?.employee?.pictureThumbnail)
+              const requesterProfileEmployeeId = row.requesterEmployee?.id ?? null
 
               return (
                 <div key={row.id} className="gba:border gba:border-border gba:rounded-md gba:p-3 gba:space-y-2">
@@ -106,9 +108,26 @@ const PendingRequestsSheet: React.FC<PendingRequestsSheetProps> = ({
                         {avatar && <AvatarImage src={avatar} alt={name} />}
                         <AvatarFallback>{`${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`}</AvatarFallback>
                       </Avatar>
-                      <span className="gba:text-sm gba:font-medium">
-                        {name} {dateLabel ? `• ${dateLabel}` : ''}
-                      </span>
+                      {requesterProfileEmployeeId ? (
+                        <button
+                          type="button"
+                          className="gba:text-sm gba:font-medium gba:text-info gba:hover:underline gba:bg-transparent gba:border-none gba:p-0"
+                          onClick={() =>
+                            navigateTo(
+                              buildPlatformUrl('/platform/employee-record', {
+                                employeeId: requesterProfileEmployeeId
+                              })
+                            )
+                          }
+                          title={name}
+                        >
+                          {name} {dateLabel ? `• ${dateLabel}` : ''}
+                        </button>
+                      ) : (
+                        <span className="gba:text-sm gba:font-medium">
+                          {name} {dateLabel ? `• ${dateLabel}` : ''}
+                        </span>
+                      )}
                     </div>
                     <Button
                       size="sm"

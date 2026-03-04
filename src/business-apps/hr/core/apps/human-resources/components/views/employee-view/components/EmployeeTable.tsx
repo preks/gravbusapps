@@ -16,7 +16,7 @@ import {
   Card,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -149,8 +149,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   const renderSortIcon = useCallback(
     (field: string) => {
       if (sortField !== field) return null
-      if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-      if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'ASC') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'DESC') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
       return null
     },
     [sortField, sortOrder]

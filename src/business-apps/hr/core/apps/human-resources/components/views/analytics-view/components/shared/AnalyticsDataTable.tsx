@@ -13,7 +13,7 @@ import {
   TableBody,
   TableCell
 } from '@newwork/nw-design-system'
-import { PiFilePdf, PiFileText } from 'react-icons/pi'
+import { FilePdfIcon, FileTextIcon } from '@phosphor-icons/react'
 import { toDisplayString } from '../../utils/valueDisplayUtils'
 
 /** Blue pill for percentages/rates. */
@@ -166,7 +166,7 @@ export function AnalyticsDataTable<T>({
                 onClick={() => onExport('excel')}
                 className="gba:flex gba:items-center gba:gap-1"
               >
-                <PiFileText className="gba:w-3 gba:h-3" />
+                <FileTextIcon className="gba:w-3 gba:h-3" />
                 {exportExcelLabel}
               </Button>
               <Button
@@ -177,7 +177,7 @@ export function AnalyticsDataTable<T>({
                 onClick={() => onExport('pdf')}
                 className="gba:flex gba:items-center gba:gap-1"
               >
-                <PiFilePdf className="gba:w-3 gba:h-3" />
+                <FilePdfIcon className="gba:w-3 gba:h-3" />
                 {exportPdfLabel}
               </Button>
             </div>

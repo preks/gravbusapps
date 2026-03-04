@@ -13,7 +13,7 @@ import { useSort } from './hooks/useSort'
 import { sortData } from './utils/sortUtils'
 import { TeamReportTable } from './components/TeamReportTable'
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
-import { PiUsersThree, PiUsers, PiCalendar } from 'react-icons/pi'
+import { UsersThreeIcon, UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { CalendarOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
@@ -42,8 +42,8 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
   }, [allEmployees])
 
   const getKpiIcon = (kpiKey: string) => {
-    if (kpiKey === 'all') return <PiUsers />
-    if (kpiKey === 'tenure') return <PiCalendar />
+    if (kpiKey === 'all') return <UsersIcon />
+    if (kpiKey === 'tenure') return <CalendarIcon />
     return undefined
   }
 
@@ -270,7 +270,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
               filter: displayFilters,
               setFilter: handleDisplayFilterChange,
               filterLabelMap: displayLabelMap,
-              listIcon: <PiUsersThree size={20} />,
+              listIcon: <UsersThreeIcon size={20} />,
               listAmount: filteredEmployees.length
             }}
             dataFilterProps={{
@@ -300,7 +300,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
               selectedEmployee
                 ? {
                     title: t('employee.details_title', 'Employee Details'),
-                    icon: <PiUsersThree size={20} />,
+                    icon: <UsersThreeIcon size={20} />,
                     content: <EmployeeDetails employeeId={selectedEmployee.id} {...props} />,
                     onClose: handleDetailsPanelClose
                   }

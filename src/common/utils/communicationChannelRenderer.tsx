@@ -1,19 +1,5 @@
 import React from 'react'
-import {
-  PiEnvelope,
-  PiPhone,
-  PiLinkedinLogo,
-  PiShareNetwork,
-  PiGlobe,
-  PiFacebookLogo,
-  PiInstagramLogo,
-  PiYoutubeLogo,
-  PiDeviceMobile,
-  PiPrinter,
-  PiSlackLogo,
-  PiChatsCircle
-} from 'react-icons/pi'
-
+import { EnvelopeIcon, PhoneIcon, LinkedinLogoIcon, ShareNetworkIcon, GlobeIcon, FacebookLogoIcon, InstagramLogoIcon, YoutubeLogoIcon, DeviceMobileIcon, PrinterIcon, SlackLogoIcon, ChatsCircleIcon } from '@phosphor-icons/react'
 /**
  * Get icon component for a communication channel code
  */
@@ -21,23 +7,23 @@ const getChannelIcon = (code: string): React.ComponentType<{ className?: string;
   const codeUpper = code.toUpperCase()
 
   // Map channel codes to icons
-  if (codeUpper.includes('EMAIL') || codeUpper.includes('E-MAIL')) return PiEnvelope
-  if (codeUpper.includes('PHONE')) return PiPhone
-  if (codeUpper.includes('MOBILE')) return PiDeviceMobile
-  if (codeUpper.includes('LINKEDIN')) return PiLinkedinLogo
-  if (codeUpper.includes('XING')) return PiShareNetwork
-  if (codeUpper.includes('FACEBOOK')) return PiFacebookLogo
-  if (codeUpper.includes('INSTAGRAM')) return PiInstagramLogo
-  if (codeUpper.includes('YOUTUBE')) return PiYoutubeLogo
-  if (codeUpper.includes('WEBSITE')) return PiGlobe
-  if (codeUpper.includes('FAX')) return PiPrinter
-  if (codeUpper.includes('SLACK')) return PiSlackLogo
-  if (codeUpper.includes('MESSENGER')) return PiChatsCircle
-  if (codeUpper.includes('PAGER')) return PiDeviceMobile
-  if (codeUpper.includes('X')) return PiShareNetwork
+  if (codeUpper.includes('EMAIL') || codeUpper.includes('E-MAIL')) return EnvelopeIcon
+  if (codeUpper.includes('PHONE')) return PhoneIcon
+  if (codeUpper.includes('MOBILE')) return DeviceMobileIcon
+  if (codeUpper.includes('LINKEDIN')) return LinkedinLogoIcon
+  if (codeUpper.includes('XING')) return ShareNetworkIcon
+  if (codeUpper.includes('FACEBOOK')) return FacebookLogoIcon
+  if (codeUpper.includes('INSTAGRAM')) return InstagramLogoIcon
+  if (codeUpper.includes('YOUTUBE')) return YoutubeLogoIcon
+  if (codeUpper.includes('WEBSITE')) return GlobeIcon
+  if (codeUpper.includes('FAX')) return PrinterIcon
+  if (codeUpper.includes('SLACK')) return SlackLogoIcon
+  if (codeUpper.includes('MESSENGER')) return ChatsCircleIcon
+  if (codeUpper.includes('PAGER')) return DeviceMobileIcon
+  if (codeUpper.includes('X')) return ShareNetworkIcon
 
   // Default icon for unknown types
-  return PiEnvelope
+  return EnvelopeIcon
 }
 
 /**

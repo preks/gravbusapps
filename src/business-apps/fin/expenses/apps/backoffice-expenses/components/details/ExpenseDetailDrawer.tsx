@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system'
-import { PiCalendar, PiGlobe, PiCurrencyDollar, PiUser, PiChatCircle } from 'react-icons/pi'
+import { CalendarIcon, GlobeIcon, CurrencyDollarIcon, UserIcon, ChatCircleIcon } from '@phosphor-icons/react'
 import useExpenseRequestDetails from '../../hooks/useExpenseRequestDetails'
 
 interface ExpenseDetailDrawerProps {
@@ -220,7 +220,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
         <Card className="gba:mb-6">
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <PiGlobe className="gba:h-5 gba:w-5" />
+              <GlobeIcon className="gba:h-5 gba:w-5" />
               Trip Details
             </CardTitle>
           </CardHeader>
@@ -235,7 +235,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
                   >
                     <div className="gba:space-y-2 gba:mt-2">
                       <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
-                        <PiCalendar className="gba:h-4 gba:w-4" />
+                        <CalendarIcon className="gba:h-4 gba:w-4" />
                         {formatDate(trip.tripDateTime)}
                       </div>
                       <div className="gba:text-sm gba:text-gray-600">
@@ -256,7 +256,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
         <Card className="gba:mb-6">
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <PiCurrencyDollar className="gba:h-5 gba:w-5" />
+              <CurrencyDollarIcon className="gba:h-5 gba:w-5" />
               Expense Items
             </CardTitle>
           </CardHeader>
@@ -282,7 +282,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
         <Card className="gba:mb-6">
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <PiUser className="gba:h-5 gba:w-5" />
+              <UserIcon className="gba:h-5 gba:w-5" />
               Approval Information
             </CardTitle>
           </CardHeader>
@@ -300,7 +300,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
                         <strong>Date:</strong> {formatDate(metadata.date)}
                       </div>
                       <div className="gba:flex gba:items-start gba:gap-2 gba:text-sm gba:text-gray-600">
-                        <PiChatCircle className="gba:h-4 gba:w-4 gba:mt-0.5 gba:flex-shrink-0" />
+                        <ChatCircleIcon className="gba:h-4 gba:w-4 gba:mt-0.5 gba:flex-shrink-0" />
                         <span>{metadata.comment || 'No comment provided'}</span>
                       </div>
                     </div>
