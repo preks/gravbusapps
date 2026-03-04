@@ -160,7 +160,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const isInSidepanel = useMemo(() => {
     if (typeof window === 'undefined') return false
 
-    if (window.location.pathname === '/platform/chat') return false
+    const normalizedPath = window.location.pathname.replace(/\/+$/, '')
+    // Fullscreen Chat can be mounted as canonical (/platform/chat) or as the app path (/platform/apps/chat) in local/dev.
+    if (normalizedPath === '/platform/chat' || normalizedPath === '/platform/apps/chat') return false
 
     return true
   }, [])

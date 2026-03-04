@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Button, Card, Col, Input, message, Row, Select, Table, Tag, Typography } from 'antd'
-import { PlusOutlined, DeleteOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons'
+import { PlusIcon, TrashIcon, PencilIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { useTranslation } from 'react-i18next'
 import AddDocumentModal from './modals/AddDocumentTypeModal'
 import useDocumentTypes from '@/business-apps/hr/core/hooks/useDocumentTypes'
@@ -254,7 +254,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
           <Button
             type="text"
             danger
-            icon={<DeleteOutlined />}
+            icon={<TrashIcon size={16} />}
             onClick={() => handleDelete(record.id)}
             className="gba:hover:text-destructive"
           />
@@ -347,7 +347,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
           <Col>
             <Input
               placeholder={t('documentManagement.search.placeholder', 'Search document types...')}
-              prefix={<SearchOutlined />}
+              prefix={<MagnifyingGlassIcon size={16} />}
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               allowClear

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from '../../../hooks/useMainViewAdvancePayments'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DollarOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { CurrencyDollarIcon, ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useCurrencyStore } from '../../../store/useCurrencyStore'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
@@ -39,7 +39,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         value: advancePaymentStats.sumAmount
           ? formatCurrencyDisplay(advancePaymentStats.sumAmount, effectiveCurrency)
           : formatCurrencyDisplay(0, effectiveCurrency),
-        prefix: <DollarOutlined />,
+        prefix: <CurrencyDollarIcon size={16} />,
         color: 'var(--nw-success)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
@@ -56,7 +56,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         value: advancePaymentStats.pendingAmount
           ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, effectiveCurrency)
           : formatCurrencyDisplay(0, effectiveCurrency),
-        prefix: <ClockCircleOutlined />,
+        prefix: <ClockIcon size={16} />,
         color: 'var(--nw-destructive)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(

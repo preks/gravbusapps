@@ -567,7 +567,10 @@ const AbsenceCalendar: React.FC<
                           const renderableAbsences = overlappingAbsences.filter((absence: any) => {
                             const status = String(absence.originalStatus || absence.status || '').toUpperCase()
                             if (status !== 'APPROVED') return true
-                            if (effectiveDates) return effectiveDates.has(dayKey)
+                            // DailyAbsenceFactView does not reliably contain a row for every approved
+                            // absence day, so using effectiveDates as an allowlist causes approved
+                            // absences to disappear when the view has no matching fact entry.
+                            // Always use the working-day fallback checks instead.
                             if (isHolidayDay) return false
                             if (nonWorkingDates && nonWorkingDates.has(dayKey)) return false
                             if (isWeekend && !allowWeekendPaintingInFallback) return false

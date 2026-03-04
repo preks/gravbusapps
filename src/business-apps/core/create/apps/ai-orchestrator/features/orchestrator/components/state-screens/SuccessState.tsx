@@ -39,7 +39,7 @@ const componentTypeInfo: Record<
   screen: {
     icon: Monitor,
     label: 'Screen',
-    route: (id: string) => `/platform/ai-builder?screenId=${id}`
+    route: (id: string) => `/platform/create/screen-builder?screenId=${id}`
   },
   agent: {
     icon: Bot,
