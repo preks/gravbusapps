@@ -395,21 +395,28 @@ export const useAbsenceValidation = ({
         const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
         setDateRangeBreakdown(breakdown)
       } else {
-        requestedDays = dayjs(newEndDate).diff(dayjs(newStartDate), 'day') + 1
-
+        // For calendar-day measurements, exclude bank holidays so they don't count against the quota
         const breakdown = calculateDateRangeBreakdown(newStartDate, newEndDate, holidaysToUse, workingHours)
         setDateRangeBreakdown(breakdown)
+        requestedDays = breakdown.effectiveDays - breakdown.holidays.length - breakdown.halfDays.length * 0.5
       }
 
       const roundedRequestedDays = Math.round(requestedDays * 100) / 100
 
-      // Use 'available' from entitlement - this already accounts for pending absences
-      if (roundedRequestedDays > absenceEntitlement.available) {
+      // Compute the effective available balance as total minus both approved and pending days.
+      // The raw `available` field from the entitlement record may not reflect absences that are
+      // currently in PENDING status, so we derive it manually from the individual counters.
+      const effectiveAvailable = Math.max(
+        0,
+        absenceEntitlement.total - absenceEntitlement.approved - absenceEntitlement.pending
+      )
+
+      if (roundedRequestedDays > effectiveAvailable) {
         const insufficientBalanceLabel = t('create-absence-insufficient-balance')
         const requestedLabel = t('create-absence-requested')
         const availableLabel = t('create-absence-available')
         const daysLabel = t('create-absence-days')
-        let message = `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${absenceEntitlement.available} ${daysLabel}`
+        let message = `${insufficientBalanceLabel}. ${requestedLabel}: ${roundedRequestedDays} ${daysLabel}, ${availableLabel}: ${effectiveAvailable} ${daysLabel}`
 
         if (measurement === 'WorkingDays' && holidaysToUse.length > 0) {
           const weekdaysOnly = calculateWorkingDays(newStartDate, newEndDate, {
@@ -429,7 +436,7 @@ export const useAbsenceValidation = ({
           message,
           details: {
             requestedDays: roundedRequestedDays,
-            availableBalance: absenceEntitlement.available,
+            availableBalance: effectiveAvailable,
             totalBalance: absenceEntitlement.total,
             approvedBalance: absenceEntitlement.approved,
             pendingBalance: absenceEntitlement.pending

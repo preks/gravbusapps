@@ -57,13 +57,17 @@ export const GET_EMPLOYEE_WEEKLY_SCHEDULE = `
   }
 `
 
-// Daily absence facts for a date window, used to paint effective working days in the calendar
+// Daily absence facts for a date window, used to paint effective working days in the calendar.
+// Only APPROVED facts are fetched so that their fractions are always positive and correctly
+// populate `effectiveDates` (pending/rejected rows can carry negative signedDayFraction values
+// that would cancel out approved entries and hide them from the calendar).
 export const GET_ABSENCE_DAILY_FACTS = `
   query AbsenceFacts($employeeId: uuid!, $from: date!, $to: date!) {
     DailyAbsenceFactView(
       where: {
         employeeId: { _eq: $employeeId }
         dayDate: { _gte: $from, _lte: $to }
+        status: { _eq: "APPROVED" }
       }
     ) {
       dayDate
