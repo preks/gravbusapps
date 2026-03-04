@@ -38,7 +38,7 @@ import {
 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { normalizeLabels } from '../utils/labelUtils'
-import type { EmailMessageSummary } from '../types'
+import type { EmailMessageSummary, EmailLabelSuggestion } from '../types'
 import translations from '../_i18n'
 
 interface EmailListProps {
@@ -61,6 +61,7 @@ interface EmailListProps {
   onArchive?: (messageId: string) => void
   onDelete?: (messageId: string) => void
   onRefresh: () => void
+  onMessageLabelsUpdated?: (messageId: string, labels?: string[]) => Promise<void> | void
   onLoadMore?: () => void
   folderName: string
   'data-testid'?: string
@@ -106,6 +107,7 @@ export const EmailList: React.FC<EmailListProps> = ({
   onArchive,
   onDelete,
   onRefresh,
+  onMessageLabelsUpdated,
   onLoadMore,
   folderName,
   'data-testid': testId = 'email-list'
@@ -211,34 +213,45 @@ export const EmailList: React.FC<EmailListProps> = ({
     onLabelsChange?.([])
   }, [onLabelsChange])
 
+  const syncAfterLabelMutation = useCallback(
+    async (messageId: string, labels?: string[]) => {
+      if (onMessageLabelsUpdated) {
+        await onMessageLabelsUpdated(messageId, labels)
+      } else {
+        onRefresh()
+      }
+    },
+    [onMessageLabelsUpdated, onRefresh]
+  )
+
   const handleAddLabelsFromContextMenu = useCallback(
     async (messageId: string, labels: string[]): Promise<boolean> => {
       try {
-        await EmailApiService.addMessageLabels(messageId, labels)
+        const result = await EmailApiService.addMessageLabels(messageId, labels)
         toast.success(t('list-context-labels-add-success'))
-        onRefresh()
+        await syncAfterLabelMutation(messageId, result.labels || [])
         return true
       } catch {
         toast.error(t('list-context-labels-add-failed'))
         return false
       }
     },
-    [onRefresh, t]
+    [syncAfterLabelMutation, t]
   )
 
   const handleRemoveLabelFromContextMenu = useCallback(
     async (messageId: string, label: string): Promise<boolean> => {
       try {
-        await EmailApiService.removeMessageLabels(messageId, [label])
+        const result = await EmailApiService.removeMessageLabels(messageId, [label])
         toast.success(t('list-context-labels-remove-success'))
-        onRefresh()
+        await syncAfterLabelMutation(messageId, result.labels || [])
         return true
       } catch {
         toast.error(t('list-context-labels-remove-failed'))
         return false
       }
     },
-    [onRefresh, t]
+    [syncAfterLabelMutation, t]
   )
 
   return (
@@ -273,6 +286,9 @@ export const EmailList: React.FC<EmailListProps> = ({
             </Button>
           )}
         </div>
+        {hasActiveLabelFilter && (
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{t('list-label-filter-match-all-hint')}</p>
+        )}
       </div>
 
       {/* Bulk Actions Bar */}
@@ -435,15 +451,47 @@ function EmailListItem({
   const [labelInput, setLabelInput] = useState('')
   const [isMutatingLabels, setIsMutatingLabels] = useState(false)
   const [localLabels, setLocalLabels] = useState<string[]>(normalizeLabels(message.labels || []))
+  const [labelSuggestions, setLabelSuggestions] = useState<EmailLabelSuggestion[]>([])
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+  const [suggestionRefreshTick, setSuggestionRefreshTick] = useState(0)
 
   useEffect(() => {
     setLocalLabels(normalizeLabels(message.labels || []))
     setLabelInput('')
   }, [message.id, message.labels])
 
+  useEffect(() => {
+    const query = labelInput.trim()
+    if (!query) {
+      setLabelSuggestions([])
+      setIsLoadingSuggestions(false)
+      return
+    }
+
+    let cancelled = false
+    setIsLoadingSuggestions(true)
+    const timeoutId = setTimeout(async () => {
+      try {
+        const suggestions = await EmailApiService.searchLabelSuggestions(query, 10)
+        if (cancelled) return
+        const currentLabels = new Set(localLabels.map(label => label.toLowerCase()))
+        setLabelSuggestions(suggestions.filter(suggestion => !currentLabels.has(suggestion.name.toLowerCase())))
+      } catch {
+        if (!cancelled) setLabelSuggestions([])
+      } finally {
+        if (!cancelled) setIsLoadingSuggestions(false)
+      }
+    }, 250)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [labelInput, localLabels, suggestionRefreshTick])
+
   const handleAddFromMenu = useCallback(async () => {
     if (isMutatingLabels) return
-    const labels = normalizeLabels(labelInput.split(','))
+    const labels = normalizeLabels([labelInput])
     if (labels.length === 0) return
 
     const previous = localLabels
@@ -455,9 +503,35 @@ function EmailListItem({
     const success = await onAddLabels(labels)
     if (!success) {
       setLocalLabels(previous)
+    } else {
+      setSuggestionRefreshTick(prev => prev + 1)
     }
     setIsMutatingLabels(false)
   }, [isMutatingLabels, labelInput, localLabels, onAddLabels])
+
+  const handleAddSuggestionFromMenu = useCallback(
+    async (suggestionName: string) => {
+      if (isMutatingLabels) return
+
+      const labels = normalizeLabels([suggestionName])
+      if (labels.length === 0) return
+
+      const previous = localLabels
+      const optimistic = normalizeLabels([...localLabels, ...labels])
+      setLocalLabels(optimistic)
+      setIsMutatingLabels(true)
+      setLabelInput('')
+
+      const success = await onAddLabels(labels)
+      if (!success) {
+        setLocalLabels(previous)
+      } else {
+        setSuggestionRefreshTick(prev => prev + 1)
+      }
+      setIsMutatingLabels(false)
+    },
+    [isMutatingLabels, localLabels, onAddLabels]
+  )
 
   const handleRemoveFromMenu = useCallback(
     async (label: string) => {
@@ -471,6 +545,8 @@ function EmailListItem({
       const success = await onRemoveLabel(label)
       if (!success) {
         setLocalLabels(previous)
+      } else {
+        setSuggestionRefreshTick(prev => prev + 1)
       }
       setIsMutatingLabels(false)
     },
@@ -674,6 +750,31 @@ function EmailListItem({
                       </Button>
                     </div>
                   ))}
+                </div>
+              )}
+              {labelInput.trim().length > 0 && (
+                <div className="gba:border gba:rounded-md gba:p-1.5 gba:space-y-1">
+                  {isLoadingSuggestions ? (
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {t('list-context-labels-suggestions-loading')}
+                    </p>
+                  ) : labelSuggestions.length === 0 ? (
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {t('list-context-labels-suggestions-empty')}
+                    </p>
+                  ) : (
+                    labelSuggestions.map(suggestion => (
+                      <button
+                        key={`${message.id}-menu-suggestion-${suggestion.id}`}
+                        type="button"
+                        className="gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded hover:gba:bg-muted/50 gba:text-xs"
+                        onClick={() => void handleAddSuggestionFromMenu(suggestion.name)}
+                        data-testid={`${testId}-context-label-suggestion-${suggestion.id}`}
+                      >
+                        {suggestion.name}
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
             </div>

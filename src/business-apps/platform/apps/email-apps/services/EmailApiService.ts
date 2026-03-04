@@ -10,6 +10,7 @@ import type {
   EmailFolder,
   EmailMessage,
   EmailMessageSummary,
+  EmailLabelSuggestion,
   PaginatedResponse,
   CreateEmailAccountRequest,
   SendEmailRequest,
@@ -207,6 +208,27 @@ export const EmailApiService = {
       method: 'PATCH',
       body: JSON.stringify({ labels: normalized })
     })
+  },
+
+  async searchLabelSuggestions(query: string, limit = 10): Promise<EmailLabelSuggestion[]> {
+    const q = query.trim()
+    if (!q) return []
+    const params = new URLSearchParams({ q, limit: String(limit) })
+    return apiRequest<EmailLabelSuggestion[]>(`/emails/labels/suggestions?${params.toString()}`)
+  },
+
+  async softDeleteLabelByName(name: string): Promise<{ success: boolean }> {
+    const normalized = normalizeLabels([name])
+    if (normalized.length === 0) return { success: true }
+
+    return apiRequest<{ success: boolean }>('/emails/labels/soft-delete', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: normalized[0] })
+    })
+  },
+
+  async softDeleteLabelById(id: string): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>(`/emails/labels/${id}`, { method: 'DELETE' })
   },
 
   // ============ Attachments ============

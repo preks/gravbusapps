@@ -41,7 +41,7 @@ import { EmailCrmBooking } from './EmailCrmBooking'
 import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { getInitials, formatFullDate, formatFileSize } from '../utils/emailDisplayUtils'
 import { normalizeLabels } from '../utils/labelUtils'
-import type { EmailMessage, EmailAccount, ComposeMode } from '../types'
+import type { EmailMessage, EmailAccount, ComposeMode, EmailLabelSuggestion } from '../types'
 
 interface EmailReaderProps {
   message: EmailMessage | null
@@ -50,6 +50,7 @@ interface EmailReaderProps {
   onToggleStar: (id: string) => void
   onArchive: (id: string) => void
   onRefreshMessages?: () => void
+  onMessageLabelsUpdated?: (messageId: string, labels?: string[]) => Promise<void> | void
   accessToken?: string
   activeAccount?: EmailAccount | null
   employeeId?: string
@@ -66,6 +67,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   onToggleStar,
   onArchive,
   onRefreshMessages,
+  onMessageLabelsUpdated,
   accessToken,
   activeAccount,
   employeeId,
@@ -80,8 +82,14 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const [isLoadingThread, setIsLoadingThread] = useState(false)
   const [labelsInput, setLabelsInput] = useState('')
   const [localLabels, setLocalLabels] = useState<string[]>([])
+  const [isAddLabelMenuOpen, setIsAddLabelMenuOpen] = useState(false)
   const [isMutatingLabels, setIsMutatingLabels] = useState(false)
+  const [labelSuggestions, setLabelSuggestions] = useState<EmailLabelSuggestion[]>([])
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+  const [suggestionRefreshTick, setSuggestionRefreshTick] = useState(0)
   const lastThreadIdRef = useRef<string | null>(null)
+  const addLabelMenuRef = useRef<HTMLDivElement>(null)
+  const addLabelToggleRef = useRef<HTMLButtonElement>(null)
 
   const senderAvatar = useSenderAvatar(message?.fromAddress?.address, accessToken)
 
@@ -129,36 +137,109 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   useEffect(() => {
     setLocalLabels(normalizeLabels(message?.labels || []))
     setLabelsInput('')
+    setIsAddLabelMenuOpen(false)
   }, [message?.id, message?.labels])
+
+  useEffect(() => {
+    if (!isAddLabelMenuOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (addLabelMenuRef.current?.contains(target) || addLabelToggleRef.current?.contains(target)) {
+        return
+      }
+      setIsAddLabelMenuOpen(false)
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsAddLabelMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isAddLabelMenuOpen])
+
+  useEffect(() => {
+    const query = labelsInput.trim()
+    if (!query) {
+      setLabelSuggestions([])
+      setIsLoadingSuggestions(false)
+      return
+    }
+
+    let cancelled = false
+    setIsLoadingSuggestions(true)
+    const timeoutId = setTimeout(async () => {
+      try {
+        const suggestions = await EmailApiService.searchLabelSuggestions(query, 10)
+        if (cancelled) return
+        const currentLabels = new Set(localLabels.map(label => label.toLowerCase()))
+        setLabelSuggestions(suggestions.filter(suggestion => !currentLabels.has(suggestion.name.toLowerCase())))
+      } catch {
+        if (!cancelled) setLabelSuggestions([])
+      } finally {
+        if (!cancelled) setIsLoadingSuggestions(false)
+      }
+    }, 250)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [labelsInput, localLabels, suggestionRefreshTick])
 
   const showThread =
     threadEnabled && threadMessages.length > 1 && !!message?.threadId && lastThreadIdRef.current === message.threadId
 
+  const addLabelsToMessage = useCallback(
+    async (rawLabels: string[]) => {
+      if (!message || isMutatingLabels) return
+
+      const toAdd = normalizeLabels(rawLabels)
+      if (toAdd.length === 0) return
+
+      const previous = localLabels
+      const optimistic = normalizeLabels([...previous, ...toAdd])
+      setLocalLabels(optimistic)
+      setLabelsInput('')
+      setIsMutatingLabels(true)
+
+      try {
+        const result = await EmailApiService.addMessageLabels(message.id, toAdd)
+        const updatedLabels = normalizeLabels(result.labels || [])
+        setLocalLabels(updatedLabels)
+        setIsAddLabelMenuOpen(false)
+        toast.success(t('reader-labels-add-success'))
+        await onMessageLabelsUpdated?.(message.id, updatedLabels)
+        setSuggestionRefreshTick(prev => prev + 1)
+      } catch {
+        setLocalLabels(previous)
+        toast.error(t('reader-labels-add-failed'))
+        onRefreshMessages?.()
+      } finally {
+        setIsMutatingLabels(false)
+      }
+    },
+    [message, localLabels, isMutatingLabels, t, onMessageLabelsUpdated, onRefreshMessages]
+  )
+
   const handleAddLabel = useCallback(async () => {
-    if (!message || isMutatingLabels) return
+    await addLabelsToMessage([labelsInput])
+  }, [addLabelsToMessage, labelsInput])
 
-    const toAdd = normalizeLabels(labelsInput.split(','))
-    if (toAdd.length === 0) return
-
-    const previous = localLabels
-    const optimistic = normalizeLabels([...previous, ...toAdd])
-    setLocalLabels(optimistic)
-    setLabelsInput('')
-    setIsMutatingLabels(true)
-
-    try {
-      const result = await EmailApiService.addMessageLabels(message.id, toAdd)
-      setLocalLabels(normalizeLabels(result.labels || []))
-      toast.success(t('reader-labels-add-success'))
-      onRefreshMessages?.()
-    } catch {
-      setLocalLabels(previous)
-      toast.error(t('reader-labels-add-failed'))
-      onRefreshMessages?.()
-    } finally {
-      setIsMutatingLabels(false)
-    }
-  }, [message, labelsInput, localLabels, isMutatingLabels, t, onRefreshMessages])
+  const handleAddSuggestion = useCallback(
+    async (suggestionName: string) => {
+      await addLabelsToMessage([suggestionName])
+    },
+    [addLabelsToMessage]
+  )
 
   const handleRemoveLabel = useCallback(
     async (label: string) => {
@@ -177,6 +258,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
         setLocalLabels(normalizeLabels(result.labels || []))
         toast.success(t('reader-labels-remove-success'))
         onRefreshMessages?.()
+        setSuggestionRefreshTick(prev => prev + 1)
       } catch {
         setLocalLabels(previous)
         toast.error(t('reader-labels-remove-failed'))
@@ -355,25 +437,82 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                 </Button>
               </span>
             ))}
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Input
-              value={labelsInput}
-              onChange={e => setLabelsInput(e.target.value)}
-              placeholder={t('reader-labels-input-placeholder')}
-              className="gba:h-8"
-              data-testid={`${testId}-labels-input`}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleAddLabel}
-              disabled={isMutatingLabels}
-              data-testid={`${testId}-labels-add`}
-            >
-              <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
-              {t('reader-labels-add')}
-            </Button>
+            <div className="gba:relative gba:inline-flex gba:items-center">
+              <Button
+                ref={addLabelToggleRef}
+                variant="outline"
+                size="icon"
+                className="gba:h-5 gba:w-5"
+                onClick={() => {
+                  setIsAddLabelMenuOpen(prev => {
+                    const next = !prev
+                    if (!next) {
+                      setLabelsInput('')
+                    }
+                    return next
+                  })
+                }}
+                disabled={isMutatingLabels}
+                data-testid={`${testId}-labels-menu-toggle`}
+              >
+                <Plus className="gba:w-3 gba:h-3" />
+              </Button>
+              {isAddLabelMenuOpen && (
+                <div
+                  ref={addLabelMenuRef}
+                  className="gba:absolute gba:top-full gba:right-0 gba:mt-2 gba:z-20 gba:w-60 gba:border gba:rounded-md gba:bg-popover gba:p-2 gba:space-y-2"
+                  data-testid={`${testId}-labels-menu`}
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Input
+                      value={labelsInput}
+                      onChange={e => setLabelsInput(e.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          void handleAddLabel()
+                        }
+                      }}
+                      placeholder={t('reader-labels-input-placeholder')}
+                      className="gba:h-8"
+                      data-testid={`${testId}-labels-input`}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAddLabel}
+                      disabled={isMutatingLabels}
+                      data-testid={`${testId}-labels-add`}
+                    >
+                      {t('reader-labels-add')}
+                    </Button>
+                  </div>
+                  {labelsInput.trim().length > 0 && (
+                    <div className="gba:border gba:rounded-md gba:p-2 gba:space-y-1">
+                      {isLoadingSuggestions ? (
+                        <p className="gba:text-xs gba:text-muted-foreground">
+                          {t('reader-labels-suggestions-loading')}
+                        </p>
+                      ) : labelSuggestions.length === 0 ? (
+                        <p className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-suggestions-empty')}</p>
+                      ) : (
+                        labelSuggestions.map(suggestion => (
+                          <button
+                            key={`${message.id}-label-suggestion-${suggestion.id}`}
+                            type="button"
+                            className="gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded hover:gba:bg-muted/50 gba:text-sm"
+                            onClick={() => void handleAddSuggestion(suggestion.name)}
+                            data-testid={`${testId}-label-suggestion-${suggestion.id}`}
+                          >
+                            {suggestion.name}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

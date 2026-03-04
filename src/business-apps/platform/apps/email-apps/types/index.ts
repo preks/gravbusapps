@@ -101,6 +101,12 @@ export interface EmailMessage extends EmailMessageSummary {
   rawSize: number
 }
 
+/** Label suggestion from reusable labels catalog */
+export interface EmailLabelSuggestion {
+  id: string
+  name: string
+}
+
 /** Paginated response from API */
 export interface PaginatedResponse<T> {
   items: T[]

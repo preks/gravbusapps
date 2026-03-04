@@ -149,6 +149,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     toggleStar,
     deleteMessage,
     moveToFolder,
+    updateMessageLabels,
     loadMore,
     refreshMessages
   } = useEmails({
@@ -292,6 +293,19 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     [refreshMessages, t]
   )
 
+  const handleMessageLabelsUpdatedFromList = useCallback(
+    (messageId: string, labels?: string[]) => {
+      if (labels) {
+        updateMessageLabels(messageId, labels)
+        return
+      }
+      if (selectedMessage?.id === messageId) {
+        void selectMessage(messageId)
+      }
+    },
+    [updateMessageLabels, selectedMessage?.id, selectMessage]
+  )
+
   // Auto-select inbox when folders load
   useEffect(() => {
     if (inboxFolder && !selectedFolderId) {
@@ -395,6 +409,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onArchive={handleArchive}
         onDelete={deleteMessage}
         onRefresh={refreshMessages}
+        onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
         onLoadMore={loadMore}
         folderName={currentFolderName}
       />
@@ -407,6 +422,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onToggleStar={toggleStar}
         onArchive={handleArchive}
         onRefreshMessages={refreshMessages}
+        onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
         accessToken={accessToken}
         activeAccount={defaultAccount}
         employeeId={userInfo?.employeeDetails?.employeeId}

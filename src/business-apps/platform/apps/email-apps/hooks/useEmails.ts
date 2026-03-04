@@ -317,6 +317,12 @@ export function useEmails({
     [selectedMessage]
   )
 
+  const updateMessageLabels = useCallback((id: string, labels: string[]) => {
+    const normalized = normalizeLabels(labels)
+    setMessages(prev => prev.map(m => (m.id === id ? { ...m, labels: normalized } : m)))
+    setSelectedMessage(prev => (prev && prev.id === id ? { ...prev, labels: normalized } : prev))
+  }, [])
+
   return {
     messages,
     selectedMessage,
@@ -330,6 +336,7 @@ export function useEmails({
     toggleStar,
     deleteMessage,
     moveToFolder,
+    updateMessageLabels,
     loadMore,
     refreshMessages: () => loadMessages(1, false)
   }
