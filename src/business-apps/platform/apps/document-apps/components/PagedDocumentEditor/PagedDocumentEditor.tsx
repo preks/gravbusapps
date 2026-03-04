@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -16,15 +17,17 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
-import { Image } from '@tiptap/extension-image'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { FontFamily } from '@tiptap/extension-font-family'
+import { FontSize } from '@tiptap/extension-text-style/font-size'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
 import { Typography } from '@tiptap/extension-typography'
+import { TaskList } from '@tiptap/extension-task-list'
+import { TaskItem } from '@tiptap/extension-task-item'
 import {
   Button,
   Input,
@@ -53,6 +56,10 @@ import {
   Send,
   ZoomIn,
   ZoomOut,
+  LayoutPanelLeft,
+  ChevronRight,
+  ChevronDown,
+  Search,
   UserCheck,
   AlertCircle,
   XCircle,
@@ -64,7 +71,14 @@ import {
   Wand2
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { Document, DocumentApprovalRequest } from '../../types'
+import type { Document, DocumentApprovalRequest, DocumentFormatting } from '../../types'
+import {
+  getPaginationConfigFromFormatting,
+  resolvePageLayout,
+  getDefaultPageLayout,
+  DEFAULT_PAGE_COLOR
+} from '../../utils/pageLayoutUtils'
+import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../utils/linkUtils'
 import {
   useDocumentEditorAvatars,
   useYjsDocumentSync,
@@ -72,10 +86,14 @@ import {
   useVersionUserDisplays
 } from '../../hooks'
 import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
-import { PageBreak } from './extensions/PageBreak'
+import { PaginationPlus } from 'tiptap-pagination-plus'
+import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
+import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
-import { exportToWord, exportToPDF, printHtmlDocument } from '../../utils/exportUtils'
+import DOMPurify from 'dompurify'
+import { exportToWord, exportToPDF, printHtmlDocument, embedImagesInHtml } from '../../utils/exportUtils'
+import { useImageDataUrlResolver } from '../../hooks/useImageDataUrlResolver'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
@@ -93,14 +111,18 @@ import { CommentPanel } from '../../../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
 import { AiEditPanel } from '../AiEditPanel'
+import { PageSetupDialog } from './PageSetupDialog'
+import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from './LinkDialog'
+import { LinkBubbleMenu } from './LinkBubbleMenu'
+import { InsertImageDialog } from './InsertImageDialog'
+import { NavigationPanel } from './NavigationPanel'
+import { useEditorImageHandlers } from './hooks/useEditorImageHandlers'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 
-// A4 dimensions in pixels at 96 DPI
-const A4_WIDTH_PX = 794 // 210mm
-const A4_HEIGHT_PX = 1123 // 297mm
-const PAGE_MARGIN_PX = 96 // 1 inch = 96px at 96 DPI
+// A4 dimensions and margins at 96 DPI (aligned with pageLayoutConstants)
+const PAGE_GAP_PX = 24
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
@@ -309,13 +331,17 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   document?: Document
   initialContent?: string
   initialTitle?: string
-  onSave: (title: string, content: string) => Promise<void>
+  onSave: (title: string, content: string, formatting?: DocumentFormatting) => Promise<void>
   onBack: () => void
+  /** When provided, page setup changes are persisted immediately on OK (so layout survives when leaving without Save). */
+  onPersistFormatting?: (formatting: DocumentFormatting) => Promise<void>
   onSaveAsTemplate?: (title: string, content: string) => void
   onSendForApproval?: () => void
   isReadOnly?: boolean
   /** Left panel (e.g. Insert field for templates); shown when editing a template */
   leftPanel?: React.ReactNode
+  /** Extra content rendered below the title row (e.g. external-source badge) */
+  headerExtra?: React.ReactNode
   'data-testid'?: string
 }
 
@@ -351,6 +377,73 @@ function scrollInlineCommentDomIntoView(commentId: string) {
   }, 100)
 }
 
+interface TabKeyEditorRef {
+  state: { selection: { $from: { depth: number; node: (d: number) => { type: { name: string } } } } }
+  commands: {
+    goToPreviousCell: () => void
+    goToNextCell: () => boolean
+    insertContent: (c: string) => void
+  }
+  chain: () => { addRowAfter: () => { goToNextCell: () => { run: () => void } } }
+}
+
+/** Tab key handler for editor: table cell navigation or insert tab. Extracted to keep component complexity low. */
+function handleTabKeyInPagedEditor(event: KeyboardEvent, editorRef: React.RefObject<TabKeyEditorRef | null>): boolean {
+  if (event.key !== 'Tab') return false
+  event.preventDefault()
+  const ed = editorRef.current
+  if (!ed) return true
+  const $from = ed.state.selection.$from
+  let inTableCell = false
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type.name === 'tableCell') {
+      inTableCell = true
+      break
+    }
+  }
+  if (inTableCell) {
+    if (event.shiftKey) {
+      ed.commands.goToPreviousCell()
+    } else {
+      const moved = ed.commands.goToNextCell()
+      if (!moved) ed.chain().addRowAfter().goToNextCell().run()
+    }
+  } else if (!event.shiftKey) {
+    ed.commands.insertContent('\t')
+  }
+  return true
+}
+
+function getSpaceIdFromWindow(): string | null {
+  if (globalThis.window === undefined) return null
+  return new URLSearchParams(globalThis.window.location.search).get('spaceId')
+}
+
+function useNavigationPanelState(): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
+  const [show, setShow] = useState(() => {
+    if (globalThis.window === undefined) return false
+    return globalThis.window.localStorage.getItem('document-editor-navigation-panel-open') === 'true'
+  })
+  useEffect(() => {
+    if (globalThis.window === undefined) return
+    globalThis.window.localStorage.setItem('document-editor-navigation-panel-open', String(show))
+  }, [show])
+  return [show, setShow]
+}
+
+function useCollaborationCursorStyles(): void {
+  useEffect(() => {
+    if (globalThis.window === undefined) return
+    const styleId = 'collaboration-cursor-styles'
+    const doc = globalThis.window.document
+    if (doc.getElementById(styleId)) return
+    const styleEl = doc.createElement('style')
+    styleEl.id = styleId
+    styleEl.textContent = CURSOR_STYLES
+    doc.head.appendChild(styleEl)
+  }, [])
+}
+
 /**
  * PagedDocumentEditor Component
  */
@@ -362,10 +455,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       initialTitle,
       onSave,
       onBack,
+      onPersistFormatting,
       onSaveAsTemplate,
       onSendForApproval,
       isReadOnly = false,
       leftPanel,
+      headerExtra,
       accessToken: accessTokenProp,
       'data-testid': testId = 'paged-document-editor'
     },
@@ -381,6 +476,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [zoom, setZoom] = useState(100)
     const [pageCount, setPageCount] = useState(1)
     const [currentPage, setCurrentPage] = useState(1)
+    const [layoutFormatting, setLayoutFormatting] = useState<DocumentFormatting>(() => getDefaultPageLayout())
 
     const editorContainerRef = useRef<HTMLDivElement>(null)
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -391,19 +487,50 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       DocumentApiService.setAccessToken(accessTokenProp || null)
     }, [accessTokenProp])
 
+    const resolvedLayout = resolvePageLayout(layoutFormatting)
+    const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
+    const isPageless = resolvedLayout.pageless
+    const pageColor = resolvedLayout.pageColor ?? DEFAULT_PAGE_COLOR
+
+    useEffect(() => {
+      const fromDoc = resolvePageLayout(document?.formatting)
+      setLayoutFormatting({
+        ...getDefaultPageLayout(),
+        ...document?.formatting,
+        pageSize: fromDoc.pageSize,
+        orientation: fromDoc.orientation,
+        margins: fromDoc.margins,
+        marginUnit: fromDoc.marginUnit,
+        pageColor: fromDoc.pageColor,
+        pageless: fromDoc.pageless
+      })
+    }, [document?.id])
+
     // Versioning UI state
     const [showVersionHistory, setShowVersionHistory] = useState(false)
     const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
     const [showPublishDialog, setShowPublishDialog] = useState(false)
+    const [showPageSetupDialog, setShowPageSetupDialog] = useState(false)
+    const [showInsertImageDialog, setShowInsertImageDialog] = useState(false)
+    const [showLinkDialog, setShowLinkDialog] = useState(false)
+    const [linkDialogMode, setLinkDialogMode] = useState<LinkDialogMode>('insert')
+    const [linkDialogInitialValues, setLinkDialogInitialValues] = useState<LinkDialogInitialValues | undefined>()
+    const [linkDialogInsertWithNoSelection, setLinkDialogInsertWithNoSelection] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     type RightSidebar = 'closed' | 'comments' | 'ai'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
+    const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
+
+    // Collaborative page layout (formatting) sync via Yjs.
+    // Content is already synced via Collaboration; formatting must be synced separately.
+    const formattingYMap = React.useMemo(() => ydoc.getMap('documentFormatting'), [ydoc])
+    const metaYMap = React.useMemo(() => ydoc.getMap('documentMeta'), [ydoc])
 
     const collaborationExtension = React.useMemo(
       () => (document?.id ? Collaboration.configure({ document: ydoc }) : null),
@@ -479,6 +606,67 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setHasUnsavedChanges
     })
 
+    // Seed collaborative title once synced (do not overwrite an existing value from the room).
+    useEffect(() => {
+      if (!document?.id) return
+      if (!isYjsSynced) return
+      if (metaYMap.get('title')) return
+      const initial = (document?.title || '').trim()
+      if (!initial) return
+      metaYMap.set('title', initial)
+    }, [document?.id, document?.title, isYjsSynced, metaYMap])
+
+    // Seed collaborative formatting once synced (do not overwrite an existing value from the room).
+    useEffect(() => {
+      if (!document?.id) return
+      if (!isYjsSynced) return
+      if (formattingYMap.get('formatting')) return
+      if (!document?.formatting) return
+      formattingYMap.set('formatting', document.formatting)
+    }, [document?.id, document?.formatting, formattingYMap, isYjsSynced])
+
+    // Apply title updates from other collaborators.
+    useEffect(() => {
+      if (!document?.id) return
+
+      const applyFromYjs = () => {
+        const next = metaYMap.get('title')
+        if (typeof next !== 'string') return
+        const nextTitle = next.trim()
+        if (!nextTitle) return
+        setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+        lastSavedTitleRef.current = nextTitle
+      }
+
+      applyFromYjs()
+      const handler = () => applyFromYjs()
+      metaYMap.observe(handler)
+      return () => metaYMap.unobserve(handler)
+    }, [document?.id, metaYMap])
+
+    // Apply formatting updates from other collaborators.
+    useEffect(() => {
+      if (!document?.id) return
+
+      const applyFromYjs = () => {
+        const next = formattingYMap.get('formatting') as DocumentFormatting | undefined
+        if (!next) return
+        setLayoutFormatting(prev => {
+          const prevJson = JSON.stringify(prev ?? {})
+          const nextJson = JSON.stringify(next ?? {})
+          if (prevJson === nextJson) return prev
+          return next
+        })
+      }
+
+      // Apply immediately in case the map already has a value.
+      applyFromYjs()
+
+      const handler = () => applyFromYjs()
+      formattingYMap.observe(handler)
+      return () => formattingYMap.unobserve(handler)
+    }, [document?.id, formattingYMap])
+
     const editorContent = React.useMemo(
       () => (document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>'),
       [document?.id, document?.content, initialContent]
@@ -488,19 +676,41 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
     )
 
-    // Set local awareness state (user meta shown in cursors/selections)
+    // Set local awareness state (user meta shown in cursors/selections).
+    // Defer until editor view is mounted so collaboration cursor does not dispatch before view exists.
     useEffect(() => {
       if (!document?.id) return
       if (!currentUserId) return
       if (!isYjsSynced) return
 
-      awareness.setLocalStateField('user', {
+      const userState = {
         id: currentUserId,
         userId: currentUserId,
         name: currentUserName || t('editor-user-fallback'),
         color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
-        avatar: currentUserAvatar // Include avatar URL for cursor rendering
-      })
+        avatar: currentUserAvatar
+      }
+
+      let cancelled = false
+      const deadline = Date.now() + 5000
+      const applyWhenViewReady = () => {
+        if (cancelled) return
+        try {
+          const ed = editorRef.current as { view?: unknown } | null
+          if (ed?.view) {
+            awareness.setLocalStateField('user', userState)
+            return
+          }
+        } catch {
+          // view getter may throw when not mounted
+        }
+        if (Date.now() > deadline) return
+        setTimeout(applyWhenViewReady, 50)
+      }
+      setTimeout(applyWhenViewReady, 0)
+      return () => {
+        cancelled = true
+      }
     }, [document?.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
 
     // Broadcast document activity to Spaces app
@@ -509,14 +719,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       const activityType = isReadOnly ? 'viewing' : 'editing'
       const docTitle = document.title || t('title-untitled-document')
-      const urlSpaceId =
-        typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
+      const urlSpaceId = getSpaceIdFromWindow()
 
       // Emit activity when starting
       emitDocumentActivity({
         userId: currentUserId,
         userName: currentUserName || t('editor-user-fallback'),
-        userAvatar: currentUserAvatar,
+        userAvatar: currentUserAvatar || undefined,
         documentId: document.id,
         documentTitle: docTitle,
         documentType: 'document',
@@ -529,7 +738,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         emitDocumentActivity({
           userId: currentUserId,
           userName: currentUserName || t('editor-user-fallback'),
-          userAvatar: currentUserAvatar,
+          userAvatar: currentUserAvatar || undefined,
           documentId: document.id,
           documentTitle: docTitle,
           documentType: 'document',
@@ -546,6 +755,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id, document?.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly, t])
 
     const isCollaborationMode = Boolean(document?.id)
+
+    const imageHandlers = useEditorImageHandlers({
+      editorRef,
+      documentId: document?.id ?? null,
+      accessToken
+    })
 
     // Initialize TipTap editor
     const editor = useEditor(
@@ -567,6 +782,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           TextAlign.configure({
             types: ['heading', 'paragraph']
           }),
+          LineAndParagraphSpacing.configure({
+            types: ['heading', 'paragraph']
+          }),
           Underline,
           TextStyle,
           Color,
@@ -574,12 +792,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             multicolor: true
           }),
           Link.configure({
-            openOnClick: false,
+            openOnClick: true,
             HTMLAttributes: {
-              class: 'editor-link'
-            }
+              class: 'editor-link',
+              rel: 'noopener noreferrer'
+            },
+            isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
           }),
-          Image.configure({
+          DocumentImage.configure({
+            getAccessToken: () => accessToken,
             HTMLAttributes: {
               class: 'editor-image'
             }
@@ -594,10 +815,43 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           TableHeader,
           TableCell,
           FontFamily,
+          FontSize.configure({ types: ['textStyle'] }),
           Subscript,
           Superscript,
           Typography,
+          TaskList,
+          TaskItem.configure({
+            nested: true,
+            HTMLAttributes: {
+              class: 'editor-task-item'
+            }
+          }),
           PageBreak,
+          SearchHighlight,
+          ...(paginationConfig
+            ? [
+                PaginationPlus.configure({
+                  pageWidth: paginationConfig.pageWidth,
+                  pageHeight: paginationConfig.pageHeight,
+                  pageGap: PAGE_GAP_PX,
+                  marginTop: paginationConfig.marginTop,
+                  marginBottom: paginationConfig.marginBottom,
+                  marginLeft: paginationConfig.marginLeft,
+                  marginRight: paginationConfig.marginRight,
+                  contentMarginTop: 0,
+                  contentMarginBottom: 0,
+                  pageBreakBackground: '#f3f4f6',
+                  pageGapBorderSize: 0,
+                  pageGapBorderColor: '#f3f4f6',
+                  headerLeft: '',
+                  headerRight: '',
+                  footerLeft: '',
+                  footerRight: '',
+                  customHeader: {},
+                  customFooter: {}
+                })
+              ]
+            : []),
           InlineCommentExtension.configure({
             onCommentClick: commentId => {
               setRightSidebar('comments')
@@ -613,8 +867,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         // In CRDT mode, the Yjs doc becomes the single source of truth.
         content: editorContent,
         editable: editorEditable,
+        editorProps: {
+          attributes: {
+            dir: 'auto'
+          },
+          handlePaste: imageHandlers.handlePaste,
+          handleDrop: imageHandlers.handleDrop,
+          handleKeyDown: (_view, event) => handleTabKeyInPagedEditor(event, editorRef)
+        },
         onUpdate: () => {
-          updatePageCount()
+          schedulePaginationRebuild()
           if (document?.id) versioning.markAsChanged()
           if (!document?.id) {
             setHasUnsavedChanges(true)
@@ -623,26 +885,27 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
         }
       },
-      [document?.id, ydoc, editorContent, editorEditable, isCollaborationMode, t]
+      [
+        document?.id,
+        ydoc,
+        editorContent,
+        editorEditable,
+        isCollaborationMode,
+        t,
+        isPageless,
+        accessToken,
+        imageHandlers.handlePaste,
+        imageHandlers.handleDrop,
+        paginationConfig?.pageWidth,
+        paginationConfig?.pageHeight,
+        paginationConfig?.marginTop,
+        paginationConfig?.marginBottom,
+        paginationConfig?.marginLeft,
+        paginationConfig?.marginRight
+      ]
     )
 
-    // Inject collaboration cursor styles once on mount
-    useEffect(() => {
-      // Guard against SSR / non-browser environments
-      if (typeof window === 'undefined') return
-
-      const styleId = 'collaboration-cursor-styles'
-      // Use window.document to avoid shadowing from the 'document' prop
-      if (!window.document.getElementById(styleId)) {
-        const styleEl = window.document.createElement('style')
-        styleEl.id = styleId
-        styleEl.textContent = CURSOR_STYLES
-        window.document.head.appendChild(styleEl)
-      }
-      return () => {
-        // Don't remove on unmount - other editors might need it
-      }
-    }, [])
+    useCollaborationCursorStyles()
 
     // Update refs when values change
     useEffect(() => {
@@ -655,7 +918,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       () => ({
         insertAtCursor(htmlOrText: string) {
           const ed = editorRef.current
-          if (ed) ed.commands.insertContent(htmlOrText)
+          if (ed) {
+            const sanitized = DOMPurify.sanitize(htmlOrText, { USE_PROFILES: { html: true } }) || ''
+            if (sanitized) ed.commands.insertContent(sanitized)
+          }
         }
       }),
       []
@@ -685,43 +951,154 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
       setPendingSelection({ from, to, text: selectedText })
       setInlineCommentPosition({
-        top: coords.top + window.scrollY + 30,
-        left: coords.left + window.scrollX
+        top: coords.top + globalThis.window.scrollY + 30,
+        left: coords.left + globalThis.window.scrollX
       })
       setShowInlineCommentPopover(true)
     }, [editor])
 
-    // Calculate page count based on content height
-    const updatePageCount = useCallback(() => {
-      if (!editorContainerRef.current) return
+    // Page count and current page from PaginationPlus DOM.
+    //
+    // PaginationPlus renders a `[data-rm-pagination]` wrapper with one `.rm-page-break` child per page.
+    // Each `.rm-page-break` contains a `.breaker` element positioned at the end of that page.
+    // We compute:
+    // - total pages = number of `.rm-page-break` children (fallback to 1)
+    // - current page = 1 + number of *page boundaries* (breaker elements except last page) above viewport center
+    const paginationModelRef = useRef<{ totalPages: number; boundaryEls: HTMLElement[] }>({
+      totalPages: 1,
+      boundaryEls: []
+    })
+    const paginationRafRef = useRef<number | null>(null)
+    const paginationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const PAGINATION_DEBOUNCE_MS = 150
 
-      const editorContent = editorContainerRef.current.querySelector('.ProseMirror')
-      if (!editorContent) return
+    const computeCurrentPageFromBoundaries = useCallback(
+      (container: HTMLDivElement, totalPages: number, boundaryEls: HTMLElement[]) => {
+        if (totalPages <= 1 || boundaryEls.length === 0) return 1
+        const containerRect = container.getBoundingClientRect()
+        const viewportCenterY = containerRect.top + containerRect.height / 2
 
-      const contentHeight = editorContent.scrollHeight
-      const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
-      const pages = Math.max(1, Math.ceil(contentHeight / pageContentHeight))
-      setPageCount(pages)
-    }, [])
+        let passedBoundaries = 0
+        for (const boundaryEl of boundaryEls) {
+          const boundaryTop = boundaryEl.getBoundingClientRect().top
+          if (viewportCenterY >= boundaryTop) {
+            passedBoundaries += 1
+          } else {
+            break
+          }
+        }
 
-    // Update page count when content changes
+        return Math.min(Math.max(1, 1 + passedBoundaries), totalPages)
+      },
+      []
+    )
+
+    const rebuildPaginationModel = useCallback(() => {
+      const container = editorContainerRef.current
+      if (!container) return
+
+      const paginationRoot = container.querySelector('[data-rm-pagination]')
+      const pageEls = paginationRoot ? Array.from(paginationRoot.children) : []
+      const pageBreakEls = pageEls.filter((el): el is HTMLElement => el instanceof HTMLElement)
+      const totalPages = pageBreakEls.length > 0 ? pageBreakEls.length : 1
+
+      // Boundaries between pages are the `.breaker` elements for all but the last page.
+      const boundaryEls = pageBreakEls
+        .slice(0, -1)
+        .map(el => el.querySelector('.breaker'))
+        .filter((el): el is HTMLElement => el instanceof HTMLElement)
+
+      paginationModelRef.current = { totalPages, boundaryEls }
+
+      setPageCount(totalPages)
+      setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+    }, [computeCurrentPageFromBoundaries])
+
+    const schedulePaginationRebuild = useCallback(
+      (immediate = false) => {
+        const run = () => {
+          if (paginationRafRef.current) cancelAnimationFrame(paginationRafRef.current)
+          paginationRafRef.current = requestAnimationFrame(() => {
+            paginationRafRef.current = null
+            rebuildPaginationModel()
+          })
+        }
+        if (immediate) {
+          if (paginationDebounceRef.current) {
+            clearTimeout(paginationDebounceRef.current)
+            paginationDebounceRef.current = null
+          }
+          run()
+          return
+        }
+        if (paginationDebounceRef.current) clearTimeout(paginationDebounceRef.current)
+        paginationDebounceRef.current = setTimeout(() => {
+          paginationDebounceRef.current = null
+          run()
+        }, PAGINATION_DEBOUNCE_MS)
+      },
+      [rebuildPaginationModel]
+    )
+
     useEffect(() => {
-      updatePageCount()
+      schedulePaginationRebuild(true)
+      const onResize = () => schedulePaginationRebuild(true)
+      globalThis.window.addEventListener('resize', onResize)
+      return () => globalThis.window.removeEventListener('resize', onResize)
+    }, [schedulePaginationRebuild])
 
-      // Also update on window resize
-      window.addEventListener('resize', updatePageCount)
-      return () => window.removeEventListener('resize', updatePageCount)
-    }, [updatePageCount])
+    // Keep pagination model synced in edit/collaboration mode (DOM updates are async).
+    useEffect(() => {
+      if (!document?.id) return
+      schedulePaginationRebuild(true)
+    }, [document?.id, isYjsSynced, schedulePaginationRebuild])
 
-    // Handle scroll to track current page
+    // Observe editor DOM changes so the page model updates when PaginationPlus inserts/reflows its DOM.
+    // (In edit/collaboration mode this often happens after initial render, without a user-driven update.)
+    useEffect(() => {
+      const container = editorContainerRef.current
+      if (!container) return
+
+      // Prefer the actual editor DOM root if available.
+      const root: HTMLElement | null = (editor?.view?.dom ??
+        container.querySelector('.ProseMirror')) as HTMLElement | null
+
+      if (!root) return
+
+      const observer = new MutationObserver(() => {
+        schedulePaginationRebuild(false)
+      })
+
+      observer.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: false,
+        characterData: false
+      })
+
+      schedulePaginationRebuild(true)
+
+      return () => {
+        observer.disconnect()
+        if (paginationDebounceRef.current) {
+          clearTimeout(paginationDebounceRef.current)
+          paginationDebounceRef.current = null
+        }
+      }
+    }, [editor, schedulePaginationRebuild])
+
+    const scrollThrottleRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null)
     const handleScroll = useCallback(
       (e: React.UIEvent<HTMLDivElement>) => {
-        const scrollTop = e.currentTarget.scrollTop
-        const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
-        const currentPageNum = Math.floor(scrollTop / pageContentHeight) + 1
-        setCurrentPage(Math.min(currentPageNum, pageCount))
+        const container = e.currentTarget
+        if (scrollThrottleRef.current) return
+        scrollThrottleRef.current = requestAnimationFrame(() => {
+          scrollThrottleRef.current = null
+          const { totalPages, boundaryEls } = paginationModelRef.current
+          setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+        })
       },
-      [pageCount]
+      [computeCurrentPageFromBoundaries]
     )
 
     // Cleanup auto-save timeout on unmount
@@ -739,14 +1116,101 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setHasUnsavedChanges(true)
     }, [])
 
-    // Save document
+    const handlePageSetupApply = useCallback(
+      (nextFormatting: DocumentFormatting) => {
+        setLayoutFormatting(nextFormatting)
+        // Sync formatting to other collaborators (edit mode only).
+        if (document?.id && isYjsSynced) {
+          formattingYMap.set('formatting', nextFormatting)
+        }
+        if (document?.id && onPersistFormatting) {
+          void onPersistFormatting(nextFormatting)
+        }
+      },
+      [document?.id, formattingYMap, isYjsSynced, onPersistFormatting]
+    )
+
+    const openLinkDialog = useCallback(() => {
+      if (!editor) return
+      const { from, to } = editor.state.selection
+      const isEmpty = from === to
+      if (editor.isActive('link')) {
+        setLinkDialogMode('edit')
+        setLinkDialogInitialValues({
+          href: editor.getAttributes('link').href || '',
+          displayText: editor.state.doc.textBetween(from, to),
+          openInNewTab: editor.getAttributes('link').target === '_blank'
+        })
+        setLinkDialogInsertWithNoSelection(false)
+      } else if (isEmpty) {
+        setLinkDialogMode('insert')
+        setLinkDialogInitialValues({ href: '', displayText: '', openInNewTab: false })
+        setLinkDialogInsertWithNoSelection(true)
+      } else {
+        setLinkDialogMode('insert')
+        setLinkDialogInitialValues({
+          href: '',
+          displayText: editor.state.doc.textBetween(from, to),
+          openInNewTab: false
+        })
+        setLinkDialogInsertWithNoSelection(false)
+      }
+      setShowLinkDialog(true)
+    }, [editor])
+
+    const handleLinkApply = useCallback(
+      (values: { href: string; displayText?: string; openInNewTab: boolean }) => {
+        if (!editor) return
+        const { href, displayText: displayTextVal, openInNewTab } = values
+        if (!isAllowedHref(href)) return
+        const target = openInNewTab ? '_blank' : undefined
+        if (linkDialogMode === 'edit') {
+          editor.chain().focus().extendMarkRange('link').setLink({ href, target }).run()
+          return
+        }
+        if (linkDialogInsertWithNoSelection) {
+          const text = displayTextVal?.trim() || href
+          const rel = 'noopener noreferrer'
+          const targetAttr = openInNewTab ? ' target="_blank"' : ''
+          const html = `<a href="${escapeHtmlAttr(href)}"${targetAttr} rel="${rel}">${escapeHtmlText(text)}</a>`
+          editor.chain().focus().insertContent(html).run()
+          return
+        }
+        editor.chain().focus().setLink({ href, target }).run()
+      },
+      [editor, linkDialogMode, linkDialogInsertWithNoSelection]
+    )
+
+    const handleLinkRemove = useCallback(() => {
+      if (!editor) return
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    }, [editor])
+
+    // Save document (pass merged formatting so layout is persisted)
     const handleSave = useCallback(async () => {
       if (isReadOnly || isSaving || !editor) return
 
       setIsSaving(true)
       try {
+        const nextTitle = title.trim() || title
+        // Keep collaborative title in sync when saving from toolbar/shortcuts
+        // (e.g. when user saves without blurring the title input).
+        if (document?.id && isYjsSynced) {
+          metaYMap.set('title', nextTitle.trim())
+        }
+
         const content = editor.getHTML()
-        await onSave(title, content)
+        const formatting: DocumentFormatting = {
+          ...document?.formatting,
+          ...layoutFormatting,
+          pageSize: resolvedLayout.pageSize,
+          orientation: resolvedLayout.orientation,
+          margins: resolvedLayout.margins,
+          marginUnit: resolvedLayout.marginUnit,
+          pageColor: resolvedLayout.pageColor,
+          pageless: resolvedLayout.pageless
+        }
+        await onSave(nextTitle, content, formatting)
         setLastSaved(new Date())
         setHasUnsavedChanges(false)
       } catch (error) {
@@ -754,57 +1218,136 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       } finally {
         setIsSaving(false)
       }
-    }, [title, editor, onSave, isReadOnly, isSaving])
+    }, [
+      title,
+      editor,
+      onSave,
+      isReadOnly,
+      isSaving,
+      document?.id,
+      document?.formatting,
+      isYjsSynced,
+      metaYMap,
+      layoutFormatting,
+      resolvedLayout
+    ])
+
+    const lastSavedTitleRef = useRef(title)
+
+    useEffect(() => {
+      // Keep in sync when title is loaded/changed programmatically.
+      lastSavedTitleRef.current = title
+    }, [document?.id])
+
+    const persistTitleIfChanged = useCallback(() => {
+      if (isReadOnly) return
+      if (isSaving) return
+
+      const nextTitle = title.trim()
+      if (!nextTitle) return
+
+      if (nextTitle === lastSavedTitleRef.current) return
+      lastSavedTitleRef.current = nextTitle
+      setTitle(nextTitle)
+
+      // Sync to other collaborators (edit mode only).
+      if (document?.id && isYjsSynced) {
+        metaYMap.set('title', nextTitle)
+      }
+
+      void handleSave()
+    }, [document?.id, handleSave, isReadOnly, isSaving, isYjsSynced, metaYMap, title])
+
+    const handleTitleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== 'Enter') return
+      e.preventDefault()
+      e.currentTarget.blur()
+    }, [])
+
+    const handleTitleBlur = useCallback(() => {
+      persistTitleIfChanged()
+    }, [persistTitleIfChanged])
 
     useDocumentEditorShortcuts({
       onSave: () => {
         void handleSave()
       },
       onAddInlineComment: handleAddInlineComment,
+      onOpenLinkDialog: openLinkDialog,
       editor,
       editorContainerRef
     })
 
     useEditorKeyboardIsolation(editorContainerRef)
 
-    // Export to Word
+    const getImageDataUrl = useImageDataUrlResolver(accessToken)
+
+    // Build HTML with images embedded (each img src resolved to data URL so PDF/print show pictures)
+    const getExportHtmlWithEmbeddedImages = useCallback(async (): Promise<string> => {
+      if (!editor) return ''
+      return embedImagesInHtml(editor.getHTML(), getImageDataUrl)
+    }, [editor, getImageDataUrl])
+
+    // Export to Word — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
     const handleExportWord = useCallback(async () => {
       if (!editor) return
       setIsExporting(true)
       try {
-        await exportToWord(title, editor.getHTML())
+        const htmlWithImages = await getExportHtmlWithEmbeddedImages()
+        const safeHtml = DOMPurify.sanitize(htmlWithImages, {
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+          FORBID_ATTR: [],
+          ALLOW_DATA_ATTR: true
+        })
+        await exportToWord(title, safeHtml)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to Word failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor])
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
-    // Export to PDF
+    // Export to PDF — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
     const handleExportPDF = useCallback(async () => {
       if (!editor) return
       setIsExporting(true)
       try {
-        await exportToPDF(title, editor.getHTML())
+        const htmlWithImages = await getExportHtmlWithEmbeddedImages()
+        const safeHtml = DOMPurify.sanitize(htmlWithImages, {
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+          FORBID_ATTR: [],
+          ALLOW_DATA_ATTR: true
+        })
+        await exportToPDF(title, safeHtml)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to PDF failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor])
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
-    // Print document
-    const handlePrint = useCallback(() => {
+    // Print document — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
+    const handlePrint = useCallback(async () => {
       if (!editor) return
-      printHtmlDocument({
-        title,
-        htmlContent: editor.getHTML(),
-        extraCss: `
+      try {
+        const htmlContent = await getExportHtmlWithEmbeddedImages()
+        const safeHtml = DOMPurify.sanitize(htmlContent, {
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+          FORBID_ATTR: [],
+          ALLOW_DATA_ATTR: true
+        })
+        printHtmlDocument({
+          title,
+          htmlContent: safeHtml,
+          extraCss: `
         .page-break { page-break-after: always; break-after: page; }
         @media print { .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
       `
-      })
-    }, [title, editor])
+        })
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Print failed:', error)
+      }
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
     // Zoom controls
     const handleZoomIn = useCallback(() => {
@@ -883,6 +1426,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       ref={titleInputRef}
                       value={title}
                       onChange={handleTitleChange}
+                      onKeyDown={handleTitleKeyDown}
+                      onBlur={handleTitleBlur}
                       placeholder={t('editor-title-placeholder')}
                       disabled={isReadOnly}
                       className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:min-w-0 gba:w-full gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
@@ -892,7 +1437,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       <span>•</span>
                       <span>{t('editor-character-count', { count: charCount })}</span>
                       <span>•</span>
-                      <span>{t('editor-page-of', { current: currentPage, total: pageCount })}</span>
+                      <span>
+                        {t('editor-page-of', { current: Math.min(currentPage, pageCount), total: pageCount })}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1037,6 +1584,30 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
                 <Separator orientation="vertical" className="gba:h-6" />
 
+                {/* Word-style floating Find / Navigation button (icon + label + chevron) */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNavigationPanel(prev => !prev)}
+                  title={t('navigation-panel-title')}
+                  data-testid="navigation-panel-toggle"
+                  className={`gba:rounded-full gba:px-3 gba:gap-1.5 gba:text-foreground ${showNavigationPanel ? 'gba:bg-muted/50' : ''}`}
+                >
+                  <Search className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
+                  <span>{t('navigation-panel-find-tab')}</span>
+                  <ChevronDown className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPageSetupDialog(true)}
+                  data-testid="page-setup-button"
+                >
+                  <LayoutPanelLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('page-setup-title')}
+                </Button>
+
                 {/* Document Actions Menu (includes Export) */}
                 {document?.id && (
                   <DropdownMenu>
@@ -1121,21 +1692,56 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             </div>
           </div>
 
+          {headerExtra && <div className="gba:px-4 gba:pb-2">{headerExtra}</div>}
+
           {/* Toolbar */}
-          <EditorToolbar editor={editor} data-testid={`${testId}-toolbar`} />
+          <EditorToolbar
+            editor={editor}
+            onOpenLinkDialog={openLinkDialog}
+            onOpenInsertImageDialog={() => setShowInsertImageDialog(true)}
+            data-testid={`${testId}-toolbar`}
+          />
         </div>
 
-        {/* Main content: optional left panel + editor area */}
-        <div className={`gba:flex gba:flex-1 gba:min-h-0 ${leftPanel ? 'gba:flex-row' : 'gba:flex-col'}`}>
-          {leftPanel ? (
+        {/* Main content: Navigation panel, or expand strip + optional template panel, then editor */}
+        <div className="gba:flex gba:flex-1 gba:min-h-0 gba:flex-row">
+          {showNavigationPanel ? (
             <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
-              {leftPanel}
+              <NavigationPanel
+                editor={editor}
+                onClose={() => {
+                  setShowNavigationPanel(false)
+                  editor?.commands.clearSearchHighlights?.()
+                }}
+                data-testid={`${testId}-navigation-panel`}
+              />
             </div>
-          ) : null}
-          {/* Editor Area with Page Layout */}
+          ) : (
+            <>
+              {/* Expand strip: icon-only button when navigation is collapsed (nicer, no text) */}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowNavigationPanel(true)}
+                title={t('navigation-panel-show')}
+                aria-label={t('navigation-panel-show')}
+                data-testid="navigation-panel-expand"
+                className="gba:flex-shrink-0 gba:h-full gba:rounded-none gba:border-r gba:border-y-0 gba:border-l-0 gba:w-10 gba:min-w-10"
+              >
+                <ChevronRight className="gba:h-5 gba:w-5" aria-hidden />
+              </Button>
+              {leftPanel ? (
+                <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
+                  {leftPanel}
+                </div>
+              ) : null}
+            </>
+          )}
+          {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
           <div
             ref={editorContainerRef}
-            className="gba:flex-1 gba:overflow-auto gba:bg-muted/50 gba:min-w-0"
+            className="gba:flex-1 gba:overflow-auto gba:min-w-0 document-editor-viewport"
             onScroll={handleScroll}
           >
             <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
@@ -1146,52 +1752,109 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   transformOrigin: 'top center'
                 }}
               >
-                {/* Page visual representation */}
-                <div
-                  className="gba:bg-white gba:shadow-lg gba:rounded-sm gba:relative"
-                  style={{
-                    width: `${A4_WIDTH_PX}px`,
-                    minHeight: `${A4_HEIGHT_PX}px`,
-                    padding: `${PAGE_MARGIN_PX}px`
-                  }}
-                >
-                  <EditorContent editor={editor} className="editor-content" />
-
-                  {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
-                </div>
+                <EditorContent editor={editor} className="editor-content" />
+                {editor && (
+                  <BubbleMenu
+                    editor={editor}
+                    shouldShow={({ editor: e }) => e.isActive('link')}
+                    pluginKey="linkBubbleMenu"
+                  >
+                    <LinkBubbleMenu editor={editor} onEdit={openLinkDialog} data-testid="document-link-bubble-menu" />
+                  </BubbleMenu>
+                )}
+                {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Editor Styles */}
+        {/* Editor Styles — viewport/canvas: light gray; pages: white (match develop branch) */}
         <style>{`
+        .document-editor-viewport {
+          background-color: #f3f4f6;
+        }
+        /* Base defaults; font-family/font-size from toolbar (textStyle marks) override via inline styles */
         .paged-document-editor .ProseMirror {
           outline: none;
+          background-color: ${pageColor};
           font-family: 'Times New Roman', Georgia, serif;
-          font-size: 12pt;
-          line-height: 1.6;
+          font-size: 16px;
+          line-height: 1.15;
           color: #1a1a1a;
-          min-height: ${A4_HEIGHT_PX - PAGE_MARGIN_PX * 2}px;
+          min-height: ${paginationConfig ? paginationConfig.pageHeight - paginationConfig.marginTop - paginationConfig.marginBottom : 400}px;
+        }
+
+        .paged-document-editor .ProseMirror .editor-link {
+          color: var(--nw-primary);
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        .paged-document-editor .ProseMirror .navigation-search-highlight {
+          background: color-mix(in srgb, var(--nw-primary) 22%, transparent);
+          border-radius: 2px;
+        }
+        .paged-document-editor .ProseMirror .navigation-search-highlight-current {
+          background: color-mix(in srgb, var(--nw-primary) 45%, transparent);
+          border-radius: 2px;
+          outline: 2px solid var(--nw-primary);
+          outline-offset: 1px;
         }
 
         .paged-document-editor .ProseMirror p {
-          margin: 0 0 10pt 0;
+          margin: 0;
         }
 
         /* Lists (Tailwind preflight resets list-style to none) */
         .paged-document-editor .ProseMirror ol {
           list-style: decimal;
           list-style-position: outside;
-          padding-left: 24pt;
+          padding-inline-start: 24pt;
           margin: 0 0 12pt 0;
         }
 
         .paged-document-editor .ProseMirror ul {
           list-style: disc;
           list-style-position: outside;
-          padding-left: 24pt;
+          padding-inline-start: 24pt;
           margin: 0 0 12pt 0;
+        }
+
+        /* Task list: no bullets, checkbox per item (NodeView uses .editor-task-item) */
+        .paged-document-editor .ProseMirror ul[data-type="taskList"] {
+          list-style: none;
+          padding-inline-start: 24pt;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] {
+          display: flex;
+          align-items: flex-start;
+          gap: 8pt;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > label,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > label {
+          flex-shrink: 0;
+          cursor: pointer;
+          margin: 0.2em 0 0 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > label input[type="checkbox"],
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > label input[type="checkbox"] {
+          cursor: pointer;
+          width: 1em;
+          height: 1em;
+          margin: 0;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > div,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > div {
+          flex: 1;
+          min-width: 0;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item[data-checked="true"] > div,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"][data-checked="true"] > div {
+          text-decoration: line-through;
+          color: var(--nw-muted-foreground, #6b7280);
         }
 
         .paged-document-editor .ProseMirror li {
@@ -1205,21 +1868,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         }
 
         .paged-document-editor .ProseMirror h1 {
-          font-size: 24pt;
+          font-size: 2rem;
           font-weight: 700;
           margin: 0 0 16pt 0;
           line-height: 1.2;
         }
 
         .paged-document-editor .ProseMirror h2 {
-          font-size: 18pt;
+          font-size: 1.5rem;
           font-weight: 600;
           margin: 20pt 0 12pt 0;
           line-height: 1.3;
         }
 
         .paged-document-editor .ProseMirror h3 {
-          font-size: 14pt;
+          font-size: 1.125rem;
           font-weight: 600;
           margin: 16pt 0 10pt 0;
           line-height: 1.4;
@@ -1228,7 +1891,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror h4,
         .paged-document-editor .ProseMirror h5,
         .paged-document-editor .ProseMirror h6 {
-          font-size: 12pt;
+          font-size: 1rem;
           font-weight: 600;
           margin: 14pt 0 8pt 0;
         }
@@ -1258,7 +1921,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           padding: 12pt;
           overflow-x: auto;
           font-family: 'Courier New', monospace;
-          font-size: 10pt;
+          font-size: 0.875rem;
           margin: 12pt 0;
         }
 
@@ -1267,7 +1930,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           padding: 2pt 4pt;
           border-radius: 2pt;
           font-family: 'Courier New', monospace;
-          font-size: 10pt;
+          font-size: 0.875rem;
         }
 
         .paged-document-editor .ProseMirror a {
@@ -1278,8 +1941,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror img {
           max-width: 100%;
           height: auto;
-          margin: 12pt 0;
+          margin: 0;
+          vertical-align: bottom;
           border-radius: 4pt;
+        }
+        .paged-document-editor .ProseMirror .editor-image {
+          margin: 0;
         }
 
         /* Tables: print-first (no horizontal scrolling) */
@@ -1305,9 +1972,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror th {
           border: 1pt solid #333;
           padding: 4pt 6pt;
-          text-align: left;
+          text-align: start;
           vertical-align: top;
-          font-size: 10.5pt;
+          font-size: 0.875rem;
           line-height: 1.3;
           overflow-wrap: anywhere;
           word-break: break-word;
@@ -1353,7 +2020,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           position: relative;
           background: white;
           padding: 4pt 12pt;
-          font-size: 9pt;
+          font-size: 0.75rem;
           color: #888;
           text-transform: uppercase;
           letter-spacing: 1pt;
@@ -1467,7 +2134,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <CheckpointDialog
             isOpen={showCheckpointDialog}
             onClose={() => setShowCheckpointDialog(false)}
-            onSave={versioning.createCheckpoint}
+            onSave={async description => {
+              await versioning.createCheckpoint(description)
+            }}
             isSaving={versioning.isSaving}
             data-testid="document-checkpoint-dialog"
           />
@@ -1477,10 +2146,45 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <PublishDialog
             isOpen={showPublishDialog}
             onClose={() => setShowPublishDialog(false)}
-            onPublish={publishing.publish}
+            onPublish={async (publishNotes, createCheckpoint) => {
+              await publishing.publish(publishNotes, createCheckpoint)
+            }}
             isPublishing={publishing.isPublishing}
             entityType="document"
             data-testid="document-publish-dialog"
+          />
+        )}
+
+        {showPageSetupDialog && (
+          <PageSetupDialog
+            open={showPageSetupDialog}
+            onOpenChange={setShowPageSetupDialog}
+            formatting={layoutFormatting}
+            onApply={handlePageSetupApply}
+            data-testid="document-page-setup-dialog"
+          />
+        )}
+
+        {showInsertImageDialog && editor && (
+          <InsertImageDialog
+            open={showInsertImageDialog}
+            onOpenChange={setShowInsertImageDialog}
+            editor={editor}
+            documentId={document?.id ?? null}
+            accessToken={accessToken}
+            data-testid="document-insert-image-dialog"
+          />
+        )}
+
+        {showLinkDialog && (
+          <LinkDialog
+            open={showLinkDialog}
+            onOpenChange={setShowLinkDialog}
+            mode={linkDialogMode}
+            initialValues={linkDialogInitialValues}
+            onApply={handleLinkApply}
+            onRemoveLink={linkDialogMode === 'edit' ? handleLinkRemove : undefined}
+            data-testid="document-link-dialog"
           />
         )}
 
@@ -1529,8 +2233,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onUpdateComment={async (commentId, content) => {
               await comments.updateComment(commentId, { content })
             }}
-            onResolveComment={comments.resolveComment}
-            onDeleteComment={comments.deleteComment}
+            onResolveComment={async commentId => {
+              await comments.resolveComment(commentId)
+            }}
+            onDeleteComment={async commentId => {
+              await comments.deleteComment(commentId)
+            }}
             onClose={() => setRightSidebar('closed')}
             currentUserId={currentUserId || undefined}
             currentUserName={currentUserName || undefined}

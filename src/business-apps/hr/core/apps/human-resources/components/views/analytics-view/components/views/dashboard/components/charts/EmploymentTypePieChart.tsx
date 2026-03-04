@@ -1,7 +1,7 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { Card, Spin, Empty, Tooltip, Typography } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
@@ -110,7 +110,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
           <Tooltip
             title={t('hr-analytics-employment-tooltip')}
           >
-            <InfoCircleOutlined className="gba:ml-2" />
+            <InfoIcon size={16} className="gba:ml-2" />
           </Tooltip>
         </div>
       }

@@ -37,6 +37,16 @@ export interface UpdateAssetPayload {
   currencyRef?: string
   siteLocation?: string
   notes?: string
+  /** Disposal fields for retire flow */
+  disposalStatus?: string
+  disposalOutcomeRef?: string
+  disposalDate?: string
+  disposalReason?: string
+  requireSanitization?: boolean
+  sanitizationMethodRef?: string
+  sanitizationExecutionDate?: string
+  responsibleEmployee?: string
+  performerEmployee?: string
 }
 
 export interface CreateEmployeeAssetPayload {

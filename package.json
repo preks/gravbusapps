@@ -36,7 +36,6 @@
     "postinstall": "cursor-rules sync --silent && node ./scripts/setup-custom-git-hooks.js"
   },
   "dependencies": {
-    "@ant-design/icons": "^5.0.0",
     "@cloudflare/realtimekit": "^1.0.0",
     "@cloudflare/realtimekit-react": "^1.0.0",
     "@cloudflare/realtimekit-virtual-background": "^0.0.2",
@@ -55,7 +54,6 @@
     "@newwork/gravity-ui-catalog": "^7.10.29",
     "@newwork/nw-design-system": "^0.84.0-564",
     "@newwork/remote-component-loader": "^0.1.4",
-    "@remixicon/react": "^4.6.0",
     "@tiptap/extension-bubble-menu": "^3.15.3",
     "@tiptap/extension-character-count": "^3.15.3",
     "@tiptap/extension-collaboration": "^3.15.3",
@@ -126,6 +124,7 @@
     "tailwind-merge": "^3.3.0",
     "tesseract.js": "^7.0.0",
     "tippy.js": "^6.3.7",
+    "tiptap-pagination-plus": "^3.0.5",
     "y-protocols": "^1.0.6",
     "yjs": "^13.6.27",
     "zod": "^4.1.12",

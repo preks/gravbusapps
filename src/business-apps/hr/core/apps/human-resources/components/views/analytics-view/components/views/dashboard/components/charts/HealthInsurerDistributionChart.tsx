@@ -2,7 +2,7 @@ import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Typography, Spin, Empty } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useHealthInsuranceDistribution } from '../../../../../hooks/useHealthInsuranceDistribution'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
@@ -97,9 +97,9 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
           {t('hr-analytics-health-insurer-distribution')}
         </Title>
         <div className="gba:flex gba:items-center">
-          <InfoCircleOutlined
+          <InfoIcon
+            size={16}
             className="gba:text-muted-foreground"
-            style={{ fontSize: '16px' }}
             data-testid="health-insurer-distribution-info-icon"
           />
         </div>

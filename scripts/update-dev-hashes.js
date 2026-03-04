@@ -12,6 +12,7 @@ async function main() {
   // Read the list of successfully published screens from changed-tsx.txt
   const fs = await import('node:fs')
   const changedFile = 'changed-tsx.txt'
+  const hashBaselineFile = 'hash-build-screen-hashes.json'
 
   if (!fs.existsSync(changedFile)) {
     console.log('⚠️  No changed-tsx.txt file found, skipping hash update')
@@ -37,6 +38,20 @@ async function main() {
 
   const projectRootDir = process.cwd()
   const hashFilePath = path.join(projectRootDir, 'component-hashes.json')
+  const hashBaselinePath = path.join(projectRootDir, hashBaselineFile)
+
+  let hashBuildBaseline = {}
+  if (fs.existsSync(hashBaselinePath)) {
+    try {
+      hashBuildBaseline = JSON.parse(fs.readFileSync(hashBaselinePath, 'utf8'))
+      console.log(
+        `   ℹ️  Using hash-only baseline from ${hashBaselineFile} (${Object.keys(hashBuildBaseline).length} entries)`
+      )
+    } catch (error) {
+      console.log(`   ⚠️  Could not parse ${hashBaselineFile}: ${error.message}`)
+      hashBuildBaseline = {}
+    }
+  }
 
   // Load current hashes
   const componentHashes = loadHashFile(hashFilePath)
@@ -53,7 +68,7 @@ async function main() {
     }
 
     try {
-      const screenHash = calculateScreenHash(buildOutputDir)
+      const screenHash = hashBuildBaseline[screen] || calculateScreenHash(buildOutputDir)
       componentHashes[screen] = screenHash
       updatedCount++
       console.log(`   ✅ ${screen}: ${screenHash}`)
@@ -166,11 +181,35 @@ async function main() {
         // Fetch the target branch
         execSync(`git fetch origin ${targetBranch}:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
 
+        // Stash local hash file changes to avoid checkout conflicts when running on feature branches.
+        let tempHashStashCreated = false
+        try {
+          const stashResult = execSync(`git stash push -m "ci-temp-hash-switch" -- ${hashFileName}`, {
+            cwd: projectRootDir,
+            encoding: 'utf8',
+            stdio: 'pipe'
+          })
+          tempHashStashCreated = !stashResult.includes('No local changes to save')
+        } catch {
+          // Non-critical: continue and let checkout report a concrete error if it still cannot proceed.
+        }
+
         // Checkout the target branch
         execSync(`git checkout ${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
 
         // Restore the hash file with our changes
         fs.writeFileSync(hashFilePath, hashFileContent, 'utf8')
+
+        // We restore content from memory, so this temporary stash is no longer needed.
+        // Drop it to avoid accumulating CI stashes across runs.
+        if (tempHashStashCreated) {
+          try {
+            execSync('git stash drop stash@{0}', { cwd: projectRootDir, stdio: 'pipe' })
+          } catch {
+            // Non-critical: leftover stash does not block pipeline behavior.
+          }
+        }
+
         console.log(`   ✅ Switched to ${targetBranch} and restored hash file`)
       }
 

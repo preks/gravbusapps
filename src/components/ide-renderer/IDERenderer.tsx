@@ -7,6 +7,8 @@ import { useDynamicScreen } from '@/common/hooks/useDynamicScreen'
 import { BusinessAppInfo } from '@/components/ide-main-menu'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 
+const DYNAMIC_SCREEN_HMR_EVENT = 'gba:dynamic-screen-hmr'
+
 // Dynamic component wrapper that loads components on demand
 const DynamicComponentWrapper: React.FC<{
   app: BusinessAppInfo
@@ -18,6 +20,15 @@ const DynamicComponentWrapper: React.FC<{
 
   useEffect(() => {
     loadScreen(app.screenKey)
+  }, [app.screenKey, loadScreen])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || import.meta.env.MODE !== 'development') return
+    const handle = () => loadScreen(app.screenKey)
+    window.addEventListener(DYNAMIC_SCREEN_HMR_EVENT, handle)
+    return () => {
+      window.removeEventListener(DYNAMIC_SCREEN_HMR_EVENT, handle)
+    }
   }, [app.screenKey, loadScreen])
 
   if (state.isLoading) {

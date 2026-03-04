@@ -23,6 +23,12 @@ export {
   type UseOrganizationalDimensionsResult
 } from './hooks/useOrganizationalDimensions'
 export { useHubPagination } from './hooks/useHubPagination'
+export {
+  useVoiceInput,
+  type VoiceInputState,
+  type UseVoiceInputOptions,
+  type UseVoiceInputReturn
+} from './hooks/useVoiceInput'
 
 // Components
 export { PresenceIndicator, type PresenceIndicatorProps } from './components/PresenceIndicator'
@@ -30,6 +36,9 @@ export { HubPaginationFooter, type HubPaginationFooterProps } from './components
 export { CollaboratorCursor, type CollaboratorCursorProps } from './components/CollaboratorCursor'
 export { CellCollaboratorIndicator, type CellCollaboratorIndicatorProps } from './components/CellCollaboratorIndicator'
 export { DimensionPicker, type DimensionPickerProps } from './components/DimensionPicker'
+export { VoiceInputButton, type VoiceInputButtonProps } from './components/voice-input/VoiceInputButton'
+export { VoiceVisualizer, type VoiceVisualizerProps } from './components/voice-input/VoiceVisualizer'
+export { normalizeDictationTranscript } from './utils/normalizeDictationTranscript'
 
 // Types
 export {

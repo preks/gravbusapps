@@ -1,15 +1,15 @@
 import React, { useState } from 'react'
 import { Modal, Card, Button, Space, Typography, Form, message, Tag, Divider } from 'antd'
 import {
-  CheckOutlined,
-  CloseOutlined,
-  UserOutlined,
-  MessageOutlined,
-  FormOutlined,
-  InfoCircleOutlined,
-  CheckCircleOutlined,
-  SettingOutlined
-} from '@ant-design/icons'
+  CheckIcon,
+  XIcon,
+  UserIcon,
+  ChatCircleIcon,
+  NotePencilIcon,
+  InfoIcon,
+  CheckCircleIcon,
+  GearIcon
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowStepType } from '../../types/flowTemplate'
 import { InputRenderer } from '../shared/InputRenderer'
@@ -52,15 +52,15 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
   const getStepIcon = (stepType: FlowStepType) => {
     switch (stepType) {
       case 'TASK':
-        return <UserOutlined className="gba:text-blue-500" />
+        return <UserIcon size={16} className="gba:text-blue-500" />
       case 'APPROVAL':
-        return <SettingOutlined className="gba:text-orange-500" />
+        return <GearIcon size={16} className="gba:text-orange-500" />
       case 'INFORMATION':
-        return <MessageOutlined className="gba:text-green-500" />
+        return <ChatCircleIcon size={16} className="gba:text-green-500" />
       case 'ACKNOWLEDGE':
-        return <CheckCircleOutlined className="gba:text-purple-500" />
+        return <CheckCircleIcon size={16} className="gba:text-purple-500" />
       default:
-        return <InfoCircleOutlined className="gba:text-gray-500" />
+        return <InfoIcon size={16} className="gba:text-gray-500" />
     }
   }
 
@@ -127,7 +127,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
             <Button
               type="primary"
               danger
-              icon={<CloseOutlined />}
+              icon={<XIcon size={16} />}
               onClick={() => handleSubmit('REJECTED')}
               loading={isSubmitting}
               data-testid={`${testId}-reject-button`}
@@ -151,7 +151,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
         return (
           <Button
             type="primary"
-            icon={<CheckCircleOutlined />}
+            icon={<CheckCircleIcon size={16} />}
             onClick={() => handleSubmit('COMPLETED')}
             loading={isSubmitting}
             data-testid={`${testId}-acknowledge-button`}
@@ -216,7 +216,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
             size="small"
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
-                <FormOutlined />
+                <NotePencilIcon size={16} />
                 <span>{getTranslationFromI18nKeyAndLabel('flow.step.inputForm', 'Input Form')}</span>
               </div>
             }
@@ -235,7 +235,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
             size="small"
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
-                <UserOutlined />
+                <UserIcon size={16} />
                 <span>{getTranslationFromI18nKeyAndLabel('flow.step.assignmentInfo', 'Assignment Information')}</span>
               </div>
             }

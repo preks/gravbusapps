@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { BarChartOutlined, TeamOutlined, BankOutlined, DollarCircleOutlined, ContactsOutlined } from '@ant-design/icons'
+import { ChartBarIcon, UsersIcon, BankIcon, CurrencyCircleDollarIcon, AddressBookIcon } from '@phosphor-icons/react'
 
 import { OverviewTabLayout, OverviewTabLayoutProps } from './overview/OverviewTabLayout'
 import { LeadsTabLayout, LeadsTabLayoutProps } from './leads/LeadsTabLayout'
@@ -37,7 +37,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'overview',
         label: 'Overview',
-        icon: <BarChartOutlined className="gba:mr-2" />,
+        icon: <ChartBarIcon size={16} className="gba:mr-2" />,
         content: <OverviewTabLayout moduleColor={moduleColor} {...overviewProps} />
       })
     }
@@ -45,7 +45,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'leads',
         label: 'Leads',
-        icon: <TeamOutlined className="gba:mr-2" />,
+        icon: <UsersIcon size={16} className="gba:mr-2" />,
         content: <LeadsTabLayout moduleColor={moduleColor} {...leadsProps} />
       })
     }
@@ -53,7 +53,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'accounts',
         label: 'Accounts',
-        icon: <BankOutlined className="gba:mr-2" />,
+        icon: <BankIcon size={16} className="gba:mr-2" />,
         content: <AccountsTabLayout moduleColor={moduleColor} {...accountsProps} />
       })
     }
@@ -61,7 +61,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'opportunities',
         label: 'Opportunities',
-        icon: <DollarCircleOutlined className="gba:mr-2" />,
+        icon: <CurrencyCircleDollarIcon size={16} className="gba:mr-2" />,
         content: <OpportunitiesTabLayout moduleColor={moduleColor} {...opportunitiesProps} />
       })
     }
@@ -69,7 +69,7 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
       items.push({
         key: 'contacts',
         label: 'Contacts',
-        icon: <ContactsOutlined className="gba:mr-2" />,
+        icon: <AddressBookIcon size={16} className="gba:mr-2" />,
         content: <ContactsTabLayout moduleColor={moduleColor} {...contactsProps} />
       })
     }

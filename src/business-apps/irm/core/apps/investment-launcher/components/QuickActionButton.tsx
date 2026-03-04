@@ -1,11 +1,11 @@
 import React from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import * as RemixIcons from '@remixicon/react'
+import { QuestionIcon } from '@phosphor-icons/react'
 import { InvestmentQuickActionButtonProps } from '../types'
 
 const InvestmentQuickActionButton: React.FC<InvestmentQuickActionButtonProps> = ({ action, onClick }) => {
   // Get the icon component dynamically
-  const IconComponent = (RemixIcons as any)[action.icon] || RemixIcons.RiQuestionLine
+  const IconComponent = action.icon ?? QuestionIcon
 
   // Get button color based on action type
   const getActionColor = (actionId: string) => {

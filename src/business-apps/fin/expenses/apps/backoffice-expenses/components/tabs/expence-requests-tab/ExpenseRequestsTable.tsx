@@ -41,7 +41,7 @@ import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/commo
 import { formatDateLocalized } from '../../../utils/dateUtils'
 import { formatCurrency } from '../../../utils/currencyUtils'
 import { DatePicker, Tooltip } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../../hooks/useFilterData'
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils/utils'
@@ -733,7 +733,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 )}
                 placement="right"
               >
-                <InfoCircleOutlined data-testid="effective-date-info" />
+                <InfoIcon size={16} data-testid="effective-date-info" />
               </Tooltip>
             </div>
           </div>

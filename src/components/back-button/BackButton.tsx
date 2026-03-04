@@ -3,6 +3,9 @@ import { Button } from '@newwork/nw-design-system'
 import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
+const DEFAULT_CLASS_NAME = ''
+const DEFAULT_DATA_TEST_ID = 'back-button'
+
 export interface BackButtonProps {
   /**
    * Custom back button text. If not provided, will use default translation.
@@ -35,8 +38,8 @@ export interface BackButtonProps {
  */
 export const BackButton: React.FC<BackButtonProps> = ({
   customBackText,
-  className = '',
-  dataTestId = 'back-button',
+  className = DEFAULT_CLASS_NAME,
+  dataTestId = DEFAULT_DATA_TEST_ID,
   onBack,
   backUrl
 }) => {

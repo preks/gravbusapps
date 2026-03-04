@@ -14,7 +14,6 @@ import { sortData } from './utils/sortUtils'
 import { TeamReportTable } from './components/TeamReportTable'
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
 import { UsersThreeIcon, UsersIcon, CalendarIcon } from '@phosphor-icons/react'
-import { CalendarOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
@@ -231,7 +230,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     <div>
       <PageLayout
         variant="default"
-        headerIcon={<CalendarOutlined className="gba:text-info gba:text-3xl" />}
+        headerIcon={<CalendarIcon size={32} className="gba:text-info gba:text-3xl" />}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:employee_my_team_report.overview_header', 'My Team')}
         className="gba:[&_[data-testid=page-layout-content-header]]:!border-b-0 gba:[&_[data-testid=page-layout-header]]:!border-b-0"
         contentHeader={

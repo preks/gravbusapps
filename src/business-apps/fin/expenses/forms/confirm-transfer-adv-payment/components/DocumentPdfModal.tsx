@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Spinner, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
-import { DownloadOutlined, PrinterOutlined, FullscreenOutlined, MoreOutlined } from '@ant-design/icons'
+import { DownloadIcon, PrinterIcon, ArrowsOutIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { FileClient } from '@/common/network/files/FileClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -176,16 +176,16 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
             {/* Action Buttons */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:border-l gba:border-gray-600 gba:pl-3">
               <button className="gba:text-gray-300 gba:hover:text-background gba:p-2" title="Full Screen">
-                <FullscreenOutlined />
+                <ArrowsOutIcon size={16} />
               </button>
               <button className="gba:text-gray-300 gba:hover:text-background gba:p-2" title="Download">
-                <DownloadOutlined />
+                <DownloadIcon size={16} />
               </button>
               <button className="gba:text-gray-300 gba:hover:text-background gba:p-2" title="Print">
-                <PrinterOutlined />
+                <PrinterIcon size={16} />
               </button>
               <button className="gba:text-gray-300 gba:hover:text-background gba:p-2" title="More Options">
-                <MoreOutlined />
+                <DotsThreeVerticalIcon size={16} />
               </button>
             </div>
           </div>
