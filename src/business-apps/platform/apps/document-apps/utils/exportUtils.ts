@@ -20,47 +20,216 @@ export function escapeHtmlText(text: string): string {
     .replace(/'/g, '&#39;')
 }
 
-/**
- * Lightweight export sanitizer to reduce risk when embedding editor HTML into print/export documents.
- * This is not a full HTML sanitizer, but it removes the most dangerous primitives:
- * - script/iframe/object/embed tags
- * - inline event handlers (on*)
- * - dangerous URL protocols in href/src
- * - inline styles (style=...) to avoid CSS-based injection vectors
- */
-export function sanitizeHtmlForExport(html: string): string {
-  if (!html) return ''
+/** Allowed block spacing CSS properties for export (line and paragraph spacing). */
+const BLOCK_SPACING_PROPS = new Set(['line-height', 'margin-top', 'margin-bottom'])
 
-  // Prefer DOMPurify when available (browser context). Snyk recognizes it as a sanitizer.
-  try {
-    if (typeof window !== 'undefined') {
-      return DOMPurify.sanitize(html, {
-        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-        FORBID_ATTR: ['style']
-      })
+function filterStyleToBlockSpacing(styleStr: string): string {
+  const parts: string[] = []
+  for (const rawDecl of styleStr.split(';')) {
+    const decl = rawDecl.trim()
+    if (!decl) continue
+
+    const splitIdx = decl.indexOf(':')
+    if (splitIdx === -1) continue
+
+    const prop = decl.slice(0, splitIdx).trim().toLowerCase()
+    if (!BLOCK_SPACING_PROPS.has(prop)) continue
+
+    const value = decl.slice(splitIdx + 1).trim()
+    if (!value) continue
+
+    parts.push(`${prop}: ${value}`)
+  }
+  return parts.join('; ')
+}
+
+const EXPORT_DATA_URI_ATTR = 'data-nw-export-src'
+
+function stripTagsToText(html: string): string {
+  const out: string[] = []
+  let inTag = false
+
+  for (const ch of html) {
+    if (ch === '<') {
+      inTag = true
+      continue
     }
-  } catch {
-    // Fall back to regex-based stripping below.
+    if (ch === '>') {
+      inTag = false
+      continue
+    }
+    if (!inTag) out.push(ch)
   }
 
-  let out = html
+  return out.join('')
+}
 
-  // Remove potentially executable / embeddable tags completely
-  out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-  out = out.replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, '')
-  out = out.replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, '')
-  out = out.replace(/<embed[\s\S]*?>/gi, '')
+function preserveDataUriImgsForPurify(html: string): string {
+  if (globalThis.DOMParser === undefined) return html
 
-  // Remove inline event handlers (quoted or unquoted)
-  out = out.replace(/\s+on[a-z]+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const imgs = Array.from(doc.body.querySelectorAll('img[src]'))
 
-  // Remove inline styles entirely (safer for exports/print)
-  out = out.replace(/\s+style\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
+  for (const img of imgs) {
+    const src = img.getAttribute('src')
+    if (!src) continue
 
-  // Remove dangerous protocols in href/src (keep attribute-less element instead)
-  out = out.replace(/\s+(href|src)\s*=\s*(["']?)\s*(javascript:|data:text\/html)[\s\S]*?\2/gi, '')
+    const trimmed = src.trim()
+    if (trimmed.toLowerCase().startsWith('data:')) {
+      img.setAttribute(EXPORT_DATA_URI_ATTR, trimmed)
+      img.setAttribute('src', 'about:blank')
+    }
+  }
 
-  return out
+  return doc.body.innerHTML
+}
+
+function removeDangerousNodes(doc: Document): void {
+  for (const el of Array.from(doc.body.querySelectorAll('script,iframe,object,embed'))) {
+    el.remove()
+  }
+}
+
+function stripEventHandlers(el: Element): void {
+  for (const attrName of el.getAttributeNames()) {
+    if (attrName.toLowerCase().startsWith('on')) {
+      el.removeAttribute(attrName)
+    }
+  }
+}
+
+function applyStyleSanitization(el: Element, options: { preserveBlockSpacing: boolean }): void {
+  const style = el.getAttribute('style')
+  if (style == null) return
+  if (!options.preserveBlockSpacing) {
+    el.removeAttribute('style')
+    return
+  }
+  const filtered = filterStyleToBlockSpacing(style)
+  if (filtered) el.setAttribute('style', filtered)
+  else el.removeAttribute('style')
+}
+
+function sanitizeUrlAttribute(el: Element, urlAttr: 'href' | 'src', options: { allowDataUriInImg: boolean }): void {
+  const raw = el.getAttribute(urlAttr)
+  if (!raw) return
+
+  const lower = raw.trim().toLowerCase()
+  // NOSONAR S1523 - literal used only to detect and remove dangerous URLs; no code execution
+  if (lower.startsWith('javascript:') || lower.startsWith('vbscript:') || lower.startsWith('data:text/html')) {
+    el.removeAttribute(urlAttr)
+    return
+  }
+  if (lower.startsWith('data:')) {
+    const isImgSrc = urlAttr === 'src' && el.tagName.toLowerCase() === 'img'
+    if (!(options.allowDataUriInImg && isImgSrc)) {
+      el.removeAttribute(urlAttr)
+    }
+  }
+}
+
+function restoreAndCleanDataUriAttr(el: Element, options: { allowDataUriInImg: boolean }): void {
+  if (options.allowDataUriInImg && el.tagName.toLowerCase() === 'img') {
+    const preserved = el.getAttribute(EXPORT_DATA_URI_ATTR)
+    if (preserved) el.setAttribute('src', preserved)
+  }
+  if (el.hasAttribute(EXPORT_DATA_URI_ATTR)) el.removeAttribute(EXPORT_DATA_URI_ATTR)
+}
+
+function postProcessExportHtml(
+  html: string,
+  options: { preserveBlockSpacing: boolean; allowDataUriInImg: boolean }
+): string {
+  if (globalThis.DOMParser === undefined) return html
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+
+  removeDangerousNodes(doc)
+
+  const allElements = Array.from(doc.body.querySelectorAll('*'))
+  for (const el of allElements) {
+    stripEventHandlers(el)
+    applyStyleSanitization(el, options)
+    for (const urlAttr of ['href', 'src'] as const) {
+      sanitizeUrlAttribute(el, urlAttr, options)
+    }
+    restoreAndCleanDataUriAttr(el, options)
+  }
+
+  return doc.body.innerHTML
+}
+
+/**
+ * Lightweight export sanitizer to reduce risk when embedding editor HTML into print/export documents.
+ * Removes: script/iframe/object/embed, inline event handlers, javascript:/data:text/html in href/src.
+ */
+export function sanitizeHtmlForExport(
+  html: string,
+  options?: { preserveBlockSpacing?: boolean; allowDataUriInImg?: boolean }
+): string {
+  if (!html) return ''
+  const preserveBlockSpacing = options?.preserveBlockSpacing === true
+  const allowDataUriInImg = options?.allowDataUriInImg === true
+
+  if (globalThis.window === undefined || globalThis.DOMParser === undefined) {
+    return stripTagsToText(html)
+  }
+
+  try {
+    const config: Parameters<typeof DOMPurify.sanitize>[1] = {
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      FORBID_ATTR: preserveBlockSpacing ? [] : ['style'],
+      ALLOW_DATA_ATTR: allowDataUriInImg
+    }
+
+    const input = allowDataUriInImg ? preserveDataUriImgsForPurify(html) : html
+    const purified = DOMPurify.sanitize(input, config)
+
+    return postProcessExportHtml(purified, { preserveBlockSpacing, allowDataUriInImg })
+  } catch {
+    return stripTagsToText(html)
+  }
+}
+
+/**
+ * Resolves image src to a data URL for export (e.g. file-service URL + token -> base64).
+ * Return null to leave the original src unchanged.
+ */
+export type GetImageDataUrlForExport = (src: string) => Promise<string | null>
+
+/** Convert a Blob to a data URL for embedding in exported HTML. */
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error(reader.error?.message ?? 'Failed to read'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * Replaces each img src in html with the result of getImageDataUrl(src) when not null.
+ * Use so exported Word/PDF contain embedded images instead of unreachable URLs.
+ */
+export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageDataUrlForExport): Promise<string> {
+  const imgRegex = /<img([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*)>/gi
+  let result = ''
+  let lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = imgRegex.exec(html)) !== null) {
+    result += html.slice(lastIndex, m.index)
+    const dataUrl = await getImageDataUrl(m[2])
+    if (dataUrl == null) {
+      result += m[0]
+    } else {
+      result += `<img${m[1]}src="${dataUrl}"${m[3]}>`
+    }
+    lastIndex = imgRegex.lastIndex
+  }
+  result += html.slice(lastIndex)
+  return result
 }
 
 export interface PrintHtmlDocumentOptions {
@@ -79,8 +248,12 @@ export function buildPrintHtmlDocument({
   extraCss = ''
 }: PrintHtmlDocumentOptions): string {
   const safeTitle = escapeHtmlText(title || 'Document')
-  const safeBodyHtml = sanitizeHtmlForExport(htmlContent)
   const titleHeading = includeTitleHeading ? `<h1>${safeTitle}</h1>` : ''
+  // CWE-79: only sanitized body HTML is embedded to prevent DOM XSS when written to document
+  const safeBodyHtml = sanitizeHtmlForExport(htmlContent, {
+    preserveBlockSpacing: true,
+    allowDataUriInImg: true
+  })
 
   return `<!DOCTYPE html>
 <html>
@@ -104,11 +277,11 @@ export function buildPrintHtmlDocument({
       th { background: #f0f0f0; font-weight: bold; }
       pre { background: #f5f5f5; border: 1px solid #e0e0e0; padding: 8pt; font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
       code { font-family: 'Courier New', monospace; font-size: 10pt; background: #f0f0f0; padding: 2pt 4pt; }
-      img { max-width: 100%; height: auto; }
+      img { max-width: 100%; height: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       a { color: #0066cc; text-decoration: underline; }
       .page-break { page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0; border: none; }
       @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body, img { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .page-break { page-break-after: always; break-after: page; height: 0; border: none; }
       }
       ${extraCss}
@@ -121,42 +294,102 @@ export function buildPrintHtmlDocument({
 </html>`
 }
 
-export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
-  const { title, htmlContent, includeTitleHeading = false, extraCss = '', targetWindow } = options
-  const safeTitleText = title || 'Document'
-  const sanitizedBodyHtml = DOMPurify.sanitize(sanitizeHtmlForExport(htmlContent), {
+const IMAGE_LOAD_TIMEOUT_MS = 15000
+
+/**
+ * Wait for all img elements in the document to load or fail so print/PDF shows pictures.
+ */
+function waitForImagesInDocument(doc: Document): Promise<void> {
+  const imgs = Array.from(doc.body.querySelectorAll('img'))
+  if (imgs.length === 0) return Promise.resolve()
+  return Promise.race([
+    Promise.all(
+      imgs.map(
+        img =>
+          new Promise<void>(resolve => {
+            if (img.complete) {
+              resolve()
+              return
+            }
+            img.onload = () => resolve()
+            img.onerror = () => resolve()
+          })
+      )
+    ).then(() => undefined),
+    new Promise<void>(resolve => setTimeout(resolve, IMAGE_LOAD_TIMEOUT_MS))
+  ])
+}
+
+/**
+ * Print document via a hidden iframe to avoid popup blockers.
+ * Waits for images to load so pictures appear in print/PDF.
+ * CWE-79: body content is sanitized with DOMPurify before building fullHtml so srcdoc/appendChild get safe input.
+ */
+function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
+  const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-    FORBID_ATTR: ['style']
+    FORBID_ATTR: [],
+    ALLOW_DATA_ATTR: true
   })
+  const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('style', 'position:absolute;width:0;height:0;border:0;visibility:hidden')
+  iframe.srcdoc = fullHtml
+  document.body.appendChild(iframe)
 
-  let printWindow: Window | null = targetWindow && !targetWindow.closed ? targetWindow : null
-  if (!printWindow) {
-    printWindow = window.open('about:blank', '_blank', 'noopener,noreferrer')
+  let printed = false
+  const doPrint = () => {
+    if (printed) return
+    printed = true
+    try {
+      iframe.contentWindow?.print()
+    } catch (error) {
+      console.error('[exportUtils] Print failed:', error)
+    } finally {
+      setTimeout(() => {
+        try {
+          if (iframe.parentNode) iframe.remove()
+        } catch {}
+      }, 1000)
+    }
   }
-  if (!printWindow) {
-    console.error('[exportUtils] Print window blocked')
-    return
+
+  const run = () => {
+    const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document
+    if (!iframeDoc) {
+      setTimeout(run, 50)
+      return
+    }
+    waitForImagesInDocument(iframeDoc).then(() => setTimeout(doPrint, 100))
   }
 
-  try {
-    const doc = printWindow.document
+  iframe.onload = () => setTimeout(run, 50)
+  setTimeout(run, 500)
+}
 
-    // Reset head/body (about:blank might already have them)
-    while (doc.head.firstChild) doc.head.removeChild(doc.head.firstChild)
-    while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild)
+export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
+  const { targetWindow } = options
+  const useExistingWindow = targetWindow && !targetWindow.closed
 
-    const metaCharset = doc.createElement('meta')
-    metaCharset.setAttribute('charset', 'utf-8')
+  if (useExistingWindow) {
+    // CWE-79: escape title before any DOM use so useState-sourced title cannot reach HTML sinks
+    const safeTitleText = escapeHtmlText(options.title || 'Document')
+    const { includeTitleHeading = false, extraCss = '' } = options
 
-    const metaReferrer = doc.createElement('meta')
-    metaReferrer.setAttribute('name', 'referrer')
-    metaReferrer.setAttribute('content', 'no-referrer')
+    try {
+      const doc = targetWindow.document
+      while (doc.head.firstChild) doc.head.removeChild(doc.head.firstChild)
+      while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild)
 
-    const titleEl = doc.createElement('title')
-    titleEl.textContent = safeTitleText
-
-    const styleEl = doc.createElement('style')
-    styleEl.textContent = `
+      const metaCharset = doc.createElement('meta')
+      metaCharset.setAttribute('charset', 'utf-8')
+      const metaReferrer = doc.createElement('meta')
+      metaReferrer.setAttribute('name', 'referrer')
+      metaReferrer.setAttribute('content', 'no-referrer')
+      const titleEl = doc.createElement('title')
+      titleEl.textContent = safeTitleText
+      const styleEl = doc.createElement('style')
+      styleEl.textContent = `
       @page { size: A4; margin: 1in; }
       body { font-family: 'Times New Roman', Georgia, serif; font-size: 12pt; line-height: 1.6; margin: 0; padding: 0; }
       h1 { font-size: 24pt; margin: 0 0 12pt 0; }
@@ -175,56 +408,55 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
       img { max-width: 100%; height: auto; }
       a { color: #0066cc; text-decoration: underline; }
       .page-break { page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0; border: none; }
-      @media print {
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .page-break { page-break-after: always; break-after: page; height: 0; border: none; }
+      @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
+      ${extraCss}`
+      doc.head.append(metaCharset, metaReferrer, titleEl, styleEl)
+      if (includeTitleHeading) {
+        const heading = doc.createElement('h1')
+        heading.textContent = safeTitleText
+        doc.body.appendChild(heading)
       }
-      ${extraCss}
-    `
+      const container = doc.createElement('div')
+      // CWE-79: assign only DOMPurify.sanitize(...) to innerHTML so SAST recognizes the known sanitizer
+      container.innerHTML = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: [],
+        ALLOW_DATA_ATTR: true
+      })
+      doc.body.appendChild(container)
 
-    doc.head.append(metaCharset, metaReferrer, titleEl, styleEl)
-
-    if (includeTitleHeading) {
-      const heading = doc.createElement('h1')
-      heading.textContent = safeTitleText
-      doc.body.appendChild(heading)
+      let printed = false
+      const doPrint = () => {
+        if (printed) return
+        printed = true
+        try {
+          targetWindow.focus()
+          targetWindow.print()
+        } catch (error) {
+          console.error('[exportUtils] Print failed:', error)
+        } finally {
+          setTimeout(() => {
+            try {
+              targetWindow.close()
+            } catch {}
+          }, 1000)
+        }
+      }
+      const run = () => {
+        waitForImagesInDocument(doc).then(() => setTimeout(doPrint, 100))
+      }
+      targetWindow.addEventListener('load', () => setTimeout(run, 50), { once: true })
+      setTimeout(run, 800)
+    } catch {
+      console.error('[exportUtils] Failed to prepare print window')
+      try {
+        targetWindow.close()
+      } catch {}
     }
-
-    const container = doc.createElement('div')
-    // Sanitized via DOMPurify above.
-    container.innerHTML = sanitizedBodyHtml
-    doc.body.appendChild(container)
-  } catch {
-    console.error('[exportUtils] Failed to prepare print window')
-    try {
-      printWindow.close()
-    } catch {}
     return
   }
 
-  const doPrint = () => {
-    try {
-      printWindow.focus()
-      printWindow.print()
-    } catch (error) {
-      console.error('[exportUtils] Print failed:', error)
-    } finally {
-      // Give the print dialog a moment to open before we clean up.
-      setTimeout(() => {
-        try {
-          printWindow.close()
-        } catch {}
-      }, 1000)
-    }
-  }
-
-  // Try to print once the new document loads, with a fallback timer.
-  try {
-    printWindow.addEventListener('load', () => setTimeout(doPrint, 50), { once: true })
-  } catch {
-    // ignore
-  }
-  setTimeout(doPrint, 800)
+  printHtmlDocumentViaIframe(options)
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -237,28 +469,130 @@ function downloadBlob(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+/** Minimum pixel size on the longer side; below this we upscale 2x for Word so images stay sharp. */
+const WORD_IMAGE_UPSCALE_THRESHOLD = 600
+/** Maximum pixel dimension for the upscaled image to avoid huge payloads. */
+const WORD_IMAGE_MAX_DIMENSION = 2400
+
+/**
+ * Convert a single data:image/... URL to PNG via canvas (for Word compatibility).
+ * If the image is small, render at 2x resolution so Word gets a sharper image.
+ */
+function dataUrlToPngForWord(dataUrl: string): Promise<{ dataUrl: string; width: number; height: number }> {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth
+        const h = img.naturalHeight
+        const maxDim = Math.max(w, h)
+        const scale = maxDim < WORD_IMAGE_UPSCALE_THRESHOLD ? Math.min(2, WORD_IMAGE_MAX_DIMENSION / maxDim) : 1
+        const outW = Math.round(w * scale)
+        const outH = Math.round(h * scale)
+        const canvas = document.createElement('canvas')
+        canvas.width = outW
+        canvas.height = outH
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve({ dataUrl, width: w, height: h })
+          return
+        }
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        ctx.drawImage(img, 0, 0, w, h, 0, 0, outW, outH)
+        resolve({
+          dataUrl: canvas.toDataURL('image/png'),
+          width: w,
+          height: h
+        })
+      } catch {
+        resolve({ dataUrl, width: img.naturalWidth, height: img.naturalHeight })
+      }
+    }
+    img.onerror = () => resolve({ dataUrl, width: 0, height: 0 })
+    img.src = dataUrl
+  })
+}
+
+/**
+ * Process all data-URL images in HTML for Word: convert to PNG, upscale small images, add width/height.
+ * Improves sharpness when the source image was low resolution (e.g. screenshots or small embeds).
+ */
+async function prepareImagesForWordExport(html: string): Promise<string> {
+  const imgDataUrlRegex = /<img([^>]*?)src\s*=\s*["'](data:image\/[^"']+)["']([^>]*)>/gi
+  const matches = [...html.matchAll(imgDataUrlRegex)]
+  if (matches.length === 0) return html
+
+  const replacements: { full: string; before: string; src: string; after: string }[] = []
+  let m: RegExpExecArray | null
+  imgDataUrlRegex.lastIndex = 0
+  while ((m = imgDataUrlRegex.exec(html)) !== null) {
+    replacements.push({
+      full: m[0],
+      before: m[1],
+      src: m[2],
+      after: m[3]
+    })
+  }
+
+  let result = html
+  for (const { full, before, src, after } of replacements) {
+    const { dataUrl, width, height } = await dataUrlToPngForWord(src)
+    const dims = width > 0 && height > 0 ? ` width="${width}" height="${height}"` : ''
+    const newTag = `<img${before}src="${dataUrl}"${dims}${after}>`
+    result = result.replace(full, newTag)
+  }
+  return result
+}
+
+/**
+ * Wrap images in Word-friendly markup and add inline styles Word respects.
+ */
+function makeWordFriendlyImages(html: string): string {
+  return html.replace(/<img([^>]*)>/gi, (_match: string, attrs: string) => {
+    const styleRe = /\sstyle\s*=\s*["']([^"']*)["']/i
+    const styleMatch = styleRe.exec(attrs)
+    const existingStyle = styleMatch ? styleMatch[1] : ''
+    const wordStyle = 'display:block;max-width:100%;height:auto;margin:0;'
+    const mergedStyle = existingStyle ? `${existingStyle};${wordStyle}` : wordStyle
+    const newAttrs = styleMatch
+      ? attrs.replace(/\sstyle\s*=\s*["'][^"']*["']/i, ` style="${mergedStyle}"`)
+      : attrs + ` style="${wordStyle}"`
+    return `<p class="MsoNormal" style="margin:10pt 0;text-align:left;"><img${newAttrs}></p>`
+  })
+}
+
 /**
  * Convert HTML content to Word-compatible markup
  */
 function htmlToWordML(html: string): string {
-  // Clean up the HTML and convert page breaks
   const content = html
-    // Convert page breaks to Word-compatible format
     .replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<br clear="all" style="page-break-after:always"/>')
-    // Clean up empty paragraphs that might interfere
     .replace(/<p><\/p>/gi, '<p>&nbsp;</p>')
+  return makeWordFriendlyImages(content)
+}
 
-  return content
+export interface ExportImageOptions {
+  getImageDataUrl?: GetImageDataUrlForExport
 }
 
 /**
  * Export document to Word format (.docx)
  *
- * Uses HTML-to-DOCX conversion with proper page break handling
+ * Uses HTML-to-DOCX conversion with proper page break handling.
+ * If getImageDataUrl is provided, images are embedded as data URLs so they display in the exported file.
  */
-export async function exportToWord(title: string, htmlContent: string): Promise<void> {
-  // Convert HTML to Word-compatible format
-  const wordContent = htmlToWordML(sanitizeHtmlForExport(htmlContent))
+export async function exportToWord(title: string, htmlContent: string, options?: ExportImageOptions): Promise<void> {
+  let content = sanitizeHtmlForExport(htmlContent, {
+    preserveBlockSpacing: true,
+    allowDataUriInImg: true
+  })
+  if (options?.getImageDataUrl) {
+    content = await embedImagesInHtml(content, options.getImageDataUrl)
+  }
+  content = await prepareImagesForWordExport(content)
+  const wordContent = htmlToWordML(content)
   const safeTitle = escapeHtmlText(title || 'Document')
 
   // Create Word document using HTML
@@ -367,11 +701,23 @@ export async function exportToWord(title: string, htmlContent: string): Promise<
  *
  * Uses browser's print to PDF functionality with proper page breaks.
  * Pass targetWindow when opening a window synchronously on user click to avoid popup blockers.
+ * If getImageDataUrl is provided, images are embedded so they display in the printed PDF.
  */
-export async function exportToPDF(title: string, htmlContent: string, targetWindow?: Window | null): Promise<void> {
-  // Convert page breaks for print/PDF
-  const pdfContent = htmlContent.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
-  printHtmlDocument({ title, htmlContent: pdfContent, targetWindow })
+export async function exportToPDF(
+  title: string,
+  htmlContent: string,
+  targetWindow?: Window | null,
+  options?: ExportImageOptions
+): Promise<void> {
+  let content = sanitizeHtmlForExport(htmlContent, {
+    preserveBlockSpacing: true,
+    allowDataUriInImg: true
+  })
+  content = content.replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<div class="page-break"></div>')
+  if (options?.getImageDataUrl) {
+    content = await embedImagesInHtml(content, options.getImageDataUrl)
+  }
+  printHtmlDocument({ title, htmlContent: content, targetWindow })
 }
 
 /**
@@ -667,13 +1013,14 @@ ${odfContent}
 /**
  * Convert HTML content to ODF XML elements.
  * Maps common HTML tags to their ODF text:* equivalents.
+ * Sanitizes input before DOM assignment to prevent DOM XSS.
  */
 function htmlToOdfXml(html: string): string {
   if (!html) return '      <text:p/>'
 
-  // Parse the HTML using a temporary DOM element
   const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
+  // CWE-79: assign only sanitized output to innerHTML to prevent DOM XSS
+  tempDiv.innerHTML = sanitizeHtmlForExport(html)
 
   const odfParts: string[] = []
   convertHtmlChildrenToOdf(tempDiv, odfParts, 6)
