@@ -741,7 +741,8 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                       currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB ||
                       currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB ||
                       currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB
-                    if (isNextScreen) {
+                    const isSubmitScreen = currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
+                    if (isNextScreen || isSubmitScreen) {
                       setIsNextLoading(true)
                     }
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
@@ -761,10 +762,18 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                 >
                   {(() => {
                     if (isNextLoading) {
+                      const submitLabel = getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:modify_expense_request.btn_submit',
+                        'Submit'
+                      )
+                      const nextLabel = getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:add_items_to_plan.submit_button',
+                        'Next'
+                      )
                       return (
                         <span className="gba:inline-flex gba:items-center gba:gap-2">
                           <Spinner size="sm" />
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
+                          {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB ? submitLabel : nextLabel}
                         </span>
                       )
                     }

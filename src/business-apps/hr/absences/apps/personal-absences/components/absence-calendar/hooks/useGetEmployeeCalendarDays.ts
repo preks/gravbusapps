@@ -27,19 +27,31 @@ export interface CalendarLikeAbsence {
   }
 }
 
-const GET_EMPLOYEE_CALENDAR_DAYS = `
-  query CalendarDays($employeeId: uuid!, $from: date!, $to: date!) {
-    EmployeeAbsenceCalendarView(
+// Query EmployeeAbsence directly so that APPROVED absences are always included.
+// EmployeeAbsenceCalendarView only exposes non-approved (pending/in-approval) rows,
+// which caused approved absences to be invisible in the calendar.
+const GET_EMPLOYEE_ABSENCES_FOR_MONTH = `
+  query CalendarAbsences($employeeId: uuid!, $from: date!, $to: date!) {
+    EmployeeAbsence(
       where: {
         employeeId: { _eq: $employeeId }
-        dayDate: { _gte: $from, _lte: $to }
+        isDeleted: { _eq: false }
+        startDate: { _lte: $to }
+        endDate: { _gte: $from }
+        status: { _nin: ["CANCELLED", "REJECTED"] }
       }
-      orderBy: [{ dayDate: asc }, { typeRef: asc }]
+      orderBy: [{ startDate: asc }]
     ) {
-      dayDate
-      typeRef
+      id
+      startDate
+      endDate
       status
-      employeeAbsenceId
+      description
+      type {
+        id
+        value
+        objectValue
+      }
     }
   }
 `
@@ -59,19 +71,23 @@ export function useGetEmployeeCalendarDays({ employeeId, accessToken, month }: U
     const lastDay = (month || dayjs()).endOf('month').format('YYYY-MM-DD')
 
     client
-      .request<{ employee_absence_calendar_view: CalendarDayRow[] }>(GET_EMPLOYEE_CALENDAR_DAYS, {
+      .request<any>(GET_EMPLOYEE_ABSENCES_FOR_MONTH, {
         employeeId,
         from: firstDay,
         to: lastDay
       })
       .then(data => {
-        const rows = (data as any)?.EmployeeAbsenceCalendarView || (data as any)?.employee_absence_calendar_view || []
-        const mapped: CalendarLikeAbsence[] = rows.map((r: any, idx: number) => ({
-          id: `${r.employeeAbsenceId || 'none'}-${r.dayDate}-${idx}`,
-          startDate: r.dayDate,
-          endDate: r.dayDate,
+        const rows = (data as any)?.EmployeeAbsence || []
+        const mapped: CalendarLikeAbsence[] = rows.map((r: any) => ({
+          id: r.id,
+          startDate: r.startDate,
+          endDate: r.endDate,
           status: r.status || undefined,
-          type: { value: r.typeRef }
+          description: r.description || '',
+          type: {
+            value: r.type?.value || r.type?.id || '',
+            objectValue: r.type?.objectValue
+          }
         }))
         setAbsences(mapped)
       })
