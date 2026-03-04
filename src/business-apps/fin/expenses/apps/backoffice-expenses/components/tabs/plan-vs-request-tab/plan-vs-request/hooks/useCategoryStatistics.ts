@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useEffect } from 'react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -7,6 +6,8 @@ import quarterOfYear from 'dayjs/plugin/quarterOfYear'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { QueryExecutionClient } from '@/common/network/dataset/QueryExecutionClient'
 import { Services } from '@/common/types/enums/Services'
+import { useLoadingErrorDataState } from './useLoadingErrorDataState'
+import { CategoryStatisticsDatasetHookParams } from './statisticsHookParams'
 
 // Initialize dayjs plugins
 dayjs.extend(weekday)
@@ -46,15 +47,8 @@ export const useCategoryStatistics = ({
   requestTypes,
   currencyRef,
   selectedDepartment
-}: BusinessAppContextProps & {
-  period: 'month' | 'quarter' | 'year'
-  requestTypes: string[]
-  currencyRef?: string
-  selectedDepartment?: string
-}) => {
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [data, setData] = useState<CategoryStatisticsData[]>([])
+}: CategoryStatisticsDatasetHookParams) => {
+  const { loading, setLoading, error, setError, data, setData } = useLoadingErrorDataState<CategoryStatisticsData[]>([])
 
   // Constant for item status values
   const ITEM_STATUS = ['PAID', 'CLOSE']

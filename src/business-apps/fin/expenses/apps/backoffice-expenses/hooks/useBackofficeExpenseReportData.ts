@@ -232,6 +232,44 @@ const getFilterValues = (
   return Array.isArray(value) ? value.map(String) : []
 }
 
+const normalizeFilterValues = (values: string[] = []): string[] =>
+  Array.from(new Set(values.map(value => String(value || '').trim()).filter(Boolean)))
+
+const buildDepartmentPredicate = (name: string) => ({
+  employeePosition: {
+    organizationalUnit: {
+      name: { _eq: name }
+    }
+  }
+})
+
+const buildAndConditions = (
+  search: string,
+  searchPredicates: Array<Record<string, unknown>>,
+  employeeFilters: string[] = [],
+  departmentFilters: string[] = [],
+  employeePredicateBuilder: (name: string) => Record<string, unknown>,
+  departmentPredicateBuilder: (name: string) => Record<string, unknown>
+) => {
+  const andConditions: Record<string, unknown>[] = []
+  if (search?.trim()) {
+    andConditions.push({ _or: searchPredicates })
+  }
+  const normalizedEmployees = normalizeFilterValues(employeeFilters)
+  if (normalizedEmployees.length > 0) {
+    andConditions.push({
+      _or: normalizedEmployees.map(name => employeePredicateBuilder(name))
+    })
+  }
+  const normalizedDepartments = normalizeFilterValues(departmentFilters)
+  if (normalizedDepartments.length > 0) {
+    andConditions.push({
+      _or: normalizedDepartments.map(name => departmentPredicateBuilder(name))
+    })
+  }
+  return andConditions
+}
+
 function mapSortingToOrderBy(selectedReportType: ReportType | null, sorting: SortingState): any[] {
   const primarySort = Array.isArray(sorting) && sorting.length > 0 ? sorting[0] : undefined
   const sortDirection = primarySort?.desc ? 'DESC' : 'ASC'
@@ -657,6 +695,36 @@ export const useBackofficeExpenseReportData = (
     [resolveDisplayName, resolveDepartmentName]
   )
 
+  const applyOverviewRows = useCallback((type: ReportType, mappedRows: ReportItem[], mappedTotalCount: number) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H3',
+        location: 'useBackofficeExpenseReportData.ts:704',
+        message: 'report-rows-applied',
+        data: {
+          type,
+          mappedRowsCount: mappedRows.length,
+          mappedTotalCount
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+    setReportData(mappedRows)
+    setReportDataType(type)
+    setTotalCount(mappedTotalCount)
+    reportCacheRef.current[type] = {
+      rows: mappedRows,
+      totalCount: mappedTotalCount
+    }
+    setError(null)
+  }, [])
+
   useEffect(() => {
     if (
       !selectedReportType ||
@@ -684,15 +752,8 @@ export const useBackofficeExpenseReportData = (
           const employeeNameById = await resolveEmployeeNamesByIds(ids)
           if (cancelled) return
           const mappedRows = mapRequestsFromOverview(rows, employeeNameById) as ReportItem[]
-          setReportData(mappedRows)
-          setReportDataType(ReportType.EXPENSE_REQUEST)
           const mappedTotalCount = overview.data?.expenseRequestsTotal || 0
-          setTotalCount(mappedTotalCount)
-          reportCacheRef.current[ReportType.EXPENSE_REQUEST] = {
-            rows: mappedRows,
-            totalCount: mappedTotalCount
-          }
-          setError(null)
+          applyOverviewRows(ReportType.EXPENSE_REQUEST, mappedRows, mappedTotalCount)
           break
         }
         case ReportType.EXPENSE_PLAN: {
@@ -703,15 +764,8 @@ export const useBackofficeExpenseReportData = (
           const employeeNameById = await resolveEmployeeNamesByIds(ids)
           if (cancelled) return
           const mappedRows = mapPlansFromOverview(rows, employeeNameById) as ReportItem[]
-          setReportData(mappedRows)
-          setReportDataType(ReportType.EXPENSE_PLAN)
           const mappedTotalCount = overview.data?.expensePlansTotal || 0
-          setTotalCount(mappedTotalCount)
-          reportCacheRef.current[ReportType.EXPENSE_PLAN] = {
-            rows: mappedRows,
-            totalCount: mappedTotalCount
-          }
-          setError(null)
+          applyOverviewRows(ReportType.EXPENSE_PLAN, mappedRows, mappedTotalCount)
           break
         }
         case ReportType.ADVANCE_PAYMENT: {
@@ -726,15 +780,8 @@ export const useBackofficeExpenseReportData = (
           const employeeNameById = await resolveEmployeeNamesByIds(ids)
           if (cancelled) return
           const mappedRows = mapPaymentsFromOverview(rows, employeeNameById) as ReportItem[]
-          setReportData(mappedRows)
-          setReportDataType(ReportType.ADVANCE_PAYMENT)
           const mappedTotalCount = overview.data?.advancePaymentsTotal || 0
-          setTotalCount(mappedTotalCount)
-          reportCacheRef.current[ReportType.ADVANCE_PAYMENT] = {
-            rows: mappedRows,
-            totalCount: mappedTotalCount
-          }
-          setError(null)
+          applyOverviewRows(ReportType.ADVANCE_PAYMENT, mappedRows, mappedTotalCount)
           break
         }
       }
@@ -752,7 +799,8 @@ export const useBackofficeExpenseReportData = (
     resolveEmployeeNamesByIds,
     mapRequestsFromOverview,
     mapPlansFromOverview,
-    mapPaymentsFromOverview
+    mapPaymentsFromOverview,
+    applyOverviewRows
   ])
 
   const buildExpenseRequestWhere = useCallback(
@@ -814,41 +862,19 @@ export const useBackofficeExpenseReportData = (
 
   const buildExpensePlanWhereForExport = useCallback(
     (search: string, employeeFilters: string[] = [], departmentFilters: string[] = []) => {
-      const normalizedEmployees = Array.from(
-        new Set(employeeFilters.map(value => String(value || '').trim()).filter(Boolean))
-      )
-      const normalizedDepartments = Array.from(
-        new Set(departmentFilters.map(value => String(value || '').trim()).filter(Boolean))
-      )
       const where: any = {
         isDeleted: { _eq: false },
         status: { _nin: ['CREATED', 'DISCARDED'] }
       }
-      const andConditions: any[] = []
-      if (search?.trim()) {
-        const searchPattern = `%${search.trim()}%`
-        andConditions.push({
-          _or: [{ code: { _ilike: searchPattern } }, { title: { _ilike: searchPattern } }]
-        })
-      }
-      if (normalizedEmployees.length > 0) {
-        andConditions.push({
-          _or: normalizedEmployees.map(name => ({ employee: { fullName: { _eq: name } } }))
-        })
-      }
-      if (normalizedDepartments.length > 0) {
-        andConditions.push({
-          _or: normalizedDepartments.map(name => ({
-            employee: {
-              employeePosition: {
-                organizationalUnit: {
-                  name: { _eq: name }
-                }
-              }
-            }
-          }))
-        })
-      }
+      const searchPattern = `%${search.trim()}%`
+      const andConditions = buildAndConditions(
+        search,
+        [{ code: { _ilike: searchPattern } }, { title: { _ilike: searchPattern } }],
+        employeeFilters,
+        departmentFilters,
+        name => ({ employee: { fullName: { _eq: name } } }),
+        name => ({ employee: buildDepartmentPredicate(name) })
+      )
       if (andConditions.length > 0) {
         where._and = andConditions
       }
@@ -859,48 +885,24 @@ export const useBackofficeExpenseReportData = (
 
   const buildAdvancePaymentWhereForExport = useCallback(
     (search: string, employeeFilters: string[] = [], departmentFilters: string[] = []) => {
-      const normalizedEmployees = Array.from(
-        new Set(employeeFilters.map(value => String(value || '').trim()).filter(Boolean))
-      )
-      const normalizedDepartments = Array.from(
-        new Set(departmentFilters.map(value => String(value || '').trim()).filter(Boolean))
-      )
       const where: any = {
         isDeleted: { _eq: false },
         status: { _nin: ['CREATED', 'DISCARDED'] }
       }
-      const andConditions: any[] = []
-      if (search?.trim()) {
-        const searchPattern = `%${search.trim()}%`
-        andConditions.push({
-          _or: [
-            { code: { _ilike: searchPattern } },
-            { description: { _ilike: searchPattern } },
-            { expensePlan: { code: { _ilike: searchPattern } } },
-            { expensePlan: { title: { _ilike: searchPattern } } }
-          ]
-        })
-      }
-      if (normalizedEmployees.length > 0) {
-        andConditions.push({
-          _or: normalizedEmployees.map(name => ({ expensePlan: { employee: { fullName: { _eq: name } } } }))
-        })
-      }
-      if (normalizedDepartments.length > 0) {
-        andConditions.push({
-          _or: normalizedDepartments.map(name => ({
-            expensePlan: {
-              employee: {
-                employeePosition: {
-                  organizationalUnit: {
-                    name: { _eq: name }
-                  }
-                }
-              }
-            }
-          }))
-        })
-      }
+      const searchPattern = `%${search.trim()}%`
+      const andConditions = buildAndConditions(
+        search,
+        [
+          { code: { _ilike: searchPattern } },
+          { description: { _ilike: searchPattern } },
+          { expensePlan: { code: { _ilike: searchPattern } } },
+          { expensePlan: { title: { _ilike: searchPattern } } }
+        ],
+        employeeFilters,
+        departmentFilters,
+        name => ({ expensePlan: { employee: { fullName: { _eq: name } } } }),
+        name => ({ expensePlan: { employee: buildDepartmentPredicate(name) } })
+      )
       if (andConditions.length > 0) {
         where._and = andConditions
       }

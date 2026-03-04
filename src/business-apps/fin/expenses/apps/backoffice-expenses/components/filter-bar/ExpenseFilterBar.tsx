@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../hooks/useFilterData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getActiveStructureDepartmentOptions } from '../../utils/departmentOptions'
 
 export interface FilterOptions {
   department?: string
@@ -37,7 +38,7 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
 }) => {
   // ⚡ PERFORMANCE: Use filter data from parent if provided, otherwise fetch locally
   // Parent (Dashboard) now ensures this component only renders with valid accessToken
-  const localFilterData = useFilterData({ accessToken })
+  const localFilterData = useFilterData({ accessToken: propsFilterData ? null : accessToken })
   const filterData = propsFilterData || localFilterData
   const { organizationalUnits, currencies, loading: filterDataLoading } = filterData
 
@@ -51,6 +52,40 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
 
   // Use parent's filters if provided, otherwise use internal state
   const filters = currentFilters || internalFilters
+  const [departmentSearch, setDepartmentSearch] = useState('')
+  const departmentOptions = useMemo(
+    () => getActiveStructureDepartmentOptions(organizationalUnits),
+    [organizationalUnits]
+  )
+  const filteredOrganizationalUnits = useMemo(() => {
+    const query = departmentSearch.trim().toLowerCase()
+    if (!query) return departmentOptions
+    return departmentOptions.filter(unit => {
+      const name = String(unit.name || '').toLowerCase()
+      return name.includes(query)
+    })
+  }, [departmentSearch, departmentOptions])
+
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H12',
+        location: 'ExpenseFilterBar.tsx:58',
+        message: 'expense-filter-bar-department-options-ready',
+        data: {
+          organizationalUnitsCount: organizationalUnits.length,
+          filterDataLoading
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [organizationalUnits.length, filterDataLoading])
 
   // ⚡ REMOVED: Automatic currency setting to prevent override of user selections
   // The dashboard will handle all currency initialization
@@ -101,12 +136,15 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
         {/* Department Filter */}
         <div className="gba:relative gba:flex gba:items-center">
           <Select
-            value={filters.department || ''}
-            onValueChange={value => handleFilterChange('department', value)}
+            value={filters.department || 'all'}
+            onValueChange={value => {
+              handleFilterChange('department', value)
+              setDepartmentSearch('')
+            }}
             disabled={filterDataLoading}
             data-testid="department-filter-select"
           >
-            <SelectTrigger className="gba:w-[180px] gba:border-border">
+            <SelectTrigger className="gba:w-[220px] gba:border-border">
               <SelectValue
                 placeholder={
                   filterDataLoading
@@ -119,15 +157,28 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
               />
             </SelectTrigger>
             <SelectContent>
+              <div className="gba:p-2">
+                <input
+                  type="text"
+                  value={departmentSearch}
+                  onChange={event => setDepartmentSearch(event.target.value)}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:team_expenses_page.dashboard_tab.search_departments',
+                    'Search departments...'
+                  )}
+                  className="gba:w-full gba:h-8 gba:rounded gba:border gba:border-input gba:px-2 gba:text-sm"
+                  data-testid="department-filter-search-input"
+                />
+              </div>
               <SelectItem value="all" data-testid="department-filter-option-all">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_request_list.expense_request_filter.all_departments',
                   'All Departments'
                 )}
               </SelectItem>
-              {organizationalUnits.map(orgUnit => (
+              {filteredOrganizationalUnits.map(orgUnit => (
                 <SelectItem key={orgUnit.id} value={orgUnit.id} data-testid={`department-filter-option-${orgUnit.id}`}>
-                  {orgUnit.displayName || orgUnit.name}
+                  {orgUnit.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -136,7 +187,10 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => clearFilter('department')}
+              onClick={() => {
+                clearFilter('department')
+                setDepartmentSearch('')
+              }}
               className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
               data-testid="clear-department-filter"
             >

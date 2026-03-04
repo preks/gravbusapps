@@ -42,10 +42,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     period: 'monthly'
   })
 
-  const [isCurrencyLoading, setIsCurrencyLoading] = useState(false)
   const [hasUserSelectedCurrency, setHasUserSelectedCurrency] = useState(false)
-
-  const [currencyDebounceTimer, setCurrencyDebounceTimer] = useState<NodeJS.Timeout | null>(null)
+  const [hasLoadedStatsOnce, setHasLoadedStatsOnce] = useState(false)
 
   // Update currency when mostUsedCurrency is loaded (only if user hasn't manually selected one yet)
   useEffect(() => {
@@ -63,14 +61,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     filters: currentFilters,
     isActive
   })
-
-  React.useEffect(() => {
-    return () => {
-      if (currencyDebounceTimer) {
-        clearTimeout(currencyDebounceTimer)
-      }
-    }
-  }, [currencyDebounceTimer])
 
   const getTranslatedQuarter = (quarterNumber: number): string => {
     return getTranslationFromI18nKeyAndLabel(`lowcoder:cards.quarter_${quarterNumber}`, `Q${quarterNumber}`)
@@ -463,31 +453,65 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
 
   // Removed testing-only CSV export function (no longer used)
 
-  // Handle filter changes and update dashboard stats with debouncing
+  // Handle filter changes and update dashboard stats immediately
   const handleFiltersChange = (newFilters: FilterOptions) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H5',
+        location: 'ExpenseDashboardTab.tsx:470',
+        message: 'dashboard-filters-change',
+        data: {
+          previousCurrency: currentFilters.currency,
+          nextCurrency: newFilters.currency,
+          currencyChanged: newFilters.currency !== currentFilters.currency,
+          department: newFilters.department || '',
+          period: newFilters.period,
+          departmentOptionsCount: filterData.organizationalUnits.length
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
     // Mark that user has manually selected a currency (prevent auto-update)
     if (newFilters.currency !== currentFilters.currency) {
       setHasUserSelectedCurrency(true)
-      setIsCurrencyLoading(true)
-
-      if (currencyDebounceTimer) {
-        clearTimeout(currencyDebounceTimer)
-      }
-
-      const newTimer = setTimeout(() => {
-        setCurrentFilters(newFilters)
-        setIsCurrencyLoading(false)
-        setCurrencyDebounceTimer(null)
-      }, 500) // Increased delay to 500ms
-
-      setCurrencyDebounceTimer(newTimer)
-    } else {
-      // For non-currency changes, update immediately
-      setCurrentFilters(newFilters)
     }
+    setCurrentFilters(newFilters)
   }
 
-  const isRefreshing = loading && !isCurrencyLoading
+  useEffect(() => {
+    if (!loading) {
+      setHasLoadedStatsOnce(true)
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H15',
+        location: 'ExpenseDashboardTab.tsx:503',
+        message: 'dashboard-loading-state-changed',
+        data: {
+          loading,
+          hasLoadedStatsOnce,
+          currentCurrency: currentFilters.currency || '',
+          currentDepartment: currentFilters.department || '',
+          currentPeriod: currentFilters.period || 'monthly'
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [loading, hasLoadedStatsOnce, currentFilters.currency, currentFilters.department, currentFilters.period])
+
+  const isRefreshing = loading && hasLoadedStatsOnce
   const quickActions = useMemo(
     () => [
       {

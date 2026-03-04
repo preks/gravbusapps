@@ -29,6 +29,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import CurrencyFilter from '../../../manager-expenses/components/currency-filter'
 import { useFilterData } from '../../hooks/useFilterData'
+import { getActiveStructureDepartmentOptions } from '../../utils/departmentOptions'
 
 type BackofficeTeamSpendingAnalyticsPageProps = BusinessAppContextProps
 
@@ -50,13 +51,28 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
   })
 
   const dashboardDepartmentOptions = React.useMemo(() => {
-    return organizationalUnits
-      .map(organizationalUnit => ({
-        id: organizationalUnit.id,
-        name: organizationalUnit.displayName || organizationalUnit.name
-      }))
-      .filter(department => department.id && department.name)
+    return getActiveStructureDepartmentOptions(organizationalUnits)
   }, [organizationalUnits])
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H2',
+        location: 'BackofficeTeamSpendingAnalyticsPage.tsx:61',
+        message: 'analytics-department-options-built',
+        data: {
+          organizationalUnitsCount: organizationalUnits.length,
+          dashboardDepartmentOptionsCount: dashboardDepartmentOptions.length
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [organizationalUnits.length, dashboardDepartmentOptions.length])
 
   const {
     isLoading,
@@ -404,6 +420,57 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
     </div>
   )
 
+  const renderFilterChecklist = (
+    label: string,
+    searchPlaceholder: string,
+    searchValue: string,
+    onSearchChange: (value: string) => void,
+    searchInputTestId: string,
+    listTestId: string,
+    emptyTestId: string,
+    emptyLabel: string,
+    rows: Array<{ id: string; name: string; selected: boolean }>,
+    checkboxTestPrefix: string,
+    onToggle: (id: string) => void
+  ) => (
+    <div className="gba:space-y-4">
+      <Label className="gba:text-sm gba:font-semibold gba:text-foreground">{label}</Label>
+      <div className="gba:relative">
+        <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+        <DebouncedInput
+          placeholder={searchPlaceholder}
+          value={searchValue}
+          onChange={onSearchChange}
+          className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
+          data-testid={searchInputTestId}
+        />
+      </div>
+      <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2" data-testid={listTestId}>
+        {rows.map(row => (
+          <div
+            key={row.id}
+            className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors"
+          >
+            <Checkbox
+              id={row.id}
+              checked={row.selected}
+              onCheckedChange={() => onToggle(row.id)}
+              data-testid={`${checkboxTestPrefix}${row.id}`}
+            />
+            <Label htmlFor={row.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">
+              {row.name}
+            </Label>
+          </div>
+        ))}
+        {rows.length === 0 && (
+          <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2" data-testid={emptyTestId}>
+            {emptyLabel}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
   const renderFilters = () => (
     <Card className="gba:sticky gba:top-6" data-testid="backoffice-analytics-filters-card">
       <CardHeader className="gba:pb-4">
@@ -469,59 +536,28 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
 
         <Separator className="gba:my-6" />
 
-        <div className="gba:space-y-4">
-          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.location_filters',
-              'Location Filters'
-            )}
-          </Label>
-          <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-            <DebouncedInput
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.search_locations',
-                'Search locations...'
-              )}
-              value={searchTerm}
-              onChange={val => setSearchTerm(val)}
-              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
-              data-testid="backoffice-analytics-location-search-input"
-            />
-          </div>
-          <div
-            className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2"
-            data-testid="backoffice-analytics-location-filters-list"
-          >
-            {locationFilters.map(location => (
-              <div
-                key={location.id}
-                className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors"
-              >
-                <Checkbox
-                  id={location.id}
-                  checked={location.selected}
-                  onCheckedChange={() => toggleLocationFilter(location.id)}
-                  data-testid={`backoffice-analytics-location-checkbox-${location.id}`}
-                />
-                <Label htmlFor={location.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">
-                  {location.name}
-                </Label>
-              </div>
-            ))}
-            {locationFilters.length === 0 && (
-              <div
-                className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2"
-                data-testid="backoffice-analytics-location-filters-empty"
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.no_locations_available',
-                  'No locations available'
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        {renderFilterChecklist(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.location_filters',
+            'Location Filters'
+          ),
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.search_locations',
+            'Search locations...'
+          ),
+          searchTerm,
+          val => setSearchTerm(val),
+          'backoffice-analytics-location-search-input',
+          'backoffice-analytics-location-filters-list',
+          'backoffice-analytics-location-filters-empty',
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.no_locations_available',
+            'No locations available'
+          ),
+          locationFilters,
+          'backoffice-analytics-location-checkbox-',
+          toggleLocationFilter
+        )}
 
         <Separator className="gba:my-6" />
 
@@ -545,65 +581,71 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
 
         <Separator className="gba:my-6" />
 
-        <div className="gba:space-y-4">
-          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.department_filters',
-              'Department Filters'
-            )}
-          </Label>
-          <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-            <DebouncedInput
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.search_departments',
-                'Search departments...'
-              )}
-              value={departmentSearchTerm}
-              onChange={val => setDepartmentSearchTerm(val)}
-              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
-              data-testid="backoffice-analytics-department-search-input"
-            />
-          </div>
-          <div
-            className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2"
-            data-testid="backoffice-analytics-department-filters-list"
-          >
-            {departmentFilters.map(department => (
-              <div
-                key={department.id}
-                className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors"
-              >
-                <Checkbox
-                  id={department.id}
-                  checked={department.selected}
-                  onCheckedChange={() => toggleDepartmentFilter(department.id)}
-                  data-testid={`backoffice-analytics-department-checkbox-${department.id}`}
-                />
-                <Label
-                  htmlFor={department.id}
-                  className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1"
-                >
-                  {department.name}
-                </Label>
-              </div>
-            ))}
-            {departmentFilters.length === 0 && (
-              <div
-                className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2"
-                data-testid="backoffice-analytics-department-filters-empty"
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.no_departments_found',
-                  'No departments found'
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        {renderFilterChecklist(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.department_filters',
+            'Department Filters'
+          ),
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.search_departments',
+            'Search departments...'
+          ),
+          departmentSearchTerm,
+          val => setDepartmentSearchTerm(val),
+          'backoffice-analytics-department-search-input',
+          'backoffice-analytics-department-filters-list',
+          'backoffice-analytics-department-filters-empty',
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.no_departments_found',
+            'No departments found'
+          ),
+          departmentFilters,
+          'backoffice-analytics-department-checkbox-',
+          toggleDepartmentFilter
+        )}
       </CardContent>
     </Card>
   )
+
+  const tabDefinitions = [
+    {
+      value: 'expense-items',
+      triggerTestId: 'backoffice-analytics-tab-expense-items',
+      contentTestId: 'backoffice-analytics-tab-content-expense-items',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items'),
+      render: renderExpenseItemsTab
+    },
+    {
+      value: 'expense-requests',
+      triggerTestId: 'backoffice-analytics-tab-expense-requests',
+      contentTestId: 'backoffice-analytics-tab-content-expense-requests',
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:employee_list.flows_button.expense_requests',
+        'Expense Requests'
+      ),
+      render: renderExpenseRequestsTab
+    },
+    {
+      value: 'expense-plans',
+      triggerTestId: 'backoffice-analytics-tab-expense-plans',
+      contentTestId: 'backoffice-analytics-tab-content-expense-plans',
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+        'Expense Plans'
+      ),
+      render: renderExpensePlansTab
+    },
+    {
+      value: 'advance-payments',
+      triggerTestId: 'backoffice-analytics-tab-advance-payments',
+      contentTestId: 'backoffice-analytics-tab-content-advance-payments',
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:backoffice_expense_landing_page.advance_title',
+        'Advance Payments'
+      ),
+      render: renderAdvancePaymentsTab
+    }
+  ]
 
   return (
     <div data-testid="backoffice-team-spending-analytics-page-container">
@@ -658,84 +700,28 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
                 data-testid="backoffice-analytics-tabs"
               >
                 <TabsList className="gba:grid gba:w-full gba:grid-cols-4" data-testid="backoffice-analytics-tabs-list">
-                  <TabsTrigger value="expense-items" data-testid="backoffice-analytics-tab-expense-items">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items')}
-                  </TabsTrigger>
-                  <TabsTrigger value="expense-requests" data-testid="backoffice-analytics-tab-expense-requests">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_list.flows_button.expense_requests',
-                      'Expense Requests'
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="expense-plans" data-testid="backoffice-analytics-tab-expense-plans">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-                      'Expense Plans'
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="advance-payments" data-testid="backoffice-analytics-tab-advance-payments">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:backoffice_expense_landing_page.advance_title',
-                      'Advance Payments'
-                    )}
-                  </TabsTrigger>
+                  {tabDefinitions.map(tab => (
+                    <TabsTrigger key={tab.value} value={tab.value} data-testid={tab.triggerTestId}>
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
-
-                <TabsContent
-                  value="expense-items"
-                  className="gba:space-y-6 gba:mt-6"
-                  data-testid="backoffice-analytics-tab-content-expense-items"
-                >
-                  {isLoading ? (
-                    <div className="gba:flex gba:justify-center gba:p-8">
-                      <Spinner data-testid="backoffice-loading-spinner" />
-                    </div>
-                  ) : (
-                    renderExpenseItemsTab()
-                  )}
-                </TabsContent>
-
-                <TabsContent
-                  value="expense-requests"
-                  className="gba:space-y-6 gba:mt-6"
-                  data-testid="backoffice-analytics-tab-content-expense-requests"
-                >
-                  {isLoading ? (
-                    <div className="gba:flex gba:justify-center gba:p-8">
-                      <Spinner data-testid="backoffice-loading-spinner" />
-                    </div>
-                  ) : (
-                    renderExpenseRequestsTab()
-                  )}
-                </TabsContent>
-
-                <TabsContent
-                  value="expense-plans"
-                  className="gba:space-y-6 gba:mt-6"
-                  data-testid="backoffice-analytics-tab-content-expense-plans"
-                >
-                  {isLoading ? (
-                    <div className="gba:flex gba:justify-center gba:p-8">
-                      <Spinner data-testid="backoffice-loading-spinner" />
-                    </div>
-                  ) : (
-                    renderExpensePlansTab()
-                  )}
-                </TabsContent>
-
-                <TabsContent
-                  value="advance-payments"
-                  className="gba:space-y-6 gba:mt-6"
-                  data-testid="backoffice-analytics-tab-content-advance-payments"
-                >
-                  {isLoading ? (
-                    <div className="gba:flex gba:justify-center gba:p-8">
-                      <Spinner data-testid="backoffice-loading-spinner" />
-                    </div>
-                  ) : (
-                    renderAdvancePaymentsTab()
-                  )}
-                </TabsContent>
+                {tabDefinitions.map(tab => (
+                  <TabsContent
+                    key={tab.value}
+                    value={tab.value}
+                    className="gba:space-y-6 gba:mt-6"
+                    data-testid={tab.contentTestId}
+                  >
+                    {isLoading ? (
+                      <div className="gba:flex gba:justify-center gba:p-8">
+                        <Spinner data-testid="backoffice-loading-spinner" />
+                      </div>
+                    ) : activeTab !== tab.value ? null : (
+                      tab.render()
+                    )}
+                  </TabsContent>
+                ))}
               </Tabs>
             )}
           </div>

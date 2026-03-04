@@ -25,6 +25,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Input,
   Separator,
   Badge,
   Card,
@@ -50,6 +51,7 @@ import TravelOrderAttachmentPreview from '../../../../../common/components/Trave
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
+import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
 
 import {
   ExpenseRequestPdfModal,
@@ -238,6 +240,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   // Selected filter chips to display above the table (DataContainer)
   const [departmentId, setDepartmentId] = useState<string>('')
+  const [departmentSearch, setDepartmentSearch] = useState<string>('')
   const [currencyRef, setCurrencyRef] = useState<string>('')
   // Date range filters - matching manager/personal expenses pattern
   const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
@@ -255,11 +258,43 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   // Use propsFilterData if it has valid organizationalUnits, otherwise fall back to localFilterData
   const filterData = (propsFilterData?.organizationalUnits?.length ?? 0) > 0 ? propsFilterData : localFilterData
   const { organizationalUnits = [], currencies = [] } = filterData || {}
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H7',
+        location: 'ExpenseRequestsTable.tsx:261',
+        message: 'expense-requests-filter-data-ready',
+        data: {
+          organizationalUnitsCount: organizationalUnits.length,
+          currenciesCount: currencies.length,
+          usingPropsFilterData: (propsFilterData?.organizationalUnits?.length ?? 0) > 0
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [organizationalUnits.length, currencies.length, propsFilterData])
+
+  const departmentOptions = useMemo(
+    () => getActiveStructureDepartmentOptions(organizationalUnits || []),
+    [organizationalUnits]
+  )
+
+  const filteredDepartmentOptions = useMemo(() => {
+    const query = departmentSearch.trim().toLowerCase()
+    if (!query) return departmentOptions
+    return departmentOptions.filter(option => option.name.toLowerCase().includes(query))
+  }, [departmentSearch, departmentOptions])
 
   const selectedDepartmentName = useMemo(() => {
-    const found = (organizationalUnits || []).find(ou => ou.id === departmentId)
+    const found = departmentOptions.find(ou => ou.id === departmentId)
     return found?.name || ''
-  }, [organizationalUnits, departmentId])
+  }, [departmentOptions, departmentId])
 
   const selectedFilters: string[] = useMemo(() => {
     return [
@@ -295,6 +330,35 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
     return hasSearch || selectedFilters.length > 0
   }, [searchText, selectedFilters])
+  const wasActiveRef = useRef<boolean>(isActive)
+  useEffect(() => {
+    const becameActive = isActive && !wasActiveRef.current
+    if (becameActive) {
+      const hasAnySelectedFilters = selectedFilters.length > 0 || (searchText || '').trim() !== ''
+      if (!hasAnySelectedFilters) {
+        setStatusFilter(['BOOKED'])
+        handleStatusFilter('BOOKED')
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+          body: JSON.stringify({
+            sessionId: '92864d',
+            runId: 'pre-fix',
+            hypothesisId: 'H18',
+            location: 'ExpenseRequestsTable.tsx:328',
+            message: 'expense-requests-default-status-restored-on-reactivate',
+            data: {
+              restoredStatus: 'BOOKED'
+            },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+      }
+    }
+    wasActiveRef.current = isActive
+  }, [isActive, selectedFilters.length, searchText, setStatusFilter, handleStatusFilter])
 
   useEffect(() => {
     // Mirror personal expenses: use a fixed enum list for statuses
@@ -584,13 +648,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         customComponent: (
           <div className="gba:w-full">
             <Select
-              onValueChange={val => {
-                setDepartmentId(val)
-                handleDepartmentFilter(val)
+              value={departmentId || 'all'}
+              onValueChange={value => {
+                const nextDepartmentId = value === 'all' ? '' : value
+                setDepartmentId(nextDepartmentId)
+                handleDepartmentFilter(nextDepartmentId)
+                setDepartmentSearch('')
               }}
-              value={departmentId}
+              data-testid="expense-requests-department-select"
             >
-              <SelectTrigger data-testid="expense-requests-department-select">
+              <SelectTrigger className="gba:border-border">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:backoffice_expense_landing_page.department_placeholder',
@@ -599,9 +666,31 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 />
               </SelectTrigger>
               <SelectContent>
-                {(organizationalUnits || []).map(ou => (
-                  <SelectItem key={ou.id} value={ou.id} data-testid={`expense-requests-department-option-${ou.id}`}>
-                    {ou.name}
+                <div className="gba:p-2">
+                  <Input
+                    value={departmentSearch}
+                    onChange={event => setDepartmentSearch(event.target.value)}
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:team_expenses_page.dashboard_tab.search_departments',
+                      'Search departments...'
+                    )}
+                    className="gba:w-full gba:h-8 gba:rounded gba:border gba:border-input gba:px-2 gba:text-sm"
+                    data-testid="expense-requests-department-search-input"
+                  />
+                </div>
+                <SelectItem value="all" data-testid="expense-requests-department-option-all">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_request_list.expense_request_filter.all_departments',
+                    'All Departments'
+                  )}
+                </SelectItem>
+                {filteredDepartmentOptions.map(option => (
+                  <SelectItem
+                    key={option.id}
+                    value={option.id}
+                    data-testid={`expense-requests-department-option-${option.id}`}
+                  >
+                    {option.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1375,11 +1464,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     setEmployeeFilter('')
     setSelectedEmployees([])
     setEmployeeSearchText('')
+    setShowEmployeeDropdown(false)
     setStatusFilter([])
+    setRequestTypeFilterLocal([])
     setLocalAmountMin('')
     setLocalAmountMax('')
     setDepartmentId('')
     setCurrencyRef('')
+    setEffectiveDateRange(null)
+    setRequestDateRange(null)
     setStartFrom(undefined)
     setStartTo(undefined)
     setEndFrom(undefined)
@@ -1387,17 +1480,53 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
     handleEmployeeFilter('')
     handleStatusFilter('')
+    setRequestTypeFilter([])
     handleAmountFilter('', '')
     handleDepartmentFilter('')
     handleCurrencyFilter('')
+    setEffectiveDateRangeFilter(null)
+    setRequestDateRangeFilter(null)
     handleStartDateRangeFilter('', '')
     handleEndDateRangeFilter('', '')
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H16',
+        location: 'ExpenseRequestsTable.tsx:1423',
+        message: 'expense-requests-clear-all-via-filter-sidebar',
+        data: {
+          hadEmployeeFilter: Boolean(employeeFilter || selectedEmployees.length > 0),
+          hadStatusFilter: statusFilter.length > 0,
+          hadRequestTypeFilter: requestTypeFilterLocal.length > 0,
+          hadDateFilters: Boolean(effectiveDateRange || requestDateRange || startFrom || startTo || endFrom || endTo)
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
   }, [
+    employeeFilter,
+    selectedEmployees.length,
+    statusFilter.length,
+    requestTypeFilterLocal.length,
+    effectiveDateRange,
+    requestDateRange,
+    startFrom,
+    startTo,
+    endFrom,
+    endTo,
     handleEmployeeFilter,
     handleStatusFilter,
+    setRequestTypeFilter,
     handleAmountFilter,
     handleDepartmentFilter,
     handleCurrencyFilter,
+    setEffectiveDateRangeFilter,
+    setRequestDateRangeFilter,
     handleStartDateRangeFilter,
     handleEndDateRangeFilter
   ])
@@ -1741,6 +1870,54 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           ),
           filter: selectedFilters,
           setFilter: (newFilters: string[]): void => {
+            if (newFilters.length === 0) {
+              setStatusFilter([])
+              setRequestTypeFilterLocal([])
+              setCurrencyRef('')
+              setDepartmentId('')
+              setSelectedEmployees([])
+              setEmployeeFilter('')
+              setEmployeeSearchText('')
+              setShowEmployeeDropdown(false)
+              setLocalAmountMin('')
+              setLocalAmountMax('')
+              setEffectiveDateRange(null)
+              setRequestDateRange(null)
+              setStartFrom(undefined)
+              setStartTo(undefined)
+              setEndFrom(undefined)
+              setEndTo(undefined)
+              handleStatusFilter('')
+              setRequestTypeFilter([])
+              handleCurrencyFilter('')
+              handleDepartmentFilter('')
+              handleEmployeeFilter('')
+              handleAmountFilter('', '')
+              setEffectiveDateRangeFilter(null)
+              setRequestDateRangeFilter(null)
+              handleStartDateRangeFilter('', '')
+              handleEndDateRangeFilter('', '')
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+                body: JSON.stringify({
+                  sessionId: '92864d',
+                  runId: 'pre-fix',
+                  hypothesisId: 'H11',
+                  location: 'ExpenseRequestsTable.tsx:1794',
+                  message: 'expense-requests-clear-all-applied',
+                  data: {
+                    hadEmployeeSelection: selectedEmployees.length > 0 || Boolean(employeeFilter),
+                    hadDepartmentFilter: Boolean(departmentId),
+                    hadStatusFilter: statusFilter.length > 0
+                  },
+                  timestamp: Date.now()
+                })
+              }).catch(() => {})
+              // #endregion
+              return
+            }
             // Constants for filter type identification
             const DATE_RANGE_FILTERS = new Set(['effectiveDateRange', 'requestDateRange', 'startDate', 'endDate'])
             const isCurrencyFilter = (f: string) => f.startsWith('currency:')

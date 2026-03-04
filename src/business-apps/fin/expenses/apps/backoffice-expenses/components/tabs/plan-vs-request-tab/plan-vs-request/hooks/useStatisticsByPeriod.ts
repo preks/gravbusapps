@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -11,6 +10,8 @@ import {
   generateQuarterlyExpenseStatisticsQuery,
   QueryWithVariables
 } from '../queries/getStatisticsByPeriod'
+import { useLoadingErrorDataState } from './useLoadingErrorDataState'
+import { PeriodStatisticsHookParams } from './statisticsHookParams'
 
 // Initialize dayjs plugins
 dayjs.extend(weekday)
@@ -38,6 +39,13 @@ interface DateRange {
   startDate: string
   endDate: string
   currentQuarter?: number
+}
+
+const extractMonthTotals = (response: Record<string, any>, month: number) => {
+  return {
+    monthPlanTotal: response[`plan_month_${month}`]?.aggregate?.sum?.totalAmount || 0,
+    monthRequestTotal: response[`request_month_${month}`]?.aggregate?.sum?.reimbursableAmount || 0
+  }
 }
 
 const calculateDateRange = (period: 'month' | 'quarter' | 'year'): DateRange => {
@@ -93,15 +101,8 @@ export const useStatisticsByPeriod = ({
   currencyRef,
   selectedDepartment,
   isActive = true // ⚡ PERFORMANCE: Only fetch when active
-}: BusinessAppContextProps & {
-  period: 'month' | 'quarter' | 'year'
-  currencyRef?: string
-  selectedDepartment?: string
-  isActive?: boolean
-}) => {
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [data, setData] = useState<PeriodStatisticsData>({
+}: PeriodStatisticsHookParams) => {
+  const { loading, setLoading, error, setError, data, setData } = useLoadingErrorDataState<PeriodStatisticsData>({
     expensePlanTotal: 0,
     expenseRequestTotal: 0
   })
@@ -199,8 +200,7 @@ export const useStatisticsByPeriod = ({
           const monthDate = dayjs().year(year).month(month)
           const monthName = monthDate.format('MMM') // Short month name
 
-          const monthPlanTotal = response[`plan_month_${month}`]?.aggregate?.sum?.totalAmount || 0
-          const monthRequestTotal = response[`request_month_${month}`]?.aggregate?.sum?.reimbursableAmount || 0
+          const { monthPlanTotal, monthRequestTotal } = extractMonthTotals(response, month)
 
           yearTotalPlan += monthPlanTotal
           yearTotalRequest += monthRequestTotal
@@ -260,8 +260,7 @@ export const useStatisticsByPeriod = ({
           const monthDate = dayjs().year(year).month(month)
           const monthName = monthDate.format('MMM') // Short month name
 
-          const monthPlanTotal = response[`plan_month_${month}`]?.aggregate?.sum?.totalAmount || 0
-          const monthRequestTotal = response[`request_month_${month}`]?.aggregate?.sum?.reimbursableAmount || 0
+          const { monthPlanTotal, monthRequestTotal } = extractMonthTotals(response, month)
 
           quarterTotalPlan += monthPlanTotal
           quarterTotalRequest += monthRequestTotal

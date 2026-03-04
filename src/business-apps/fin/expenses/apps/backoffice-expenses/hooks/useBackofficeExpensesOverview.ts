@@ -103,9 +103,7 @@ export interface UseBackofficeExpensesOverviewReturn {
   refetch: () => Promise<void>
 }
 
-const DEFAULT_REQ_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_PLAN_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_PAY_ORDER: any[] = [{ createdAt: 'DESC' }]
+const DEFAULT_OVERVIEW_ORDER: any[] = [{ createdAt: 'DESC' }]
 
 function buildStatusWhere(statuses?: string[]): GqlBoolExp {
   const excludedStatuses = ['CREATED', 'DISCARDED']
@@ -119,14 +117,44 @@ function buildStatusWhere(statuses?: string[]): GqlBoolExp {
   return { status: { _nin: excludedStatuses } } as unknown as GqlBoolExp
 }
 
+const DEFAULT_EXCLUDED_STATUSES = ['CREATED', 'DISCARDED'] as const
+
 function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
-  const excluded: readonly string[] = Array.isArray(exclude) && exclude.length > 0 ? exclude : ['CREATED', 'DISCARDED']
+  const excluded = new Set(
+    Array.isArray(exclude) && exclude.length > 0 ? exclude.filter(Boolean) : DEFAULT_EXCLUDED_STATUSES
+  )
   const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
-  const allowed = selected.filter(s => !excluded.includes(s))
-  if (allowed.length > 0) {
-    return { status: { _in: allowed } } as unknown as GqlBoolExp
-  }
-  return { status: { _nin: excluded } } as unknown as GqlBoolExp
+  const allowed = selected.filter(status => !excluded.has(status))
+  if (allowed.length > 0) return { status: { _in: allowed } } as unknown as GqlBoolExp
+  return { status: { _nin: Array.from(excluded) } } as unknown as GqlBoolExp
+}
+
+function buildBackofficeOverviewDependencies(params: UseBackofficeExpensesOverviewParams): unknown[] {
+  const dateRangePairs: Array<{ from?: string | null; to?: string | null } | null | undefined> = [
+    params.plansEffectiveDateRange,
+    params.plansStartDateRange,
+    params.plansEndDateRange,
+    params.plansPlanDateRange,
+    params.requestsEffectiveDateRange,
+    params.requestsRequestDateRange,
+    params.requestsStartDateRange,
+    params.requestsEndDateRange
+  ]
+  return [
+    ...buildOverviewCoreDependencies(params),
+    JSON.stringify(params.requestsEmployeeNames || []),
+    JSON.stringify(params.plansEmployeeNames || []),
+    JSON.stringify(params.paymentsEmployeeNames || []),
+    JSON.stringify(params.requestsDepartmentNames || []),
+    JSON.stringify(params.plansDepartmentNames || []),
+    JSON.stringify(params.paymentsDepartmentNames || []),
+    ...dateRangePairs.flatMap(range => [range?.from, range?.to]),
+    JSON.stringify(params.plansTypeFilter || []),
+    JSON.stringify(params.requestsTypeFilter || []),
+    params.includeRequests,
+    params.includePlans,
+    params.includePayments
+  ]
 }
 
 function normalizeNames(names: string[] | undefined): string[] {
@@ -180,9 +208,9 @@ function combineWithAnd(baseWhere: GqlBoolExp, extraWhere: GqlBoolExp): GqlBoolE
 
 function buildBackofficeOverviewVariables(params: UseBackofficeExpensesOverviewParams): Record<string, unknown> {
   const baseVariables = buildOverviewBaseVariables(params, {
-    reqOrder: DEFAULT_REQ_ORDER,
-    planOrder: DEFAULT_PLAN_ORDER,
-    payOrder: DEFAULT_PAY_ORDER
+    reqOrder: DEFAULT_OVERVIEW_ORDER,
+    planOrder: DEFAULT_OVERVIEW_ORDER,
+    payOrder: DEFAULT_OVERVIEW_ORDER
   })
 
   return {
@@ -295,39 +323,8 @@ export const useBackofficeExpensesOverview = (
   const [state, setState] = useState<BackofficeExpensesOverviewState | null>(null)
   const latestSignatureRef = useRef<string>('')
 
-  const variables = useMemo(
-    () => buildBackofficeOverviewVariables(params),
-    [
-      ...buildOverviewCoreDependencies(params),
-      JSON.stringify(params.requestsEmployeeNames || []),
-      JSON.stringify(params.plansEmployeeNames || []),
-      JSON.stringify(params.paymentsEmployeeNames || []),
-      JSON.stringify(params.requestsDepartmentNames || []),
-      JSON.stringify(params.plansDepartmentNames || []),
-      JSON.stringify(params.paymentsDepartmentNames || []),
-      params.plansEffectiveDateRange?.from,
-      params.plansEffectiveDateRange?.to,
-      params.plansStartDateRange?.from,
-      params.plansStartDateRange?.to,
-      params.plansEndDateRange?.from,
-      params.plansEndDateRange?.to,
-      params.plansPlanDateRange?.from,
-      params.plansPlanDateRange?.to,
-      JSON.stringify(params.plansTypeFilter || []),
-      params.requestsEffectiveDateRange?.from,
-      params.requestsEffectiveDateRange?.to,
-      params.requestsRequestDateRange?.from,
-      params.requestsRequestDateRange?.to,
-      params.requestsStartDateRange?.from,
-      params.requestsStartDateRange?.to,
-      params.requestsEndDateRange?.from,
-      params.requestsEndDateRange?.to,
-      JSON.stringify(params.requestsTypeFilter || []),
-      params.includeRequests,
-      params.includePlans,
-      params.includePayments
-    ]
-  )
+  const dependencies = useMemo(() => buildBackofficeOverviewDependencies(params), [params])
+  const variables = useMemo(() => buildBackofficeOverviewVariables(params), dependencies)
 
   const run = useCallback(async () => {
     if (!context.accessToken) return

@@ -8,6 +8,17 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 const MIN_TRANSFER_LOCK_MS = 1200
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+const mapRecordToExpenseRequest = (record: ExpenseData) => ({
+  id: record.id || '',
+  version: record.version || '',
+  currencyRef: record.currencyRef || '',
+  status: record.status || '',
+  requestTypeRef: record.requestTypeRef || '',
+  employee: record.employeeId || '',
+  title: record.title || '',
+  totalAmount: record.totalAmount || ''
+})
+
 export const useExpenseRequestTransfer = (
   props: BusinessAppContextProps,
   refetchData?: () => void,
@@ -36,18 +47,7 @@ export const useExpenseRequestTransfer = (
         return next
       })
       try {
-        const expenseRequests = [
-          {
-            id: record.id || '',
-            version: record.version || '',
-            currencyRef: record.currencyRef || '',
-            status: record.status || '',
-            requestTypeRef: record.requestTypeRef || '',
-            employee: record.employeeId || '',
-            title: record.title || '',
-            totalAmount: record.totalAmount || ''
-          }
-        ]
+        const expenseRequests = [mapRecordToExpenseRequest(record)]
 
         await flowClient.initiateFlow('employee-expense', 'temporaryTransferExpenseRequest', { expenseRequests })
 
@@ -105,16 +105,7 @@ export const useExpenseRequestTransfer = (
         return next
       })
       try {
-        const expenseRequests = records.map(record => ({
-          id: record.id || '',
-          version: record.version || '',
-          currencyRef: record.currencyRef || '',
-          status: record.status || '',
-          requestTypeRef: record.requestTypeRef || '',
-          employee: record.employeeId || '',
-          title: record.title || '',
-          totalAmount: record.totalAmount || ''
-        }))
+        const expenseRequests = records.map(mapRecordToExpenseRequest)
 
         await flowClient.initiateFlow('employee-expense', 'temporaryTransferExpenseRequest', { expenseRequests })
 

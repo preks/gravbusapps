@@ -256,78 +256,84 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
 
   return (
     <>
-      <div className={currentView === 'tabs' ? '' : 'gba:hidden'} data-testid="backoffice-expenses-container">
-        <PageLayout
-          headerIcon={WalletIcon}
-          headerTitle={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_table.expense_management_title',
-            'Expense Management'
-          )}
-          headerDescription={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_table.expense_management_subheader',
-            'Manage backoffice expenses, track expense requests, and advance payments'
-          )}
-          headerContent={
-            <div
-              id="expenses-header-filter"
-              className="gba:flex gba:items-center gba:justify-start"
-              data-testid="expenses-header-filter-slot"
-            />
-          }
-          headerSubViews={{
-            value: activeTab,
-            onValueChange: handleTabChange,
-            items: viewOptions.map(option => ({
-              value: option.key,
-              label: option.label,
-              icon: option.icon
-            }))
-          }}
-          variant={moduleColor}
-          className="gba:min-h-screen"
-        >
-          {/* ⚡ PERFORMANCE: Lazy mount tabs - only render once visited */}
-          <div>
-            {mountedTabs.has('dashboard') && (
-              <div className={activeTab === 'dashboard' ? '' : 'gba:hidden'} data-testid="tab-panel-dashboard">
-                <ExpenseDashboardTab {...tabProps} isActive={activeTab === 'dashboard'} />
-              </div>
+      {currentView === 'tabs' && (
+        <div data-testid="backoffice-expenses-container">
+          <PageLayout
+            headerIcon={WalletIcon}
+            headerTitle={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_table.expense_management_title',
+              'Expense Management'
             )}
-            {mountedTabs.has('expense-requests') && (
+            headerDescription={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_table.expense_management_subheader',
+              'Manage backoffice expenses, track expense requests, and advance payments'
+            )}
+            headerContent={
               <div
-                className={activeTab === 'expense-requests' ? '' : 'gba:hidden'}
-                data-testid="tab-panel-expense-requests"
-              >
-                <ExpenseRequestTab {...tabProps} isActive={activeTab === 'expense-requests'} />
-              </div>
-            )}
-            {mountedTabs.has('advance-payments') && (
-              <div
-                className={activeTab === 'advance-payments' ? '' : 'gba:hidden'}
-                data-testid="tab-panel-advance-payments"
-              >
-                <AdvancePaymentTab {...tabProps} isActive={activeTab === 'advance-payments'} />
-              </div>
-            )}
-            {mountedTabs.has('plan-vs-request') && (
-              <div
-                className={activeTab === 'plan-vs-request' ? '' : 'gba:hidden'}
-                data-testid="tab-panel-plan-vs-request"
-              >
-                <PlanVsRequestTab {...tabProps} isActive={activeTab === 'plan-vs-request'} />
-              </div>
-            )}
-          </div>
-        </PageLayout>
-      </div>
+                id="expenses-header-filter"
+                className="gba:flex gba:items-center gba:justify-start"
+                data-testid="expenses-header-filter-slot"
+              />
+            }
+            headerSubViews={{
+              value: activeTab,
+              onValueChange: handleTabChange,
+              items: viewOptions.map(option => ({
+                value: option.key,
+                label: option.label,
+                icon: option.icon
+              }))
+            }}
+            variant={moduleColor}
+            className="gba:min-h-screen"
+          >
+            {/* ⚡ PERFORMANCE: Lazy mount tabs - only render once visited */}
+            <div>
+              {mountedTabs.has('dashboard') && (
+                <div className={activeTab === 'dashboard' ? '' : 'gba:hidden'} data-testid="tab-panel-dashboard">
+                  <ExpenseDashboardTab {...tabProps} isActive={activeTab === 'dashboard'} />
+                </div>
+              )}
+              {mountedTabs.has('expense-requests') && (
+                <div
+                  className={activeTab === 'expense-requests' ? '' : 'gba:hidden'}
+                  data-testid="tab-panel-expense-requests"
+                >
+                  <ExpenseRequestTab {...tabProps} isActive={activeTab === 'expense-requests'} />
+                </div>
+              )}
+              {mountedTabs.has('advance-payments') && (
+                <div
+                  className={activeTab === 'advance-payments' ? '' : 'gba:hidden'}
+                  data-testid="tab-panel-advance-payments"
+                >
+                  <AdvancePaymentTab {...tabProps} isActive={activeTab === 'advance-payments'} />
+                </div>
+              )}
+              {mountedTabs.has('plan-vs-request') && (
+                <div
+                  className={activeTab === 'plan-vs-request' ? '' : 'gba:hidden'}
+                  data-testid="tab-panel-plan-vs-request"
+                >
+                  <PlanVsRequestTab {...tabProps} isActive={activeTab === 'plan-vs-request'} />
+                </div>
+              )}
+            </div>
+          </PageLayout>
+        </div>
+      )}
 
-      <div className={currentView === 'reports' ? '' : 'gba:hidden'} data-testid="backoffice-expenses-reports-view">
-        <BackofficeExpenseReportsPage {...props} />
-      </div>
+      {currentView === 'reports' && (
+        <div data-testid="backoffice-expenses-reports-view">
+          <BackofficeExpenseReportsPage {...props} />
+        </div>
+      )}
 
-      <div className={currentView === 'analytics' ? '' : 'gba:hidden'} data-testid="backoffice-expenses-analytics-view">
-        <BackofficeTeamSpendingAnalyticsPage {...props} />
-      </div>
+      {currentView === 'analytics' && (
+        <div data-testid="backoffice-expenses-analytics-view">
+          <BackofficeTeamSpendingAnalyticsPage {...props} />
+        </div>
+      )}
     </>
   )
 }

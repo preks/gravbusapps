@@ -403,6 +403,29 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
     setLoading(true)
     setError(null)
+    const requestStartedAt = Date.now()
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H6',
+        location: 'useExpenseRequests.ts:409',
+        message: 'expense-requests-fetch-start',
+        data: {
+          currentPage,
+          pageSize,
+          hasDepartmentFilter: Boolean(departmentFilter),
+          hasCurrencyFilter: Boolean(currencyRefFilter),
+          hasSearchTerm: Boolean(searchTerm),
+          statusFilterCount: statusFilter ? statusFilter.split(',').filter(Boolean).length : 0
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
 
     try {
       // Build where conditions using helper function
@@ -442,10 +465,47 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       }
 
       setTotalItems(responseData.total.aggregate.count ?? 0)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+        body: JSON.stringify({
+          sessionId: '92864d',
+          runId: 'pre-fix',
+          hypothesisId: 'H6',
+          location: 'useExpenseRequests.ts:454',
+          message: 'expense-requests-fetch-success',
+          data: {
+            durationMs: Date.now() - requestStartedAt,
+            rowsCount: Array.isArray(responseData?.ExpenseRequest) ? responseData.ExpenseRequest.length : 0,
+            totalCount: responseData?.total?.aggregate?.count ?? 0
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch expense requests. Please try again later.')
       setExpenses([])
       setTotalItems(0)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+        body: JSON.stringify({
+          sessionId: '92864d',
+          runId: 'pre-fix',
+          hypothesisId: 'H6',
+          location: 'useExpenseRequests.ts:470',
+          message: 'expense-requests-fetch-error',
+          data: {
+            durationMs: Date.now() - requestStartedAt,
+            errorMessage: err instanceof Error ? err.message : 'unknown'
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
     } finally {
       setLoading(false)
       isLoadingRef.current = false // Reset loading ref

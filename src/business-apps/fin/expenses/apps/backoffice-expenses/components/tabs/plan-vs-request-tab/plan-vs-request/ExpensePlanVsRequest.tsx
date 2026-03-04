@@ -59,6 +59,13 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
   }, [combinedData.mostUsedCurrency, hasUserSelectedCurrency])
 
   const isLoading = loadingCatalogData || isLoadingCombined
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading) {
+      setHasLoadedOnce(true)
+    }
+  }, [isLoading])
 
   // Extract data from combined result
   const totalExpensePlan = combinedData.periodStats.expensePlanTotal
@@ -192,7 +199,7 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
     formatCurrency
   })
 
-  if (isLoading) {
+  if (isLoading && !hasLoadedOnce) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner size="lg" />
@@ -201,7 +208,15 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
   }
 
   return (
-    <div className="gba:space-y-6" data-testid="expense-plan-vs-request">
+    <div className="gba:space-y-6 gba:relative" data-testid="expense-plan-vs-request">
+      {isLoading && hasLoadedOnce && (
+        <div
+          className="gba:absolute gba:inset-0 gba:z-10 gba:flex gba:items-center gba:justify-center gba:bg-background/60"
+          data-testid="plan-vs-request-loading-overlay"
+        >
+          <Spinner size="md" />
+        </div>
+      )}
       <ExpenseFilterBar
         accessToken={accessToken}
         onFiltersChange={handleFiltersChange}

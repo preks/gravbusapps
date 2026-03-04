@@ -252,6 +252,27 @@ export const useDashboardStats = ({
 
     setLoading(true)
     setError(null)
+    const dashboardFetchStartedAt = Date.now()
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H8',
+        location: 'useDashboardStats.ts:259',
+        message: 'dashboard-stats-fetch-start',
+        data: {
+          period: filters.period || 'monthly',
+          hasDepartment: Boolean(filters.department),
+          hasCurrency: Boolean(filters.currency),
+          requestKey
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
 
     try {
       // Calculate all date ranges using extracted helper
@@ -388,8 +409,45 @@ export const useDashboardStats = ({
       }
 
       setStats(processedStats)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+        body: JSON.stringify({
+          sessionId: '92864d',
+          runId: 'pre-fix',
+          hypothesisId: 'H8',
+          location: 'useDashboardStats.ts:397',
+          message: 'dashboard-stats-fetch-success',
+          data: {
+            durationMs: Date.now() - dashboardFetchStartedAt,
+            monthlyTrendsCount: processedStats.monthlyTrends.length,
+            pendingRequestsCount: processedStats.pendingRequestsCount
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch dashboard stats'))
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+        body: JSON.stringify({
+          sessionId: '92864d',
+          runId: 'pre-fix',
+          hypothesisId: 'H8',
+          location: 'useDashboardStats.ts:405',
+          message: 'dashboard-stats-fetch-error',
+          data: {
+            durationMs: Date.now() - dashboardFetchStartedAt,
+            errorMessage: err instanceof Error ? err.message : 'unknown'
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
     } finally {
       setLoading(false)
       isLoadingRef.current = false

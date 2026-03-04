@@ -428,10 +428,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                       )}
                     </TableHead>
                     <TableHead className="gba:w-[15%]">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.reporter',
-                        'Reporter'
-                      )}
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
                     </TableHead>
                     <TableHead className="gba:w-[15%]">
                       {getTranslationFromI18nKeyAndLabel(
@@ -662,10 +659,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     },
     {
       id: 'reporter',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_request_list.expense_table.reporter',
-        'Reporter'
-      ),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
       type: 'custom',
       customComponent: (
         <div className="reporter-search-container gba:relative gba:p-2">
@@ -680,7 +674,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
             placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:advance_payment_table.search_reporter_placeholder',
-              'Search reporter...'
+              'Search employee...'
             )}
             data-testid="reporter-search-input"
           />

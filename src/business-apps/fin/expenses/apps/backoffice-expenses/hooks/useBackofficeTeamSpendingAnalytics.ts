@@ -2,7 +2,7 @@
  * Backoffice Team Spending Analytics hook - global data (no supervisor/manager filter).
  * Adapted from manager useTeamSpendingAnalytics; does not filter by managerId.
  */
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -58,6 +58,8 @@ export const useBackofficeTeamSpendingAnalytics = (
   } = useAnalyticsBaseState()
 
   const graphqlClient = useGraphQLClient(accessToken)
+  const lastFetchSignatureRef = useRef<string | null>(null)
+  const lastDebugSignatureRef = useRef<string | null>(null)
   const analyticsDebugEnabled =
     globalThis.window !== undefined &&
     new URLSearchParams(globalThis.window.location.search).get('debugAnalytics') === '1'
@@ -66,9 +68,41 @@ export const useBackofficeTeamSpendingAnalytics = (
     () => computeDateRangeBounds(dateRange),
     [dateRange]
   )
+  const departmentOptionsSignature = useMemo(
+    () => JSON.stringify((availableDepartmentOptions || []).map(option => ({ id: option.id, name: option.name }))),
+    [availableDepartmentOptions]
+  )
+
+  const sameFilters = (
+    left: Array<{ id: string; name: string; selected: boolean }>,
+    right: Array<{ id: string; name: string; selected: boolean }>
+  ) => {
+    if (left.length !== right.length) return false
+    for (let index = 0; index < left.length; index += 1) {
+      if (
+        left[index]?.id !== right[index]?.id ||
+        left[index]?.name !== right[index]?.name ||
+        left[index]?.selected !== right[index]?.selected
+      ) {
+        return false
+      }
+    }
+    return true
+  }
 
   useEffect(() => {
     let isActive = true
+    const fetchSignature = JSON.stringify({
+      startDateTs: computedStartDate,
+      endDateTs: computedEndDate,
+      currencyRef: currencyFilter || null
+    })
+    if (lastFetchSignatureRef.current === fetchSignature) {
+      return () => {
+        isActive = false
+      }
+    }
+    lastFetchSignatureRef.current = fetchSignature
 
     const fetchData = async () => {
       if (!accessToken) {
@@ -113,13 +147,17 @@ export const useBackofficeTeamSpendingAnalytics = (
   useEffect(() => {
     if (!rawData) return
 
-    setLocationFilters(buildLocationFilters(rawData))
+    setLocationFilters(previousFilters => {
+      const nextFilters = buildLocationFilters(rawData)
+      return sameFilters(previousFilters, nextFilters) ? previousFilters : nextFilters
+    })
 
     setDepartmentFilters(previousFilters => {
       const selectedById = new Map(previousFilters.map(filter => [filter.id, filter.selected]))
-      return buildDepartmentFilters(rawData, availableDepartmentOptions, selectedById)
+      const nextFilters = buildDepartmentFilters(rawData, availableDepartmentOptions, selectedById)
+      return sameFilters(previousFilters, nextFilters) ? previousFilters : nextFilters
     })
-  }, [rawData, availableDepartmentOptions])
+  }, [rawData, departmentOptionsSignature])
 
   const toggleLocationFilter = (locationId: string) => {
     setLocationFilters(prevFilters => toggleFilterById(prevFilters, locationId))
@@ -227,6 +265,21 @@ export const useBackofficeTeamSpendingAnalytics = (
 
     const sumBy = (rows: Array<any>, key: string) => rows.reduce((sum, row) => sum + Number(row?.[key] || 0), 0)
     const { selectedLocationIds, selectedDepartmentIds } = getSelectedFilterIds(locationFilters, departmentFilters)
+    const debugSignature = JSON.stringify({
+      dateRange,
+      startDateTs: computedStartDate,
+      endDateTs: computedEndDate,
+      currencyRef: currencyFilter || null,
+      selectedLocationIds,
+      selectedDepartmentIds,
+      rawItemsCount: rawData.expenseItems?.length || 0,
+      rawRequestsCount: rawData.expenseRequests?.length || 0,
+      rawPlansCount: rawData.expensePlans?.length || 0,
+      rawPaymentsCount: rawData.advancePayments?.length || 0
+    })
+    if (lastDebugSignatureRef.current === debugSignature) return
+    lastDebugSignatureRef.current = debugSignature
+
     const { paidClosedExpenseItems, paidClosedExpenseRequests, paidClosedExpensePlans, paidClosedAdvancePayments } =
       buildCorePaidClosedData(rawData, selectedLocationIds, selectedDepartmentIds)
 

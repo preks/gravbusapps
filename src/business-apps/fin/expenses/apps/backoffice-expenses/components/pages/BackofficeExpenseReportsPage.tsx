@@ -21,6 +21,8 @@ import type { ColumnDef as TanstackColumnDef, OnChangeFn, SortingState } from '@
 import { PiDownload, PiFileText, PiInfo } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBackofficeExpenseReportData, ReportType } from '../../hooks/useBackofficeExpenseReportData'
+import { useFilterData } from '../../hooks/useFilterData'
+import { getActiveStructureDepartmentNames } from '../../utils/departmentOptions'
 import { ensureShortDateFormat } from '../../../manager-expenses/utils/dateUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../personal-expenses/utils'
@@ -38,6 +40,10 @@ type ReportSnapshot = {
   rows: any[]
   totalCount: number
 }
+type ReportFilterOptionSnapshot = {
+  employees: string[]
+  departments: string[]
+}
 
 const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
   const toFilterText = (value: unknown): string => {
@@ -52,6 +58,9 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [reportSnapshotsByType, setReportSnapshotsByType] = useState<Partial<Record<ReportType, ReportSnapshot>>>({})
+  const [fullFilterOptionsByType, setFullFilterOptionsByType] = useState<
+    Partial<Record<ReportType, ReportFilterOptionSnapshot>>
+  >({})
 
   const contextProps = useMemo(
     () => ({
@@ -77,6 +86,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     setSelectedReportType,
     fetchAllForExport
   } = useBackofficeExpenseReportData(contextProps, filtersByReportType, sorting)
+  const { organizationalUnits } = useFilterData({ accessToken })
   const selectedFilters = useMemo(
     () => (selectedReportType ? (filtersByReportType[selectedReportType] ?? {}) : {}),
     [filtersByReportType, selectedReportType]
@@ -568,6 +578,44 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     () => computeSlaKpis(selectedReportType, Array.isArray(reportData) ? (reportData as any[]) : []),
     [selectedReportType, reportData]
   )
+  const approvalSlaCards = [
+    {
+      cardTestId: 'backoffice-approval-sla-breached-kpi',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_breached_rate', 'Approval SLA Breached'),
+      triggerTestId: 'backoffice-approval-sla-breached-tooltip-trigger',
+      triggerLabel: 'Approval SLA Breached formula',
+      tooltip: approvalPayoutKpiTooltips.approvalBreached,
+      value: approvalPayoutSlaKpiValues.approvalBreachedRate,
+      label: approvalPayoutSlaKpiValues.approvalBreachedLabel
+    },
+    {
+      cardTestId: 'backoffice-payout-sla-breached-kpi',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_breached_rate', 'Payout SLA Breached'),
+      triggerTestId: 'backoffice-payout-sla-breached-tooltip-trigger',
+      triggerLabel: 'Payout SLA Breached formula',
+      tooltip: approvalPayoutKpiTooltips.payoutBreached,
+      value: approvalPayoutSlaKpiValues.payoutBreachedRate,
+      label: approvalPayoutSlaKpiValues.payoutBreachedLabel
+    },
+    {
+      cardTestId: 'backoffice-total-cycle-sla-breached-kpi',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_sla_breached_rate', 'Total Cycle SLA Breached'),
+      triggerTestId: 'backoffice-total-cycle-sla-breached-tooltip-trigger',
+      triggerLabel: 'Total Cycle SLA Breached formula',
+      tooltip: approvalPayoutKpiTooltips.totalBreached,
+      value: approvalPayoutSlaKpiValues.totalBreachedRate,
+      label: approvalPayoutSlaKpiValues.totalBreachedLabel
+    },
+    {
+      cardTestId: 'backoffice-total-cycle-within-sla-kpi',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_within_sla_rate', 'Total Cycle Within SLA'),
+      triggerTestId: 'backoffice-total-cycle-within-sla-tooltip-trigger',
+      triggerLabel: 'Total Cycle Within SLA formula',
+      tooltip: approvalPayoutKpiTooltips.totalWithin,
+      value: approvalPayoutSlaKpiValues.withinTotalRate,
+      label: approvalPayoutSlaKpiValues.withinTotalLabel
+    }
+  ]
   const backendSortableColumnKeys = useMemo(() => {
     switch (selectedReportType) {
       case ReportType.EXPENSE_ITEM:
@@ -673,20 +721,158 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     }
     return options.filter(option => !restrictedStatuses.has(String(option.id)))
   }, [selectedReportType, reportRowsWithGroupedStatuses, transferRequiredFilterLabel])
+  useEffect(() => {
+    if (!selectedReportType) return
+    if (fullFilterOptionsByType[selectedReportType]) return
+    if (searchTerm.trim()) return
+    const selectedStatuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
+    const selectedEmployees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
+    const selectedDepartments = Array.isArray(selectedFilters?.departmentName) ? selectedFilters.departmentName : []
+    if (selectedStatuses.length > 0 || selectedEmployees.length > 0 || selectedDepartments.length > 0) return
+
+    let cancelled = false
+    const loadAllRowsForFilterOptions = async () => {
+      const allRows = (await fetchAllForExport()) as any[]
+      if (cancelled) return
+      const employees = Array.from(
+        new Set(allRows.map(row => String(row?.employeeName || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b))
+      const departments = Array.from(
+        new Set(allRows.map(row => String(row?.departmentName || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b))
+      setFullFilterOptionsByType(previous => ({
+        ...previous,
+        [selectedReportType]: { employees, departments }
+      }))
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+        body: JSON.stringify({
+          sessionId: '92864d',
+          runId: 'pre-fix',
+          hypothesisId: 'H3',
+          location: 'BackofficeExpenseReportsPage.tsx:742',
+          message: 'reports-full-filter-options-fetched',
+          data: {
+            selectedReportType,
+            allRowsCount: allRows.length,
+            employeesCount: employees.length,
+            departmentsCount: departments.length
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
+    }
+    void loadAllRowsForFilterOptions()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedReportType, fullFilterOptionsByType, searchTerm, selectedFilters, fetchAllForExport])
+
   const employeeFilterOptions = useMemo(() => {
-    return Array.from(
-      new Set(reportRowsWithGroupedStatuses.map(row => String(row?.employeeName || '').trim()).filter(Boolean))
-    )
-      .sort((a, b) => a.localeCompare(b))
-      .map(value => ({ id: value, label: value }))
-  }, [reportRowsWithGroupedStatuses])
+    const fullEmployees = selectedReportType ? fullFilterOptionsByType[selectedReportType]?.employees || [] : []
+    if (fullEmployees.length > 0) {
+      return fullEmployees.map(value => ({ id: value, label: value }))
+    }
+    return []
+  }, [selectedReportType, fullFilterOptionsByType])
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H13',
+        location: 'BackofficeExpenseReportsPage.tsx:781',
+        message: 'reports-employee-options-ready',
+        data: {
+          selectedReportType,
+          employeeOptionsCount: employeeFilterOptions.length,
+          hasFullEmployeeSnapshot: selectedReportType
+            ? Boolean((fullFilterOptionsByType[selectedReportType]?.employees || []).length)
+            : false
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [selectedReportType, employeeFilterOptions.length, fullFilterOptionsByType])
   const departmentFilterOptions = useMemo(() => {
+    const structureDepartments = getActiveStructureDepartmentNames(organizationalUnits || []).map(value => ({
+      id: value,
+      label: value
+    }))
+    if (structureDepartments.length > 0) {
+      return structureDepartments
+    }
+    const fullDepartments = selectedReportType ? fullFilterOptionsByType[selectedReportType]?.departments || [] : []
+    if (fullDepartments.length > 0) {
+      return fullDepartments.map(value => ({ id: value, label: value }))
+    }
     return Array.from(
       new Set(reportRowsWithGroupedStatuses.map(row => String(row?.departmentName || '').trim()).filter(Boolean))
     )
       .sort((a, b) => a.localeCompare(b))
       .map(value => ({ id: value, label: value }))
-  }, [reportRowsWithGroupedStatuses])
+  }, [organizationalUnits, reportRowsWithGroupedStatuses, selectedReportType, fullFilterOptionsByType])
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'post-fix',
+        hypothesisId: 'H9',
+        location: 'BackofficeExpenseReportsPage.tsx:792',
+        message: 'reports-department-options-built-from-structure',
+        data: {
+          selectedReportType,
+          organizationalUnitsCount: organizationalUnits.length,
+          departmentOptionsCount: departmentFilterOptions.length
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [selectedReportType, organizationalUnits.length, departmentFilterOptions.length])
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H3',
+        location: 'BackofficeExpenseReportsPage.tsx:736',
+        message: 'reports-filter-options-derived-from-rows',
+        data: {
+          selectedReportType,
+          reportRowsCount: reportRowsWithGroupedStatuses.length,
+          employeeOptionsCount: employeeFilterOptions.length,
+          departmentOptionsCount: departmentFilterOptions.length,
+          statusOptionsCount: statusFilterOptions.length,
+          pageSize,
+          currentPage
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [
+    selectedReportType,
+    reportRowsWithGroupedStatuses.length,
+    employeeFilterOptions.length,
+    departmentFilterOptions.length,
+    statusFilterOptions.length,
+    pageSize,
+    currentPage
+  ])
   const filterConfiguration = useMemo<FilterConfiguration>(
     () => ({
       // Include report type in config id to reset filter sheet internals on tab switch.
@@ -854,6 +1040,28 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     if (!selectedReportType) return
     const nextFilters = filters || {}
     const currentFilters = filtersByReportType[selectedReportType] || {}
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
+      body: JSON.stringify({
+        sessionId: '92864d',
+        runId: 'pre-fix',
+        hypothesisId: 'H4',
+        location: 'BackofficeExpenseReportsPage.tsx:914',
+        message: 'reports-filter-change-requested',
+        data: {
+          selectedReportType,
+          currentFilterKeys: Object.keys(currentFilters || {}),
+          nextFilterKeys: Object.keys(nextFilters || {}),
+          nextStatusCount: Array.isArray(nextFilters?.status) ? nextFilters.status.length : 0,
+          nextEmployeeCount: Array.isArray(nextFilters?.employeeName) ? nextFilters.employeeName.length : 0,
+          nextDepartmentCount: Array.isArray(nextFilters?.departmentName) ? nextFilters.departmentName.length : 0
+        },
+        timestamp: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
     if (JSON.stringify(currentFilters) === JSON.stringify(nextFilters)) return
     setFiltersByReportType(previous => ({
       ...previous,
@@ -911,119 +1119,30 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
             <div className="gba:mb-4 gba:min-h-[140px]" data-testid="backoffice-expense-reports-kpi-row">
               <TooltipProvider>
                 <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:md:grid-cols-2 gba:xl:grid-cols-4">
-                  <Card className="gba:min-h-[124px]" data-testid="backoffice-approval-sla-breached-kpi">
-                    <CardContent className="gba:p-4">
-                      <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:approval_sla_breached_rate',
-                          'Approval SLA Breached'
-                        )}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="gba:inline-flex gba:items-center gba:text-muted-foreground"
-                              aria-label="Approval SLA Breached formula"
-                              data-testid="backoffice-approval-sla-breached-tooltip-trigger"
-                            >
-                              <PiInfo />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="gba:max-w-[320px]">
-                            {approvalPayoutKpiTooltips.approvalBreached}
-                          </TooltipContent>
-                        </Tooltip>
-                      </p>
-                      <p className="gba:text-xl gba:font-semibold">{approvalPayoutSlaKpiValues.approvalBreachedRate}</p>
-                      <p className="gba:text-xs gba:text-muted-foreground">
-                        {approvalPayoutSlaKpiValues.approvalBreachedLabel}
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card className="gba:min-h-[124px]" data-testid="backoffice-payout-sla-breached-kpi">
-                    <CardContent className="gba:p-4">
-                      <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_breached_rate', 'Payout SLA Breached')}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="gba:inline-flex gba:items-center gba:text-muted-foreground"
-                              aria-label="Payout SLA Breached formula"
-                              data-testid="backoffice-payout-sla-breached-tooltip-trigger"
-                            >
-                              <PiInfo />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="gba:max-w-[320px]">
-                            {approvalPayoutKpiTooltips.payoutBreached}
-                          </TooltipContent>
-                        </Tooltip>
-                      </p>
-                      <p className="gba:text-xl gba:font-semibold">{approvalPayoutSlaKpiValues.payoutBreachedRate}</p>
-                      <p className="gba:text-xs gba:text-muted-foreground">
-                        {approvalPayoutSlaKpiValues.payoutBreachedLabel}
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card className="gba:min-h-[124px]" data-testid="backoffice-total-cycle-sla-breached-kpi">
-                    <CardContent className="gba:p-4">
-                      <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:total_cycle_sla_breached_rate',
-                          'Total Cycle SLA Breached'
-                        )}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="gba:inline-flex gba:items-center gba:text-muted-foreground"
-                              aria-label="Total Cycle SLA Breached formula"
-                              data-testid="backoffice-total-cycle-sla-breached-tooltip-trigger"
-                            >
-                              <PiInfo />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="gba:max-w-[320px]">
-                            {approvalPayoutKpiTooltips.totalBreached}
-                          </TooltipContent>
-                        </Tooltip>
-                      </p>
-                      <p className="gba:text-xl gba:font-semibold">{approvalPayoutSlaKpiValues.totalBreachedRate}</p>
-                      <p className="gba:text-xs gba:text-muted-foreground">
-                        {approvalPayoutSlaKpiValues.totalBreachedLabel}
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card className="gba:min-h-[124px]" data-testid="backoffice-total-cycle-within-sla-kpi">
-                    <CardContent className="gba:p-4">
-                      <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:total_cycle_within_sla_rate',
-                          'Total Cycle Within SLA'
-                        )}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              className="gba:inline-flex gba:items-center gba:text-muted-foreground"
-                              aria-label="Total Cycle Within SLA formula"
-                              data-testid="backoffice-total-cycle-within-sla-tooltip-trigger"
-                            >
-                              <PiInfo />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="gba:max-w-[320px]">
-                            {approvalPayoutKpiTooltips.totalWithin}
-                          </TooltipContent>
-                        </Tooltip>
-                      </p>
-                      <p className="gba:text-xl gba:font-semibold">{approvalPayoutSlaKpiValues.withinTotalRate}</p>
-                      <p className="gba:text-xs gba:text-muted-foreground">
-                        {approvalPayoutSlaKpiValues.withinTotalLabel}
-                      </p>
-                    </CardContent>
-                  </Card>
+                  {approvalSlaCards.map(card => (
+                    <Card key={card.cardTestId} className="gba:min-h-[124px]" data-testid={card.cardTestId}>
+                      <CardContent className="gba:p-4">
+                        <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                          {card.title}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="gba:inline-flex gba:items-center gba:text-muted-foreground"
+                                aria-label={card.triggerLabel}
+                                data-testid={card.triggerTestId}
+                              >
+                                <PiInfo />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="gba:max-w-[320px]">{card.tooltip}</TooltipContent>
+                          </Tooltip>
+                        </p>
+                        <p className="gba:text-xl gba:font-semibold">{card.value}</p>
+                        <p className="gba:text-xs gba:text-muted-foreground">{card.label}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </TooltipProvider>
             </div>
@@ -1034,10 +1153,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                 onValueChange={handleReportTypeChange}
                 data-testid="backoffice-expense-reports-tabs-card"
               >
-                <TabsList
-                  className="gba:grid gba:w-full"
-                  style={{ gridTemplateColumns: `repeat(${reportTypes.length}, 1fr)` }}
-                >
+                <TabsList className="gba:grid gba:w-full gba:grid-cols-5">
                   {reportTypes.map(type => (
                     <TabsTrigger
                       key={type.key}

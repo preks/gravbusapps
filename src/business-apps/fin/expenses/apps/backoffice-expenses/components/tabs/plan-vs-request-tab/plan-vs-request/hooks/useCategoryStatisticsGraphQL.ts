@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { calculatePeriodBoundaries } from '../utils/periodCalculations'
+import { useLoadingErrorDataState } from './useLoadingErrorDataState'
+import { CategoryStatisticsGraphQLHookParams } from './statisticsHookParams'
 
 export interface CategoryStatisticsData {
   requestType: string // Keep for backward compatibility
@@ -44,16 +45,8 @@ export const useCategoryStatisticsGraphQL = ({
   currencyRef,
   selectedDepartment,
   isActive = true // ⚡ PERFORMANCE: Only fetch when active
-}: BusinessAppContextProps & {
-  period: 'month' | 'quarter' | 'year'
-  requestTypes: string[]
-  currencyRef?: string
-  selectedDepartment?: string
-  isActive?: boolean
-}) => {
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [data, setData] = useState<CategoryStatisticsData[]>([])
+}: CategoryStatisticsGraphQLHookParams) => {
+  const { loading, setLoading, error, setError, data, setData } = useLoadingErrorDataState<CategoryStatisticsData[]>([])
 
   const client = useGraphQLClient(accessToken)
 
