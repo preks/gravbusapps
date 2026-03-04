@@ -5,7 +5,16 @@
  */
 
 import React, { memo, useCallback, useState } from 'react'
-import { Button, Badge } from '@newwork/nw-design-system'
+import {
+  Button,
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
 import {
   ChevronRight,
   Eye,
@@ -16,7 +25,11 @@ import {
   Send,
   CheckCircle2,
   BarChart3,
-  Sparkles
+  Sparkles,
+  Sigma,
+  MessageCircle,
+  ClipboardCheck,
+  Table2
 } from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
@@ -68,11 +81,13 @@ export interface SpreadsheetHeaderProps {
   }
 
   // Actions
+  onOpenAICapability: (
+    capability: 'charts' | 'pivot' | 'insights' | 'summary' | 'formula' | 'analyze' | 'chat' | 'review'
+  ) => void
   onShowPublishDialog: () => void
   onAddColumn: () => void
   onManageColumns: () => void
   onOpenAnalytics: () => void
-  onOpenSheetsAI: () => void
   onOpenAutomations: () => void
   onEdit?: () => void
   onExport?: () => void
@@ -102,10 +117,10 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   unresolvedCommentCount,
   fileLock,
   onShowPublishDialog,
+  onOpenAICapability,
   onAddColumn,
   onManageColumns,
   onOpenAnalytics,
-  onOpenSheetsAI,
   onOpenAutomations,
   onEdit,
   onExport,
@@ -239,28 +254,58 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                 )}
               </Button>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenAnalytics}
-                title="AI Analytics"
-                data-testid="spreadsheet-analytics-button"
-                className="gba:h-8 gba:px-2 gba:gap-1 gba:bg-black gba:text-white gba:hover:bg-black/90 gba:hover:text-white"
-              >
-                <BarChart3 className="gba:w-4 gba:h-4" />
-                AI Analytics
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenSheetsAI}
-                title="Sheets AI"
-                data-testid="spreadsheet-sheets-ai-button"
-                className="gba:h-8 gba:px-2 gba:gap-1 gba:border gba:border-primary/25"
-              >
-                <Sparkles className="gba:w-4 gba:h-4" />
-                Sheets AI
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="AI Analytics"
+                    data-testid="spreadsheet-analytics-button"
+                    className="gba:h-8 gba:px-2 gba:gap-1 gba:bg-black gba:text-white gba:hover:bg-black/90 gba:hover:text-white"
+                  >
+                    <BarChart3 className="gba:w-4 gba:h-4" />
+                    AI Analytics
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="gba:min-w-[280px]">
+                  <DropdownMenuLabel>Data actions</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => onOpenAICapability('analyze')}>
+                    <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Analyze data
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onOpenAICapability('charts')}>
+                    <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Generate charts
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onOpenAICapability('pivot')}>
+                    <Table2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Generate a pivot table
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onOpenAICapability('formula')}>
+                    <Sigma className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Generate a formula
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>AI assistants</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => onOpenAICapability('chat')}>
+                    <MessageCircle className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Chat with data
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onOpenAICapability('review')}>
+                    <ClipboardCheck className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Smart review
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onOpenAICapability('insights')}>
+                    <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
+                    AI insights
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onOpenAICapability('summary')}>
+                    <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
+                    AI summary
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Lock status (compact) */}
               {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
@@ -308,7 +353,6 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onAddColumn={onAddColumn}
             onManageColumns={onManageColumns}
             onOpenAnalytics={onOpenAnalytics}
-            onOpenSheetsAI={onOpenSheetsAI}
             onOpenAutomations={onOpenAutomations}
             onEdit={onEdit}
             allowExport={activeSheet.settings.allowExport}

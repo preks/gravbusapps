@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from 'react'
+import React, { memo, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger, Badge } from '@newwork/nw-design-system'
 import ReactMarkdown from 'react-markdown'
@@ -23,6 +23,7 @@ import { useSheetsAIReview } from '../hooks/useSheetsAIReview'
 export interface SheetsAIPanelProps {
   isOpen: boolean
   onClose: () => void
+  initialTab?: 'formula' | 'analyze' | 'chat' | 'review'
   appId: string
   sheetId: string
   sheetName: string
@@ -43,6 +44,7 @@ const isRowEmpty = (row: Record<string, unknown>): boolean =>
 export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsAIPanel({
   isOpen,
   onClose,
+  initialTab = 'formula',
   appId: _appId,
   sheetId: _sheetId,
   sheetName,
@@ -59,6 +61,12 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
   void _appId
   void _sheetId
   const [activeTab, setActiveTab] = useState('formula')
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab, isOpen])
+
   const [chatInput, setChatInput] = useState('')
 
   const headerMap = isOpen ? (getHeaderRowFromGrid?.() ?? null) : null

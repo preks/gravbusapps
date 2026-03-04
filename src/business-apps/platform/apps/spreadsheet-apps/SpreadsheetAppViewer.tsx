@@ -80,6 +80,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   userId,
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
+  type AnalyticsPanelTab = 'charts' | 'insights' | 'summary' | 'pivot'
+  type SheetsAITab = 'formula' | 'analyze' | 'chat' | 'review'
+  type AICapability = AnalyticsPanelTab | SheetsAITab
+
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const sheetVersionRef = useRef<number>(0)
   const snapshotSaveMetricsRef = useRef({
@@ -106,6 +110,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [isBootstrapSnapshotLoading, setIsBootstrapSnapshotLoading] = useState<boolean>(true)
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false)
   const [isSheetsAIOpen, setIsSheetsAIOpen] = useState(false)
+  const [analyticsInitialTab, setAnalyticsInitialTab] = useState<AnalyticsPanelTab>('charts')
+  const [sheetsAIInitialTab, setSheetsAIInitialTab] = useState<SheetsAITab>('formula')
   const UNIVER_DATA_CHANGE_DEBOUNCE_MS = 350
   // 400ms debounce batches rapid keystrokes into a single flush without noticeable delay.
   const CELL_PERSIST_DEBOUNCE_MS = 400
@@ -462,6 +468,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [app, automations.completeExcelCollectionTask, onAppUpdate, onBack, userId])
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
+  const handleOpenAICapability = useCallback((capability: AICapability) => {
+    const analyticsTabs = new Set<AnalyticsPanelTab>(['charts', 'pivot', 'insights', 'summary'])
+    if (analyticsTabs.has(capability as AnalyticsPanelTab)) {
+      setAnalyticsInitialTab(capability as AnalyticsPanelTab)
+      setIsSheetsAIOpen(false)
+      setIsAutomationsOpen(false)
+      setIsAnalyticsOpen(true)
+      return
+    }
+
+    setSheetsAIInitialTab(capability as SheetsAITab)
+    setIsAnalyticsOpen(false)
+    setIsAutomationsOpen(false)
+    setIsSheetsAIOpen(true)
+  }, [])
   const [isExporting, setIsExporting] = useState(false)
 
   const spreadsheetGridRef = useRef<UniverSheetGridHandle | null>(null)
@@ -1818,17 +1839,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           releaseLock: fileLock.releaseLock
         }}
         onShowPublishDialog={() => setShowPublishDialog(true)}
+        onOpenAICapability={handleOpenAICapability}
         onAddColumn={columnsState.handleAddColumn}
         onManageColumns={() => columnsState.setIsManageColumnsDialogOpen(true)}
         onOpenAnalytics={() => {
+          setAnalyticsInitialTab('charts')
           setIsSheetsAIOpen(false)
           setIsAutomationsOpen(false)
           setIsAnalyticsOpen(true)
-        }}
-        onOpenSheetsAI={() => {
-          setIsAnalyticsOpen(false)
-          setIsAutomationsOpen(false)
-          setIsSheetsAIOpen(true)
         }}
         onOpenAutomations={() => {
           setIsSheetsAIOpen(false)
@@ -1973,6 +1991,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       <AnalyticsPanel
         isOpen={isAnalyticsOpen}
         onClose={() => setIsAnalyticsOpen(false)}
+        initialTab={analyticsInitialTab}
         columns={activeSheet.columns}
         sheetData={sheetData}
         sheetName={activeSheet.name}
@@ -1987,6 +2006,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       <SheetsAIPanel
         isOpen={isSheetsAIOpen}
         onClose={() => setIsSheetsAIOpen(false)}
+        initialTab={sheetsAIInitialTab}
         appId={app.id}
         sheetId={activeSheetId}
         sheetName={activeSheet.name}

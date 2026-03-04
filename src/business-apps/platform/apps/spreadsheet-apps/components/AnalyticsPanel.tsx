@@ -54,6 +54,7 @@ function resolveChartColor(index: number): string {
 export interface AnalyticsPanelProps {
   isOpen: boolean
   onClose: () => void
+  initialTab?: 'charts' | 'insights' | 'summary' | 'pivot'
   columns: SpreadsheetColumn[]
   sheetData: Record<string, unknown>[]
   sheetName: string
@@ -71,6 +72,7 @@ export interface AnalyticsPanelProps {
 export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function AnalyticsPanel({
   isOpen,
   onClose,
+  initialTab = 'charts',
   columns,
   sheetData,
   sheetName,
@@ -84,6 +86,12 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 }) {
   const memoizedEngineRef = useRef(createAnalyticsMemo())
   const [activeTab, setActiveTab] = useState('charts')
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab, isOpen])
+
   const [aggregation, setAggregation] = useState<AnalyticsAggregation>('count')
 
   const [pivotRowField, setPivotRowField] = useState<string>(columns[0]?.name ?? '')
