@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react'
 import { DatePicker, Tooltip } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import dayjs, { Dayjs } from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -59,7 +59,7 @@ const EffectiveDateRangeFilter: React.FC<EffectiveDateRangeFilterProps> = ({
           )}
           placement="right"
         >
-          <InfoCircleOutlined data-testid="effective-date-info" />
+          <InfoIcon size={16} data-testid="effective-date-info" />
         </Tooltip>
       </div>
     </div>

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { Steps, Card, Button, Space, Typography, message, Spin, Alert } from 'antd'
 import {
-  PlayCircleOutlined,
-  SettingOutlined,
-  CheckCircleOutlined,
-  UserOutlined,
-  MessageOutlined,
-  FileTextOutlined,
-  EyeOutlined
-} from '@ant-design/icons'
+  PlayCircleIcon,
+  GearIcon,
+  CheckCircleIcon,
+  UserIcon,
+  ChatCircleIcon,
+  FileTextIcon,
+  EyeIcon
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowTemplate, FlowStep, AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 import { AssignmentSelector } from '../shared/AssignmentSelector'
@@ -81,13 +81,13 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
   const getStepIcon = (stepType: string) => {
     switch (stepType) {
       case 'TASK':
-        return <UserOutlined />
+        return <UserIcon size={16} />
       case 'APPROVAL':
         return <SettingOutlined />
       case 'INFORMATION':
-        return <MessageOutlined />
+        return <ChatCircleIcon size={16} />
       case 'ACKNOWLEDGE':
-        return <CheckCircleOutlined />
+        return <CheckCircleIcon size={16} />
       default:
         return <FileTextOutlined />
     }
@@ -217,7 +217,7 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
                 </Title>
               </div>
               <Button
-                icon={<EyeOutlined />}
+                icon={<EyeIcon size={16} />}
                 onClick={() => handlePreview(currentStep)}
                 data-testid={`${testId}-preview-button`}
               >

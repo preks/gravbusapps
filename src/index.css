@@ -251,6 +251,119 @@
       opacity: 0.8;
     }
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* Space/EveryOne hero background (CSS-only, replaces <video>)               */
+  /* ------------------------------------------------------------------------ */
+  @keyframes space-hero-gradient-shift {
+    0% {
+      background-position: 0% 50%;
+      transform: scale(1.04);
+    }
+    50% {
+      background-position: 100% 50%;
+      transform: scale(1.06);
+    }
+    100% {
+      background-position: 0% 50%;
+      transform: scale(1.04);
+    }
+  }
+
+  @keyframes space-hero-blob-1 {
+    0%,
+    100% {
+      transform: translate3d(-2%, -3%, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(4%, 2%, 0) scale(1.06);
+    }
+  }
+
+  @keyframes space-hero-blob-2 {
+    0%,
+    100% {
+      transform: translate3d(3%, -2%, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(-3%, 4%, 0) scale(1.08);
+    }
+  }
+
+  @keyframes space-hero-blob-3 {
+    0%,
+    100% {
+      transform: translate3d(2%, 3%, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(-4%, -2%, 0) scale(1.07);
+    }
+  }
+
+  @keyframes space-hero-flag-sway {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+    35% {
+      transform: translate3d(-8px, 6px, 0) rotate(-1.2deg);
+    }
+    70% {
+      transform: translate3d(6px, -4px, 0) rotate(0.8deg);
+    }
+  }
+
+  @keyframes space-hero-glow-float-1 {
+    0% {
+      transform: translate3d(-1.2%, 0.8%, 0) scale(1.08);
+    }
+    50% {
+      transform: translate3d(1.4%, -1.1%, 0) scale(1.1);
+    }
+    100% {
+      transform: translate3d(-1.2%, 0.8%, 0) scale(1.08);
+    }
+  }
+
+  @keyframes space-hero-glow-float-2 {
+    0% {
+      transform: translate3d(1.1%, -0.6%, 0) scale(1.09);
+    }
+    50% {
+      transform: translate3d(-1.5%, 1%, 0) scale(1.12);
+    }
+    100% {
+      transform: translate3d(1.1%, -0.6%, 0) scale(1.09);
+    }
+  }
+
+  @keyframes space-hero-glow-float-3 {
+    0% {
+      transform: translate3d(-0.6%, -0.4%, 0) scale(1.06);
+    }
+    50% {
+      transform: translate3d(0.9%, 0.7%, 0) scale(1.1);
+    }
+    100% {
+      transform: translate3d(-0.6%, -0.4%, 0) scale(1.06);
+    }
+  }
+
+  /* Subtle drift for the base gradient field (very small motion). */
+  @keyframes space-hero-bg-drift {
+    0% {
+      background-position: 50% 50%;
+      transform: translate3d(0, 0, 0) scale(1.04);
+    }
+    50% {
+      background-position: 55% 45%;
+      transform: translate3d(-1%, 0.7%, 0) scale(1.06);
+    }
+    100% {
+      background-position: 50% 50%;
+      transform: translate3d(0, 0, 0) scale(1.04);
+    }
+  }
 }
 
 @layer utilities {
@@ -434,6 +547,109 @@
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }
+
+  /* ------------------------------------------------------------------------ */
+  /* Space/EveryOne hero background                                            */
+  /* ------------------------------------------------------------------------ */
+  /* eslint-disable newwork-local/no-hardcoded-colors */
+  .gba\:space-hero-bg {
+    /* Matched to extracted video frame colors (sampled from still) */
+    background:
+      linear-gradient(200deg, rgba(0, 1, 21, 0.92) 0%, rgba(0, 1, 21, 0.24) 36%, transparent 62%),
+      radial-gradient(
+        980px 760px at -8% -8%,
+        rgba(0, 0, 0, 1) 0%,
+        rgba(0, 0, 4, 0.995) 36%,
+        rgba(0, 0, 10, 0.9) 58%,
+        rgba(0, 0, 10, 0) 92%
+      ),
+      radial-gradient(1200px 820px at 68% 58%, rgba(1, 96, 190, 0.92) 0%, rgba(1, 96, 190, 0) 62%),
+      radial-gradient(900px 680px at 12% 34%, rgba(1, 0, 16, 0.95) 0%, rgba(1, 0, 16, 0) 70%),
+      radial-gradient(1100px 720px at 46% 14%, rgba(0, 7, 105, 0.78) 0%, rgba(0, 7, 105, 0) 72%),
+      radial-gradient(980px 720px at 16% 92%, rgba(0, 74, 173, 0.72) 0%, rgba(0, 74, 173, 0) 64%),
+      linear-gradient(135deg, #01001f 0%, #00012f 18%, #000769 36%, #0142a0 60%, #0061bf 78%, #0165c3 100%);
+    filter: saturate(1.04) contrast(1.02);
+    background-size: 140% 140%;
+    background-position: 50% 50%;
+    animation: space-hero-bg-drift 40s ease-in-out infinite;
+    will-change: background-position, transform;
+  }
+
+  .gba\:space-hero-glow {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(64px);
+    mix-blend-mode: screen;
+    opacity: 0.75;
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+
+  .gba\:space-hero-glow-1 {
+    left: -26%;
+    top: -30%;
+    width: 78%;
+    height: 98%;
+    background: radial-gradient(circle at 45% 45%, rgba(1, 66, 160, 0.55) 0%, rgba(1, 66, 160, 0) 64%);
+    animation: space-hero-glow-float-1 20s ease-in-out infinite;
+  }
+
+  .gba\:space-hero-glow-2 {
+    right: -30%;
+    top: -18%;
+    width: 86%;
+    height: 92%;
+    background: radial-gradient(circle at 40% 48%, rgba(1, 101, 195, 0.55) 0%, rgba(1, 101, 195, 0) 66%);
+    opacity: 0.7;
+    animation: space-hero-glow-float-2 20s ease-in-out infinite;
+    animation-delay: -7s;
+  }
+
+  .gba\:space-hero-glow-3 {
+    left: 18%;
+    bottom: -42%;
+    width: 92%;
+    height: 92%;
+    background: radial-gradient(circle at 55% 35%, rgba(0, 83, 177, 0.4) 0%, rgba(0, 83, 177, 0) 66%);
+    opacity: 0.55;
+    animation: space-hero-glow-float-3 20s ease-in-out infinite;
+    animation-delay: -13s;
+  }
+
+  .gba\:space-hero-dots {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    mask-image: linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 1) 0%,
+      rgba(0, 0, 0, 0.22) 44%,
+      rgba(0, 0, 0, 0.22) 56%,
+      rgba(0, 0, 0, 1) 100%
+    );
+    opacity: 1;
+    pointer-events: none;
+  }
+
+  .gba\:space-hero-overlay {
+    background: linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gba\:space-hero-bg {
+      animation: none !important;
+    }
+    .gba\:space-hero-dots {
+      animation: none !important;
+    }
+    .gba\:space-hero-glow-1,
+    .gba\:space-hero-glow-2,
+    .gba\:space-hero-glow-3 {
+      animation: none !important;
+    }
+  }
+  /* eslint-enable newwork-local/no-hardcoded-colors */
 }
 
 /* Widget Group Cursor Handling */

@@ -96,7 +96,7 @@ export const BoardListItem: React.FC<BoardListItemProps> = ({
         {formatRelativeTime(board.updatedAt)}
       </div>
       <div className="gba:w-16 gba:flex-shrink-0 gba:text-xs gba:text-muted-foreground gba:text-right">
-        {board.rowCount.toLocaleString()}
+        {board.rowCount > 0 ? board.rowCount.toLocaleString() : '–'}
       </div>
       <div className="gba:w-8 gba:flex-shrink-0 gba:flex gba:justify-end" onClick={e => e.stopPropagation()}>
         <DropdownMenu>

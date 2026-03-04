@@ -1,6 +1,6 @@
 import React from 'react'
 import { List, Space, Tag, Typography, Button } from 'antd'
-import { UserOutlined, CalendarOutlined, FormOutlined, LinkOutlined, UserAddOutlined } from '@ant-design/icons'
+import { UserIcon, CalendarIcon, NotePencilIcon, LinkSimpleIcon, UserPlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const { Text } = Typography
@@ -62,7 +62,7 @@ export const TaskListCard: React.FC<TaskListCardProps<any>> = ({
                 key="quick-claim"
                 type="primary"
                 size="small"
-                icon={<UserAddOutlined />}
+                icon={<UserPlusIcon size={16} />}
                 loading={actionLoading === task.id + 'CLAIM'}
                 onClick={e => onQuickClaim(e, task.id)}
                 data-testid={`${prefixDataTestId}-quick-claim-${task.id}`}
@@ -97,13 +97,13 @@ export const TaskListCard: React.FC<TaskListCardProps<any>> = ({
 
             {hasInputBlocks && (
               <Tag color="orange" style={{ fontSize: '11px' }}>
-                <FormOutlined /> {(task.form || task.inputs)!.length} Fields
+                <NotePencilIcon size={16} /> {(task.form || task.inputs)!.length} Fields
               </Tag>
             )}
 
             {hasLinks && (
               <Tag color="purple" style={{ fontSize: '11px' }}>
-                <LinkOutlined /> {task.links!.length} Links
+                <LinkSimpleIcon size={16} /> {task.links!.length} Links
               </Tag>
             )}
           </Space>
@@ -125,7 +125,7 @@ export const TaskListCard: React.FC<TaskListCardProps<any>> = ({
                     color: isTaskOverdue(task.dueDate) ? '#ff4d4f' : isTaskDueSoon(task.dueDate) ? '#faad14' : '#8c8c8c'
                   }}
                 >
-                  <CalendarOutlined /> Due: {formatDueDate(task.dueDate)}
+                  <CalendarIcon size={16} /> Due: {formatDueDate(task.dueDate)}
                 </Text>
               </div>
             )}

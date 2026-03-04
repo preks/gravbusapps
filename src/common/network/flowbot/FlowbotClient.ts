@@ -34,6 +34,14 @@ export interface TextGenerationResponse {
   generated_texts: string[]
 }
 
+export interface EvalsDashboardQueryParams {
+  workflow?: string
+  from_ts?: string
+  to_ts?: string
+  bucket?: 'hour' | 'day'
+  include_split_view?: boolean
+}
+
 export interface MapFromFileRequest {
   entity_type: string
   import_file: File
@@ -79,8 +87,7 @@ export class FlowbotClient extends RestClient {
   constructor() {
     // Use environment-aware base URL (localhost → dev → env NEXT_PUBLIC_FLOWBOT_ENDPOINT / NEXT_PUBLIC_BASE_URL)
     const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot`
-    super(url, {})
+    super(baseUrl, {})
   }
 
   setAccessToken(accessToken: string) {
@@ -128,6 +135,18 @@ export class FlowbotClient extends RestClient {
     return this.post<TextGenerationResponse>('/api/text-generation/generate', requestBody, options)
   }
 
+  public async getEvalsDashboard<T = any>(
+    params: EvalsDashboardQueryParams = {},
+    options: Omit<RequestOptions, 'body' | 'params'> = {}
+  ): Promise<T> {
+    const cleanedParams = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined)) as Record<
+      string,
+      string | number | boolean
+    >
+
+    return this.get<T>('/flowbot/analytics/evals/dashboard', { ...options, params: cleanedParams })
+  }
+
   public async mapFromFile(
     entityType: string,
     importFile: File,
@@ -141,7 +160,7 @@ export class FlowbotClient extends RestClient {
       formData.append('llm_model', llmModel)
     }
 
-    return this.post<MapFromFileResponse>('/extraction/data/entities/map-from-file', formData, options)
+    return this.post<MapFromFileResponse>('/flowbot/extraction/data/entities/map-from-file', formData, options)
   }
 
   public async extractFromFile(
@@ -163,7 +182,7 @@ export class FlowbotClient extends RestClient {
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())
 
-    return this.post<ExtractFromFileResponse>('/extraction/data/entities/extract-from-file', formData, options)
+    return this.post<ExtractFromFileResponse>('/flowbot/extraction/data/entities/extract-from-file', formData, options)
   }
 }
 

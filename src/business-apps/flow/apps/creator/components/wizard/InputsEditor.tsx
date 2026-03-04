@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Input, Select, Checkbox, Card, Tag, Typography } from 'antd'
-import { PlusOutlined, DeleteOutlined, FormOutlined } from '@ant-design/icons'
+import { PlusIcon, TrashIcon, NotePencilIcon } from '@phosphor-icons/react'
 import { Type, MessageSquare, Hash, List, Radio, CheckSquare, Calendar, Upload, PenTool } from 'lucide-react'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 
@@ -122,7 +122,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
           </div>
         </div>
         <Button
-          icon={<PlusOutlined />}
+          icon={<PlusIcon size={16} />}
           onClick={handleAddBlock}
           size="small"
           type="primary"
@@ -168,7 +168,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
                         Required
                       </Checkbox>
                       <Button
-                        icon={<DeleteOutlined />}
+                        icon={<TrashIcon size={16} />}
                         onClick={() => handleDeleteBlock(index)}
                         size="small"
                         type="text"

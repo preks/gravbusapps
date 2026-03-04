@@ -11,6 +11,7 @@ import translations from '../_i18n'
 import {
   Button,
   Badge,
+  Input,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -30,13 +31,18 @@ import {
   Archive,
   Mail,
   Loader2,
-  MessageSquare
+  MessageSquare,
+  Plus,
+  X
 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailThreadView } from './EmailThreadView'
 import { EmailCrmBooking } from './EmailCrmBooking'
+import { useLabelSuggestions } from '../hooks/useLabelSuggestions'
 import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { getInitials, formatFullDate, formatFileSize } from '../utils/emailDisplayUtils'
+import { normalizeLabels } from '../utils/labelUtils'
+import { runOptimisticLabelMutation } from '../utils/runOptimisticLabelMutation'
 import type { EmailMessage, EmailAccount, ComposeMode } from '../types'
 
 interface EmailReaderProps {
@@ -45,6 +51,8 @@ interface EmailReaderProps {
   onDelete: (id: string) => void
   onToggleStar: (id: string) => void
   onArchive: (id: string) => void
+  onRefreshMessages?: () => void
+  onMessageLabelsUpdated?: (messageId: string, labels?: string[]) => Promise<void> | void
   accessToken?: string
   activeAccount?: EmailAccount | null
   employeeId?: string
@@ -60,6 +68,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   onDelete,
   onToggleStar,
   onArchive,
+  onRefreshMessages,
+  onMessageLabelsUpdated,
   accessToken,
   activeAccount,
   employeeId,
@@ -72,7 +82,14 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
   const [threadMessages, setThreadMessages] = useState<EmailMessage[]>([])
   const [isLoadingThread, setIsLoadingThread] = useState(false)
+  const [labelsInput, setLabelsInput] = useState('')
+  const [localLabels, setLocalLabels] = useState<string[]>([])
+  const [isAddLabelMenuOpen, setIsAddLabelMenuOpen] = useState(false)
+  const [isMutatingLabels, setIsMutatingLabels] = useState(false)
+  const [suggestionRefreshTick, setSuggestionRefreshTick] = useState(0)
   const lastThreadIdRef = useRef<string | null>(null)
+  const addLabelMenuRef = useRef<HTMLDivElement>(null)
+  const addLabelToggleRef = useRef<HTMLButtonElement>(null)
 
   const senderAvatar = useSenderAvatar(message?.fromAddress?.address, accessToken)
 
@@ -117,8 +134,120 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
     }
   }, [message?.htmlBody])
 
+  useEffect(() => {
+    setLocalLabels(normalizeLabels(message?.labels || []))
+    setLabelsInput('')
+    setIsAddLabelMenuOpen(false)
+  }, [message?.id, message?.labels])
+
+  useEffect(() => {
+    if (!isAddLabelMenuOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (addLabelMenuRef.current?.contains(target) || addLabelToggleRef.current?.contains(target)) {
+        return
+      }
+      setIsAddLabelMenuOpen(false)
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsAddLabelMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isAddLabelMenuOpen])
+
+  const { suggestions: labelSuggestions, isLoading: isLoadingSuggestions } = useLabelSuggestions({
+    query: labelsInput,
+    existingLabels: localLabels,
+    refreshKey: suggestionRefreshTick
+  })
+
   const showThread =
     threadEnabled && threadMessages.length > 1 && !!message?.threadId && lastThreadIdRef.current === message.threadId
+
+  const addLabelsToMessage = useCallback(
+    async (rawLabels: string[]) => {
+      if (!message || isMutatingLabels) return
+
+      const toAdd = normalizeLabels(rawLabels)
+      if (toAdd.length === 0) return
+
+      const previous = localLabels
+      setLabelsInput('')
+      await runOptimisticLabelMutation({
+        previousLabels: previous,
+        setLocalLabels,
+        setIsMutating: setIsMutatingLabels,
+        getOptimisticLabels: labels => [...labels, ...toAdd],
+        mutate: async () => {
+          const result = await EmailApiService.addMessageLabels(message.id, toAdd)
+          return result.labels || []
+        },
+        onSuccess: async updatedLabels => {
+          setIsAddLabelMenuOpen(false)
+          toast.success(t('reader-labels-add-success'))
+          await onMessageLabelsUpdated?.(message.id, updatedLabels)
+          setSuggestionRefreshTick(prevTick => prevTick + 1)
+        },
+        onError: () => {
+          toast.error(t('reader-labels-add-failed'))
+          onRefreshMessages?.()
+        }
+      })
+    },
+    [message, localLabels, isMutatingLabels, t, onMessageLabelsUpdated, onRefreshMessages]
+  )
+
+  const handleAddLabel = useCallback(async () => {
+    await addLabelsToMessage([labelsInput])
+  }, [addLabelsToMessage, labelsInput])
+
+  const handleAddSuggestion = useCallback(
+    async (suggestionName: string) => {
+      await addLabelsToMessage([suggestionName])
+    },
+    [addLabelsToMessage]
+  )
+
+  const handleRemoveLabel = useCallback(
+    async (label: string) => {
+      if (!message || isMutatingLabels) return
+
+      const normalized = normalizeLabels([label])
+      if (normalized.length === 0) return
+
+      await runOptimisticLabelMutation({
+        previousLabels: localLabels,
+        setLocalLabels,
+        setIsMutating: setIsMutatingLabels,
+        getOptimisticLabels: labels => labels.filter(existing => existing !== normalized[0]),
+        mutate: async () => {
+          const result = await EmailApiService.removeMessageLabels(message.id, normalized)
+          return result.labels || []
+        },
+        onSuccess: async updatedLabels => {
+          toast.success(t('reader-labels-remove-success'))
+          await onMessageLabelsUpdated?.(message.id, updatedLabels)
+          setSuggestionRefreshTick(prev => prev + 1)
+        },
+        onError: () => {
+          toast.error(t('reader-labels-remove-failed'))
+          onRefreshMessages?.()
+        }
+      })
+    },
+    [message, localLabels, isMutatingLabels, t, onMessageLabelsUpdated, onRefreshMessages]
+  )
 
   const handleDownloadAttachment = useCallback(
     async (messageId: string, attachmentId: string) => {
@@ -158,6 +287,35 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
 
   const from = message.fromAddress
   const toNames = message.toAddresses.map(a => a.name || a.address).join(', ')
+  const hasAnyAttachments = (message.attachments?.length ?? 0) > 0 || message.hasAttachments
+  const shouldShowLabelSuggestions = labelsInput.trim().length > 0
+
+  let labelSuggestionsContent: React.ReactNode = null
+  if (isLoadingSuggestions) {
+    labelSuggestionsContent = (
+      <p className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-suggestions-loading')}</p>
+    )
+  } else if (labelSuggestions.length === 0) {
+    labelSuggestionsContent = (
+      <p className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-suggestions-empty')}</p>
+    )
+  } else {
+    labelSuggestionsContent = (
+      <>
+        {labelSuggestions.map(suggestion => (
+          <button
+            key={`${message.id}-label-suggestion-${suggestion.id}`}
+            type="button"
+            className="gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded hover:gba:bg-muted/50 gba:text-sm"
+            onClick={() => void handleAddSuggestion(suggestion.name)}
+            data-testid={`${testId}-label-suggestion-${suggestion.id}`}
+          >
+            {suggestion.name}
+          </button>
+        ))}
+      </>
+    )
+  }
 
   return (
     <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
@@ -263,6 +421,88 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
           )}
         </div>
 
+        <div className="gba:mb-4 gba:space-y-2">
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
+            <span className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-title')}</span>
+            {localLabels.length === 0 && (
+              <span className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-empty')}</span>
+            )}
+            {localLabels.map(label => (
+              <span key={`${message.id}-label-${label}`} className="gba:inline-flex gba:items-center gba:gap-1">
+                <Badge variant="secondary" className="gba:h-5 gba:text-[10px]">
+                  {label}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="gba:h-5 gba:w-5"
+                  onClick={() => handleRemoveLabel(label)}
+                  disabled={isMutatingLabels}
+                  data-testid={`${testId}-remove-label-${label}`}
+                >
+                  <X className="gba:w-3 gba:h-3" />
+                </Button>
+              </span>
+            ))}
+            <div className="gba:relative gba:inline-flex gba:items-center">
+              <Button
+                ref={addLabelToggleRef}
+                variant="outline"
+                size="icon"
+                className="gba:h-5 gba:w-5"
+                onClick={() => {
+                  setIsAddLabelMenuOpen(prev => {
+                    const next = !prev
+                    if (!next) {
+                      setLabelsInput('')
+                    }
+                    return next
+                  })
+                }}
+                disabled={isMutatingLabels}
+                data-testid={`${testId}-labels-menu-toggle`}
+              >
+                <Plus className="gba:w-3 gba:h-3" />
+              </Button>
+              {isAddLabelMenuOpen && (
+                <div
+                  ref={addLabelMenuRef}
+                  className="gba:absolute gba:top-full gba:right-0 gba:mt-2 gba:z-20 gba:w-60 gba:border gba:rounded-md gba:bg-popover gba:p-2 gba:space-y-2"
+                  data-testid={`${testId}-labels-menu`}
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Input
+                      value={labelsInput}
+                      onChange={e => setLabelsInput(e.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          void handleAddLabel()
+                        }
+                      }}
+                      placeholder={t('reader-labels-input-placeholder')}
+                      className="gba:h-8"
+                      data-testid={`${testId}-labels-input`}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAddLabel}
+                      disabled={isMutatingLabels}
+                      data-testid={`${testId}-labels-add`}
+                    >
+                      {t('reader-labels-add')}
+                    </Button>
+                  </div>
+                  {shouldShowLabelSuggestions && (
+                    <div className="gba:border gba:rounded-md gba:p-2 gba:space-y-1">{labelSuggestionsContent}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Thread loading state */}
         {isLoadingThread && threadEnabled && (
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-4">
@@ -312,7 +552,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             )}
 
             {/* Attachments with download */}
-            {(message.attachments?.length > 0 || message.hasAttachments) &&
+            {hasAnyAttachments &&
               (() => {
                 const nonInline = (message.attachments || []).filter(a => !a.isInline)
                 return (

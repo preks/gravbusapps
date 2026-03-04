@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Card, Typography, Spin, Empty } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import {
   BarChart,
   Bar,
@@ -123,7 +123,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
             {t('hr-analytics-gap-rate-by-org-unit')}
           </Title>
           <div className="gba:flex gba:items-center">
-            <InfoCircleOutlined className="gba:text-base" data-testid="gap-rate-by-org-unit-info-icon" />
+            <InfoIcon size={16} className="gba:text-base" data-testid="gap-rate-by-org-unit-info-icon" />
           </div>
         </div>
       }

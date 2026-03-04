@@ -105,6 +105,8 @@ function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayloa
       name: values.name.trim(),
       startDate: values.startDate,
       endDate: values.endDate,
+      ...(values.evaluationPeriodStartDate ? { evaluationPeriodStartDate: values.evaluationPeriodStartDate } : {}),
+      ...(values.evaluationPeriodEndDate ? { evaluationPeriodEndDate: values.evaluationPeriodEndDate } : {}),
       frequency: frequencyApi,
       ratingScale: values.ratingScaleId ?? null,
       participants,

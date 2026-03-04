@@ -10,6 +10,8 @@ export const GET_PERFORMANCE_CYCLES = /* GraphQL */ `
       name
       startDate
       endDate
+      evaluationPeriodStartDate
+      evaluationPeriodEndDate
       frequency
       status
       recordState
@@ -48,6 +50,8 @@ export interface PerformanceCycleApi {
   name: string | null
   startDate: string | null
   endDate: string | null
+  evaluationPeriodStartDate: string | null
+  evaluationPeriodEndDate: string | null
   frequency: string | null
   status: string | null
   recordState: string | null
