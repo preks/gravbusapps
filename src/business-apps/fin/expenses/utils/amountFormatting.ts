@@ -182,7 +182,8 @@ function isZeroVariant(v: string): boolean {
  */
 export function applyPaymentAmountRules(sanitizedValue: string, previousValue: string): string {
   let value = isZeroVariant(previousValue) ? sanitizedValue.replace(/^[0.,]+/, '') : sanitizedValue
-  if (/^0+\d+$/.test(value)) {
+  // Same condition as "leading zeros then digits" without a backtracking-prone regex (DoS-safe)
+  if (value.length > 1 && value[0] === '0' && /^\d+$/.test(value)) {
     value = value.replace(/^0+/, '')
   }
   return value
