@@ -4,10 +4,22 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Button, cn } from '@newwork/nw-design-system'
-import { ChevronLeft, ChevronRight, X, Clock, StickyNote, Maximize2, Minimize2 } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Clock,
+  StickyNote,
+  Maximize2,
+  Minimize2,
+  Cast,
+  MonitorX,
+  Loader2
+} from 'lucide-react'
 import type { SlideData } from './slideElements'
 import type { SlideTheme } from './slideThemes'
 import { SlideCanvas } from './SlideCanvas'
+import type { ConnectionState } from '../hooks/usePresentationCast'
 
 export interface PresenterViewProps {
   slides: SlideData[]
@@ -16,6 +28,12 @@ export interface PresenterViewProps {
   onSlideChange: (index: number) => void
   onExit: () => void
   t: (key: string, params?: Record<string, string | number>) => string
+  /** Casting connection state */
+  castConnectionState?: ConnectionState
+  /** Whether casting is in fallback (window) mode */
+  isCastFallback?: boolean
+  /** Callback to stop casting */
+  onStopCast?: () => void
   'data-testid'?: string
 }
 
@@ -36,8 +54,13 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
   onSlideChange,
   onExit,
   t,
+  castConnectionState,
+  isCastFallback,
+  onStopCast,
   'data-testid': testId = 'presenter-view'
 }) => {
+  const isCasting = castConnectionState === 'connected'
+  const isConnecting = castConnectionState === 'connecting'
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [mainSlideScale, setMainSlideScale] = useState(0.5)
   const [previewScale, setPreviewScale] = useState(0.15)
@@ -151,7 +174,48 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
           </div>
         </div>
 
-        <div className="gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-4">
+          {/* Cast status indicator */}
+          {(isCasting || isConnecting) && (
+            <div
+              className={cn(
+                'gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1 gba:rounded-full gba:text-sm',
+                isConnecting && 'gba:bg-yellow-900/50 gba:text-yellow-300',
+                isCasting && 'gba:bg-green-900/50 gba:text-green-300'
+              )}
+              data-testid={`${testId}-cast-status`}
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+                  <span>{t('cast-connecting-short')}</span>
+                </>
+              ) : (
+                <>
+                  <Cast className="gba:w-4 gba:h-4" />
+                  <span className="gba:relative gba:flex gba:items-center gba:gap-2">
+                    <span className="gba:relative gba:flex gba:h-2 gba:w-2">
+                      <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-green-400 gba:opacity-75" />
+                      <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-green-500" />
+                    </span>
+                    {isCastFallback ? t('presenter-presenting-window') : t('presenter-casting')}
+                  </span>
+                  {onStopCast && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onStopCast}
+                      className="gba:h-6 gba:px-2 gba:text-green-300 hover:gba:text-white hover:gba:bg-green-800/50"
+                      data-testid={`${testId}-stop-cast`}
+                    >
+                      <MonitorX className="gba:w-3 gba:h-3" />
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           <span className="gba:text-sm gba:text-zinc-400 gba:tabular-nums">
             {currentSlideIndex + 1} / {slides.length}
           </span>
@@ -186,16 +250,24 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
             ref={mainSlideContainerRef}
             className="gba:flex-1 gba:flex gba:items-center gba:justify-center gba:bg-zinc-950 gba:p-4"
           >
-            <SlideCanvas
-              elements={currentSlide.elements}
-              selectedIds={new Set()}
-              background={currentSlide.background}
-              onSelectElements={() => {}}
-              onUpdateElement={() => {}}
-              onUpdateMultipleElements={() => {}}
-              onEditText={() => {}}
-              scale={mainSlideScale}
-            />
+            <div
+              className="gba:relative gba:overflow-hidden gba:flex-shrink-0"
+              style={{
+                width: 1280 * mainSlideScale,
+                height: 720 * mainSlideScale
+              }}
+            >
+              <SlideCanvas
+                elements={currentSlide.elements}
+                selectedIds={new Set()}
+                background={currentSlide.background}
+                onSelectElements={() => {}}
+                onUpdateElement={() => {}}
+                onUpdateMultipleElements={() => {}}
+                onEditText={() => {}}
+                scale={mainSlideScale}
+              />
+            </div>
           </div>
         </div>
 
@@ -243,16 +315,24 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                 className="gba:h-40 gba:flex gba:items-center gba:justify-center gba:bg-zinc-950 gba:p-2"
               >
                 {nextSlide ? (
-                  <SlideCanvas
-                    elements={nextSlide.elements}
-                    selectedIds={new Set()}
-                    background={nextSlide.background}
-                    onSelectElements={() => {}}
-                    onUpdateElement={() => {}}
-                    onUpdateMultipleElements={() => {}}
-                    onEditText={() => {}}
-                    scale={previewScale}
-                  />
+                  <div
+                    className="gba:relative gba:overflow-hidden gba:flex-shrink-0"
+                    style={{
+                      width: 1280 * previewScale,
+                      height: 720 * previewScale
+                    }}
+                  >
+                    <SlideCanvas
+                      elements={nextSlide.elements}
+                      selectedIds={new Set()}
+                      background={nextSlide.background}
+                      onSelectElements={() => {}}
+                      onUpdateElement={() => {}}
+                      onUpdateMultipleElements={() => {}}
+                      onEditText={() => {}}
+                      scale={previewScale}
+                    />
+                  </div>
                 ) : (
                   <span className="gba:text-sm gba:text-zinc-500">{t('presenter-last-slide')}</span>
                 )}

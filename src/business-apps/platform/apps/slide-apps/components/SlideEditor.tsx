@@ -52,6 +52,8 @@ import {
   Video,
   Presentation,
   Clock,
+  Cast,
+  MonitorX,
   CheckCircle,
   Download,
   FileDown,
@@ -68,7 +70,8 @@ import {
   PieChart,
   AreaChart,
   Activity,
-  Target
+  Target,
+  ExternalLink
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -83,6 +86,7 @@ import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
 import { SlideEditorHeaderActions } from './editor/SlideEditorHeaderActions'
 import { SLIDE_THEMES, getThemeById } from './slideThemes'
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
+import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
 import {
   type AnySlideElement,
   type SlideData,
@@ -375,6 +379,104 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     | { type: 'slide'; data: SlideData }
     | null
   >(null)
+
+  // Track if we've received initial connection ack
+  const hasReceivedConnectionAck = useRef(false)
+
+  // Build receiver URL with hash to survive authentication redirects
+  const castReceiverUrl = useMemo(() => {
+    const params = new URLSearchParams(window.location.search)
+    const appParam = params.get('app')
+    if (appParam) {
+      return `${window.location.pathname}?app=${encodeURIComponent(appParam)}#cast-receiver`
+    }
+    return `${window.location.pathname}#cast-receiver`
+  }, [])
+
+  // Presentation casting hook
+  const {
+    isConnected: isCastConnected,
+    isFallbackMode: isCastFallback,
+    connectionState: castConnectionState,
+    startCasting,
+    stopCasting,
+    sendSlideData
+  } = usePresentationCast({
+    receiverUrl: castReceiverUrl,
+    onConnectionChange: state => {
+      switch (state) {
+        case 'connecting':
+          hasReceivedConnectionAck.current = false
+          toast.loading(t('cast-connecting'), { id: 'cast-status' })
+          break
+        case 'connected':
+          // Initial connection - wait for receiver ack for full confirmation
+          if (!hasReceivedConnectionAck.current) {
+            toast.loading(t('cast-connecting'), { id: 'cast-status' })
+          }
+          break
+        case 'closed':
+        case 'disconnected':
+          hasReceivedConnectionAck.current = false
+          toast.dismiss('cast-status')
+          break
+      }
+    },
+    onReceiverAck: ack => {
+      if (ack.ackType === 'connected' && !hasReceivedConnectionAck.current) {
+        hasReceivedConnectionAck.current = true
+        toast.success(t('cast-connected-success'), { id: 'cast-status' })
+      }
+    },
+    onError: error => {
+      // Dismiss the loading toast first
+      toast.dismiss('cast-status')
+
+      if (error.message === 'CHROMECAST_LOCALHOST_ERROR') {
+        // Use different id so it won't be dismissed by onConnectionChange
+        toast.error(t('cast-chromecast-localhost-error'), {
+          id: 'cast-error',
+          duration: 10000
+        })
+      } else {
+        toast.error(error.message || t('cast-error'), { id: 'cast-error' })
+      }
+    }
+  })
+
+  // Handler for stopping cast with feedback
+  const handleStopCast = useCallback(() => {
+    stopCasting()
+    toast.success(t('cast-disconnected'), { id: 'cast-status' })
+  }, [stopCasting, t])
+
+  // Connection timeout warning - if connected but no ack after 15 seconds, show troubleshooting info
+  useEffect(() => {
+    if (castConnectionState !== 'connected' || hasReceivedConnectionAck.current) {
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      if (!hasReceivedConnectionAck.current && castConnectionState === 'connected') {
+        toast.loading(t('cast-waiting-receiver') || 'Waiting for receiver to load...', { id: 'cast-status' })
+      }
+    }, 10000) // 10 seconds
+
+    const warningTimeout = setTimeout(() => {
+      if (!hasReceivedConnectionAck.current && castConnectionState === 'connected') {
+        toast.error(
+          t('cast-connection-timeout') ||
+            'Connection taking too long. The receiver window may need to complete authentication.',
+          { id: 'cast-status', duration: 10000 }
+        )
+      }
+    }, 30000) // 30 seconds
+
+    return () => {
+      clearTimeout(timeout)
+      clearTimeout(warningTimeout)
+    }
+  }, [castConnectionState, t])
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
@@ -1189,6 +1291,41 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [])
 
+  // Sync slide data to cast receiver when casting and slide changes
+  useEffect(() => {
+    if (!isCastConnected) return
+
+    const castData: CastSlideData = {
+      type: 'slide-update',
+      slideIndex: currentSlideIndex,
+      totalSlides: slides.length,
+      slide: currentSlide,
+      theme: currentTheme,
+      slides
+    }
+    sendSlideData(castData)
+  }, [isCastConnected, currentSlideIndex, currentSlide, currentTheme, slides, sendSlideData])
+
+  // Handle starting cast to external display (Presentation API only)
+  const handleStartCast = useCallback(async () => {
+    try {
+      await startCasting(slides, currentTheme, currentSlideIndex, 'cast')
+    } catch {
+      // Error handled by hook's onError callback
+    }
+  }, [startCasting, slides, currentTheme, currentSlideIndex])
+
+  // Handle starting presentation in new window (also opens presenter view on control screen)
+  const handleStartWindowPresent = useCallback(async () => {
+    try {
+      await startCasting(slides, currentTheme, currentSlideIndex, 'window')
+      // Open presenter view on control screen for speaker notes and controls
+      setPresenterMode(true)
+    } catch {
+      // Error handled by hook's onError callback
+    }
+  }, [startCasting, slides, currentTheme, currentSlideIndex])
+
   // Keyboard navigation for presentation mode
   useEffect(() => {
     if (!isPresentMode) return
@@ -1615,6 +1752,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 {t('editor-speaker-notes')}
               </Button>
 
+              {/* Cast status indicator */}
+              {isCastConnected && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleStopCast}
+                  className="gba:gap-2 gba:text-green-600 gba:border-green-600"
+                  data-testid={`${testId}-cast-stop`}
+                >
+                  <Cast className="gba:w-4 gba:h-4" />
+                  {isCastFallback ? t('cast-connected-window') : t('cast-connected')}
+                  <MonitorX className="gba:w-4 gba:h-4" />
+                </Button>
+              )}
+
               {/* Present dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1637,6 +1789,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   <DropdownMenuItem onClick={() => setPresenterMode(true)}>
                     <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('presenter-view')}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleStartWindowPresent}
+                    disabled={isCastConnected || castConnectionState === 'connecting'}
+                  >
+                    <ExternalLink className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('present-in-window')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleStartCast}
+                    disabled={isCastConnected || castConnectionState === 'connecting'}
+                  >
+                    <Cast className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {castConnectionState === 'connecting' ? t('cast-connecting') : t('cast-to-display')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -2636,6 +2803,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           onSlideChange={setCurrentSlideIndex}
           onExit={() => setPresenterMode(false)}
           t={t}
+          castConnectionState={castConnectionState}
+          isCastFallback={isCastFallback}
+          onStopCast={handleStopCast}
         />
       )}
     </div>

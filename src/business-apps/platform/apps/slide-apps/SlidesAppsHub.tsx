@@ -76,7 +76,8 @@ import {
   ShareSlideDialog,
   ManageSharesDialog,
   PowerPointUploader,
-  TemplateBrowserDialog
+  TemplateBrowserDialog,
+  CastReceiver
 } from './components'
 import type { SlideData } from './components/slideElements'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
@@ -479,6 +480,42 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       default:
         return t('sidebar-brand-title')
     }
+  }
+
+  // Check if this is a cast receiver view (standalone page for external display)
+  // localStorage flag survives authentication redirects. Use useState with lazy initializer
+  // to avoid consuming the flag during React's double-mount in strict mode.
+  const [isCastReceiver] = useState(() => {
+    try {
+      // Check localStorage first (survives auth redirects)
+      const localStorageFlag = localStorage.getItem('slides-cast-receiver-mode')
+      console.log('[SlidesAppsHub] Checking cast receiver mode, localStorage flag:', localStorageFlag)
+      if (localStorageFlag === 'true') {
+        // Immediately clear to prevent other windows from picking it up
+        localStorage.removeItem('slides-cast-receiver-mode')
+        console.log('[SlidesAppsHub] Cast receiver mode detected via localStorage')
+        return true
+      }
+      // Fallback: check hash and query param
+      const hash = globalThis.window.location.hash
+      if (hash === '#cast-receiver') {
+        console.log('[SlidesAppsHub] Cast receiver mode detected via hash')
+        return true
+      }
+      const params = new URLSearchParams(globalThis.window.location.search)
+      if (params.get('view') === 'cast-receiver') {
+        console.log('[SlidesAppsHub] Cast receiver mode detected via query param')
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  })
+
+  // Render cast receiver (standalone full-screen view for external displays)
+  if (isCastReceiver) {
+    return <CastReceiver data-testid={`${testId}-cast-receiver`} />
   }
 
   // Render editor view

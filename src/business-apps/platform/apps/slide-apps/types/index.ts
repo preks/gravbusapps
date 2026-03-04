@@ -7,3 +7,12 @@ export type {
   UpdateTemplateRequest,
   TemplateFilters
 } from './template'
+export type {
+  PresentationAvailability,
+  PresentationConnection,
+  PresentationConnectionAvailableEvent,
+  PresentationConnectionList,
+  PresentationReceiver,
+  PresentationRequestInstance,
+  PresentationRequestConstructor
+} from './presentationApi'

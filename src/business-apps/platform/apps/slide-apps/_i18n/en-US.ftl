@@ -555,6 +555,8 @@ presenter-no-notes = No notes for this slide
 presenter-last-slide = Last slide
 presenter-time-elapsed = Elapsed
 presenter-exit = Exit
+presenter-casting = Casting to Display
+presenter-presenting-window = Presenting in Window
 
 # Voice Input
 editor-voice-listening = Listening... Speak now
@@ -594,3 +596,22 @@ props-show-legend = Show Legend
 props-show-grid = Show Grid
 props-show-tooltip = Show Tooltip
 props-chart-styling = Chart Styling
+
+# Presentation Casting
+present-in-window = Present in Window
+cast-to-display = Cast to Display
+cast-connecting = Connecting to display...
+cast-connecting-short = Connecting...
+cast-connected = Casting
+cast-connected-window = Casting (Window)
+cast-connected-success = Connected! Presentation is now casting
+cast-disconnected = Disconnected from display
+cast-stop = Stop Casting
+cast-no-displays = No displays found
+cast-error = Failed to connect to display
+cast-chromecast-localhost-error = Chromecast cannot access localhost. Use "Present in Window" instead, then right-click the window and select "Cast..." to stream to your Chromecast.
+cast-receiver-waiting = Waiting for presentation...
+cast-receiver-connected = Connected to presenter
+cast-slide-received = Slide received
+cast-waiting-receiver = Waiting for receiver to load...
+cast-connection-timeout = Connection taking too long. The receiver window may need to complete authentication.
