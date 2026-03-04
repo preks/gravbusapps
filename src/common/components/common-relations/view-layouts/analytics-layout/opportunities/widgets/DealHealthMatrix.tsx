@@ -141,7 +141,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
             data-testid="healthy-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <HeartOutlined className="gba:text-blue-600" />
+              <HeartIcon className="gba:text-blue-600" />
               <span className="gba:text-sm gba:font-medium gba:text-blue-600">Healthy</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-blue-900">{data.healthDistribution.healthy}</div>

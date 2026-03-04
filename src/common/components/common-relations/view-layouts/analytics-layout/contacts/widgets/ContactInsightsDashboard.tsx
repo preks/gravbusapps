@@ -100,7 +100,7 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
           </div>
           <div className="gba:p-4 gba:bg-purple-50 gba:rounded-lg gba:border gba:border-purple-200">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <TeamOutlined className="gba:text-purple-600" />
+              <UsersIcon className="gba:text-purple-600" />
               <span className="gba:text-sm gba:font-medium gba:text-purple-600">Contact Types</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-purple-900">{data.contactsByType.length}</div>

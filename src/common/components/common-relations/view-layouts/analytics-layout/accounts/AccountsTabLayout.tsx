@@ -146,7 +146,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       title: 'Avg. Opportunities',
       value: avgOpportunitiesPerAccount || 0,
       precision: 1,
-      prefix: <TeamOutlined />,
+      prefix: <UsersIcon />,
       description: 'Average opportunities per account',
       ...(trendData && !trendLoading
         ? {

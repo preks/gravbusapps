@@ -91,7 +91,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
       value: 'single',
       label: 'Single Person',
       description: 'One person must complete this task',
-      icon: <UserOutlined />
+      icon: <UserIcon />
     },
     {
       value: 'multiple',
@@ -103,7 +103,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
       value: 'any',
       label: 'Any One Person',
       description: 'Any one person from the assigned group',
-      icon: <UserOutlined />
+      icon: <UserIcon />
     },
     {
       value: 'all',
@@ -118,7 +118,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
       value: 'manual',
       label: 'Manual Assignment',
       description: 'Assignments will be made manually at execution time',
-      icon: <UserOutlined />
+      icon: <UserIcon />
     },
     {
       value: 'role-based',
@@ -136,13 +136,13 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
       value: 'manager-based',
       label: 'Manager-Based Assignment',
       description: "Assign to the requester's manager or hierarchy",
-      icon: <UserOutlined />
+      icon: <UserIcon />
     },
     {
       value: 'requester-based',
       label: 'Requester-Based Assignment',
       description: 'Assign back to the workflow requester',
-      icon: <UserOutlined />
+      icon: <UserIcon />
     }
   ]
 
@@ -169,7 +169,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
         <Card data-testid={`${testId}-steps-overview`}>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:space-x-2">
-              <CheckCircleOutlined className="gba:text-green-500" />
+              <CheckCircleIcon className="gba:text-green-500" />
               <span>Configured Workflow Steps ({configuration.steps.length})</span>
             </CardTitle>
           </CardHeader>

@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Progress, Card, Steps, Tag, Typography, Space, Button, Tooltip, Spin, Alert } from 'antd'
-import {
-  CheckCircleIcon,
-  ClockIcon,
-  PlayCircleIcon,
-  DownloadIcon,
-  ArrowsClockwiseIcon
-} from '@phosphor-icons/react'
+import {ArrowClockwiseIcon, ArrowsClockwiseIcon, CheckCircleIcon, ClockIcon, DownloadIcon, PlayCircleIcon} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFlowProgressClient, FlowOverview } from '@/common/network/flows/useFlowProgressClient'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -72,7 +66,7 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
       case 'COMPLETED':
         return <CheckCircleIcon size={16} className="gba:text-green-500" />
       case 'IN_PROGRESS':
-        return <PlayCircleOutlined className="gba:text-blue-500" />
+        return <PlayCircleIcon className="gba:text-blue-500" />
       case 'SCHEDULED':
         return <ClockIcon size={16} className="gba:text-orange-500" />
       case 'QUEUED':
@@ -173,7 +167,7 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
             <Tag color={flowData.status === 'RUNNING' ? 'processing' : 'default'}>{flowData.status}</Tag>
             {refreshInterval && (
               <Tooltip title="Auto-refreshing">
-                <Button icon={<ReloadOutlined spin={loading} />} size="small" type="text" onClick={loadFlowData} />
+                <Button icon={<ArrowClockwiseIcon spin={loading} />} size="small" type="text" onClick={loadFlowData} />
               </Tooltip>
             )}
             {showExport && (

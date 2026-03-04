@@ -73,7 +73,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         'lowcoder:personal_expenses.record_expense_description',
         'Plan a new Business Trip.'
       ),
-      icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
+      icon: <PlusCircleIcon className="gba:text-2xl gba:text-blue-500" />,
       features: [
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_plan_approval', 'Request plan approval'),
         getTranslationFromI18nKeyAndLabel(
@@ -96,7 +96,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         'lowcoder:personal_expenses.record_expense_description',
         'Quickly add a new expense to your records. Keep track of your spending efficiently.'
       ),
-      icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
+      icon: <PlusCircleIcon className="gba:text-2xl gba:text-blue-500" />,
       features: [
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.single_or_multiple_items',
@@ -119,7 +119,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         'lowcoder:personal_expenses.submit_request_description',
         'Submit your expense reports for reimbursement and manage your trip requests efficiently.'
       ),
-      icon: <SendOutlined className="gba:text-2xl gba:text-green-500" />,
+      icon: <PaperPlaneTiltIcon className="gba:text-2xl gba:text-green-500" />,
       features: [
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.create_expense_report', 'Create expense report'),
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_trip_approval', 'Request trip approval'),
