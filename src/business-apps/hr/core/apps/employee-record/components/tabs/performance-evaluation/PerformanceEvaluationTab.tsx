@@ -139,8 +139,9 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
                   value={cycle.performanceCycleId}
                   data-testid={`employee-performance-evaluation-selector-option-${cycle.performanceCycleId}`}
                 >
-                  {cycle.performanceCycleName} ({formatDisplayDate(cycle.performanceCycleStartDate)} -{' '}
-                  {formatDisplayDate(cycle.performanceCycleEndDate)})
+                  {cycle.performanceCycleName} (
+                  {formatDisplayDate(cycle.evaluationPeriodStartDate ?? cycle.performanceCycleStartDate)} -{' '}
+                  {formatDisplayDate(cycle.evaluationPeriodEndDate ?? cycle.performanceCycleEndDate)})
                 </SelectItem>
               ))}
             </SelectContent>

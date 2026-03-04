@@ -19,6 +19,8 @@ export interface PerformanceCycleApi {
   performanceCycleName: string | null
   performanceCycleStartDate: string | null
   performanceCycleEndDate: string | null
+  evaluationPeriodStartDate: string | null
+  evaluationPeriodEndDate: string | null
   evaluations: PerformanceEvaluationItemApi[]
 }
 
@@ -43,6 +45,8 @@ export interface PerformanceCycleOverview {
   performanceCycleName: string
   performanceCycleStartDate: string | null
   performanceCycleEndDate: string | null
+  evaluationPeriodStartDate: string | null
+  evaluationPeriodEndDate: string | null
   totalEvaluations: number
   completedEvaluations: number
   inProgressEvaluations: number
