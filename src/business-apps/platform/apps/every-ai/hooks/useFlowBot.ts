@@ -893,7 +893,14 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   }, [accessToken, state.sessionId, state.conversation.length])
 
   const sendMessage = useCallback(
-    async (userInputText: string, files: File[], isThinking: boolean = false, isSearching: boolean = false) => {
+    async (
+      userInputText: string,
+      files: File[],
+      isThinking: boolean = false,
+      isSearching: boolean = false,
+      additionInfo?: string,
+      skills?: string[]
+    ) => {
       if (!userInputText.trim() && files.length === 0) return
       if (inFlightRef.current) return
 
@@ -938,6 +945,16 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         form.append('user_input_text', userInputText)
         form.append('llm_model', isThinking ? 'o4-mini' : LLM_MODEL)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
+        // Append when explicitly provided (including empty string) so callers can
+        // force inclusion of the multipart field for document-edit flows.
+        if (additionInfo !== undefined) {
+          form.append('addition_info', additionInfo)
+        }
+        if (skills !== undefined) {
+          skills.forEach(skill => {
+            form.append('skills', skill)
+          })
+        }
 
         const currentPagePayload = await buildCurrentPageContextPayload()
         form.append('current_page_context', JSON.stringify(currentPagePayload))

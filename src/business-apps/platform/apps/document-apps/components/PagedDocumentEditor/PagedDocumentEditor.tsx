@@ -109,7 +109,7 @@ import { useFileLock } from '../../../shared/hooks/useFileLock'
 import { useComments } from '../../../shared/hooks/useComments'
 import { usePublishing } from '../../../shared/hooks/usePublishing'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../spaces/hooks/useSpaceDocumentActivity'
-import { buildDocumentEditPrompt } from '@/common/utils/buildDocumentEditPrompt'
+import { buildDocumentEditAdditionInfo } from '@/common/utils/buildDocumentEditPrompt'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
@@ -1194,19 +1194,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           },
           handlePaste: imageHandlers.handlePaste,
           handleDrop: imageHandlers.handleDrop,
-          handleKeyDown: (_view, event) => handleTabKeyInPagedEditor(event, editorRef)
-        },
-        onUpdate: () => {
-          schedulePaginationRebuild()
-          if (document?.id) versioning.markAsChanged()
-          if (!document?.id) {
-            setHasUnsavedChanges(true)
-            if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current)
-            autoSaveTimeoutRef.current = setTimeout(() => handleSave(), AUTO_SAVE_DELAY_MS)
-          }
-          scheduleAutocompleteRef.current()
-        },
-        editorProps: {
           handleKeyDown(view, event) {
             const currentSuggestion = autocompleteSuggestionRef.current
             const currentCursorPos = autocompleteCursorPosRef.current
@@ -1229,8 +1216,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               clearAutocompleteSuggestion()
               return true
             }
-            return false
+
+            return handleTabKeyInPagedEditor(event, editorRef)
           }
+        },
+        onUpdate: () => {
+          schedulePaginationRebuild()
+          if (document?.id) versioning.markAsChanged()
+          if (!document?.id) {
+            setHasUnsavedChanges(true)
+            if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current)
+            autoSaveTimeoutRef.current = setTimeout(() => handleSave(), AUTO_SAVE_DELAY_MS)
+          }
+          scheduleAutocompleteRef.current()
         }
       },
       [
@@ -1883,12 +1881,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const trimmedInstruction = aiInstruction.trim()
       if (!trimmedInstruction) return
 
-      const prompt = buildDocumentEditPrompt({
+      const prompt = trimmedInstruction
+      const additionInfo = buildDocumentEditAdditionInfo({
         documentId: document.id,
         documentTitle: title,
         selectedText: aiSelectionSnapshot,
         selectedHtml: aiSelectionSnapshotHtml,
-        userInstruction: trimmedInstruction
+        fullDocumentHtml: editor?.getHTML() || ''
       })
 
       setShowAiInstructionDialog(false)
@@ -1896,7 +1895,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setAiSelectionSnapshot('')
       setAiSelectionSnapshotHtml('')
 
-      openEveryAI({ prompt })
+      openEveryAI({ prompt, additionInfo, skills: ['Documents'] })
 
       // Fallback: if this shell does not handle openEveryAI events, navigate directly.
       globalThis.setTimeout(() => {
@@ -1905,7 +1904,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           navigateTo('/platform/every-ai')
         }
       }, 800)
-    }, [aiInstruction, aiSelectionSnapshot, aiSelectionSnapshotHtml, document?.id, title])
+    }, [aiInstruction, aiSelectionSnapshot, aiSelectionSnapshotHtml, document?.id, editor, title])
 
     const applyLatestDocumentContent = useCallback(
       async (html: string, updatedAt?: string): Promise<boolean> => {
