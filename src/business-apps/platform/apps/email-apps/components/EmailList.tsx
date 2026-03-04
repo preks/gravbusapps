@@ -3,11 +3,41 @@
  * Supports selection, star toggle, read/unread indicators, and multi-select.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Input, Spinner, Button, Checkbox, useTranslation } from '@newwork/nw-design-system'
-import { Search, Star, Paperclip, AlertCircle, Trash2, MailOpen, Mail, MessageSquare } from 'lucide-react'
+import {
+  Input,
+  Spinner,
+  Button,
+  Checkbox,
+  Badge,
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuSeparator,
+  ContextMenuItem,
+  useTranslation
+} from '@newwork/nw-design-system'
+import {
+  Search,
+  Star,
+  Paperclip,
+  AlertCircle,
+  Trash2,
+  Archive,
+  MailOpen,
+  Mail,
+  MessageSquare,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  X,
+  Reply,
+  ReplyAll,
+  Forward
+} from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
+import { normalizeLabels } from '../utils/labelUtils'
 import type { EmailMessageSummary } from '../types'
 import translations from '../_i18n'
 
@@ -20,8 +50,16 @@ interface EmailListProps {
   total?: number
   searchQuery: string
   onSearchChange: (query: string) => void
+  selectedLabels?: string[]
+  onLabelsChange?: (labels: string[]) => void
   onSelectMessage: (id: string) => void
   onToggleStar: (id: string) => void
+  onReply?: (messageId: string) => void
+  onReplyAll?: (messageId: string) => void
+  onForward?: (messageId: string) => void
+  onToggleRead?: (messageId: string, isRead: boolean) => void
+  onArchive?: (messageId: string) => void
+  onDelete?: (messageId: string) => void
   onRefresh: () => void
   onLoadMore?: () => void
   folderName: string
@@ -57,8 +95,16 @@ export const EmailList: React.FC<EmailListProps> = ({
   total = 0,
   searchQuery,
   onSearchChange,
+  selectedLabels = [],
+  onLabelsChange,
   onSelectMessage,
   onToggleStar,
+  onReply,
+  onReplyAll,
+  onForward,
+  onToggleRead,
+  onArchive,
+  onDelete,
   onRefresh,
   onLoadMore,
   folderName,
@@ -67,6 +113,11 @@ export const EmailList: React.FC<EmailListProps> = ({
   const { t } = useTranslation(translations)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkAction, setIsBulkAction] = useState(false)
+  const [labelsInput, setLabelsInput] = useState(selectedLabels.join(', '))
+
+  useEffect(() => {
+    setLabelsInput(selectedLabels.join(', '))
+  }, [selectedLabels])
 
   const toggleSelect = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -131,6 +182,7 @@ export const EmailList: React.FC<EmailListProps> = ({
 
   const hasBulkSelection = selectedIds.size > 0
   const remaining = Math.max(total - messages.length, 0)
+  const hasActiveLabelFilter = selectedLabels.length > 0
 
   const handleLoadMore = useCallback(() => {
     if (onLoadMore && hasMore && !isLoadingMore) {
@@ -149,6 +201,46 @@ export const EmailList: React.FC<EmailListProps> = ({
     [onLoadMore, hasMore, isLoadingMore, isLoading]
   )
 
+  const applyLabelFilter = useCallback(() => {
+    if (!onLabelsChange) return
+    onLabelsChange(normalizeLabels(labelsInput.split(',')))
+  }, [onLabelsChange, labelsInput])
+
+  const clearLabelFilter = useCallback(() => {
+    setLabelsInput('')
+    onLabelsChange?.([])
+  }, [onLabelsChange])
+
+  const handleAddLabelsFromContextMenu = useCallback(
+    async (messageId: string, labels: string[]): Promise<boolean> => {
+      try {
+        await EmailApiService.addMessageLabels(messageId, labels)
+        toast.success(t('list-context-labels-add-success'))
+        onRefresh()
+        return true
+      } catch {
+        toast.error(t('list-context-labels-add-failed'))
+        return false
+      }
+    },
+    [onRefresh, t]
+  )
+
+  const handleRemoveLabelFromContextMenu = useCallback(
+    async (messageId: string, label: string): Promise<boolean> => {
+      try {
+        await EmailApiService.removeMessageLabels(messageId, [label])
+        toast.success(t('list-context-labels-remove-success'))
+        onRefresh()
+        return true
+      } catch {
+        toast.error(t('list-context-labels-remove-failed'))
+        return false
+      }
+    },
+    [onRefresh, t]
+  )
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:border-r gba:w-96 gba:flex-shrink-0" data-testid={testId}>
       {/* Header */}
@@ -163,6 +255,23 @@ export const EmailList: React.FC<EmailListProps> = ({
             className="gba:pl-9 gba:h-9"
             data-testid={`${testId}-search`}
           />
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
+          <Input
+            placeholder={t('list-label-filter-placeholder')}
+            value={labelsInput}
+            onChange={e => setLabelsInput(e.target.value)}
+            className="gba:h-8"
+            data-testid={`${testId}-label-filter-input`}
+          />
+          <Button variant="outline" size="sm" onClick={applyLabelFilter} data-testid={`${testId}-label-filter-apply`}>
+            {t('list-label-filter-apply')}
+          </Button>
+          {hasActiveLabelFilter && (
+            <Button variant="ghost" size="sm" onClick={clearLabelFilter} data-testid={`${testId}-label-filter-clear`}>
+              {t('list-label-filter-clear')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -237,6 +346,14 @@ export const EmailList: React.FC<EmailListProps> = ({
               onSelect={() => onSelectMessage(msg.id)}
               onToggleStar={() => onToggleStar(msg.id)}
               onToggleCheck={e => toggleSelect(msg.id, e)}
+              onReply={() => onReply?.(msg.id)}
+              onReplyAll={() => onReplyAll?.(msg.id)}
+              onForward={() => onForward?.(msg.id)}
+              onToggleRead={() => onToggleRead?.(msg.id, !msg.isRead)}
+              onArchive={() => onArchive?.(msg.id)}
+              onDelete={() => onDelete?.(msg.id)}
+              onAddLabels={labels => handleAddLabelsFromContextMenu(msg.id, labels)}
+              onRemoveLabel={label => handleRemoveLabelFromContextMenu(msg.id, label)}
               testId={`${testId}-item-${msg.id}`}
               t={t}
               formatDate={date => formatEmailDate(date, t)}
@@ -284,6 +401,14 @@ function EmailListItem({
   onSelect,
   onToggleStar,
   onToggleCheck,
+  onReply,
+  onReplyAll,
+  onForward,
+  onToggleRead,
+  onArchive,
+  onDelete,
+  onAddLabels,
+  onRemoveLabel,
   testId,
   t,
   formatDate
@@ -294,85 +419,281 @@ function EmailListItem({
   onSelect: () => void
   onToggleStar: () => void
   onToggleCheck: (e: React.MouseEvent) => void
+  onReply?: () => void
+  onReplyAll?: () => void
+  onForward?: () => void
+  onToggleRead?: () => void
+  onArchive?: () => void
+  onDelete?: () => void
+  onAddLabels: (labels: string[]) => Promise<boolean>
+  onRemoveLabel: (label: string) => Promise<boolean>
   testId: string
   t: (key: string, vars?: Record<string, string | number>) => string
   formatDate: (dateString: string) => string
 }) {
+  const [isLabelsExpanded, setIsLabelsExpanded] = useState(false)
+  const [labelInput, setLabelInput] = useState('')
+  const [isMutatingLabels, setIsMutatingLabels] = useState(false)
+  const [localLabels, setLocalLabels] = useState<string[]>(normalizeLabels(message.labels || []))
+
+  useEffect(() => {
+    setLocalLabels(normalizeLabels(message.labels || []))
+    setLabelInput('')
+  }, [message.id, message.labels])
+
+  const handleAddFromMenu = useCallback(async () => {
+    if (isMutatingLabels) return
+    const labels = normalizeLabels(labelInput.split(','))
+    if (labels.length === 0) return
+
+    const previous = localLabels
+    const optimistic = normalizeLabels([...localLabels, ...labels])
+    setLocalLabels(optimistic)
+    setIsMutatingLabels(true)
+    setLabelInput('')
+
+    const success = await onAddLabels(labels)
+    if (!success) {
+      setLocalLabels(previous)
+    }
+    setIsMutatingLabels(false)
+  }, [isMutatingLabels, labelInput, localLabels, onAddLabels])
+
+  const handleRemoveFromMenu = useCallback(
+    async (label: string) => {
+      if (isMutatingLabels) return
+
+      const previous = localLabels
+      const optimistic = localLabels.filter(current => current !== label)
+      setLocalLabels(optimistic)
+      setIsMutatingLabels(true)
+
+      const success = await onRemoveLabel(label)
+      if (!success) {
+        setLocalLabels(previous)
+      }
+      setIsMutatingLabels(false)
+    },
+    [isMutatingLabels, localLabels, onRemoveLabel]
+  )
+
   return (
-    <div
-      onClick={onSelect}
-      className={`gba:flex gba:gap-3 gba:px-4 gba:py-3 gba:cursor-pointer gba:border-b gba:transition-colors ${
-        isSelected ? 'gba:bg-primary/5 gba:border-l-2 gba:border-l-primary' : 'hover:gba:bg-muted/30'
-      } ${!message.isRead ? 'gba:bg-accent/5' : ''}`}
-      data-testid={testId}
-    >
-      {/* Checkbox for bulk select */}
-      <div onClick={onToggleCheck} className="gba:mt-1 gba:flex-shrink-0 gba:cursor-pointer">
-        <Checkbox checked={isChecked} data-testid={`${testId}-checkbox`} />
-      </div>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          onClick={onSelect}
+          className={`gba:flex gba:gap-3 gba:px-4 gba:py-3 gba:cursor-pointer gba:border-b gba:transition-colors ${
+            isSelected ? 'gba:bg-primary/5 gba:border-l-2 gba:border-l-primary' : 'hover:gba:bg-muted/30'
+          } ${!message.isRead ? 'gba:bg-accent/5' : ''}`}
+          data-testid={testId}
+        >
+          {/* Checkbox for bulk select */}
+          <div onClick={onToggleCheck} className="gba:mt-1 gba:flex-shrink-0 gba:cursor-pointer">
+            <Checkbox checked={isChecked} data-testid={`${testId}-checkbox`} />
+          </div>
 
-      {/* Star */}
-      <button
-        onClick={e => {
-          e.stopPropagation()
-          onToggleStar()
-        }}
-        className={`gba:mt-1 gba:flex-shrink-0 ${
-          message.isStarred ? 'gba:text-warning' : 'gba:text-muted-foreground hover:gba:text-foreground'
-        }`}
-      >
-        <Star className={`gba:w-4 gba:h-4 ${message.isStarred ? 'gba:fill-current' : ''}`} />
-      </button>
-
-      {/* Content */}
-      <div className="gba:flex-1 gba:min-w-0">
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-0.5">
-          <span
-            className={`gba:text-sm gba:truncate ${
-              !message.isRead ? 'gba:font-semibold gba:text-foreground' : 'gba:text-foreground'
+          {/* Star */}
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              onToggleStar()
+            }}
+            className={`gba:mt-1 gba:flex-shrink-0 ${
+              message.isStarred ? 'gba:text-warning' : 'gba:text-muted-foreground hover:gba:text-foreground'
             }`}
           >
-            {getDisplayName(message.fromAddress)}
-          </span>
-          <span className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0 gba:ml-2">
-            {formatDate(message.date)}
-          </span>
-        </div>
+            <Star className={`gba:w-4 gba:h-4 ${message.isStarred ? 'gba:fill-current' : ''}`} />
+          </button>
 
-        <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-0.5">
-          <p
-            className={`gba:text-sm gba:truncate gba:flex-1 ${
-              !message.isRead ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
-            }`}
-          >
-            {message.subject || t('list-no-subject')}
-          </p>
-          {(message.threadMessageCount ?? 0) > 1 && (
-            <span
-              className="gba:inline-flex gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:flex-shrink-0"
-              title={t('list-thread-tooltip', { count: message.threadMessageCount ?? 0 })}
-            >
-              <MessageSquare className="gba:w-3 gba:h-3" />
-              <span className="gba:text-[10px] gba:font-semibold gba:leading-none">{message.threadMessageCount}</span>
-            </span>
+          {/* Content */}
+          <div className="gba:flex-1 gba:min-w-0">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-0.5">
+              <span
+                className={`gba:text-sm gba:truncate ${
+                  !message.isRead ? 'gba:font-semibold gba:text-foreground' : 'gba:text-foreground'
+                }`}
+              >
+                {getDisplayName(message.fromAddress)}
+              </span>
+              <span className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0 gba:ml-2">
+                {formatDate(message.date)}
+              </span>
+            </div>
+
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-0.5">
+              <p
+                className={`gba:text-sm gba:truncate gba:flex-1 ${
+                  !message.isRead ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
+                }`}
+              >
+                {message.subject || t('list-no-subject')}
+              </p>
+              {(message.threadMessageCount ?? 0) > 1 && (
+                <span
+                  className="gba:inline-flex gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:flex-shrink-0"
+                  title={t('list-thread-tooltip', { count: message.threadMessageCount ?? 0 })}
+                >
+                  <MessageSquare className="gba:w-3 gba:h-3" />
+                  <span className="gba:text-[10px] gba:font-semibold gba:leading-none">
+                    {message.threadMessageCount}
+                  </span>
+                </span>
+              )}
+            </div>
+
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:flex-1">{message.snippet}</p>
+              {message.hasAttachments && (
+                <Paperclip className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:flex-shrink-0" />
+              )}
+              {message.importance === 'high' && (
+                <AlertCircle className="gba:w-3 gba:h-3 gba:text-destructive gba:flex-shrink-0" />
+              )}
+            </div>
+            {!!message.labels?.length && (
+              <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-1">
+                {message.labels.slice(0, 3).map(label => (
+                  <Badge
+                    key={`${message.id}-label-${label}`}
+                    variant="secondary"
+                    className="gba:text-[10px] gba:h-5"
+                    data-testid={`${testId}-label-${label}`}
+                  >
+                    {label}
+                  </Badge>
+                ))}
+                {message.labels.length > 3 && (
+                  <Badge variant="outline" className="gba:text-[10px] gba:h-5">
+                    +{message.labels.length - 3}
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Unread indicator */}
+          {!message.isRead && (
+            <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:flex-shrink-0 gba:mt-2" />
           )}
         </div>
+      </ContextMenuTrigger>
 
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:flex-1">{message.snippet}</p>
-          {message.hasAttachments && (
-            <Paperclip className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:flex-shrink-0" />
+      <ContextMenuContent className="gba:w-52" data-testid={`${testId}-context-menu`}>
+        <ContextMenuItem onSelect={() => onReply?.()} disabled={!onReply} data-testid={`${testId}-context-reply`}>
+          <Reply className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+          {t('list-context-reply')}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => onReplyAll?.()}
+          disabled={!onReplyAll}
+          data-testid={`${testId}-context-reply-all`}
+        >
+          <ReplyAll className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+          {t('list-context-reply-all')}
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => onForward?.()} disabled={!onForward} data-testid={`${testId}-context-forward`}>
+          <Forward className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+          {t('list-context-forward')}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onSelect={() => onToggleRead?.()}
+          disabled={!onToggleRead}
+          data-testid={`${testId}-context-toggle-read`}
+        >
+          {message.isRead ? (
+            <Mail className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+          ) : (
+            <MailOpen className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
           )}
-          {message.importance === 'high' && (
-            <AlertCircle className="gba:w-3 gba:h-3 gba:text-destructive gba:flex-shrink-0" />
+          {message.isRead ? t('list-context-mark-unread') : t('list-context-mark-read')}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={event => {
+            event.preventDefault()
+            setIsLabelsExpanded(prev => !prev)
+          }}
+          data-testid={`${testId}-context-labels`}
+        >
+          {isLabelsExpanded ? (
+            <ChevronDown className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+          ) : (
+            <ChevronRight className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
           )}
-        </div>
-      </div>
+          {t('list-context-labels')}
+        </ContextMenuItem>
 
-      {/* Unread indicator */}
-      {!message.isRead && (
-        <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:flex-shrink-0 gba:mt-2" />
-      )}
-    </div>
+        {isLabelsExpanded && (
+          <>
+            <ContextMenuSeparator />
+            <div className="gba:px-2 gba:py-2 gba:space-y-2">
+              <div className="gba:flex gba:items-center gba:gap-1.5">
+                <Input
+                  value={labelInput}
+                  onChange={event => setLabelInput(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      void handleAddFromMenu()
+                    }
+                  }}
+                  placeholder={t('list-context-labels-placeholder')}
+                  className="gba:h-7"
+                  data-testid={`${testId}-context-labels-input`}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gba:h-7"
+                  onClick={() => void handleAddFromMenu()}
+                  disabled={isMutatingLabels}
+                  data-testid={`${testId}-context-labels-add`}
+                >
+                  <Plus className="gba:w-3.5 gba:h-3.5" />
+                </Button>
+              </div>
+
+              {localLabels.length === 0 ? (
+                <p className="gba:text-xs gba:text-muted-foreground gba:px-1">{t('list-context-labels-empty')}</p>
+              ) : (
+                <div className="gba:max-h-40 gba:overflow-auto gba:space-y-1">
+                  {localLabels.map(label => (
+                    <div key={`${message.id}-menu-label-${label}`} className="gba:flex gba:items-center gba:gap-1.5">
+                      <Badge variant="secondary" className="gba:text-[10px] gba:h-5 gba:flex-1 gba:justify-start">
+                        {label}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-5 gba:w-5"
+                        onClick={() => void handleRemoveFromMenu(label)}
+                        disabled={isMutatingLabels}
+                        data-testid={`${testId}-context-label-remove-${label}`}
+                      >
+                        <X className="gba:w-3 gba:h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => onArchive?.()} disabled={!onArchive} data-testid={`${testId}-context-archive`}>
+          <Archive className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+          {t('list-context-archive')}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => onDelete?.()}
+          disabled={!onDelete}
+          className="gba:text-destructive"
+          data-testid={`${testId}-context-delete`}
+        >
+          <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+          {t('list-context-delete')}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

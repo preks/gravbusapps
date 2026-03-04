@@ -11,6 +11,7 @@ import translations from '../_i18n'
 import {
   Button,
   Badge,
+  Input,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -30,13 +31,16 @@ import {
   Archive,
   Mail,
   Loader2,
-  MessageSquare
+  MessageSquare,
+  Plus,
+  X
 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailThreadView } from './EmailThreadView'
 import { EmailCrmBooking } from './EmailCrmBooking'
 import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { getInitials, formatFullDate, formatFileSize } from '../utils/emailDisplayUtils'
+import { normalizeLabels } from '../utils/labelUtils'
 import type { EmailMessage, EmailAccount, ComposeMode } from '../types'
 
 interface EmailReaderProps {
@@ -45,6 +49,7 @@ interface EmailReaderProps {
   onDelete: (id: string) => void
   onToggleStar: (id: string) => void
   onArchive: (id: string) => void
+  onRefreshMessages?: () => void
   accessToken?: string
   activeAccount?: EmailAccount | null
   employeeId?: string
@@ -60,6 +65,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   onDelete,
   onToggleStar,
   onArchive,
+  onRefreshMessages,
   accessToken,
   activeAccount,
   employeeId,
@@ -72,6 +78,9 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
   const [threadMessages, setThreadMessages] = useState<EmailMessage[]>([])
   const [isLoadingThread, setIsLoadingThread] = useState(false)
+  const [labelsInput, setLabelsInput] = useState('')
+  const [localLabels, setLocalLabels] = useState<string[]>([])
+  const [isMutatingLabels, setIsMutatingLabels] = useState(false)
   const lastThreadIdRef = useRef<string | null>(null)
 
   const senderAvatar = useSenderAvatar(message?.fromAddress?.address, accessToken)
@@ -117,8 +126,67 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
     }
   }, [message?.htmlBody])
 
+  useEffect(() => {
+    setLocalLabels(normalizeLabels(message?.labels || []))
+    setLabelsInput('')
+  }, [message?.id, message?.labels])
+
   const showThread =
     threadEnabled && threadMessages.length > 1 && !!message?.threadId && lastThreadIdRef.current === message.threadId
+
+  const handleAddLabel = useCallback(async () => {
+    if (!message || isMutatingLabels) return
+
+    const toAdd = normalizeLabels(labelsInput.split(','))
+    if (toAdd.length === 0) return
+
+    const previous = localLabels
+    const optimistic = normalizeLabels([...previous, ...toAdd])
+    setLocalLabels(optimistic)
+    setLabelsInput('')
+    setIsMutatingLabels(true)
+
+    try {
+      const result = await EmailApiService.addMessageLabels(message.id, toAdd)
+      setLocalLabels(normalizeLabels(result.labels || []))
+      toast.success(t('reader-labels-add-success'))
+      onRefreshMessages?.()
+    } catch {
+      setLocalLabels(previous)
+      toast.error(t('reader-labels-add-failed'))
+      onRefreshMessages?.()
+    } finally {
+      setIsMutatingLabels(false)
+    }
+  }, [message, labelsInput, localLabels, isMutatingLabels, t, onRefreshMessages])
+
+  const handleRemoveLabel = useCallback(
+    async (label: string) => {
+      if (!message || isMutatingLabels) return
+
+      const normalized = normalizeLabels([label])
+      if (normalized.length === 0) return
+
+      const previous = localLabels
+      const optimistic = previous.filter(existing => existing !== normalized[0])
+      setLocalLabels(optimistic)
+      setIsMutatingLabels(true)
+
+      try {
+        const result = await EmailApiService.removeMessageLabels(message.id, normalized)
+        setLocalLabels(normalizeLabels(result.labels || []))
+        toast.success(t('reader-labels-remove-success'))
+        onRefreshMessages?.()
+      } catch {
+        setLocalLabels(previous)
+        toast.error(t('reader-labels-remove-failed'))
+        onRefreshMessages?.()
+      } finally {
+        setIsMutatingLabels(false)
+      }
+    },
+    [message, localLabels, isMutatingLabels, t, onRefreshMessages]
+  )
 
   const handleDownloadAttachment = useCallback(
     async (messageId: string, attachmentId: string) => {
@@ -158,6 +226,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
 
   const from = message.fromAddress
   const toNames = message.toAddresses.map(a => a.name || a.address).join(', ')
+  const hasAnyAttachments = (message.attachments?.length ?? 0) > 0 || message.hasAttachments
 
   return (
     <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
@@ -263,6 +332,51 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
           )}
         </div>
 
+        <div className="gba:mb-4 gba:space-y-2">
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
+            <span className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-title')}</span>
+            {localLabels.length === 0 && (
+              <span className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-empty')}</span>
+            )}
+            {localLabels.map(label => (
+              <span key={`${message.id}-label-${label}`} className="gba:inline-flex gba:items-center gba:gap-1">
+                <Badge variant="secondary" className="gba:h-5 gba:text-[10px]">
+                  {label}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="gba:h-5 gba:w-5"
+                  onClick={() => handleRemoveLabel(label)}
+                  disabled={isMutatingLabels}
+                  data-testid={`${testId}-remove-label-${label}`}
+                >
+                  <X className="gba:w-3 gba:h-3" />
+                </Button>
+              </span>
+            ))}
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Input
+              value={labelsInput}
+              onChange={e => setLabelsInput(e.target.value)}
+              placeholder={t('reader-labels-input-placeholder')}
+              className="gba:h-8"
+              data-testid={`${testId}-labels-input`}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleAddLabel}
+              disabled={isMutatingLabels}
+              data-testid={`${testId}-labels-add`}
+            >
+              <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+              {t('reader-labels-add')}
+            </Button>
+          </div>
+        </div>
+
         {/* Thread loading state */}
         {isLoadingThread && threadEnabled && (
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-4">
@@ -312,7 +426,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             )}
 
             {/* Attachments with download */}
-            {(message.attachments?.length > 0 || message.hasAttachments) &&
+            {hasAnyAttachments &&
               (() => {
                 const nonInline = (message.attachments || []).filter(a => !a.isInline)
                 return (

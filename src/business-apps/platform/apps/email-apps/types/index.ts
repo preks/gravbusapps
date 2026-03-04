@@ -72,6 +72,7 @@ export interface EmailMessageSummary {
   isRead: boolean
   isStarred: boolean
   hasAttachments: boolean
+  labels?: string[]
   importance: string
   crmEntityType?: string
   crmEntityId?: string

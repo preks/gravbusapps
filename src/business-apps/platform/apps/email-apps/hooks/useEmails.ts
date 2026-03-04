@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { EmailApiService } from '../services/EmailApiService'
+import { normalizeLabels } from '../utils/labelUtils'
 import type { EmailMessageSummary, EmailMessage } from '../types'
 
 interface UseEmailsOptions {
@@ -7,6 +8,7 @@ interface UseEmailsOptions {
   folderId?: string
   accountId?: string
   search?: string
+  labels?: string[]
   starredOnly?: boolean
   /** When true, emails sharing a threadId are collapsed to the latest per thread */
   threadView?: boolean
@@ -56,10 +58,13 @@ export function useEmails({
   folderId,
   accountId,
   search,
+  labels,
   starredOnly,
   threadView = false,
   autoRefreshInterval = 15000
 }: UseEmailsOptions) {
+  const normalizedLabels = useMemo(() => normalizeLabels(labels || []), [labels])
+
   const [messages, setMessages] = useState<EmailMessageSummary[]>([])
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -131,7 +136,7 @@ export function useEmails({
       if (!accessToken) return
       // Don't fetch until we have a folder (or an explicit starred/search filter)
       // Otherwise we'd briefly show ALL emails from every folder on first render
-      if (!folderId && !starredOnly && !search) return
+      if (!folderId && !starredOnly && !search && normalizedLabels.length === 0) return
       if (loadingRef.current) return
 
       loadingRef.current = true
@@ -142,6 +147,7 @@ export function useEmails({
           folderId: starredOnly ? undefined : folderId,
           accountId,
           search: search || undefined,
+          labels: normalizedLabels.length ? normalizedLabels : undefined,
           starredOnly: starredOnly || undefined,
           page: pageNum,
           limit: 100
@@ -183,7 +189,7 @@ export function useEmails({
         if (!silent) setIsLoading(false)
       }
     },
-    [accessToken, folderId, accountId, search, starredOnly, threadView, applyOverrides]
+    [accessToken, folderId, accountId, search, normalizedLabels, starredOnly, threadView, applyOverrides]
   )
 
   /** Load one additional page (100) */
@@ -199,6 +205,7 @@ export function useEmails({
         folderId: starredOnly ? undefined : folderId,
         accountId,
         search: search || undefined,
+        labels: normalizedLabels.length ? normalizedLabels : undefined,
         starredOnly: starredOnly || undefined,
         page: nextPage,
         limit: 100
@@ -226,7 +233,7 @@ export function useEmails({
       loadingMoreRef.current = false
       setIsLoadingMore(false)
     }
-  }, [accessToken, folderId, accountId, search, starredOnly, threadView])
+  }, [accessToken, folderId, accountId, search, normalizedLabels, starredOnly, threadView])
 
   // Initial load on mount or when dependencies change
   useEffect(() => {
