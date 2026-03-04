@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -65,27 +65,6 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
       return name.includes(query)
     })
   }, [departmentSearch, departmentOptions])
-
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H12',
-        location: 'ExpenseFilterBar.tsx:58',
-        message: 'expense-filter-bar-department-options-ready',
-        data: {
-          organizationalUnitsCount: organizationalUnits.length,
-          filterDataLoading
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [organizationalUnits.length, filterDataLoading])
 
   // ⚡ REMOVED: Automatic currency setting to prevent override of user selections
   // The dashboard will handle all currency initialization

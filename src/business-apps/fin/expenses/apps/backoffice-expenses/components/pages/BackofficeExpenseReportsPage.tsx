@@ -744,26 +744,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
         ...previous,
         [selectedReportType]: { employees, departments }
       }))
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-        body: JSON.stringify({
-          sessionId: '92864d',
-          runId: 'pre-fix',
-          hypothesisId: 'H3',
-          location: 'BackofficeExpenseReportsPage.tsx:742',
-          message: 'reports-full-filter-options-fetched',
-          data: {
-            selectedReportType,
-            allRowsCount: allRows.length,
-            employeesCount: employees.length,
-            departmentsCount: departments.length
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
     }
     void loadAllRowsForFilterOptions()
     return () => {
@@ -778,29 +758,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     }
     return []
   }, [selectedReportType, fullFilterOptionsByType])
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H13',
-        location: 'BackofficeExpenseReportsPage.tsx:781',
-        message: 'reports-employee-options-ready',
-        data: {
-          selectedReportType,
-          employeeOptionsCount: employeeFilterOptions.length,
-          hasFullEmployeeSnapshot: selectedReportType
-            ? Boolean((fullFilterOptionsByType[selectedReportType]?.employees || []).length)
-            : false
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [selectedReportType, employeeFilterOptions.length, fullFilterOptionsByType])
   const departmentFilterOptions = useMemo(() => {
     const structureDepartments = getActiveStructureDepartmentNames(organizationalUnits || []).map(value => ({
       id: value,
@@ -819,60 +776,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
       .sort((a, b) => a.localeCompare(b))
       .map(value => ({ id: value, label: value }))
   }, [organizationalUnits, reportRowsWithGroupedStatuses, selectedReportType, fullFilterOptionsByType])
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'post-fix',
-        hypothesisId: 'H9',
-        location: 'BackofficeExpenseReportsPage.tsx:792',
-        message: 'reports-department-options-built-from-structure',
-        data: {
-          selectedReportType,
-          organizationalUnitsCount: organizationalUnits.length,
-          departmentOptionsCount: departmentFilterOptions.length
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [selectedReportType, organizationalUnits.length, departmentFilterOptions.length])
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H3',
-        location: 'BackofficeExpenseReportsPage.tsx:736',
-        message: 'reports-filter-options-derived-from-rows',
-        data: {
-          selectedReportType,
-          reportRowsCount: reportRowsWithGroupedStatuses.length,
-          employeeOptionsCount: employeeFilterOptions.length,
-          departmentOptionsCount: departmentFilterOptions.length,
-          statusOptionsCount: statusFilterOptions.length,
-          pageSize,
-          currentPage
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [
-    selectedReportType,
-    reportRowsWithGroupedStatuses.length,
-    employeeFilterOptions.length,
-    departmentFilterOptions.length,
-    statusFilterOptions.length,
-    pageSize,
-    currentPage
-  ])
   const filterConfiguration = useMemo<FilterConfiguration>(
     () => ({
       // Include report type in config id to reset filter sheet internals on tab switch.
@@ -1040,28 +943,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     if (!selectedReportType) return
     const nextFilters = filters || {}
     const currentFilters = filtersByReportType[selectedReportType] || {}
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H4',
-        location: 'BackofficeExpenseReportsPage.tsx:914',
-        message: 'reports-filter-change-requested',
-        data: {
-          selectedReportType,
-          currentFilterKeys: Object.keys(currentFilters || {}),
-          nextFilterKeys: Object.keys(nextFilters || {}),
-          nextStatusCount: Array.isArray(nextFilters?.status) ? nextFilters.status.length : 0,
-          nextEmployeeCount: Array.isArray(nextFilters?.employeeName) ? nextFilters.employeeName.length : 0,
-          nextDepartmentCount: Array.isArray(nextFilters?.departmentName) ? nextFilters.departmentName.length : 0
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     if (JSON.stringify(currentFilters) === JSON.stringify(nextFilters)) return
     setFiltersByReportType(previous => ({
       ...previous,

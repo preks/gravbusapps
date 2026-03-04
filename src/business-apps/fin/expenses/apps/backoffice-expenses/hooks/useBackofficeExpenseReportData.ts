@@ -246,10 +246,10 @@ const buildDepartmentPredicate = (name: string) => ({
 const buildAndConditions = (
   search: string,
   searchPredicates: Array<Record<string, unknown>>,
-  employeeFilters: string[] = [],
-  departmentFilters: string[] = [],
   employeePredicateBuilder: (name: string) => Record<string, unknown>,
-  departmentPredicateBuilder: (name: string) => Record<string, unknown>
+  departmentPredicateBuilder: (name: string) => Record<string, unknown>,
+  employeeFilters: string[] = [],
+  departmentFilters: string[] = []
 ) => {
   const andConditions: Record<string, unknown>[] = []
   if (search?.trim()) {
@@ -696,25 +696,6 @@ export const useBackofficeExpenseReportData = (
   )
 
   const applyOverviewRows = useCallback((type: ReportType, mappedRows: ReportItem[], mappedTotalCount: number) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H3',
-        location: 'useBackofficeExpenseReportData.ts:704',
-        message: 'report-rows-applied',
-        data: {
-          type,
-          mappedRowsCount: mappedRows.length,
-          mappedTotalCount
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     setReportData(mappedRows)
     setReportDataType(type)
     setTotalCount(mappedTotalCount)
@@ -870,10 +851,10 @@ export const useBackofficeExpenseReportData = (
       const andConditions = buildAndConditions(
         search,
         [{ code: { _ilike: searchPattern } }, { title: { _ilike: searchPattern } }],
-        employeeFilters,
-        departmentFilters,
         name => ({ employee: { fullName: { _eq: name } } }),
-        name => ({ employee: buildDepartmentPredicate(name) })
+        name => ({ employee: buildDepartmentPredicate(name) }),
+        employeeFilters,
+        departmentFilters
       )
       if (andConditions.length > 0) {
         where._and = andConditions
@@ -898,10 +879,10 @@ export const useBackofficeExpenseReportData = (
           { expensePlan: { code: { _ilike: searchPattern } } },
           { expensePlan: { title: { _ilike: searchPattern } } }
         ],
-        employeeFilters,
-        departmentFilters,
         name => ({ expensePlan: { employee: { fullName: { _eq: name } } } }),
-        name => ({ expensePlan: { employee: buildDepartmentPredicate(name) } })
+        name => ({ expensePlan: { employee: buildDepartmentPredicate(name) } }),
+        employeeFilters,
+        departmentFilters
       )
       if (andConditions.length > 0) {
         where._and = andConditions

@@ -53,26 +53,6 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
   const dashboardDepartmentOptions = React.useMemo(() => {
     return getActiveStructureDepartmentOptions(organizationalUnits)
   }, [organizationalUnits])
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H2',
-        location: 'BackofficeTeamSpendingAnalyticsPage.tsx:61',
-        message: 'analytics-department-options-built',
-        data: {
-          organizationalUnitsCount: organizationalUnits.length,
-          dashboardDepartmentOptionsCount: dashboardDepartmentOptions.length
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [organizationalUnits.length, dashboardDepartmentOptions.length])
 
   const {
     isLoading,
@@ -186,16 +166,27 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
     }
   ]
 
-  const renderSummaryStatisticsCard = (
-    cardTestId: string,
-    countTestId: string,
-    amountTestId: string,
-    totalCount: number,
-    totalAmount: number | null | undefined,
-    countLabelKey: string,
-    countLabelFallback: string,
+  type SummaryStatisticsCardConfig = {
+    cardTestId: string
+    countTestId: string
+    amountTestId: string
+    totalCount: number
+    totalAmount: number | null | undefined
+    countLabelKey: string
+    countLabelFallback: string
     amountClassName: string
-  ) => (
+  }
+
+  const renderSummaryStatisticsCard = ({
+    cardTestId,
+    countTestId,
+    amountTestId,
+    totalCount,
+    totalAmount,
+    countLabelKey,
+    countLabelFallback,
+    amountClassName
+  }: SummaryStatisticsCardConfig) => (
     <Card data-testid={cardTestId}>
       <CardHeader>
         <CardTitle>
@@ -275,16 +266,16 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
           </CardContent>
         </Card>
 
-        {renderSummaryStatisticsCard(
-          'backoffice-analytics-expense-items-summary-card',
-          'backoffice-analytics-expense-items-total-count',
-          'backoffice-analytics-expense-items-total-amount',
-          data?.expenseItemsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
-          data?.totalExpenseAmount,
-          'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
-          'Total Items',
-          'gba:text-2xl gba:font-bold gba:text-primary'
-        )}
+        {renderSummaryStatisticsCard({
+          cardTestId: 'backoffice-analytics-expense-items-summary-card',
+          countTestId: 'backoffice-analytics-expense-items-total-count',
+          amountTestId: 'backoffice-analytics-expense-items-total-amount',
+          totalCount: data?.expenseItemsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
+          totalAmount: data?.totalExpenseAmount,
+          countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
+          countLabelFallback: 'Total Items',
+          amountClassName: 'gba:text-2xl gba:font-bold gba:text-primary'
+        })}
       </div>
     </div>
   )
@@ -332,16 +323,16 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
           </CardContent>
         </Card>
 
-        {renderSummaryStatisticsCard(
-          'backoffice-analytics-expense-requests-summary-card',
-          'backoffice-analytics-expense-requests-total-count',
-          'backoffice-analytics-expense-requests-total-amount',
-          data?.expenseRequestsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
-          data?.totalRequestAmount,
-          'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
-          'Total Requests',
-          'gba:text-2xl gba:font-bold gba:text-success'
-        )}
+        {renderSummaryStatisticsCard({
+          cardTestId: 'backoffice-analytics-expense-requests-summary-card',
+          countTestId: 'backoffice-analytics-expense-requests-total-count',
+          amountTestId: 'backoffice-analytics-expense-requests-total-amount',
+          totalCount: data?.expenseRequestsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
+          totalAmount: data?.totalRequestAmount,
+          countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
+          countLabelFallback: 'Total Requests',
+          amountClassName: 'gba:text-2xl gba:font-bold gba:text-success'
+        })}
       </div>
     </div>
   )
@@ -369,16 +360,16 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
           </CardContent>
         </Card>
 
-        {renderSummaryStatisticsCard(
-          'backoffice-analytics-expense-plans-summary-card',
-          'backoffice-analytics-expense-plans-total-count',
-          'backoffice-analytics-expense-plans-total-amount',
-          data?.expensePlansByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
-          data?.totalPlanAmount,
-          'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
-          'Total Plans',
-          'gba:text-2xl gba:font-bold gba:text-warning'
-        )}
+        {renderSummaryStatisticsCard({
+          cardTestId: 'backoffice-analytics-expense-plans-summary-card',
+          countTestId: 'backoffice-analytics-expense-plans-total-count',
+          amountTestId: 'backoffice-analytics-expense-plans-total-amount',
+          totalCount: data?.expensePlansByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
+          totalAmount: data?.totalPlanAmount,
+          countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
+          countLabelFallback: 'Total Plans',
+          amountClassName: 'gba:text-2xl gba:font-bold gba:text-warning'
+        })}
       </div>
     </div>
   )
@@ -406,33 +397,47 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
           </CardContent>
         </Card>
 
-        {renderSummaryStatisticsCard(
-          'backoffice-analytics-advance-payments-summary-card',
-          'backoffice-analytics-advance-payments-total-count',
-          'backoffice-analytics-advance-payments-total-amount',
-          data?.advancePaymentsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
-          data?.totalAdvanceAmount,
-          'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
-          'Total Payments',
-          'gba:text-2xl gba:font-bold gba:text-info'
-        )}
+        {renderSummaryStatisticsCard({
+          cardTestId: 'backoffice-analytics-advance-payments-summary-card',
+          countTestId: 'backoffice-analytics-advance-payments-total-count',
+          amountTestId: 'backoffice-analytics-advance-payments-total-amount',
+          totalCount: data?.advancePaymentsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
+          totalAmount: data?.totalAdvanceAmount,
+          countLabelKey: 'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
+          countLabelFallback: 'Total Payments',
+          amountClassName: 'gba:text-2xl gba:font-bold gba:text-info'
+        })}
       </div>
     </div>
   )
 
-  const renderFilterChecklist = (
-    label: string,
-    searchPlaceholder: string,
-    searchValue: string,
-    onSearchChange: (value: string) => void,
-    searchInputTestId: string,
-    listTestId: string,
-    emptyTestId: string,
-    emptyLabel: string,
-    rows: Array<{ id: string; name: string; selected: boolean }>,
-    checkboxTestPrefix: string,
+  type FilterChecklistConfig = {
+    label: string
+    searchPlaceholder: string
+    searchValue: string
+    onSearchChange: (value: string) => void
+    searchInputTestId: string
+    listTestId: string
+    emptyTestId: string
+    emptyLabel: string
+    rows: Array<{ id: string; name: string; selected: boolean }>
+    checkboxTestPrefix: string
     onToggle: (id: string) => void
-  ) => (
+  }
+
+  const renderFilterChecklist = ({
+    label,
+    searchPlaceholder,
+    searchValue,
+    onSearchChange,
+    searchInputTestId,
+    listTestId,
+    emptyTestId,
+    emptyLabel,
+    rows,
+    checkboxTestPrefix,
+    onToggle
+  }: FilterChecklistConfig) => (
     <div className="gba:space-y-4">
       <Label className="gba:text-sm gba:font-semibold gba:text-foreground">{label}</Label>
       <div className="gba:relative">
@@ -536,28 +541,28 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
 
         <Separator className="gba:my-6" />
 
-        {renderFilterChecklist(
-          getTranslationFromI18nKeyAndLabel(
+        {renderFilterChecklist({
+          label: getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.location_filters',
             'Location Filters'
           ),
-          getTranslationFromI18nKeyAndLabel(
+          searchPlaceholder: getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.search_locations',
             'Search locations...'
           ),
-          searchTerm,
-          val => setSearchTerm(val),
-          'backoffice-analytics-location-search-input',
-          'backoffice-analytics-location-filters-list',
-          'backoffice-analytics-location-filters-empty',
-          getTranslationFromI18nKeyAndLabel(
+          searchValue: searchTerm,
+          onSearchChange: val => setSearchTerm(val),
+          searchInputTestId: 'backoffice-analytics-location-search-input',
+          listTestId: 'backoffice-analytics-location-filters-list',
+          emptyTestId: 'backoffice-analytics-location-filters-empty',
+          emptyLabel: getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.no_locations_available',
             'No locations available'
           ),
-          locationFilters,
-          'backoffice-analytics-location-checkbox-',
-          toggleLocationFilter
-        )}
+          rows: locationFilters,
+          checkboxTestPrefix: 'backoffice-analytics-location-checkbox-',
+          onToggle: toggleLocationFilter
+        })}
 
         <Separator className="gba:my-6" />
 
@@ -581,28 +586,28 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
 
         <Separator className="gba:my-6" />
 
-        {renderFilterChecklist(
-          getTranslationFromI18nKeyAndLabel(
+        {renderFilterChecklist({
+          label: getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.department_filters',
             'Department Filters'
           ),
-          getTranslationFromI18nKeyAndLabel(
+          searchPlaceholder: getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.search_departments',
             'Search departments...'
           ),
-          departmentSearchTerm,
-          val => setDepartmentSearchTerm(val),
-          'backoffice-analytics-department-search-input',
-          'backoffice-analytics-department-filters-list',
-          'backoffice-analytics-department-filters-empty',
-          getTranslationFromI18nKeyAndLabel(
+          searchValue: departmentSearchTerm,
+          onSearchChange: val => setDepartmentSearchTerm(val),
+          searchInputTestId: 'backoffice-analytics-department-search-input',
+          listTestId: 'backoffice-analytics-department-filters-list',
+          emptyTestId: 'backoffice-analytics-department-filters-empty',
+          emptyLabel: getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.no_departments_found',
             'No departments found'
           ),
-          departmentFilters,
-          'backoffice-analytics-department-checkbox-',
-          toggleDepartmentFilter
-        )}
+          rows: departmentFilters,
+          checkboxTestPrefix: 'backoffice-analytics-department-checkbox-',
+          onToggle: toggleDepartmentFilter
+        })}
       </CardContent>
     </Card>
   )
@@ -717,9 +722,9 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
                       <div className="gba:flex gba:justify-center gba:p-8">
                         <Spinner data-testid="backoffice-loading-spinner" />
                       </div>
-                    ) : activeTab !== tab.value ? null : (
+                    ) : activeTab === tab.value ? (
                       tab.render()
-                    )}
+                    ) : null}
                   </TabsContent>
                 ))}
               </Tabs>

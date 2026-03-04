@@ -455,28 +455,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
 
   // Handle filter changes and update dashboard stats immediately
   const handleFiltersChange = (newFilters: FilterOptions) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H5',
-        location: 'ExpenseDashboardTab.tsx:470',
-        message: 'dashboard-filters-change',
-        data: {
-          previousCurrency: currentFilters.currency,
-          nextCurrency: newFilters.currency,
-          currencyChanged: newFilters.currency !== currentFilters.currency,
-          department: newFilters.department || '',
-          period: newFilters.period,
-          departmentOptionsCount: filterData.organizationalUnits.length
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     // Mark that user has manually selected a currency (prevent auto-update)
     if (newFilters.currency !== currentFilters.currency) {
       setHasUserSelectedCurrency(true)
@@ -488,28 +466,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     if (!loading) {
       setHasLoadedStatsOnce(true)
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H15',
-        location: 'ExpenseDashboardTab.tsx:503',
-        message: 'dashboard-loading-state-changed',
-        data: {
-          loading,
-          hasLoadedStatsOnce,
-          currentCurrency: currentFilters.currency || '',
-          currentDepartment: currentFilters.department || '',
-          currentPeriod: currentFilters.period || 'monthly'
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [loading, hasLoadedStatsOnce, currentFilters.currency, currentFilters.department, currentFilters.period])
+  }, [loading])
 
   const isRefreshing = loading && hasLoadedStatsOnce
   const quickActions = useMemo(

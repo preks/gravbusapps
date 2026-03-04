@@ -225,15 +225,22 @@ export const useDashboardStats = ({
     [client]
   )
 
-  const fetchEssentialStats = useCallback(async () => {
-    // ⚡ CRITICAL: Validate accessToken before ANY requests (prevents 401 errors)
-    // Dashboard is default tab, so it loads before accessToken might be available
-    if (!accessToken || typeof accessToken !== 'string' || accessToken.trim() === '') {
-      setLoading(false)
-      return
+  const calculatePercentChange = useCallback((currentValue: number, previousValue: number) => {
+    if (previousValue > 0) {
+      return {
+        percentChange: ((currentValue - previousValue) / previousValue) * 100,
+        isIncrease: currentValue > previousValue
+      }
     }
+    return {
+      percentChange: null as any,
+      isIncrease: false
+    }
+  }, [])
 
-    if (!client) {
+  const fetchEssentialStats = useCallback(async () => {
+    const hasValidAccessToken = Boolean(accessToken && typeof accessToken === 'string' && accessToken.trim() !== '')
+    if (!hasValidAccessToken || !client) {
       setLoading(false)
       return
     }
@@ -252,37 +259,13 @@ export const useDashboardStats = ({
 
     setLoading(true)
     setError(null)
-    const dashboardFetchStartedAt = Date.now()
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H8',
-        location: 'useDashboardStats.ts:259',
-        message: 'dashboard-stats-fetch-start',
-        data: {
-          period: filters.period || 'monthly',
-          hasDepartment: Boolean(filters.department),
-          hasCurrency: Boolean(filters.currency),
-          requestKey
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
 
     try {
       // Calculate all date ranges using extracted helper
       const dateRanges = calculateDateRanges()
 
       const selectedCurrency = filters.currency && filters.currency.trim() !== '' ? filters.currency : 'Currency:v1:RON'
-      const selectedDepartment =
-        filters.department && filters.department.trim() !== '' && filters.department !== 'all'
-          ? filters.department
-          : null
+      const selectedDepartment = filters.department?.trim() && filters.department !== 'all' ? filters.department : null
 
       // ⚡ OPTIMIZATION: Use ONE combined query instead of 10 separate queries
       const combinedResponse = await executeQueryForPeriod(
@@ -386,68 +369,23 @@ export const useDashboardStats = ({
         }
       }
 
-      // Calculate percentages - if previous period is 0, ratio is undefined (division by zero)
-      const currentTotal = processedStats.monthlySpendComparison.currentMonthTotal
-      const previousTotal = processedStats.monthlySpendComparison.previousMonthTotal
-      if (previousTotal > 0) {
-        processedStats.monthlySpendComparison.percentChange = ((currentTotal - previousTotal) / previousTotal) * 100
-        processedStats.monthlySpendComparison.isIncrease = currentTotal > previousTotal
-      } else {
-        // When previous total is 0, the percentage change is undefined
-        processedStats.monthlySpendComparison.percentChange = null as any // null indicates undefined ratio
-      }
+      const monthlyChange = calculatePercentChange(
+        processedStats.monthlySpendComparison.currentMonthTotal,
+        processedStats.monthlySpendComparison.previousMonthTotal
+      )
+      processedStats.monthlySpendComparison.percentChange = monthlyChange.percentChange
+      processedStats.monthlySpendComparison.isIncrease = monthlyChange.isIncrease
 
-      const currentCompanyTotal = processedStats.totalCompanySpend.currentPeriodTotal
-      const previousCompanyTotal = processedStats.totalCompanySpend.previousPeriodTotal
-      if (previousCompanyTotal > 0) {
-        processedStats.totalCompanySpend.percentChange =
-          ((currentCompanyTotal - previousCompanyTotal) / previousCompanyTotal) * 100
-        processedStats.totalCompanySpend.isIncrease = currentCompanyTotal > previousCompanyTotal
-      } else {
-        // When previous total is 0, the percentage change is undefined
-        processedStats.totalCompanySpend.percentChange = null as any // null indicates undefined ratio
-      }
+      const companyChange = calculatePercentChange(
+        processedStats.totalCompanySpend.currentPeriodTotal,
+        processedStats.totalCompanySpend.previousPeriodTotal
+      )
+      processedStats.totalCompanySpend.percentChange = companyChange.percentChange
+      processedStats.totalCompanySpend.isIncrease = companyChange.isIncrease
 
       setStats(processedStats)
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-        body: JSON.stringify({
-          sessionId: '92864d',
-          runId: 'pre-fix',
-          hypothesisId: 'H8',
-          location: 'useDashboardStats.ts:397',
-          message: 'dashboard-stats-fetch-success',
-          data: {
-            durationMs: Date.now() - dashboardFetchStartedAt,
-            monthlyTrendsCount: processedStats.monthlyTrends.length,
-            pendingRequestsCount: processedStats.pendingRequestsCount
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch dashboard stats'))
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-        body: JSON.stringify({
-          sessionId: '92864d',
-          runId: 'pre-fix',
-          hypothesisId: 'H8',
-          location: 'useDashboardStats.ts:405',
-          message: 'dashboard-stats-fetch-error',
-          data: {
-            durationMs: Date.now() - dashboardFetchStartedAt,
-            errorMessage: err instanceof Error ? err.message : 'unknown'
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
     } finally {
       setLoading(false)
       isLoadingRef.current = false
@@ -461,7 +399,8 @@ export const useDashboardStats = ({
     filters.period,
     filters.department,
     calculateDateRanges,
-    executeQueryForPeriod
+    executeQueryForPeriod,
+    calculatePercentChange
   ])
 
   useEffect(() => {

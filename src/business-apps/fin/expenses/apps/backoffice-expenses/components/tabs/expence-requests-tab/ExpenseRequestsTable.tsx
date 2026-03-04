@@ -258,27 +258,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   // Use propsFilterData if it has valid organizationalUnits, otherwise fall back to localFilterData
   const filterData = (propsFilterData?.organizationalUnits?.length ?? 0) > 0 ? propsFilterData : localFilterData
   const { organizationalUnits = [], currencies = [] } = filterData || {}
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H7',
-        location: 'ExpenseRequestsTable.tsx:261',
-        message: 'expense-requests-filter-data-ready',
-        data: {
-          organizationalUnitsCount: organizationalUnits.length,
-          currenciesCount: currencies.length,
-          usingPropsFilterData: (propsFilterData?.organizationalUnits?.length ?? 0) > 0
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [organizationalUnits.length, currencies.length, propsFilterData])
 
   const departmentOptions = useMemo(
     () => getActiveStructureDepartmentOptions(organizationalUnits || []),
@@ -338,23 +317,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       if (!hasAnySelectedFilters) {
         setStatusFilter(['BOOKED'])
         handleStatusFilter('BOOKED')
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-          body: JSON.stringify({
-            sessionId: '92864d',
-            runId: 'pre-fix',
-            hypothesisId: 'H18',
-            location: 'ExpenseRequestsTable.tsx:328',
-            message: 'expense-requests-default-status-restored-on-reactivate',
-            data: {
-              restoredStatus: 'BOOKED'
-            },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
       }
     }
     wasActiveRef.current = isActive
@@ -1488,26 +1450,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     setRequestDateRangeFilter(null)
     handleStartDateRangeFilter('', '')
     handleEndDateRangeFilter('', '')
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H16',
-        location: 'ExpenseRequestsTable.tsx:1423',
-        message: 'expense-requests-clear-all-via-filter-sidebar',
-        data: {
-          hadEmployeeFilter: Boolean(employeeFilter || selectedEmployees.length > 0),
-          hadStatusFilter: statusFilter.length > 0,
-          hadRequestTypeFilter: requestTypeFilterLocal.length > 0,
-          hadDateFilters: Boolean(effectiveDateRange || requestDateRange || startFrom || startTo || endFrom || endTo)
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
   }, [
     employeeFilter,
     selectedEmployees.length,
@@ -1897,25 +1839,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               setRequestDateRangeFilter(null)
               handleStartDateRangeFilter('', '')
               handleEndDateRangeFilter('', '')
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-                body: JSON.stringify({
-                  sessionId: '92864d',
-                  runId: 'pre-fix',
-                  hypothesisId: 'H11',
-                  location: 'ExpenseRequestsTable.tsx:1794',
-                  message: 'expense-requests-clear-all-applied',
-                  data: {
-                    hadEmployeeSelection: selectedEmployees.length > 0 || Boolean(employeeFilter),
-                    hadDepartmentFilter: Boolean(departmentId),
-                    hadStatusFilter: statusFilter.length > 0
-                  },
-                  timestamp: Date.now()
-                })
-              }).catch(() => {})
-              // #endregion
               return
             }
             // Constants for filter type identification

@@ -132,10 +132,28 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     return { currencies: finalCurrencies, mostUsedCurrency: mostUsed }
   }, [])
 
+  const hasValidAccessToken = useCallback(
+    (token: string | null | undefined): token is string =>
+      Boolean(token && typeof token === 'string' && token.trim() !== ''),
+    []
+  )
+
+  const fetchOrganizationalUnits = useCallback(
+    async (structureId: string | null) => {
+      if (!structureId) return { OrganizationalUnit: [] }
+      try {
+        return await client.request(GET_ORGANIZATIONAL_UNITS, { structureId })
+      } catch {
+        return { OrganizationalUnit: [] }
+      }
+    },
+    [client]
+  )
+
   const fetchFilterData = useCallback(async () => {
     // ⚡ CRITICAL: Early return when accessToken is invalid (prevents 401 errors)
     // Dashboard mounts before auth completes - must validate token before ANY requests
-    if (!accessToken || typeof accessToken !== 'string' || accessToken.trim() === '') {
+    if (!hasValidAccessToken(accessToken)) {
       setLoading(false)
       return
     }
@@ -151,25 +169,6 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     // ⚡ SECURITY: Use hashed access token AND structureId for cache key
     const cacheKey = `filter_data_${createHash(accessToken)}_${structureId || 'no_structure'}`
     const cached = FILTER_DATA_CACHE.get(cacheKey)
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-      body: JSON.stringify({
-        sessionId: '92864d',
-        runId: 'pre-fix',
-        hypothesisId: 'H1',
-        location: 'useFilterData.ts:153',
-        message: 'filter-data-fetch-start',
-        data: {
-          hasAccessToken: Boolean(accessToken),
-          hasStructureId: Boolean(structureId),
-          cacheHit: Boolean(cached && Date.now() - cached.timestamp < CACHE_DURATION)
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       setOrganizationalUnits(cached.data.orgUnits)
       setCurrencies(cached.data.currencies)
@@ -182,87 +181,8 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     setError(null)
 
     try {
-      let orgUnitsResponse: any = { OrganizationalUnit: [] }
-      if (structureId) {
-        try {
-          orgUnitsResponse = await client.request(GET_ORGANIZATIONAL_UNITS, { structureId })
-          const rawOrgUnits = Array.isArray(orgUnitsResponse?.OrganizationalUnit)
-            ? orgUnitsResponse.OrganizationalUnit
-            : []
-          const distinctStructureIds = Array.from(
-            new Set(rawOrgUnits.map((unit: any) => String(unit?.structureId || '')).filter(Boolean))
-          )
-          const nonMatchingStructureCount = rawOrgUnits.filter((unit: any) => {
-            const unitStructureId = String(unit?.structureId || '')
-            return Boolean(unitStructureId) && unitStructureId !== String(structureId)
-          }).length
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-            body: JSON.stringify({
-              sessionId: '92864d',
-              runId: 'pre-fix',
-              hypothesisId: 'H1',
-              location: 'useFilterData.ts:177',
-              message: 'org-units-query-success',
-              data: {
-                organizationalUnitCount: Array.isArray(orgUnitsResponse?.OrganizationalUnit)
-                  ? orgUnitsResponse.OrganizationalUnit.length
-                  : -1,
-                requestedStructureId: structureId,
-                distinctStructureIds,
-                nonMatchingStructureCount
-              },
-              timestamp: Date.now()
-            })
-          }).catch(() => {})
-          // #endregion
-        } catch (orgError) {
-          orgUnitsResponse = { OrganizationalUnit: [] }
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-            body: JSON.stringify({
-              sessionId: '92864d',
-              runId: 'pre-fix',
-              hypothesisId: 'H1',
-              location: 'useFilterData.ts:195',
-              message: 'org-units-query-failed-fallback-empty',
-              data: {
-                hasStructureId: Boolean(structureId),
-                errorMessage: orgError instanceof Error ? orgError.message : 'unknown'
-              },
-              timestamp: Date.now()
-            })
-          }).catch(() => {})
-          // #endregion
-        }
-      }
+      const orgUnitsResponse = await fetchOrganizationalUnits(structureId)
       const currenciesResponse = await client.request(GET_EXPENSE_CURRENCIES, {})
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-        body: JSON.stringify({
-          sessionId: '92864d',
-          runId: 'pre-fix',
-          hypothesisId: 'H1',
-          location: 'useFilterData.ts:174',
-          message: 'filter-data-raw-responses',
-          data: {
-            orgUnitsRawCount: Array.isArray(orgUnitsResponse?.OrganizationalUnit)
-              ? orgUnitsResponse.OrganizationalUnit.length
-              : -1,
-            expenseRequestCurrencyRows: Array.isArray(currenciesResponse?.ExpenseRequest)
-              ? currenciesResponse.ExpenseRequest.length
-              : -1
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
 
       // Process organizational units using helper function (empty fallback)
       const orgUnits = processOrganizationalUnits(orgUnitsResponse, structureId)
@@ -272,25 +192,6 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
       const { currencies: finalCurrencies, mostUsedCurrency: mostUsed } = processCurrencies(currenciesResponse)
       setCurrencies(finalCurrencies)
       setMostUsedCurrency(mostUsed)
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '92864d' },
-        body: JSON.stringify({
-          sessionId: '92864d',
-          runId: 'pre-fix',
-          hypothesisId: 'H1',
-          location: 'useFilterData.ts:204',
-          message: 'filter-data-processed-results',
-          data: {
-            orgUnitsProcessedCount: orgUnits.length,
-            currenciesProcessedCount: finalCurrencies.length,
-            mostUsedCurrencyPresent: Boolean(mostUsed)
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
 
       // ⚡ Store in cache
       FILTER_DATA_CACHE.set(cacheKey, {
@@ -313,7 +214,14 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     } finally {
       setLoading(false)
     }
-  }, [accessToken, client, processOrganizationalUnits, processCurrencies])
+  }, [
+    accessToken,
+    client,
+    fetchOrganizationalUnits,
+    hasValidAccessToken,
+    processOrganizationalUnits,
+    processCurrencies
+  ])
 
   useEffect(() => {
     // ⚡ CRITICAL: Only fetch if accessToken is valid (prevents 401 errors)
