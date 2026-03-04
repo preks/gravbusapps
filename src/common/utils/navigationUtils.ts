@@ -120,9 +120,11 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/create': 'core/create/apps/create-workspace',
   '/platform/create/function-manager': 'core/create/apps/function-manager',
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
-  '/platform/create/ai-builder': 'core/create/apps/ai-builder',
-  '/platform/create/ai-orchestrator': 'core/create/apps/ai-orchestrator',
+  '/platform/create/screen-builder': 'core/create/apps/ai-builder',
+  '/platform/create/ai-builder': 'core/create/apps/ai-orchestrator',
   '/platform/create/resource-preview-demo': 'core/create/apps/resource-preview-demo',
+  '/platform/create/debug/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
+  '/platform/create/debug/apps/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
 
   // Flow
   '/platform/apps/flow/apps/creator': 'flow/apps/creator',
