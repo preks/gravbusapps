@@ -5,17 +5,23 @@ import {
   CardHeader,
   CardTitle,
   Badge,
+  Button,
   Label,
   Switch,
   Textarea,
   Alert,
   AlertDescription,
   AlertTitle,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
   useTranslation,
   useLocale,
   toast
 } from '@newwork/nw-design-system'
 import {
+  ChevronDown,
+  ChevronUp,
   Clock,
   MessageSquare,
   Info,
@@ -44,10 +50,13 @@ import { env } from '@/common/env/EnvUtils'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskDetailFooter } from './TaskDetailFooter'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
+import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch'
+import { useMeetingParticipants } from '../hooks/useMeetingParticipants'
 import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shared/InputRenderer'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { MarkdownRenderer } from '@/business-apps/ai/forms/scheduled-task-result/components/MarkdownRenderer'
 import { calculateDueDateCriticality, getCriticalityBadgeVariant } from '../utils/dueDateUtils'
+import { getInitials } from '../utils/avatarUtils'
 import { TaskAiSection } from './TaskAiSection'
 import { AiToolbar } from './AiToolbar'
 import { useAiAssistant, useAiCapabilities } from '../hooks/useAi'
@@ -59,6 +68,9 @@ dayjs.extend(localizedFormat)
 dayjs.extend(isToday)
 dayjs.extend(isYesterday)
 import GlossaryEntryTaskForm from '@/business-apps/core/content/forms/glossary-entry-task-form'
+
+/** Number of participants to show before collapsing the list (expand to see more). */
+const MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD = 10
 
 /**
  * Converts a picture thumbnail to a data URL format
@@ -110,6 +122,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [aiUsedForComment, setAiUsedForComment] = useState(false)
+  const [participantsExpanded, setParticipantsExpanded] = useState(false)
 
   // AI feature check
   const aiFeature = useFeature(Feature.EveryBox.AiEnabled.Key)
@@ -359,6 +372,64 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     }
     return task.sourceMetadata?.creatorName || task.sourceMetadata?.flowInitiatedByName || t('task-details-unknown')
   }, [creatorEmployeeData, task.sourceMetadata, t])
+
+  // Meeting-invite: fetch current participants from chat-service when opening task (includes latest status)
+  const meetingIdForFetch = task.tags?.app === 'meeting-invite' ? task.tags?.meetingId : undefined
+  const { participants: apiMeetingParticipants, isLoading: meetingParticipantsLoading } = useMeetingParticipants(
+    meetingIdForFetch,
+    accessToken
+  )
+  // Avatar batch: use API participant userIds when available, else fall back to tag-based list
+  const meetingParticipantUserIds = React.useMemo(() => {
+    if (apiMeetingParticipants.length > 0) return apiMeetingParticipants.map(p => p.userId)
+    if (task.tags?.app !== 'meeting-invite' || !task.tags?.participants) return []
+    try {
+      const raw = JSON.parse(task.tags.participants)
+      if (!Array.isArray(raw) || raw.length === 0) return []
+      if (typeof raw[0] === 'string') return []
+      const list = raw as Array<{ userId?: string }>
+      return list.map(p => p.userId).filter((id): id is string => !!id)
+    } catch {
+      return []
+    }
+  }, [apiMeetingParticipants, task.tags?.app, task.tags?.participants])
+  const { employeeMap: meetingParticipantEmployeeMap } = useEmployeeAvatarsBatch(accessToken, meetingParticipantUserIds)
+  // Resolve display list: API participants (with status) or fallback to tags; organizer first
+  const sortOrganizerFirst = <T extends { isOrganizer?: boolean }>(list: T[]): T[] =>
+    [...list].sort((a, b) => (a.isOrganizer ? 0 : 1) - (b.isOrganizer ? 0 : 1))
+
+  const meetingParticipantsDisplayList = React.useMemo(() => {
+    if (apiMeetingParticipants.length > 0) {
+      const list = apiMeetingParticipants.map(p => ({
+        userId: p.userId,
+        displayName: p.displayName,
+        status: p.status,
+        isOrganizer: p.isOrganizer
+      }))
+      return sortOrganizerFirst(list)
+    }
+    if (task.tags?.app !== 'meeting-invite' || !task.tags?.participants) return null
+    try {
+      const raw = JSON.parse(task.tags.participants)
+      if (!Array.isArray(raw) || raw.length === 0) return null
+      const isLegacyNames = typeof raw[0] === 'string'
+      const list = isLegacyNames
+        ? (raw as string[]).map((name, i) => ({
+            userId: `legacy-${i}`,
+            displayName: name,
+            status: undefined as undefined,
+            isOrganizer: false
+          }))
+        : (raw as Array<{ userId: string; displayName: string }>).map(p => ({
+            ...p,
+            status: undefined as undefined,
+            isOrganizer: task.tags?.organizer === p.userId
+          }))
+      return sortOrganizerFirst(list)
+    } catch {
+      return null
+    }
+  }, [apiMeetingParticipants, task.tags?.app, task.tags?.participants, task.tags?.organizer])
 
   // Helper: Process number type field value
   // For required fields with invalid input, preserve the raw value so validation can catch it.
@@ -647,6 +718,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const documentLinks = allLinks.filter(link => link.type?.startsWith('document:'))
   // All other links (internal:*, external:*, or any other type) - generic fallback
   const otherLinks = allLinks.filter(link => !link.type?.startsWith('entity:') && !link.type?.startsWith('document:'))
+  // For meeting-invite: section titled "Meeting Links", but show all links (Join Meeting + any others)
+  const linksSectionTitle =
+    task.tags?.app === 'meeting-invite'
+      ? t('task-details-meeting-links', { defaultValue: 'Meeting Links' })
+      : t('task-details-related-links', { defaultValue: 'Related Links' })
+  const displayLinks = otherLinks
 
   // Extract entity reference data from the entity link
   const entityType = entityLink?.metadata?.entityType || entityLink?.type?.split(':')[1]
@@ -731,6 +808,90 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
         {/* Scrollable Content - Simple Blink Task View */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
+          {/* Due Date & Starting Date - hidden for meeting-invite (Blink view) */}
+          {(task.dueDate || task.scheduledAt) && task.tags?.app !== 'meeting-invite' && (
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:pb-4 gba:border-b">
+              {task.scheduledAt && (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Calendar className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                  <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('task-start-date-label')}:</span>
+                  <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.scheduledAt)}</span>
+                </div>
+              )}
+              {task.dueDate &&
+                (() => {
+                  const criticality = calculateDueDateCriticality(task.dueDate, t)
+                  if (!criticality) return null
+                  const Icon =
+                    criticality.status === 'overdue'
+                      ? AlertCircle
+                      : criticality.status === 'warning'
+                        ? Clock
+                        : CheckCircle
+                  return (
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Icon
+                        className={`gba:w-4 gba:h-4 ${
+                          criticality.status === 'overdue'
+                            ? 'gba:text-destructive'
+                            : criticality.status === 'warning'
+                              ? 'gba:text-warning'
+                              : 'gba:text-success'
+                        }`}
+                      />
+                      <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                        {t('task-due-date-label')}:
+                      </span>
+                      <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.dueDate)}</span>
+                      <Badge variant={getCriticalityBadgeVariant(criticality.status)}>{criticality.label}</Badge>
+                    </div>
+                  )
+                })()}
+            </div>
+          )}
+
+          {/* Meeting invite: meeting name, date, time, Please respond - Blink view */}
+          {task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) && (
+            <div
+              className="gba:space-y-4 gba:pb-4 gba:border-b gba:border-border"
+              data-testid="task-details-meeting-invite-body"
+            >
+              <div className="gba:flex gba:flex-col gba:gap-2 gba:text-sm">
+                {task.tags?.meetingDateStr && (
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
+                    <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+                    <span>{task.tags.meetingDateStr}</span>
+                  </div>
+                )}
+                {task.tags?.meetingTimeStr && (
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
+                    <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+                    <span>{task.tags.meetingTimeStr}</span>
+                  </div>
+                )}
+              </div>
+              <p className="gba:text-sm gba:text-muted-foreground">
+                {t('task-details-meeting-please-respond', { defaultValue: 'Please respond to this invitation.' })}
+              </p>
+              {task.tags?.transcriptionEnabled === 'true' && (
+                <div
+                  className="gba:flex gba:items-center gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t gba:border-border"
+                  data-testid="task-details-meeting-recording-notice"
+                >
+                  <span
+                    className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                    aria-hidden
+                  />
+                  <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                    {t('task-details-meeting-recording-notice', {
+                      defaultValue: 'Recording and transcription. By joining, you consent to being included.'
+                    })}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* AI Summary & Suggestions */}
           <TaskAiSection
             taskId={task.id}
@@ -842,14 +1003,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </div>
           )}
 
-          {/* Other Links (internal:*, external:*, etc.) */}
-          {otherLinks.length > 0 && (
+          {/* Other Links / Meeting Links (meeting-invite: only external:meeting) */}
+          {displayLinks.length > 0 && (
             <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-              <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-                {t('task-details-related-links', { defaultValue: 'Related Links' })}
-              </div>
+              <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">{linksSectionTitle}</div>
               <div className="gba:space-y-2">
-                {otherLinks.map(link => (
+                {displayLinks.map(link => (
                   <a
                     key={link.url || link.name}
                     href={link.url}
@@ -876,15 +1035,168 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </div>
           )}
 
-          {/* Brief description if available - use markdown for scheduled tasks */}
+          {/* Meeting participants - separate block for meeting-invite (Blink); uses API when open, with status */}
+          {task.tags?.app === 'meeting-invite' &&
+            ((meetingParticipantsLoading && meetingIdForFetch) ||
+              (meetingParticipantsDisplayList && meetingParticipantsDisplayList.length > 0)) &&
+            (() => {
+              if (meetingParticipantsLoading && meetingIdForFetch) {
+                return (
+                  <div
+                    className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
+                    data-testid="task-details-meeting-participants"
+                  >
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                      {t('task-details-meeting-participants', { defaultValue: 'Participants' })}
+                    </div>
+                    <p className="gba:text-sm gba:text-muted-foreground">
+                      {t('task-details-form-loading', { defaultValue: 'Loading...' })}
+                    </p>
+                  </div>
+                )
+              }
+              const list = meetingParticipantsDisplayList
+              if (!list || list.length === 0) return null
+              const hasStatus = list.some((p: { status?: string }) => p.status != null)
+              const showCollapse = list.length > MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
+              const visibleList =
+                showCollapse && !participantsExpanded ? list.slice(0, MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD) : list
+              const hiddenCount = list.length - MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
+              return (
+                <div
+                  className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
+                  data-testid="task-details-meeting-participants"
+                >
+                  <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                    {t('task-details-meeting-participants-with-count', {
+                      count: list.length,
+                      defaultValue: `Participants (${list.length})`
+                    })}
+                  </div>
+                  <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
+                    {visibleList.map(
+                      (
+                        p: { userId: string; displayName: string; status?: string; isOrganizer: boolean },
+                        idx: number
+                      ) => {
+                        const isLegacy = p.userId.startsWith('legacy-')
+                        const emp = isLegacy ? null : meetingParticipantEmployeeMap.get(p.userId)
+                        const employeeId = emp?.id
+                        const avatarUrl = emp?.avatarUrl ?? formatAvatarUrl(emp?.pictureThumbnail)
+                        const parts = p.displayName.trim().split(/\s+/)
+                        const initials =
+                          emp && (emp.firstName || emp.lastName)
+                            ? getInitials(emp.firstName, emp.lastName)
+                            : parts.length >= 2
+                              ? getInitials(parts[0], parts.slice(1).join(' '))
+                              : parts[0]?.slice(0, 2).toUpperCase() || '?'
+                        const statusKey = p.status ? `task-details-meeting-status-${p.status}` : null
+                        const statusLabel = statusKey ? t(statusKey, { defaultValue: p.status }) : null
+                        return (
+                          <li key={p.userId || idx} className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+                            {employeeId ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId }))
+                                }
+                                className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:ring-2 gba:ring-transparent hover:gba:ring-primary focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary"
+                                aria-label={t('task-details-meeting-participant-view-profile', {
+                                  defaultValue: 'View profile'
+                                })}
+                                data-testid={`task-details-meeting-participant-avatar-${idx}`}
+                              >
+                                <Avatar className="gba:h-8 gba:w-8">
+                                  <AvatarImage src={avatarUrl} alt={p.displayName} />
+                                  <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+                                </Avatar>
+                              </button>
+                            ) : (
+                              <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                                <AvatarImage src={avatarUrl} alt={p.displayName} />
+                                <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+                              </Avatar>
+                            )}
+                            <span className="gba:flex gba:items-center gba:gap-2">
+                              {p.displayName}
+                              {p.isOrganizer && (
+                                <span className="gba:text-muted-foreground gba:font-normal">
+                                  ({t('task-details-meeting-organiser', { defaultValue: 'Organiser' })})
+                                </span>
+                              )}
+                              {hasStatus && statusLabel && (
+                                <Badge
+                                  variant={
+                                    p.status === 'accepted'
+                                      ? 'success'
+                                      : p.status === 'declined'
+                                        ? 'destructive'
+                                        : p.status === 'tentative'
+                                          ? 'warning'
+                                          : 'secondary'
+                                  }
+                                  className="gba:text-xs"
+                                >
+                                  {statusLabel}
+                                </Badge>
+                              )}
+                            </span>
+                          </li>
+                        )
+                      }
+                    )}
+                  </ul>
+                  {showCollapse && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setParticipantsExpanded(prev => !prev)}
+                      className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
+                      data-testid="task-details-meeting-participants-toggle"
+                    >
+                      {participantsExpanded ? (
+                        <>
+                          <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
+                          {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
+                          {t('task-details-meeting-participants-show-more', {
+                            defaultValue: 'Show {{count}} more',
+                            count: hiddenCount
+                          })}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              )
+            })()}
+
+          {/* Brief description - skip redundant "Complete Meeting Invitation: ..." for meeting-invite */}
           {(task.message || task.description) &&
-            (task.tags?.app === 'scheduled_task' ? (
-              <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-            ) : (
-              <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-                {task.message || task.description}
-              </p>
-            ))}
+            (() => {
+              const content = (task.message || task.description || '').trim()
+              const isRedundantMeetingTitle =
+                task.tags?.app === 'meeting-invite' &&
+                (/^\s*\*\*Complete Meeting Invitation:.*\*\*\s*$/s.test(content) ||
+                  /^\s*Complete Meeting Invitation:.*\s*$/s.test(content))
+              if (isRedundantMeetingTitle) return null
+              return task.tags?.app === 'scheduled_task' ? (
+                <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+              ) : task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) ? (
+                task.message || task.description ? (
+                  <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+                    <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+                  </div>
+                ) : null
+              ) : (
+                <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+                  {task.message || task.description}
+                </p>
+              )
+            })()}
 
           {/* Info Alert for Blink tasks - only show when not completed */}
           {!isCompleted && (
@@ -925,20 +1237,17 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       />
 
       <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
-        {/* AI Summary & Suggestions */}
-        <TaskAiSection
-          taskId={task.id}
-          source={task.source}
-          accessToken={accessToken}
-          urgencyScore={task.ai?.urgencyScore}
-          currentUserPriority={task.userState?.userPriority}
-          onPriorityApplied={() => onTaskUpdated()}
-        />
-
-        {/* Due Date & Starting Date Section */}
-        {(task.dueDate || task.scheduledAt) && (
+        {/* Due Date & Starting Date Section - hidden for meeting-invite */}
+        {(task.dueDate || task.scheduledAt) && task.tags?.app !== 'meeting-invite' && (
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:pb-4 gba:border-b">
-            {/* Due Date with Criticality */}
+            {task.scheduledAt && (
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Calendar className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('task-start-date-label')}:</span>
+                <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.scheduledAt)}</span>
+              </div>
+            )}
+
             {task.dueDate &&
               (() => {
                 const criticality = calculateDueDateCriticality(task.dueDate, t)
@@ -968,17 +1277,60 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   </div>
                 )
               })()}
+          </div>
+        )}
 
-            {/* Starting Date - use scheduledAt as the start date */}
-            {task.scheduledAt && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Calendar className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('task-start-date-label')}:</span>
-                <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.scheduledAt)}</span>
+        {/* Meeting invite: meeting name, date, time, Please respond */}
+        {task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) && (
+          <div
+            className="gba:space-y-4 gba:pb-4 gba:border-b gba:border-border"
+            data-testid="task-details-meeting-invite-body"
+          >
+            <div className="gba:flex gba:flex-col gba:gap-2 gba:text-sm">
+              {task.tags?.meetingDateStr && (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
+                  <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+                  <span>{task.tags.meetingDateStr}</span>
+                </div>
+              )}
+              {task.tags?.meetingTimeStr && (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
+                  <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+                  <span>{task.tags.meetingTimeStr}</span>
+                </div>
+              )}
+            </div>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {t('task-details-meeting-please-respond', { defaultValue: 'Please respond to this invitation.' })}
+            </p>
+            {task.tags?.transcriptionEnabled === 'true' && (
+              <div
+                className="gba:flex gba:items-center gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t gba:border-border"
+                data-testid="task-details-meeting-recording-notice"
+              >
+                <span
+                  className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                  aria-hidden
+                />
+                <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                  {t('task-details-meeting-recording-notice', {
+                    defaultValue: 'Recording and transcription. By joining, you consent to being included.'
+                  })}
+                </p>
               </div>
             )}
           </div>
         )}
+
+        {/* AI Summary & Suggestions */}
+        <TaskAiSection
+          taskId={task.id}
+          source={task.source}
+          accessToken={accessToken}
+          urgencyScore={task.ai?.urgencyScore}
+          currentUserPriority={task.userState?.userPriority}
+          onPriorityApplied={() => onTaskUpdated()}
+        />
         {/* Completion Details - Only show for completed tasks */}
         {isCompleted && (
           <Card className="gba:border-success/50 gba:bg-success/5">
@@ -1115,14 +1467,76 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           </div>
         )}
 
-        {/* Other Links (internal:*, external:*, etc.) - Same for all cFlow tasks */}
-        {otherLinks.length > 0 && (
+        {/* For meeting-invite: Form first, then Related Links. Otherwise: Related Links then Form. */}
+        {task.tags?.app === 'meeting-invite' && task.form && Array.isArray(task.form) && task.form.length > 0 && (
+          <>
+            <Card>
+              <CardContent>
+                {Object.keys(fieldErrors).length > 0 && (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <AlertTitle>
+                      {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
+                    </AlertTitle>
+                    <AlertDescription>
+                      <ul className="gba:list-disc gba:list-inside gba:space-y-1">
+                        {Object.values(fieldErrors).map((error, idx) => (
+                          <li key={idx}>{error}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="gba:space-y-4">
+                  {task.form.map((input: any, index: number) => {
+                    const fieldName = input.name || input.id || `field_${index}`
+                    const fieldValue = formValues[fieldName]
+                    const fieldError = fieldErrors[fieldName]
+                    const isLoadingData = !formInitialized
+                    const displayValue = getFieldDisplayValue(
+                      isLoadingData,
+                      fieldValue,
+                      input.value,
+                      input.defaultValue
+                    )
+                    const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
+
+                    return (
+                      <div key={fieldName}>
+                        <InputRenderer
+                          input={input}
+                          index={index}
+                          readOnly={isFieldReadOnly}
+                          value={displayValue}
+                          onChange={value => {
+                            if (!isFieldReadOnly) {
+                              if (fieldError) {
+                                setFieldErrors(prev => {
+                                  const next = { ...prev }
+                                  delete next[fieldName]
+                                  return next
+                                })
+                              }
+                              setFormValues(prev => ({ ...prev, [fieldName]: value }))
+                            }
+                          }}
+                        />
+                        {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Other Links / Meeting Links (meeting-invite: only external:meeting) */}
+        {displayLinks.length > 0 && (
           <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-            <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-              {t('task-details-related-links', { defaultValue: 'Related Links' })}
-            </div>
+            <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">{linksSectionTitle}</div>
             <div className="gba:space-y-2">
-              {otherLinks.map(link => (
+              {displayLinks.map(link => (
                 <a
                   key={link.url || link.name}
                   href={link.url}
@@ -1149,33 +1563,10 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           </div>
         )}
 
-        {/* Description - use markdown for scheduled tasks */}
-        {(task.message || task.description) &&
-          (task.tags?.app === 'scheduled_task' ? (
-            <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-          ) : (
-            <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-              {task.message || task.description}
-            </p>
-          ))}
-
-        {/* Form Section - Editable for active tasks, read-only for completed */}
-        {task.form && Array.isArray(task.form) && task.form.length > 0 && (
+        {/* Form Section - for non-meeting-invite (or when meeting-invite has no form); no "Form" title */}
+        {task.tags?.app !== 'meeting-invite' && task.form && Array.isArray(task.form) && task.form.length > 0 && (
           <Card>
-            <CardHeader>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-lg">{t('task-details-form')}</CardTitle>
-                {isCompleted && <Badge variant="secondary">{t('task-details-read-only')}</Badge>}
-                {!formInitialized && (
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-                    <Clock className="gba:h-4 gba:w-4 gba:animate-spin" />
-                    <span>{t('task-details-form-loading')}</span>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
             <CardContent>
-              {/* Show validation errors summary if any */}
               {Object.keys(fieldErrors).length > 0 && (
                 <Alert variant="destructive" className="gba:mb-4">
                   <AlertTitle>
@@ -1191,21 +1582,13 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 </Alert>
               )}
 
-              {/* Always show form fields - with empty values while loading for better UX */}
               <div className="gba:space-y-4">
                 {task.form.map((input: any, index: number) => {
                   const fieldName = input.name || input.id || `field_${index}`
                   const fieldValue = formValues[fieldName]
                   const fieldError = fieldErrors[fieldName]
-
-                  // Check if we're still loading data for this form
-                  // For completed tasks without direct values, we need flowStepData to be loaded
                   const isLoadingData = !formInitialized
-
-                  // While loading, show empty values; once loaded, show the actual values
                   const displayValue = getFieldDisplayValue(isLoadingData, fieldValue, input.value, input.defaultValue)
-
-                  // Determine if this field should be read-only (loading, completed tasks, OR field marked as readOnly)
                   const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
 
                   return (
@@ -1217,7 +1600,6 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                         value={displayValue}
                         onChange={value => {
                           if (!isFieldReadOnly) {
-                            // Clear field error when user starts typing
                             if (fieldError) {
                               setFieldErrors(prev => {
                                 const next = { ...prev }
@@ -1232,7 +1614,6 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                           }
                         }}
                       />
-                      {/* Show field-level error message */}
                       {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
                     </div>
                   )
@@ -1241,6 +1622,167 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </CardContent>
           </Card>
         )}
+
+        {/* Meeting participants - after Form; uses API when open, with latest status */}
+        {task.tags?.app === 'meeting-invite' &&
+          ((meetingParticipantsLoading && meetingIdForFetch) ||
+            (meetingParticipantsDisplayList && meetingParticipantsDisplayList.length > 0)) &&
+          (() => {
+            if (meetingParticipantsLoading && meetingIdForFetch) {
+              return (
+                <div
+                  className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
+                  data-testid="task-details-meeting-participants"
+                >
+                  <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                    {t('task-details-meeting-participants', { defaultValue: 'Participants' })}
+                  </div>
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {t('task-details-form-loading', { defaultValue: 'Loading...' })}
+                  </p>
+                </div>
+              )
+            }
+            const list = meetingParticipantsDisplayList
+            if (!list || list.length === 0) return null
+            const hasStatus = list.some((p: { status?: string }) => p.status != null)
+            const showCollapse = list.length > MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
+            const visibleList =
+              showCollapse && !participantsExpanded ? list.slice(0, MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD) : list
+            const hiddenCount = list.length - MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
+            return (
+              <div
+                className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
+                data-testid="task-details-meeting-participants"
+              >
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                  {t('task-details-meeting-participants-with-count', {
+                    count: list.length,
+                    defaultValue: `Participants (${list.length})`
+                  })}
+                </div>
+                <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
+                  {visibleList.map(
+                    (
+                      p: { userId: string; displayName: string; status?: string; isOrganizer: boolean },
+                      idx: number
+                    ) => {
+                      const isLegacy = p.userId.startsWith('legacy-')
+                      const emp = isLegacy ? null : meetingParticipantEmployeeMap.get(p.userId)
+                      const employeeId = emp?.id
+                      const avatarUrl = emp?.avatarUrl ?? formatAvatarUrl(emp?.pictureThumbnail)
+                      const parts = p.displayName.trim().split(/\s+/)
+                      const initials =
+                        emp && (emp.firstName || emp.lastName)
+                          ? getInitials(emp.firstName, emp.lastName)
+                          : parts.length >= 2
+                            ? getInitials(parts[0], parts.slice(1).join(' '))
+                            : parts[0]?.slice(0, 2).toUpperCase() || '?'
+                      const statusKey = p.status ? `task-details-meeting-status-${p.status}` : null
+                      const statusLabel = statusKey ? t(statusKey, { defaultValue: p.status }) : null
+                      return (
+                        <li key={p.userId || idx} className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+                          {employeeId ? (
+                            <button
+                              type="button"
+                              onClick={() => navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId }))}
+                              className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:ring-2 gba:ring-transparent hover:gba:ring-primary focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary"
+                              aria-label={t('task-details-meeting-participant-view-profile', {
+                                defaultValue: 'View profile'
+                              })}
+                              data-testid={`task-details-meeting-participant-avatar-${idx}`}
+                            >
+                              <Avatar className="gba:h-8 gba:w-8">
+                                <AvatarImage src={avatarUrl} alt={p.displayName} />
+                                <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+                              </Avatar>
+                            </button>
+                          ) : (
+                            <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                              <AvatarImage src={avatarUrl} alt={p.displayName} />
+                              <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          <span className="gba:flex gba:items-center gba:gap-2">
+                            {p.displayName}
+                            {p.isOrganizer && (
+                              <span className="gba:text-muted-foreground gba:font-normal">
+                                ({t('task-details-meeting-organiser', { defaultValue: 'Organiser' })})
+                              </span>
+                            )}
+                            {hasStatus && statusLabel && (
+                              <Badge
+                                variant={
+                                  p.status === 'accepted'
+                                    ? 'success'
+                                    : p.status === 'declined'
+                                      ? 'destructive'
+                                      : p.status === 'tentative'
+                                        ? 'warning'
+                                        : 'secondary'
+                                }
+                                className="gba:text-xs"
+                              >
+                                {statusLabel}
+                              </Badge>
+                            )}
+                          </span>
+                        </li>
+                      )
+                    }
+                  )}
+                </ul>
+                {showCollapse && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setParticipantsExpanded(prev => !prev)}
+                    className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
+                    data-testid="task-details-meeting-participants-toggle"
+                  >
+                    {participantsExpanded ? (
+                      <>
+                        <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
+                        {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
+                        {t('task-details-meeting-participants-show-more', {
+                          defaultValue: 'Show {{count}} more',
+                          count: hiddenCount
+                        })}
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            )
+          })()}
+
+        {/* Description - scheduled task markdown; meeting-invite: only location/description (skip redundant "Complete Meeting Invitation: ...") */}
+        {(task.message || task.description) &&
+          (() => {
+            const content = (task.message || task.description || '').trim()
+            const isRedundantMeetingTitle =
+              task.tags?.app === 'meeting-invite' &&
+              (/^\s*\*\*Complete Meeting Invitation:.*\*\*\s*$/s.test(content) ||
+                /^\s*Complete Meeting Invitation:.*\s*$/s.test(content))
+            if (isRedundantMeetingTitle) return null
+            return task.tags?.app === 'scheduled_task' ? (
+              <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+            ) : task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) ? (
+              task.message || task.description ? (
+                <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+                  <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+                </div>
+              ) : null
+            ) : (
+              <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+                {task.message || task.description}
+              </p>
+            )
+          })()}
 
         {/* Comment Section - Only for active tasks with complete/reject actions */}
         {!isCompleted && (task.availableActions?.canComplete || task.availableActions?.canReject) && (

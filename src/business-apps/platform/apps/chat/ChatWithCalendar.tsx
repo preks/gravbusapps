@@ -191,6 +191,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         }
         return { tab: 'chat', pending }
       }
+      // On load with URL params (e.g. ?app=...&view=calendar&meetingId=... on localhost), open on the correct tab immediately
+      const viewParam = new URLSearchParams(window.location.search).get('view')
+      if (viewParam === 'calendar' || viewParam === 'chat' || viewParam === 'reminders' || viewParam === 'everyai') {
+        const tab: TabValue = viewParam === 'everyai' ? 'everyai' : viewParam
+        return { tab, pending: null }
+      }
+      if (viewParam === 'dashboard') {
+        return { tab: 'dashboard', pending: null }
+      }
     } catch {
       // ignore
     }
@@ -237,6 +246,20 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       setActiveTab('reminders')
     }
   }, [isCompactMode, isInSidepanel, pendingOpenWithUser])
+
+  // Sync tab from URL on popstate (e.g. user clicks Back to calendar link so calendar + meeting open correctly)
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      const viewParam = new URLSearchParams(window.location.search).get('view')
+      if (viewParam === 'calendar') setActiveTab('calendar')
+      else if (viewParam === 'chat') setActiveTab('chat')
+      else if (viewParam === 'reminders') setActiveTab('reminders')
+      else if (viewParam === 'dashboard') setActiveTab(isCompactMode ? 'everyai' : 'dashboard')
+      else if (viewParam === 'everyai') setActiveTab('everyai')
+    }
+    window.addEventListener('popstate', syncTabFromUrl)
+    return () => window.removeEventListener('popstate', syncTabFromUrl)
+  }, [isCompactMode])
 
   // In fullscreen, EveryAI tab is not available; ensure we never stay on it
   useEffect(() => {

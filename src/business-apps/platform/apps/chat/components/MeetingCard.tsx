@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, Badge, Button } from '@newwork/nw-design-system'
 import { Calendar, Clock, Users, Video, ExternalLink, ListTodo } from 'lucide-react'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
 import { getAgendaFromMetadata } from '../calendar/utils/agendaUtils'
 
@@ -37,18 +38,12 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
   }
 
   const handleClick = () => {
-    // Switch to calendar view within Chat and open meeting details
-    // The Calendar component listens for this custom event
+    // Switch to calendar view within Chat and open meeting details. Same path as Spaces: /platform/chat in prod, /platform/apps/chat in dev.
     const dateStr = startDate.toISOString().split('T')[0]
+    const chatBasePath = process.env.NODE_ENV === 'production' ? '/platform/chat' : '/platform/apps/chat'
+    const pathAndQuery = buildPlatformUrl(chatBasePath, { view: 'calendar', meetingId: meeting.id })
+    window.history.pushState({}, '', `${window.location.origin}${pathAndQuery}`)
 
-    // Update URL parameters (Calendar reads these on mount/event)
-    const url = new URL(window.location.href)
-    url.searchParams.set('view', 'calendar')
-    url.searchParams.set('date', dateStr)
-    url.searchParams.set('meetingId', meeting.id)
-    window.history.pushState({}, '', url.toString())
-
-    // Dispatch custom event to notify Calendar component
     window.dispatchEvent(
       new CustomEvent('switchToCalendar', {
         detail: {

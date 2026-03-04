@@ -176,8 +176,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
       const dateParam = urlParams.get('date')
       const meetingIdParam = urlParams.get('meetingId')
 
-      // If this is triggered by switchToCalendar event, refresh only when not navigating to a specific date/meeting
-      // (avoids duplicate fetch when opening from MeetingCard which already has date + meetingId in URL)
+      // If this is triggered by switchToCalendar event, refresh only when not navigating with a date param
+      // (avoids duplicate fetch when opening from MeetingCard which sets meetingId in URL)
       if (event?.type === 'switchToCalendar' && !dateParam) {
         await refresh()
       }
@@ -188,7 +188,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
           setCurrentDate(targetDate)
           setView('day')
 
-          // If we have a meetingId, find and select that meeting after events load (URL keeps meetingId/date for shareable link)
+          // If we have a meetingId, find and select that meeting after events load (URL keeps meetingId for shareable link)
           if (meetingIdParam) {
             timeoutId = setTimeout(() => {
               timeoutId = null
@@ -203,7 +203,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
               }
             }, 500)
           }
-          // Keep date/meetingId in URL so the open meeting dialog is reflected and link is shareable
+          // Keep meetingId in URL so the open meeting dialog is reflected and link is shareable
         }
       } else if (meetingIdParam && events.length > 0) {
         // meetingId without date: find meeting in loaded events, go to its day and select it (URL keeps meetingId for shareable link)
@@ -232,6 +232,20 @@ const CalendarInner: React.FC<CalendarProps> = ({
       window.removeEventListener('switchToCalendar', handleSwitchEvent)
     }
   }, [events, setCurrentDate, setView, selectEvent, refresh])
+
+  // When events load and meetingId is in URL (e.g. opened from task link), open meeting once events are available
+  useEffect(() => {
+    if (events.length === 0) return
+    const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId')
+    if (!meetingIdParam || isDetailModalOpen) return
+    const meetingEvent = events.find(e => e.id === meetingIdParam)
+    if (meetingEvent) {
+      setCurrentDate(meetingEvent.start)
+      setView('day')
+      selectEvent(meetingEvent)
+      setIsDetailModalOpen(true)
+    }
+  }, [events, isDetailModalOpen, selectEvent, setCurrentDate, setView])
 
   // Sync modal with browser back/forward: open/close modal when URL meetingId appears/disappears
   useEffect(() => {
@@ -265,19 +279,27 @@ const CalendarInner: React.FC<CalendarProps> = ({
     return () => globalThis.removeEventListener('calendar:refresh', onCalendarRefresh)
   }, [refresh, refreshInvitations])
 
-  // Sync meeting detail modal state with URL (bookmarkable / shareable link)
-  const setMeetingInUrl = useCallback((meetingId: string, date: Date) => {
-    const url = new URL(window.location.href)
-    url.searchParams.set('meetingId', meetingId)
-    url.searchParams.set('date', date.toISOString().slice(0, 10))
-    window.history.replaceState({}, '', url.toString())
-  }, [])
+  // Sync meeting detail modal state with URL (bookmarkable / shareable). Same path as Spaces: /platform/chat in prod, /platform/apps/chat in dev.
+  const chatBasePath = useMemo(
+    () => (process.env.NODE_ENV === 'production' ? '/platform/chat' : '/platform/apps/chat'),
+    []
+  )
+  const setMeetingInUrl = useCallback(
+    (meetingId: string, _date?: Date) => {
+      void _date // kept for API compatibility with callers; URL only stores meetingId
+      const pathAndQuery = buildPlatformUrl(chatBasePath, { view: 'calendar', meetingId })
+      window.history.replaceState({}, '', `${window.location.origin}${pathAndQuery}`)
+    },
+    [chatBasePath]
+  )
   const clearMeetingFromUrl = useCallback(() => {
-    const url = new URL(window.location.href)
-    url.searchParams.delete('meetingId')
-    url.searchParams.delete('date')
-    window.history.replaceState({}, '', url.toString())
-  }, [])
+    const params = new URLSearchParams(window.location.search)
+    params.delete('meetingId')
+    params.delete('date')
+    const query = params.toString()
+    const pathAndQuery = query ? `${chatBasePath}?${query}` : chatBasePath
+    window.history.replaceState({}, '', `${window.location.origin}${pathAndQuery}`)
+  }, [chatBasePath])
 
   // Handle event click
   const handleEventClick = useCallback(
