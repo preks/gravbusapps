@@ -147,6 +147,30 @@ const HighlightCell: React.FC<{
   return <span className={isOver ? 'gba:text-destructive gba:font-semibold' : ''}>{format(value)}</span>
 }
 
+const SortHeader: React.FC<{
+  label: string
+  sortKeyValue: SortKey
+  sortKey: SortKey
+  sortDir: SortDir
+  onSort: (key: SortKey) => void
+}> = ({ label, sortKeyValue, sortKey, sortDir, onSort }) => (
+  <th
+    className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:cursor-pointer gba:select-none hover:gba:text-foreground gba:transition-colors gba:whitespace-nowrap"
+    onClick={() => onSort(sortKeyValue)}
+  >
+    <span className="gba:flex gba:items-center gba:gap-1">
+      {label}
+      {sortKey === sortKeyValue && (sortDir === 'asc' ? <PiArrowUp size={12} /> : <PiArrowDown size={12} />)}
+    </span>
+  </th>
+)
+
+const getBalanceClass = (minutes: number): string => {
+  if (minutes < 0) return 'gba:text-destructive gba:font-semibold'
+  if (minutes > 0) return 'gba:text-success'
+  return ''
+}
+
 const getHeatmapColor = (pct: number): string => {
   if (pct >= 90) return 'gba:bg-success/25 gba:text-success'
   if (pct >= 80) return 'gba:bg-success/15 gba:text-success'
@@ -332,18 +356,6 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   })
 
   const monthLabel = currentMonth.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
-
-  const SortHeader: React.FC<{ label: string; sortKeyValue: SortKey }> = ({ label, sortKeyValue }) => (
-    <th
-      className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:cursor-pointer gba:select-none hover:gba:text-foreground gba:transition-colors gba:whitespace-nowrap"
-      onClick={() => handleSort(sortKeyValue)}
-    >
-      <span className="gba:flex gba:items-center gba:gap-1">
-        {label}
-        {sortKey === sortKeyValue && (sortDir === 'asc' ? <PiArrowUp size={12} /> : <PiArrowDown size={12} />)}
-      </span>
-    </th>
-  )
 
   const getPanelTitle = (): string => {
     switch (activePanel) {
@@ -572,6 +584,132 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     )
   }
 
+  let capacityContent: React.ReactNode
+  if (capacityLoading) {
+    capacityContent = (
+      <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+      </div>
+    )
+  } else if (capacityError) {
+    capacityContent = <div className="gba:text-center gba:py-12 gba:text-destructive">{capacityError}</div>
+  } else if (sortedRows.length === 0) {
+    capacityContent = (
+      <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.no_data_available', 'No data available.')}
+      </div>
+    )
+  } else {
+    capacityContent = (
+      <div className="gba:overflow-x-auto">
+        <table className="gba:w-full gba:text-left gba:text-sm">
+          <thead>
+            <tr className="gba:border-b gba:border-border gba:bg-muted/30">
+              <SortHeader
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.employee', 'Employee')}
+                sortKeyValue="name"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
+              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.target', 'Target')}
+              </th>
+              <SortHeader
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.worked', 'Worked')}
+                sortKeyValue="worked"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
+              <SortHeader
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime', 'Overtime')}
+                sortKeyValue="overtime"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
+              <SortHeader
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.deficit', 'Deficit')}
+                sortKeyValue="deficit"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
+              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pto_used', 'PTO Used')}
+              </th>
+              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_days', 'Sick Days')}
+              </th>
+              <SortHeader
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.balance', 'Balance')}
+                sortKeyValue="balance"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
+              <SortHeader
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.missing', 'Missing')}
+                sortKeyValue="missing"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.map(row => (
+              <tr
+                key={row.employee.id}
+                className="gba:border-b gba:border-border hover:gba:bg-muted/50 gba:transition-colors"
+              >
+                <td className="gba:py-3 gba:px-3">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <EmployeeAvatar
+                      firstName={row.employee.firstName}
+                      lastName={row.employee.lastName}
+                      pictureThumbnail={row.employee.pictureThumbnail}
+                      size="gba:h-7 gba:w-7"
+                    />
+                    <EmployeeName
+                      id={row.employee.id}
+                      firstName={row.employee.firstName}
+                      lastName={row.employee.lastName}
+                      className="gba:font-medium gba:text-sm"
+                    />
+                  </div>
+                </td>
+                <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">
+                  {formatMinutes(row.contractTargetMinutes)}
+                </td>
+                <td className="gba:py-3 gba:px-3 gba:font-medium">{formatMinutes(row.workedMinutes)}</td>
+                <td className="gba:py-3 gba:px-3">
+                  <HighlightCell value={row.overtimeMinutes} threshold={600} format={formatMinutes} />
+                </td>
+                <td className="gba:py-3 gba:px-3">
+                  <HighlightCell value={row.deficitMinutes} threshold={120} format={formatMinutes} />
+                </td>
+                <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">{row.ptoUsedDays}d</td>
+                <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">{row.sickDays}d</td>
+                <td className="gba:py-3 gba:px-3">
+                  <span className={getBalanceClass(row.netBalanceMinutes)}>{formatMinutes(row.netBalanceMinutes)}</span>
+                </td>
+                <td className="gba:py-3 gba:px-3">
+                  {row.missingEntries > 0 ? (
+                    <Badge variant="destructive">{row.missingEntries}</Badge>
+                  ) : (
+                    <span className="gba:text-muted-foreground">0</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
   return (
     <div className="gba:space-y-6" data-testid="my-team-time-dashboard">
       <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-7 gba:gap-3">
@@ -759,118 +897,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="gba:p-0">
-          {capacityLoading ? (
-            <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
-            </div>
-          ) : capacityError ? (
-            <div className="gba:text-center gba:py-12 gba:text-destructive">{capacityError}</div>
-          ) : sortedRows.length === 0 ? (
-            <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.no_data_available', 'No data available.')}
-            </div>
-          ) : (
-            <div className="gba:overflow-x-auto">
-              <table className="gba:w-full gba:text-left gba:text-sm">
-                <thead>
-                  <tr className="gba:border-b gba:border-border gba:bg-muted/30">
-                    <SortHeader
-                      label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.employee', 'Employee')}
-                      sortKeyValue="name"
-                    />
-                    <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.target', 'Target')}
-                    </th>
-                    <SortHeader
-                      label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.worked', 'Worked')}
-                      sortKeyValue="worked"
-                    />
-                    <SortHeader
-                      label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime', 'Overtime')}
-                      sortKeyValue="overtime"
-                    />
-                    <SortHeader
-                      label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.deficit', 'Deficit')}
-                      sortKeyValue="deficit"
-                    />
-                    <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pto_used', 'PTO Used')}
-                    </th>
-                    <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_days', 'Sick Days')}
-                    </th>
-                    <SortHeader
-                      label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.balance', 'Balance')}
-                      sortKeyValue="balance"
-                    />
-                    <SortHeader
-                      label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.missing', 'Missing')}
-                      sortKeyValue="missing"
-                    />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedRows.map(row => (
-                    <tr
-                      key={row.employee.id}
-                      className="gba:border-b gba:border-border hover:gba:bg-muted/50 gba:transition-colors"
-                    >
-                      <td className="gba:py-3 gba:px-3">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <EmployeeAvatar
-                            firstName={row.employee.firstName}
-                            lastName={row.employee.lastName}
-                            pictureThumbnail={row.employee.pictureThumbnail}
-                            size="gba:h-7 gba:w-7"
-                          />
-                          <EmployeeName
-                            id={row.employee.id}
-                            firstName={row.employee.firstName}
-                            lastName={row.employee.lastName}
-                            className="gba:font-medium gba:text-sm"
-                          />
-                        </div>
-                      </td>
-                      <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">
-                        {formatMinutes(row.contractTargetMinutes)}
-                      </td>
-                      <td className="gba:py-3 gba:px-3 gba:font-medium">{formatMinutes(row.workedMinutes)}</td>
-                      <td className="gba:py-3 gba:px-3">
-                        <HighlightCell value={row.overtimeMinutes} threshold={600} format={formatMinutes} />
-                      </td>
-                      <td className="gba:py-3 gba:px-3">
-                        <HighlightCell value={row.deficitMinutes} threshold={120} format={formatMinutes} />
-                      </td>
-                      <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">{row.ptoUsedDays}d</td>
-                      <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">{row.sickDays}d</td>
-                      <td className="gba:py-3 gba:px-3">
-                        <span
-                          className={
-                            row.netBalanceMinutes < 0
-                              ? 'gba:text-destructive gba:font-semibold'
-                              : row.netBalanceMinutes > 0
-                                ? 'gba:text-success'
-                                : ''
-                          }
-                        >
-                          {formatMinutes(row.netBalanceMinutes)}
-                        </span>
-                      </td>
-                      <td className="gba:py-3 gba:px-3">
-                        {row.missingEntries > 0 ? (
-                          <Badge variant="destructive">{row.missingEntries}</Badge>
-                        ) : (
-                          <span className="gba:text-muted-foreground">0</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
+        <CardContent className="gba:p-0">{capacityContent}</CardContent>
       </Card>
 
       <DataDetailsDrawer

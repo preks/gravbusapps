@@ -241,10 +241,18 @@ const getImpactBadge = (level: string) => {
 const calcCoverage = (total: number, off: number): number =>
   total === 0 ? 0 : Math.round(((total - off) / total) * 100)
 
-const calcCoverageRisk = (cov: number): CoverageRisk => (cov >= 80 ? 'low' : cov >= 60 ? 'medium' : 'high')
+const calcCoverageRisk = (cov: number): CoverageRisk => {
+  if (cov >= 80) return 'low'
+  if (cov >= 60) return 'medium'
+  return 'high'
+}
 
-const calcImpactLevel = (cov: number): ImpactLevel =>
-  cov >= 80 ? 'low' : cov >= 60 ? 'medium' : cov >= 40 ? 'high' : 'critical'
+const calcImpactLevel = (cov: number): ImpactLevel => {
+  if (cov >= 80) return 'low'
+  if (cov >= 60) return 'medium'
+  if (cov >= 40) return 'high'
+  return 'critical'
+}
 
 const impactDesc = (lvl: ImpactLevel): string => {
   if (lvl === 'critical') return t('impact_critical', 'Critical impact - immediate backup required')
@@ -254,6 +262,12 @@ const impactDesc = (lvl: ImpactLevel): string => {
 }
 
 const IMPACT_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 }
+
+const getCoverageRiskColor = (risk: CoverageRisk): string => {
+  if (risk === 'high') return 'var(--nw-destructive)'
+  if (risk === 'medium') return 'var(--nw-warning)'
+  return 'var(--nw-success)'
+}
 
 type CapEntry = { id: string; name: string; holders: string[]; absentHolders: string[] }
 
@@ -399,7 +413,7 @@ const parseCoverageResult = (result: any): CoverageOverview => {
       risk: calcCoverageRisk(mCov),
       members: matrix.employees.map((e: any) => `${e.firstName} ${e.lastName}`),
       absentMembers: matrix.absentEmployees.map((e: any) => `${e.firstName} ${e.lastName}`),
-      capabilities: capabilities.sort((a, b) => a.coverage - b.coverage),
+      capabilities: capabilities.toSorted((a, b) => a.coverage - b.coverage),
       impactScenarios
     }
   })
@@ -475,6 +489,140 @@ const parseCoverageResult = (result: any): CoverageOverview => {
   }
 }
 
+// ─── Sustainability & compliance computations (module-level to reduce component complexity) ─
+
+const computeSustainabilitySignals = (
+  rows: CapacityRow[],
+  workingDaysMap: Map<string, number>
+): SustainabilitySignal[] =>
+  rows
+    .map(row => {
+      const signals: string[] = []
+      let riskLevel: BurnoutRisk = 'low'
+
+      const schedule = getEmployeeSchedule(row.employee.workingHours)
+      const dailyThreshold = Math.round(schedule.dailyMinutes * DAILY_HOURS_BUFFER_RATIO)
+      const overtimeWarning = Math.round(row.contractTargetMinutes * OVERTIME_WARNING_RATIO)
+
+      const workingDaysSoFar = workingDaysMap.get(row.employee.id) ?? countWorkingDaysSoFar(row.employee.workingHours)
+      const avgDailyMinutes = row.workedMinutes / workingDaysSoFar
+
+      if (avgDailyMinutes > dailyThreshold) {
+        signals.push(
+          t('avg_daily_detail', 'Avg daily: {{avgDaily}} (planned: {{planned}}/day)', {
+            avgDaily: formatMinutes(avgDailyMinutes),
+            planned: formatMinutes(schedule.dailyMinutes)
+          })
+        )
+        riskLevel = 'medium'
+      }
+      if (row.overtimeMinutes > overtimeWarning) {
+        signals.push(
+          t('overtime_detail', 'Overtime: {{overtime}} (>{{threshold}}% of target)', {
+            overtime: formatMinutes(row.overtimeMinutes),
+            threshold: Math.round(OVERTIME_WARNING_RATIO * 100)
+          })
+        )
+        riskLevel = riskLevel === 'medium' ? 'high' : 'medium'
+      }
+      if (row.ptoUsedDays === 0) signals.push(t('no_pto_month', 'No PTO taken this month'))
+      if (row.missingEntries > 3)
+        signals.push(t('missing_entries_count', '{{count}} missing time entries', { count: row.missingEntries }))
+
+      return {
+        employeeId: row.employee.id,
+        employeeName: `${row.employee.firstName} ${row.employee.lastName}`,
+        riskLevel,
+        signals,
+        avgDailyMinutes,
+        overtimeTrend: (row.overtimeMinutes > overtimeWarning ? 'increasing' : 'stable') as
+          | 'increasing'
+          | 'stable'
+          | 'decreasing',
+        daysSinceLastPTO: null
+      }
+    })
+    .filter(s => s.signals.length > 0)
+    .toSorted((a, b) => {
+      const order: Record<BurnoutRisk, number> = { high: 0, medium: 1, low: 2 }
+      return order[a.riskLevel] - order[b.riskLevel]
+    })
+
+const computeComplianceAlerts = (rows: CapacityRow[], workingDaysMap: Map<string, number>): ComplianceAlert[] => {
+  const alerts: ComplianceAlert[] = []
+  rows.forEach(row => {
+    const name = `${row.employee.firstName} ${row.employee.lastName}`
+    const target = row.contractTargetMinutes
+    const overtimeCap = Math.round(target * OVERTIME_LEGAL_CAP_RATIO)
+    const overtimeWarnThreshold = Math.round(target * OVERTIME_WARNING_RATIO)
+
+    if (row.overtimeMinutes > overtimeCap) {
+      alerts.push({
+        employeeId: row.employee.id,
+        employeeName: name,
+        type: 'overtime_cap',
+        severity: 'critical',
+        description: t(
+          'overtime_exceeds',
+          'Overtime ({{overtime}}) exceeds {{threshold}}% of monthly target ({{cap}})',
+          {
+            overtime: formatMinutes(row.overtimeMinutes),
+            threshold: Math.round(OVERTIME_LEGAL_CAP_RATIO * 100),
+            cap: formatMinutes(overtimeCap)
+          }
+        ),
+        recommendation: t('reduce_workload', 'Reduce workload immediately and review scheduling')
+      })
+    } else if (row.overtimeMinutes > overtimeWarnThreshold) {
+      alerts.push({
+        employeeId: row.employee.id,
+        employeeName: name,
+        type: 'overtime_cap',
+        severity: 'warning',
+        description: t(
+          'overtime_approaching',
+          'Overtime approaching limit: {{overtime}} of {{cap}} ({{threshold}}% of target)',
+          {
+            overtime: formatMinutes(row.overtimeMinutes),
+            cap: formatMinutes(overtimeCap),
+            threshold: Math.round(OVERTIME_LEGAL_CAP_RATIO * 100)
+          }
+        ),
+        recommendation: t('monitor_closely', 'Monitor closely and plan workload reduction')
+      })
+    }
+
+    const schedule = getEmployeeSchedule(row.employee.workingHours)
+    const expectedWorkingDays = workingDaysMap.get(row.employee.id) ?? countWorkingDaysSoFar(row.employee.workingHours)
+    const missingWarningThreshold = Math.max(3, Math.round(expectedWorkingDays * MISSING_ENTRIES_WARNING_RATIO))
+    const missingCriticalThreshold = Math.max(5, Math.round(expectedWorkingDays * MISSING_ENTRIES_CRITICAL_RATIO))
+
+    if (row.missingEntries > missingWarningThreshold) {
+      alerts.push({
+        employeeId: row.employee.id,
+        employeeName: name,
+        type: 'missing_logs',
+        severity: row.missingEntries > missingCriticalThreshold ? 'critical' : 'warning',
+        description: t(
+          'missing_days_detail',
+          '{{missing}} of {{expected}} working days without time entry (contract: {{contract}}/week)',
+          {
+            missing: row.missingEntries,
+            expected: expectedWorkingDays,
+            contract: formatMinutes(schedule.weeklyMinutes)
+          }
+        ),
+        recommendation: t('submit_entries', 'Request employee to submit missing time entries')
+      })
+    }
+  })
+  return alerts.toSorted((a, b) => {
+    if (a.severity === 'critical' && b.severity !== 'critical') return -1
+    if (a.severity !== 'critical' && b.severity === 'critical') return 1
+    return 0
+  })
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 type DrawerPanel = 'sustainability' | 'compliance' | 'coverage' | null
@@ -543,140 +691,14 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
 
   const kpis = useMemo(() => computeKpis(rows, entitlements, workingDaysMap), [rows, entitlements, workingDaysMap])
 
-  // ── Sustainability signals ──────────────────────────────────────────────────
+  // ── Sustainability signals & compliance alerts ──────────────────────────────
 
-  const sustainabilitySignals: SustainabilitySignal[] = useMemo(() => {
-    return rows
-      .map(row => {
-        const signals: string[] = []
-        let riskLevel: BurnoutRisk = 'low'
+  const sustainabilitySignals = useMemo(
+    () => computeSustainabilitySignals(rows, workingDaysMap),
+    [rows, workingDaysMap]
+  )
 
-        const schedule = getEmployeeSchedule(row.employee.workingHours)
-        const dailyThreshold = Math.round(schedule.dailyMinutes * DAILY_HOURS_BUFFER_RATIO)
-        const overtimeWarning = Math.round(row.contractTargetMinutes * OVERTIME_WARNING_RATIO)
-
-        const workingDaysSoFar = workingDaysMap.get(row.employee.id) ?? countWorkingDaysSoFar(row.employee.workingHours)
-        const avgDailyMinutes = row.workedMinutes / workingDaysSoFar
-
-        if (avgDailyMinutes > dailyThreshold) {
-          signals.push(
-            t('avg_daily_detail', 'Avg daily: {{avgDaily}} (planned: {{planned}}/day)', {
-              avgDaily: formatMinutes(avgDailyMinutes),
-              planned: formatMinutes(schedule.dailyMinutes)
-            })
-          )
-          riskLevel = 'medium'
-        }
-        if (row.overtimeMinutes > overtimeWarning) {
-          signals.push(
-            t('overtime_detail', 'Overtime: {{overtime}} (>{{threshold}}% of target)', {
-              overtime: formatMinutes(row.overtimeMinutes),
-              threshold: Math.round(OVERTIME_WARNING_RATIO * 100)
-            })
-          )
-          riskLevel = riskLevel === 'medium' ? 'high' : 'medium'
-        }
-        if (row.ptoUsedDays === 0) signals.push(t('no_pto_month', 'No PTO taken this month'))
-        if (row.missingEntries > 3)
-          signals.push(t('missing_entries_count', '{{count}} missing time entries', { count: row.missingEntries }))
-
-        return {
-          employeeId: row.employee.id,
-          employeeName: `${row.employee.firstName} ${row.employee.lastName}`,
-          riskLevel,
-          signals,
-          avgDailyMinutes,
-          overtimeTrend: (row.overtimeMinutes > overtimeWarning ? 'increasing' : 'stable') as
-            | 'increasing'
-            | 'stable'
-            | 'decreasing',
-          daysSinceLastPTO: null
-        }
-      })
-      .filter(s => s.signals.length > 0)
-      .sort((a, b) => {
-        const order: Record<BurnoutRisk, number> = { high: 0, medium: 1, low: 2 }
-        return order[a.riskLevel] - order[b.riskLevel]
-      })
-  }, [rows, workingDaysMap])
-
-  // ── Compliance alerts ───────────────────────────────────────────────────────
-
-  const complianceAlerts: ComplianceAlert[] = useMemo(() => {
-    const alerts: ComplianceAlert[] = []
-    rows.forEach(row => {
-      const name = `${row.employee.firstName} ${row.employee.lastName}`
-      const target = row.contractTargetMinutes
-      const overtimeCap = Math.round(target * OVERTIME_LEGAL_CAP_RATIO)
-      const overtimeWarnThreshold = Math.round(target * OVERTIME_WARNING_RATIO)
-
-      if (row.overtimeMinutes > overtimeCap) {
-        alerts.push({
-          employeeId: row.employee.id,
-          employeeName: name,
-          type: 'overtime_cap',
-          severity: 'critical',
-          description: t(
-            'overtime_exceeds',
-            'Overtime ({{overtime}}) exceeds {{threshold}}% of monthly target ({{cap}})',
-            {
-              overtime: formatMinutes(row.overtimeMinutes),
-              threshold: Math.round(OVERTIME_LEGAL_CAP_RATIO * 100),
-              cap: formatMinutes(overtimeCap)
-            }
-          ),
-          recommendation: t('reduce_workload', 'Reduce workload immediately and review scheduling')
-        })
-      } else if (row.overtimeMinutes > overtimeWarnThreshold) {
-        alerts.push({
-          employeeId: row.employee.id,
-          employeeName: name,
-          type: 'overtime_cap',
-          severity: 'warning',
-          description: t(
-            'overtime_approaching',
-            'Overtime approaching limit: {{overtime}} of {{cap}} ({{threshold}}% of target)',
-            {
-              overtime: formatMinutes(row.overtimeMinutes),
-              cap: formatMinutes(overtimeCap),
-              threshold: Math.round(OVERTIME_LEGAL_CAP_RATIO * 100)
-            }
-          ),
-          recommendation: t('monitor_closely', 'Monitor closely and plan workload reduction')
-        })
-      }
-
-      const schedule = getEmployeeSchedule(row.employee.workingHours)
-      const expectedWorkingDays =
-        workingDaysMap.get(row.employee.id) ?? countWorkingDaysSoFar(row.employee.workingHours)
-      const missingWarningThreshold = Math.max(3, Math.round(expectedWorkingDays * MISSING_ENTRIES_WARNING_RATIO))
-      const missingCriticalThreshold = Math.max(5, Math.round(expectedWorkingDays * MISSING_ENTRIES_CRITICAL_RATIO))
-
-      if (row.missingEntries > missingWarningThreshold) {
-        alerts.push({
-          employeeId: row.employee.id,
-          employeeName: name,
-          type: 'missing_logs',
-          severity: row.missingEntries > missingCriticalThreshold ? 'critical' : 'warning',
-          description: t(
-            'missing_days_detail',
-            '{{missing}} of {{expected}} working days without time entry (contract: {{contract}}/week)',
-            {
-              missing: row.missingEntries,
-              expected: expectedWorkingDays,
-              contract: formatMinutes(schedule.weeklyMinutes)
-            }
-          ),
-          recommendation: t('submit_entries', 'Request employee to submit missing time entries')
-        })
-      }
-    })
-    return alerts.sort((a, b) => {
-      if (a.severity === 'critical' && b.severity !== 'critical') return -1
-      if (a.severity !== 'critical' && b.severity === 'critical') return 1
-      return 0
-    })
-  }, [rows, workingDaysMap])
+  const complianceAlerts = useMemo(() => computeComplianceAlerts(rows, workingDaysMap), [rows, workingDaysMap])
 
   // ── Memoized coverage card data ────────────────────────────────────────────
 
@@ -685,7 +707,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
     return coverageData.matrixTeams
       .flatMap(mt => mt.capabilities)
       .filter((c, i, arr) => c.risk !== 'low' && arr.findIndex(x => x.capabilityId === c.capabilityId) === i)
-      .sort((a, b) => a.coverage - b.coverage)
+      .toSorted((a, b) => a.coverage - b.coverage)
       .slice(0, 2)
   }, [coverageData])
 
@@ -945,14 +967,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                 <div className="gba:flex gba:items-baseline gba:gap-3">
                   <span
                     className="gba:text-2xl gba:font-bold"
-                    style={{
-                      color:
-                        coverageData.overallRisk === 'high'
-                          ? 'var(--nw-destructive)'
-                          : coverageData.overallRisk === 'medium'
-                            ? 'var(--nw-warning)'
-                            : 'var(--nw-success)'
-                    }}
+                    style={{ color: getCoverageRiskColor(coverageData.overallRisk) }}
                   >
                     {coverageData.avgCoverage}%
                   </span>
@@ -1055,9 +1070,9 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                     <div>
                       <div className="gba:font-medium gba:text-sm">{signal.employeeName}</div>
                       <div className="gba:space-y-0.5 gba:mt-1">
-                        {signal.signals.map((s, i) => (
+                        {signal.signals.map(s => (
                           <div
-                            key={i}
+                            key={s}
                             className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1"
                           >
                             <PiWarning className="gba:text-warning gba:flex-shrink-0" size={11} />
@@ -1299,9 +1314,9 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                                 <div className="gba:ml-4 gba:mt-0.5 gba:space-y-0.5">
                                   {sc.affectedCapabilities
                                     .filter(ac => ac.newRisk !== 'low')
-                                    .map((ac, i) => (
+                                    .map(ac => (
                                       <div
-                                        key={i}
+                                        key={ac.capabilityId}
                                         className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1"
                                       >
                                         <span

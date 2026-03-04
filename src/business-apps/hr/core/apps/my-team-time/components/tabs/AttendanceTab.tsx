@@ -28,6 +28,7 @@ import {
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
+type ViewMode = 'day' | 'week' | 'month'
 type MapTypeFn = (codeOrId: string) => { label?: string; color?: string }
 
 const getStatusColor = (entry: TeamAttendanceEntry | null, absence: TeamAbsenceToday | null): string => {
@@ -52,6 +53,12 @@ const resolveAbsenceLabel = (typeRef: string, mapType: MapTypeFn): string => {
   const code = parts[parts.length - 1]
   const mapped = mapType(code)
   return mapped?.label && mapped.label !== code ? mapped.label : 'Leave'
+}
+
+const getEndTimeDisplay = (entry: TeamAttendanceEntry | null): string => {
+  if (entry?.endTime) return formatTimeShort(entry.endTime)
+  if (entry?.startTime) return 'Active'
+  return '—'
 }
 
 const getRowStatus = (
@@ -100,7 +107,7 @@ interface EmployeeRowProps {
   member: TeamMember
   entry: TeamAttendanceEntry | null
   absence: TeamAbsenceToday | null
-  viewMode: 'day' | 'week' | 'month'
+  viewMode: ViewMode
   mapType: MapTypeFn
   periodSummary?: PeriodSummary
 }
@@ -110,13 +117,14 @@ const PeriodEmployeeRow: React.FC<{ member: TeamMember; periodSummary: PeriodSum
   periodSummary
 }) => {
   const { targetMinutes, actualMinutes, daysOff, diffMinutes } = periodSummary
-  const diffColor = diffMinutes < 0 ? 'gba:text-destructive' : diffMinutes > 0 ? 'gba:text-warning' : 'gba:text-success'
-  const diffLabel =
-    diffMinutes === 0
-      ? 'On track'
-      : diffMinutes > 0
-        ? `+${formatMinutes(diffMinutes)} overtime`
-        : `${formatMinutes(diffMinutes)} deficit`
+
+  let diffColor = 'gba:text-success'
+  if (diffMinutes < 0) diffColor = 'gba:text-destructive'
+  else if (diffMinutes > 0) diffColor = 'gba:text-warning'
+
+  let diffLabel = 'On track'
+  if (diffMinutes > 0) diffLabel = `+${formatMinutes(diffMinutes)} overtime`
+  else if (diffMinutes < 0) diffLabel = `${formatMinutes(diffMinutes)} deficit`
 
   return (
     <tr className="gba:border-b gba:border-border hover:gba:bg-muted/50 gba:transition-colors">
@@ -154,9 +162,7 @@ const DayEmployeeRow: React.FC<{
       <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">
         {entry?.startTime ? formatTimeShort(entry.startTime) : '—'}
       </td>
-      <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">
-        {entry?.endTime ? formatTimeShort(entry.endTime) : entry?.startTime ? 'Active' : '—'}
-      </td>
+      <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">{getEndTimeDisplay(entry)}</td>
       <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">{entry?.breakTime || '—'}</td>
       <td className="gba:py-3 gba:px-4 gba:text-sm gba:font-medium">{entry?.effectiveTime || '—'}</td>
       <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">{entry?.plannedTime || '—'}</td>
@@ -208,20 +214,25 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
 
   const isLoading = membersLoading || attendanceLoading
 
-  const dateLabel =
-    viewMode === 'day'
-      ? currentDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-      : viewMode === 'week'
-        ? (() => {
-            const d = new Date(currentDate)
-            const dayOfWeek = d.getDay()
-            const monday = new Date(d)
-            monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7))
-            const sunday = new Date(monday)
-            sunday.setDate(monday.getDate() + 6)
-            return `${monday.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} – ${sunday.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
-          })()
-        : currentDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
+  let dateLabel: string
+  if (viewMode === 'day') {
+    dateLabel = currentDate.toLocaleDateString(undefined, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  } else if (viewMode === 'week') {
+    const d = new Date(currentDate)
+    const dayOfWeek = d.getDay()
+    const monday = new Date(d)
+    monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7))
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    dateLabel = `${monday.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} – ${sunday.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
+  } else {
+    dateLabel = currentDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
+  }
 
   const todayStr = toLocalDateKey(currentDate)
 
@@ -291,6 +302,32 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
     return absences.find(a => a.employeeId === memberId && a.status === 'APPROVED') ?? null
   }
 
+  let attendanceContent: React.ReactNode
+  if (isLoading) {
+    attendanceContent = (
+      <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+      </div>
+    )
+  } else if (error) {
+    attendanceContent = <div className="gba:text-center gba:py-12 gba:text-destructive">{error}</div>
+  } else if (members.length === 0) {
+    attendanceContent = (
+      <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.no_team_members', 'No team members found.')}
+      </div>
+    )
+  } else {
+    attendanceContent = renderAttendanceTableContent(
+      viewMode,
+      mapType,
+      members,
+      getMemberEntry,
+      getMemberAbsence,
+      periodSummaries
+    )
+  }
+
   return (
     <div className="gba:space-y-4" data-testid="my-team-time-attendance">
       <Card className="gba:shadow-sm">
@@ -330,88 +367,88 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
           </div>
           <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{dateLabel}</p>
         </CardHeader>
-        <CardContent className="gba:p-0">
-          {isLoading ? (
-            <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
-            </div>
-          ) : error ? (
-            <div className="gba:text-center gba:py-12 gba:text-destructive">{error}</div>
-          ) : members.length === 0 ? (
-            <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.no_team_members', 'No team members found.')}
-            </div>
-          ) : (
-            <div className="gba:overflow-x-auto">
-              <table className="gba:w-full gba:text-left">
-                <thead>
-                  <tr className="gba:border-b gba:border-border gba:bg-muted/30">
-                    <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.employee', 'Employee')}
-                    </th>
-                    {viewMode === 'day' ? (
-                      <>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.clock_in', 'Clock In')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.clock_out', 'Clock Out')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.break', 'Break')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.effective', 'Effective')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.planned', 'Planned')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.difference', 'Diff')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.location', 'Location')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.status', 'Status')}
-                        </th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.target_hours', 'Target Hours')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.days_off', 'Days Off')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.actual_hours', 'Actual Hours')}
-                        </th>
-                        <th className="gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.status', 'Status')}
-                        </th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map(member => (
-                    <EmployeeRow
-                      key={member.id}
-                      member={member}
-                      entry={getMemberEntry(member.id)}
-                      absence={getMemberAbsence(member.id)}
-                      viewMode={viewMode}
-                      mapType={mapType}
-                      periodSummary={viewMode !== 'day' ? periodSummaries[member.id] : undefined}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
+        <CardContent className="gba:p-0">{attendanceContent}</CardContent>
       </Card>
+    </div>
+  )
+}
+
+// ─── Attendance table content (extracted to avoid nested JSX ternaries) ────────
+
+function renderAttendanceTableContent(
+  viewMode: ViewMode,
+  mapType: MapTypeFn,
+  members: TeamMember[],
+  getMemberEntry: (id: string) => TeamAttendanceEntry | null,
+  getMemberAbsence: (id: string) => TeamAbsenceToday | null,
+  periodSummaries: Record<string, PeriodSummary>
+): React.ReactNode {
+  const thClass = 'gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase'
+  return (
+    <div className="gba:overflow-x-auto">
+      <table className="gba:w-full gba:text-left">
+        <thead>
+          <tr className="gba:border-b gba:border-border gba:bg-muted/30">
+            <th className={thClass}>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.employee', 'Employee')}
+            </th>
+            {viewMode === 'day' ? (
+              <>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.clock_in', 'Clock In')}
+                </th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.clock_out', 'Clock Out')}
+                </th>
+                <th className={thClass}>{getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.break', 'Break')}</th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.effective', 'Effective')}
+                </th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.planned', 'Planned')}
+                </th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.difference', 'Diff')}
+                </th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.location', 'Location')}
+                </th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.status', 'Status')}
+                </th>
+              </>
+            ) : (
+              <>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.target_hours', 'Target Hours')}
+                </th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.days_off', 'Days Off')}
+                </th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.actual_hours', 'Actual Hours')}
+                </th>
+                <th className={thClass}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.status', 'Status')}
+                </th>
+              </>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {members.map(member => (
+            <EmployeeRow
+              key={member.id}
+              member={member}
+              entry={getMemberEntry(member.id)}
+              absence={getMemberAbsence(member.id)}
+              viewMode={viewMode}
+              mapType={mapType}
+              periodSummary={viewMode !== 'day' ? periodSummaries[member.id] : undefined}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
