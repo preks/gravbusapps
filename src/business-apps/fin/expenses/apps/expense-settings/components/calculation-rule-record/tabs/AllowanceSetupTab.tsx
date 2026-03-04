@@ -44,18 +44,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog } from '../shared'
-import {
-  PiPlus,
-  PiPencil,
-  PiCalendar,
-  PiCheck,
-  PiX,
-  PiGear,
-  PiCode,
-  PiDotsThreeVertical,
-  PiTrash,
-  PiWarning
-} from 'react-icons/pi'
+import { PlusIcon, PencilIcon, CalendarIcon, CheckIcon, XIcon, GearIcon, CodeIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -672,7 +661,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               </Badge>
             </div>
             <Button onClick={handleAdd} data-testid="add-allowance-setup-button">
-              <PiPlus className="gba:mr-2" />
+              <PlusIcon className="gba:mr-2" />
               Add Allowance Setup
             </Button>
           </div>
@@ -770,7 +759,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                             data-testid={`allowance-setup-action-${record.id}`}
                             onClick={e => e.stopPropagation()}
                           >
-                            <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                            <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -778,7 +767,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                             onClick={() => handleEdit(record)}
                             data-testid={`edit-allowance-setup-${record.id}`}
                           >
-                            <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                            <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                             Update
                           </DropdownMenuItem>
                           {!setupUsageMap[record.id] && (
@@ -789,7 +778,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                                 className="gba:text-destructive"
                                 data-testid={`delete-allowance-setup-${record.id}`}
                               >
-                                <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </>
@@ -800,7 +789,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell data-testid={`allowance-setup-period-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiGear className="gba:text-primary" data-testid={`allowance-setup-period-icon-${record.id}`} />
+                        <GearIcon className="gba:text-primary" data-testid={`allowance-setup-period-icon-${record.id}`} />
                         <span
                           className="gba:font-mono gba:font-medium"
                           data-testid={`allowance-setup-period-code-${record.id}`}
@@ -812,7 +801,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell data-testid={`allowance-setup-code-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCode className="gba:text-secondary" data-testid={`allowance-setup-code-icon-${record.id}`} />
+                        <CodeIcon className="gba:text-secondary" data-testid={`allowance-setup-code-icon-${record.id}`} />
                         <span
                           className="gba:font-mono gba:font-medium"
                           data-testid={`allowance-setup-code-text-${record.id}`}
@@ -844,12 +833,12 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell className="gba:text-center" data-testid={`allowance-setup-tax-only-cell-${record.id}`}>
                       {record.onlyTax ? (
-                        <PiCheck
+                        <CheckIcon
                           className="gba:text-success gba:text-lg gba:inline-block"
                           data-testid={`allowance-setup-tax-only-check-${record.id}`}
                         />
                       ) : (
-                        <PiX
+                        <XIcon
                           className="gba:text-muted-foreground gba:text-lg gba:inline-block"
                           data-testid={`allowance-setup-tax-only-x-${record.id}`}
                         />
@@ -858,7 +847,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell data-testid={`allowance-setup-valid-from-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiCalendar
+                        <CalendarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`allowance-setup-valid-from-icon-${record.id}`}
                         />
@@ -870,7 +859,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
                     <TableCell data-testid={`allowance-setup-valid-to-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiCalendar
+                        <CalendarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`allowance-setup-valid-to-icon-${record.id}`}
                         />
@@ -933,7 +922,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                     className="gba:border-warning gba:bg-warning-secondary"
                     data-testid="allowance-setup-restricted-alert"
                   >
-                    <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+                    <WarningIcon className="gba:h-4 gba:w-4 gba:text-warning" />
                     <AlertDescription>{currentUsageInfo.message}</AlertDescription>
                   </Alert>
                 )}

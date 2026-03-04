@@ -19,7 +19,14 @@ import {
   Label
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
-import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical, PiTrash } from 'react-icons/pi'
+import {
+  ArrowLeftIcon,
+  PlusIcon,
+  MapPinIcon,
+  FloppyDiskIcon,
+  DotsSixVerticalIcon,
+  TrashIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
@@ -240,7 +247,7 @@ const SortableColumnHeader: React.FC<{
             {...listeners}
             className="gba:cursor-grab gba:text-muted-foreground hover:gba:text-foreground"
           >
-            <PiDotsSixVertical className="gba:w-4 gba:h-4" />
+            <DotsSixVerticalIcon className="gba:w-4 gba:h-4" />
           </div>
           <div className="gba:flex gba:gap-1">
             <Button
@@ -250,7 +257,7 @@ const SortableColumnHeader: React.FC<{
               className="gba:h-6 gba:w-6 gba:p-0"
               title="Add new detail for this rule"
             >
-              <PiPlus className="gba:w-3 gba:h-3" />
+              <PlusIcon className="gba:w-3 gba:h-3" />
             </Button>
             <Button
               size="sm"
@@ -260,7 +267,7 @@ const SortableColumnHeader: React.FC<{
               title={hasDetails ? 'Cannot delete rule with existing details' : 'Delete this rule'}
               disabled={hasDetails}
             >
-              <PiTrash className="gba:w-3 gba:h-3" />
+              <TrashIcon className="gba:w-3 gba:h-3" />
             </Button>
           </div>
         </div>
@@ -634,7 +641,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
           <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <PiArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+            <ArrowLeftIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             Back to Travel Region Sets
           </Button>
         </div>
@@ -699,7 +706,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
           </div>
           <div className="gba:flex gba:gap-3">
             <Button onClick={handleSaveAll} disabled={isSaving} variant="default" data-testid="save-all-changes-button">
-              <PiFloppyDisk className="gba:w-4 gba:h-4 gba:mr-2" />
+              <FloppyDiskIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               {isSaving ? 'Saving...' : 'Save All Changes'}
             </Button>
           </div>
@@ -730,7 +737,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               className="gba:text-center gba:py-12 gba:bg-muted gba:rounded-lg"
               data-testid={`${prefixDataTestId}-empty-state`}
             >
-              <PiMapPin className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
+              <MapPinIcon className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
               <h4 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">No Matrix Data Available</h4>
               <p className="gba:text-muted-foreground gba:mb-4">
                 Create travel regions and allowance rules to build your matrix.
@@ -741,7 +748,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                   onClick={modals.actions.handleAddRegion}
                   data-testid={`${prefixDataTestId}-empty-state-add-region-button`}
                 >
-                  <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+                  <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                   Add Travel Region
                 </Button>
                 <Button
@@ -749,7 +756,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                   onClick={modals.actions.handleAddRule}
                   data-testid={`${prefixDataTestId}-empty-state-add-rule-button`}
                 >
-                  <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+                  <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                   Add Rule
                 </Button>
               </div>
@@ -802,7 +809,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                           title="Add New Rule"
                           data-testid={`${prefixDataTestId}-rule-header-add-button`}
                         >
-                          <PiPlus className="gba:w-4 gba:h-4" />
+                          <PlusIcon className="gba:w-4 gba:h-4" />
                         </Button>
                       </TableHead>
                     </TableRow>
@@ -819,7 +826,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                           title="Add New Travel Region"
                           data-testid={`${prefixDataTestId}-add-region-button`}
                         >
-                          <PiPlus className="gba:w-4 gba:h-4" />
+                          <PlusIcon className="gba:w-4 gba:h-4" />
                         </Button>
                       </TableCell>
                       {allowanceRegionRules.map(rule => (

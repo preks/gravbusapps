@@ -21,8 +21,7 @@ import {
   TooltipContent,
   TooltipProvider
 } from '@newwork/nw-design-system'
-import { PiArrowUp, PiArrowDown, PiInfo } from 'react-icons/pi'
-
+import { ArrowUpIcon, ArrowDownIcon, InfoIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { JobPosition } from '../hooks/useJobPositionListData'
@@ -165,8 +164,8 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   const renderSortIcon = useCallback(
     (field: string) => {
       if (sortField !== field) return null
-      if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-      if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'ASC') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'DESC') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
       return null
     },
     [sortField, sortOrder]
@@ -338,7 +337,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="gba:inline-flex gba:items-center gba:cursor-help gba:rounded gba:p-1 hover:gba:bg-muted/80">
-                            <PiInfo className="gba:text-muted-foreground" size={14} />
+                            <InfoIcon className="gba:text-muted-foreground" size={14} />
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" sideOffset={5}>

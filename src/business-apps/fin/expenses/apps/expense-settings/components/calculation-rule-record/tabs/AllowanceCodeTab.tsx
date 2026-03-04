@@ -45,17 +45,7 @@ import {
   Textarea
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog, AdditionalPropertiesDisplay } from '../shared'
-import {
-  PiPlus,
-  PiPencil,
-  PiCalendar,
-  PiCheck,
-  PiX,
-  PiCode,
-  PiDotsThreeVertical,
-  PiTrash,
-  PiWarning
-} from 'react-icons/pi'
+import { PlusIcon, PencilIcon, CalendarIcon, CheckIcon, XIcon, CodeIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -816,7 +806,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
               </Badge>
             </div>
             <Button onClick={handleAdd} data-testid="add-allowance-code-button">
-              <PiPlus className="gba:mr-2" />
+              <PlusIcon className="gba:mr-2" />
               Add Allowance Code
             </Button>
           </div>
@@ -964,7 +954,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                                 {isCheckingUsage ? (
                                   <Spinner className="gba:h-4 gba:w-4" />
                                 ) : (
-                                  <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                  <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                                 )}
                               </Button>
                             </DropdownMenuTrigger>
@@ -976,7 +966,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                                 }}
                                 data-testid={`allowance-code-edit-${record.id}`}
                               >
-                                <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                 Update
                               </DropdownMenuItem>
                               {/* Always show delete option, but disable if allowance code is used */}
@@ -997,7 +987,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                                 }
                                 data-testid={`allowance-code-delete-${record.id}`}
                               >
-                                <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -1008,7 +998,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                       {/* Code Column */}
                       <TableCell data-testid={`allowance-code-code-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <PiCode className="gba:text-primary" data-testid={`allowance-code-code-icon-${record.id}`} />
+                          <CodeIcon className="gba:text-primary" data-testid={`allowance-code-code-icon-${record.id}`} />
                           <span
                             className="gba:font-mono gba:font-medium"
                             data-testid={`allowance-code-code-text-${record.id}`}
@@ -1029,12 +1019,12 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         data-testid={`allowance-code-reimbursable-cell-${record.id}`}
                       >
                         {record.reimbursable ? (
-                          <PiCheck
+                          <CheckIcon
                             className="gba:text-success gba:text-lg gba:inline-block"
                             data-testid={`allowance-code-reimbursable-check-${record.id}`}
                           />
                         ) : (
-                          <PiX
+                          <XIcon
                             className="gba:text-muted-foreground gba:text-lg gba:inline-block"
                             data-testid={`allowance-code-reimbursable-x-${record.id}`}
                           />
@@ -1128,7 +1118,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                       {/* Valid From Column */}
                       <TableCell data-testid={`allowance-code-valid-from-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiCalendar
+                          <CalendarIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-code-valid-from-icon-${record.id}`}
                           />
@@ -1141,7 +1131,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                       {/* Valid To Column */}
                       <TableCell data-testid={`allowance-code-valid-to-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiCalendar
+                          <CalendarIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-code-valid-to-icon-${record.id}`}
                           />
@@ -1198,7 +1188,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
                 data-testid="allowance-code-restricted-alert"
               >
-                <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+                <WarningIcon className="gba:h-4 gba:w-4 gba:text-warning" />
                 <AlertDescription>
                   This allowance code is used in expense items. Only &quot;Valid To&quot; and &quot;Additional
                   Info&quot; can be edited.

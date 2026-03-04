@@ -1,17 +1,17 @@
 import React, { useState, useCallback } from 'react'
 import { Row, Col, Card, Table, Statistic, Tag, Space, Typography, Select, Button } from 'antd'
 import {
-  PiCube,
-  PiStack,
-  PiGear,
-  PiChartLine,
-  PiMagnifyingGlass,
-  PiArrowUp,
-  PiArrowDown,
-  PiMinus,
-  PiCalendar,
-  PiTag as PiTagIcon
-} from 'react-icons/pi'
+  CubeIcon,
+  StackIcon,
+  GearIcon,
+  ChartLineIcon,
+  MagnifyingGlassIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  MinusIcon,
+  CalendarIcon,
+  TagIcon
+} from '@phosphor-icons/react'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -82,9 +82,9 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
 
   // Helper function to get trend icon
   const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />
-    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />
-    return <PiMinus className="gba:text-gray-400" />
+    if (trend > 0) return <ArrowUpIcon className="gba:text-green-500" />
+    if (trend < 0) return <ArrowDownIcon className="gba:text-red-500" />
+    return <MinusIcon className="gba:text-gray-400" />
   }
 
   // Helper function to format date
@@ -286,7 +286,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
       key: 'bomType',
       width: 120,
       render: (type: string) => (
-        <Tag color={getBomTypeColor(type)} icon={<PiGear />}>
+        <Tag color={getBomTypeColor(type)} icon={<GearIcon />}>
           {type}
         </Tag>
       )
@@ -297,7 +297,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
       key: 'bomStatus',
       width: 120,
       render: (status: string, record: BillOfMaterials) => (
-        <Tag color={getBomStatusColor(status, record.activeFrom, record.activeTo)} icon={<PiTagIcon />}>
+        <Tag color={getBomStatusColor(status, record.activeFrom, record.activeTo)} icon={<TagIcon />}>
           {status}
         </Tag>
       )
@@ -330,13 +330,13 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
         <div>
           {record.activeFrom && (
             <div className="gba:flex gba:items-center gba:gap-1">
-              <PiCalendar className="gba:text-gray-400" />
+              <CalendarIcon className="gba:text-gray-400" />
               <Text className="gba:text-sm">{formatDate(record.activeFrom)}</Text>
             </div>
           )}
           {record.activeTo && (
             <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
-              <PiCalendar className="gba:text-gray-400" />
+              <CalendarIcon className="gba:text-gray-400" />
               <Text className="gba:text-sm">to {formatDate(record.activeTo)}</Text>
             </div>
           )}
@@ -370,7 +370,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
 
   return (
     <PageLayout
-      headerIcon={<PiCube color="#c92559" />}
+      headerIcon={<CubeIcon color="#c92559" />}
       headerLabel="BOM Management"
       headerActions={
         <AppActionButton
@@ -400,7 +400,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
                 <Statistic
                   title="Total BOMs"
                   value={kpiData?.totalBoms.value || 0}
-                  prefix={<PiCube />}
+                  prefix={<CubeIcon />}
                   suffix={
                     <Space>
                       {getTrendIcon(kpiData?.totalBoms.trend || 0)}
@@ -415,7 +415,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
                 <Statistic
                   title="Active BOMs"
                   value={kpiData?.activeBoms.value || 0}
-                  prefix={<PiStack />}
+                  prefix={<StackIcon />}
                   suffix={
                     <Space>
                       {getTrendIcon(kpiData?.activeBoms.trend || 0)}
@@ -430,7 +430,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
                 <Statistic
                   title="Total Components"
                   value={kpiData?.totalComponents.value || 0}
-                  prefix={<PiGear />}
+                  prefix={<GearIcon />}
                   suffix={
                     <Space>
                       {getTrendIcon(kpiData?.totalComponents.trend || 0)}
@@ -447,7 +447,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
                 <Statistic
                   title="Avg Complexity"
                   value={kpiData?.averageComplexity.value || 0}
-                  prefix={<PiChartLine />}
+                  prefix={<ChartLineIcon />}
                   precision={1}
                   suffix={
                     <Space>
@@ -468,7 +468,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessTok
               <Col xs={24} sm={12} md={8}>
                 <DebouncedInput
                   placeholder="Search BOMs..."
-                  prefix={<PiMagnifyingGlass />}
+                  prefix={<MagnifyingGlassIcon />}
                   value={searchTerm}
                   onChange={handleSearch}
                   data-testid="bom-search-input"

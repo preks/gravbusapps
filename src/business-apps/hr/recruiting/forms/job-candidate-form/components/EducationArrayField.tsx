@@ -13,7 +13,7 @@ import {
   CardTitle,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash, PiGraduationCap } from 'react-icons/pi'
+import { PlusIcon, TrashIcon, GraduationCapIcon } from '@phosphor-icons/react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -29,7 +29,7 @@ const EducationItem: React.FC<{
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
-            <PiGraduationCap className="gba:w-5 gba:h-5" />
+            <GraduationCapIcon className="gba:w-5 gba:h-5" />
             Education {educationIndex + 1}
           </CardTitle>
           <Button
@@ -41,7 +41,7 @@ const EducationItem: React.FC<{
             data-testid={formatDataTestId('job-candidate-form', `education-remove-${educationIndex}`)}
             aria-label="Remove education"
           >
-            <PiTrash className="gba:w-4 gba:h-4" />
+            <TrashIcon className="gba:w-4 gba:h-4" />
           </Button>
         </div>
       </CardHeader>
@@ -184,7 +184,7 @@ export const EducationArrayField: React.FC = () => {
     <div className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
         <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-          <PiGraduationCap className="gba:w-5 gba:h-5" />
+          <GraduationCapIcon className="gba:w-5 gba:h-5" />
           Education History
         </h3>
       </div>
@@ -211,7 +211,7 @@ export const EducationArrayField: React.FC = () => {
         className="gba:w-full gba:mt-2"
         data-testid={formatDataTestId('job-candidate-form', 'education-add')}
       >
-        <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+        <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
         Add Education
       </Button>
     </div>

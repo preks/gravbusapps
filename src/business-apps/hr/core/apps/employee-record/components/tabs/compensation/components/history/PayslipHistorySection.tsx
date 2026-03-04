@@ -21,7 +21,7 @@ import {
   SelectItem,
   toast
 } from '@newwork/nw-design-system'
-import { PiDownload, PiMagnifyingGlass, PiEye } from 'react-icons/pi'
+import { DownloadIcon, MagnifyingGlassIcon, EyeIcon } from '@phosphor-icons/react'
 import { EmployeePayslip } from '../../types/compensationTypes'
 import { getPayslipStatusLabel, getPayslipStatusVariant } from '../../types/compensationEnums'
 import { sanitizeFilename } from '@/common/utils/textUtils'
@@ -145,7 +145,7 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
                       data-testid={`payslip-view-button-${payslip.id}`}
                       title={t('payslip-view-tooltip')}
                     >
-                      <PiEye className="gba:w-4 gba:h-4" />
+                      <EyeIcon className="gba:w-4 gba:h-4" />
                     </Button>
                   </TableCell>
                   <TableCell className="gba:w-[80px] gba:text-center">
@@ -156,7 +156,7 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
                       data-testid={`payslip-download-button-${payslip.id}`}
                       title={t('payslip-download-tooltip')}
                     >
-                      <PiDownload className="gba:w-4 gba:h-4" />
+                      <DownloadIcon className="gba:w-4 gba:h-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -260,7 +260,7 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
                 placeholder={t('payslip-search-placeholder')}
                 debounceDelay={300}
                 className="gba:w-full"
-                icon={<PiMagnifyingGlass className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                icon={<MagnifyingGlassIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                 data-testid="payslip-history-search-input"
               />
             </div>
