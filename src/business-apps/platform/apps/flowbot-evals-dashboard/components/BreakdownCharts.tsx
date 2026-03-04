@@ -22,6 +22,14 @@ const CHART_COLORS = [
   'var(--nw-chart-5)'
 ]
 
+type ColoredSectorProps = {
+  payload?: { color?: string }
+} & Record<string, unknown>
+
+function ColoredSectorShape(props: ColoredSectorProps) {
+  return <Sector {...(props as any)} fill={props?.payload?.color} />
+}
+
 export interface BreakdownChartsProps {
   errorBreakdown: BreakdownItem[]
   toolBreakdown: BreakdownItem[]
@@ -76,7 +84,7 @@ export function BreakdownCharts({
                 innerRadius={60}
                 outerRadius={100}
                 paddingAngle={2}
-                shape={(props: any) => <Sector {...props} fill={props?.payload?.color} />}
+                shape={ColoredSectorShape as any}
               />
               <ChartLegend content={<ChartLegendContent nameKey="key" />} />
             </PieChart>
