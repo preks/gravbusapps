@@ -16,6 +16,10 @@ import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProc
 import { EVENTS } from '../../../utils/constants'
 import { createAdvanceObject, createPaymentScreenLogObject } from '../utils/paymentScreenUtils'
 import { DEFAULT_PLAN_CURRENCY_CODE } from '../../expense-request/constants/constants'
+import {
+  sanitizeDecimalAmountInput,
+  applyPaymentAmountRules
+} from '@/business-apps/fin/expenses/utils/amountFormatting'
 
 interface PaymentScreenProps extends BusinessAppContextProps {
   additionalData?: {
@@ -489,29 +493,10 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                   data-testid="payment-amount-input"
                   onChange={field => {
                     const prev = amount || ''
-                    const nextRaw = String(field.value)
-                    const isZeroVariant = (v: string) => {
-                      const digits = String(v).replace(/\D/g, '')
-                      return digits.length > 0 && /^0+$/.test(digits)
-                    }
-                    let value = isZeroVariant(prev) ? nextRaw.replace(/^[0.,]+/, '') : nextRaw
-                    if (/^0+\d+$/.test(value)) {
-                      value = value.replace(/^0+/, '')
-                    }
-                    if (value.includes('.') || value.includes(',')) {
-                      const sep = value.includes('.') ? '.' : ','
-                      const parts = value.split(sep)
-                      if (parts[1] && parts[1].length > 2) {
-                        value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
-                      }
-                    }
+                    const nextRaw = sanitizeDecimalAmountInput(field.value)
+                    const value = applyPaymentAmountRules(nextRaw, prev)
                     form.setFieldsValue({ amount: value })
-
-                    // Normalize for state storage (replace comma with period)
-                    const normalizedValue = value.replace(',', '.')
-                    setAmount(normalizedValue)
-
-                    // Validate and handle errors
+                    setAmount(value.replace(',', '.'))
                     handleAmountChange({ ...field, value })
                   }}
                   onBlur={handleAmountBlur}
