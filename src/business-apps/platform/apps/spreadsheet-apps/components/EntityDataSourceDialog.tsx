@@ -205,7 +205,6 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
   // Fetch entities when dialog opens
   useEffect(() => {
     if (isOpen && availableEntities.length === 0) {
-      console.log('[EntityDataSourceDialog] Dialog opened, fetching entities...')
       fetchAvailableEntities()
     }
   }, [isOpen, availableEntities.length, fetchAvailableEntities]) // fetchAvailableEntities is stable from hook

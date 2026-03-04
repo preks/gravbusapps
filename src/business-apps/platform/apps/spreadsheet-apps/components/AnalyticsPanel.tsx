@@ -265,6 +265,10 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     () => getChartableValueColumns(columns, analyticsRows),
     [columns, analyticsRows]
   )
+  const chartableValueColumnNames = useMemo(
+    () => new Set(chartableValueColumns.map(column => column.name)),
+    [chartableValueColumns]
+  )
 
   const columnsForAnalytics = useMemo(
     () =>
@@ -286,18 +290,28 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
   useEffect(() => {
     if (chartableValueColumns.length > 0 && chartYAxis.length === 0) {
-      setChartYAxis([chartableValueColumns[0].name])
+      const firstNonXAxis = chartableValueColumns.find(column => column.name !== chartXAxis)
+      if (firstNonXAxis) {
+        setChartYAxis([firstNonXAxis.name])
+      }
     }
     if (numericColumns.length > 0 && !pivotValueField) {
       setPivotValueField(numericColumns[0].name)
     }
-  }, [chartYAxis.length, chartableValueColumns, numericColumns, pivotValueField])
+  }, [chartXAxis, chartYAxis.length, chartableValueColumns, numericColumns, pivotValueField])
 
   useEffect(() => {
     if (chartXAxis && chartYAxis.includes(chartXAxis)) {
       setChartYAxis(prev => prev.filter(y => y !== chartXAxis))
     }
   }, [chartXAxis, chartYAxis])
+
+  useEffect(() => {
+    setChartYAxis(prev => {
+      const normalized = prev.filter(y => y !== chartXAxis && chartableValueColumnNames.has(y))
+      return normalized.length === prev.length ? prev : normalized
+    })
+  }, [chartXAxis, chartableValueColumnNames])
 
   useEffect(() => {
     if (chartXAxis) {
@@ -443,18 +457,15 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
   const chartData = useMemo(() => {
     if (!chartXAxis || chartYAxis.length === 0) return []
-    const request = { xAxis: chartXAxis, yAxes: chartYAxis, aggregation: chartAggregation, chartType }
+    const yAxes = chartYAxis.filter(y => y !== chartXAxis && chartableValueColumnNames.has(y))
+    if (yAxes.length === 0) return []
+    const request = { xAxis: chartXAxis, yAxes, aggregation: chartAggregation, chartType }
 
-    console.log('[AnalyticsPanel] Chart engine input:', {
-      request,
-      normalizedChartRows,
-      dataSource: gridSheetData ? 'grid' : 'sheetData'
-    })
     const cacheKey = JSON.stringify({
       sheetId,
       chartType,
       chartXAxis,
-      chartYAxis,
+      yAxes,
       chartAggregation,
       chartXRange,
       chartYRange,
@@ -470,6 +481,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     chartXRange,
     chartYAxis,
     chartYRange,
+    chartableValueColumnNames,
     normalizedChartRows,
     sheetId,
     gridSheetData
@@ -551,7 +563,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
       )
     }
 
-    const yAxesForRender = chartYAxis.filter(y => y !== chartXAxis)
+    const yAxesForRender = chartYAxis.filter(y => y !== chartXAxis && chartableValueColumnNames.has(y))
     const primaryY = yAxesForRender[0] ?? chartYAxis[0]
 
     if (chartType === 'pie') {

@@ -106,8 +106,6 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
         const selectedModel = preferredModel || gpt4Model || modelsResponse.data[0]
         const modelId = selectedModel._id
 
-        console.log('[SpreadsheetAI] Using model:', selectedModel.name, '(', modelId, ')')
-
         setState(prev => ({ ...prev, progress: 40 }))
 
         // Execute the AI prompt - catch API key errors here too
@@ -193,7 +191,7 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
 
         if (isApiKeyError) {
           // Silently fall back for API key errors - this is expected in some environments
-          console.log('AI analysis unavailable, using local analysis')
+          // Expected in environments without AI credentials; fallback remains fully functional.
         } else {
           console.warn('AI analysis failed, using local analysis:', error)
         }
@@ -210,7 +208,6 @@ export function useSpreadsheetAI(accessToken: string): UseSpreadsheetAIResult {
             error: null, // Clear error - local analysis worked fine
             progress: 100
           }))
-          console.log('Successfully performed local analysis (AI unavailable)')
           return fallbackAnalysis
         } catch (fallbackError) {
           console.error('Local analysis also failed:', fallbackError)

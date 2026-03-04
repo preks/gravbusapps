@@ -571,27 +571,44 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         sheetScrollRef.current = { scrollLeft, scrollTop }
         refreshCursorRectsRef.current?.()
       }
+      let scrollStateReadBlockedUntil = 0
       const syncScrollFromWorksheet = () => {
+        if (Date.now() < scrollStateReadBlockedUntil) return
         const workbook = univerAPI.getActiveWorkbook?.()
         const worksheet = workbook?.getActiveSheet?.()
+        if (!worksheet) return
         const dims = cellDimensionsRef.current
         const zoom = dims?.zoomRatio ?? 1
         const getColumnWidth = (c: number): number =>
           (dims?.columnData[c]?.w ?? dims?.defaultColWidth ?? CURSOR_OVERLAY_COL_WIDTH_PX) * zoom
         const getRowHeight = (r: number): number =>
           (dims?.rowData[r]?.h ?? dims?.defaultRowHeight ?? CURSOR_OVERLAY_ROW_HEIGHT_PX) * zoom
-        const scrollState = (
-          worksheet as
-            | {
-                getScrollState?: () => {
-                  sheetViewStartRow?: number
-                  sheetViewStartColumn?: number
-                  offsetX?: number
-                  offsetY?: number
+        let scrollState:
+          | {
+              sheetViewStartRow?: number
+              sheetViewStartColumn?: number
+              offsetX?: number
+              offsetY?: number
+            }
+          | undefined
+        try {
+          scrollState = (
+            worksheet as
+              | {
+                  getScrollState?: () => {
+                    sheetViewStartRow?: number
+                    sheetViewStartColumn?: number
+                    offsetX?: number
+                    offsetY?: number
+                  }
                 }
-              }
-            | undefined
-        )?.getScrollState?.()
+              | undefined
+          )?.getScrollState?.()
+        } catch {
+          // Univer can throw while DI graph is still bootstrapping; retry shortly.
+          scrollStateReadBlockedUntil = Date.now() + 500
+          return
+        }
         if (!scrollState) return
         const startCol = Math.max(0, scrollState.sheetViewStartColumn ?? 0)
         const startRow = Math.max(0, scrollState.sheetViewStartRow ?? 0)

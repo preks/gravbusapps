@@ -86,8 +86,6 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
     setState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      console.log('[useSpreadsheetApps] Loading apps from document-service backend')
-
       const PAGE_SIZE = 100
       let allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
       let page = 1
@@ -106,7 +104,6 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         isLoading: false,
         storageMode: 'database'
       }))
-      console.log('[useSpreadsheetApps] Apps loaded from database:', allApps.length)
     } catch (error) {
       console.error('[useSpreadsheetApps] Failed to load apps:', error)
       setState(prev => ({
@@ -169,15 +166,6 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
                   ? 'view'
                   : null
 
-        console.log('[useSpreadsheetApps] loadApp:', {
-          id,
-          createdBy: app.createdBy,
-          userId,
-          isOwner,
-          backendPermission,
-          resolvedPermission
-        })
-
         setState(prev => ({
           ...prev,
           currentApp: app,
@@ -212,7 +200,6 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       setState(prev => ({ ...prev, isSaving: true, error: null }))
 
       try {
-        console.log('[useSpreadsheetApps] Creating app via document-service backend')
         const newApp = await SpreadsheetApiService.createApp(app)
         setState(prev => ({
           ...prev,

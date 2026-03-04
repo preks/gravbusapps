@@ -181,7 +181,6 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
    */
   const fetchAvailableEntities = useCallback(async () => {
     if (isLoadingEntitiesRef.current) {
-      console.log('[useEntityDataSource] Already loading entities, skipping...')
       return
     }
 
@@ -192,7 +191,6 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
     try {
       const apiUrl = getApiUrl()
       const url = `${apiUrl}/api/entities?includeFields=true`
-      console.log('[useEntityDataSource] Fetching entities from:', url)
 
       const response = await fetch(url, {
         method: 'GET',
@@ -208,7 +206,6 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
       }
 
       const data = await response.json()
-      console.log('[useEntityDataSource] Received entities response:', data)
 
       // Handle different response formats
       let entities: Record<string, any> | any[] = {}
@@ -266,7 +263,6 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
         }
       })
 
-      console.log('[useEntityDataSource] Parsed entities:', entityList.length, 'entities')
       setAvailableEntities(entityList)
       setEntitiesError(null)
     } catch (error) {
@@ -340,8 +336,6 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
         const queryString = params.toString()
         const url = `${apiUrl}/api/datasource/${dataSource.entityType}${queryString ? `?${queryString}` : ''}`
 
-        console.log('[useEntityDataSource] Loading data from:', url)
-
         const response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -373,8 +367,6 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
           data: result,
           error: null
         })
-
-        console.log('[useEntityDataSource] Loaded', result.count, 'records for', dataSource.entityType)
 
         return result
       } catch (error) {

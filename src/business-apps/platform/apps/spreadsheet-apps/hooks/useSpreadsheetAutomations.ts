@@ -814,12 +814,6 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           }
         }
         if (!effectiveAutomationId) continue
-        console.log('[useSpreadsheetAutomations][trace] fetchBulkCollectionResponses:start', {
-          spreadsheetId,
-          sheetId,
-          automationId: effectiveAutomationId,
-          automationType: automation.type
-        })
         const responses = await service.fetchBulkCollectionResponses({
           spreadsheetId,
           sheetId,
@@ -841,15 +835,6 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           if (!normalizedWorkflowId && !normalizedResponderId) return false
           if (!shouldDedupeByMemory) return true
           return normalizedWorkflowId ? !processedWorkflowIdsRef.current.has(normalizedWorkflowId) : true
-        })
-
-        console.log('[useSpreadsheetAutomations][trace] fetchBulkCollectionResponses:received', {
-          automationId: effectiveAutomationId,
-          shouldDedupeByMemory,
-          totalResponses: responses.length,
-          completedUnprocessed: newResponses.length,
-          responseWorkflowIds: responses.map(r => r.workflowId),
-          newWorkflowIds: newResponses.map(r => r.workflowId)
         })
 
         if (newResponses.length === 0) continue
@@ -970,16 +955,6 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           }
         })
 
-        console.log('[useSpreadsheetAutomations][trace] rowUpdates:built', {
-          automationId: automation.id,
-          rowUpdatesCount: rowUpdates.length,
-          rowUpdates: rowUpdates.map(u => ({
-            workflowId: u.workflowId,
-            recipientId: u.recipientId,
-            cellKeys: Object.keys(u.cells)
-          }))
-        })
-
         // Mark as processed only for non-excel collection automations.
         if (shouldDedupeByMemory) {
           newResponses.forEach(r => processedWorkflowIdsRef.current.add(r.workflowId))
@@ -988,17 +963,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // Update existing rows via callback if available, otherwise add as new rows
         if (rowUpdates.length > 0) {
           if (onUpdateRowsRef.current) {
-            console.log('[useSpreadsheetAutomations][trace] dispatch:onUpdateRows', {
-              automationId: automation.id,
-              updatesCount: rowUpdates.length
-            })
             onUpdateRowsRef.current(rowUpdates)
           } else if (onAddRowsRef.current) {
             // Fallback: add as new rows if no update callback
-            console.log('[useSpreadsheetAutomations][trace] dispatch:onAddRows:fallback', {
-              automationId: automation.id,
-              updatesCount: rowUpdates.length
-            })
             onAddRowsRef.current(
               rowUpdates.map(u => ({
                 cells: u.cells,

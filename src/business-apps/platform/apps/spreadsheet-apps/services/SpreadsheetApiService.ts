@@ -1373,8 +1373,6 @@ export const SpreadsheetApiService = {
    */
   async restoreVersion(appId: string, versionNumber: number): Promise<boolean> {
     try {
-      console.log('[SpreadsheetApiService] Restoring version:', appId, versionNumber)
-
       // Call dedicated backend restore endpoint that handles everything (metadata + sheets + rows)
       const result = await apiRequest<{ success: boolean; message: string; restoredRows: number }>(
         `/spreadsheets/${appId}/restore/${versionNumber}`,
@@ -1383,18 +1381,12 @@ export const SpreadsheetApiService = {
         }
       )
 
-      console.log('[SpreadsheetApiService] Backend restore complete!')
-      console.log('[SpreadsheetApiService] Message:', result.message)
-      console.log('[SpreadsheetApiService] Restored rows:', result.restoredRows)
-
       if (result.success) {
         // Create a new version marking it as a restore (like documents do)
-        console.log('[SpreadsheetApiService] Creating restore checkpoint...')
         await this.createVersion(appId, {
           changeDescription: `Restored from version ${versionNumber}`,
           isCheckpoint: true
         })
-        console.log('[SpreadsheetApiService] Restore checkpoint created!')
       }
 
       return result.success

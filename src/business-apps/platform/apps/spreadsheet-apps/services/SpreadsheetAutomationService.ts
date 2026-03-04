@@ -55,6 +55,24 @@ const getFlowEngineApiUrl = () => {
 // execute-dynamic lives at /api/templates/execute-dynamic (not under /api/v1) on develop flow engine
 const getExecuteDynamicUrl = () => `${getFlowEngineBaseUrl()}/api/templates/execute-dynamic`
 
+const isSpreadsheetAutomationDebugEnabled = (): boolean => {
+  try {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.localStorage !== 'undefined' &&
+      window.localStorage.getItem('debug:spreadsheet-automations') === '1'
+    )
+  } catch {
+    return false
+  }
+}
+
+const automationDebug = (...args: unknown[]) => {
+  if (isSpreadsheetAutomationDebugEnabled()) {
+    console.debug(...args)
+  }
+}
+
 /**
  * Parameters for executing a workflow for a single row
  */
@@ -149,7 +167,7 @@ export class SpreadsheetAutomationService {
   constructor(accessToken: string, apiBaseUrl?: string) {
     this.accessToken = accessToken
     this.apiBaseUrl = apiBaseUrl || getFlowEngineApiUrl()
-    console.log('[SpreadsheetAutomationService] Initialized with API URL:', this.apiBaseUrl)
+    automationDebug('[SpreadsheetAutomationService] Initialized with API URL:', this.apiBaseUrl)
   }
 
   /**
@@ -184,7 +202,7 @@ export class SpreadsheetAutomationService {
         stepAssignments: this.buildStepAssignments(automation, row, initiatorId)
       }
 
-      console.log('[SpreadsheetAutomationService] Executing workflow:', {
+      automationDebug('[SpreadsheetAutomationService] Executing workflow:', {
         url,
         automationName: automation.name,
         rowId,
@@ -220,7 +238,7 @@ export class SpreadsheetAutomationService {
       }
 
       const result = await response.json()
-      console.log('[SpreadsheetAutomationService] Workflow started:', result)
+      automationDebug('[SpreadsheetAutomationService] Workflow started:', result)
 
       return {
         success: true,
@@ -294,7 +312,7 @@ export class SpreadsheetAutomationService {
   async runAutomation(params: RunAutomationParams): Promise<AutomationExecutionResult> {
     const { automation, rows, recipients, spreadsheetId, sheetId, initiatorId, accessToken } = params
 
-    console.log('[SpreadsheetAutomationService] Running automation:', {
+    automationDebug('[SpreadsheetAutomationService] Running automation:', {
       type: automation.type,
       name: automation.name,
       rowCount: rows?.length,
@@ -309,7 +327,7 @@ export class SpreadsheetAutomationService {
         let collectionRecipients = recipients || automation.collectionConfig?.recipients || []
         const recipientType = automation.collectionConfig?.recipientType || 'specific'
 
-        console.log('[SpreadsheetAutomationService] Bulk collection config:', {
+        automationDebug('[SpreadsheetAutomationService] Bulk collection config:', {
           recipientType,
           explicitRecipients: collectionRecipients.length,
           configRecipients: automation.collectionConfig?.recipients?.length
@@ -319,7 +337,12 @@ export class SpreadsheetAutomationService {
         if ((recipientType === 'team' || recipientType === 'department') && collectionRecipients.length === 0) {
           try {
             collectionRecipients = await this.resolveRecipientsByType(recipientType, initiatorId)
-            console.log('[SpreadsheetAutomationService] Resolved', recipientType, 'recipients:', collectionRecipients)
+            automationDebug(
+              '[SpreadsheetAutomationService] Resolved',
+              recipientType,
+              'recipients:',
+              collectionRecipients
+            )
           } catch (error) {
             console.error('[SpreadsheetAutomationService] Failed to resolve recipients:', error)
             return {
@@ -338,7 +361,10 @@ export class SpreadsheetAutomationService {
             const resolved = await this.resolveEmployeeIdsToUserIds(collectionRecipients)
             if (resolved.length > 0) {
               collectionRecipients = resolved
-              console.log('[SpreadsheetAutomationService] Resolved specific recipients to user IDs:', resolved.length)
+              automationDebug(
+                '[SpreadsheetAutomationService] Resolved specific recipients to user IDs:',
+                resolved.length
+              )
             }
           } catch (error) {
             console.warn('[SpreadsheetAutomationService] Could not resolve some recipients to user IDs:', error)
@@ -474,7 +500,7 @@ export class SpreadsheetAutomationService {
     const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = []
     const failedRecipients: string[] = []
 
-    console.log(`[SpreadsheetAutomationService] Executing bulk collection for ${recipients.length} recipients`)
+    automationDebug(`[SpreadsheetAutomationService] Executing bulk collection for ${recipients.length} recipients`)
 
     // Execute workflows in parallel with concurrency limit
     const CONCURRENCY_LIMIT = 5
@@ -610,7 +636,7 @@ export class SpreadsheetAutomationService {
 
     const wasCreated = !automation.backendId && !isUuid(automation.id)
 
-    console.log('[SpreadsheetAutomationService] Executing excel collection via BE endpoint:', {
+    automationDebug('[SpreadsheetAutomationService] Executing excel collection via BE endpoint:', {
       automationId: backendId,
       recipientCount: recipients.length,
       templateId: automation.collectionConfig?.templateSpreadsheetId
@@ -668,7 +694,7 @@ export class SpreadsheetAutomationService {
       const result = await response.json()
       const runData = result.data || result
 
-      console.log('[SpreadsheetAutomationService] Excel collection run started:', {
+      automationDebug('[SpreadsheetAutomationService] Excel collection run started:', {
         runId: runData.run?.id || runData.runId,
         recipientCount: runData.run?.recipientCount || runData.recipientCount || recipients.length,
         successCount: runData.successCount,
@@ -796,7 +822,7 @@ export class SpreadsheetAutomationService {
         }
       }
 
-      console.log('[SpreadsheetAutomationService] Executing bulk collection workflow:', {
+      automationDebug('[SpreadsheetAutomationService] Executing bulk collection workflow:', {
         recipientId,
         templateName: template.name
       })
@@ -1786,7 +1812,7 @@ export class SpreadsheetAutomationService {
       })
 
       if (!response.ok) {
-        console.log('[SpreadsheetAutomationService] aggregate-bulk endpoint failed, using fallback')
+        automationDebug('[SpreadsheetAutomationService] aggregate-bulk endpoint failed, using fallback')
         // If no aggregation endpoint, fall back to querying flows directly
         return this.fetchBulkResponsesFromFlows({
           ...params,
@@ -1795,7 +1821,7 @@ export class SpreadsheetAutomationService {
       }
 
       const data = await response.json()
-      console.log('[SpreadsheetAutomationService] aggregate-bulk response:', {
+      automationDebug('[SpreadsheetAutomationService] aggregate-bulk response:', {
         totalWorkflows: data.totalWorkflows,
         completedCount: data.completedResults?.length || 0
       })
@@ -1807,7 +1833,7 @@ export class SpreadsheetAutomationService {
         if (params.automationType === 'excel_collection') {
           return []
         }
-        console.log('[SpreadsheetAutomationService] aggregate-bulk returned empty, using fallback')
+        automationDebug('[SpreadsheetAutomationService] aggregate-bulk returned empty, using fallback')
         return this.fetchBulkResponsesFromFlows({
           ...params,
           automationType: params.automationType || 'bulk_collection'
@@ -1976,7 +2002,7 @@ export class SpreadsheetAutomationService {
           const tags = (flow.tags as Record<string, string>) || {}
           const recipientId = tags.recipientId
 
-          console.log('[SpreadsheetAutomationService] Processing flow:', {
+          automationDebug('[SpreadsheetAutomationService] Processing flow:', {
             flowId,
             flowKeys: Object.keys(flow),
             status: flow.status,
@@ -1992,7 +2018,7 @@ export class SpreadsheetAutomationService {
           if (params.automationType === 'excel_collection' && tags.copyAppId) {
             formData = { ...formData, copyAppId: tags.copyAppId }
           }
-          console.log('[SpreadsheetAutomationService] Final form data for flow', flowId, ':', formData)
+          automationDebug('[SpreadsheetAutomationService] Final form data for flow', flowId, ':', formData)
 
           return {
             workflowId: flowId,
@@ -2008,7 +2034,7 @@ export class SpreadsheetAutomationService {
 
       // Filter out null results (flows with no ID)
       const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null)
-      console.log('[SpreadsheetAutomationService] Returning', validResults.length, 'completed responses')
+      automationDebug('[SpreadsheetAutomationService] Returning', validResults.length, 'completed responses')
       return validResults
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Fetch flows fallback error:', error)
@@ -2057,7 +2083,7 @@ export class SpreadsheetAutomationService {
       }
       return null
     } catch (err) {
-      console.log('[SpreadsheetAutomationService] /steps/step_0/data endpoint error:', err)
+      automationDebug('[SpreadsheetAutomationService] /steps/step_0/data endpoint error:', err)
       return null
     }
   }
@@ -2093,7 +2119,7 @@ export class SpreadsheetAutomationService {
       }
       return formData && Object.keys(formData).length > 0 ? formData : null
     } catch (err) {
-      console.log('[SpreadsheetAutomationService] Error fetching completed tasks:', err)
+      automationDebug('[SpreadsheetAutomationService] Error fetching completed tasks:', err)
       return null
     }
   }
@@ -2393,7 +2419,7 @@ export class SpreadsheetAutomationService {
    * Uses GraphQL to query Employee data with proper supervisor/department relationships
    */
   private async resolveRecipientsByType(recipientType: 'team' | 'department', initiatorId: string): Promise<string[]> {
-    console.log('[SpreadsheetAutomationService] Resolving recipients by type:', { recipientType, initiatorId })
+    automationDebug('[SpreadsheetAutomationService] Resolving recipients by type:', { recipientType, initiatorId })
 
     try {
       // First, get the employee ID for the initiator (we have user ID, need employee ID)
@@ -2406,7 +2432,7 @@ export class SpreadsheetAutomationService {
       }
 
       const employeeIdToUse = initiatorEmployeeId || initiatorId
-      console.log('[SpreadsheetAutomationService] Using employee ID for resolution:', employeeIdToUse)
+      automationDebug('[SpreadsheetAutomationService] Using employee ID for resolution:', employeeIdToUse)
 
       let recipientUserIds: string[] = []
 
@@ -2435,7 +2461,7 @@ export class SpreadsheetAutomationService {
         })
 
         const employees = (result?.Employee as Array<{ userId?: string }>) || []
-        console.log('[SpreadsheetAutomationService] Found', employees.length, 'direct reports')
+        automationDebug('[SpreadsheetAutomationService] Found', employees.length, 'direct reports')
 
         recipientUserIds = employees
           .map(emp => emp.userId)
@@ -2462,7 +2488,7 @@ export class SpreadsheetAutomationService {
         const departmentId = initiatorResult?.Employee?.[0]?.employeePosition?.organizationalUnit?.id
 
         if (departmentId) {
-          console.log('[SpreadsheetAutomationService] Found department ID:', departmentId)
+          automationDebug('[SpreadsheetAutomationService] Found department ID:', departmentId)
 
           // Get all employees in the same department
           const departmentQuery = `
@@ -2487,7 +2513,7 @@ export class SpreadsheetAutomationService {
 
           const deptResult = await this.executeGraphQLQuery(departmentQuery, { departmentId })
           const employees = (deptResult?.Employee as Array<{ userId?: string }>) || []
-          console.log('[SpreadsheetAutomationService] Found', employees.length, 'department members')
+          automationDebug('[SpreadsheetAutomationService] Found', employees.length, 'department members')
 
           recipientUserIds = employees
             .map(emp => emp.userId)
@@ -2497,7 +2523,7 @@ export class SpreadsheetAutomationService {
         }
       }
 
-      console.log(
+      automationDebug(
         '[SpreadsheetAutomationService] Resolved',
         recipientUserIds.length,
         'recipient user IDs for',

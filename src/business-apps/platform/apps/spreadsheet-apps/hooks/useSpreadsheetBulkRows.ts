@@ -177,23 +177,12 @@ export function useSpreadsheetBulkRows({
       }
 
       if (!activeSheet || rows.length === 0) return
-      console.log('[useSpreadsheetBulkRows][trace] handleAddRows:start', {
-        appId: app.id,
-        sheetId: activeSheet.id,
-        incomingRows: rows.length,
-        currentRows: localSheetDataRef.current.length
-      })
 
       // Collect field names and find new ones
       const allFieldNames = collectFieldNames(rows, INTERNAL_METADATA_FIELDS)
       const newFieldNames = findNewFields(allFieldNames, activeSheet.columns)
       const newColumns = createColumnsForFields(newFieldNames)
       const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
-      console.log('[useSpreadsheetBulkRows][trace] handleAddRows:columns', {
-        newFieldNames,
-        newColumnsCount: newColumns.length,
-        updatedColumnsCount: updatedColumns.length
-      })
 
       // Build column lookup map
       const columnMap = new Map<string, SpreadsheetColumn>()
@@ -247,32 +236,16 @@ export function useSpreadsheetBulkRows({
       const newData = [...currentData, ...(headerRow ? [headerRow] : []), ...newRows]
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
-      console.log('[useSpreadsheetBulkRows][trace] handleAddRows:localUpdated', {
-        insertedHeader: Boolean(headerRow),
-        addedRows: newRows.length,
-        totalRows: newData.length,
-        addedWorkflowIds: newRows.map(r => r._workflow_id)
-      })
 
       // Persist changes
       // NOTE: `onAppUpdate` does not persist sheet row data in database-backed mode.
       // Prefer sheet/row persistence callbacks so collection report rows survive refresh.
       if (newColumns.length > 0) {
         if (onSheetUpdate) {
-          console.log('[useSpreadsheetBulkRows][trace] handleAddRows:persistColumns:onSheetUpdate', {
-            appId: app.id,
-            sheetId: activeSheet.id,
-            columnsCount: updatedColumns.length
-          })
           Promise.resolve(onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })).catch(err =>
             console.error('[handleAddRows] onSheetUpdate failed:', err)
           )
         } else if (onAppUpdate) {
-          console.log('[useSpreadsheetBulkRows][trace] handleAddRows:persistColumns:onAppUpdate', {
-            appId: app.id,
-            sheetId: activeSheet.id,
-            columnsCount: updatedColumns.length
-          })
           const updatedSheets = app.sheets.map(sheet =>
             sheet.id === activeSheet.id ? { ...sheet, columns: updatedColumns } : sheet
           )
@@ -319,11 +292,6 @@ export function useSpreadsheetBulkRows({
         })()
       } else {
         // Legacy fallback: persist full data through parent callback.
-        console.log('[useSpreadsheetBulkRows][trace] handleAddRows:persistRows:onDataChange', {
-          appId: app.id,
-          sheetId: activeSheet.id,
-          rowsCount: newData.length
-        })
         onDataChange?.(activeSheet.id, newData)
       }
     },
@@ -349,14 +317,6 @@ export function useSpreadsheetBulkRows({
       }
 
       if (!activeSheet || updates.length === 0) return
-      console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:start', {
-        appId: app.id,
-        sheetId: activeSheet.id,
-        updatesCount: updates.length,
-        currentRows: localSheetDataRef.current.length,
-        updateWorkflowIds: updates.map(u => u.workflowId),
-        updateRecipientIds: updates.map(u => u.recipientId).filter(Boolean)
-      })
 
       // Collect field names and find new ones
       const allFieldNames = new Set<string>()
@@ -373,11 +333,6 @@ export function useSpreadsheetBulkRows({
       const newFieldNames = findNewFields(allFieldNames, activeSheet.columns)
       const newColumns = createColumnsForFields(newFieldNames)
       const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
-      console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:columns', {
-        newFieldNames,
-        newColumnsCount: newColumns.length,
-        updatedColumnsCount: updatedColumns.length
-      })
 
       // Build column lookup map
       const columnMap = new Map<string, SpreadsheetColumn>()
@@ -591,16 +546,6 @@ export function useSpreadsheetBulkRows({
       }
 
       const newData = matchCount > 0 || addedRows.length > 0 ? [...updatedExisting, ...addedRows] : updatedExisting
-      console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:matching', {
-        matchCount,
-        completedUpdatesCount: completedUpdates.length,
-        matchedCompletedCount: matchedCompletedWorkflowIds.size + matchedCompletedRecipientIds.size,
-        unmatchedCompletedCount: unmatchedCompleted.length,
-        unmatchedNonCompletedCount: unmatchedNonCompleted.length,
-        addedRowsCount: addedRows.length,
-        matchedWorkflowIds: [...matchedUpdateIds],
-        totalRowsAfterUpdate: newData.length
-      })
 
       if (matchCount === 0 && addedRows.length === 0 && newColumns.length === 0) return
 
@@ -611,11 +556,6 @@ export function useSpreadsheetBulkRows({
       // 1. Update columns if new ones were created
       if (newColumns.length > 0) {
         if (onSheetUpdate) {
-          console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:persistColumns:onSheetUpdate', {
-            appId: app.id,
-            sheetId: activeSheet.id,
-            columnsCount: updatedColumns.length
-          })
           Promise.resolve(onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })).catch(err =>
             console.error('[handleUpdateRows] onSheetUpdate failed:', err)
           )
@@ -657,14 +597,6 @@ export function useSpreadsheetBulkRows({
               // Try to update the row, but if it fails (returns null), fall back to adding the row
               onRowUpdate(app.id, activeSheet.id, rowId, mappedCells)
                 .then(async result => {
-                  console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:onRowUpdate:result', {
-                    appId: app.id,
-                    sheetId: activeSheet.id,
-                    rowId,
-                    workflowId: update.workflowId,
-                    resultWasNull: result === null,
-                    persistedKeys: Object.keys(mappedCells)
-                  })
                   // If result is null, the update failed (row doesn't exist in backend)
                   // Fall back to adding the row instead
                   if (result === null && onRowAdd) {
@@ -688,11 +620,6 @@ export function useSpreadsheetBulkRows({
                         localSheetDataRef.current = next
                         setLocalSheetData(next)
                       }
-                      console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:onRowAdd:fallback:success', {
-                        appId: app.id,
-                        sheetId: activeSheet.id,
-                        workflowId: update.workflowId
-                      })
                     } catch (addErr) {
                       console.error('[handleUpdateRows] onRowAdd failed:', addErr)
                     }
@@ -713,33 +640,16 @@ export function useSpreadsheetBulkRows({
               delete rowToPersist._id
               delete rowToPersist._createdAt
               delete rowToPersist._updatedAt
-              console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:unmatched:onRowAdd', {
-                appId: app.id,
-                sheetId: activeSheet.id,
-                workflowId: row._workflow_id,
-                recipientId: row.recipientId,
-                keys: Object.keys(rowToPersist)
-              })
               onRowAdd(app.id, activeSheet.id, rowToPersist).catch(err => {
                 console.error('[handleUpdateRows] onRowAdd failed for unmatched row:', err)
               })
             }
           } else {
-            console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:unmatched:onDataChangeFallback', {
-              appId: app.id,
-              sheetId: activeSheet.id,
-              rowsCount: newData.length
-            })
             onDataChange?.(activeSheet.id, newData)
           }
         }
       } else if (matchCount > 0 || addedRows.length > 0) {
         // Fallback to onDataChange for local state sync
-        console.log('[useSpreadsheetBulkRows][trace] handleUpdateRows:onDataChangeFallback', {
-          appId: app.id,
-          sheetId: activeSheet.id,
-          rowsCount: newData.length
-        })
         onDataChange?.(activeSheet.id, newData)
       }
     },
