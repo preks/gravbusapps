@@ -27,9 +27,9 @@ function getChatServiceApiUrl(): string {
   let base = env('NEXT_PUBLIC_BASE_URL') || ''
   base = base.endsWith('/') ? base.slice(0, -1) : base
   if (
-    typeof window !== 'undefined' &&
-    window.location.hostname === 'localhost' &&
-    ['3000', '5173'].includes(window.location.port)
+    typeof globalThis.window !== 'undefined' &&
+    globalThis.window.location.hostname === 'localhost' &&
+    ['3000', '5173'].includes(globalThis.window.location.port)
   ) {
     base = 'https://newwork-dev.newwork.com'
   }

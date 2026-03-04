@@ -11,8 +11,7 @@ export function setPendingJoinMeeting(meetingId: string, conversationId: string)
 }
 
 export function getPendingJoinMeetingForConversation(conversationId: string): string | null {
-  if (!pending || pending.conversationId !== conversationId) return null
-  return pending.meetingId
+  return pending?.conversationId === conversationId ? (pending.meetingId ?? null) : null
 }
 
 export function takePendingJoinMeetingForConversation(conversationId: string): string | null {

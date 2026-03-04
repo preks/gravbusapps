@@ -41,9 +41,9 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
     // Switch to calendar view and open meeting details; mutate current URL so it works from menu or sidebar.
     const dateStr = startDate.toISOString().split('T')[0]
     const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ view: 'calendar', meetingId: meeting.id })
-    window.history.pushState({}, '', `${window.location.origin}${pathAndQuery}`)
+    globalThis.window.history.pushState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
 
-    window.dispatchEvent(
+    globalThis.window.dispatchEvent(
       new CustomEvent('switchToCalendar', {
         detail: {
           date: dateStr,
@@ -56,7 +56,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
   const handleJoinMeeting = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent card click from firing
     if (meeting.meetingLink && meeting.meetingLink !== 'auto-generate') {
-      window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer')
+      globalThis.window.open(meeting.meetingLink, '_blank', 'noopener,noreferrer')
     }
   }
 

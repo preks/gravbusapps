@@ -202,7 +202,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     let timeoutId: ReturnType<typeof setTimeout> | null = null
 
     const handleNavigation = async (event?: Event) => {
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       const dateParam = urlParams.get('date')
       const meetingIdParam = urlParams.get('meetingId')
 
@@ -214,7 +214,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
 
       if (dateParam) {
         const targetDate = new Date(dateParam)
-        if (!isNaN(targetDate.getTime())) {
+        if (!Number.isNaN(targetDate.getTime())) {
           setCurrentDate(targetDate)
           setView('day')
 
@@ -223,7 +223,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
             timeoutId = setTimeout(() => {
               timeoutId = null
               // Only open if URL still has this meetingId (user may have closed modal and cleared URL)
-              const currentParams = new URLSearchParams(window.location.search)
+              const currentParams = new URLSearchParams(globalThis.window.location.search)
               if (currentParams.get('meetingId') !== meetingIdParam) return
               // Use ref so we see events after they load for the new date (e.g. "view in calendar" from card)
               const meetingEvent = eventsRef.current.find(e => e.id === meetingIdParam)
@@ -240,7 +240,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         const meetingEvent = events.find(e => e.id === meetingIdParam)
         if (meetingEvent) {
           const meetingDate = meetingEvent.start
-          if (!isNaN(meetingDate.getTime())) {
+          if (!Number.isNaN(meetingDate.getTime())) {
             setCurrentDate(meetingDate)
             setView('day')
             selectEvent(meetingEvent)
@@ -256,10 +256,10 @@ const CalendarInner: React.FC<CalendarProps> = ({
 
     // Also listen for switchToCalendar event
     const handleSwitchEvent = (e: Event) => handleNavigation(e)
-    window.addEventListener('switchToCalendar', handleSwitchEvent)
+    globalThis.window.addEventListener('switchToCalendar', handleSwitchEvent)
     return () => {
       if (timeoutId !== null) clearTimeout(timeoutId)
-      window.removeEventListener('switchToCalendar', handleSwitchEvent)
+      globalThis.window.removeEventListener('switchToCalendar', handleSwitchEvent)
     }
   }, [events, setCurrentDate, setView, selectEvent, refresh])
 
@@ -267,7 +267,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
   // Skip re-opening detail when create/edit modal is open (e.g. user clicked Edit).
   useEffect(() => {
     if (events.length === 0) return
-    const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId')
+    const meetingIdParam = new URLSearchParams(globalThis.window.location.search).get('meetingId')
     if (!meetingIdParam || isDetailModalOpen || isCreateModalOpen) return
     const meetingEvent = events.find(e => e.id === meetingIdParam)
     if (meetingEvent) {
@@ -281,7 +281,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
   // Sync modal with browser back/forward: open/close modal when URL meetingId appears/disappears
   useEffect(() => {
     const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       const meetingIdParam = urlParams.get('meetingId')
       if (meetingIdParam && !isDetailModalOpen) {
         const meetingEvent = events.find(e => e.id === meetingIdParam)
@@ -296,8 +296,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
         selectEvent(null)
       }
     }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.window.addEventListener('popstate', handlePopState)
+    return () => globalThis.window.removeEventListener('popstate', handlePopState)
   }, [events, isDetailModalOpen, selectEvent, setCurrentDate, setView])
 
   // Refresh calendar when backend sends meeting_created (so user sees new meetings without reload)
@@ -314,11 +314,11 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const setMeetingInUrl = useCallback((meetingId: string, _date?: Date) => {
     void _date // kept for API compatibility with callers; URL only stores meetingId
     const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ view: 'calendar', meetingId })
-    window.history.replaceState({}, '', `${window.location.origin}${pathAndQuery}`)
+    globalThis.window.history.replaceState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
   }, [])
   const clearMeetingFromUrl = useCallback(() => {
     const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ meetingId: null, date: null })
-    window.history.replaceState({}, '', `${window.location.origin}${pathAndQuery}`)
+    globalThis.window.history.replaceState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
   }, [])
 
   // Handle event click
@@ -486,7 +486,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         })
       }
 
-      window.dispatchEvent(
+      globalThis.window.dispatchEvent(
         new CustomEvent('chat:join-meeting', {
           detail: {
             meetingId: enrichedSelectedEvent.id,
@@ -508,7 +508,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const handleQuickJoinCall = useCallback((event: CalendarEvent) => {
     const conversationId = event.conversationId || event.id
 
-    window.dispatchEvent(
+    globalThis.window.dispatchEvent(
       new CustomEvent('chat:join-meeting', {
         detail: {
           meetingId: event.id,

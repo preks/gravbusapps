@@ -64,7 +64,7 @@ export async function runConfirmStartCall(
       try {
         const response = await options.calendarApiClient.getMeeting(calendarMeetingId)
         if (refs.abortControllerRef.current?.signal.aborted) return
-        const meeting = (response as any)?.meeting ?? response
+        const meeting = response?.meeting ?? response
         const enabled =
           meeting?.transcriptionEnabled === true ||
           meeting?.metadata?.aiTranscriptionEnabled === true ||

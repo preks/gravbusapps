@@ -145,12 +145,12 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       if (!currentUser || !apiClient) return
       refs.isCancelledRef.current = false
 
-      const meetingIdStr =
-        typeof calendarMeetingId === 'string'
-          ? calendarMeetingId
-          : calendarMeetingId != null
-            ? String(calendarMeetingId)
-            : null
+      let meetingIdStr: string | null = null
+      if (typeof calendarMeetingId === 'string') {
+        meetingIdStr = calendarMeetingId
+      } else if (calendarMeetingId != null) {
+        meetingIdStr = String(calendarMeetingId)
+      }
       const meetingIdToFetch = meetingIdStr || (conversationType === 'meeting' ? conversationId : null)
       const resolvedCalendarMeetingId = calendarMeetingId ?? (conversationType === 'meeting' ? conversationId : null)
 

@@ -45,6 +45,7 @@ import 'dayjs/locale/ro'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/es'
 import 'dayjs/locale/it'
+import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { UnifiedTask } from '../types'
 import { env } from '@/common/env/EnvUtils'
 import { TaskDetailHeader } from './TaskDetailHeader'
@@ -89,6 +90,13 @@ const getFieldDisplayValue = (isLoadingData: boolean, fieldValue: any, inputValu
   if (fieldValue !== undefined) return fieldValue
   if (inputValue !== undefined) return inputValue
   return defaultValue || ''
+}
+
+function getMeetingStatusBadgeVariant(status: string | undefined): 'success' | 'destructive' | 'warning' | 'secondary' {
+  if (status === 'accepted') return 'success'
+  if (status === 'declined') return 'destructive'
+  if (status === 'tentative') return 'warning'
+  return 'secondary'
 }
 
 interface UniversalCflowTaskDetailsProps {
@@ -417,12 +425,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         ? (raw as string[]).map((name, i) => ({
             userId: `legacy-${i}`,
             displayName: name,
-            status: undefined as undefined,
+            status: undefined,
             isOrganizer: false
           }))
         : (raw as Array<{ userId: string; displayName: string }>).map(p => ({
             ...p,
-            status: undefined as undefined,
+            status: undefined,
             isOrganizer: task.tags?.organizer === p.userId
           }))
       return sortOrganizerFirst(list)
@@ -752,13 +760,33 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     const contextDescription =
       allTags?.context || task.sourceMetadata?.initialParameters?.context || (task.sourceMetadata as any)?.context || ''
 
-    // Get userInfo from task if available
-    const userInfo = userId
+    // Get userInfo from task if available (minimal shape for GlossaryEntryTaskForm; form uses additionalData only)
+    const initiatedByName = task.sourceMetadata?.flowInitiatedByName || ''
+    const nameParts = initiatedByName.trim().split(/\s+/)
+    const givenName = nameParts[0] ?? ''
+    const familyName = nameParts.slice(1).join(' ') ?? ''
+    const userInfo: UserInfoProps | undefined = userId
       ? {
           id: userId,
-          userName: task.sourceMetadata?.flowInitiatedByName || '',
-          givenName: task.sourceMetadata?.flowInitiatedByName?.split(' ')[0] || '',
-          familyName: task.sourceMetadata?.flowInitiatedByName?.split(' ').slice(1).join(' ') || ''
+          userName: initiatedByName,
+          givenName,
+          familyName,
+          nickName: initiatedByName,
+          employeeDetails: {
+            employeeId: userId,
+            firstName: givenName,
+            lastName: familyName,
+            supervisor: {
+              id: '',
+              firstName: '',
+              lastName: '',
+              userId: ''
+            },
+            organizationalUnit: {
+              id: '',
+              name: ''
+            }
+          }
         }
       : undefined
 
@@ -822,23 +850,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 (() => {
                   const criticality = calculateDueDateCriticality(task.dueDate, t)
                   if (!criticality) return null
-                  const Icon =
-                    criticality.status === 'overdue'
-                      ? AlertCircle
-                      : criticality.status === 'warning'
-                        ? Clock
-                        : CheckCircle
+                  let Icon = CheckCircle
+                  if (criticality.status === 'overdue') Icon = AlertCircle
+                  else if (criticality.status === 'warning') Icon = Clock
+                  let criticalityClass = 'gba:text-success'
+                  if (criticality.status === 'overdue') criticalityClass = 'gba:text-destructive'
+                  else if (criticality.status === 'warning') criticalityClass = 'gba:text-warning'
                   return (
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <Icon
-                        className={`gba:w-4 gba:h-4 ${
-                          criticality.status === 'overdue'
-                            ? 'gba:text-destructive'
-                            : criticality.status === 'warning'
-                              ? 'gba:text-warning'
-                              : 'gba:text-success'
-                        }`}
-                      />
+                      <Icon className={`gba:w-4 gba:h-4 ${criticalityClass}`} />
                       <span className="gba:text-sm gba:font-medium gba:text-foreground">
                         {t('task-due-date-label')}:
                       </span>
@@ -1084,12 +1104,14 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                         const employeeId = emp?.id
                         const avatarUrl = emp?.avatarUrl ?? formatAvatarUrl(emp?.pictureThumbnail)
                         const parts = p.displayName.trim().split(/\s+/)
-                        const initials =
-                          emp && (emp.firstName || emp.lastName)
-                            ? getInitials(emp.firstName, emp.lastName)
-                            : parts.length >= 2
-                              ? getInitials(parts[0], parts.slice(1).join(' '))
-                              : parts[0]?.slice(0, 2).toUpperCase() || '?'
+                        let initials: string
+                        if (emp && (emp.firstName || emp.lastName)) {
+                          initials = getInitials(emp.firstName, emp.lastName)
+                        } else if (parts.length >= 2) {
+                          initials = getInitials(parts[0], parts.slice(1).join(' '))
+                        } else {
+                          initials = parts[0]?.slice(0, 2).toUpperCase() || '?'
+                        }
                         const statusKey = p.status ? `task-details-meeting-status-${p.status}` : null
                         const statusLabel = statusKey ? t(statusKey, { defaultValue: p.status }) : null
                         return (
@@ -1125,18 +1147,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                                 </span>
                               )}
                               {hasStatus && statusLabel && (
-                                <Badge
-                                  variant={
-                                    p.status === 'accepted'
-                                      ? 'success'
-                                      : p.status === 'declined'
-                                        ? 'destructive'
-                                        : p.status === 'tentative'
-                                          ? 'warning'
-                                          : 'secondary'
-                                  }
-                                  className="gba:text-xs"
-                                >
+                                <Badge variant={getMeetingStatusBadgeVariant(p.status)} className="gba:text-xs">
                                   {statusLabel}
                                 </Badge>
                               )}
@@ -1183,15 +1194,21 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 (/^\s*\*\*Complete Meeting Invitation:.*\*\*\s*$/s.test(content) ||
                   /^\s*Complete Meeting Invitation:.*\s*$/s.test(content))
               if (isRedundantMeetingTitle) return null
-              return task.tags?.app === 'scheduled_task' ? (
-                <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-              ) : task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) ? (
-                task.message || task.description ? (
+              if (task.tags?.app === 'scheduled_task') {
+                return <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+              }
+              if (
+                task.tags?.app === 'meeting-invite' &&
+                (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) &&
+                (task.message || task.description)
+              ) {
+                return (
                   <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
                     <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
                   </div>
-                ) : null
-              ) : (
+                )
+              }
+              return (
                 <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
                   {task.message || task.description}
                 </p>
@@ -1469,66 +1486,59 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
         {/* For meeting-invite: Form first, then Related Links. Otherwise: Related Links then Form. */}
         {task.tags?.app === 'meeting-invite' && task.form && Array.isArray(task.form) && task.form.length > 0 && (
-          <>
-            <Card>
-              <CardContent>
-                {Object.keys(fieldErrors).length > 0 && (
-                  <Alert variant="destructive" className="gba:mb-4">
-                    <AlertTitle>
-                      {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
-                    </AlertTitle>
-                    <AlertDescription>
-                      <ul className="gba:list-disc gba:list-inside gba:space-y-1">
-                        {Object.values(fieldErrors).map((error, idx) => (
-                          <li key={idx}>{error}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
+          <Card>
+            <CardContent>
+              {Object.keys(fieldErrors).length > 0 && (
+                <Alert variant="destructive" className="gba:mb-4">
+                  <AlertTitle>
+                    {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
+                  </AlertTitle>
+                  <AlertDescription>
+                    <ul className="gba:list-disc gba:list-inside gba:space-y-1">
+                      {Object.entries(fieldErrors).map(([fieldName, error]) => (
+                        <li key={fieldName}>{error}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
 
-                <div className="gba:space-y-4">
-                  {task.form.map((input: any, index: number) => {
-                    const fieldName = input.name || input.id || `field_${index}`
-                    const fieldValue = formValues[fieldName]
-                    const fieldError = fieldErrors[fieldName]
-                    const isLoadingData = !formInitialized
-                    const displayValue = getFieldDisplayValue(
-                      isLoadingData,
-                      fieldValue,
-                      input.value,
-                      input.defaultValue
-                    )
-                    const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
+              <div className="gba:space-y-4">
+                {task.form.map((input: any, index: number) => {
+                  const fieldName = input.name || input.id || `field_${index}`
+                  const fieldValue = formValues[fieldName]
+                  const fieldError = fieldErrors[fieldName]
+                  const isLoadingData = !formInitialized
+                  const displayValue = getFieldDisplayValue(isLoadingData, fieldValue, input.value, input.defaultValue)
+                  const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
 
-                    return (
-                      <div key={fieldName}>
-                        <InputRenderer
-                          input={input}
-                          index={index}
-                          readOnly={isFieldReadOnly}
-                          value={displayValue}
-                          onChange={value => {
-                            if (!isFieldReadOnly) {
-                              if (fieldError) {
-                                setFieldErrors(prev => {
-                                  const next = { ...prev }
-                                  delete next[fieldName]
-                                  return next
-                                })
-                              }
-                              setFormValues(prev => ({ ...prev, [fieldName]: value }))
+                  return (
+                    <div key={fieldName}>
+                      <InputRenderer
+                        input={input}
+                        index={index}
+                        readOnly={isFieldReadOnly}
+                        value={displayValue}
+                        onChange={value => {
+                          if (!isFieldReadOnly) {
+                            if (fieldError) {
+                              setFieldErrors(prev => {
+                                const next = { ...prev }
+                                delete next[fieldName]
+                                return next
+                              })
                             }
-                          }}
-                        />
-                        {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </>
+                            setFormValues(prev => ({ ...prev, [fieldName]: value }))
+                          }
+                        }}
+                      />
+                      {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Other Links / Meeting Links (meeting-invite: only external:meeting) */}
@@ -1672,12 +1682,14 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                       const employeeId = emp?.id
                       const avatarUrl = emp?.avatarUrl ?? formatAvatarUrl(emp?.pictureThumbnail)
                       const parts = p.displayName.trim().split(/\s+/)
-                      const initials =
-                        emp && (emp.firstName || emp.lastName)
-                          ? getInitials(emp.firstName, emp.lastName)
-                          : parts.length >= 2
-                            ? getInitials(parts[0], parts.slice(1).join(' '))
-                            : parts[0]?.slice(0, 2).toUpperCase() || '?'
+                      let initials: string
+                      if (emp && (emp.firstName || emp.lastName)) {
+                        initials = getInitials(emp.firstName, emp.lastName)
+                      } else if (parts.length >= 2) {
+                        initials = getInitials(parts[0], parts.slice(1).join(' '))
+                      } else {
+                        initials = parts[0]?.slice(0, 2).toUpperCase() || '?'
+                      }
                       const statusKey = p.status ? `task-details-meeting-status-${p.status}` : null
                       const statusLabel = statusKey ? t(statusKey, { defaultValue: p.status }) : null
                       return (
@@ -1769,15 +1781,21 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
               (/^\s*\*\*Complete Meeting Invitation:.*\*\*\s*$/s.test(content) ||
                 /^\s*Complete Meeting Invitation:.*\s*$/s.test(content))
             if (isRedundantMeetingTitle) return null
-            return task.tags?.app === 'scheduled_task' ? (
-              <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-            ) : task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) ? (
-              task.message || task.description ? (
+            if (task.tags?.app === 'scheduled_task') {
+              return <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+            }
+            if (
+              task.tags?.app === 'meeting-invite' &&
+              (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) &&
+              (task.message || task.description)
+            ) {
+              return (
                 <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
                   <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
                 </div>
-              ) : null
-            ) : (
+              )
+            }
+            return (
               <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
                 {task.message || task.description}
               </p>

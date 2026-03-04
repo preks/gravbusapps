@@ -296,14 +296,15 @@ export const buildPlatformUrl = (basePath: string, params?: Record<string, strin
  * Pass null/undefined to remove a param. Preserves all other current search params.
  */
 export const getCurrentUrlWithUpdatedSearchParams = (updates: Record<string, string | null | undefined>): string => {
-  if (typeof window === 'undefined') return ''
-  const params = new URLSearchParams(window.location.search)
+  if (typeof globalThis.window === 'undefined') return ''
+  const params = new URLSearchParams(globalThis.window.location.search)
   for (const [key, value] of Object.entries(updates)) {
     if (value === null || value === undefined) params.delete(key)
     else params.set(key, value)
   }
   const query = params.toString()
-  return `${window.location.pathname}${query ? `?${query}` : ''}`
+  const suffix = query ? '?' + query : ''
+  return globalThis.window.location.pathname + suffix
 }
 
 /**

@@ -147,14 +147,15 @@ export function useChatRejoinCall({
 
     // Resolve transcription before opening dialog so the message shows immediately (same as PreCallSetup)
     let transcriptionEnabled = false
-    let meetingIdStr: string | null =
-      typeof stableActiveConversation?.metadata?.meetingId === 'string'
-        ? stableActiveConversation.metadata.meetingId
-        : stableActiveConversation?.metadata?.meetingId != null
-          ? String(stableActiveConversation.metadata.meetingId)
-          : null
+    let meetingIdStr: string | null = null
+    const rawMeetingId = stableActiveConversation?.metadata?.meetingId
+    if (typeof rawMeetingId === 'string') {
+      meetingIdStr = rawMeetingId
+    } else if (rawMeetingId != null) {
+      meetingIdStr = String(rawMeetingId)
+    }
     // Fallback: calendar/join-meeting may have stored meetingId when conversation lacks metadata (e.g. opened from calendar)
-    if (!meetingIdStr && stableActiveConversation?.id) {
+    if (stableActiveConversation?.id && meetingIdStr == null) {
       const pendingId = takePendingJoinMeetingForConversation(stableActiveConversation.id)
       if (pendingId) meetingIdStr = pendingId
     }

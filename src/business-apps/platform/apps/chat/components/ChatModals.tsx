@@ -137,14 +137,16 @@ export function ChatModals({
             (() => {
               const isMeetingConversation =
                 activeConversation?.metadata?.type === 'meeting' || Boolean(activeConversation?.metadata?.meetingId)
-              const convType: 'direct' | 'group' | 'meeting' = isMeetingConversation
-                ? 'meeting'
-                : activeConversation?.type === ConversationType.DIRECT
-                  ? 'direct'
-                  : 'group'
+              let convType: 'direct' | 'group' | 'meeting'
+              if (isMeetingConversation) convType = 'meeting'
+              else if (activeConversation?.type === ConversationType.DIRECT) convType = 'direct'
+              else convType = 'group'
               const meetingName = rejoinModalState!.conversationName ?? activeConversation?.name
               const startedBy = rejoinModalState!.startedBy
-              const defaultOdName = convType === 'direct' ? 'Call' : convType === 'meeting' ? 'Meeting' : 'Group call'
+              let defaultOdName: string
+              if (convType === 'direct') defaultOdName = 'Call'
+              else if (convType === 'meeting') defaultOdName = 'Meeting'
+              else defaultOdName = 'Group call'
               return {
                 roomId: rejoinModalState!.roomId,
                 callType: rejoinModalState!.callType,

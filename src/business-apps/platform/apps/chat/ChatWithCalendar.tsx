@@ -158,9 +158,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   }, [rawExternalEvents])
 
   const isInSidepanel = useMemo(() => {
-    if (typeof window === 'undefined') return false
+    if (typeof globalThis.window === 'undefined') return false
 
-    const normalizedPath = window.location.pathname.replace(/\/+$/, '')
+    const normalizedPath = globalThis.window.location.pathname.replace(/\/+$/, '')
     // Fullscreen Chat can be mounted as canonical (/platform/chat) or as the app path (/platform/apps/chat) in local/dev.
     if (normalizedPath === '/platform/chat' || normalizedPath === '/platform/apps/chat') return false
 
@@ -168,8 +168,8 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   }, [])
 
   const isNarrowViewport = useMemo(() => {
-    if (typeof window === 'undefined') return false
-    return window.innerWidth < 768
+    if (typeof globalThis.window === 'undefined') return false
+    return globalThis.window.innerWidth < 768
   }, [])
 
   const isCompactMode = isInSidepanel || isNarrowViewport
@@ -181,7 +181,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     pending: { userId: string; userName?: string; prefilledMessage?: string; metadata?: Record<string, unknown> } | null
   }>(() => {
     try {
-      if (typeof window === 'undefined') return { tab: effectiveDefaultTab, pending: null }
+      if (typeof globalThis.window === 'undefined') return { tab: effectiveDefaultTab, pending: null }
       const raw = sessionStorage.getItem('chatPendingOpenWithUser')
       if (raw) {
         sessionStorage.removeItem('chatPendingOpenWithUser')
@@ -194,7 +194,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         return { tab: 'chat', pending }
       }
       // On load with URL params (e.g. ?app=...&view=calendar&meetingId=... on localhost), open on the correct tab immediately
-      const viewParam = new URLSearchParams(window.location.search).get('view')
+      const viewParam = new URLSearchParams(globalThis.window.location.search).get('view')
       if (viewParam === 'calendar' || viewParam === 'chat' || viewParam === 'reminders' || viewParam === 'everyai') {
         const tab: TabValue = viewParam === 'everyai' ? 'everyai' : viewParam
         return { tab, pending: null }
@@ -212,9 +212,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
   useEffect(() => {
     if (pendingOpenWithUser) {
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.set('view', 'chat')
-      window.history.replaceState({}, '', url.toString())
+      globalThis.window.history.replaceState({}, '', url.toString())
     }
   }, [pendingOpenWithUser])
 
@@ -227,7 +227,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   // Handle URL parameter for initial tab
   useEffect(() => {
     if (pendingOpenWithUser) return
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewParam = urlParams.get('view')
 
     // In sidepanel mode, don't allow dashboard tab - redirect to everyai
@@ -252,24 +252,24 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   // Sync tab from URL on popstate (e.g. user clicks Back to calendar link so calendar + meeting open correctly)
   useEffect(() => {
     const syncTabFromUrl = () => {
-      const viewParam = new URLSearchParams(window.location.search).get('view')
+      const viewParam = new URLSearchParams(globalThis.window.location.search).get('view')
       if (viewParam === 'calendar') setActiveTab('calendar')
       else if (viewParam === 'chat') setActiveTab('chat')
       else if (viewParam === 'reminders') setActiveTab('reminders')
       else if (viewParam === 'dashboard') setActiveTab(isCompactMode ? 'everyai' : 'dashboard')
       else if (viewParam === 'everyai') setActiveTab('everyai')
     }
-    window.addEventListener('popstate', syncTabFromUrl)
-    return () => window.removeEventListener('popstate', syncTabFromUrl)
+    globalThis.window.addEventListener('popstate', syncTabFromUrl)
+    return () => globalThis.window.removeEventListener('popstate', syncTabFromUrl)
   }, [isCompactMode])
 
   // In fullscreen, EveryAI tab is not available; ensure we never stay on it
   useEffect(() => {
     if (!isInSidepanel && activeTab === 'everyai') {
       setActiveTab('dashboard')
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.set('view', 'dashboard')
-      window.history.replaceState({}, '', url.toString())
+      globalThis.window.history.replaceState({}, '', url.toString())
     }
   }, [isInSidepanel, activeTab])
 
@@ -282,9 +282,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       }
     }
 
-    window.addEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
+    globalThis.window.addEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
     return () => {
-      window.removeEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
+      globalThis.window.removeEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
     }
   }, [])
 
@@ -294,10 +294,10 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       setActiveTab('chat')
     }
 
-    window.addEventListener('switchToChat', handleSwitchToChat as EventListener)
+    globalThis.window.addEventListener('switchToChat', handleSwitchToChat as EventListener)
 
     return () => {
-      window.removeEventListener('switchToChat', handleSwitchToChat as EventListener)
+      globalThis.window.removeEventListener('switchToChat', handleSwitchToChat as EventListener)
     }
   }, [activeTab])
 
@@ -308,9 +308,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       // The Calendar component will handle the date/meetingId from URL params
     }
 
-    window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+    globalThis.window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
     return () => {
-      window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+      globalThis.window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
     }
   }, [])
 
@@ -319,9 +319,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     setActiveTab(value as TabValue)
 
     // Update URL without page reload
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.window.location.href)
     url.searchParams.set('view', value)
-    window.history.replaceState({}, '', url.toString())
+    globalThis.window.history.replaceState({}, '', url.toString())
   }
 
   return (
@@ -418,13 +418,13 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
               onOpenChat={userId => {
                 setActiveTab('chat')
                 setTimeout(() => {
-                  window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
+                  globalThis.window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
                 }, 100)
               }}
               onStartCall={(userId, displayName, callType, avatarUrl) => {
                 // Do not switch to Chat tab; PreCall dialog is global and works from any tab
                 setTimeout(() => {
-                  window.dispatchEvent(
+                  globalThis.window.dispatchEvent(
                     new CustomEvent('chat:start-call-with-user', {
                       detail: { userId, displayName, avatarUrl, callType }
                     })
@@ -493,7 +493,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                 }
                 // Do not switch to Chat tab; PreCall dialog is global and works from any tab
                 setTimeout(() => {
-                  window.dispatchEvent(
+                  globalThis.window.dispatchEvent(
                     new CustomEvent('chat:join-meeting', {
                       detail: {
                         meetingId: meeting.id,
