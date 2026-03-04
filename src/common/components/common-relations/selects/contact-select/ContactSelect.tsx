@@ -13,7 +13,7 @@ import {
   SelectValue,
   Button
 } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
+import { XIcon } from '@phosphor-icons/react'
 import { Building2, Briefcase } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ContactType, getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
@@ -525,7 +525,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                   data-testid={formatDataTestId(dataTestId || 'contact-list', `remove-contact-${index}`)}
                   aria-label={`Remove ${displayName}`}
                 >
-                  <PiX className="gba:w-4 gba:h-4" />
+                  <XIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </div>
             )

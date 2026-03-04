@@ -31,6 +31,7 @@ adjust-salary-frequency-monthly = Monatlich
 adjust-salary-frequency-hourly = Stündlich
 adjust-salary-current-salary = Aktuelles Gehalt
 adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
+adjust-salary-duplicate-month-warning = Für diesen Monat existiert bereits eine Gehaltsanpassung am { $date }. Bitte wählen Sie ein anderes Wirksamkeitsdatum.
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Gehalt zuweisen

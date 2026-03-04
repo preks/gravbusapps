@@ -337,8 +337,22 @@ editor-toolbar-align-left = Aliniere stânga
 editor-toolbar-align-center = Aliniere centru
 editor-toolbar-align-right = Aliniere dreapta
 editor-toolbar-justify = Justificat
+editor-dictate-tooltip = Dictați textul cu vocea
+editor-dictate-listening = Ascult…
+editor-dictate-unavailable = Introducerea vocală nu este disponibilă
+editor-dictate-hint = Faceți clic pentru a porni introducerea vocală
+editor-toolbar-line-paragraph-spacing = Spațiere linie și paragraf
+editor-line-spacing-single = Simplu
+editor-line-spacing-1-15 = 1,15
+editor-line-spacing-1-5 = 1,5
+editor-line-spacing-double = Dublu
+editor-paragraph-spacing-before = Adaugă spațiu înainte de paragraf
+editor-paragraph-spacing-after = Adaugă spațiu după paragraf
+editor-paragraph-spacing-remove-before = Elimină spațiul înainte de paragraf
+editor-paragraph-spacing-remove-after = Elimină spațiul după paragraf
 editor-toolbar-bullet-list = Listă cu marcatori
 editor-toolbar-numbered-list = Listă numerotată
+editor-toolbar-task-list = Listă de sarcini
 editor-toolbar-decrease-indent = Micșorați alinierea
 editor-toolbar-increase-indent = Măriți alinierea
 editor-toolbar-quote = Citat
@@ -358,8 +372,84 @@ editor-font-verdana = Verdana
 editor-font-courier = Courier New
 editor-font-garamond = Garamond
 editor-font-trebuchet = Trebuchet MS
+editor-font-calibri = Calibri
+editor-font-cambria = Cambria
+editor-font-tahoma = Tahoma
+editor-font-comic-sans = Comic Sans MS
+editor-font-consolas = Consolas
+editor-font-palatino = Palatino Linotype
+editor-font-century-gothic = Century Gothic
+editor-font-constantia = Constantia
+editor-font-candara = Candara
+editor-font-corbel = Corbel
 editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = URL imagine
+
+# Ribbon tabs and groups
+editor-ribbon-tab-home = Acasă
+editor-ribbon-tab-insert = Inserare
+editor-ribbon-group-clipboard = Clipboard
+editor-ribbon-group-font = Font
+editor-ribbon-group-paragraph = Paragraf
+editor-ribbon-group-styles = Stiluri
+editor-ribbon-group-voice = Voce
+editor-ribbon-group-insert = Inserare
+
+# Insert image dialog
+insert-image-dialog-title = Inserați imagine
+insert-image-dialog-title-replace = Schimbați imaginea
+insert-image-tab-upload = Încărcare
+insert-image-tab-from-url = Din URL
+insert-image-choose-file = Alegeți fișierul
+insert-image-drop-here = Plasați imaginea aici sau faceți clic pentru a răsfoi
+insert-image-url-placeholder = https://example.com/imagine.png
+insert-image-insert = Inserare
+insert-image-cancel = Anulare
+insert-image-uploading = Se încarcă…
+insert-image-upload-failed = Încărcarea a eșuat. Încercați din nou sau folosiți un URL.
+insert-image-invalid-url = Introduceți un URL valid pentru imagine.
+
+# Link dialog
+link-dialog-title-insert = Inserați link
+link-dialog-title-edit = Editați linkul
+link-dialog-url-label = URL
+link-dialog-url-placeholder = https://example.com
+link-dialog-text-label = Text de afișat
+link-dialog-text-placeholder = Text link
+link-dialog-open-new-tab = Deschide în tab nou
+link-dialog-apply = Aplicare
+link-dialog-remove-link = Eliminați linkul
+link-dialog-cancel = Anulare
+link-dialog-invalid-url = Introduceți o adresă URL validă.
+
+# Link bubble menu
+link-bubble-edit = Editare
+link-bubble-remove-link = Eliminați linkul
+link-bubble-open-link = Deschide linkul
+link-bubble-open-new-tab = Deschide în tab nou
+
+image-context-cut = Decupare
+image-context-copy = Copiere
+image-context-paste = Lipire
+image-context-delete = Ștergere
+image-context-replace = Schimbați imaginea
+image-context-alt-text = Text alternativ
+
+image-context-wrap-text = Înfășurare text
+image-wrap-inline = În linie cu textul
+image-wrap-left = Pătrat (text la dreapta)
+image-wrap-right = Pătrat (text la stânga)
+image-wrap-tight = Strâns
+image-wrap-through = Prin
+image-wrap-center = Sus și jos
+image-wrap-behind = În spatele textului
+image-wrap-in-front = În fața textului
+
+image-alt-text-dialog-title = Text alternativ
+image-alt-text-label = Descriere (pentru accesibilitate)
+image-alt-text-save = Salvare
+
+# Paged document editor
 editor-back-title = Înapoi la documente
 editor-save-document = Salvați documentul
 editor-approval-pending = Aprobare în așteptare
@@ -377,7 +467,62 @@ editor-lock-document = Blocați documentul
 editor-publish = Publicare...
 editor-save-as-template = Salvați ca șablon
 editor-send-for-approval = Trimiteți pentru aprobare
+editor-export-word = Exportați ca Word (.docx)
+editor-export-pdf = Exportați ca PDF
+editor-print = Tipărire
 editor-ai-edit = Editare AI
+
+# Navigation panel (Headings, Find, Replace)
+navigation-panel-title = Titluri
+navigation-panel-headings-tab = Titluri
+navigation-panel-find-tab = Căutare
+navigation-panel-replace-tab = Înlocuire
+navigation-panel-search-placeholder = Căutați în document
+navigation-panel-replace-with-placeholder = Înlocuiți cu
+navigation-panel-replace = Înlocuiți
+navigation-panel-replace-all = Înlocuiți toate
+navigation-panel-find-next = Următorul
+navigation-panel-find-prev = Anteriorul
+navigation-panel-no-headings = Acest document nu conține titluri.
+navigation-panel-no-headings-hint = Folosiți Acasă > Stiluri pentru a adăuga titluri.
+navigation-panel-match-count = { $count } { $count ->
+  [one] potrivire
+ *[other] potriviri
+}
+navigation-panel-result-of = Rezultat { $current } din { $total }
+navigation-panel-case-sensitive = Respectă majusculele
+navigation-panel-whole-words = Doar cuvinte întregi
+navigation-panel-replace-hint = Căutați un termen în document și introduceți termenul cu care doriți să îl înlocuiți.
+navigation-panel-close = Închide panoul de navigare
+navigation-panel-show = Afișează panoul de navigare
+
+# Page setup dialog
+page-setup-title = Configurare pagină
+page-setup-tab-pages = Pagini
+page-setup-tab-pageless = Fără pagini
+page-setup-apply-to = Aplicare la
+page-setup-entire-document = Întreg documentul
+page-setup-orientation = Orientare
+page-setup-portrait = Portret
+page-setup-landscape = Peisaj
+page-setup-paper-size = Dimensiune hârtie
+page-setup-page-colour = Culoare pagină
+page-setup-margins-cm = Margini (cm)
+page-setup-margin-top = Sus
+page-setup-margin-bottom = Jos
+page-setup-margin-left = Stânga
+page-setup-margin-right = Dreapta
+page-setup-use-pageless = Fără pagini
+page-setup-pageless-description = Afișați documentul ca o singură pagină continuă, fără întreruperi de pagină.
+page-setup-cancel = Anulare
+page-setup-ok = OK
+page-size-a4 = A4
+page-size-a3 = A3
+page-size-a5 = A5
+page-size-letter = Letter
+page-size-legal = Legal
+page-size-tabloid = Tabloid
+
 editor-comments-title = Comentarii (clic dreapta pe text pentru comentariu inline)
 editor-locked = Blocat
 editor-zoom-in = Mărire

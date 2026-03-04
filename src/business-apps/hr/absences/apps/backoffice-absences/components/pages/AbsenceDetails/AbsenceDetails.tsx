@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useLayoutEffect } from 'react'
 import dayjs from 'dayjs'
-import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi'
+import { ArrowLeftIcon, CalendarBlankIcon } from '@phosphor-icons/react'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
@@ -621,7 +621,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       <div className="gba:p-6">
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
           <Button onClick={onNavigateBack} className="gba:flex gba:items-center gba:gap-2">
-            <PiArrowLeft />
+            <ArrowLeftIcon />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
               'Back to Dashboard'
@@ -646,7 +646,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       <div className="gba:p-6">
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
           <Button onClick={onNavigateBack} className="gba:flex gba:items-center gba:gap-2">
-            <PiArrowLeft />
+            <ArrowLeftIcon />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
               'Back to Dashboard'
@@ -677,7 +677,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           className="gba:flex gba:items-center gba:gap-2"
           data-testid="back-to-dashboard-button"
         >
-          <PiArrowLeft size={16} />
+          <ArrowLeftIcon size={16} />
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
             'Back to Dashboard'
@@ -689,7 +689,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       <div className="gba:bg-card gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <PiCalendarBlank size={24} className="gba:text-info" />
+            <CalendarBlankIcon size={24} className="gba:text-info" />
             <div>
               <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">{currentUIState.title}</h1>
               <p className="gba:text-muted-foreground gba:mt-1">{currentUIState.description}</p>

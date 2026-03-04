@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
-
+import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 export type SortOrder = 'ASC' | 'DESC'
 
 export interface UseTableSortingOptions<T = any> {
@@ -58,9 +57,9 @@ export const useTableSorting = <T = any,>(options: UseTableSortingOptions<T> = {
         return <span className="gba:ml-1 gba:inline-block gba:w-[12px] gba:h-[12px]" />
       }
       return sortOrder === 'ASC' ? (
-        <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" />
+        <ArrowUpIcon className="gba:ml-1 gba:h-3 gba:w-3" />
       ) : (
-        <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />
+        <ArrowDownIcon className="gba:ml-1 gba:h-3 gba:w-3" />
       )
     },
     [sortField, sortOrder]

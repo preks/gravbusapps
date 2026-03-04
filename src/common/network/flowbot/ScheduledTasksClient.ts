@@ -48,8 +48,7 @@ export class ScheduledTasksClient extends RestClient {
   constructor() {
     // Use environment-aware base URL (localhost → dev → env NEXT_PUBLIC_FLOWBOT_ENDPOINT / NEXT_PUBLIC_BASE_URL)
     const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot`
-    super(url, {})
+    super(baseUrl, {})
   }
 
   setAccessToken(accessToken: string) {

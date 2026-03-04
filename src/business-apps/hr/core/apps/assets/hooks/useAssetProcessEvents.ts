@@ -4,6 +4,7 @@ interface ProcessEventHandlers {
   onAssetProcessComplete?: () => void
   onAllocationProcessComplete?: () => void
   onReturnProcessComplete?: () => void
+  onRetireProcessComplete?: () => void
   onUpdateAsset?: (assetId: string) => void
   onAllocateAsset?: (assetId: string) => void
   onCloseDialogs?: () => void
@@ -14,6 +15,7 @@ export const useAssetProcessEvents = (handlers: ProcessEventHandlers) => {
     onAssetProcessComplete,
     onAllocationProcessComplete,
     onReturnProcessComplete,
+    onRetireProcessComplete,
     onUpdateAsset,
     onAllocateAsset,
     onCloseDialogs
@@ -48,8 +50,10 @@ export const useAssetProcessEvents = (handlers: ProcessEventHandlers) => {
         onReturnProcessComplete?.()
       }
 
-      if (isStatusChangeProcess && detail?.response?.asset?.assetStatus === 'RETIRE') {
-        onReturnProcessComplete?.()
+      const isRetiredStatus =
+        detail?.response?.asset?.assetStatus === 'RETIRED_ASSET' || detail?.response?.asset?.assetStatus === 'RETIRED'
+      if (isStatusChangeProcess && isRetiredStatus) {
+        onRetireProcessComplete?.()
       }
     }
 
@@ -60,7 +64,7 @@ export const useAssetProcessEvents = (handlers: ProcessEventHandlers) => {
       window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion as EventListener)
       window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener)
     }
-  }, [onAssetProcessComplete, onAllocationProcessComplete, onReturnProcessComplete])
+  }, [onAssetProcessComplete, onAllocationProcessComplete, onReturnProcessComplete, onRetireProcessComplete])
 
   useEffect(() => {
     const handleProcessContinue = (event: CustomEvent) => {

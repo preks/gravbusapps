@@ -74,6 +74,25 @@ export function useYjsDocumentSync({
     scheduleSnapshotSaveRef.current = scheduleSnapshotSave
   }, [scheduleSnapshotSave])
 
+  const getEditorReadyPromise = useCallback((): Promise<void> => {
+    return new Promise(resolve => {
+      const deadline = Date.now() + 5000
+      const check = () => {
+        const ed = editorRef.current as { view?: unknown } | null
+        if (ed?.view) {
+          resolve()
+          return
+        }
+        if (Date.now() > deadline) {
+          resolve()
+          return
+        }
+        setTimeout(check, 50)
+      }
+      check()
+    })
+  }, [editorRef])
+
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup
   useEffect(() => {
     if (!documentId || !collaborationSocket) return
@@ -83,6 +102,7 @@ export function useYjsDocumentSync({
       documentId,
       ydoc,
       awareness,
+      onBeforeFirstSync: getEditorReadyPromise,
       onSyncedChange: setIsYjsSynced,
       onBootstrapRequired: async (html: string) => {
         const start = Date.now()
@@ -118,7 +138,7 @@ export function useYjsDocumentSync({
       providerRef.current = null
       setIsYjsSynced(false)
     }
-  }, [documentId, collaborationSocket, ydoc, awareness, editorRef])
+  }, [documentId, collaborationSocket, ydoc, awareness, editorRef, getEditorReadyPromise])
 
   // Cleanup snapshot timeout on unmount
   useEffect(() => {

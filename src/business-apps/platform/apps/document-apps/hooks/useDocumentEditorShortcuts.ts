@@ -10,6 +10,8 @@ import { useEffect } from 'react'
 export interface UseDocumentEditorShortcutsParams {
   onSave: () => void
   onAddInlineComment: () => void
+  /** Optional: Mod+k opens link dialog when editor has focus */
+  onOpenLinkDialog?: () => void
   editor: { state: { selection: { from: number; to: number } } } | null
   editorContainerRef: React.RefObject<HTMLDivElement | null>
 }
@@ -20,10 +22,11 @@ export interface UseDocumentEditorShortcutsParams {
 export function useDocumentEditorShortcuts({
   onSave,
   onAddInlineComment,
+  onOpenLinkDialog,
   editor,
   editorContainerRef
 }: UseDocumentEditorShortcutsParams): void {
-  // Keyboard: Cmd/Ctrl+S save, Cmd/Ctrl+Shift+M add inline comment
+  // Keyboard: Cmd/Ctrl+S save, Cmd/Ctrl+Shift+M add inline comment, Mod+k link dialog
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -34,10 +37,17 @@ export function useDocumentEditorShortcuts({
         e.preventDefault()
         onAddInlineComment()
       }
+      if (onOpenLinkDialog && (e.ctrlKey || e.metaKey) && e.key === 'k') {
+        const inEditor = editorContainerRef.current?.contains(document.activeElement)
+        if (inEditor) {
+          e.preventDefault()
+          onOpenLinkDialog()
+        }
+      }
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [onSave, onAddInlineComment])
+  }, [onSave, onAddInlineComment, onOpenLinkDialog, editorContainerRef])
 
   // Context menu: right-click on selected text → add inline comment
   useEffect(() => {

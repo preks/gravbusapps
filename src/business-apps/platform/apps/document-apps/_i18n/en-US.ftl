@@ -339,8 +339,22 @@ editor-toolbar-align-left = Align Left
 editor-toolbar-align-center = Align Center
 editor-toolbar-align-right = Align Right
 editor-toolbar-justify = Justify
+editor-dictate-tooltip = Dictate text with your voice
+editor-dictate-listening = Listening…
+editor-dictate-unavailable = Voice input unavailable
+editor-dictate-hint = Click to start voice input
+editor-toolbar-line-paragraph-spacing = Line and paragraph spacing
+editor-line-spacing-single = Single
+editor-line-spacing-1-15 = 1.15
+editor-line-spacing-1-5 = 1.5
+editor-line-spacing-double = Double
+editor-paragraph-spacing-before = Add space before paragraph
+editor-paragraph-spacing-after = Add space after paragraph
+editor-paragraph-spacing-remove-before = Remove space before paragraph
+editor-paragraph-spacing-remove-after = Remove space after paragraph
 editor-toolbar-bullet-list = Bullet List
 editor-toolbar-numbered-list = Numbered List
+editor-toolbar-task-list = Task List
 editor-toolbar-decrease-indent = Decrease Indent
 editor-toolbar-increase-indent = Increase Indent
 editor-toolbar-quote = Quote
@@ -360,8 +374,84 @@ editor-font-verdana = Verdana
 editor-font-courier = Courier New
 editor-font-garamond = Garamond
 editor-font-trebuchet = Trebuchet MS
+editor-font-calibri = Calibri
+editor-font-cambria = Cambria
+editor-font-tahoma = Tahoma
+editor-font-comic-sans = Comic Sans MS
+editor-font-consolas = Consolas
+editor-font-palatino = Palatino Linotype
+editor-font-century-gothic = Century Gothic
+editor-font-constantia = Constantia
+editor-font-candara = Candara
+editor-font-corbel = Corbel
 editor-toolbar-link-prompt = URL
 editor-toolbar-image-prompt = Image URL
+
+# Ribbon tabs and groups
+editor-ribbon-tab-home = Home
+editor-ribbon-tab-insert = Insert
+editor-ribbon-group-clipboard = Clipboard
+editor-ribbon-group-font = Font
+editor-ribbon-group-paragraph = Paragraph
+editor-ribbon-group-styles = Styles
+editor-ribbon-group-voice = Voice
+editor-ribbon-group-insert = Insert
+
+# Insert image dialog
+insert-image-dialog-title = Insert image
+insert-image-dialog-title-replace = Change picture
+insert-image-tab-upload = Upload
+insert-image-tab-from-url = From URL
+insert-image-choose-file = Choose file
+insert-image-drop-here = Drop image here or click to browse
+insert-image-url-placeholder = https://example.com/image.png
+insert-image-insert = Insert
+insert-image-cancel = Cancel
+insert-image-uploading = Uploading…
+insert-image-upload-failed = Upload failed. Try again or use a URL.
+insert-image-invalid-url = Please enter a valid image URL.
+
+# Link dialog
+link-dialog-title-insert = Insert Link
+link-dialog-title-edit = Edit Link
+link-dialog-url-label = URL
+link-dialog-url-placeholder = https://example.com
+link-dialog-text-label = Text to display
+link-dialog-text-placeholder = Link text
+link-dialog-open-new-tab = Open in new tab
+link-dialog-apply = Apply
+link-dialog-remove-link = Remove link
+link-dialog-cancel = Cancel
+link-dialog-invalid-url = Please enter a valid URL.
+
+# Link bubble menu
+link-bubble-edit = Edit
+link-bubble-remove-link = Remove link
+link-bubble-open-link = Open link
+link-bubble-open-new-tab = Open in new tab
+
+# Image context menu (right-click on image)
+image-context-cut = Cut
+image-context-copy = Copy
+image-context-paste = Paste
+image-context-delete = Delete
+image-context-replace = Change picture
+image-context-alt-text = Alt text
+
+# Wrap text (Word-style)
+image-context-wrap-text = Wrap text
+image-wrap-inline = In line with text
+image-wrap-left = Square (text on right)
+image-wrap-right = Square (text on left)
+image-wrap-tight = Tight
+image-wrap-through = Through
+image-wrap-center = Top and bottom
+image-wrap-behind = Behind text
+image-wrap-in-front = In front of text
+
+image-alt-text-dialog-title = Alt text
+image-alt-text-label = Description (for accessibility)
+image-alt-text-save = Save
 
 # Paged document editor
 editor-back-title = Back to documents
@@ -385,6 +475,57 @@ editor-export-word = Export as Word (.docx)
 editor-export-pdf = Export as PDF
 editor-print = Print
 editor-ai-edit = AI Edit
+
+# Navigation panel (Headings, Find, Replace)
+navigation-panel-title = Headings
+navigation-panel-headings-tab = Headings
+navigation-panel-find-tab = Find
+navigation-panel-replace-tab = Replace
+navigation-panel-search-placeholder = Search in document
+navigation-panel-replace-with-placeholder = Replace with
+navigation-panel-replace = Replace
+navigation-panel-replace-all = Replace All
+navigation-panel-find-next = Find next
+navigation-panel-find-prev = Find previous
+navigation-panel-no-headings = This document doesn't have any headings.
+navigation-panel-no-headings-hint = To add headings for an outline, use Home > Styles.
+navigation-panel-match-count = { $count } { $count ->
+  [one] match
+ *[other] matches
+}
+navigation-panel-result-of = Result { $current } of { $total }
+navigation-panel-case-sensitive = Match case
+navigation-panel-whole-words = Whole words only
+navigation-panel-replace-hint = Search for a term in your document and enter the term that you would like to replace with.
+navigation-panel-close = Close navigation panel
+navigation-panel-show = Show Navigation Pane
+
+# Page setup dialog
+page-setup-title = Page setup
+page-setup-tab-pages = Pages
+page-setup-tab-pageless = Pageless
+page-setup-apply-to = Apply to
+page-setup-entire-document = Entire document
+page-setup-orientation = Orientation
+page-setup-portrait = Portrait
+page-setup-landscape = Landscape
+page-setup-paper-size = Paper size
+page-setup-page-colour = Page colour
+page-setup-margins-cm = Margins (cm)
+page-setup-margin-top = Top
+page-setup-margin-bottom = Bottom
+page-setup-margin-left = Left
+page-setup-margin-right = Right
+page-setup-use-pageless = Use pageless
+page-setup-pageless-description = Show document as one continuous page without page breaks.
+page-setup-cancel = Cancel
+page-setup-ok = OK
+page-size-a4 = A4
+page-size-a3 = A3
+page-size-a5 = A5
+page-size-letter = Letter
+page-size-legal = Legal
+page-size-tabloid = Tabloid
 editor-comments-title = Comments (Right-click on text to add inline comment)
 editor-locked = Locked
 editor-zoom-in = Zoom In

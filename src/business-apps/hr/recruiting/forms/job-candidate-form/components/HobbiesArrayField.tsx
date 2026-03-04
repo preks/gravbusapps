@@ -1,6 +1,6 @@
 import React from 'react'
 import { FormField, FormItem, FormControl, FormMessage, Button, Input } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash, PiSmiley } from 'react-icons/pi'
+import { PlusIcon, TrashIcon, SmileyIcon } from '@phosphor-icons/react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -27,7 +27,7 @@ export const HobbiesArrayField: React.FC = () => {
     <div className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
         <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-          <PiSmiley className="gba:w-5 gba:h-5" />
+          <SmileyIcon className="gba:w-5 gba:h-5" />
           Hobbies & Interests
         </h3>
       </div>
@@ -68,7 +68,7 @@ export const HobbiesArrayField: React.FC = () => {
               data-testid={formatDataTestId('job-candidate-form', `hobby-remove-${hobbyIndex}`)}
               aria-label="Remove hobby"
             >
-              <PiTrash className="gba:w-4 gba:h-4" />
+              <TrashIcon className="gba:w-4 gba:h-4" />
             </Button>
           </div>
         ))}
@@ -82,7 +82,7 @@ export const HobbiesArrayField: React.FC = () => {
         className="gba:w-full gba:mt-2"
         data-testid={formatDataTestId('job-candidate-form', 'hobby-add')}
       >
-        <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+        <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
         Add Hobby
       </Button>
     </div>

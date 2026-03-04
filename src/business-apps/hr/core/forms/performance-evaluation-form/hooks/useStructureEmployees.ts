@@ -11,7 +11,7 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
 
   const fetchStructureEmployees = useCallback(
     async (search?: string) => {
-      if (!accessToken || !shouldFetch) {
+      if (!accessToken) {
         return
       }
 

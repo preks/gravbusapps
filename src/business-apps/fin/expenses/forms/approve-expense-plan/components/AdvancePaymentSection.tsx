@@ -12,7 +12,7 @@ import {
   TableRow,
   Badge
 } from '@newwork/nw-design-system'
-import { PiHandCoins } from 'react-icons/pi'
+import { HandCoinsIcon } from '@phosphor-icons/react'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { AdvancePayment } from '../types/expensePlanV2Types'
 import Pill from '@/components/pill'
@@ -94,7 +94,7 @@ const AdvancePaymentSection: React.FC<AdvancePaymentSectionProps> = ({
     <Card data-testid={`${prefixDataTestId}-advance-payment-section`}>
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiHandCoins className="gba:h-5 gba:w-5" />
+          <HandCoinsIcon className="gba:h-5 gba:w-5" />
           {t('section-advance-payments')}
         </CardTitle>
       </CardHeader>
