@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, Badge, Button } from '@newwork/nw-design-system'
 import { Calendar, Clock, Users, Video, ExternalLink, ListTodo } from 'lucide-react'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
 import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
 import { getAgendaFromMetadata } from '../calendar/utils/agendaUtils'
 
@@ -38,10 +38,9 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
   }
 
   const handleClick = () => {
-    // Switch to calendar view within Chat and open meeting details. Same path as Spaces: /platform/chat in prod, /platform/apps/chat in dev.
+    // Switch to calendar view and open meeting details; mutate current URL so it works from menu or sidebar.
     const dateStr = startDate.toISOString().split('T')[0]
-    const chatBasePath = process.env.NODE_ENV === 'production' ? '/platform/chat' : '/platform/apps/chat'
-    const pathAndQuery = buildPlatformUrl(chatBasePath, { view: 'calendar', meetingId: meeting.id })
+    const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ view: 'calendar', meetingId: meeting.id })
     window.history.pushState({}, '', `${window.location.origin}${pathAndQuery}`)
 
     window.dispatchEvent(

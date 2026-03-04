@@ -4,14 +4,7 @@
  */
 
 import { createPortal } from 'react-dom'
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-  Alert,
-  AlertDescription
-} from '@newwork/nw-design-system'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@newwork/nw-design-system'
 import { Monitor, Maximize2, ArrowLeftRight } from 'lucide-react'
 import { CallHeader } from './CallHeader'
 import { ScreenShareView } from './ScreenShareView'
@@ -109,6 +102,7 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
             <CallHeader
               conversationName={conversationName}
               conversationType={callState.conversationType}
+              transcriptionEnabled={transcriptionEnabled}
               callStartTime={callState.startTime}
               participantCount={state.stableRemotePeers.length + 1}
               availableParticipantsCount={availableParticipants?.length || 0}
@@ -126,21 +120,6 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
               prefixDataTestId={prefixDataTestId}
               t={state.t}
             />
-            {transcriptionEnabled && (
-              <Alert
-                variant="info-secondary"
-                className="gba:rounded-none gba:py-2 gba:px-4"
-                data-testid={`${prefixDataTestId}-recording-transcript-banner`}
-              >
-                <AlertDescription className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                  <span
-                    className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-                    aria-hidden
-                  />
-                  {state.t('chat-call-recordingTranscriptActive')}
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
 
           {/* Row 2: Video Area + Sidebar (Grid Layout) */}

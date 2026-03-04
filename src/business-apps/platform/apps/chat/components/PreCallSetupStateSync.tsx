@@ -124,6 +124,9 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
             getOtherParticipantDisplayName(activeConversation, currentUser?.id))
           : undefined
 
+      // Use call state value only (initiateCall already awaits getMeeting, so we have the final value)
+      const transcriptionEnabled = groupCallState.transcriptionEnabled === true
+
       globalPreCallSetupManager.setStateFrom(instanceId, {
         isOpen: true,
         callType: groupCallState.callType,
@@ -132,6 +135,7 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         userName,
         userAvatarUrl,
         conversationType,
+        transcriptionEnabled,
         otherParticipantName
       })
 
@@ -152,6 +156,7 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     groupCallState.hostId,
     groupCallState.hasBeenMinimized,
     groupCallState.isMinimized,
+    groupCallState.transcriptionEnabled,
     realtimeKitGroupCall.meeting,
     realtimeKitGroupCall.meeting?.self?.roomState,
     realtimeKitGroupCall.confirmStartCall,
@@ -162,6 +167,16 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     groupParticipants.length,
     incomingGroupCallInvite
   ])
+
+  // When call state gets transcriptionEnabled true (e.g. from initiateCall getMeeting callback or runConfirmStartCall), push to manager. Do not push false so we don't overwrite a direct setState from initiateCall.
+  useEffect(() => {
+    const isSetupOrJoining = groupCallState.status === 'setup' || groupCallState.status === 'joining'
+    if (!isSetupOrJoining) return
+    if (globalPreCallSetupManager.getSourceOwnerId() !== instanceId) return
+    if (!globalPreCallSetupManager.isDialogOpen()) return
+    if (groupCallState.transcriptionEnabled !== true) return
+    globalPreCallSetupManager.setStateFrom(instanceId, { transcriptionEnabled: true })
+  }, [instanceId, groupCallState.status, groupCallState.transcriptionEnabled])
 
   // Cleanup: if this instance owns SOURCE ownership, close and release to avoid stale callbacks
   useEffect(() => {

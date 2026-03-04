@@ -35,6 +35,8 @@ export interface PreCallSetupState {
   userName?: string
   userAvatarUrl?: string
   conversationType?: 'direct' | 'group' | 'meeting'
+  /** When true, show transcript recording indicator (red dot) */
+  transcriptionEnabled?: boolean
   /** For direct (1-on-1) calls: display name of the other participant ("Call with ..."). */
   otherParticipantName?: string
 }
@@ -53,6 +55,7 @@ const initialState: PreCallSetupState = {
   userName: undefined,
   userAvatarUrl: undefined,
   conversationType: undefined,
+  transcriptionEnabled: false,
   otherParticipantName: undefined
 }
 

@@ -135,12 +135,16 @@ export function ChatModals({
           invite={
             (incomingGroupCallInvite as GroupCallInvite) ??
             (() => {
-              // Rejoin is always a call (group or direct), not a "meeting" in the scheduled sense.
-              const convType: 'direct' | 'group' =
-                activeConversation?.type === ConversationType.DIRECT ? 'direct' : 'group'
+              const isMeetingConversation =
+                activeConversation?.metadata?.type === 'meeting' || Boolean(activeConversation?.metadata?.meetingId)
+              const convType: 'direct' | 'group' | 'meeting' = isMeetingConversation
+                ? 'meeting'
+                : activeConversation?.type === ConversationType.DIRECT
+                  ? 'direct'
+                  : 'group'
               const meetingName = rejoinModalState!.conversationName ?? activeConversation?.name
               const startedBy = rejoinModalState!.startedBy
-              const defaultOdName = convType === 'direct' ? 'Call' : 'Group call'
+              const defaultOdName = convType === 'direct' ? 'Call' : convType === 'meeting' ? 'Meeting' : 'Group call'
               return {
                 roomId: rejoinModalState!.roomId,
                 callType: rejoinModalState!.callType,
@@ -153,7 +157,8 @@ export function ChatModals({
                     },
                 conversationName: meetingName,
                 conversationId: activeConversation?.id ?? rejoinModalState!.roomId,
-                conversationType: convType
+                conversationType: convType,
+                transcriptionEnabled: rejoinModalState!.transcriptionEnabled === true
               } as GroupCallInvite
             })()
           }

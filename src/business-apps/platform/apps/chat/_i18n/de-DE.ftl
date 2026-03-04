@@ -437,8 +437,10 @@ chat-transcript-generating-minutes = Besprechungsnotizen werden erstellt...
 chat-transcript-generating-minutes-status = Besprechungsnotizen werden erstellt...
 chat-transcript-failed-create-minutes = Fehler beim Erstellen der Besprechungsnotizen
 chat-transcript-retry = Wiederholen
+chat-meeting-started-at = Gestartet: { $startedAt }
 chat-call-recordingTranscriptNotice = Aufzeichnung und Transkription. Durch Ihre Teilnahme willigen Sie ein, einbezogen zu werden.
 chat-call-recordingTranscriptActive = Audio wird aufgezeichnet, um ein Transkript und Besprechungsnotizen zu erstellen.
+chat-call-transcriptRecordingHeader = Gesprächstranskript wird aufgezeichnet
 
 # Notifications
 notifications-title = Benachrichtigungen

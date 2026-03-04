@@ -113,20 +113,20 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
                     <span>from {organizerName}</span>
                   </div>
 
-                  <div
-                    className="gba:flex gba:items-center gba:gap-2 gba:mt-2"
-                    data-testid="pending-invitations-recording-notice"
-                  >
-                    <span
-                      className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-                      aria-hidden
-                    />
-                    <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                      {meeting.transcriptionEnabled === true || meeting.metadata?.aiTranscriptionEnabled === true
-                        ? t('chat-call-recordingTranscriptActive')
-                        : t('chat-call-recordingTranscriptNotice')}
-                    </p>
-                  </div>
+                  {(meeting.transcriptionEnabled === true || meeting.metadata?.aiTranscriptionEnabled === true) && (
+                    <div
+                      className="gba:flex gba:items-center gba:gap-2 gba:mt-2"
+                      data-testid="pending-invitations-recording-notice"
+                    >
+                      <span
+                        className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                        aria-hidden
+                      />
+                      <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                        {t('chat-call-recordingTranscriptActive')}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Quick response buttons */}
                   <div className="gba:flex gba:gap-2 gba:mt-3">

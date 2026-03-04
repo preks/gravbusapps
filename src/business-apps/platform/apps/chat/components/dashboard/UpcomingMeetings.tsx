@@ -426,6 +426,9 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
   const hiddenCount = meetings.length - displayCount
   const canExpand = meetings.length > INITIAL_DISPLAY_COUNT && !isExpanded
   const canCollapse = isExpanded && meetings.length > INITIAL_DISPLAY_COUNT
+  const hasAnyTranscription = displayedMeetings.some(
+    m => m.transcriptionEnabled === true || m.metadata?.aiTranscriptionEnabled === true
+  )
 
   return (
     <section data-testid={testId}>
@@ -439,13 +442,15 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
         <span className="gba:text-xs gba:text-muted-foreground/70">Next 7 days</span>
       </div>
 
-      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2" data-testid="upcoming-meetings-recording-notice">
-        <span
-          className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-          aria-hidden
-        />
-        <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('chat-call-recordingTranscriptNotice')}</p>
-      </div>
+      {hasAnyTranscription && (
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2" data-testid="upcoming-meetings-recording-notice">
+          <span
+            className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+            aria-hidden
+          />
+          <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('chat-call-recordingTranscriptNotice')}</p>
+        </div>
+      )}
 
       <div className="gba:rounded-xl gba:bg-card gba:p-2">
         <div className={`gba:space-y-0.5 ${isExpanded ? 'gba:max-h-[400px] gba:overflow-y-auto' : ''}`}>

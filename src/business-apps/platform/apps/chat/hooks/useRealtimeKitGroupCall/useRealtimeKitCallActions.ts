@@ -32,6 +32,7 @@ export interface UseRealtimeKitCallActionsOptions {
   options: {
     wsClient: any
     apiClient?: any
+    calendarApiClient?: any
     currentUser: CallParticipant | null
     accessToken?: string | null
     conversations?: any[] | null
@@ -133,7 +134,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
   }, [refs])
 
   const initiateCall = useCallback(
-    (
+    async (
       conversationId: string,
       callType: CallType,
       participants: CallParticipant[],
@@ -143,6 +144,34 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
     ) => {
       if (!currentUser || !apiClient) return
       refs.isCancelledRef.current = false
+
+      const meetingIdStr =
+        typeof calendarMeetingId === 'string'
+          ? calendarMeetingId
+          : calendarMeetingId != null
+            ? String(calendarMeetingId)
+            : null
+      const meetingIdToFetch = meetingIdStr || (conversationType === 'meeting' ? conversationId : null)
+      const resolvedCalendarMeetingId = calendarMeetingId ?? (conversationType === 'meeting' ? conversationId : null)
+
+      // Resolve transcription before opening dialog so first paint shows the message (avoids race with PreCallSetupStateSync)
+      let transcriptionEnabled = false
+      if (meetingIdToFetch && options.calendarApiClient?.getMeeting) {
+        try {
+          const response = await options.calendarApiClient.getMeeting(meetingIdToFetch)
+          if (refs.isCancelledRef.current) return
+          const meeting = (response as { meeting?: unknown })?.meeting ?? response
+          const raw = meeting as { transcriptionEnabled?: boolean; metadata?: { aiTranscriptionEnabled?: boolean } }
+          transcriptionEnabled =
+            raw?.transcriptionEnabled === true ||
+            raw?.metadata?.aiTranscriptionEnabled === true ||
+            Boolean(raw?.metadata?.aiTranscriptionEnabled)
+        } catch {
+          // Best-effort; leave false
+        }
+      }
+
+      if (refs.isCancelledRef.current) return
       setCallState((prev: any) => ({
         ...prev,
         status: 'setup' as const,
@@ -150,14 +179,16 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         callType,
         conversationName,
         conversationType,
-        hostId: currentUser.id
+        hostId: currentUser.id,
+        calendarMeetingId: resolvedCalendarMeetingId || null,
+        transcriptionEnabled
       }))
       refs.callStateRoomIdRef.current = conversationId
       refs.conversationIdRef.current = conversationId
-      refs.calendarMeetingIdRef.current = calendarMeetingId || null
+      refs.calendarMeetingIdRef.current = resolvedCalendarMeetingId || null
       refs.pendingCallParticipantsRef.current = participants
     },
-    [currentUser, apiClient, refs, setCallState]
+    [currentUser, apiClient, options.calendarApiClient, refs, setCallState]
   )
 
   const confirmStartCall = useCallback(

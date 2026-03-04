@@ -437,8 +437,10 @@ chat-transcript-generating-minutes = Generating Meeting Minutes...
 chat-transcript-generating-minutes-status = Generating meeting minutes...
 chat-transcript-failed-create-minutes = Failed to create meeting minutes
 chat-transcript-retry = Retry
+chat-meeting-started-at = Started: { $startedAt }
 chat-call-recordingTranscriptNotice = Recording and transcription. By joining, you consent to being included.
 chat-call-recordingTranscriptActive = Audio is being recorded to create a transcript and meeting minutes.
+chat-call-transcriptRecordingHeader = Call transcript is being recorded
 
 # Notifications
 notifications-title = Notifications

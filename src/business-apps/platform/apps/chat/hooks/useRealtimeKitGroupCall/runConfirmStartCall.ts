@@ -62,13 +62,21 @@ export async function runConfirmStartCall(
     let transcriptionEnabled = false
     if (calendarMeetingId && options.calendarApiClient) {
       try {
-        const meetingDetails = await options.calendarApiClient.getMeeting(calendarMeetingId)
+        const response = await options.calendarApiClient.getMeeting(calendarMeetingId)
         if (refs.abortControllerRef.current?.signal.aborted) return
-        if (meetingDetails?.transcriptionEnabled === true) transcriptionEnabled = true
+        const meeting = (response as any)?.meeting ?? response
+        const enabled =
+          meeting?.transcriptionEnabled === true ||
+          meeting?.metadata?.aiTranscriptionEnabled === true ||
+          Boolean(meeting?.metadata?.aiTranscriptionEnabled)
+        if (enabled) transcriptionEnabled = true
       } catch {
         // Best-effort
       }
     }
+    // No else: only calendar meetings can be recorded; chat-originated calls do not have transcription.
+
+    setCallState((prev: any) => ({ ...prev, transcriptionEnabled }))
 
     const sessionResponse = await apiClient.createMeeting(
       conversationId,

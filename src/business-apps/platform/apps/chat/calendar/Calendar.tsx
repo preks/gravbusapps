@@ -2,8 +2,9 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Alert, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { navigateTo, buildPlatformUrl, getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { setPendingJoinMeeting } from '../pendingJoinMeetingFromPlatform'
 import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
@@ -279,27 +280,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
     return () => globalThis.removeEventListener('calendar:refresh', onCalendarRefresh)
   }, [refresh, refreshInvitations])
 
-  // Sync meeting detail modal state with URL (bookmarkable / shareable). Same path as Spaces: /platform/chat in prod, /platform/apps/chat in dev.
-  const chatBasePath = useMemo(
-    () => (process.env.NODE_ENV === 'production' ? '/platform/chat' : '/platform/apps/chat'),
-    []
-  )
-  const setMeetingInUrl = useCallback(
-    (meetingId: string, _date?: Date) => {
-      void _date // kept for API compatibility with callers; URL only stores meetingId
-      const pathAndQuery = buildPlatformUrl(chatBasePath, { view: 'calendar', meetingId })
-      window.history.replaceState({}, '', `${window.location.origin}${pathAndQuery}`)
-    },
-    [chatBasePath]
-  )
-  const clearMeetingFromUrl = useCallback(() => {
-    const params = new URLSearchParams(window.location.search)
-    params.delete('meetingId')
-    params.delete('date')
-    const query = params.toString()
-    const pathAndQuery = query ? `${chatBasePath}?${query}` : chatBasePath
+  // Sync meeting detail modal state with URL (bookmarkable / shareable). Mutate current URL so it works from menu or sidebar.
+  const setMeetingInUrl = useCallback((meetingId: string, _date?: Date) => {
+    void _date // kept for API compatibility with callers; URL only stores meetingId
+    const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ view: 'calendar', meetingId })
     window.history.replaceState({}, '', `${window.location.origin}${pathAndQuery}`)
-  }, [chatBasePath])
+  }, [])
+  const clearMeetingFromUrl = useCallback(() => {
+    const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ meetingId: null, date: null })
+    window.history.replaceState({}, '', `${window.location.origin}${pathAndQuery}`)
+  }, [])
 
   // Handle event click
   const handleEventClick = useCallback(
@@ -504,6 +494,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const handleOpenChat = useCallback(() => {
     const id = enrichedSelectedEvent?.conversationId || enrichedSelectedEvent?.id
     if (!id) return
+    if (enrichedSelectedEvent?.id) setPendingJoinMeeting(enrichedSelectedEvent.id, id)
     if (onOpenChat) {
       onOpenChat(id)
       clearMeetingFromUrl()

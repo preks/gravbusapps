@@ -233,17 +233,18 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
         </DialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
-          <div className="gba:flex gba:items-center gba:gap-2" data-testid="meeting-detail-recording-notice">
-            <span
-              className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-              aria-hidden
-            />
-            <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-              {event.metadata?.aiTranscriptionEnabled === true
-                ? t('chat-call-recordingTranscriptActive')
-                : t('chat-call-recordingTranscriptNotice')}
-            </p>
-          </div>
+          {((event as CalendarEvent & { transcriptionEnabled?: boolean }).transcriptionEnabled === true ||
+            event.metadata?.aiTranscriptionEnabled === true) && (
+            <div className="gba:flex gba:items-center gba:gap-2" data-testid="meeting-detail-recording-notice">
+              <span
+                className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                aria-hidden
+              />
+              <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                {t('chat-call-recordingTranscriptActive')}
+              </p>
+            </div>
+          )}
 
           {/* Date and Time */}
           <div className="gba:flex gba:items-start gba:gap-3">
