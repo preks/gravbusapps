@@ -19,7 +19,7 @@ import {
   DialogTitle,
   Badge
 } from '@newwork/nw-design-system'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
@@ -196,9 +196,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     (field: SortField) => {
       if (sorting.lastField === field && sorting.order !== null) {
         return sorting.order === 'ASC' ? (
-          <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+          <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
         ) : (
-          <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+          <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
         )
       }
       return null

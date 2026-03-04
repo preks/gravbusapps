@@ -12,13 +12,28 @@ export interface UseAssetsOptions {
   page?: number
   pageSize?: number
   search?: string
-  statusFilter?: string
+  /** Status filter: when array with length > 0, filter by those statuses; otherwise no status filter */
+  statusFilter?: string[]
+  categoryFilter?: string[]
+  locationFilter?: string[]
+  /** Employee filter: when array with length > 0, only assets with current allocation to one of these employee ids */
+  employeeFilter?: string[]
   sortField?: string
   sortOrder?: 'ASC' | 'DESC'
 }
 
 export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOptions = {}) => {
-  const { page = 1, pageSize = 10, search, statusFilter, sortField, sortOrder } = options
+  const {
+    page = 1,
+    pageSize = 10,
+    search,
+    statusFilter,
+    categoryFilter,
+    locationFilter,
+    employeeFilter,
+    sortField,
+    sortOrder
+  } = options
   const [assets, setAssets] = useState<Asset[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -58,8 +73,12 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
         return stats
       })
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to load statistics')
-      setStatisticsError(error)
+      const raw = err instanceof Error ? err : new Error('Failed to load statistics')
+      const message =
+        raw.message === 'Failed to fetch'
+          ? 'Network error. Check your connection and that the service is available.'
+          : raw.message
+      setStatisticsError(new Error(message))
       console.error('Error loading asset statistics:', err)
     } finally {
       setStatisticsLoading(false)
@@ -72,9 +91,9 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
 
     conditions.push({ isDeleted: { _eq: false } })
 
-    // Status filter: all (include retired), retired only, or other status
-    if (statusFilter && statusFilter !== 'all') {
-      conditions.push({ assetStatus: { _eq: statusFilter } })
+    // Status filter - multi-select from sidebar
+    if (statusFilter && statusFilter.length > 0) {
+      conditions.push({ assetStatus: { _in: statusFilter } })
     }
 
     // Search filter - search across multiple fields (includes retired assets)
@@ -91,13 +110,19 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
       })
     }
 
-    // Category filter (if provided in filters)
-    if (filters.category) {
-      conditions.push({ assetCategory: { value: { _eq: filters.category } } })
+    // Category filter (assetCategoryRef) - multi-select
+    if (categoryFilter && categoryFilter.length > 0) {
+      conditions.push({ assetCategoryRef: { _in: categoryFilter } })
     }
 
+    // Location filter (siteLocationId) - multi-select
+    if (locationFilter && locationFilter.length > 0) {
+      conditions.push({ siteLocationId: { _in: locationFilter } })
+    }
+
+    // Employee filter is applied in loadAssets by first fetching asset IDs from EmployeeAsset, then id _in (see loadAssets)
     return conditions.length > 0 ? { _and: conditions } : { isDeleted: { _eq: false } }
-  }, [search, statusFilter, filters.category])
+  }, [search, statusFilter, categoryFilter, locationFilter])
 
   // Build orderBy for GraphQL query (must be an array)
   const buildOrderBy = useCallback((): any[] => {
@@ -120,11 +145,18 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
     try {
       setIsLoading(true)
       const where = buildWhereConditions()
+
+      let assetIds: string[] | undefined
+      if (employeeFilter && employeeFilter.length > 0) {
+        assetIds = await assetService.getAssetIdsByEmployeeIds(employeeFilter)
+      }
+
       const offset = (page - 1) * pageSize
       const orderBy = buildOrderBy()
 
       const result = await assetService.getAssets({
         where,
+        assetIds,
         limit: pageSize,
         offset,
         orderBy
@@ -135,12 +167,17 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
       setError(null)
       // Note: Statistics are NOT reloaded here - they only reload when assets are modified
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to load assets'))
+      const raw = err instanceof Error ? err : new Error('Failed to load assets')
+      const message =
+        raw.message === 'Failed to fetch'
+          ? 'Network error. Check your connection and that the service is available.'
+          : raw.message
+      setError(new Error(message))
       console.error('Error loading assets:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [assetService, buildWhereConditions, buildOrderBy, page, pageSize])
+  }, [assetService, buildWhereConditions, buildOrderBy, page, pageSize, employeeFilter])
 
   // Load statistics on initial mount only
   useEffect(() => {

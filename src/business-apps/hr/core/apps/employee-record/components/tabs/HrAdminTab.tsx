@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { PiIdentificationCard, PiBriefcase, PiFiles, PiClockCounterClockwise, PiNotebook } from 'react-icons/pi'
+import { IdentificationCardIcon, BriefcaseIcon, FilesIcon, ClockCounterClockwiseIcon, NotebookIcon } from '@phosphor-icons/react'
 import DetailsTab from './DetailsTab'
 import EmploymentTab from './EmploymentTab'
 import ChangeLogTab from './ChangeLogTab'
@@ -195,7 +195,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             hasDetailsPermission) && (
             <TabsTrigger value="details" data-testid="hr-admin-details-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiIdentificationCard />
+                <IdentificationCardIcon />
                 <span>{t('hr-admin-subtab-details')}</span>
               </div>
             </TabsTrigger>
@@ -206,7 +206,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             hasEmploymentPermission) && (
             <TabsTrigger value="employment" data-testid="hr-admin-employment-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiBriefcase />
+                <BriefcaseIcon />
                 <span>{t('hr-admin-subtab-employment')}</span>
               </div>
             </TabsTrigger>
@@ -217,7 +217,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             hasDocumentsPermission) && (
             <TabsTrigger value="documents" data-testid="hr-admin-documents-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiFiles />
+                <FilesIcon />
                 <span>{t('hr-admin-subtab-documents')}</span>
               </div>
             </TabsTrigger>
@@ -229,7 +229,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               hasChangeLogPermission)) && (
             <TabsTrigger value="changeLog" data-testid="hr-admin-changelog-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiClockCounterClockwise />
+                <ClockCounterClockwiseIcon />
                 <span>{t('hr-admin-subtab-change-log')}</span>
               </div>
             </TabsTrigger>
@@ -237,7 +237,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           {shouldShowHrNotes && (
             <TabsTrigger value="hrNotes" data-testid="hr-admin-hrnotes-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiNotebook />
+                <NotebookIcon />
                 <span>{t('hr-admin-subtab-hr-notes')}</span>
               </div>
             </TabsTrigger>

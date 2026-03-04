@@ -1,7 +1,6 @@
 import React from 'react'
 import { Badge, Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
-import { PiInfo } from 'react-icons/pi'
-
+import { InfoIcon } from '@phosphor-icons/react'
 interface AdditionalPropertiesDisplayProps {
   additionalProperties?: Record<string, unknown>
   emptyLabel?: string
@@ -26,7 +25,7 @@ export const AdditionalPropertiesDisplay: React.FC<AdditionalPropertiesDisplayPr
           <div className="gba:flex gba:items-center gba:gap-1 gba:cursor-help">
             <Badge variant="secondary">{propertyCount}</Badge>
             <Button variant="ghost" size="icon" className="gba:h-6 gba:w-6 gba:text-info">
-              <PiInfo className="gba:h-4 gba:w-4" />
+              <InfoIcon className="gba:h-4 gba:w-4" />
             </Button>
           </div>
         </TooltipTrigger>

@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { PiPlus } from 'react-icons/pi'
-
+import { PlusIcon } from '@phosphor-icons/react'
 interface HoverAddButtonProps {
   afterOrder: number
   onAdd: (afterOrder: number) => void
@@ -48,7 +47,7 @@ const HoverAddButton: React.FC<HoverAddButtonProps> = ({ afterOrder, onAdd, isVi
           title={`Add assignment after position ${afterOrder}`}
           data-testid={`hover-add-button-add-btn-${afterOrder}`}
         >
-          <PiPlus className="gba:text-xs" />
+          <PlusIcon className="gba:text-xs" />
         </Button>
       </div>
     </div>

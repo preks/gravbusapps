@@ -1,6 +1,6 @@
 import React from 'react'
 import { Separator, Button } from '@newwork/nw-design-system'
-import { PiArrowRight } from 'react-icons/pi'
+import { ArrowRightIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -20,7 +20,7 @@ export const AdvancePaymentDetailsFooter: React.FC<AdvancePaymentDetailsFooterPr
           onClick={() => navigateTo(buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { expensePlanId }))}
           data-testid="view-expense-plan-details-button"
         >
-          <PiArrowRight className="gba:mr-2" />
+          <ArrowRightIcon className="gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.plan_details.view_full_details',
             'View Full Details'

@@ -1,7 +1,6 @@
 import React, { ReactNode } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { PiX } from 'react-icons/pi'
-
+import { XIcon } from '@phosphor-icons/react'
 export interface ExpenseDetailsShellProps {
   title: string
   icon?: ReactNode
@@ -63,7 +62,7 @@ export const ExpenseDetailsShell: React.FC<ExpenseDetailsShellProps> = ({
             aria-label="Close"
             data-testid={`${dataTestIdPrefix}-close-button`}
           >
-            <PiX className="gba:h-4 gba:w-4" />
+            <XIcon className="gba:h-4 gba:w-4" />
           </Button>
         ) : null}
       </div>

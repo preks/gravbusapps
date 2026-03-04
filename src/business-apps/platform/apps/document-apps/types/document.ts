@@ -34,7 +34,13 @@ export interface DocumentFileInfo {
 }
 
 /**
- * Document formatting metadata
+ * Page size preset id (used with tiptap-pagination-plus PAGE_SIZES).
+ */
+export type PageSizeId = 'A4' | 'A3' | 'A5' | 'LETTER' | 'LEGAL' | 'TABLOID'
+
+/**
+ * Document formatting metadata.
+ * Margins are stored in centimetres when marginUnit is 'cm' (default).
  */
 export interface DocumentFormatting {
   fontFamily?: string
@@ -46,6 +52,16 @@ export interface DocumentFormatting {
     bottom: number
     left: number
   }
+  /** Page size preset; used only when not pageless. */
+  pageSize?: PageSizeId
+  /** Portrait or landscape; swap width/height for landscape. */
+  orientation?: 'portrait' | 'landscape'
+  /** Display unit for margins; default 'cm'. */
+  marginUnit?: 'cm' | 'in'
+  /** Page background colour (hex, e.g. #ffffff). Default white. */
+  pageColor?: string
+  /** If true, document is one continuous scroll (no fixed pages). */
+  pageless?: boolean
 }
 
 /**

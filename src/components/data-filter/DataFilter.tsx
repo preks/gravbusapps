@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { PiCaretUp, PiCaretDown } from 'react-icons/pi'
+import { CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { cn } from '../../common/utils/cn'
 import { DebouncedInput } from './DebouncedInput'
@@ -34,6 +34,10 @@ export interface DataFilterGroup {
    * If true, hides the search input for this filter group
    */
   hideSearch?: boolean
+  /**
+   * Optional message when no filters are shown (e.g. "Type to search for an employee")
+   */
+  emptyMessage?: string
 }
 
 /**
@@ -59,6 +63,8 @@ export interface DataFilterProps {
   onClose: () => void
   filterGroups?: DataFilterGroup[]
   onFilterChange?: (filterId: string, selected: boolean) => void
+  /** Called when user types in a group's search box; use to sync search for backend-search groups (e.g. employee). */
+  onGroupSearchChange?: (groupId: string, value: string) => void
   className?: string
   children?: React.ReactNode
 }
@@ -67,6 +73,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
   show,
   filterGroups = [],
   onFilterChange,
+  onGroupSearchChange,
   className = '',
   children
 }) => {
@@ -101,6 +108,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
   // Handle per-group search input changes
   const handleGroupSearchChange = (groupId: string, value: string) => {
     setGroupSearchQueries(prev => ({ ...prev, [groupId]: value }))
+    onGroupSearchChange?.(groupId, value)
   }
 
   if (!show) return null
@@ -233,10 +241,11 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                     className="gba:p-2 gba:text-gray-400 gba:text-sm"
                     data-testid={`data-filter-group-empty-${group.id}`}
                   >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_management_hub_backoffice.absence_details.no_filters_found',
-                      'No filters found'
-                    )}
+                    {group.emptyMessage ??
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_management_hub_backoffice.absence_details.no_filters_found',
+                        'No filters found'
+                      )}
                   </div>
                 )
               }
@@ -269,9 +278,9 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                         </div>
                       )}
                       {isExpanded ? (
-                        <PiCaretUp size={20} className="gba:text-black" aria-hidden="true" />
+                        <CaretUpIcon size={20} className="gba:text-black" aria-hidden="true" />
                       ) : (
-                        <PiCaretDown size={20} className="gba:text-black" aria-hidden="true" />
+                        <CaretDownIcon size={20} className="gba:text-black" aria-hidden="true" />
                       )}
                     </div>
                   </button>

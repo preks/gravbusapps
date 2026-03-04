@@ -6,6 +6,7 @@ import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { SparkleIcon } from '@phosphor-icons/react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import translations from '../../_i18n'
 import FeedbackToolbar from './feedback-hub/FeedbackToolbar'
 import FeedbackHubHeader from './feedback-hub/FeedbackHubHeader'
@@ -85,7 +86,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     setPendingRequestsPage,
     showPendingPanel,
     setShowPendingPanel,
-    typeOptions
+    typeOptions,
+    reloadAllData
   } = useFeedbackHubData({
     employee,
     currentUserEmployeeId,
@@ -95,6 +97,14 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     graphQLClient,
     t
   })
+
+  useProcessCompletion({
+    onSuccess: () => {
+      setShowPendingPanel(false)
+      reloadAllData()
+    }
+  })
+
   const employeeName = `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || 'Employee'
 
   const buildFeedbackSignature = (entries: typeof receivedList) =>
