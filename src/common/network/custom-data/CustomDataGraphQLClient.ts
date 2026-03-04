@@ -1,5 +1,6 @@
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { FieldNameResolver } from './FieldNameResolver'
 
 type GraphQLResponse<T> = {
   data?: T
@@ -76,11 +77,57 @@ export class CustomDataGraphQLClient {
     const result = (await response.json()) as GraphQLResponse<T>
 
     if ((result as any).errors) {
-      console.error('Custom Data GraphQL errors:', (result as any).errors)
-      throw new Error(`GraphQL error: ${JSON.stringify((result as any).errors)}`)
+      const errors = (result as any).errors
+      console.error('Custom Data GraphQL errors:', errors)
+
+      // Try to provide helpful field name suggestions
+      const enhancedError = await this.enhanceFieldNameErrors(errors)
+
+      throw new Error(`GraphQL error: ${enhancedError}`)
     }
 
     return (result as any).data as T
+  }
+
+  /**
+   * Enhance GraphQL errors with field name suggestions for common field mismatch errors.
+   */
+  private async enhanceFieldNameErrors(errors: any[]): Promise<string> {
+    const fieldErrorPattern = /Cannot query field "(\w+)" on type "(\w+)"/
+    const errorMessages: string[] = []
+
+    for (const err of errors) {
+      const message = err.message || JSON.stringify(err)
+      const match = message.match(fieldErrorPattern)
+
+      if (match) {
+        const [, requestedField, entityType] = match
+
+        try {
+          const resolver = new FieldNameResolver(this)
+          const suggestion = await resolver.suggestFieldName(entityType, requestedField)
+
+          if (suggestion.suggestedField) {
+            errorMessages.push(
+              `Cannot query field "${requestedField}" on type "${entityType}". ` +
+                `Did you mean "${suggestion.suggestedField}"? ` +
+                `(Available fields: ${suggestion.allAvailableFields.slice(0, 5).join(', ')}...)`
+            )
+          } else {
+            errorMessages.push(
+              `Cannot query field "${requestedField}" on type "${entityType}". ` +
+                `Available fields: ${suggestion.allAvailableFields.join(', ')}`
+            )
+          }
+        } catch {
+          errorMessages.push(message)
+        }
+      } else {
+        errorMessages.push(message)
+      }
+    }
+
+    return errorMessages.join('; ')
   }
 
   /**

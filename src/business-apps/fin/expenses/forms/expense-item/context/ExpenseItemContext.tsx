@@ -14,7 +14,8 @@ import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
   getStructureCostCenter,
-  expenseRequestByCurrencyQuery
+  expenseRequestByCurrencyQuery,
+  getExpenseRuleCurrencyQuery
 } from '../ExpenseItemQueries'
 import { fetchEmployeeRule } from '../ExpenseItemQueries'
 import {
@@ -199,12 +200,25 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       try {
         let effectiveCurrencyId: string | undefined = form.getFieldValue('currency')
 
-        // If embedded in a wizard or task, prefer the provided itemCurrency
+        // If embedded in a wizard or task (item inside a request), use the provided itemCurrency (request currency)
         if (!effectiveCurrencyId && additionalData?.itemCurrency) {
           effectiveCurrencyId = additionalData.itemCurrency
         }
 
-        // Fall back to default currency for brand new items
+        // Standalone item or request-type expense: prefill with rule currency (separate query so we can use uuid!; only called when we have a rule id)
+        if (!effectiveCurrencyId && typeof employeeRuleId === 'string' && employeeRuleId) {
+          try {
+            const ruleResp = await graphqlClient.query({
+              query: getExpenseRuleCurrencyQuery,
+              variables: { expenseRuleId: employeeRuleId }
+            })
+            effectiveCurrencyId = ruleResp?.data?.ExpenseRuleByPk?.currency?.id
+          } catch {
+            // fall back to default currency
+          }
+        }
+
+        // Fall back to default currency for brand new items when no rule currency or not in request context
         if (!effectiveCurrencyId) {
           effectiveCurrencyId = DEFAULT_CURRENCY_ID
         }
@@ -243,7 +257,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
 
     void hydrateRequestsForInitialCurrency()
-  }, [catalogueDataResponse, accessToken, additionalData, expenseRuleError, isEditMode])
+  }, [catalogueDataResponse, accessToken, additionalData, expenseRuleError, isEditMode, employeeRuleId])
 
   // Avoid refetch loops: track attempted (requestId|currency) hydrations
   const attemptedLabelHydrationsRef = useRef<Set<string>>(new Set())
