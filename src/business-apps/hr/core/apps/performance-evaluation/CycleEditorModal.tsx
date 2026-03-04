@@ -30,6 +30,8 @@ export interface CycleEditorValues {
   name: string
   startDate: string
   endDate: string
+  evaluationPeriodStartDate?: string
+  evaluationPeriodEndDate?: string
   frequency: FrequencyType
   participants: ParticipantType[]
   stages: EvaluationStage[]
@@ -54,6 +56,8 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 // (no-op helper previously used for stages removed)
 import translations from './_i18n'
 import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
+
+type DateInputValue = string | [string | null, string | null] | null
 
 /** Value option for the cycle editor (from API; id, title, recordState). */
 export interface CycleEditorValueOption {
@@ -109,6 +113,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   const [startDate, setStartDate] = useState(initialValues?.startDate || '')
   const [endDate, setEndDate] = useState(initialValues?.endDate || '')
   const [frequency, setFrequency] = useState<FrequencyType>(initialValues?.frequency || 'Annual')
+  const [evalPeriodStart, setEvalPeriodStart] = useState(initialValues?.evaluationPeriodStartDate || '')
+  const [evalPeriodEnd, setEvalPeriodEnd] = useState(initialValues?.evaluationPeriodEndDate || '')
   const [participantsState, setParticipantsState] = useState<Record<ParticipantType, boolean>>(() =>
     defaultParticipantsState(initialValues)
   )
@@ -129,6 +135,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       setName(initialValues.name || '')
       setStartDate(initialValues.startDate || '')
       setEndDate(initialValues.endDate || '')
+      setEvalPeriodStart(initialValues.evaluationPeriodStartDate || '')
+      setEvalPeriodEnd(initialValues.evaluationPeriodEndDate || '')
       setFrequency(initialValues.frequency || 'Annual')
       setParticipantsState(defaultParticipantsState(initialValues))
       setSelectedScaleId(initialValues.ratingScaleId)
@@ -137,6 +145,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       setName('')
       setStartDate('')
       setEndDate('')
+      setEvalPeriodStart('')
+      setEvalPeriodEnd('')
       setFrequency('Custom')
       setParticipantsState(defaultParticipantsState())
       setSelectedScaleId(undefined)
@@ -204,7 +214,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
   const handleSave = async () => {
-    if (!name.trim() || !startDate || !endDate) return
+    if (!name.trim() || !startDate || !endDate || !evalPeriodStart || !evalPeriodEnd) return
     const valueIdsToSave = [...new Set(selectedValueIds)]
     const values: CycleEditorValues = {
       id: initialValues?.id,
@@ -212,6 +222,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       name: name.trim(),
       startDate,
       endDate,
+      evaluationPeriodStartDate: evalPeriodStart,
+      evaluationPeriodEndDate: evalPeriodEnd,
       frequency,
       participants: selectedParticipants,
       stages: initialStages,
@@ -259,6 +271,13 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     }
   }
 
+  const formatRatingScaleOptionLabel = (scale: CycleEditorRatingScaleOption): string => {
+    const full = `${scale.name} (${scale.values.join(', ')})`
+    const maxLen = PERFORMANCE_VALIDATION.RATING_SCALE_OPTION_LABEL_MAX_LENGTH
+    if (full.length <= maxLen) return full
+    return `${full.slice(0, maxLen - 3)}...`
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="performance-cycle-editor-modal" onInteractOutside={e => e.preventDefault()}>
@@ -284,7 +303,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={startDate}
-                onChange={(value: string | [string | null, string | null] | null) => {
+                onChange={(value: DateInputValue) => {
                   onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   const parsed = parseStartDate(raw)
@@ -315,7 +334,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={endDate}
-                onChange={(value: string | [string | null, string | null] | null) => {
+                onChange={(value: DateInputValue) => {
                   onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEndDate(raw)
@@ -333,6 +352,37 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
             </p>
           )}
 
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            <div className="gba:space-y-2">
+              <Label>{t('field-evaluation-period-start')} *</Label>
+              <DateInput
+                type="date"
+                value={evalPeriodStart}
+                onChange={(value: DateInputValue) => {
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  setEvalPeriodStart(raw)
+                }}
+                outputFormat="iso"
+                captionLayout="dropdown"
+                data-testid="performance-cycle-evaluation-period-start"
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label>{t('field-evaluation-period-end')} *</Label>
+              <DateInput
+                type="date"
+                value={evalPeriodEnd}
+                onChange={(value: DateInputValue) => {
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  setEvalPeriodEnd(raw)
+                }}
+                outputFormat="iso"
+                captionLayout="dropdown"
+                data-testid="performance-cycle-evaluation-period-end"
+              />
+            </div>
+          </div>
+
           <Separator />
 
           <div className="gba:space-y-2">
@@ -340,7 +390,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
             <Combobox
               value={selectedScaleId}
               onValueChange={v => setSelectedScaleId((v as string) || undefined)}
-              options={availableScales.map(s => ({ label: `${s.name} (${s.values.join(', ')})`, value: s.id }))}
+              options={availableScales.map(s => ({ label: formatRatingScaleOptionLabel(s), value: s.id }))}
               placeholder={availableScales.length ? t('placeholder-select-scale') : t('placeholder-no-scales')}
             />
           </div>
@@ -403,6 +453,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 !name.trim() ||
                 !startDate ||
                 !endDate ||
+                !evalPeriodStart ||
+                !evalPeriodEnd ||
                 !selectedScaleId ||
                 selectedParticipants.length === 0 ||
                 isSaving

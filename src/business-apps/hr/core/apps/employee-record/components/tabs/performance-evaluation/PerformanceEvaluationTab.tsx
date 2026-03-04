@@ -3,18 +3,23 @@
 import React, { useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import {
-  Badge,
-  Button,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   EmptyState,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { useEmployeePerformanceEvaluations } from './hooks/useEmployeePerformanceEvaluations'
+import { usePerformanceEvaluationDetail } from './hooks/usePerformanceEvaluationDetail'
+import { usePerformanceCycleGoalsSummary } from './hooks/usePerformanceCycleGoalsSummary'
+import PerformanceEvaluationDetailView from './components/PerformanceEvaluationDetailView'
+import { findLatestEvaluationIdByCycleId, findLatestPerformanceCycleId } from './utils/performanceEvaluationMappers'
 import translations from '../../../_i18n'
 
 interface PerformanceEvaluationTabProps {
@@ -29,37 +34,50 @@ const formatDisplayDate = (value: string | null) => {
   return parsed.isValid() ? parsed.format('MMM D, YYYY') : '-'
 }
 
-const getStatusBadgeVariant = (statusCode: string): 'default' | 'success' | 'warning' | 'destructive' | 'info' => {
-  if (statusCode === 'COMPLETED') return 'success'
-  if (statusCode === 'IN_PROGRESS') return 'warning'
-  if (statusCode === 'CANCELLED') return 'destructive'
-  return 'default'
-}
-
 const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ employee, accessToken, employeeId }) => {
   const { t } = useTranslation(translations)
-  const [selectedEvaluationId, setSelectedEvaluationId] = useState<string | null>(null)
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
 
   const effectiveEmployeeId = employeeId || employee.id
   const { data, loading, error } = useEmployeePerformanceEvaluations({
     accessToken,
     employeeId: effectiveEmployeeId
   })
+  const detailQuery = useMemo(
+    () => ({
+      employeeId: effectiveEmployeeId,
+      includePeerReviewerIdentity: true
+    }),
+    [effectiveEmployeeId]
+  )
+  const latestCycleId = findLatestPerformanceCycleId(data)
+  const hasSelectedCycle =
+    selectedCycleId !== null && data?.performanceCycles.some(cycle => cycle.performanceCycleId === selectedCycleId)
+  const activeCycleId = hasSelectedCycle ? selectedCycleId : latestCycleId
+  const activeCycle = useMemo(
+    () => data?.performanceCycles.find(cycle => cycle.performanceCycleId === activeCycleId),
+    [data?.performanceCycles, activeCycleId]
+  )
+  const activeEvaluationId = findLatestEvaluationIdByCycleId(data, activeCycleId)
 
-  const summary = useMemo(() => {
-    const cycles = data?.performanceCycles ?? []
-    const totalCycles = cycles.length
-    const totalEvaluations = cycles.reduce((acc, cycle) => acc + cycle.totalEvaluations, 0)
-    const totalCompleted = cycles.reduce((acc, cycle) => acc + cycle.completedEvaluations, 0)
-    const totalInProgress = cycles.reduce((acc, cycle) => acc + cycle.inProgressEvaluations, 0)
-
-    return {
-      totalCycles,
-      totalEvaluations,
-      totalCompleted,
-      totalInProgress
-    }
-  }, [data])
+  const {
+    data: detailData,
+    loading: detailLoading,
+    error: detailError
+  } = usePerformanceEvaluationDetail({
+    accessToken,
+    evaluationId: activeEvaluationId,
+    query: detailQuery
+  })
+  const {
+    summary: cycleGoalsSummary,
+    loading: cycleGoalsSummaryLoading,
+    error: cycleGoalsSummaryError
+  } = usePerformanceCycleGoalsSummary({
+    accessToken,
+    employeeId: effectiveEmployeeId,
+    activeCycle
+  })
 
   if (loading) {
     return (
@@ -94,116 +112,58 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
 
   return (
     <div className="gba:space-y-6" data-testid="employee-performance-evaluation-container">
-      <div data-testid="employee-performance-evaluation-header">
-        <h2 className="gba:text-2xl gba:font-semibold">{t('performance-evaluation-title')}</h2>
-        <p className="gba:text-muted-foreground gba:text-sm">{t('performance-evaluation-description')}</p>
-      </div>
-
       <div
-        className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3"
-        data-testid="employee-performance-evaluation-summary"
+        className="gba:flex gba:justify-between gba:items-start gba:gap-4"
+        data-testid="employee-performance-evaluation-header"
       >
-        <Card>
-          <CardContent className="gba:p-4">
-            <p className="gba:text-xs gba:text-muted-foreground">{t('performance-evaluation-kpi-cycles')}</p>
-            <p className="gba:text-xl gba:font-semibold">{summary.totalCycles}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:p-4">
-            <p className="gba:text-xs gba:text-muted-foreground">{t('performance-evaluation-kpi-evaluations')}</p>
-            <p className="gba:text-xl gba:font-semibold">{summary.totalEvaluations}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:p-4">
-            <p className="gba:text-xs gba:text-muted-foreground">{t('performance-evaluation-kpi-in-progress')}</p>
-            <p className="gba:text-xl gba:font-semibold">{summary.totalInProgress}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:p-4">
-            <p className="gba:text-xs gba:text-muted-foreground">{t('performance-evaluation-kpi-completed')}</p>
-            <p className="gba:text-xl gba:font-semibold">{summary.totalCompleted}</p>
-          </CardContent>
-        </Card>
-      </div>
+        <div>
+          <h2 className="gba:text-2xl gba:font-semibold">{t('performance-evaluation-title')}</h2>
+          <p className="gba:text-muted-foreground gba:text-sm">{t('performance-evaluation-description')}</p>
+        </div>
 
-      <div className="gba:space-y-4" data-testid="employee-performance-evaluation-cycles">
-        {data.performanceCycles.map(cycle => (
-          <Card
-            key={cycle.performanceCycleId}
-            data-testid={`employee-performance-evaluation-cycle-${cycle.performanceCycleId}`}
+        <div className="gba:w-full gba:max-w-[360px] gba:space-y-1">
+          <p className="gba:text-sm gba:font-medium">{t('performance-evaluation-selector-label')}</p>
+          <Select
+            value={activeCycleId ?? ''}
+            onValueChange={value => {
+              setSelectedCycleId(value)
+            }}
           >
-            <CardHeader>
-              <div className="gba:flex gba:justify-between gba:items-start gba:gap-4">
-                <div>
-                  <CardTitle>{cycle.performanceCycleName}</CardTitle>
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    {formatDisplayDate(cycle.performanceCycleStartDate)} -{' '}
-                    {formatDisplayDate(cycle.performanceCycleEndDate)}
-                  </p>
-                </div>
-                <div className="gba:text-right gba:text-sm">
-                  <p className="gba:text-muted-foreground">{t('performance-evaluation-cycle-total')}</p>
-                  <p className="gba:font-semibold">{cycle.totalEvaluations}</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="gba:space-y-3">
-              {cycle.evaluations.map(evaluation => (
-                <div
-                  key={evaluation.evaluationId}
-                  className="gba:border gba:rounded-md gba:p-3 gba:space-y-2"
-                  data-testid={`employee-performance-evaluation-item-${evaluation.evaluationId}`}
+            <SelectTrigger data-testid="employee-performance-evaluation-selector-trigger" className="gba:w-full">
+              <SelectValue placeholder={t('performance-evaluation-selector-placeholder')} />
+            </SelectTrigger>
+            <SelectContent data-testid="employee-performance-evaluation-selector-content">
+              {data.performanceCycles.map(cycle => (
+                <SelectItem
+                  key={cycle.performanceCycleId}
+                  value={cycle.performanceCycleId}
+                  data-testid={`employee-performance-evaluation-selector-option-${cycle.performanceCycleId}`}
                 >
-                  <div className="gba:flex gba:justify-between gba:items-center gba:gap-3">
-                    <Badge variant={getStatusBadgeVariant(evaluation.statusCode)}>
-                      {t(`performance-evaluation-status-${evaluation.statusCode.toLowerCase()}`)}
-                    </Badge>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      data-testid={`employee-performance-evaluation-view-details-${evaluation.evaluationId}`}
-                      onClick={() => setSelectedEvaluationId(evaluation.evaluationId)}
-                    >
-                      {t('performance-evaluation-view-details')}
-                    </Button>
-                  </div>
-                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-4 gba:gap-2 gba:text-sm">
-                    <div>
-                      <p className="gba:text-muted-foreground">{t('performance-evaluation-start-date')}</p>
-                      <p>{formatDisplayDate(evaluation.startDate)}</p>
-                    </div>
-                    <div>
-                      <p className="gba:text-muted-foreground">{t('performance-evaluation-target-completion-date')}</p>
-                      <p>{formatDisplayDate(evaluation.targetCompletionDate)}</p>
-                    </div>
-                    <div>
-                      <p className="gba:text-muted-foreground">{t('performance-evaluation-actual-completion-date')}</p>
-                      <p>{formatDisplayDate(evaluation.actualCompletionDate)}</p>
-                    </div>
-                    <div>
-                      <p className="gba:text-muted-foreground">{t('performance-evaluation-overall-rating')}</p>
-                      <p>{evaluation.overallRatingLabel || '-'}</p>
-                    </div>
-                  </div>
-                </div>
+                  {cycle.performanceCycleName} (
+                  {formatDisplayDate(cycle.evaluationPeriodStartDate ?? cycle.performanceCycleStartDate)} -{' '}
+                  {formatDisplayDate(cycle.evaluationPeriodEndDate ?? cycle.performanceCycleEndDate)})
+                </SelectItem>
               ))}
-            </CardContent>
-          </Card>
-        ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {selectedEvaluationId && (
-        <Card data-testid="employee-performance-evaluation-phase2-placeholder">
-          <CardContent className="gba:py-4">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {t('performance-evaluation-detail-placeholder', { evaluationId: selectedEvaluationId })}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <PerformanceEvaluationDetailView
+        evaluationId={activeEvaluationId || ''}
+        loading={detailLoading}
+        error={detailError}
+        data={detailData}
+        cycleGoalsSummary={cycleGoalsSummary}
+        cycleGoalsSummaryLoading={cycleGoalsSummaryLoading}
+        cycleGoalsSummaryError={cycleGoalsSummaryError}
+        currentEmployee={{
+          displayName: employee.displayName,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          pictureThumbnail: employee.pictureThumbnail
+        }}
+      />
     </div>
   )
 }

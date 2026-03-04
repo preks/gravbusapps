@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
-import { PiGraduationCap, PiChartBar, PiChatCircle } from 'react-icons/pi'
+import { GraduationCapIcon, ChartBarIcon, ChatCircleIcon } from '@phosphor-icons/react'
 import SkillsTab from './SkillsTab'
 import PerformanceTab from './PerformanceTab'
 import FeedbackTab from './FeedbackTab'
+import PerformanceEvaluationTab from './performance-evaluation/PerformanceEvaluationTab'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
@@ -22,7 +23,7 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   feedback?: EmployeeFeedback[]
 }
 
-const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance'] as const
+const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance', 'performanceEvaluation'] as const
 type HrGrowthSubView = (typeof HR_GROWTH_SUBVIEW_VALUES)[number]
 
 const getInitialHrGrowthSubView = (): HrGrowthSubView => {
@@ -102,7 +103,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    if (!devFeatureFlag && activeSubView === 'feedback') {
+    if (!devFeatureFlag && (activeSubView === 'feedback' || activeSubView === 'performanceEvaluation')) {
       const newSubView = 'skills'
       setActiveSubView(newSubView)
       updateUrl(newSubView)
@@ -160,14 +161,14 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         <TabsList className="gba:mb-4 gba:w-full" data-testid="hr-growth-tabs-list">
           <TabsTrigger value="skills" data-testid="hr-growth-skills-subtab" className="gba:flex-1">
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-              <PiGraduationCap />
+              <GraduationCapIcon />
               <span>{t('hr-growth-skills')}</span>
             </div>
           </TabsTrigger>
           {devFeatureFlag && (
             <TabsTrigger value="feedback" data-testid="hr-growth-feedback-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiChatCircle />
+                <ChatCircleIcon />
                 <span>{t('hr-growth-feedback')}</span>
               </div>
             </TabsTrigger>
@@ -183,8 +184,20 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               disabled={permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading}
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiChartBar />
+                <ChartBarIcon />
                 <span>{t('hr-growth-performance')}</span>
+              </div>
+            </TabsTrigger>
+          )}
+          {devFeatureFlag && (
+            <TabsTrigger
+              value="performanceEvaluation"
+              data-testid="hr-growth-performance-evaluation-subtab"
+              className="gba:flex-1"
+            >
+              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                <ChartBarIcon />
+                <span>{t('employee-record-tab-performance-evaluation')}</span>
               </div>
             </TabsTrigger>
           )}
@@ -220,6 +233,16 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               userInfo={userInfo}
               employeePerformanceGoals={employeePerformanceGoals}
             />
+          </TabsContent>
+        )}
+
+        {devFeatureFlag && (
+          <TabsContent
+            value="performanceEvaluation"
+            data-testid="hr-growth-performance-evaluation-content"
+            className="gba:mt-4"
+          >
+            <PerformanceEvaluationTab employee={employee} accessToken={accessToken} employeeId={employeeId} />
           </TabsContent>
         )}
       </Tabs>

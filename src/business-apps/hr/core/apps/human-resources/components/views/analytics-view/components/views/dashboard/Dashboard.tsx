@@ -194,7 +194,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
       description: t('hr-analytics-employees-per-year-description'),
       tableData: transformEmployeesPerYearData(),
       exportColumns: [
-        { key: 'period', header: t('hr-analytics-period') },
+        { key: 'period', header: t('hr-analytics-year') },
         { key: 'value', header: t('hr-analytics-value') },
         { key: 'change', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
       ]
@@ -206,7 +206,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
       description: t('hr-analytics-hires-per-year-description'),
       tableData: transformHiresPerYearData(),
       exportColumns: [
-        { key: 'period', header: t('hr-analytics-period') },
+        { key: 'period', header: t('hr-analytics-year') },
         { key: 'value', header: t('hr-analytics-value') },
         { key: 'change', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
       ]

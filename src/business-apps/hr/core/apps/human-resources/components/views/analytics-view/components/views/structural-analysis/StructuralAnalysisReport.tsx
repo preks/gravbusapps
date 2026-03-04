@@ -19,7 +19,7 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { ChartPieIcon, ChartBarIcon, BuildingsIcon, UsersIcon } from '@phosphor-icons/react'
-import { PiArrowClockwise } from 'react-icons/pi'
+import { ArrowClockwiseIcon } from '@phosphor-icons/react'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../utils/exportUtils'
 import AnalyticsDataTable from '../../shared/AnalyticsDataTable'
@@ -120,7 +120,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
                 <p className="gba:text-destructive-secondary">{error}</p>
               </div>
               <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-                <PiArrowClockwise />
+                <ArrowClockwiseIcon />
                 {t('common-retry')}
               </Button>
             </div>
@@ -259,13 +259,11 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       title: t('hr-analytics-span-of-control'),
       testId: 'span-control',
       rows: data.spanOfControlData.map(item => ({
-        manager: item.managerName,
         unit: item.organizationalUnit,
         reports: item.directReports,
         efficiency: item.efficiency
       })),
       columns: [
-        { key: 'manager', header: t('hr-analytics-top-manager') },
         { key: 'unit', header: t('hr-analytics-entity-organizational-unit') },
         { key: 'reports', header: t('hr-analytics-value') },
         { key: 'efficiency', header: t('hr-analytics-status') }
@@ -280,7 +278,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         { key: 'unit', header: t('hr-analytics-entity-organizational-unit') },
         { key: 'value', header: t('hr-analytics-value') },
         { key: 'level', header: t('hr-analytics-level') },
-        { key: 'parent', header: t('hr-analytics-top-manager') }
+        { key: 'parent', header: t('hr-analytics-parent-organizational-unit') }
       ]
     }
   } else if (activeTab === 'reporting-chains') {
@@ -332,7 +330,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
           </h2>
         </div>
         <Button onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-          <PiArrowClockwise />
+          <ArrowClockwiseIcon />
           {t('common-refresh-data')}
         </Button>
       </div>

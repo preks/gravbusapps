@@ -16,6 +16,8 @@ export interface RatingScaleValuePayload {
 export interface SaveRatingScalePayload {
   changeMode: 'INSERT' | 'UPDATE' | 'DELETE'
   ratingScale: {
+    id?: string
+    version?: number
     name: string
     description?: string
     scaleType?: string

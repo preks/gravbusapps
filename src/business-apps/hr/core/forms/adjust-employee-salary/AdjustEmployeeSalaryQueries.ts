@@ -163,3 +163,27 @@ export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAcco
   }
 }
 `
+
+export const EXISTING_SALARY_ADJUSTMENT_FOR_MONTH_QUERY = `query existingSalaryAdjustmentForMonth($idEmployee: uuid!, $monthStart: date!, $monthEnd: date!) {
+  EmployeeSalary(
+    where: {
+      _and: [
+        { employeeId: { _eq: $idEmployee } }
+        { isDeleted: { _eq: false } }
+        {
+          _or: [
+            { requestStatus: { _neq: "REJECTED_SALARY_ADJUSTMENT" } }
+            { requestStatus: { _isNull: true } }
+          ]
+        }
+        { startDate: { _gte: $monthStart, _lte: $monthEnd } }
+      ]
+    }
+    orderBy: [{ startDate: ASC }]
+    limit: 1
+  ) {
+    id
+    startDate
+  }
+}
+`

@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
 import { GaugeIcon, MoneyIcon, HandCoinsIcon, WalletIcon } from '@phosphor-icons/react'
-import { PiChartBar } from 'react-icons/pi'
+import { ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -60,7 +60,7 @@ const BackofficeExpenses: React.FC<BusinessAppContextProps> = props => {
     },
     {
       key: 'plan-vs-request',
-      icon: <PiChartBar className="gba:w-5 gba:h-5" />,
+      icon: <ChartBarIcon className="gba:w-5 gba:h-5" />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
         'Plan vs Request'

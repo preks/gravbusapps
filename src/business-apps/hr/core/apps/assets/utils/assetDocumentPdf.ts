@@ -3,7 +3,7 @@
  * Uses PDFKit + triggerDownload — no popup, no templates.
  */
 
-import { Asset, AssetAllocation } from '../types'
+import { Asset, AssetAllocation, AssetStatus } from '../types'
 import { buildFilename, triggerDownload } from '@/common/utils/excelExportUtils'
 import { formatDate, formatNumberFunction, getCatalogValue } from '@/common/utils/windowUtils'
 import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
@@ -13,6 +13,7 @@ const LABELS = {
   assetsReport: 'Assets Report',
   assetInformation: 'Asset Information',
   serialNumber: 'Serial Number',
+  status: 'Status',
   location: 'Location',
   inventoryValue: 'Inventory Value',
   acquisitionDate: 'Acquisition Date',
@@ -48,6 +49,21 @@ function employeeDisplayName(alloc: AssetAllocation, notAvailable: string): stri
   if (e?.displayName) return e.displayName
   if (e?.firstName || e?.lastName) return `${e?.firstName ?? ''} ${e?.lastName ?? ''}`.trim()
   return notAvailable
+}
+
+function statusDisplayName(status: AssetStatus): string {
+  switch (status) {
+    case AssetStatus.AVAILABLE:
+      return 'Available'
+    case AssetStatus.ALLOCATED:
+      return 'Allocated'
+    case AssetStatus.UNDER_REPAIR:
+      return 'In Repair'
+    case AssetStatus.RETIRED:
+      return 'Retired'
+    default:
+      return 'N/A'
+  }
 }
 
 const ROW_PADDING = 4
@@ -148,12 +164,15 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
   y += 18
   doc.fontSize(10).font('Helvetica')
   const serial = asset.serialNumber ?? labels.notAvailable
+  const statusStr = statusDisplayName(asset.assetStatus)
   const location = asset.siteLocation?.name ?? labels.notAvailable
   const value = formatCurrency(asset.inventoryValue, asset.currency?.code)
   const acquisition = asset.acquisitionDate
     ? formatDate(asset.acquisitionDate) || asset.acquisitionDate
     : labels.notAvailable
   doc.text(`${labels.serialNumber}: ${serial}`, margin, y, { width: pageWidth })
+  y += 14
+  doc.text(`${labels.status}: ${statusStr}`, margin, y, { width: pageWidth })
   y += 14
   doc.text(`${labels.location}: ${location}`, margin, y, { width: pageWidth })
   y += 14

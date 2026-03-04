@@ -3,4 +3,5 @@
  *
  * This entry renders the Chat experience without the ChatWithCalendar tabs wrapper.
  */
-export { Chat as default, Chat } from '../chat/Chat'
+export { ChatPure as default, ChatPure } from './ChatPure'
+export { Chat } from '../chat/Chat'

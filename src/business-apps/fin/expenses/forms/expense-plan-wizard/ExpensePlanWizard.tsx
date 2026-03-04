@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Typography, Input } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
+import { Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -56,6 +57,8 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false)
   const [itemsCount, setItemsCount] = useState<number>(0)
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0)
+  const [isNextLoading, setIsNextLoading] = useState<boolean>(false)
+  const previousScreenRef = React.useRef<string>(currentScreen)
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP)
   // Update title and titleValue when expensePlanData changes
   useEffect(() => {
@@ -197,6 +200,21 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
       hasInitializedRef.current = true
     }
   }, [loading, expensePlanData])
+
+  // Clear next-button loading when screen actually changes (data loaded and navigated)
+  useEffect(() => {
+    if (previousScreenRef.current !== currentScreen && isNextLoading) {
+      setIsNextLoading(false)
+    }
+    previousScreenRef.current = currentScreen
+  }, [currentScreen, isNextLoading])
+
+  // Safety: clear next loading after 30s in case the action fails and screen never changes
+  useEffect(() => {
+    if (!isNextLoading) return
+    const timeoutId = globalThis.setTimeout(() => setIsNextLoading(false), 30000)
+    return () => globalThis.clearTimeout(timeoutId)
+  }, [isNextLoading])
 
   // Listen for process events (Next/Back button clicks) to navigate
   useEffect(() => {
@@ -714,12 +732,21 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                   }}
                   data-testid="expense-plan-wizard-next-button"
                   disabled={
+                    isNextLoading ||
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
                     (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && false) // TODO: Add validation logic
                   }
                   onClick={() => {
+                    const isNextScreen =
+                      currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB ||
+                      currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB ||
+                      currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB
+                    const isSubmitScreen = currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
+                    if (isNextScreen || isSubmitScreen) {
+                      setIsNextLoading(true)
+                    }
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const nextEvent = new CustomEvent('expense-plan-next-trip')
                       document.dispatchEvent(nextEvent)
@@ -737,9 +764,28 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     }
                   }}
                 >
-                  {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
-                    ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
-                    : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
+                  {(() => {
+                    if (isNextLoading) {
+                      const submitLabel = getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:modify_expense_request.btn_submit',
+                        'Submit'
+                      )
+                      const nextLabel = getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:add_items_to_plan.submit_button',
+                        'Next'
+                      )
+                      return (
+                        <span className="gba:inline-flex gba:items-center gba:gap-2">
+                          <Spinner size="sm" />
+                          {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB ? submitLabel : nextLabel}
+                        </span>
+                      )
+                    }
+                    if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
+                      return getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
+                    }
+                    return getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
+                  })()}
                 </Button>
               </div>
             </>

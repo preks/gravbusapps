@@ -26,6 +26,8 @@
 
 @import '@newwork/nw-design-system/index.css';
 
+@import '@xyflow/react/dist/style.css';
+
 @import '@fortune-sheet/react/dist/index.css';
 
 @import 'react-quill/dist/quill.snow.css';

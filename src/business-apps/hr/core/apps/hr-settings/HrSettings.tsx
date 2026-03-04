@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Typography } from 'antd'
 import { RiSearchLine } from '@remixicon/react'
-import { PiUsersThreeDuotone } from 'react-icons/pi'
+import { UsersThreeIcon } from '@phosphor-icons/react'
 import { HrSettingsCard, HrSettingsCardProps } from './components/HrSettingsCard'
 import { useHrSettingsCards } from './hooks/useHrSettingsCards'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
@@ -41,7 +41,7 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
 
   return (
     <PageLayout
-      headerIcon={<PiUsersThreeDuotone color="var(--nw-decorative)" />}
+      headerIcon={<UsersThreeIcon weight="duotone" color="var(--nw-decorative)" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
       className={`${className ?? ''} gba:!overflow-y-visible`}
       pageHeaderRight={

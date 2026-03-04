@@ -1,6 +1,5 @@
 import React from 'react'
-import { PiWallet, PiCalendarCheck, PiUserCircle, PiBuildings, PiBriefcase, PiChartLine, PiGear } from 'react-icons/pi'
-
+import { WalletIcon, CalendarCheckIcon, UserCircleIcon, BuildingsIcon, BriefcaseIcon, ChartLineIcon, GearIcon } from '@phosphor-icons/react'
 export type ModuleType = 'expenses' | 'absence' | 'hr' | 'crm' | 'finance' | 'admin' | 'platform' | 'unknown'
 
 export interface ModuleInfo {
@@ -11,42 +10,42 @@ export interface ModuleInfo {
 
 export const MODULE_ICONS: Record<ModuleType, ModuleInfo> = {
   expenses: {
-    icon: PiWallet,
+    icon: WalletIcon,
     name: 'Expenses+',
     color: 'gba:text-info' // Blue for all icons
   },
   absence: {
-    icon: PiCalendarCheck,
+    icon: CalendarCheckIcon,
     name: 'Time Off',
     color: 'gba:text-info' // Blue for all icons
   },
   hr: {
-    icon: PiUserCircle,
+    icon: UserCircleIcon,
     name: 'HR+',
     color: 'gba:text-info' // Blue for all icons
   },
   crm: {
-    icon: PiBriefcase,
+    icon: BriefcaseIcon,
     name: 'CRM',
     color: 'gba:text-info' // Blue for all icons
   },
   finance: {
-    icon: PiChartLine,
+    icon: ChartLineIcon,
     name: 'Finance',
     color: 'gba:text-info' // Blue for all icons
   },
   admin: {
-    icon: PiGear,
+    icon: GearIcon,
     name: 'Admin',
     color: 'gba:text-info' // Blue for all icons
   },
   platform: {
-    icon: PiBuildings,
+    icon: BuildingsIcon,
     name: 'Platform',
     color: 'gba:text-info' // Blue for all icons
   },
   unknown: {
-    icon: PiBriefcase,
+    icon: BriefcaseIcon,
     name: 'Task',
     color: 'gba:text-info' // Blue for all icons
   }

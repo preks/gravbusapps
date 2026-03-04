@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { PiBriefcase, PiUser, PiBuilding, PiTag, PiCalendar } from 'react-icons/pi'
+import { BriefcaseIcon, UserIcon, BuildingIcon, TagIcon, CalendarIcon } from '@phosphor-icons/react'
 import { JobPosition } from '../hooks/useJobPositionListData'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -102,7 +102,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
       {/* Header */}
       <div className="gba:border-b gba:border-border gba:pb-4">
         <div className="gba:flex gba:items-center gba:gap-3 gba:pr-30">
-          <PiBriefcase className="gba:text-primary gba:text-xl" />
+          <BriefcaseIcon className="gba:text-primary gba:text-xl" />
           <div className="gba:flex-1 gba:min-w-0">
             <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:whitespace-normal gba:break-words">
               {jobPosition.name}
@@ -151,7 +151,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
         <div className="gba:space-y-3">
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiTag className="gba:text-muted-foreground gba:mt-1" />
+            <TagIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -170,7 +170,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
           </div>
 
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiTag className="gba:text-muted-foreground gba:mt-1" />
+            <TagIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -185,7 +185,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
           </div>
 
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiTag className="gba:text-muted-foreground gba:mt-1" />
+            <TagIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -204,7 +204,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
           </div>
 
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiTag className="gba:text-muted-foreground gba:mt-1" />
+            <TagIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -231,7 +231,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
         <div className="gba:space-y-3">
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiCalendar className="gba:text-muted-foreground gba:mt-1" />
+            <CalendarIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -244,7 +244,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
           </div>
 
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiCalendar className="gba:text-muted-foreground gba:mt-1" />
+            <CalendarIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -269,7 +269,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
         <div className="gba:space-y-3">
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiBuilding className="gba:text-muted-foreground gba:mt-1" />
+            <BuildingIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -283,7 +283,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
           {/* Manager under Organizational Information */}
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiUser className="gba:text-muted-foreground gba:mt-1" />
+            <UserIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
@@ -318,7 +318,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
         <div className="gba:space-y-3">
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiUser className="gba:text-muted-foreground gba:mt-1" />
+            <UserIcon className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(

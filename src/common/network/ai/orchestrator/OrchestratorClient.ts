@@ -66,6 +66,11 @@ function normalizeProgressEvent(raw: Record<string, unknown>): BuildProgressEven
  * Handles both simple string errors and complex validation error structures
  */
 function parseErrorResponse(errorData: any, fallbackMessage: string): string {
+  // Check for top-level message first (NestJS standard error format)
+  if (errorData?.message && typeof errorData.message === 'string') {
+    return errorData.message
+  }
+
   if (!errorData?.detail) {
     return fallbackMessage
   }

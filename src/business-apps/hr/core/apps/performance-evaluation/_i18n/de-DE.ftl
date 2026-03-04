@@ -19,6 +19,7 @@ table-type = Typ
 table-scale = Skala
 table-participants = Teilnehmer
 table-status = Status
+table-evaluation-period = Bewertungszeitraum
 table-actions = Aktionen
 empty-no-cycles = Noch keine Zyklen erstellt.
 empty-no-values = Noch keine Werte definiert.
@@ -33,6 +34,8 @@ field-end-date = Enddatum
 field-frequency = Häufigkeit/Typ
 field-rating-scale = Bewertungsskala
 label-evaluation-participants = Bewertungsteilnehmer
+field-evaluation-period-start = Bewertungszeitraum Beginn
+field-evaluation-period-end = Bewertungszeitraum Ende
 field-values = Werte
 field-title = Titel
 field-description = Beschreibung
@@ -41,8 +44,8 @@ field-active = Aktiv
 placeholder-name = z. B. 2026 jährliche Leistungsbewertung
 placeholder-select-frequency = Häufigkeit wählen
 placeholder-select-scale = Bewertungsskala wählen
-placeholder-no-scales = Keine Skalen. Im Tab „Bewertungsskalen“ hinzufügen.
-placeholder-no-values = Keine Werte. Im Tab „Werte“ hinzufügen.
+placeholder-no-scales = Keine Skalen. Im Tab „Bewertungsskalen" hinzufügen.
+placeholder-no-values = Keine Werte. Im Tab „Werte" hinzufügen.
 
 # Bewertungsskala-Modal
 scale-title-add = Bewertungsskala hinzufügen
@@ -96,13 +99,16 @@ values-modal-title-add = Wert hinzufügen
 values-modal-title-edit = Wert bearbeiten
 values-modal-description = Firmenwert und Beschreibung definieren.
 
-# Bestätigungsdialog „Zyklus starten“
+# Bestätigungsdialog „Zyklus starten"
 start-confirm-title = Leistungsbeurteilung starten
-start-confirm-description-with-cycle = Möchten Sie die Leistungsbeurteilung für „{ $name }“ wirklich starten? Damit wird der Bewertungsablauf eingeleitet.
+start-confirm-description-with-cycle = Möchten Sie die Leistungsbeurteilung für „{ $name }" wirklich starten? Damit wird der Bewertungsablauf eingeleitet.
 start-confirm-description-generic = Möchten Sie diese Leistungsbeurteilung wirklich starten?
 start-confirm-run-for-label = Bewertung starten für
-start-confirm-run-for-self = Mich
+start-confirm-run-for-employee = Mitarbeiter
 start-confirm-run-for-team = Team
+start-confirm-select-employee = Mitarbeiter auswählen *
+start-confirm-placeholder-employee = Mitarbeiter für die Bewertung auswählen...
+start-confirm-placeholder-loading-employees = Mitarbeiter werden geladen...
 start-confirm-select-teams = Teams auswählen *
 start-confirm-placeholder-loading = Teams werden geladen...
 start-confirm-placeholder-teams = Teams für die Bewertung auswählen
@@ -116,4 +122,3 @@ cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Er
 cycles-error-no-company-values = Mindestens ein Unternehmenswert wird für das Erstellen eines Zyklus benötigt.
 cycles-error-dates-overlap = Die Zyklusdaten dürfen sich nicht mit einem bestehenden Zyklus überschneiden. Bitte wählen Sie ein Startdatum nach dem Ende bestehender Zyklen.
 error-activate-out-of-period = Zyklus kann nicht aktiviert werden. Das heutige Datum liegt außerhalb des Zykluszeitraums.
-

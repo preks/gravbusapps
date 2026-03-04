@@ -7,19 +7,21 @@ import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
-  PiCaretRight,
-  PiChat,
-  PiPhone,
-  PiVideoCamera,
-  PiUser,
-  PiBuildings,
-  PiMapPin,
-  PiCalendar,
-  PiCurrencyDollar,
-  PiEnvelopeSimple
-} from 'react-icons/pi'
+  CaretRightIcon,
+  ChatIcon,
+  PhoneIcon,
+  VideoCameraIcon,
+  UserIcon,
+  BuildingsIcon,
+  MapPinIcon,
+  CalendarIcon,
+  CurrencyDollarIcon,
+  EnvelopeSimpleIcon
+} from '@phosphor-icons/react'
 import { useEmployeeDetailsData } from './hooks/useEmployeeDetailsData'
 import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import {
   useTranslation,
   Button,
@@ -244,9 +246,9 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
   onCall,
   onVideoCall
 }) => {
-  const ChatIcon = PiChat
-  const CallIcon = PiPhone
-  const VideoCallIcon = PiVideoCamera
+  const teamChatEnabled = useFeature<boolean>(Feature.Core.TeamChat.Key)
+  const CallIcon = PhoneIcon
+  const VideoCallIcon = VideoCameraIcon
 
   return (
     <div className="gba:bg-white gba:h-full gba:overflow-auto">
@@ -292,7 +294,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
                 </div>
               </div>
               <div>
-                <PiCaretRight className="gba:mt-1" width={20} height={20} fill="var(--nw-foreground)" />
+                <CaretRightIcon className="gba:mt-1" width={20} height={20} fill="var(--nw-foreground)" />
               </div>
             </a>
             <p className="gba:text-muted-foreground gba:text-sm gba:text-center gba:mb-3">
@@ -300,16 +302,18 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
             </p>
 
             <div className="gba:flex gba:gap-2">
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={onChat}
-                className="gba:rounded-3xl gba:aspect-square gba:p-2"
-                data-testid="employee-details-chat-button"
-                disabled={!userId}
-              >
-                <ChatIcon />
-              </Button>
+              {teamChatEnabled && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={onChat}
+                  className="gba:rounded-3xl gba:aspect-square gba:p-2"
+                  data-testid="employee-details-chat-button"
+                  disabled={!userId}
+                >
+                  <ChatIcon />
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 size="lg"
@@ -344,12 +348,12 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
                     href={`mailto:${businessEmail}`}
                     className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
                   >
-                    <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
+                    <EnvelopeSimpleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                     {businessEmail}
                   </a>
                 ) : (
                   <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
-                    <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
+                    <EnvelopeSimpleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                     {t('employee-details-no-email')}
                   </div>
                 )}
@@ -359,12 +363,12 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
                     href={`tel:${businessPhone}`}
                     className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
                   >
-                    <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
+                    <PhoneIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                     {formatPhoneNumber(businessPhone)}
                   </a>
                 ) : (
                   <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
-                    <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
+                    <PhoneIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                     {t('employee-details-no-phone')}
                   </div>
                 )}
@@ -377,7 +381,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
 
             <div className="gba:space-y-1">
               <ProfileInfoItem
-                icon={<PiBuildings className="gba:h-4 gba:w-4" />}
+                icon={<BuildingsIcon className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-organization')}
                 value={employeeData.employeePosition?.organizationalUnit?.name || t('employee-details-not-assigned')}
                 linkTo={
@@ -388,20 +392,20 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
               />
 
               <ProfileInfoItem
-                icon={<PiUser className="gba:h-4 gba:w-4" />}
+                icon={<UserIcon className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-manager')}
                 value={managerName}
                 onClick={managerClickHandler}
               />
 
               <ProfileInfoItem
-                icon={<PiMapPin className="gba:h-4 gba:w-4" />}
+                icon={<MapPinIcon className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-job-position')}
                 value={employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
               />
 
               <ProfileInfoItem
-                icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
+                icon={<CurrencyDollarIcon className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-cost-center')}
                 value={employeeData.employeePosition?.costCenter?.name || t('employee-details-not-assigned')}
                 linkTo={
@@ -412,7 +416,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
               />
 
               <ProfileInfoItem
-                icon={<PiCalendar className="gba:h-4 gba:w-4" />}
+                icon={<CalendarIcon className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-hire-date')}
                 value={
                   employeeData.workingCondition?.[0]?.hireDate
@@ -422,7 +426,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
               />
 
               <ProfileInfoItem
-                icon={<PiUser className="gba:h-4 gba:w-4" />}
+                icon={<UserIcon className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-employment-type')}
                 value={
                   getCatalogValue(employeeData.workingCondition?.[0]?.employmentType) ||
@@ -431,7 +435,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
               />
 
               <ProfileInfoItem
-                icon={<PiUser className="gba:h-4 gba:w-4" />}
+                icon={<UserIcon className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-contract-type')}
                 value={
                   getCatalogValue(employeeData.workingCondition?.[0]?.contractType) ||
