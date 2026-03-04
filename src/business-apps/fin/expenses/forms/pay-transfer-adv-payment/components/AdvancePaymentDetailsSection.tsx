@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, Label, Spinner } from '@newwork/nw-design-system'
-import { PiHandCoins } from 'react-icons/pi'
+import { HandCoinsIcon } from '@phosphor-icons/react'
 import { AdvancePaymentData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../utils/formatters'
@@ -58,7 +58,7 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
     <Card data-testid={`${prefixDataTestId}-advance-payment-details-section`}>
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiHandCoins className="gba:h-5 gba:w-5" />
+          <HandCoinsIcon className="gba:h-5 gba:w-5" />
           {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
         </CardTitle>
       </CardHeader>

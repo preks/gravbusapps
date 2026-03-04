@@ -16,7 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
@@ -179,9 +179,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     {sorting?.field === 'expensePlan.title' &&
                       sorting?.direction &&
                       (sorting.direction === 'asc' ? (
-                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                        <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
                       ) : (
-                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                        <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
                 </TableHead>
@@ -197,9 +197,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     {sorting?.field === 'expensePlan.startDate' &&
                       sorting?.direction &&
                       (sorting.direction === 'asc' ? (
-                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                        <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
                       ) : (
-                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                        <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
                 </TableHead>
@@ -213,9 +213,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     {sorting?.field === 'expensePlan.endDate' &&
                       sorting?.direction &&
                       (sorting.direction === 'asc' ? (
-                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                        <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
                       ) : (
-                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                        <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
                 </TableHead>
@@ -234,9 +234,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     {sorting?.field === 'expensePlan.employee.fullName' &&
                       sorting?.direction &&
                       (sorting.direction === 'asc' ? (
-                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                        <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
                       ) : (
-                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                        <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
                 </TableHead>
@@ -255,9 +255,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     {sorting?.field === 'createdAt' &&
                       sorting?.direction &&
                       (sorting.direction === 'asc' ? (
-                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                        <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
                       ) : (
-                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                        <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
                 </TableHead>
@@ -271,9 +271,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     {sorting?.field === 'amount' &&
                       sorting?.direction &&
                       (sorting.direction === 'asc' ? (
-                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                        <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
                       ) : (
-                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                        <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
                 </TableHead>
@@ -289,9 +289,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     {sorting?.field === 'status' &&
                       sorting?.direction &&
                       (sorting.direction === 'asc' ? (
-                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                        <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
                       ) : (
-                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                        <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
                 </TableHead>

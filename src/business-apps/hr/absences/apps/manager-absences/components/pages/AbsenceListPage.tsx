@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { PiArrowLeft } from 'react-icons/pi'
+import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { AbsenceTable } from '../AbsenceTable'
@@ -365,7 +365,7 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = props => {
             className="gba:flex gba:items-center gba:gap-2"
             data-testid="absence-list-page-back-button"
           >
-            <PiArrowLeft className="gba:text-lg" />
+            <ArrowLeftIcon className="gba:text-lg" />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
               'Back to Dashboard'

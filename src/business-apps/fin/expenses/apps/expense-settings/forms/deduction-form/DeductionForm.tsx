@@ -25,7 +25,7 @@ import {
   FormControl,
   FormMessage
 } from '@newwork/nw-design-system'
-import { PiWarning } from 'react-icons/pi'
+import { WarningIcon } from '@phosphor-icons/react'
 import { DeductionDay, getDeductionDayOptions } from '../../types/ExpenseEnums'
 import { ExpenseRuleDeduction } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleDeductionById } from '../../queries/ExpenseRuleQueries'
@@ -148,7 +148,7 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
 
         {error && (
           <Alert variant="destructive" data-testid="deduction-form-error">
-            <PiWarning className="gba:h-4 gba:w-4" />
+            <WarningIcon className="gba:h-4 gba:w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}

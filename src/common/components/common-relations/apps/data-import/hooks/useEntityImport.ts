@@ -328,7 +328,7 @@ export function useEntityImport<T = ConvertedEntity>(
         const base = {
           ...entity,
           ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId,
-          ...(campaignId ? { salesCampaignId: campaignId } : {})
+          ...(campaignId ? { salesCampaign: campaignId } : {})
         }
 
         // Align with createLead defaulting: ensure a status is present for leads.

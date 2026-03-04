@@ -13,7 +13,7 @@ import {
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
-import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
+import { CalendarIcon, ClockIcon, MapPinIcon } from '@phosphor-icons/react'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -500,7 +500,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
         <Card>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiMapPin className="gba:h-5 gba:w-5" />
+              <MapPinIcon className="gba:h-5 gba:w-5" />
               {t('section-trip-details')}
             </CardTitle>
           </CardHeader>
@@ -508,7 +508,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
             {/* Dates */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <div className="gba:flex gba:items-start gba:gap-2">
-                <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                <CalendarIcon weight="duotone" className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
                 <div>
                   <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">
                     {t('label-start-date')}
@@ -517,7 +517,7 @@ const ApproveExpensePlanContent: React.FC<ApproveExpensePlanProps> = ({
                 </div>
               </div>
               <div className="gba:flex gba:items-start gba:gap-2">
-                <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                <ClockIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
                 <div>
                   <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">{t('label-end-date')}</Label>
                   <p className="gba:text-sm">{formatDateTime(expensePlan.endDate)}</p>

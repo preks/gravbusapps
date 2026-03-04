@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { PiFileText } from 'react-icons/pi'
+import { FileTextIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer'
@@ -453,7 +453,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           selectedPlan
             ? {
                 title: selectedPlan.title || 'Expense Plan Details',
-                icon: <PiFileText />,
+                icon: <FileTextIcon />,
                 content: (
                   <ExpensePlanDetails
                     accessToken={props.accessToken}

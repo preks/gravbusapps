@@ -29,7 +29,7 @@ import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/wi
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { startProcess } from '@/common/utils/start-process'
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import { TablePagination } from '../../../../../components'
@@ -238,8 +238,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   const renderSortIcon = useCallback(
     (field: string) => {
       if (sortField !== field) return null
-      if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-      if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'ascend') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'descend') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
       return null
     },
     [sortField, sortOrder]

@@ -7,7 +7,7 @@
 
 import React from 'react'
 import { Alert, Spinner, Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { PiWarning, PiInfo, PiArrowClockwise, PiSparkle } from 'react-icons/pi'
+import { WarningIcon, InfoIcon, ArrowClockwiseIcon, SparkleIcon } from '@phosphor-icons/react'
 import { type AnalysisType, type ExpenseRequestAnalysis } from '../hooks/useExpenseRequestAnalysis'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -57,7 +57,7 @@ const FormattedAnalysisText: React.FC<{ text: string }> = ({ text }) => {
 const getAnalysisStyles = (type: AnalysisType) => {
   if (type === 'WARNING') {
     return {
-      icon: <PiWarning className="gba:h-5 gba:w-5 gba:text-warning gba:flex-shrink-0" />,
+      icon: <WarningIcon className="gba:h-5 gba:w-5 gba:text-warning gba:flex-shrink-0" />,
       containerClass: 'gba:border-border',
       textClass: 'gba:text-foreground',
       titleClass: 'gba:text-warning',
@@ -66,7 +66,7 @@ const getAnalysisStyles = (type: AnalysisType) => {
   }
 
   return {
-    icon: <PiInfo className="gba:h-5 gba:w-5 gba:text-info gba:flex-shrink-0" />,
+    icon: <InfoIcon className="gba:h-5 gba:w-5 gba:text-info gba:flex-shrink-0" />,
     containerClass: 'gba:border-border',
     textClass: 'gba:text-foreground',
     titleClass: 'gba:text-info',
@@ -81,7 +81,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
       <Card className="gba:mt-4" data-testid="ai-analysis-loading">
         <CardHeader className="gba:pb-3">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
-            <PiSparkle className="gba:h-5 gba:w-5 gba:text-primary" />
+            <SparkleIcon className="gba:h-5 gba:w-5 gba:text-primary" />
             {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.title', 'AI Analysis')}
           </CardTitle>
         </CardHeader>
@@ -103,14 +103,14 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
       <Card className="gba:mt-4" data-testid="ai-analysis-error">
         <CardHeader className="gba:pb-3">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
-            <PiSparkle className="gba:h-5 gba:w-5 gba:text-primary" />
+            <SparkleIcon className="gba:h-5 gba:w-5 gba:text-primary" />
             {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.title', 'AI Analysis')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive" className="gba:mb-3">
             <div className="gba:flex gba:items-start gba:gap-2">
-              <PiWarning className="gba:h-4 gba:w-4 gba:mt-0.5" />
+              <WarningIcon className="gba:h-4 gba:w-4 gba:mt-0.5" />
               <div>
                 <p className="gba:text-sm gba:font-medium">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.error_title', 'Analysis Failed')}
@@ -127,7 +127,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
               className="gba:w-full"
               data-testid="ai-analysis-retry-button"
             >
-              <PiArrowClockwise className="gba:h-4 gba:w-4 gba:mr-2" />
+              <ArrowClockwiseIcon className="gba:h-4 gba:w-4 gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.retry', 'Retry Analysis')}
             </Button>
           )}
@@ -149,7 +149,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
       <CardHeader className="gba:pb-3">
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
-            <PiSparkle className="gba:h-5 gba:w-5 gba:text-primary" />
+            <SparkleIcon className="gba:h-5 gba:w-5 gba:text-primary" />
             {getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.title', 'AI Analysis')}
           </CardTitle>
           {onRefresh && (
@@ -161,7 +161,7 @@ const AIAnalysisSection: React.FC<AIAnalysisSectionProps> = ({ analysis, loading
               title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_analysis.refresh', 'Refresh analysis')}
               data-testid="ai-analysis-refresh-button"
             >
-              <PiArrowClockwise className="gba:h-4 gba:w-4" />
+              <ArrowClockwiseIcon className="gba:h-4 gba:w-4" />
             </Button>
           )}
         </div>

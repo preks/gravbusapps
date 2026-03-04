@@ -370,6 +370,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
                 state.setChatActive(false)
               }
             }}
+            accessToken={accessToken}
+            onRefresh={refetchPlans}
           />
         }
         chatPanel={

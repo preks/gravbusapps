@@ -21,7 +21,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
@@ -184,8 +184,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
   const renderSortIcon = useCallback(
     (field: string) => {
       if (sortField !== field) return null
-      if (sortOrder === 'ascend') return <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" />
-      if (sortOrder === 'descend') return <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />
+      if (sortOrder === 'ascend') return <ArrowUpIcon className="gba:ml-1 gba:h-3 gba:w-3" />
+      if (sortOrder === 'descend') return <ArrowDownIcon className="gba:ml-1 gba:h-3 gba:w-3" />
       return null
     },
     [sortField, sortOrder]

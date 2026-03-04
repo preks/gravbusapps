@@ -71,11 +71,14 @@ const createAssignmentTargets = (userIds: string[]) => ({
   matrixTeams: []
 })
 
+type TranslateFn = (key: string, vars?: Record<string, string>) => string
+
 /**
  * Send notification via Blink
  */
 const sendShareNotification = async (
   accessToken: string,
+  t: TranslateFn,
   payload: {
     documentId: string
     documentTitle: string

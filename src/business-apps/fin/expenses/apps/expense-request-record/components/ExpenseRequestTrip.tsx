@@ -4,8 +4,7 @@ import Pill from '@/components/pill'
 import type { ColumnsType } from 'antd/es/table'
 import { ExpenseRequestTripType } from '../types/expenseRequestRecord.types'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
-import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
-
+import { MapPinIcon, ArrowRightIcon, ArrowLeftIcon, MapTrifoldIcon, FlagIcon, TableIcon, ChartLineIcon } from '@phosphor-icons/react'
 interface ExpenseRequestTripProps {
   expenseRequestTrips: ExpenseRequestTripType[]
 }
@@ -24,15 +23,15 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
   const getPointTypeIcon = (pointType: string) => {
     switch (pointType) {
       case 'START_POINT':
-        return <PiFlag className="gba:text-green-500" />
+        return <FlagIcon className="gba:text-green-500" />
       case 'END_POINT':
-        return <PiFlag className="gba:text-red-500" />
+        return <FlagIcon className="gba:text-red-500" />
       case 'DESTINATION_POINT':
-        return <PiMapPin className="gba:text-blue-500" />
+        return <MapPinIcon className="gba:text-blue-500" />
       case 'REGION_ARRIVAL':
-        return <PiMapTrifold className="gba:text-purple-500" />
+        return <MapTrifoldIcon className="gba:text-purple-500" />
       default:
-        return <PiMapPin />
+        return <MapPinIcon />
     }
   }
 
@@ -40,9 +39,9 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
   const getDirectionIcon = (direction: string) => {
     switch (direction) {
       case 'GO':
-        return <PiArrowRight className="gba:text-blue-500" />
+        return <ArrowRightIcon className="gba:text-blue-500" />
       case 'BACK':
-        return <PiArrowLeft className="gba:text-orange-500" />
+        return <ArrowLeftIcon className="gba:text-orange-500" />
       default:
         return null
     }
@@ -267,7 +266,7 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
       <Space className="gba:ml-2" data-testid="trip-view-toggle-buttons">
         <Button
           type={viewMode === 'table' ? 'primary' : 'default'}
-          icon={<PiTable />}
+          icon={<TableIcon />}
           onClick={() => setViewMode('table')}
           data-testid="trip-table-view-button"
         >
@@ -275,7 +274,7 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
         </Button>
         <Button
           type={viewMode === 'timeline' ? 'primary' : 'default'}
-          icon={<PiChartLine />}
+          icon={<ChartLineIcon />}
           onClick={() => setViewMode('timeline')}
           data-testid="trip-timeline-view-button"
         >

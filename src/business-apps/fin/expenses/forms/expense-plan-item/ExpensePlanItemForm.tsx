@@ -10,7 +10,7 @@ import {
   getCatalogValue,
   getTranslationFromI18nKeyAndLabel
 } from '@/common/utils/windowUtils'
-import { parseAndFormatAmount } from '@/business-apps/fin/expenses/utils/amountFormatting'
+import { parseAndFormatAmount, sanitizeDecimalAmountInput } from '@/business-apps/fin/expenses/utils/amountFormatting'
 
 interface ExpensePlanItemFormProps {
   form: any
@@ -323,17 +323,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                 )}
                 data-testid="amount-input"
                 onChange={field => {
-                  let value = String(field.value)
-
-                  // Limit to 2 decimal places (accept both . and , as decimal separator)
-                  if (value.includes('.') || value.includes(',')) {
-                    const sep = value.includes('.') ? '.' : ','
-                    const parts = value.split(sep)
-                    if (parts[1] && parts[1].length > 2) {
-                      value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
-                    }
-                  }
-
+                  const value = sanitizeDecimalAmountInput(field.value)
                   form.setFieldsValue({ amount: value })
                 }}
                 onBlur={handleAmountBlur}

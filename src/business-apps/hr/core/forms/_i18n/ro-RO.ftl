@@ -31,6 +31,7 @@ adjust-salary-frequency-monthly = Lunar
 adjust-salary-frequency-hourly = Pe oră
 adjust-salary-current-salary = Salariu curent
 adjust-salary-calculation-breakdown = Rezumat ajustare salariu
+adjust-salary-duplicate-month-warning = Există deja o ajustare salarială pentru această lună la data de { $date }. Vă rugăm să alegeți o altă dată efectivă.
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Atribuire salariu angajat

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout, Toaster } from '@newwork/nw-design-system'
-import { PiArrowLeft } from 'react-icons/pi'
+import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ApprovalRequest, ApprovalTabKey } from '../../types'
 import { useFlowExecutionTasks } from '../../hooks/useFlowExecutionTasks'
@@ -88,7 +88,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
           className="gba:flex gba:items-center gba:text-foreground gba:hover:text-primary"
           data-testid="approvals-back-button"
         >
-          <PiArrowLeft className="gba:mr-2" />
+          <ArrowLeftIcon className="gba:mr-2" />
           <span>
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',

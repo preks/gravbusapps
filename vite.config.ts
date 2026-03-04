@@ -190,6 +190,8 @@ export default defineConfig(({ command, mode }) => {
   const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === 'true'
   const isBuildCommand = command === 'build'
   const isSingleBuild = targetEntryKey && targetEntryFile
+  const isBatchBuild = process.env.VITE_BATCH_MODE === 'true'
+  const isHashOnlyBuild = process.env.VITE_HASH_ONLY_BUILD === 'true'
 
   if (isBuildCommand && isSingleBuild) {
     console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`)
@@ -343,6 +345,7 @@ if (globalThis.__APP_BUILD_INFO__) {
     name: 'prepend-custom-build-info-banner',
     renderChunk(code: string, chunk: any) {
       if (
+        !isHashOnlyBuild &&
         !shouldHashFilesForDeployment &&
         isUnversionedBuild &&
         chunk.isEntry &&
@@ -969,7 +972,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
         '@dnd-kit/utilities',
         'zustand',
         'react',
-        'react-icons',
         'react-dom'
       ],
       // Optimize caching strategy
@@ -1014,7 +1016,8 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       // emptyOutDir behavior:
       // true for 'npm run build' (multi-screen, full clean)
       // false for 'npm run publish:screen' (single-screen, script handles specific sub-dir deletion)
-      emptyOutDir: isBuildCommand && !isSingleBuild,
+      // false for batch builds to preserve outputs from previous batches
+      emptyOutDir: isBuildCommand && !isSingleBuild && !isBatchBuild,
       lib: {
         entry: wrappedEntries, // Use the wrapped entries instead of the original ones
         name: 'GravityBusinessApps', // Name for UMD global, less critical for CJS
@@ -1055,8 +1058,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
           'clsx',
           'tailwind-merge',
           'react-i18next',
-          'react-icons',
-          'react-icons/pi',
           '@phosphor-icons/react',
           '@newwork/gravity-ui-catalog',
           '@remixicon/react',
@@ -1074,8 +1075,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
             antd: 'antd',
             '@ant-design/icons': 'antDesignIcons',
             'react-i18next': 'reactI18next',
-            'react-icons': 'reactIcons',
-            'react-icons/pi': 'reactIconsPi',
+            '@phosphor-icons/react': 'PhosphorIconsReact',
             clsx: 'clsx',
             'tailwind-merge': 'tailwindMerge',
             '@dnd-kit/core': 'DNDKitCore',
