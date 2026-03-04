@@ -682,7 +682,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           isManagerWithPermissionButNotDirect
         const hasFeedbackAccess =
           isDirectManagerWithPermission ||
-          (devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true) ||
+          tabPermissions?.['feedback']?.hasAccess === true ||
           employeeRecordAllEmployees?.hasPermission === true ||
           isManagerWithPermissionButNotDirect
         const hasPerformanceAccess =
