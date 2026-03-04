@@ -105,41 +105,48 @@ interface EmployeeRowProps {
   periodSummary?: PeriodSummary
 }
 
-const EmployeeRow: React.FC<EmployeeRowProps> = ({ member, entry, absence, viewMode, mapType, periodSummary }) => {
+const PeriodEmployeeRow: React.FC<{ member: TeamMember; periodSummary: PeriodSummary }> = ({
+  member,
+  periodSummary
+}) => {
+  const { targetMinutes, actualMinutes, daysOff, diffMinutes } = periodSummary
+  const diffColor = diffMinutes < 0 ? 'gba:text-destructive' : diffMinutes > 0 ? 'gba:text-warning' : 'gba:text-success'
+  const diffLabel =
+    diffMinutes === 0
+      ? 'On track'
+      : diffMinutes > 0
+        ? `+${formatMinutes(diffMinutes)} overtime`
+        : `${formatMinutes(diffMinutes)} deficit`
+
+  return (
+    <tr className="gba:border-b gba:border-border hover:gba:bg-muted/50 gba:transition-colors">
+      <EmployeeCell member={member} />
+      <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">{formatMinutes(targetMinutes)}</td>
+      <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">
+        {daysOff > 0 ? (
+          <Badge variant="outline" className="gba:bg-info/10 gba:text-info">
+            {daysOff} {daysOff === 1 ? 'day' : 'days'}
+          </Badge>
+        ) : (
+          '—'
+        )}
+      </td>
+      <td className="gba:py-3 gba:px-4 gba:text-sm gba:font-medium">{formatMinutes(actualMinutes)}</td>
+      <td className="gba:py-3 gba:px-4 gba:text-sm">
+        <span className={diffColor}>{diffLabel}</span>
+      </td>
+    </tr>
+  )
+}
+
+const DayEmployeeRow: React.FC<{
+  member: TeamMember
+  entry: TeamAttendanceEntry | null
+  absence: TeamAbsenceToday | null
+  mapType: MapTypeFn
+}> = ({ member, entry, absence, mapType }) => {
   const statusColor = getStatusColor(entry, absence)
   const status = getRowStatus(entry, absence, mapType)
-
-  if (viewMode !== 'day' && periodSummary) {
-    const { targetMinutes, actualMinutes, daysOff, diffMinutes } = periodSummary
-    const diffColor =
-      diffMinutes < 0 ? 'gba:text-destructive' : diffMinutes > 0 ? 'gba:text-warning' : 'gba:text-success'
-    const diffLabel =
-      diffMinutes === 0
-        ? 'On track'
-        : diffMinutes > 0
-          ? `+${formatMinutes(diffMinutes)} overtime`
-          : `${formatMinutes(diffMinutes)} deficit`
-
-    return (
-      <tr className="gba:border-b gba:border-border hover:gba:bg-muted/50 gba:transition-colors">
-        <EmployeeCell member={member} />
-        <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">{formatMinutes(targetMinutes)}</td>
-        <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">
-          {daysOff > 0 ? (
-            <Badge variant="outline" className="gba:bg-info/10 gba:text-info">
-              {daysOff} {daysOff === 1 ? 'day' : 'days'}
-            </Badge>
-          ) : (
-            '—'
-          )}
-        </td>
-        <td className="gba:py-3 gba:px-4 gba:text-sm gba:font-medium">{formatMinutes(actualMinutes)}</td>
-        <td className="gba:py-3 gba:px-4 gba:text-sm">
-          <span className={diffColor}>{diffLabel}</span>
-        </td>
-      </tr>
-    )
-  }
 
   return (
     <tr className="gba:border-b gba:border-border hover:gba:bg-muted/50 gba:transition-colors">
@@ -174,6 +181,13 @@ const EmployeeRow: React.FC<EmployeeRowProps> = ({ member, entry, absence, viewM
       </td>
     </tr>
   )
+}
+
+const EmployeeRow: React.FC<EmployeeRowProps> = ({ member, entry, absence, viewMode, mapType, periodSummary }) => {
+  if (viewMode !== 'day' && periodSummary) {
+    return <PeriodEmployeeRow member={member} periodSummary={periodSummary} />
+  }
+  return <DayEmployeeRow member={member} entry={entry} absence={absence} mapType={mapType} />
 }
 
 export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {

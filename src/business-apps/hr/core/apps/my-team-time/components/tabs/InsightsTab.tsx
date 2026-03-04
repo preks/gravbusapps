@@ -236,6 +236,245 @@ const getImpactBadge = (level: string) => {
   }
 }
 
+// ─── Coverage computation helpers (module-level to avoid deep nesting) ─────────
+
+const calcCoverage = (total: number, off: number): number =>
+  total === 0 ? 0 : Math.round(((total - off) / total) * 100)
+
+const calcCoverageRisk = (cov: number): CoverageRisk => (cov >= 80 ? 'low' : cov >= 60 ? 'medium' : 'high')
+
+const calcImpactLevel = (cov: number): ImpactLevel =>
+  cov >= 80 ? 'low' : cov >= 60 ? 'medium' : cov >= 40 ? 'high' : 'critical'
+
+const impactDesc = (lvl: ImpactLevel): string => {
+  if (lvl === 'critical') return t('impact_critical', 'Critical impact - immediate backup required')
+  if (lvl === 'high') return t('impact_high', 'High impact - significant operational disruption')
+  if (lvl === 'medium') return t('impact_medium', 'Moderate impact - some tasks may be delayed')
+  return t('impact_low', 'Minimal impact - team can continue operations')
+}
+
+const IMPACT_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 }
+
+type CapEntry = { id: string; name: string; holders: string[]; absentHolders: string[] }
+
+const buildCapabilityMap = (employees: any[], absentIds: Set<string>): Map<string, CapEntry> => {
+  const capMap = new Map<string, CapEntry>()
+  employees.forEach((emp: any) => {
+    const empName = `${emp.firstName} ${emp.lastName}`
+    const isAbsent = absentIds.has(emp.id)
+    ;(emp.employeePosition?.employeeCapabilities || []).forEach((cd: any) => {
+      const cId = cd?.capability?.id
+      const cName = cd?.capability?.name
+      if (!cId) return
+      if (!capMap.has(cId)) capMap.set(cId, { id: cId, name: cName, holders: [], absentHolders: [] })
+      const c = capMap.get(cId)!
+      if (isAbsent) c.absentHolders.push(empName)
+      else c.holders.push(empName)
+    })
+  })
+  return capMap
+}
+
+const buildCapabilities = (capMap: Map<string, CapEntry>): CapabilityCoverage[] =>
+  Array.from(capMap.values()).map(c => {
+    const total = c.holders.length + c.absentHolders.length
+    const cov = calcCoverage(total, c.absentHolders.length)
+    return {
+      capabilityId: c.id,
+      capabilityName: c.name,
+      totalMembers: total,
+      absentMembers: c.absentHolders.length,
+      coverage: cov,
+      risk: calcCoverageRisk(cov),
+      holders: c.holders,
+      absentHolders: c.absentHolders
+    }
+  })
+
+const buildMatrixImpactScenarios = (
+  employees: any[],
+  absentEmployees: any[],
+  capabilities: CapabilityCoverage[],
+  absentIds: Set<string>
+): MatrixImpactScenario[] => {
+  const mCov = calcCoverage(employees.length, absentEmployees.length)
+  const mRisk = calcCoverageRisk(mCov)
+
+  return employees
+    .map((emp: any) => {
+      const empName = `${emp.firstName} ${emp.lastName}`
+      if (absentIds.has(emp.id)) {
+        return {
+          employeeId: emp.id,
+          employeeName: empName,
+          impactLevel: 'none' as ImpactLevel,
+          newCoverage: mCov,
+          newRisk: mRisk,
+          description: t('already_absent', 'Already absent - no additional impact'),
+          affectedCapabilities: []
+        }
+      }
+
+      const newTeamCov = calcCoverage(employees.length, absentEmployees.length + 1)
+      const newTeamRisk = calcCoverageRisk(newTeamCov)
+
+      const affectedCaps = (emp.employeePosition?.employeeCapabilities || []).map((cd: any) => {
+        const cId = cd?.capability?.id
+        const cName = cd?.capability?.name || t('unknown', 'Unknown')
+        const cap = capabilities.find(cc => cc.capabilityId === cId)
+        if (!cap) return { capabilityName: cName, newCoverage: 0, newRisk: 'high' as CoverageRisk }
+        const newCov = calcCoverage(cap.totalMembers, cap.absentMembers + 1)
+        return {
+          capabilityName: cName,
+          newCoverage: Math.max(0, newCov),
+          newRisk: calcCoverageRisk(Math.max(0, newCov))
+        }
+      })
+
+      const critCaps = affectedCaps.filter((a: any) => a.newCoverage === 0).length
+      const highCaps = affectedCaps.filter((a: any) => a.newCoverage > 0 && a.newCoverage < 50).length
+      let impactLevel: ImpactLevel = 'low'
+      if (critCaps > 0) impactLevel = 'critical'
+      else if (highCaps > 0 || newTeamCov < 40) impactLevel = 'high'
+      else if (newTeamCov < 60) impactLevel = 'medium'
+
+      return {
+        employeeId: emp.id,
+        employeeName: empName,
+        impactLevel,
+        newCoverage: newTeamCov,
+        newRisk: newTeamRisk,
+        description: impactDesc(impactLevel),
+        affectedCapabilities: affectedCaps
+      }
+    })
+    .filter(s => s.impactLevel !== 'none')
+    .sort((a, b) => (IMPACT_ORDER[a.impactLevel] ?? 3) - (IMPACT_ORDER[b.impactLevel] ?? 3))
+}
+
+const parseCoverageResult = (result: any): CoverageOverview => {
+  const employees: any[] = result?.employees || []
+  const currentAbsences: any[] = result?.currentAbsences || []
+  const absentIds = new Set(currentAbsences.map((a: any) => a.employee.id))
+
+  const orgUnitMap = new Map<string, { id: string; name: string; employees: any[]; absentEmployees: any[] }>()
+  employees.forEach((emp: any) => {
+    const ou = emp.employeePosition?.organizationalUnit
+    if (!ou) return
+    if (!orgUnitMap.has(ou.id)) orgUnitMap.set(ou.id, { id: ou.id, name: ou.name, employees: [], absentEmployees: [] })
+    const unit = orgUnitMap.get(ou.id)!
+    unit.employees.push(emp)
+    if (absentIds.has(emp.id)) unit.absentEmployees.push(emp)
+  })
+
+  const matrixMap = new Map<string, { id: string; name: string; employees: any[]; absentEmployees: any[] }>()
+  employees.forEach((emp: any) => {
+    const matrixUnits: any[] = emp.employeePosition?.matrixUnitEmployees || []
+    matrixUnits.forEach((mu: any) => {
+      const key = mu.matrixUnit.id
+      if (!matrixMap.has(key))
+        matrixMap.set(key, { id: key, name: mu.matrixUnit.name, employees: [], absentEmployees: [] })
+      const m = matrixMap.get(key)!
+      m.employees.push(emp)
+      if (absentIds.has(emp.id)) m.absentEmployees.push(emp)
+    })
+  })
+
+  const matrixTeams: MatrixTeamCoverage[] = Array.from(matrixMap.values()).map(matrix => {
+    const capMap = buildCapabilityMap(matrix.employees, absentIds)
+    const capabilities = buildCapabilities(capMap)
+    const mCov = calcCoverage(matrix.employees.length, matrix.absentEmployees.length)
+    const impactScenarios = buildMatrixImpactScenarios(
+      matrix.employees,
+      matrix.absentEmployees,
+      capabilities,
+      absentIds
+    )
+    return {
+      id: matrix.id,
+      name: matrix.name,
+      totalMembers: matrix.employees.length,
+      absentCount: matrix.absentEmployees.length,
+      coverage: mCov,
+      risk: calcCoverageRisk(mCov),
+      members: matrix.employees.map((e: any) => `${e.firstName} ${e.lastName}`),
+      absentMembers: matrix.absentEmployees.map((e: any) => `${e.firstName} ${e.lastName}`),
+      capabilities: capabilities.sort((a, b) => a.coverage - b.coverage),
+      impactScenarios
+    }
+  })
+
+  const orgUnits: OrgUnitCoverage[] = Array.from(orgUnitMap.values()).map(ou => {
+    const ouCov = calcCoverage(ou.employees.length, ou.absentEmployees.length)
+    const impactedMatrixTeams = Array.from(matrixMap.values())
+      .map(matrix => {
+        const orgMembersInMatrix = matrix.employees
+          .filter((e: any) => e.employeePosition?.organizationalUnit?.id === ou.id)
+          .map((e: any) => `${e.firstName} ${e.lastName}`)
+        if (orgMembersInMatrix.length === 0) return null
+        const matrixCov = calcCoverage(matrix.employees.length, matrix.absentEmployees.length)
+        const impactScenarios = matrix.employees
+          .filter((e: any) => e.employeePosition?.organizationalUnit?.id === ou.id && !absentIds.has(e.id))
+          .map((emp: any) => {
+            const newCov = calcCoverage(matrix.employees.length, matrix.absentEmployees.length + 1)
+            const il = calcImpactLevel(newCov)
+            return {
+              employeeName: `${emp.firstName} ${emp.lastName}`,
+              impactLevel: il,
+              newCoverage: newCov,
+              description: impactDesc(il)
+            }
+          })
+          .filter(s => s.impactLevel !== 'low')
+          .sort((a, b) => (IMPACT_ORDER[a.impactLevel] ?? 4) - (IMPACT_ORDER[b.impactLevel] ?? 4))
+        return {
+          matrixTeamName: matrix.name,
+          coverage: matrixCov,
+          risk: calcCoverageRisk(matrixCov),
+          orgUnitMembersInMatrix: orgMembersInMatrix,
+          impactScenarios
+        }
+      })
+      .filter(Boolean) as OrgUnitCoverage['impactedMatrixTeams']
+    return {
+      id: ou.id,
+      name: ou.name,
+      totalMembers: ou.employees.length,
+      absentCount: ou.absentEmployees.length,
+      coverage: ouCov,
+      risk: calcCoverageRisk(ouCov),
+      members: ou.employees.map((e: any) => `${e.firstName} ${e.lastName}`),
+      absentMembers: ou.absentEmployees.map((e: any) => `${e.firstName} ${e.lastName}`),
+      impactedMatrixTeams
+    }
+  })
+
+  const allCapsFlat = matrixTeams.flatMap(mt => mt.capabilities)
+  const uniqueCaps = new Map<string, CapabilityCoverage>()
+  allCapsFlat.forEach(c => {
+    if (!uniqueCaps.has(c.capabilityId)) uniqueCaps.set(c.capabilityId, c)
+  })
+  const atRisk = Array.from(uniqueCaps.values()).filter(c => c.risk !== 'low').length
+  const avgCov =
+    uniqueCaps.size > 0
+      ? Math.round(Array.from(uniqueCaps.values()).reduce((s, c) => s + c.coverage, 0) / uniqueCaps.size)
+      : 100
+  const highImpactCount = matrixTeams.reduce(
+    (s, mt) => s + mt.impactScenarios.filter(sc => sc.impactLevel === 'critical' || sc.impactLevel === 'high').length,
+    0
+  )
+
+  return {
+    totalCapabilities: new Set(matrixTeams.flatMap(mt => mt.capabilities.map(c => c.capabilityId))).size,
+    atRiskCapabilities: atRisk,
+    avgCoverage: avgCov,
+    overallRisk: calcCoverageRisk(avgCov),
+    orgUnits,
+    matrixTeams,
+    highImpactCount
+  }
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 type DrawerPanel = 'sustainability' | 'compliance' | 'coverage' | null
@@ -284,236 +523,10 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       setCoverageLoading(false)
       return
     }
-
     setCoverageLoading(true)
     graphqlClient
       .request<any>(GET_TEAM_COVERAGE, { supervisorId })
-      .then(result => {
-        const employees: any[] = result?.employees || []
-        const currentAbsences: any[] = result?.currentAbsences || []
-        const absentIds = new Set(currentAbsences.map((a: any) => a.employee.id))
-
-        const calcCoverage = (total: number, off: number) =>
-          total === 0 ? 0 : Math.round(((total - off) / total) * 100)
-        const getRisk = (cov: number): CoverageRisk => (cov >= 80 ? 'low' : cov >= 60 ? 'medium' : 'high')
-        const getImpact = (cov: number): ImpactLevel =>
-          cov >= 80 ? 'low' : cov >= 60 ? 'medium' : cov >= 40 ? 'high' : 'critical'
-        const impactDesc = (lvl: ImpactLevel) =>
-          lvl === 'critical'
-            ? t('impact_critical', 'Critical impact - immediate backup required')
-            : lvl === 'high'
-              ? t('impact_high', 'High impact - significant operational disruption')
-              : lvl === 'medium'
-                ? t('impact_medium', 'Moderate impact - some tasks may be delayed')
-                : t('impact_low', 'Minimal impact - team can continue operations')
-
-        const orgUnitMap = new Map<string, { id: string; name: string; employees: any[]; absentEmployees: any[] }>()
-        employees.forEach((emp: any) => {
-          const ou = emp.employeePosition?.organizationalUnit
-          if (!ou) return
-          if (!orgUnitMap.has(ou.id))
-            orgUnitMap.set(ou.id, { id: ou.id, name: ou.name, employees: [], absentEmployees: [] })
-          const unit = orgUnitMap.get(ou.id)!
-          unit.employees.push(emp)
-          if (absentIds.has(emp.id)) unit.absentEmployees.push(emp)
-        })
-
-        const matrixMap = new Map<string, { id: string; name: string; employees: any[]; absentEmployees: any[] }>()
-        employees.forEach((emp: any) => {
-          const matrixUnits = emp.employeePosition?.matrixUnitEmployees || []
-          matrixUnits.forEach((mu: any) => {
-            const key = mu.matrixUnit.id
-            if (!matrixMap.has(key))
-              matrixMap.set(key, { id: key, name: mu.matrixUnit.name, employees: [], absentEmployees: [] })
-            const m = matrixMap.get(key)!
-            m.employees.push(emp)
-            if (absentIds.has(emp.id)) m.absentEmployees.push(emp)
-          })
-        })
-
-        const allCapabilities = new Set<string>()
-        const matrixTeams: MatrixTeamCoverage[] = Array.from(matrixMap.values()).map(matrix => {
-          const mCov = calcCoverage(matrix.employees.length, matrix.absentEmployees.length)
-          const mRisk = getRisk(mCov)
-
-          const capMap = new Map<string, { id: string; name: string; holders: string[]; absentHolders: string[] }>()
-          matrix.employees.forEach((emp: any) => {
-            const empName = `${emp.firstName} ${emp.lastName}`
-            const isAbsent = absentIds.has(emp.id)
-            ;(emp.employeePosition?.employeeCapabilities || []).forEach((cd: any) => {
-              const cId = cd?.capability?.id
-              const cName = cd?.capability?.name
-              if (!cId) return
-              allCapabilities.add(cId)
-              if (!capMap.has(cId)) capMap.set(cId, { id: cId, name: cName, holders: [], absentHolders: [] })
-              const c = capMap.get(cId)!
-              if (isAbsent) c.absentHolders.push(empName)
-              else c.holders.push(empName)
-            })
-          })
-
-          const capabilities: CapabilityCoverage[] = Array.from(capMap.values()).map(c => {
-            const total = c.holders.length + c.absentHolders.length
-            const cov = calcCoverage(total, c.absentHolders.length)
-            return {
-              capabilityId: c.id,
-              capabilityName: c.name,
-              totalMembers: total,
-              absentMembers: c.absentHolders.length,
-              coverage: cov,
-              risk: getRisk(cov),
-              holders: c.holders,
-              absentHolders: c.absentHolders
-            }
-          })
-
-          const impactScenarios: MatrixImpactScenario[] = matrix.employees
-            .map((emp: any) => {
-              const empName = `${emp.firstName} ${emp.lastName}`
-              if (absentIds.has(emp.id)) {
-                return {
-                  employeeId: emp.id,
-                  employeeName: empName,
-                  impactLevel: 'none' as ImpactLevel,
-                  newCoverage: mCov,
-                  newRisk: mRisk,
-                  description: t('already_absent', 'Already absent - no additional impact'),
-                  affectedCapabilities: []
-                }
-              }
-
-              const newTeamCov = calcCoverage(matrix.employees.length, matrix.absentEmployees.length + 1)
-              const newTeamRisk = getRisk(newTeamCov)
-
-              const affectedCaps = (emp.employeePosition?.employeeCapabilities || []).map((cd: any) => {
-                const cId = cd?.capability?.id
-                const cName = cd?.capability?.name || t('unknown', 'Unknown')
-                const cap = capabilities.find(cc => cc.capabilityId === cId)
-                if (!cap) return { capabilityName: cName, newCoverage: 0, newRisk: 'high' as CoverageRisk }
-                const newCov = calcCoverage(cap.totalMembers, cap.absentMembers + 1)
-                return {
-                  capabilityName: cName,
-                  newCoverage: Math.max(0, newCov),
-                  newRisk: getRisk(Math.max(0, newCov))
-                }
-              })
-
-              const critCaps = affectedCaps.filter((a: any) => a.newCoverage === 0).length
-              const highCaps = affectedCaps.filter((a: any) => a.newCoverage > 0 && a.newCoverage < 50).length
-              let impactLevel: ImpactLevel = 'low'
-              if (critCaps > 0) impactLevel = 'critical'
-              else if (highCaps > 0 || newTeamCov < 40) impactLevel = 'high'
-              else if (newTeamCov < 60) impactLevel = 'medium'
-
-              return {
-                employeeId: emp.id,
-                employeeName: empName,
-                impactLevel,
-                newCoverage: newTeamCov,
-                newRisk: newTeamRisk,
-                description: impactDesc(impactLevel),
-                affectedCapabilities: affectedCaps
-              }
-            })
-            .filter(s => s.impactLevel !== 'none')
-            .sort((a, b) => {
-              const ord: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
-              return (ord[a.impactLevel] ?? 3) - (ord[b.impactLevel] ?? 3)
-            })
-
-          return {
-            id: matrix.id,
-            name: matrix.name,
-            totalMembers: matrix.employees.length,
-            absentCount: matrix.absentEmployees.length,
-            coverage: mCov,
-            risk: mRisk,
-            members: matrix.employees.map((e: any) => `${e.firstName} ${e.lastName}`),
-            absentMembers: matrix.absentEmployees.map((e: any) => `${e.firstName} ${e.lastName}`),
-            capabilities: capabilities.sort((a, b) => a.coverage - b.coverage),
-            impactScenarios
-          }
-        })
-
-        const orgUnits: OrgUnitCoverage[] = Array.from(orgUnitMap.values()).map(ou => {
-          const ouCov = calcCoverage(ou.employees.length, ou.absentEmployees.length)
-
-          const impactedMatrixTeams = Array.from(matrixMap.values())
-            .map(matrix => {
-              const orgMembersInMatrix = matrix.employees
-                .filter((e: any) => e.employeePosition?.organizationalUnit?.id === ou.id)
-                .map((e: any) => `${e.firstName} ${e.lastName}`)
-              if (orgMembersInMatrix.length === 0) return null
-
-              const matrixCov = calcCoverage(matrix.employees.length, matrix.absentEmployees.length)
-
-              const impactScenarios = matrix.employees
-                .filter((e: any) => e.employeePosition?.organizationalUnit?.id === ou.id && !absentIds.has(e.id))
-                .map((emp: any) => {
-                  const newCov = calcCoverage(matrix.employees.length, matrix.absentEmployees.length + 1)
-                  const il = getImpact(newCov)
-                  return {
-                    employeeName: `${emp.firstName} ${emp.lastName}`,
-                    impactLevel: il,
-                    newCoverage: newCov,
-                    description: impactDesc(il)
-                  }
-                })
-                .filter(s => s.impactLevel !== 'low')
-                .sort((a, b) => {
-                  const ord: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 }
-                  return (ord[a.impactLevel] ?? 4) - (ord[b.impactLevel] ?? 4)
-                })
-
-              return {
-                matrixTeamName: matrix.name,
-                coverage: matrixCov,
-                risk: getRisk(matrixCov),
-                orgUnitMembersInMatrix: orgMembersInMatrix,
-                impactScenarios
-              }
-            })
-            .filter(Boolean) as OrgUnitCoverage['impactedMatrixTeams']
-
-          return {
-            id: ou.id,
-            name: ou.name,
-            totalMembers: ou.employees.length,
-            absentCount: ou.absentEmployees.length,
-            coverage: ouCov,
-            risk: getRisk(ouCov),
-            members: ou.employees.map((e: any) => `${e.firstName} ${e.lastName}`),
-            absentMembers: ou.absentEmployees.map((e: any) => `${e.firstName} ${e.lastName}`),
-            impactedMatrixTeams
-          }
-        })
-
-        const allCapsFlat = matrixTeams.flatMap(mt => mt.capabilities)
-        const uniqueCaps = new Map<string, CapabilityCoverage>()
-        allCapsFlat.forEach(c => {
-          if (!uniqueCaps.has(c.capabilityId)) uniqueCaps.set(c.capabilityId, c)
-        })
-        const atRisk = Array.from(uniqueCaps.values()).filter(c => c.risk !== 'low').length
-        const avgCov =
-          uniqueCaps.size > 0
-            ? Math.round(Array.from(uniqueCaps.values()).reduce((s, c) => s + c.coverage, 0) / uniqueCaps.size)
-            : 100
-        const highImpactCount = matrixTeams.reduce(
-          (s, mt) =>
-            s + mt.impactScenarios.filter(sc => sc.impactLevel === 'critical' || sc.impactLevel === 'high').length,
-          0
-        )
-
-        setCoverageData({
-          totalCapabilities: allCapabilities.size,
-          atRiskCapabilities: atRisk,
-          avgCoverage: avgCov,
-          overallRisk: getRisk(avgCov),
-          orgUnits,
-          matrixTeams,
-          highImpactCount
-        })
-      })
+      .then(result => setCoverageData(parseCoverageResult(result)))
       .catch(() => setCoverageData(null))
       .finally(() => setCoverageLoading(false))
   }, [graphqlClient, supervisorId])
