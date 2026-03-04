@@ -1005,7 +1005,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
     // Set up polling interval (use sanitized value to prevent code injection from untrusted inputs)
     const sanitizedInterval = sanitizePollInterval(pollInterval)
-    const intervalId = setInterval(fetchBulkCollectionResponses, sanitizedInterval)
+    const intervalId = window.setInterval(() => {
+      void fetchBulkCollectionResponses()
+    }, sanitizedInterval)
     const handleVisibilityOrFocus = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         void fetchBulkCollectionResponses()
@@ -1020,7 +1022,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     }
 
     return () => {
-      clearInterval(intervalId)
+      window.clearInterval(intervalId)
       if (typeof window !== 'undefined') {
         window.removeEventListener('focus', handleVisibilityOrFocus)
         window.removeEventListener('pageshow', handleVisibilityOrFocus)
