@@ -25,8 +25,8 @@ import {
   getPlannedMinutesForDate,
   toDateString
 } from '../../utils/timeUtils'
+import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 type MapTypeFn = (codeOrId: string) => { label?: string; color?: string }
 
@@ -40,7 +40,8 @@ const getStatusColor = (entry: TeamAttendanceEntry | null, absence: TeamAbsenceT
   if (entry.startTime && !entry.endTime) return 'gba:bg-success/10 gba:text-success'
   const diff = parseDurationToMinutes(entry.differenceTime)
   if (diff > 0) return 'gba:bg-warning/10 gba:text-warning'
-  return 'gba:bg-background gba:text-foreground'
+  if (diff < 0) return 'gba:bg-destructive/10 gba:text-destructive'
+  return 'gba:bg-success/10 gba:text-success'
 }
 
 const resolveAbsenceLabel = (typeRef: string, mapType: MapTypeFn): string => {
@@ -63,20 +64,6 @@ const getRowStatus = (
   if (entry.startTime && !entry.endTime) return 'Working'
   if (entry.endTime) return 'Completed'
   return '—'
-}
-
-const toAvatarSrc = (thumb?: string | null): string | undefined => {
-  if (!thumb) return undefined
-  const t = thumb.trim()
-  if (!t) return undefined
-  if (t.startsWith('http') || t.startsWith('data:')) return t
-  if (t.startsWith('iVBORw0KGgo')) return `data:image/png;base64,${t}`
-  if (t.startsWith('R0lGOD')) return `data:image/gif;base64,${t}`
-  return `data:image/jpeg;base64,${t}`
-}
-
-const goToProfile = (employeeId: string) => {
-  navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'summary' }))
 }
 
 const EmployeeCell: React.FC<{ member: TeamMember }> = ({ member }) => (

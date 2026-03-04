@@ -93,6 +93,70 @@ export interface CapacityRow {
 
 export type RiskLevel = 'low' | 'medium' | 'high'
 export type BurnoutRisk = 'low' | 'medium' | 'high'
+export type CoverageRisk = 'low' | 'medium' | 'high'
+export type ImpactLevel = 'none' | 'low' | 'medium' | 'high' | 'critical'
+
+export interface CapabilityCoverage {
+  capabilityId: string
+  capabilityName: string
+  totalMembers: number
+  absentMembers: number
+  coverage: number
+  risk: CoverageRisk
+  holders: string[]
+  absentHolders: string[]
+}
+
+export interface MatrixImpactScenario {
+  employeeId: string
+  employeeName: string
+  impactLevel: ImpactLevel
+  newCoverage: number
+  newRisk: CoverageRisk
+  description: string
+  affectedCapabilities: { capabilityName: string; newCoverage: number; newRisk: CoverageRisk }[]
+}
+
+export interface MatrixTeamCoverage {
+  id: string
+  name: string
+  totalMembers: number
+  absentCount: number
+  coverage: number
+  risk: CoverageRisk
+  members: string[]
+  absentMembers: string[]
+  capabilities: CapabilityCoverage[]
+  impactScenarios: MatrixImpactScenario[]
+}
+
+export interface OrgUnitCoverage {
+  id: string
+  name: string
+  totalMembers: number
+  absentCount: number
+  coverage: number
+  risk: CoverageRisk
+  members: string[]
+  absentMembers: string[]
+  impactedMatrixTeams: {
+    matrixTeamName: string
+    coverage: number
+    risk: CoverageRisk
+    orgUnitMembersInMatrix: string[]
+    impactScenarios: { employeeName: string; impactLevel: ImpactLevel; newCoverage: number; description: string }[]
+  }[]
+}
+
+export interface CoverageOverview {
+  totalCapabilities: number
+  atRiskCapabilities: number
+  avgCoverage: number
+  overallRisk: CoverageRisk
+  orgUnits: OrgUnitCoverage[]
+  matrixTeams: MatrixTeamCoverage[]
+  highImpactCount: number
+}
 
 export interface SustainabilitySignal {
   employeeId: string

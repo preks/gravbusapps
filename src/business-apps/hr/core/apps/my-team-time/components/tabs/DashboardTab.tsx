@@ -33,8 +33,8 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_TEAM_ABSENCES_CALENDAR_RANGE } from '../../queries/queries'
 import { TeamMember, TeamAbsenceToday, CapacityRow } from '../../types/types'
 import { formatMinutes, toDateString, toLocalDateKey, isWorkingDay } from '../../utils/timeUtils'
+import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 type PanelType =
   | 'working-now'
@@ -81,20 +81,6 @@ const KpiCard: React.FC<KpiCardProps> = ({ icon, label, value, color, active, on
     </CardContent>
   </Card>
 )
-
-const toAvatarSrc = (thumb?: string | null): string | undefined => {
-  if (!thumb) return undefined
-  const t = thumb.trim()
-  if (!t) return undefined
-  if (t.startsWith('http') || t.startsWith('data:')) return t
-  if (t.startsWith('iVBORw0KGgo')) return `data:image/png;base64,${t}`
-  if (t.startsWith('R0lGOD')) return `data:image/gif;base64,${t}`
-  return `data:image/jpeg;base64,${t}`
-}
-
-const goToProfile = (employeeId: string) => {
-  navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'summary' }))
-}
 
 const EmployeeAvatar: React.FC<{ firstName?: string; lastName?: string; pictureThumbnail?: string; size?: string }> = ({
   firstName,
@@ -362,19 +348,19 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   const getPanelTitle = (): string => {
     switch (activePanel) {
       case 'working-now':
-        return 'Working Now'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.working_now', 'Working Now')
       case 'not-clocked-in':
-        return 'Not Clocked In'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.not_clocked_in', 'Not Clocked In')
       case 'on-leave':
-        return 'On Leave Today'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.on_leave_today', 'On Leave Today')
       case 'sick-today':
-        return 'Sick Today'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_today', 'Sick Today')
       case 'overtime-mtd':
-        return 'Overtime This Month'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime_this_month', 'Overtime This Month')
       case 'anomalies':
-        return 'Active Anomalies'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.active_anomalies', 'Active Anomalies')
       case 'pending':
-        return 'Pending Actions'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pending_actions', 'Pending Actions')
       default:
         return ''
     }
@@ -383,19 +369,40 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   const getPanelDescription = (): string => {
     switch (activePanel) {
       case 'working-now':
-        return 'Team members currently clocked in'
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:my_team_time.desc_working_now',
+          'Team members currently clocked in'
+        )
       case 'not-clocked-in':
-        return 'Expected today but no attendance record yet'
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:my_team_time.desc_not_clocked_in',
+          'Expected today but no attendance record yet'
+        )
       case 'on-leave':
-        return 'On approved leave today (excluding sick)'
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:my_team_time.desc_on_leave',
+          'On approved leave today (excluding sick)'
+        )
       case 'sick-today':
-        return 'On approved sick leave today'
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:my_team_time.desc_sick_today',
+          'On approved sick leave today'
+        )
       case 'overtime-mtd':
-        return `Total overtime accumulated across the team this month`
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:my_team_time.desc_overtime_mtd',
+          'Total overtime accumulated across the team this month'
+        )
       case 'anomalies':
-        return 'Missing logs, unclosed clock-outs, and other issues'
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:my_team_time.desc_anomalies',
+          'Missing logs, unclosed clock-outs, and other issues'
+        )
       case 'pending':
-        return 'Absence requests awaiting your approval'
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:my_team_time.desc_pending',
+          'Absence requests awaiting your approval'
+        )
       default:
         return ''
     }
@@ -425,26 +432,65 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   const renderPanelContent = () => {
     switch (activePanel) {
       case 'working-now':
-        return <MemberList members={status.workingNow} emptyText="No one is clocked in right now." />
+        return (
+          <MemberList
+            members={status.workingNow}
+            emptyText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:my_team_time.no_one_clocked_in',
+              'No one is clocked in right now.'
+            )}
+          />
+        )
       case 'not-clocked-in':
-        return <MemberList members={status.notClockedIn} emptyText="Everyone expected today has clocked in." />
+        return (
+          <MemberList
+            members={status.notClockedIn}
+            emptyText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:my_team_time.everyone_clocked_in',
+              'Everyone expected today has clocked in.'
+            )}
+          />
+        )
       case 'on-leave':
-        return <MemberList members={status.onLeaveToday} emptyText="No one is on leave today." />
+        return (
+          <MemberList
+            members={status.onLeaveToday}
+            emptyText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:my_team_time.no_one_on_leave',
+              'No one is on leave today.'
+            )}
+          />
+        )
       case 'sick-today':
-        return <MemberList members={status.sickToday} emptyText="No one is on sick leave today." />
+        return (
+          <MemberList
+            members={status.sickToday}
+            emptyText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:my_team_time.no_one_sick',
+              'No one is on sick leave today.'
+            )}
+          />
+        )
       case 'overtime-mtd':
         return (
           <div className="gba:text-center gba:py-6">
             <div className="gba:text-4xl gba:font-bold gba:text-warning gba:mb-2">
               {formatMinutes(status.overtimeMinutesMTD)}
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground">Total team overtime this month</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:my_team_time.total_team_overtime',
+                'Total team overtime this month'
+              )}
+            </div>
           </div>
         )
       case 'anomalies':
         if (status.anomalies.length === 0) {
           return (
-            <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">No anomalies detected.</div>
+            <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.no_anomalies', 'No anomalies detected.')}
+            </div>
           )
         }
         return (
@@ -465,12 +511,19 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
         )
       case 'pending':
         if (pendingLoading) {
-          return <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">Loading...</div>
+          return (
+            <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+            </div>
+          )
         }
         if (pendingAbsences.length === 0) {
           return (
             <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
-              No pending actions. All caught up!
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:my_team_time.no_pending_actions',
+                'No pending actions. All caught up!'
+              )}
             </div>
           )
         }

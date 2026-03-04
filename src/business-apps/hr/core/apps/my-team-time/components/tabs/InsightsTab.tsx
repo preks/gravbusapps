@@ -18,7 +18,20 @@ import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamCapacity } from '../../hooks/useTeamCapacity'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_TEAM_ENTITLEMENTS, GET_TEAM_COVERAGE } from '../../queries/queries'
-import { SustainabilitySignal, ComplianceAlert, BurnoutRisk, CapacityRow, WeeklyWorkingHours } from '../../types/types'
+import {
+  SustainabilitySignal,
+  ComplianceAlert,
+  BurnoutRisk,
+  CapacityRow,
+  WeeklyWorkingHours,
+  CoverageRisk,
+  ImpactLevel,
+  CapabilityCoverage,
+  MatrixTeamCoverage,
+  MatrixImpactScenario,
+  OrgUnitCoverage,
+  CoverageOverview
+} from '../../types/types'
 import { formatMinutes, toDateString, getPlannedMinutesForDate } from '../../utils/timeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AbsenceDistributionSection } from '../../../../../absences/apps/manager-absences/components/tabs/statistics-tab/AbsenceDistributionSection'
@@ -221,73 +234,6 @@ const getImpactBadge = (level: string) => {
     default:
       return <Badge variant="secondary">{t('none', 'None')}</Badge>
   }
-}
-
-// ─── Coverage types ────────────────────────────────────────────────────────────
-
-type CoverageRisk = 'low' | 'medium' | 'high'
-type ImpactLevel = 'none' | 'low' | 'medium' | 'high' | 'critical'
-
-interface CapabilityCoverage {
-  capabilityId: string
-  capabilityName: string
-  totalMembers: number
-  absentMembers: number
-  coverage: number
-  risk: CoverageRisk
-  holders: string[]
-  absentHolders: string[]
-}
-
-interface MatrixTeamCoverage {
-  id: string
-  name: string
-  totalMembers: number
-  absentCount: number
-  coverage: number
-  risk: CoverageRisk
-  members: string[]
-  absentMembers: string[]
-  capabilities: CapabilityCoverage[]
-  impactScenarios: MatrixImpactScenario[]
-}
-
-interface MatrixImpactScenario {
-  employeeId: string
-  employeeName: string
-  impactLevel: ImpactLevel
-  newCoverage: number
-  newRisk: CoverageRisk
-  description: string
-  affectedCapabilities: { capabilityName: string; newCoverage: number; newRisk: CoverageRisk }[]
-}
-
-interface OrgUnitCoverage {
-  id: string
-  name: string
-  totalMembers: number
-  absentCount: number
-  coverage: number
-  risk: CoverageRisk
-  members: string[]
-  absentMembers: string[]
-  impactedMatrixTeams: {
-    matrixTeamName: string
-    coverage: number
-    risk: CoverageRisk
-    orgUnitMembersInMatrix: string[]
-    impactScenarios: { employeeName: string; impactLevel: ImpactLevel; newCoverage: number; description: string }[]
-  }[]
-}
-
-interface CoverageOverview {
-  totalCapabilities: number
-  atRiskCapabilities: number
-  avgCoverage: number
-  overallRisk: CoverageRisk
-  orgUnits: OrgUnitCoverage[]
-  matrixTeams: MatrixTeamCoverage[]
-  highImpactCount: number
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────

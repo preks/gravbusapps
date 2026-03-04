@@ -32,12 +32,11 @@ export const useTeamCapacity = (
   const membersRef = useRef(members)
   membersRef.current = members
 
-  const isCurrentMonth = (() => {
+  const canUseSharedAttendance = (() => {
     const now = new Date()
-    return now.getFullYear() === currentMonth.getFullYear() && now.getMonth() === currentMonth.getMonth()
+    const sameMonth = now.getFullYear() === currentMonth.getFullYear() && now.getMonth() === currentMonth.getMonth()
+    return sameMonth && !!sharedMonthAttendance && sharedMonthAttendance.length > 0
   })()
-
-  const canUseSharedAttendance = isCurrentMonth && sharedMonthAttendance && sharedMonthAttendance.length > 0
 
   const fetchCapacity = useCallback(async () => {
     if (!graphqlClient || memberIds.length === 0) {
@@ -79,9 +78,9 @@ export const useTeamCapacity = (
         : (results[1]?.EmployeeAttendance ?? [])
 
       const today = new Date()
-      const isCurrentMonth =
+      const isFetchingCurrentMonth =
         today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth()
-      const endDate = isCurrentMonth ? today : monthEnd
+      const endDate = isFetchingCurrentMonth ? today : monthEnd
 
       const currentMembers = membersRef.current
       const capacityRows: CapacityRow[] = currentMembers.map(member => {
