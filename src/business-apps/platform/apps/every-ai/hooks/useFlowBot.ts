@@ -122,27 +122,76 @@ function processSSEFrame(
 
 function saveState(state: ConversationState) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: state.sessionId }))
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: state.sessionId }))
+      if (state.sessionId) {
+        console.log('[FlowBot] Saved session to localStorage:', state.sessionId)
+      }
+    } catch (error) {
+      console.warn('[FlowBot] Failed to save session state to localStorage:', error)
+    }
+  }
+}
+
+function isValidSessionId(sessionId: string | null): boolean {
+  return sessionId !== null && sessionId.trim().length > 0
+}
+
+function clearInvalidSession(): void {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+      console.log('Cleared invalid session from localStorage')
+    } catch (error) {
+      console.warn('Failed to clear invalid session from localStorage:', error)
+    }
+  }
+}
+
+function getInitialSessionId(): string | null {
+  if (typeof window === 'undefined') return null
+
+  // Check environment variable first (for development/testing)
+  // This allows overriding session ID via window.__FLOWBOT_SESSION_ID__
+  if ((window as any).__FLOWBOT_SESSION_ID__) {
+    const envSessionId = (window as any).__FLOWBOT_SESSION_ID__
+    if (isValidSessionId(envSessionId)) {
+      console.log('[FlowBot] Using session ID from environment:', envSessionId)
+      return envSessionId
+    }
+  }
+
+  // Fall back to localStorage
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) {
+      console.log('[FlowBot] No session found in localStorage, starting fresh')
+      return null
+    }
+    const parsed = JSON.parse(raw)
+    const sessionId = parsed.sessionId || null
+    if (isValidSessionId(sessionId)) {
+      console.log('[FlowBot] Restored session from localStorage:', sessionId)
+      return sessionId
+    } else {
+      console.log('[FlowBot] Invalid session in localStorage, starting fresh')
+      return null
+    }
+  } catch (error) {
+    console.warn('[FlowBot] Failed to load session state from localStorage:', error)
+    return null
   }
 }
 
 function loadState(): ConversationState {
-  if (typeof window === 'undefined') return { conversation: [], sessionId: null }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) {
-      return { conversation: [], sessionId: null }
-    }
-    const sessionId = JSON.parse(raw).sessionId
-
-    return { conversation: [], sessionId }
-  } catch {
-    return { conversation: [], sessionId: null }
-  }
+  const sessionId = getInitialSessionId()
+  return { conversation: [], sessionId }
 }
 
 async function loadHistory(accessToken: string, sessionId: string | null): Promise<ConversationState> {
-  if (!sessionId) return { conversation: [], sessionId: null }
+  if (!isValidSessionId(sessionId)) {
+    return { conversation: [], sessionId: null }
+  }
 
   try {
     const baseUrl = resolveFlowbotBaseUrl()
@@ -154,7 +203,20 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
       }
     })
 
-    if (!res.ok) throw new Error(res.statusText)
+    // If session not found, clear invalid session from storage
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.warn('Session not found on server, clearing invalid session:', sessionId)
+        clearInvalidSession()
+        return { conversation: [], sessionId: null }
+      }
+      if (res.status === 401 || res.status === 403) {
+        console.warn('Session unauthorized, clearing invalid session:', sessionId)
+        clearInvalidSession()
+        return { conversation: [], sessionId: null }
+      }
+      throw new Error(`${res.status} ${res.statusText}`)
+    }
 
     const payload = await res.json()
 
@@ -259,6 +321,202 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
   }
 }
 
+/** Response shape from GET /flowbot/chat/user/chats */
+export interface FlowBotSession {
+  id: string
+  createdAt: string
+  updatedAt: string
+  lastMessageAt?: string
+  messageCount: number
+  title?: string
+  shortInfo?: string
+}
+
+const CHAT_LIST_LIMIT = 50
+
+/**
+ * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...
+ */
+async function fetchChatListFromApi(accessToken: string, limit: number = CHAT_LIST_LIMIT): Promise<FlowBotSession[]> {
+  try {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}`
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json'
+      }
+    })
+
+    if (!res.ok) {
+      console.warn('[FlowBot] Failed to fetch chat list:', res.status, res.statusText)
+      return []
+    }
+
+    const payload = await res.json()
+    const raw = Array.isArray(payload) ? payload : (payload?.chats ?? payload?.items ?? [])
+    return raw
+      .map((item: any) => ({
+        id: item.session_id ?? item.sessionId ?? item.id ?? '',
+        createdAt: item.created_at ?? item.createdAt ?? new Date().toISOString(),
+        updatedAt: item.created_at ?? item.createdAt ?? new Date().toISOString(),
+        lastMessageAt: item.updated_at ?? item.updatedAt ?? item.created_at ?? item.createdAt,
+        messageCount: typeof item.message_count === 'number' ? item.message_count : 0,
+        title: item.title ?? item.short_info ?? item.shortInfo,
+        shortInfo: item.short_info ?? item.shortInfo ?? item.title
+      }))
+      .filter((s: FlowBotSession) => s.id)
+  } catch (error) {
+    console.warn('[FlowBot] Error fetching chat list:', error)
+    return []
+  }
+}
+
+/**
+ * Get all FlowBot sessions for the current user (uses flowbot chat list API).
+ */
+async function getAllFlowBotSessions(accessToken: string): Promise<FlowBotSession[]> {
+  return fetchChatListFromApi(accessToken, CHAT_LIST_LIMIT)
+}
+
+/**
+ * Delete a chat session on the server: DELETE /flowbot/chat/sessions/:sessionId
+ */
+async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
+  try {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/chat/sessions/${sessionId}`
+
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: '*/*'
+      }
+    })
+
+    if (!res.ok) {
+      console.warn('[FlowBot] Failed to delete chat session:', res.status, res.statusText)
+    }
+  } catch (error) {
+    console.error('[FlowBot] Error deleting chat session:', error)
+  }
+}
+
+/**
+ * Save user message to the server for persistence using the existing /chat/messages endpoint
+ */
+async function saveUserMessage(
+  sessionId: string,
+  userInputText: string,
+  files: File[],
+  mentions:
+    | Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
+    | undefined,
+  accessToken: string
+): Promise<void> {
+  try {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/chat/messages`
+
+    // Prepare content with mentions and files info if present
+    let content = userInputText
+    if (mentions && mentions.length > 0) {
+      content += `\n\n[Mentions: ${mentions.map(m => m.display).join(', ')}]`
+    }
+    if (files && files.length > 0) {
+      content += `\n\n[Files: ${files.map(f => f.name).join(', ')}]`
+    }
+
+    const requestBody = {
+      session_id: sessionId,
+      role: 'user',
+      content: content,
+      short_info: '' // Let the backend auto-generate from content
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    if (!res.ok) {
+      console.warn('[FlowBot] Failed to save user message:', res.status, res.statusText)
+    } else {
+      console.log('[FlowBot] User message saved successfully')
+    }
+  } catch (error) {
+    console.error('[FlowBot] Error saving user message:', error)
+  }
+}
+
+/**
+ * Save agent response to the server for persistence using the existing /chat/messages endpoint
+ */
+async function saveAgentMessage(sessionId: string, outputs: OutputItem[], accessToken: string): Promise<void> {
+  try {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/chat/messages`
+
+    // Convert outputs to readable content
+    let content = ''
+    for (const output of outputs) {
+      if (output.type === 'answer' && output.displayData) {
+        for (const data of output.displayData) {
+          if (data.type === 'textBlock') {
+            content += data.text + '\n\n'
+          } else if (data.type === 'table') {
+            content += `[Table: ${data.title || 'Data Table'}]\n`
+          } else if (data.type === 'entity') {
+            content += `[Entity: ${data.entity} - ${data.id}]\n`
+          } else {
+            content += `[${data.type}]\n`
+          }
+        }
+      } else if (output.type === 'flow_proposal') {
+        content += `[Flow Proposal: ${output.flow_name || 'Unknown'}]\n`
+      } else if (output.type !== 'tool' && output.type !== 'loading') {
+        content += `[${output.type}]\n`
+      }
+    }
+
+    // If no readable content, create a summary
+    if (!content.trim()) {
+      content = `[Agent Response: ${outputs.length} output(s)]`
+    }
+
+    const requestBody = {
+      session_id: sessionId,
+      role: 'assistant',
+      content: content.trim(),
+      short_info: ''
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    if (!res.ok) {
+      console.warn('[FlowBot] Failed to save agent message:', res.status, res.statusText)
+    } else {
+      console.log('[FlowBot] Agent message saved successfully')
+    }
+  } catch (error) {
+    console.error('[FlowBot] Error saving agent message:', error)
+  }
+}
+
 /**
  * Upload files to FlowBot using the async /add_files endpoint.
  * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
@@ -276,7 +534,8 @@ async function uploadFilesToFlowbotSession(
 
   const form = new FormData()
   files.forEach(file => form.append('files', file))
-  form.append('session_id', sessionId ?? '')
+  // Always send session_id as string (empty if null) to match terminal client behavior
+  form.append('session_id', sessionId || '')
 
   const res = await fetch(url, {
     method: 'POST',
@@ -291,7 +550,8 @@ async function uploadFilesToFlowbotSession(
   }
 
   const data = await res.json()
-  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
+  const returnedSessionId = data?.sessionId as string | undefined
+  return isValidSessionId(returnedSessionId || null) ? returnedSessionId || '' : sessionId || ''
 }
 
 export type FlowProposalFileUploadHints = {
@@ -416,6 +676,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   const inFlightRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const [cancelledMessageText, setCancelledMessageText] = useState<string | null>(null)
+  const currentAgentOutputsRef = useRef<OutputItem[]>([])
 
   const analyticsEntity = useMemo(() => resolveAnalyticsEntity(currentPageContext), [currentPageContext])
   const analyticsHookEntity = useMemo<AnalyticsEntityInput>(
@@ -530,6 +791,11 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   }, [analyticsEntity, currentPageContext, getPageAnalyticsContext])
 
   const appendOutputItemToLastAgentTurn = useCallback((outputItem: OutputItem) => {
+    // Track outputs in ref for persistence (skip loading indicators)
+    if (outputItem.type !== 'loading') {
+      currentAgentOutputsRef.current.push(outputItem)
+    }
+
     setState(prevState => {
       const newConversation = JSON.parse(JSON.stringify(prevState.conversation))
 
@@ -602,6 +868,15 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       } catch (error) {
         if (!isCancelled) {
           console.error('Unexpected error while fetching FlowBot history:', error)
+          // If there's a persistent error with this session, clear it
+          if (
+            error instanceof Error &&
+            (error.message.includes('404') || error.message.includes('401') || error.message.includes('403'))
+          ) {
+            console.warn('Clearing problematic session due to persistent error')
+            clearInvalidSession()
+            setState({ conversation: [], sessionId: null })
+          }
         }
       } finally {
         if (!isCancelled) setIsLoading(false)
@@ -624,6 +899,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       try {
         inFlightRef.current = true
         setIsLoading(true)
+
+        // Reset agent outputs tracking for this new message
+        currentAgentOutputsRef.current = []
 
         let displayMessage = userInputText
         try {
@@ -653,7 +931,8 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         }
 
         const form = new FormData()
-        form.append('session_id', effectiveSessionId)
+        // Always send session_id as string (empty if null) to match terminal client behavior
+        form.append('session_id', effectiveSessionId || '')
         form.append('user_input_text', userInputText)
         form.append('llm_model', isThinking ? 'o4-mini' : LLM_MODEL)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
@@ -679,7 +958,16 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           signal: abortControllerRef.current.signal
         })
 
-        if (!res.ok) throw new Error(res.statusText)
+        if (!res.ok) {
+          // Handle session-related errors
+          if (res.status === 404 || res.status === 401 || res.status === 403) {
+            console.warn('Session invalid during message send, clearing session')
+            clearInvalidSession()
+            setState(prev => ({ ...prev, sessionId: null }))
+            sessionIdRef.current = null
+          }
+          throw new Error(`${res.status} ${res.statusText}`)
+        }
         if (!res.body) throw new Error('No body in streaming response')
 
         const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
@@ -706,8 +994,18 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
               console.error('Failed to parse output item:', err)
             }
           } else if (event === 'session-id') {
-            const cleaned = data.trim()
-            updateSessionId(JSON.parse(cleaned) as string)
+            try {
+              const cleaned = data.trim()
+              const newSessionId = JSON.parse(cleaned) as string
+              if (isValidSessionId(newSessionId)) {
+                console.log('[FlowBot] Received new session ID from server:', newSessionId)
+                updateSessionId(newSessionId)
+              } else {
+                console.warn('[FlowBot] Received invalid session ID from server:', newSessionId)
+              }
+            } catch (error) {
+              console.error('Failed to parse session-id event:', error)
+            }
           } else {
             console.warn('Received unknown event type:', event)
           }
@@ -729,6 +1027,24 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           })
         }
         pruneEphemeralOutputsFromLastAgentTurn()
+
+        // After streaming is complete, save both user and agent messages for persistence
+        const currentSessionId = sessionIdRef.current
+        if (currentSessionId) {
+          try {
+            // Save user message
+            await saveUserMessage(currentSessionId, userInputText, files, mentions, accessToken)
+
+            // Save agent message using tracked outputs
+            const agentOutputs = currentAgentOutputsRef.current
+            if (agentOutputs.length > 0) {
+              await saveAgentMessage(currentSessionId, agentOutputs, accessToken)
+            }
+          } catch (persistenceError) {
+            console.error('Error during message persistence:', persistenceError)
+            // Don't throw - persistence failure shouldn't break the chat experience
+          }
+        }
       } catch (error) {
         // Don't show error if request was aborted (user cancelled)
         if (error instanceof Error && error.name === 'AbortError') {
@@ -743,6 +1059,8 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         inFlightRef.current = false
         setIsLoading(false)
         abortControllerRef.current = null
+        // Reset agent outputs tracking
+        currentAgentOutputsRef.current = []
       }
     },
     [
@@ -1101,6 +1419,38 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     [accessToken, state.sessionId, updateSessionId, sessionIdRef]
   )
 
+  /** Load a chat session by id: persist sessionId and fetch conversation from flowbot */
+  const loadSession = useCallback(
+    async (sessionId: string) => {
+      saveState({ conversation: [], sessionId })
+      sessionIdRef.current = sessionId
+      lastFetchedSessionIdRef.current = sessionId
+      setIsLoading(true)
+      try {
+        const history = await loadHistory(accessToken, sessionId)
+        setState(history)
+        lastFetchedSessionIdRef.current = history.sessionId ?? null
+      } catch (error) {
+        console.error('[FlowBot] Failed to load session:', error)
+        setState({ conversation: [], sessionId })
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [accessToken]
+  )
+
+  const getAllSessions = useCallback(async () => {
+    return getAllFlowBotSessions(accessToken)
+  }, [accessToken])
+
+  const deleteSession = useCallback(
+    async (sessionIdToDelete: string) => {
+      await deleteChatSession(sessionIdToDelete, accessToken)
+    },
+    [accessToken]
+  )
+
   return {
     conversation: state.conversation,
     isLoading,
@@ -1114,6 +1464,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     sessionId: state.sessionId,
     cancelGeneration,
     cancelledMessageText,
-    clearCancelledMessage
+    clearCancelledMessage,
+    getAllSessions,
+    deleteSession,
+    loadSession
   }
 }
