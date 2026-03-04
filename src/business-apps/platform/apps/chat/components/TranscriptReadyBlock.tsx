@@ -12,7 +12,7 @@ export interface TranscriptReadyBlockProps {
   createMeetingMinutes: (sessionId: string) => void
   isCreating: boolean
   error: string | null
-  t: (key: string, opts?: { sessionName?: string }) => string
+  t: (key: string, opts?: Record<string, unknown>) => string
 }
 
 export const TranscriptReadyBlock: React.FC<TranscriptReadyBlockProps> = ({
@@ -27,16 +27,37 @@ export const TranscriptReadyBlock: React.FC<TranscriptReadyBlockProps> = ({
   const sessionId = message.metadata?.sessionId
   const transcriptionStatus = message.metadata?.transcriptionStatus
   const effectiveStatus = transcriptionStatus ?? 'ready'
+  const startedAtRaw =
+    message.metadata?.startedAt ??
+    message.metadata?.sessionStartedAt ??
+    message.metadata?.meetingStartedAt ??
+    message.metadata?.callStartedAt
+  const startedAtText = (() => {
+    if (!startedAtRaw) return null
+    const dt = new Date(String(startedAtRaw))
+    if (Number.isNaN(dt.getTime())) return null
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(dt)
+  })()
 
   return (
     <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-transcript-${message.id}`}>
-      <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
+      <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-muted gba:border gba:border-border gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-lg">📝</span>
           <span className="gba:text-sm gba:font-medium gba:text-foreground">
             {t('chat-transcript-ready', { sessionName })}
           </span>
         </div>
+        {startedAtText && (
+          <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+            {t('chat-meeting-started-at', { startedAt: startedAtText })}
+          </p>
+        )}
         <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
           {t('chat-transcript-create-minutes-description')}
         </p>
