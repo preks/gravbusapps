@@ -1048,7 +1048,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       reportCompressedSize: isUnversionedBuild && isSingleBuild ? true : false,
       // Enable CSS processing
       css: {
-        devSourcemap: true
+        devSourcemap: !isProduction
       },
       cssCodeSplit: true,
       rollupOptions: {
