@@ -32,10 +32,6 @@ export const hrAreas: HrArea[] = [
       {
         label: 'Absence Management',
         action: '/platform/hr/absences/backoffice-absences'
-      },
-      {
-        label: 'My Team Time',
-        action: '/platform/hr/my-team-time'
       }
     ]
   },
