@@ -16,6 +16,34 @@ interface UseEmailsOptions {
   autoRefreshInterval?: number
 }
 
+interface ListMessagesParamsBuilderOptions {
+  folderId?: string
+  accountId?: string
+  search?: string
+  labels: string[]
+  starredOnly?: boolean
+  page: number
+}
+
+function buildListMessagesParams({
+  folderId,
+  accountId,
+  search,
+  labels,
+  starredOnly,
+  page
+}: ListMessagesParamsBuilderOptions) {
+  return {
+    folderId: starredOnly ? undefined : folderId,
+    accountId,
+    search: search || undefined,
+    labels: labels.length ? labels : undefined,
+    starredOnly: starredOnly || undefined,
+    page,
+    limit: 100
+  }
+}
+
 /**
  * Deduplicate messages by threadId, keeping only the latest message per thread.
  * Messages without threadId are kept as-is.
@@ -143,15 +171,16 @@ export function useEmails({
       if (!silent) setIsLoading(true)
 
       try {
-        const result = await EmailApiService.listMessages({
-          folderId: starredOnly ? undefined : folderId,
-          accountId,
-          search: search || undefined,
-          labels: normalizedLabels.length ? normalizedLabels : undefined,
-          starredOnly: starredOnly || undefined,
-          page: pageNum,
-          limit: 100
-        })
+        const result = await EmailApiService.listMessages(
+          buildListMessagesParams({
+            folderId,
+            accountId,
+            search,
+            labels: normalizedLabels,
+            starredOnly,
+            page: pageNum
+          })
+        )
 
         const deduplicated = threadView ? deduplicateThreads(result.items) : result.items
 
@@ -201,15 +230,16 @@ export function useEmails({
 
     try {
       const nextPage = pageRef.current + 1
-      const result = await EmailApiService.listMessages({
-        folderId: starredOnly ? undefined : folderId,
-        accountId,
-        search: search || undefined,
-        labels: normalizedLabels.length ? normalizedLabels : undefined,
-        starredOnly: starredOnly || undefined,
-        page: nextPage,
-        limit: 100
-      })
+      const result = await EmailApiService.listMessages(
+        buildListMessagesParams({
+          folderId,
+          accountId,
+          search,
+          labels: normalizedLabels,
+          starredOnly,
+          page: nextPage
+        })
+      )
 
       if (result.items.length > 0) {
         const newItems = threadView ? deduplicateThreads(result.items) : result.items
@@ -320,7 +350,7 @@ export function useEmails({
   const updateMessageLabels = useCallback((id: string, labels: string[]) => {
     const normalized = normalizeLabels(labels)
     setMessages(prev => prev.map(m => (m.id === id ? { ...m, labels: normalized } : m)))
-    setSelectedMessage(prev => (prev && prev.id === id ? { ...prev, labels: normalized } : prev))
+    setSelectedMessage(prev => (prev?.id === id ? { ...prev, labels: normalized } : prev))
   }, [])
 
   return {

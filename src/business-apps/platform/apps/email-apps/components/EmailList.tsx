@@ -37,8 +37,10 @@ import {
   Forward
 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
+import { useLabelSuggestions } from '../hooks/useLabelSuggestions'
 import { normalizeLabels } from '../utils/labelUtils'
-import type { EmailMessageSummary, EmailLabelSuggestion } from '../types'
+import { runOptimisticLabelMutation } from '../utils/runOptimisticLabelMutation'
+import type { EmailMessageSummary } from '../types'
 import translations from '../_i18n'
 
 interface EmailListProps {
@@ -225,30 +227,30 @@ export const EmailList: React.FC<EmailListProps> = ({
   )
 
   const handleAddLabelsFromContextMenu = useCallback(
-    async (messageId: string, labels: string[]): Promise<boolean> => {
+    async (messageId: string, labels: string[]): Promise<string[] | null> => {
       try {
         const result = await EmailApiService.addMessageLabels(messageId, labels)
         toast.success(t('list-context-labels-add-success'))
         await syncAfterLabelMutation(messageId, result.labels || [])
-        return true
+        return normalizeLabels(result.labels || [])
       } catch {
         toast.error(t('list-context-labels-add-failed'))
-        return false
+        return null
       }
     },
     [syncAfterLabelMutation, t]
   )
 
   const handleRemoveLabelFromContextMenu = useCallback(
-    async (messageId: string, label: string): Promise<boolean> => {
+    async (messageId: string, label: string): Promise<string[] | null> => {
       try {
         const result = await EmailApiService.removeMessageLabels(messageId, [label])
         toast.success(t('list-context-labels-remove-success'))
         await syncAfterLabelMutation(messageId, result.labels || [])
-        return true
+        return normalizeLabels(result.labels || [])
       } catch {
         toast.error(t('list-context-labels-remove-failed'))
-        return false
+        return null
       }
     },
     [syncAfterLabelMutation, t]
@@ -441,8 +443,8 @@ function EmailListItem({
   onToggleRead?: () => void
   onArchive?: () => void
   onDelete?: () => void
-  onAddLabels: (labels: string[]) => Promise<boolean>
-  onRemoveLabel: (label: string) => Promise<boolean>
+  onAddLabels: (labels: string[]) => Promise<string[] | null>
+  onRemoveLabel: (label: string) => Promise<string[] | null>
   testId: string
   t: (key: string, vars?: Record<string, string | number>) => string
   formatDate: (dateString: string) => string
@@ -451,8 +453,6 @@ function EmailListItem({
   const [labelInput, setLabelInput] = useState('')
   const [isMutatingLabels, setIsMutatingLabels] = useState(false)
   const [localLabels, setLocalLabels] = useState<string[]>(normalizeLabels(message.labels || []))
-  const [labelSuggestions, setLabelSuggestions] = useState<EmailLabelSuggestion[]>([])
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   const [suggestionRefreshTick, setSuggestionRefreshTick] = useState(0)
 
   useEffect(() => {
@@ -460,98 +460,99 @@ function EmailListItem({
     setLabelInput('')
   }, [message.id, message.labels])
 
-  useEffect(() => {
-    const query = labelInput.trim()
-    if (!query) {
-      setLabelSuggestions([])
-      setIsLoadingSuggestions(false)
-      return
-    }
+  const { suggestions: labelSuggestions, isLoading: isLoadingSuggestions } = useLabelSuggestions({
+    query: labelInput,
+    existingLabels: localLabels,
+    refreshKey: suggestionRefreshTick
+  })
 
-    let cancelled = false
-    setIsLoadingSuggestions(true)
-    const timeoutId = setTimeout(async () => {
-      try {
-        const suggestions = await EmailApiService.searchLabelSuggestions(query, 10)
-        if (cancelled) return
-        const currentLabels = new Set(localLabels.map(label => label.toLowerCase()))
-        setLabelSuggestions(suggestions.filter(suggestion => !currentLabels.has(suggestion.name.toLowerCase())))
-      } catch {
-        if (!cancelled) setLabelSuggestions([])
-      } finally {
-        if (!cancelled) setIsLoadingSuggestions(false)
-      }
-    }, 250)
+  const addLabelsFromMenu = useCallback(
+    async (labelsToAdd: string[]) => {
+      if (isMutatingLabels) return
 
-    return () => {
-      cancelled = true
-      clearTimeout(timeoutId)
-    }
-  }, [labelInput, localLabels, suggestionRefreshTick])
+      const labels = normalizeLabels(labelsToAdd)
+      if (labels.length === 0) return
+
+      setLabelInput('')
+      await runOptimisticLabelMutation({
+        previousLabels: localLabels,
+        setLocalLabels,
+        setIsMutating: setIsMutatingLabels,
+        getOptimisticLabels: existing => [...existing, ...labels],
+        mutate: async () => {
+          const result = await onAddLabels(labels)
+          if (!result) throw new Error('Failed to add labels')
+          return result
+        },
+        onSuccess: () => {
+          setSuggestionRefreshTick(prev => prev + 1)
+        }
+      })
+    },
+    [isMutatingLabels, localLabels, onAddLabels]
+  )
 
   const handleAddFromMenu = useCallback(async () => {
-    if (isMutatingLabels) return
-    const labels = normalizeLabels([labelInput])
-    if (labels.length === 0) return
-
-    const previous = localLabels
-    const optimistic = normalizeLabels([...localLabels, ...labels])
-    setLocalLabels(optimistic)
-    setIsMutatingLabels(true)
-    setLabelInput('')
-
-    const success = await onAddLabels(labels)
-    if (!success) {
-      setLocalLabels(previous)
-    } else {
-      setSuggestionRefreshTick(prev => prev + 1)
-    }
-    setIsMutatingLabels(false)
-  }, [isMutatingLabels, labelInput, localLabels, onAddLabels])
+    await addLabelsFromMenu([labelInput])
+  }, [addLabelsFromMenu, labelInput])
 
   const handleAddSuggestionFromMenu = useCallback(
     async (suggestionName: string) => {
-      if (isMutatingLabels) return
-
-      const labels = normalizeLabels([suggestionName])
-      if (labels.length === 0) return
-
-      const previous = localLabels
-      const optimistic = normalizeLabels([...localLabels, ...labels])
-      setLocalLabels(optimistic)
-      setIsMutatingLabels(true)
-      setLabelInput('')
-
-      const success = await onAddLabels(labels)
-      if (!success) {
-        setLocalLabels(previous)
-      } else {
-        setSuggestionRefreshTick(prev => prev + 1)
-      }
-      setIsMutatingLabels(false)
+      await addLabelsFromMenu([suggestionName])
     },
-    [isMutatingLabels, localLabels, onAddLabels]
+    [addLabelsFromMenu]
   )
 
   const handleRemoveFromMenu = useCallback(
     async (label: string) => {
       if (isMutatingLabels) return
 
-      const previous = localLabels
-      const optimistic = localLabels.filter(current => current !== label)
-      setLocalLabels(optimistic)
-      setIsMutatingLabels(true)
-
-      const success = await onRemoveLabel(label)
-      if (!success) {
-        setLocalLabels(previous)
-      } else {
-        setSuggestionRefreshTick(prev => prev + 1)
-      }
-      setIsMutatingLabels(false)
+      await runOptimisticLabelMutation({
+        previousLabels: localLabels,
+        setLocalLabels,
+        setIsMutating: setIsMutatingLabels,
+        getOptimisticLabels: existing => existing.filter(current => current !== label),
+        mutate: async () => {
+          const result = await onRemoveLabel(label)
+          if (!result) throw new Error('Failed to remove label')
+          return result
+        },
+        onSuccess: () => {
+          setSuggestionRefreshTick(prev => prev + 1)
+        }
+      })
     },
     [isMutatingLabels, localLabels, onRemoveLabel]
   )
+
+  const shouldShowLabelSuggestions = labelInput.trim().length > 0
+  let labelSuggestionsContent: React.ReactNode = null
+
+  if (isLoadingSuggestions) {
+    labelSuggestionsContent = (
+      <p className="gba:text-xs gba:text-muted-foreground">{t('list-context-labels-suggestions-loading')}</p>
+    )
+  } else if (labelSuggestions.length === 0) {
+    labelSuggestionsContent = (
+      <p className="gba:text-xs gba:text-muted-foreground">{t('list-context-labels-suggestions-empty')}</p>
+    )
+  } else {
+    labelSuggestionsContent = (
+      <>
+        {labelSuggestions.map(suggestion => (
+          <button
+            key={`${message.id}-menu-suggestion-${suggestion.id}`}
+            type="button"
+            className="gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded hover:gba:bg-muted/50 gba:text-xs"
+            onClick={() => void handleAddSuggestionFromMenu(suggestion.name)}
+            data-testid={`${testId}-context-label-suggestion-${suggestion.id}`}
+          >
+            {suggestion.name}
+          </button>
+        ))}
+      </>
+    )
+  }
 
   return (
     <ContextMenu>
@@ -752,30 +753,8 @@ function EmailListItem({
                   ))}
                 </div>
               )}
-              {labelInput.trim().length > 0 && (
-                <div className="gba:border gba:rounded-md gba:p-1.5 gba:space-y-1">
-                  {isLoadingSuggestions ? (
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      {t('list-context-labels-suggestions-loading')}
-                    </p>
-                  ) : labelSuggestions.length === 0 ? (
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      {t('list-context-labels-suggestions-empty')}
-                    </p>
-                  ) : (
-                    labelSuggestions.map(suggestion => (
-                      <button
-                        key={`${message.id}-menu-suggestion-${suggestion.id}`}
-                        type="button"
-                        className="gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded hover:gba:bg-muted/50 gba:text-xs"
-                        onClick={() => void handleAddSuggestionFromMenu(suggestion.name)}
-                        data-testid={`${testId}-context-label-suggestion-${suggestion.id}`}
-                      >
-                        {suggestion.name}
-                      </button>
-                    ))
-                  )}
-                </div>
+              {shouldShowLabelSuggestions && (
+                <div className="gba:border gba:rounded-md gba:p-1.5 gba:space-y-1">{labelSuggestionsContent}</div>
               )}
             </div>
           </>
