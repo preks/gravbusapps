@@ -141,3 +141,49 @@ export const deepNormalizeNumericStrings = (data: any): any => {
   }
   return toNumberIfNumericString(data)
 }
+
+// --- Amount input sanitization (for decimal amount fields, e.g. ExpensePlanItemForm, PaymentScreen) ---
+
+function toSafeDecimalString(value: unknown): string {
+  if (value != null && typeof value === 'object') return ''
+  return String(value ?? '')
+}
+
+/**
+ * Sanitizes raw input for a decimal amount field:
+ * - Safe string conversion (no object stringification)
+ * - Keeps only digits and one decimal separator (. or ,)
+ * - Limits to 2 decimal places
+ */
+export function sanitizeDecimalAmountInput(value: unknown): string {
+  const raw = toSafeDecimalString(value)
+  let result = raw.replace(/[^0-9.,]/g, '')
+
+  if (result.includes('.') || result.includes(',')) {
+    const sep = result.includes('.') ? '.' : ','
+    const parts = result.split(sep)
+    if (parts[1] && parts[1].length > 2) {
+      result = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
+    }
+  }
+
+  return result
+}
+
+function isZeroVariant(v: string): boolean {
+  const digits = v.replace(/\D/g, '')
+  return digits.length > 0 && /^0+$/.test(digits)
+}
+
+/**
+ * Applies payment-screen-specific rules to a sanitized amount string:
+ * - When previous value was a zero variant, strip leading 0. and 0, from the new input
+ * - Strip leading zeros from values like "0123" -> "123"
+ */
+export function applyPaymentAmountRules(sanitizedValue: string, previousValue: string): string {
+  let value = isZeroVariant(previousValue) ? sanitizedValue.replace(/^[0.,]+/, '') : sanitizedValue
+  if (/^0+\d+$/.test(value)) {
+    value = value.replace(/^0+/, '')
+  }
+  return value
+}
