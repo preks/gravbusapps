@@ -134,7 +134,17 @@ const CalendarInner: React.FC<CalendarProps> = ({
             ...selectedEvent,
             participants,
             participantCount: participants.length,
-            acceptedCount
+            acceptedCount,
+            // Use fresh meeting flags so transcript message appears without refresh when another user enables it
+            transcriptionEnabled: meeting.transcriptionEnabled ?? selectedEvent.transcriptionEnabled,
+            metadata: {
+              ...selectedEvent.metadata,
+              ...meeting.metadata,
+              aiTranscriptionEnabled:
+                meeting.metadata?.aiTranscriptionEnabled ??
+                meeting.transcriptionEnabled ??
+                selectedEvent.metadata?.aiTranscriptionEnabled
+            }
           }
         } catch (error) {
           console.error('Error fetching meeting data:', error)

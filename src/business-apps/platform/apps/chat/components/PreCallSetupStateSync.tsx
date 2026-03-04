@@ -66,15 +66,16 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     // CallDialog (GroupCallModalRtk) only renders when globalCallManager has realtimeKitMeeting.
     // Keep PreCallSetup visible until then so there is no frame with neither UI.
     const isCallUiReady = !!globalCallData.realtimeKitMeeting
+    // When user ends call, globalCallManager is set to 'ended' before local state updates.
+    // Only hide for "connected but UI not ready" when global is ended/idle (teardown).
+    // Do NOT block setup/joining: when starting a new call, global may still be ended from previous.
+    const globalStatus = globalCallData.callState?.status
+    const isEndedOrIdle = globalStatus === 'ended' || globalStatus === 'idle'
+    const connectedButNotReady = groupCallState.status === 'connected' && !isCallUiReady && !isEndedOrIdle
 
     // Show during setup/joining, or when connected but call UI not yet ready (avoids blank frame).
-    // Avoid "connected but not joined" for teardown: meeting can be undefined while status is
-    // still 'connected', which could incorrectly re-open the dialog after ending a call.
     const shouldShow =
-      isOutboundHost &&
-      (isSetup || isJoining || (groupCallState.status === 'connected' && !isCallUiReady)) &&
-      !isMinimized &&
-      !hasIncomingInvite
+      isOutboundHost && (isSetup || isJoining || connectedButNotReady) && !isMinimized && !hasIncomingInvite
 
     const currentSourceOwner = globalPreCallSetupManager.getSourceOwnerId()
     const isSourceOwner = currentSourceOwner === instanceId
@@ -134,10 +135,13 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
       // Use call state value only (initiateCall already awaits getMeeting, so we have the final value)
       const transcriptionEnabled = groupCallState.transcriptionEnabled === true
 
+      // For meetings started from dashboard/calendar, call state has meeting title; use it instead of activeConversation name
+      const displayName = groupCallState.conversationName ?? activeConversation?.name
+
       globalPreCallSetupManager.setStateFrom(instanceId, {
         isOpen: true,
         callType: groupCallState.callType,
-        conversationName: activeConversation?.name,
+        conversationName: displayName,
         participantCount: groupParticipants.length,
         userName,
         userAvatarUrl,
@@ -160,6 +164,7 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     instanceId,
     groupCallState.status,
     groupCallState.callType,
+    groupCallState.conversationName,
     groupCallState.hostId,
     groupCallState.hasBeenMinimized,
     groupCallState.isMinimized,

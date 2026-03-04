@@ -412,7 +412,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           >
             <EveryOneDashboard
               accessToken={accessToken}
-              userInfo={userInfo}
+              userInfo={userInfo as { displayName?: string; firstName?: string; lastName?: string; email?: string }}
               isActive={activeTab === 'dashboard'}
               presenceMap={presenceMap}
               onOpenChat={userId => {
@@ -422,7 +422,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                 }, 100)
               }}
               onStartCall={(userId, displayName, callType, avatarUrl) => {
-                setActiveTab('chat')
+                // Do not switch to Chat tab; PreCall dialog is global and works from any tab
                 setTimeout(() => {
                   window.dispatchEvent(
                     new CustomEvent('chat:start-call-with-user', {
@@ -431,16 +431,75 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                   )
                 }, 100)
               }}
-              onJoinMeeting={meeting => {
-                // Switch to chat tab and dispatch join meeting event
-                setActiveTab('chat')
+              onJoinMeeting={async meeting => {
+                const conversationId = meeting.conversationId ?? meeting.id
+                const callId = meeting.conversationId || meeting.id
+                const isStarting = meeting.isOrganizer && !activeCalls[callId]
+                // Only pass participants when starting (organizer, no active call) so invites are sent; when joining existing call, pass empty
+                let participants: { id: string; odId: string; odName: string; avatarUrl?: string }[] = []
+                if (isStarting && calendarApiClient) {
+                  try {
+                    const fullMeeting = await calendarApiClient.getMeeting(meeting.id)
+                    const list =
+                      fullMeeting.participants
+                        ?.filter(p => p.status !== InvitationStatus.DECLINED)
+                        .map(p => ({
+                          id: p.userId,
+                          odId: p.userId,
+                          odName:
+                            p.user?.displayName ||
+                            `${p.user?.firstName ?? ''} ${p.user?.lastName ?? ''}`.trim() ||
+                            p.user?.email ||
+                            'Unknown',
+                          avatarUrl: p.user?.avatarUrl
+                        })) ?? []
+                    if (fullMeeting.organizer && !list.some(p => p.id === fullMeeting.organizer?.id)) {
+                      list.push({
+                        id: fullMeeting.organizer.id,
+                        odId: fullMeeting.organizer.id,
+                        odName:
+                          fullMeeting.organizer.displayName ||
+                          `${fullMeeting.organizer.firstName ?? ''} ${fullMeeting.organizer.lastName ?? ''}`.trim() ||
+                          fullMeeting.organizer.email ||
+                          'Unknown',
+                        avatarUrl: fullMeeting.organizer.avatarUrl
+                      })
+                    }
+                    participants = list
+                  } catch {
+                    participants =
+                      meeting.participants
+                        ?.filter(p => p.status !== InvitationStatus.DECLINED)
+                        .map(p => ({
+                          id: p.id,
+                          odId: p.id,
+                          odName:
+                            p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
+                          avatarUrl: p.avatarUrl
+                        })) ?? []
+                    if (meeting.organizer && !participants.some(p => p.id === meeting.organizer?.id)) {
+                      participants.push({
+                        id: meeting.organizer.id,
+                        odId: meeting.organizer.id,
+                        odName:
+                          meeting.organizer.displayName ||
+                          `${meeting.organizer.firstName || ''} ${meeting.organizer.lastName || ''}`.trim() ||
+                          meeting.organizer.email ||
+                          'Unknown',
+                        avatarUrl: meeting.organizer.avatarUrl
+                      })
+                    }
+                  }
+                }
+                // Do not switch to Chat tab; PreCall dialog is global and works from any tab
                 setTimeout(() => {
                   window.dispatchEvent(
                     new CustomEvent('chat:join-meeting', {
                       detail: {
                         meetingId: meeting.id,
-                        conversationId: meeting.conversationId,
-                        title: meeting.title
+                        conversationId,
+                        title: meeting.title,
+                        participants
                       }
                     })
                   )

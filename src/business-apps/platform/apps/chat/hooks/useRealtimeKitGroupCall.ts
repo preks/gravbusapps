@@ -213,6 +213,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     setCallState
   ])
 
+  const participantsForDisplay =
+    (combinedCallState.status === 'setup' || combinedCallState.status === 'joining') &&
+    refs.pendingCallParticipantsRef.current?.length
+      ? refs.pendingCallParticipantsRef.current
+      : undefined
+
   return useMemo(
     () =>
       buildReturnValue({
@@ -222,6 +228,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         isHost,
         media,
         participantsHook,
+        participantsForDisplay,
         screenShare,
         websocket,
         activeSpeaker,
@@ -269,6 +276,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       isHost,
       media,
       participantsHook,
+      participantsForDisplay,
       screenShare,
       websocket,
       activeSpeaker,

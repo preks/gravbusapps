@@ -407,7 +407,8 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         wsClient.getSocket()?.emit('rtk-group-call:declined', {
           conversationId,
           meetingId: roomId,
-          participantId: currentUser.id
+          participantId: currentUser.id,
+          participantOdId: currentUser.odId
         })
       }
     }
