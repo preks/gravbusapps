@@ -132,7 +132,7 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
   const getEventIcon = (event: HistoryEvent) => {
     switch (event.type) {
       case 'step':
-        return <CheckCircleOutlined />
+        return <CheckCircleIcon />
       case 'assignment':
         switch (event.action) {
           case 'CLAIM':
@@ -142,7 +142,7 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
           case 'REASSIGN':
             return <ArrowsLeftRightIcon size={16} />
           case 'COMPLETE':
-            return <CheckCircleOutlined />
+            return <CheckCircleIcon />
           case 'REJECT':
             return <ThumbsDownIcon size={16} />
           default:

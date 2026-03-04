@@ -78,7 +78,7 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
         key: 'this-quarter',
         title: 'This Quarter',
         value: opportunitiesThisQuarter.current,
-        prefix: <TrophyOutlined />,
+        prefix: <TrophyIcon />,
         color: '#fa8c16',
         span: { xs: 24, sm: 12, lg: 6 },
         description: 'New opportunities',

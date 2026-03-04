@@ -50,25 +50,25 @@ const HrDashboard: React.FC = () => {
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={6}>
             <Card hoverable className="gba:text-center">
-              <FileTextOutlined style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
+              <FileTextIcon style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
               <div className="gba:mt-2">Manage Documents</div>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Card hoverable className="gba:text-center">
-              <UserOutlined style={{ fontSize: '32px', color: 'var(--nw-success)' }} />
+              <UserIcon style={{ fontSize: '32px', color: 'var(--nw-success)' }} />
               <div className="gba:mt-2">Add Employee</div>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Card hoverable className="gba:text-center">
-              <IdcardOutlined style={{ fontSize: '32px', color: 'var(--nw-warning)' }} />
+              <IdentificationCardIcon style={{ fontSize: '32px', color: 'var(--nw-warning)' }} />
               <div className="gba:mt-2">Post Job</div>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Card hoverable className="gba:text-center">
-              <TeamOutlined style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
+              <UsersIcon style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
               <div className="gba:mt-2">Team Overview</div>
             </Card>
           </Col>

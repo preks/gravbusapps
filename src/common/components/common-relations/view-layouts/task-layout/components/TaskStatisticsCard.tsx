@@ -60,7 +60,7 @@ export const TaskStatisticsCard: React.FC<TaskStatisticsCardProps> = ({
         key: 'in-progress',
         title: 'In Progress',
         value: statistics.inProgress.value,
-        prefix: <ClockCircleOutlined />,
+        prefix: <ClockIcon />,
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
         description: 'Currently active tasks',

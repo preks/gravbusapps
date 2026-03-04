@@ -247,7 +247,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
         <div className="gba:flex gba:gap-2">
           <Button
             type="text"
-            icon={<EditOutlined />}
+            icon={<PencilIcon />}
             onClick={() => showModal(record)}
             className="gba:text-muted-foreground gba:hover:text-info"
           />
@@ -310,7 +310,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
             </div>
           </Col>
           <Col>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal()} className="gba:create-button">
+            <Button type="primary" icon={<PlusIcon />} onClick={() => showModal()} className="gba:create-button">
               {t('documentManagement.actions.addDocumentType', 'Add Document Type')}
             </Button>
           </Col>

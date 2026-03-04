@@ -95,7 +95,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
             </div>
             <Tooltip title="Edit title and message">
               <Button
-                icon={<EditOutlined />}
+                icon={<PencilIcon />}
                 size="small"
                 className="gba:ml-4"
                 onClick={() => setEditTitleMessage(true)}
@@ -138,7 +138,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                     Save
                   </Button>
                   <Button
-                    icon={<CloseOutlined />}
+                    icon={<XIcon />}
                     size="small"
                     onClick={() => {
                       setEditTitleMessage(false)
