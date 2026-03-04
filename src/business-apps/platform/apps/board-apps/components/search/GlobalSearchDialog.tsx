@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Input, Spinner } from '@newwork/nw-design-system'
-import { Search, LayoutGrid, ArrowUp, ArrowDown, CornerDownLeft, Command } from 'lucide-react'
+import { Dialog, DialogContent, Spinner } from '@newwork/nw-design-system'
+import { Search, LayoutGrid } from 'lucide-react'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import { useBoardSearch, type SearchResult } from '../../hooks/useBoardSearch'
 import { SearchResultItem } from './SearchResultItem'
 import { GlobalSearchSidebar, type SearchSection } from './GlobalSearchSidebar'
@@ -156,25 +157,27 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
         className="gba:max-w-3xl gba:p-0 gba:gap-0 gba:overflow-hidden gba:rounded-xl"
         data-testid={testId}
       >
-        <DialogHeader className="gba:sr-only">
-          <DialogTitle>Search all boards</DialogTitle>
-        </DialogHeader>
-
-        {/* ── Search bar ── */}
-        <div
-          className="gba:flex gba:items-center gba:gap-3 gba:pl-4 gba:pr-12 gba:py-3 gba:border-b"
-          onKeyDown={handleKeyDown}
-        >
-          <Search className="gba:w-5 gba:h-5 gba:text-muted-foreground/60 gba:flex-shrink-0" />
-          <Input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Boards, Rows, Views or Keywords..."
-            className="gba:border-0 gba:shadow-none gba:h-9 gba:text-base gba:px-1 focus-visible:gba:ring-0"
-            autoFocus
-            data-testid={`${testId}-input`}
-          />
-          {isSearching && <Spinner size="sm" className="gba:flex-shrink-0" />}
+        {/* Premium gradient search header */}
+        <div className="gba:relative gba:overflow-hidden" onKeyDown={handleKeyDown}>
+          <PremiumHeroBackground />
+          <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
+          <div className="gba:relative gba:z-10 gba:px-5 gba:pt-6 gba:pb-4">
+            <h2 className="gba:font-funnel-display gba:text-lg gba:font-light gba:text-inverse gba:tracking-tight gba:mb-3">
+              Search Boards
+            </h2>
+            <div className="gba:flex gba:items-center gba:gap-3 gba:bg-inverse/10 gba:backdrop-blur-sm gba:border gba:border-inverse/15 gba:rounded-lg gba:px-3 gba:py-1.5">
+              <Search className="gba:w-4 gba:h-4 gba:text-inverse/50 gba:flex-shrink-0" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Boards, Rows, Views or Keywords..."
+                className="gba:flex-1 gba:border-0 gba:outline-none gba:bg-transparent gba:h-8 gba:text-sm gba:text-inverse gba:placeholder-inverse/40"
+                autoFocus
+                data-testid={`${testId}-input`}
+              />
+              {isSearching && <Spinner size="sm" className="gba:flex-shrink-0 gba:text-inverse/50" />}
+            </div>
+          </div>
         </div>
 
         {/* ── Body: sidebar + content ── */}
@@ -204,7 +207,7 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
               />
             ) : error ? (
               <div
-                className="gba:px-4 gba:py-8 gba:text-sm gba:text-destructive gba:text-center"
+                className="gba:px-4 gba:py-8 gba:text-sm gba:text-muted-foreground gba:text-center"
                 data-testid={`${testId}-error`}
               >
                 {error}
@@ -214,16 +217,16 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
             ) : visibleResults.length === 0 ? (
               <NoResults query={query} />
             ) : (
-              <div>
+              <div className="gba:py-2">
                 {grouped.map(group => (
                   <div key={group.boardId}>
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:bg-muted/40 gba:border-b gba:sticky gba:top-0 gba:z-10">
-                      <LayoutGrid className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground/60" />
-                      <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:sticky gba:top-0 gba:z-10 gba:bg-background/80 gba:backdrop-blur-sm">
+                      <LayoutGrid className="gba:w-3.5 gba:h-3.5 gba:text-desk-badge-golden/60" />
+                      <span className="gba:text-[10px] gba:font-semibold gba:text-muted-foreground/60 gba:uppercase gba:tracking-wider">
                         {group.boardName}
                       </span>
-                      <span className="gba:text-[10px] gba:text-muted-foreground/40 gba:ml-auto">
-                        {group.items.length} result{group.items.length !== 1 ? 's' : ''}
+                      <span className="gba:text-[10px] gba:text-muted-foreground/30 gba:ml-auto gba:tabular-nums">
+                        {group.items.length}
                       </span>
                     </div>
                     {group.items.map(r => {
@@ -233,7 +236,7 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
                         <div
                           key={`${r.sheetId}-${r.rowId}-${r.source}`}
                           data-result-idx={thisIdx}
-                          className={thisIdx === activeIndex ? 'gba:bg-accent/50' : ''}
+                          className={`gba:mx-2 gba:rounded-lg gba:transition-colors ${thisIdx === activeIndex ? 'gba:bg-accent/60' : ''}`}
                         >
                           <SearchResultItem
                             result={r}
@@ -253,29 +256,39 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
         </div>
 
         {/* ── Footer ── */}
-        <div className="gba:px-4 gba:py-2 gba:border-t gba:flex gba:items-center gba:justify-between gba:bg-muted/20">
+        <div className="gba:px-4 gba:py-2.5 gba:border-t gba:border-border/50 gba:flex gba:items-center gba:justify-between gba:bg-muted/10">
           {hasQuery && visibleResults.length > 0 ? (
-            <span className="gba:text-xs gba:text-muted-foreground/60">
+            <span className="gba:text-[11px] gba:text-muted-foreground/50">
               {visibleResults.length} result{visibleResults.length !== 1 ? 's' : ''} across {grouped.length} board
               {grouped.length !== 1 ? 's' : ''}
             </span>
           ) : (
-            <div className="gba:flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground/50">
-              <Command className="gba:w-3 gba:h-3" />
-              <span>K to open anytime</span>
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground/40">
+              <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted/60 gba:text-[10px] gba:font-mono gba:border gba:border-border/50">
+                ⌘K
+              </kbd>
+              <span>anytime</span>
             </div>
           )}
-          <div className="gba:flex gba:items-center gba:gap-3 gba:text-[11px] gba:text-muted-foreground/50">
+          <div className="gba:flex gba:items-center gba:gap-4 gba:text-[11px] gba:text-muted-foreground/40">
             <span className="gba:inline-flex gba:items-center gba:gap-1">
-              <ArrowUp className="gba:w-3 gba:h-3" />
-              <ArrowDown className="gba:w-3 gba:h-3" />
+              <kbd className="gba:px-1 gba:py-0.5 gba:rounded gba:bg-muted/60 gba:text-[10px] gba:font-mono gba:border gba:border-border/50">
+                ↑↓
+              </kbd>
               navigate
             </span>
             <span className="gba:inline-flex gba:items-center gba:gap-1">
-              <CornerDownLeft className="gba:w-3 gba:h-3" />
+              <kbd className="gba:px-1 gba:py-0.5 gba:rounded gba:bg-muted/60 gba:text-[10px] gba:font-mono gba:border gba:border-border/50">
+                ↵
+              </kbd>
               select
             </span>
-            <span className="gba:inline-flex gba:items-center gba:gap-1">esc close</span>
+            <span className="gba:inline-flex gba:items-center gba:gap-1">
+              <kbd className="gba:px-1 gba:py-0.5 gba:rounded gba:bg-muted/60 gba:text-[10px] gba:font-mono gba:border gba:border-border/50">
+                esc
+              </kbd>
+              close
+            </span>
           </div>
         </div>
       </DialogContent>

@@ -340,6 +340,8 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   isReadOnly?: boolean
   /** Left panel (e.g. Insert field for templates); shown when editing a template */
   leftPanel?: React.ReactNode
+  /** Extra content rendered below the title row (e.g. external-source badge) */
+  headerExtra?: React.ReactNode
   'data-testid'?: string
 }
 
@@ -458,6 +460,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       onSendForApproval,
       isReadOnly = false,
       leftPanel,
+      headerExtra,
       accessToken: accessTokenProp,
       'data-testid': testId = 'paged-document-editor'
     },
@@ -1688,6 +1691,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               </div>
             </div>
           </div>
+
+          {headerExtra && <div className="gba:px-4 gba:pb-2">{headerExtra}</div>}
 
           {/* Toolbar */}
           <EditorToolbar

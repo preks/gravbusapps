@@ -9,18 +9,10 @@
  * 3. "Create" builds a single-sheet board with data wired in
  */
 
-import React, { useState, useCallback } from 'react'
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  Spinner,
-  toast
-} from '@newwork/nw-design-system'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { Button, Dialog, DialogContent, DialogFooter, Spinner, toast } from '@newwork/nw-design-system'
 import { Sparkles, ArrowLeft, ArrowRight } from 'lucide-react'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import { useBoardAI, type DataSourceSuggestion } from '../hooks/useBoardAI'
 import { BoardApiService } from '../services/BoardApiService'
 import { serializeRegistryCatalog, ENTITY_REGISTRY } from '../queries/entityQueries'
@@ -238,56 +230,93 @@ export const CreateBoardAIDialog: React.FC<CreateBoardAIDialogProps> = ({
         : 'Generating board...'
 
   const showNextButton = step === 'prompt' && suggestDataSources
+  const aiContentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const raf = requestAnimationFrame(() => {
+      const el = aiContentRef.current
+      if (!el) return
+      const parent = el.parentElement
+      const overlay =
+        parent?.querySelector<HTMLElement>('[data-slot="dialog-overlay"]') ??
+        (el.previousElementSibling as HTMLElement | null)
+      if (overlay instanceof HTMLElement) {
+        overlay.style.backdropFilter = 'blur(4px)'
+        overlay.style.setProperty('-webkit-backdrop-filter', 'blur(4px)')
+      }
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [open])
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className={step === 'dataSources' ? 'gba:max-w-xl' : 'gba:max-w-md'}>
-        <DialogHeader>
-          <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <Sparkles className="gba:w-4 gba:h-4 gba:text-primary" />
-            Create Board with AI
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent
+        ref={aiContentRef}
+        className={`gba:p-0 gba:gap-0 gba:overflow-hidden gba:rounded-xl ${step === 'dataSources' ? 'gba:max-w-xl' : 'gba:max-w-md'}`}
+      >
+        {/* Premium gradient header */}
+        <div className="gba:relative gba:overflow-hidden gba:px-6 gba:pt-8 gba:pb-6">
+          <PremiumHeroBackground />
+          <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
+          <div className="gba:relative gba:z-10">
+            <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-inverse/10 gba:border gba:border-inverse/20 gba:flex gba:items-center gba:justify-center gba:mb-4">
+              <Sparkles className="gba:w-5 gba:h-5 gba:text-desk-badge-golden" />
+            </div>
+            <h2 className="gba:font-funnel-display gba:text-xl gba:font-light gba:text-inverse gba:tracking-tight">
+              Create Board with AI
+            </h2>
+            <p className="gba:text-sm gba:text-inverse/50 gba:mt-1">
+              {step === 'prompt'
+                ? 'Describe the board you want and AI will build it.'
+                : 'Review and select data sources.'}
+            </p>
+          </div>
+        </div>
 
         {step === 'prompt' && (
-          <PromptStep
-            prompt={prompt}
-            onPromptChange={setPrompt}
-            includeSampleData={includeSampleData}
-            onIncludeSampleDataChange={v => {
-              setIncludeSampleData(v)
-              if (v) setSuggestDataSources(false)
-            }}
-            suggestDataSources={suggestDataSources}
-            onSuggestDataSourcesChange={v => {
-              setSuggestDataSources(v)
-              if (v) setIncludeSampleData(false)
-            }}
-            error={error}
-            busy={busy}
-            testId={testId}
-          />
+          <div className="gba:px-6 gba:pt-5">
+            <PromptStep
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              includeSampleData={includeSampleData}
+              onIncludeSampleDataChange={v => {
+                setIncludeSampleData(v)
+                if (v) setSuggestDataSources(false)
+              }}
+              suggestDataSources={suggestDataSources}
+              onSuggestDataSourcesChange={v => {
+                setSuggestDataSources(v)
+                if (v) setIncludeSampleData(false)
+              }}
+              error={error}
+              busy={busy}
+              testId={testId}
+            />
+          </div>
         )}
 
         {step === 'dataSources' && (
-          <DataSourcesStep
-            suggestions={suggestions}
-            selectedDS={selectedDS}
-            onToggle={toggleDS}
-            onSetPrimary={handleSetPrimary}
-            isAnalyzing={isAnalyzing}
-            summary={dsSummary}
-            onAnalyze={handleAnalyze}
-            hasPrompt={!!prompt.trim()}
-            importLimit={importLimit}
-            onImportLimitChange={setImportLimit}
-            fieldSelections={fieldSelections}
-            onToggleField={handleToggleField}
-            data-testid={`${testId}-ds`}
-          />
+          <div className="gba:px-6 gba:pt-5">
+            <DataSourcesStep
+              suggestions={suggestions}
+              selectedDS={selectedDS}
+              onToggle={toggleDS}
+              onSetPrimary={handleSetPrimary}
+              isAnalyzing={isAnalyzing}
+              summary={dsSummary}
+              onAnalyze={handleAnalyze}
+              hasPrompt={!!prompt.trim()}
+              importLimit={importLimit}
+              onImportLimitChange={setImportLimit}
+              fieldSelections={fieldSelections}
+              onToggleField={handleToggleField}
+              data-testid={`${testId}-ds`}
+            />
+          </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gba:px-6 gba:pb-5 gba:pt-4">
           {step === 'dataSources' && (
             <Button
               variant="outline"
@@ -323,7 +352,13 @@ export const CreateBoardAIDialog: React.FC<CreateBoardAIDialogProps> = ({
               )}
             </Button>
           ) : (
-            <Button size="sm" onClick={handleCreate} disabled={!prompt.trim() || busy} data-testid={`${testId}-submit`}>
+            <Button
+              size="sm"
+              onClick={handleCreate}
+              disabled={!prompt.trim() || busy}
+              className="gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:border-0 gba:hover:bg-desk-badge-golden/90"
+              data-testid={`${testId}-submit`}
+            >
               {busy ? (
                 <>
                   <Spinner className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
