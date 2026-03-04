@@ -31,7 +31,7 @@ export interface NewworkCreateProps extends BusinessAppContextProps {
  *
  * Also includes AI Orchestrator for unified component building.
  */
-const AI_ORCHESTRATOR_URL = '/platform/create/ai-orchestrator'
+const AI_ORCHESTRATOR_URL = '/platform/create/ai-builder'
 
 export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': testId = 'create-workspace' }) => {
   // Feature flag for AI features
@@ -45,7 +45,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       description:
         'Design and build UI screens with AI assistance. Create forms, dashboards, lists, and custom layouts.',
       icon: Monitor,
-      href: buildPlatformUrl('/platform/ai-builder'),
+      href: buildPlatformUrl('/platform/create/screen-builder'),
       badge: 'AI-Powered',
       badgeVariant: 'info',
       accentColor: 'ai'

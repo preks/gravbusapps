@@ -189,6 +189,18 @@ export interface PublishResponse {
   error?: string
 }
 
+export interface LatestPublishedResourceVersion {
+  repoId: string
+  targetPath: string | null
+  sessionId: string | null
+  versionMajor: number
+  versionMinor: number
+  resourceUrl: string
+  azureUrl: string | null
+  publishedAt: string | null
+  firstPublishedAt: string | null
+}
+
 // ============================================================================
 // Client
 // ============================================================================
@@ -805,6 +817,38 @@ export class BuilderClient {
     }
 
     return response.body
+  }
+
+  async listLatestPublishedResources(params?: {
+    prefix?: string
+    search?: string
+    limit?: number
+    offset?: number
+  }): Promise<{ data: LatestPublishedResourceVersion[]; totalCount: number }> {
+    const query = new URLSearchParams()
+    if (params?.prefix) query.set('prefix', params.prefix)
+    if (params?.search) query.set('search', params.search)
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit))
+    if (typeof params?.offset === 'number') query.set('offset', String(params.offset))
+
+    const url = query.toString()
+      ? `${this.baseUrl}/versions/published/latest?${query.toString()}`
+      : `${this.baseUrl}/versions/published/latest`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load latest published resources')
+    }
+
+    return {
+      data: Array.isArray(payload?.data) ? payload.data : [],
+      totalCount: Number(payload?.totalCount ?? payload?.paging?.totalRecords ?? 0)
+    }
   }
 
   /**
