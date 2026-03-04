@@ -22,6 +22,7 @@ export interface DashboardDataState {
   loadedRows: number
   error: string | null
   entityDataSource?: EntityDataSource
+  serverAnalyticsAvailable: boolean
 }
 
 export function useDashboardData(
@@ -53,7 +54,8 @@ export function useDashboardData(
         limit: PAGE_SIZE,
         filters: serverFilters?.filters,
         filterConnector: serverFilters?.filterConnector,
-        sorts: serverFilters?.sorts
+        sorts: serverFilters?.sorts,
+        search: serverFilters?.search
       })
 
       if (fetchId !== fetchIdRef.current) return
@@ -80,7 +82,8 @@ export function useDashboardData(
             limit: PAGE_SIZE,
             filters: serverFilters?.filters,
             filterConnector: serverFilters?.filterConnector,
-            sorts: serverFilters?.sorts
+            sorts: serverFilters?.sorts,
+            search: serverFilters?.search
           })
           collected.push(...page.items)
           setLoadedRows(collected.length)
@@ -103,7 +106,8 @@ export function useDashboardData(
           limit: PAGE_SIZE,
           filters: serverFilters?.filters,
           filterConnector: serverFilters?.filterConnector,
-          sorts: serverFilters?.sorts
+          sorts: serverFilters?.sorts,
+          search: serverFilters?.search
         })
         collected.push(...page.items)
         setLoadedRows(collected.length)
@@ -135,5 +139,9 @@ export function useDashboardData(
     }
   }, [fetchAllRows, isDashboardActive])
 
-  return { allRows, isLoading, isSampled, totalRows, loadedRows, error, entityDataSource }
+  const serverAnalyticsAvailable =
+    Boolean(entityDataSource && (entityDataSource as Record<string, unknown>).provider === 'functionManager') ||
+    totalRows > MAX_CLIENT_ROWS
+
+  return { allRows, isLoading, isSampled, totalRows, loadedRows, error, entityDataSource, serverAnalyticsAvailable }
 }
