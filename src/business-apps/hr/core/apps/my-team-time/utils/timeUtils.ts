@@ -4,13 +4,16 @@ export const parseDurationToMinutes = (duration?: string | null): number => {
   if (!duration) return 0
   const str = String(duration).trim()
   const negative = str.startsWith('-')
-  const cleaned = str.replace('-', '')
-  let total = 0
-  const hourMatch = /(\d+)\s*h/.exec(cleaned)
-  const minMatch = /(\d+)\s*m/.exec(cleaned)
-  if (hourMatch) total += Number.parseInt(hourMatch[1], 10) * 60
-  if (minMatch) total += Number.parseInt(minMatch[1], 10)
-  return negative ? -total : total
+  const cleaned = negative ? str.slice(1) : str
+
+  const hIdx = cleaned.indexOf('h')
+  const mIdx = cleaned.indexOf('m')
+
+  const hours = hIdx !== -1 ? Number.parseInt(cleaned.slice(0, hIdx), 10) || 0 : 0
+  const mStart = hIdx !== -1 ? hIdx + 1 : 0
+  const mins = mIdx !== -1 ? Number.parseInt(cleaned.slice(mStart, mIdx), 10) || 0 : 0
+
+  return negative ? -(hours * 60 + mins) : hours * 60 + mins
 }
 
 export const formatMinutes = (minutes: number): string => {
