@@ -10,6 +10,37 @@ import { InputType, type InputBlock } from '@/business-apps/flow/apps/creator/ty
 import type { DesignerMode } from '../../types/studioTypes'
 import { FormFieldEditor } from './FormFieldEditor'
 
+function slugifyKey(raw: string): string {
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  return s
+}
+
+function isDefaultLabel(label: string): boolean {
+  const s = String(label || '').trim()
+  return /^field\s+\d+$/i.test(s)
+}
+
+function isAutoName(name: string): boolean {
+  return /^field_\d+$/i.test(String(name || '').trim())
+}
+
+function uniqueName(base: string, existing: Set<string>, current?: string): string {
+  const normalized = String(base || '').trim()
+  if (!normalized) return current || ''
+  if (current && normalized === current) return normalized
+  if (!existing.has(normalized)) return normalized
+  for (let i = 2; i < 5000; i++) {
+    const candidate = `${normalized}_${i}`
+    if (!existing.has(candidate)) return candidate
+  }
+  return `${normalized}_${Date.now()}`
+}
+
 function nextAutoFieldName(existing: Set<string>): string {
   // Keep stable, predictable keys. Avoid collisions after deletions/reorders.
   for (let i = 1; i < 5000; i++) {
@@ -50,12 +81,39 @@ interface CatalogOption {
   entryCount: number
 }
 
+interface EntityOption {
+  type: string
+  name: string
+  fields: string[]
+}
+
 interface FormBuilderProps {
   fields: InputBlock[]
   onChange: (fields: InputBlock[]) => void
+  /**
+   * Called when a field key (InputBlock.name) changes, so callers can rewrite any
+   * existing expressions that reference that key.
+   */
+  onFieldKeyRename?: (rename: { oldKey: string; newKey: string }) => void
   mode: DesignerMode
   /** Available catalogs for field data sources */
   catalogs?: CatalogOption[]
+  catalogsLoading?: boolean
+  catalogsError?: string | null
+  catalogsQuery?: string
+  catalogsHasMore?: boolean
+  searchCatalogs?: (query: string) => Promise<void>
+  loadMoreCatalogs?: () => Promise<void>
+  /** Available entities for field data sources (advanced) */
+  entities?: EntityOption[]
+  entitiesLoading?: boolean
+  entitiesError?: string | null
+  /** Custom data sources (advanced) */
+  customDataNamespaces?: string[]
+  customDataNamespacesLoading?: boolean
+  customDataKeysByNamespace?: Record<string, string[]>
+  customDataKeysLoadingByNamespace?: Record<string, boolean>
+  fetchCustomDataKeys?: (namespace: string) => Promise<void>
   /** Label shown above the builder */
   title?: string
   /** Description shown below the title */
@@ -66,8 +124,23 @@ interface FormBuilderProps {
 export const FormBuilder: React.FC<FormBuilderProps> = ({
   fields,
   onChange,
+  onFieldKeyRename,
   mode,
   catalogs,
+  catalogsLoading,
+  catalogsError,
+  catalogsQuery,
+  catalogsHasMore,
+  searchCatalogs,
+  loadMoreCatalogs,
+  entities,
+  entitiesLoading,
+  entitiesError,
+  customDataNamespaces,
+  customDataNamespacesLoading,
+  customDataKeysByNamespace,
+  customDataKeysLoadingByNamespace,
+  fetchCustomDataKeys,
   title = 'Form Fields',
   description,
   'data-testid': testId = 'form-builder'
@@ -86,10 +159,32 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
   const updateField = useCallback(
     (index: number, updated: InputBlock) => {
       const next = [...fields]
+      const prev = next[index]
+      const nextExisting = new Set(next.map(f => f.name).filter(Boolean))
+      nextExisting.delete(String(prev?.name || '').trim())
+
+      const oldLabel = String(prev?.label || '')
+      const newLabel = String(updated?.label || '')
+      const oldName = String(prev?.name || '').trim()
+
+      // One-time: when user renames the default label ("Field 1") on an auto-key field ("field_1"),
+      // generate a semantic key from the new label.
+      if (oldLabel !== newLabel && isDefaultLabel(oldLabel) && isAutoName(oldName)) {
+        const base = slugifyKey(newLabel)
+        if (base) {
+          updated = { ...updated, name: uniqueName(base, nextExisting, oldName) }
+        }
+      }
+
+      const newName = String(updated?.name || '').trim()
+      if (oldName && newName && oldName !== newName) {
+        onFieldKeyRename?.({ oldKey: oldName, newKey: newName })
+      }
+
       next[index] = updated
       onChange(next)
     },
-    [fields, onChange]
+    [fields, onChange, onFieldKeyRename]
   )
 
   const removeField = useCallback(
@@ -154,6 +249,20 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
             total={fields.length}
             mode={mode}
             catalogs={catalogs}
+            catalogsLoading={catalogsLoading}
+            catalogsError={catalogsError}
+            catalogsQuery={catalogsQuery}
+            catalogsHasMore={catalogsHasMore}
+            searchCatalogs={searchCatalogs}
+            loadMoreCatalogs={loadMoreCatalogs}
+            entities={entities}
+            entitiesLoading={entitiesLoading}
+            entitiesError={entitiesError}
+            customDataNamespaces={customDataNamespaces}
+            customDataNamespacesLoading={customDataNamespacesLoading}
+            customDataKeysByNamespace={customDataKeysByNamespace}
+            customDataKeysLoadingByNamespace={customDataKeysLoadingByNamespace}
+            fetchCustomDataKeys={fetchCustomDataKeys}
             onChange={updated => updateField(index, updated)}
             onRemove={() => removeField(index)}
             onMoveUp={() => moveField(index, index - 1)}

@@ -149,8 +149,7 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
                 (() => {
                   if (data.assignmentMode === 'ASSIGN')
                     return 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                  if (data.assignmentMode === 'ASSIGN_DEFERRED')
-                    return 'gba:bg-info-secondary gba:text-info-secondary-foreground'
+                  if (data.assignmentMode === 'ASSIGN_DEFERRED') return 'gba:bg-muted gba:text-muted-foreground'
                   return 'gba:bg-accent gba:text-accent-foreground'
                 })()
               ].join(' ')}

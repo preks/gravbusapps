@@ -12,6 +12,7 @@ import type {
   StudioNodeConfig
 } from '../types/studioTypes'
 import { createEdge, createNode, END_ID, nodeToMetadata, normalizeGraph, START_ID } from '../utils/graphStoreUtils'
+import { buildLegacyTaskIndexByNodeId, buildStepIndexByNodeId } from '../utils/studioStepOrder'
 
 const MAX_UNDO = 50
 const initialGraph = normalizeGraph([createNode('start'), createNode('end')], [createEdge('start_node', 'end_node')])
@@ -32,6 +33,57 @@ const initialState: FlowStudioState = {
   pendingDelete: null,
   undoStack: [],
   redoStack: []
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function rewriteDeep(value: any, rewriteString: (s: string) => string): any {
+  if (typeof value === 'string') {
+    const next = rewriteString(value)
+    return next === value ? value : next
+  }
+  if (Array.isArray(value)) {
+    let changed = false
+    const next = value.map(v => {
+      const nv = rewriteDeep(v, rewriteString)
+      if (nv !== v) changed = true
+      return nv
+    })
+    return changed ? next : value
+  }
+  if (value && typeof value === 'object') {
+    let changed = false
+    const entries = Object.entries(value)
+    const nextObj: any = Array.isArray(value) ? [] : {}
+    for (const [k, v] of entries) {
+      const nv = rewriteDeep(v, rewriteString)
+      if (nv !== v) changed = true
+      nextObj[k] = nv
+    }
+    return changed ? nextObj : value
+  }
+  return value
+}
+
+function rewriteExpressionStringsInGraph(
+  nodes: StudioNode[],
+  edges: FlowGraphEdge[],
+  rewriteString: (s: string) => string
+): { nodes: StudioNode[]; edges: FlowGraphEdge[] } {
+  const nextNodes = nodes.map(n => {
+    const nextConfig = rewriteDeep(n.config, rewriteString) as StudioNodeConfig
+    return nextConfig === n.config ? n : { ...n, config: nextConfig }
+  })
+  const nextEdges = edges.map(e => {
+    const nextMetadata =
+      e.metadata && typeof e.metadata === 'object'
+        ? (rewriteDeep(e.metadata, rewriteString) as FlowGraphEdge['metadata'])
+        : e.metadata
+    return nextMetadata === e.metadata ? e : { ...e, metadata: nextMetadata }
+  })
+  return { nodes: nextNodes, edges: nextEdges }
 }
 
 function resolveStepType(
@@ -410,6 +462,51 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
     })
   },
   markClean: () => set({ isDirty: false }),
+  rewriteExpressionsForStartFieldRename: (oldKey, newKey) => {
+    const oldK = String(oldKey || '').trim()
+    const newK = String(newKey || '').trim()
+    if (!oldK || !newK || oldK === newK) return
+
+    const re = new RegExp(`(\\$workflow\\.input\\.formData\\.)${escapeRegExp(oldK)}(?=$|[^a-zA-Z0-9_])`, 'g')
+    const { nodes, edges } = get()
+    const next = rewriteExpressionStringsInGraph(nodes, edges, s => {
+      if (!s.includes('$workflow.')) return s
+      return s.replace(re, `$1${newK}`)
+    })
+    // Only set when something changed.
+    if (next.nodes.every((n, i) => n === nodes[i]) && next.edges.every((e, i) => e === edges[i])) return
+    set({ ...next, isDirty: true })
+  },
+  rewriteExpressionsForTaskFieldRename: (taskNodeId, oldKey, newKey) => {
+    const oldK = String(oldKey || '').trim()
+    const newK = String(newKey || '').trim()
+    const nodeId = String(taskNodeId || '').trim()
+    if (!nodeId || !oldK || !newK || oldK === newK) return
+
+    const { nodes, edges } = get()
+    const stepIndexByNodeId = buildStepIndexByNodeId(nodes, edges)
+    const legacyTaskIndexByNodeId = buildLegacyTaskIndexByNodeId(nodes)
+
+    const indices = new Set<number>()
+    const primary = stepIndexByNodeId.get(nodeId)
+    if (typeof primary === 'number' && !Number.isNaN(primary)) indices.add(primary)
+    const legacy = legacyTaskIndexByNodeId.get(nodeId)
+    if (typeof legacy === 'number' && !Number.isNaN(legacy)) indices.add(legacy)
+    if (indices.size === 0) return
+
+    const res = Array.from(indices).map(
+      idx => new RegExp(`(\\$steps\\.step_${idx}\\.formData\\.)${escapeRegExp(oldK)}(?=$|[^a-zA-Z0-9_])`, 'g')
+    )
+
+    const next = rewriteExpressionStringsInGraph(nodes, edges, s => {
+      if (!s.includes('$steps.')) return s
+      let out = s
+      for (const re of res) out = out.replace(re, `$1${newK}`)
+      return out
+    })
+    if (next.nodes.every((n, i) => n === nodes[i]) && next.edges.every((e, i) => e === edges[i])) return
+    set({ ...next, isDirty: true })
+  },
   toGraphDefinition: (): FlowGraphDefinition => ({
     nodes: get().nodes.map(n => ({ id: n.id, type: n.type, label: n.label, metadata: nodeToMetadata(n) })),
     edges: get().edges

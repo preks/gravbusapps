@@ -147,7 +147,7 @@ task-output-schema-title = Output schema
 task-output-schema-desc = Define the structured output this agent produces for downstream steps.
 
 # Task step type selector (signature)
-task-type-group-human = Human steps
+task-type-group-human = User steps
 task-type-group-ai = AI & Automations
 
 # Assignment
@@ -161,23 +161,41 @@ assignment-mode-label = Assignment Mode
 assignment-mode-claim = Claim
 assignment-mode-assign = Assign
 assignment-mode-deferred = Deferred
+assignment-mode-claimable = Claim
+assignment-mode-auto = Assign
+assignment-mode-runtime = Provided at execution
 assignment-mode-desc-claim = Anyone in the selected audience can claim this task.
 assignment-mode-desc-assign = An individual task is created for everyone in the selected audience.
 assignment-mode-desc-deferred = Targets are resolved at runtime (advanced).
+assignment-mode-desc-claimable = Users with the selected capabilities can claim this task.
+assignment-mode-desc-auto = Assign automatically using a strategy (or at execution).
+assignment-mode-desc-runtime = Assignees must be provided when starting execution.
 assignment-audience-label = Audience
+assignment-capabilities-label = Capabilities
+assignment-runtime-hint = This step must be assigned when starting the flow.
+assignment-assign-at-execution-label = Assign at execution
+assignment-assign-at-execution-desc = Provide the assignee when starting the flow.
+assignment-allow-reassignment-label = Allow reassignment
+assignment-allow-reassignment-desc = Assignee can reassign this task.
 
 # Logic decisions
 logic-description-simple = Pick a step value and compare it. First matching condition wins.
-logic-description-advanced = Define conditions with expressions. First matching condition wins.
+logic-description-advanced = Define conditions with flow context. First matching condition wins.
 logic-field-label = Value
+logic-default = Default outcome
 logic-field-placeholder = Select value
 logic-field-search = Search step data...
 logic-field-empty = No matching values
 logic-field-group-steps = Step data
 logic-operator-label = Operator
+
+# User decisions (USER mode)
+decision-user-task-title-label = Task title
+decision-user-task-message-label = Task message
+decision-user-task-message-placeholder = Add a short message… Type {{ to insert data.
 logic-value-label = Compare to
 logic-value-placeholder = e.g. 1000 or 'approved'
-logic-preview = Expression:
+logic-preview = Condition:
 
 # Decision Node Config
 decision-mode = Decision Mode
@@ -192,7 +210,7 @@ decision-policy = Decision Policy
 decision-policy-optional-placeholder = Optional: select a policy...
 decision-ai-executor-label = AI executor
 decision-ai-executor-everyai = EveryAI
-decision-ai-executor-everyai-desc = Use a decision instruction (with expressions) and let EveryAI pick the best branch.
+decision-ai-executor-everyai-desc = Use a decision instruction (with flow context) and let EveryAI pick the best branch.
 decision-ai-executor-taskexpert = AI Task Expert
 decision-ai-executor-taskexpert-desc = Run the task expert and route via mapping rules. If no rule matches, a human picks the branch.
 decision-ai-type-label = Decision setup
@@ -201,18 +219,15 @@ decision-ai-type-policy-desc = Use a policy document as guidance for the decisio
 decision-ai-type-expert = AI Expert
 decision-ai-type-expert-desc = Select an AI expert from Prompt Manager to make the decision.
 decision-ai-instructions-label = Decision instructions
-decision-ai-instructions-desc = Add context or rules for the AI. Use the expression picker to insert data from earlier steps.
+decision-ai-instructions-desc = Add context or rules for the AI, including when it should escalate to a human fallback.
 decision-ai-instructions-placeholder = e.g. Prefer branch A if the risk score is above the value from a previous step.
-decision-escalation-instructions-label = Escalation instructions
-decision-escalation-instructions-desc = Optional. Tell the AI when it should escalate to a human decision.
-decision-escalation-instructions-placeholder = e.g. Escalate if the policy is ambiguous or key information is missing.
 decision-escalation-how-title = How escalation works
 decision-escalation-how-desc = If the AI requests escalation, returns invalid output, or the result cannot be mapped to a branch, a user decision task is created and the user selects the next branch.
 decision-escalation-due-label = Escalated decision due in
 decision-human-fallback-title = Human fallback
 decision-human-fallback-desc = Configure who gets the fallback decision task and what the user sees when the AI cannot decide.
 decision-human-instructions-label = Fallback task message
-decision-human-instructions-desc = Required. This is shown to the user when a human needs to pick the branch. You can use expressions.
+decision-human-instructions-desc = Required. This is shown to the user when a human needs to pick the branch. You can insert flow context.
 decision-human-instructions-placeholder = e.g. The AI could not decide. Please choose the best branch based on the available information.
 decision-ai-taskexpert-mapping-label = Mapping rules
 decision-ai-taskexpert-mapping-desc = Define rules that map the task expert output to a branch.

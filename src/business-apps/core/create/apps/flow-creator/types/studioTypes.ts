@@ -96,8 +96,22 @@ export interface DecisionNodeConfig {
   decisionMode: DecisionMode
   branches: DecisionBranch[]
   defaultBranch?: string
+  /**
+   * Approval "Reject behavior" (send-back / rework loop).
+   * Stored on the decision so it can be used by USER/AI/LOGIC decisions.
+   */
+  rejectRework?: {
+    targetNodeId?: string
+    requireReason: boolean
+    preserveData: boolean
+    maxIterations?: number
+  }
   userConfig?: {
     userDecisionType?: UserDecisionType
+    /** Optional title shown on the user task created by this decision */
+    title?: string
+    /** Optional message shown on the user task created by this decision */
+    message?: string
     assignment: TaskAssignment
     options: Array<{ id: string; label: string }>
     timeoutMinutes?: number
@@ -120,6 +134,13 @@ export interface DecisionNodeConfig {
      * Task Expert prompt id (Prompt Manager) used when executor is TASK_EXPERT.
      */
     promptId?: string
+    /**
+     * Snapshot of the selected Task Expert prompt metadata and user instructions (without system content).
+     * Used to show the "original decision instructions" in the human fallback task message at runtime.
+     */
+    promptName?: string
+    promptVersion?: number
+    promptUserContent?: string
     policyDocumentId?: string
     policyDocumentTitle?: string
     policyDocumentVersion?: string
@@ -300,6 +321,13 @@ export interface FlowStudioActions {
 
   // Dirty state
   markClean: () => void
+
+  /**
+   * When a form field key changes, rewrite any expressions that reference it.
+   * This keeps flow-context references stable when we auto-generate "speakable" keys.
+   */
+  rewriteExpressionsForStartFieldRename: (oldKey: string, newKey: string) => void
+  rewriteExpressionsForTaskFieldRename: (taskNodeId: string, oldKey: string, newKey: string) => void
 
   // Confirmations
   confirmPendingDelete: () => void

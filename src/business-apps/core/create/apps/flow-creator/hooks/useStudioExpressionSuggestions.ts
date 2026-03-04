@@ -3,6 +3,7 @@ import { InputType, type InputBlock } from '@/business-apps/flow/apps/creator/ty
 import { useExpressionSuggestions } from '@/common/components/flow/expression-editor'
 import type { ExpressionSuggestionItem, ExpressionValueType } from '@/common/components/flow/expression-editor'
 import { useFlowStudioStore } from './useFlowStudioStore'
+import { buildStepIndexByNodeId } from '../utils/studioStepOrder'
 
 function labelForField(field: InputBlock): string {
   const label = String(field.label ?? '').trim()
@@ -16,9 +17,12 @@ function labelForField(field: InputBlock): string {
  * - Step (task form fields) suggestions -> `$steps.step_N.formData.<field>`
  */
 export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
+  // Subscribe to nodes/edges separately so we don't re-render on unrelated store updates
+  // (Zustand compares selector return values by reference).
   const nodes = useFlowStudioStore(s => s.nodes)
+  const edges = useFlowStudioStore(s => s.edges)
 
-  const { triggerFields, steps } = useMemo(() => {
+  const { triggerFields, steps, catalogFields, entityFields, orgchartFields } = useMemo(() => {
     const mapInputTypeToValueType = (type: InputType): ExpressionValueType => {
       switch (type) {
         case InputType.NUMBER:
@@ -53,6 +57,9 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
       label: string
       fields?: Array<{ name: string; label?: string; dataType?: ExpressionValueType }>
     }> = []
+    const catalogFields: Array<{ id: string; label: string; path: string }> = []
+    const entityFields: Array<{ id: string; label: string; path: string }> = []
+    const orgchartFields: Array<{ id: string; label: string; path: string }> = []
 
     const startNode = nodes.find(n => n.type === 'start')
     const startConfig = startNode?.config?.nodeType === 'start' ? startNode.config : undefined
@@ -71,9 +78,12 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
       })
     }
 
+    const stepIndexByNodeId = buildStepIndexByNodeId(nodes, edges)
     const taskNodes = nodes.filter(n => n.type === 'task' && n.config?.nodeType === 'task')
-    for (const [i, task] of taskNodes.entries()) {
+    for (const task of taskNodes) {
       const cfg = task.config as any
+      const stepIndex = stepIndexByNodeId.get(task.id)
+      if (typeof stepIndex !== 'number' || Number.isNaN(stepIndex)) continue
       const fields = Array.isArray(cfg.form)
         ? (cfg.form as InputBlock[])
             .map(f => {
@@ -88,14 +98,77 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
             .filter(Boolean)
         : []
       steps.push({
-        reference: `step_${i}`,
-        label: cfg.title || task.label || `Step ${i + 1}`,
+        reference: `step_${stepIndex}`,
+        label: cfg.title || task.label || `Step ${stepIndex + 1}`,
         fields
       })
     }
 
-    return { triggerFields, steps }
-  }, [nodes])
+    // -------------------------------------------------------------------------------------------------
+    // Data sources (Catalog / Entity / Org chart)
+    // These are used by the Flow Context Browser ("Data sources" tab) to insert expressions.
+    // -------------------------------------------------------------------------------------------------
 
-  return useExpressionSuggestions({ triggerFields, steps })
+    const findLikelyIdField = (all: InputBlock[], matcher: (name: string, f: InputBlock) => boolean): string | null => {
+      for (const f of all) {
+        const name = String(f?.name || '').trim()
+        if (!name) continue
+        if (matcher(name.toLowerCase(), f)) return name
+      }
+      return null
+    }
+
+    const employeeIdField =
+      findLikelyIdField(startFields, (n, f) => {
+        const entity = String((f as any)?.dataSource?.entity || '').toLowerCase()
+        if (entity.includes('employee')) return true
+        return n.includes('employee') && n.includes('id')
+      }) || null
+
+    // Org chart (safe defaults)
+    const orgchartBase = [
+      { id: 'mgr', label: 'Initiator → Manager (User ID)', path: 'managerByUserId[$workflow.initiator]' },
+      { id: 'mgr-name', label: 'Initiator → Manager name', path: 'managerByUserId[$workflow.initiator].name' },
+      { id: 'mgr-email', label: 'Initiator → Manager email', path: 'managerByUserId[$workflow.initiator].email' },
+      {
+        id: 'sk',
+        label: 'Initiator → Skip-level manager (User ID)',
+        path: 'skipLevelManagerByUserId[$workflow.initiator]'
+      },
+      {
+        id: 'sk-name',
+        label: 'Initiator → Skip-level manager name',
+        path: 'skipLevelManagerByUserId[$workflow.initiator].name'
+      },
+      {
+        id: 'sk-email',
+        label: 'Initiator → Skip-level manager email',
+        path: 'skipLevelManagerByUserId[$workflow.initiator].email'
+      },
+      { id: 'dr', label: 'Initiator → Direct reports (User IDs)', path: 'directReportsByUserId[$workflow.initiator]' }
+    ]
+    for (const f of orgchartBase) orgchartFields.push(f)
+
+    if (employeeIdField) {
+      orgchartFields.push(
+        {
+          id: `userIdByEmployeeId-${employeeIdField}`,
+          label: `Convert employeeId → userId (Trigger: ${employeeIdField})`,
+          path: `userIdByEmployeeId[$workflow.input.formData.${employeeIdField}]`
+        },
+        {
+          id: `managerByEmployeeId-${employeeIdField}`,
+          label: `Employee → Manager (User ID) (Trigger: ${employeeIdField})`,
+          path: `manager[$workflow.input.formData.${employeeIdField}]`
+        }
+      )
+    }
+
+    // Catalog / Entity expressions are now inserted via the Flow Context Browser "Data sources" tree.
+    // Keep the suggestion list free of placeholder-based templates (e.g. ID_HERE).
+
+    return { triggerFields, steps, catalogFields, entityFields, orgchartFields }
+  }, [edges, nodes])
+
+  return useExpressionSuggestions({ triggerFields, steps, catalogFields, entityFields, orgchartFields })
 }

@@ -38,7 +38,8 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
         state.edges,
         state.templateName,
         state.templateDescription,
-        state.templateTags
+        state.templateTags,
+        state.templateVersion
       )
 
       if (state.templateId) {

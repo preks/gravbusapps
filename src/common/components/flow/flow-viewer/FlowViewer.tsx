@@ -140,10 +140,16 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const [layoutNodes, setLayoutNodes] = useState<Record<string, { x: number; y: number }>>({})
   const [layoutEdgePoints, setLayoutEdgePoints] = useState<Record<string, Array<{ x: number; y: number }>>>({})
   const [wasInitiallyCentered, setWasInitiallyCentered] = useState(false)
+  const [layoutResultKey, setLayoutResultKey] = useState('')
+  const hasEverLaidOutRef = useRef(false)
+  const panelMeasureRef = useRef<HTMLDivElement | null>(null)
+  const panelShiftAppliedRef = useRef(false)
+  const panelShiftPxRef = useRef(0)
   const nodesInitialized = useNodesInitialized()
-  const { fitView } = useReactFlow()
+  const { fitView, getViewport, setViewport } = useReactFlow()
   const { exportPng, isExporting } = useFlowExport()
   const [resolvedThemeColors, setResolvedThemeColors] = useState<FlowCanvasThemeColors | null>(null)
+  const panelVisible = rightPanel != null && panelOpenTransition
 
   const nodeTypes = useMemo(
     () => ({
@@ -172,6 +178,60 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const uiColors = themeColorsProp ?? resolvedThemeColors ?? DEFAULT_FLOW_CANVAS_THEME_COLORS
   const fitViewOptions = { ...DEFAULT_FIT_VIEW_OPTIONS, ...fitViewOptionsProp }
   const elementsSelectable = elementsSelectableProp ?? isInteractive
+
+  // Layout is expensive and visually disruptive (we fade the canvas while recomputing).
+  // Only recompute layout when the graph structure changes (ids/types/connections),
+  // not when labels/metadata change (common during typing).
+  const layoutKey = useMemo(() => {
+    const nodes = definition.nodes
+      .map(n => ({ id: n.id, type: n.type }))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    const edges = definition.edges
+      .map(e => ({ id: e.id, source: e.source, target: e.target, direction: e.direction }))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    return JSON.stringify({ nodes, edges })
+  }, [definition.nodes, definition.edges])
+
+  const layoutDefinition = useMemo(
+    () => ({
+      nodes: definition.nodes.map(n => ({ id: n.id, type: n.type, label: '' })),
+      edges: definition.edges.map(e => ({ id: e.id, source: e.source, target: e.target, direction: e.direction }))
+    }),
+    [layoutKey]
+  )
+
+  // When a completely different flow is loaded into the same viewer instance,
+  // reset the initial fit/shift behavior so we start in fitView again.
+  const nodeIdsKey = useMemo(() => {
+    const ids = definition.nodes.map(n => n.id).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    return ids.join('|')
+  }, [definition.nodes])
+  const prevNodeIdsRef = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    const current = new Set(definition.nodes.map(n => n.id))
+    const prev = prevNodeIdsRef.current
+    prevNodeIdsRef.current = current
+
+    if (!prev) return
+
+    if (prev.size === 0 && current.size > 0) {
+      setWasInitiallyCentered(false)
+      panelShiftAppliedRef.current = false
+      panelShiftPxRef.current = 0
+      return
+    }
+
+    if (prev.size > 0 && current.size > 0) {
+      let intersection = 0
+      for (const id of current) if (prev.has(id)) intersection += 1
+      const overlapRatio = intersection / Math.max(prev.size, current.size)
+      if (overlapRatio < 0.2) {
+        setWasInitiallyCentered(false)
+        panelShiftAppliedRef.current = false
+        panelShiftPxRef.current = 0
+      }
+    }
+  }, [nodeIdsKey])
 
   // Build ReactFlow nodes (positions from layout state, like FlowStudioCanvas)
   const rfNodes = useMemo<Node[]>(() => {
@@ -240,14 +300,16 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   // Run ELK layout and store result in state (like FlowStudioCanvas)
   useEffect(() => {
     let cancelled = false
-    setLayoutNodes({})
-    setLayoutEdgePoints({})
-    setLayoutReady(false)
-    setWasInitiallyCentered(false)
+    const isFirstLayout = hasEverLaidOutRef.current === false
+    if (isFirstLayout) {
+      setLayoutNodes({})
+      setLayoutEdgePoints({})
+      setLayoutReady(false)
+    }
 
     const runLayout = async () => {
       try {
-        const result = await computeLayout(definition, {
+        const result = await computeLayout(layoutDefinition as any, {
           useForwardEdgesOnlyForRanking
         })
 
@@ -261,15 +323,19 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         setLayoutNodes(nextNodes)
         setLayoutEdgePoints(nextPoints)
         setLayoutReady(true)
+        setLayoutResultKey(layoutKey)
+        hasEverLaidOutRef.current = true
       } catch (err) {
         console.error('ELK layout failed, using fallback', err)
         const fallback: Record<string, { x: number; y: number }> = {}
-        definition.nodes.forEach((node, i) => {
+        layoutDefinition.nodes.forEach((node: any, i: number) => {
           fallback[node.id] = { x: 20, y: i * 150 + 20 }
         })
         setLayoutNodes(fallback)
         setLayoutEdgePoints({})
         setLayoutReady(true)
+        setLayoutResultKey(layoutKey)
+        hasEverLaidOutRef.current = true
       }
     }
 
@@ -277,11 +343,17 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     return () => {
       cancelled = true
     }
-  }, [definition, useForwardEdgesOnlyForRanking])
+  }, [layoutKey, useForwardEdgesOnlyForRanking])
 
   // Fit view once when layout is ready and nodes are initialized (orgchart pattern: no defaultViewport, explicit fitView after nodesInitialized)
   useEffect(() => {
-    if (!wasInitiallyCentered && layoutReady && definition.nodes.length > 0 && nodesInitialized) {
+    if (
+      !wasInitiallyCentered &&
+      layoutReady &&
+      layoutResultKey === layoutKey &&
+      definition.nodes.length > 0 &&
+      nodesInitialized
+    ) {
       const timer = setTimeout(async () => {
         try {
           await fitView({
@@ -293,6 +365,20 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         } catch {
           // ignore
         }
+
+        // If the right panel is open, apply a matching viewport shift after fitView
+        // so the graph doesn't end up centered under the panel overlay.
+        if (panelVisible) {
+          const width = panelMeasureRef.current?.getBoundingClientRect().width ?? 0
+          const shiftPx = width > 0 ? Math.round(width / 2) : 0
+          if (shiftPx > 0) {
+            const v = getViewport()
+            panelShiftAppliedRef.current = true
+            panelShiftPxRef.current = shiftPx
+            setViewport({ x: v.x - shiftPx, y: v.y, zoom: v.zoom }, { duration: 250 })
+          }
+        }
+
         setWasInitiallyCentered(true)
       }, 100)
       return () => clearTimeout(timer)
@@ -300,12 +386,17 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   }, [
     wasInitiallyCentered,
     layoutReady,
+    layoutResultKey,
+    layoutKey,
     definition.nodes.length,
     nodesInitialized,
     fitView,
     fitViewOptions.padding,
     fitViewOptions.minZoom,
-    fitViewOptions.maxZoom
+    fitViewOptions.maxZoom,
+    panelVisible,
+    getViewport,
+    setViewport
   ])
 
   // Sync nodes/edges when definition or selection changes (positions come from layout state)
@@ -342,7 +433,44 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
 
   const showRightPanel = hasRightPanelEverRef.current
   const panelContent = rightPanel ?? prevPanelContentRef.current
-  const panelVisible = rightPanel != null && panelOpenTransition
+
+  // When the sidebar opens, shift viewport left so content stays visible.
+  // Restore previous viewport when the sidebar closes.
+  useEffect(() => {
+    const width = panelMeasureRef.current?.getBoundingClientRect().width ?? 0
+
+    if (panelVisible) {
+      // Don't shift during initial load; the initial fitView effect will handle
+      // shifting exactly once after the viewport is computed.
+      if (!wasInitiallyCentered) return
+
+      if (panelShiftAppliedRef.current) return
+      if (width <= 0) return
+
+      panelShiftAppliedRef.current = true
+      const shiftPx = Math.round(width / 2)
+      panelShiftPxRef.current = shiftPx
+
+      const v = getViewport()
+      // Decrease x => move graph left, away from right panel overlay.
+      setViewport({ x: v.x - shiftPx, y: v.y, zoom: v.zoom }, { duration: 250 })
+      return
+    }
+
+    // Panel is not visible: shift back once the close transition finished,
+    // without undoing user panning/zooming while the panel was open.
+    const shiftPx = panelShiftPxRef.current
+    if (!panelShiftAppliedRef.current || shiftPx <= 0) return
+
+    const t = window.setTimeout(() => {
+      const v = getViewport()
+      panelShiftAppliedRef.current = false
+      panelShiftPxRef.current = 0
+      setViewport({ x: v.x + shiftPx, y: v.y, zoom: v.zoom }, { duration: 250 })
+    }, 300)
+
+    return () => window.clearTimeout(t)
+  }, [panelVisible, getViewport, setViewport])
 
   const handlePanelTransitionEnd = () => {
     if (rightPanel == null && prevPanelContentRef.current != null) {
@@ -446,7 +574,11 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
               if (e.propertyName === 'transform') handlePanelTransitionEnd()
             }}
           >
-            <div key={panelKey} className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar">
+            <div
+              ref={panelMeasureRef}
+              key={panelKey}
+              className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar"
+            >
               <RightPanelExitingContext.Provider value={rightPanel == null && showRightPanel}>
                 {panelContent}
               </RightPanelExitingContext.Provider>

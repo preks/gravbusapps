@@ -147,7 +147,7 @@ task-output-schema-title = Ausgabeschema
 task-output-schema-desc = Definieren Sie die strukturierte Ausgabe, die dieser Agent für nachgelagerte Schritte erzeugt.
 
 # Task step type selector (signature)
-task-type-group-human = Menschliche Schritte
+task-type-group-human = Benutzer-Schritte
 task-type-group-ai = KI & Automatisierung
 
 # Assignment
@@ -161,23 +161,47 @@ assignment-mode-label = Zuweisungsmodus
 assignment-mode-claim = Beanspruchen
 assignment-mode-assign = Zuweisen
 assignment-mode-deferred = Verzögert
+assignment-mode-claimable = Übernehmen
+assignment-mode-auto = Zuweisen
+assignment-mode-runtime = Bei Ausführung bereitgestellt
 assignment-mode-desc-claim = Jeder in der ausgewählten Zielgruppe kann diese Aufgabe beanspruchen.
 assignment-mode-desc-assign = Für jede Person in der ausgewählten Zielgruppe wird eine eigene Aufgabe erstellt.
 assignment-mode-desc-deferred = Ziele werden zur Laufzeit ermittelt (Erweitert).
+assignment-mode-desc-claimable = Nutzer mit den ausgewählten Fähigkeiten können die Aufgabe übernehmen.
+assignment-mode-desc-auto = Automatisch per Strategie zuweisen (oder bei Ausführung).
+assignment-mode-desc-runtime = Zuweisung muss beim Start der Ausführung bereitgestellt werden.
 assignment-audience-label = Zielgruppe
+assignment-capabilities-label = Fähigkeiten
+assignment-runtime-hint = Dieser Schritt muss beim Start des Flows zugewiesen werden.
+assignment-assign-at-execution-label = Bei Ausführung zuweisen
+assignment-assign-at-execution-desc = Zuweisung wird beim Start des Flows bereitgestellt.
+assignment-allow-reassignment-label = Neuzuweisung erlauben
+assignment-allow-reassignment-desc = Der/die Bearbeiter:in kann die Aufgabe weitergeben.
 
 # Logic decisions
 logic-description-simple = Wählen Sie einen Schrittwert aus und vergleichen Sie ihn. Die erste passende Bedingung gewinnt.
-logic-description-advanced = Definieren Sie Bedingungen mit Ausdrücken. Die erste passende Bedingung gewinnt.
+logic-description-advanced = Definieren Sie Bedingungen mit Flow-Kontext. Die erste passende Bedingung gewinnt.
 logic-field-label = Wert
+logic-default = Standard-Ausgang
 logic-field-placeholder = Wert auswählen
 logic-field-search = Schrittdaten durchsuchen...
 logic-field-empty = Keine passenden Werte
 logic-field-group-steps = Schrittdaten
 logic-operator-label = Operator
+
+# User decisions (USER mode)
+decision-user-task-title-label = Aufgabentitel
+decision-user-task-message-label = Aufgabentext
+decision-user-task-message-placeholder = Fügen Sie eine kurze Nachricht hinzu… Tippe {{, um Daten einzufügen.
+
 logic-value-label = Vergleichen mit
 logic-value-placeholder = z. B. 1000 oder 'approved'
-logic-preview = Ausdruck:
+logic-preview = Bedingung:
+
+# User decisions (USER mode)
+decision-user-task-title-label = Aufgabentitel
+decision-user-task-message-label = Aufgabentext
+decision-user-task-message-placeholder = Füge eine kurze Nachricht hinzu… Tippe {{, um Daten einzufügen.
 
 # Decision Node Config
 decision-mode = Entscheidungsmodus
@@ -192,7 +216,7 @@ decision-policy = Entscheidungsrichtlinie
 decision-policy-optional-placeholder = Optional: Richtlinie auswählen...
 decision-ai-executor-label = KI-Ausführung
 decision-ai-executor-everyai = EveryAI
-decision-ai-executor-everyai-desc = Verwenden Sie Entscheidungsanweisungen (mit Ausdrücken), damit EveryAI den besten Zweig auswählt.
+decision-ai-executor-everyai-desc = Verwenden Sie Entscheidungsanweisungen (mit Flow-Kontext), damit EveryAI den besten Zweig auswählt.
 decision-ai-executor-taskexpert = KI Task Expert
 decision-ai-executor-taskexpert-desc = Führen Sie den Task Expert aus und routen Sie über Mapping-Regeln. Wenn keine Regel passt, wählt ein Mensch den Zweig.
 decision-ai-type-label = Entscheidungseinrichtung
@@ -201,18 +225,15 @@ decision-ai-type-policy-desc = Verwenden Sie ein Richtliniendokument als Grundla
 decision-ai-type-expert = KI-Experte
 decision-ai-type-expert-desc = Wählen Sie einen KI-Experten aus dem Prompt Manager für die Entscheidung.
 decision-ai-instructions-label = Entscheidungsanweisungen
-decision-ai-instructions-desc = Kontext oder Regeln für die KI. Verwenden Sie den Ausdrucks-Picker, um Daten aus früheren Schritten einzufügen.
+decision-ai-instructions-desc = Kontext oder Regeln für die KI – einschließlich, wann zu einem menschlichen Fallback eskaliert werden soll.
 decision-ai-instructions-placeholder = z. B. Bevorzuge Zweig A, wenn der Risikoscore über dem Wert aus einem früheren Schritt liegt.
-decision-escalation-instructions-label = Eskalationshinweise
-decision-escalation-instructions-desc = Optional. Beschreiben Sie, wann die KI zu einer menschlichen Entscheidung eskalieren soll.
-decision-escalation-instructions-placeholder = z. B. Eskalieren, wenn die Richtlinie mehrdeutig ist oder wichtige Informationen fehlen.
 decision-escalation-how-title = So funktioniert die Eskalation
 decision-escalation-how-desc = Wenn die KI eskalieren möchte, ungültige Ausgaben liefert oder das Ergebnis keinem Zweig zugeordnet werden kann, wird eine Benutzerentscheidung erstellt und der Nutzer wählt den nächsten Zweig.
 decision-escalation-due-label = Eskalierte Entscheidung fällig in
 decision-human-fallback-title = Menschlicher Fallback
 decision-human-fallback-desc = Legen Sie fest, wer die Fallback-Entscheidungsaufgabe erhält und was der Nutzer sieht, wenn die KI nicht entscheiden kann.
 decision-human-instructions-label = Nachricht der Fallback-Aufgabe
-decision-human-instructions-desc = Erforderlich. Wird angezeigt, wenn ein Mensch den Zweig auswählen muss. Ausdrücke sind möglich.
+decision-human-instructions-desc = Erforderlich. Wird angezeigt, wenn ein Mensch den Zweig auswählen muss. Flow-Kontext kann eingefügt werden.
 decision-human-instructions-placeholder = z. B. Die KI konnte nicht entscheiden. Bitte wählen Sie den passendsten Zweig.
 decision-ai-taskexpert-mapping-label = Mapping-Regeln
 decision-ai-taskexpert-mapping-desc = Definieren Sie Regeln, die die Ausgabe des Task Expert einem Zweig zuordnen.
