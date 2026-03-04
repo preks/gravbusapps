@@ -61,7 +61,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ icon, label, value, color, active, on
       active ? 'gba:ring-2 gba:ring-primary gba:border-primary' : 'gba:border-border'
     }`}
     onClick={onClick}
-    data-testid={`kpi-card-${label.toLowerCase().replace(/\s+/g, '-')}`}
+    data-testid={`kpi-card-${label.toLowerCase().replaceAll(/\s+/g, '-')}`}
   >
     <CardContent className="gba:p-3">
       <div className="gba:flex gba:items-center gba:gap-2.5">
@@ -351,7 +351,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   const sortedRows = [...capacityRows].sort((a, b) => {
     const va = getSortValue(a, sortKey)
     const vb = getSortValue(b, sortKey)
-    const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : (va as number) - (vb as number)
+    const cmp = typeof va === 'string' && typeof vb === 'string' ? va.localeCompare(vb) : Number(va) - Number(vb)
     return sortDir === 'asc' ? cmp : -cmp
   })
 

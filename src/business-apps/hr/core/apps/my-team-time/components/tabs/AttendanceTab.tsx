@@ -15,7 +15,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamAttendance } from '../../hooks/useTeamAttendance'
 import { useAbsenceTypeCatalog } from '@/business-apps/hr/absences/apps/personal-absences/hooks/useAbsenceTypeCatalog'
-import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday } from '../../types/types'
+import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday, ViewMode } from '../../types/types'
 import {
   formatTimeShort,
   formatMinutes,
@@ -28,7 +28,6 @@ import {
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-type ViewMode = 'day' | 'week' | 'month'
 type MapTypeFn = (codeOrId: string) => { label?: string; color?: string }
 
 const getStatusColor = (entry: TeamAttendanceEntry | null, absence: TeamAbsenceToday | null): string => {
@@ -444,7 +443,7 @@ function renderAttendanceTableContent(
               absence={getMemberAbsence(member.id)}
               viewMode={viewMode}
               mapType={mapType}
-              periodSummary={viewMode !== 'day' ? periodSummaries[member.id] : undefined}
+              periodSummary={viewMode === 'day' ? undefined : periodSummaries[member.id]}
             />
           ))}
         </tbody>

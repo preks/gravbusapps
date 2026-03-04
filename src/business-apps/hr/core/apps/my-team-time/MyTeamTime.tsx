@@ -30,15 +30,15 @@ const MyTeamTime: React.FC<BusinessAppContextProps> = props => {
   ]
 
   const getInitialTab = (): TabKey => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     const tabFromUrl = urlParams.get('tab')
     if (VALID_TABS.includes(tabFromUrl as TabKey)) {
       return tabFromUrl as TabKey
     }
     const defaultTab: TabKey = 'dashboard'
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.location.href)
     url.searchParams.set('tab', defaultTab)
-    window.history.replaceState({}, '', url.toString())
+    globalThis.history.replaceState({}, '', url.toString())
     return defaultTab
   }
 
@@ -46,20 +46,20 @@ const MyTeamTime: React.FC<BusinessAppContextProps> = props => {
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab as TabKey)
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.location.href)
     url.searchParams.set('tab', tab)
-    window.history.pushState({}, '', url.toString())
+    globalThis.history.pushState({}, '', url.toString())
   }, [])
 
   useEffect(() => {
     const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.location.search)
       const tabFromUrl = urlParams.get('tab')
       const newTab = VALID_TABS.includes(tabFromUrl as TabKey) ? (tabFromUrl as TabKey) : 'dashboard'
       setActiveTab(newTab)
     }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
   const renderTabContent = () => {

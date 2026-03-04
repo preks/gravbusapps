@@ -6,10 +6,10 @@ export const parseDurationToMinutes = (duration?: string | null): number => {
   const negative = str.startsWith('-')
   const cleaned = str.replace('-', '')
   let total = 0
-  const hourMatch = cleaned.match(/(\d+)\s*h/)
-  const minMatch = cleaned.match(/(\d+)\s*m/)
-  if (hourMatch) total += parseInt(hourMatch[1], 10) * 60
-  if (minMatch) total += parseInt(minMatch[1], 10)
+  const hourMatch = /(\d+)\s*h/.exec(cleaned)
+  const minMatch = /(\d+)\s*m/.exec(cleaned)
+  if (hourMatch) total += Number.parseInt(hourMatch[1], 10) * 60
+  if (minMatch) total += Number.parseInt(minMatch[1], 10)
   return negative ? -total : total
 }
 

@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_TEAM_ATTENDANCE_FOR_RANGE, GET_TEAM_ABSENCES_CALENDAR_RANGE } from '../queries/queries'
-import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday } from '../types/types'
+import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday, ViewMode } from '../types/types'
 import { toDateString } from '../utils/timeUtils'
 
 interface UseTeamAttendanceReturn {
   attendance: TeamAttendanceEntry[]
   absences: TeamAbsenceToday[]
   currentDate: Date
-  viewMode: 'day' | 'week' | 'month'
-  setViewMode: (mode: 'day' | 'week' | 'month') => void
+  viewMode: ViewMode
+  setViewMode: (mode: ViewMode) => void
   goToDate: (date: Date) => void
   goToPrev: () => void
   goToNext: () => void

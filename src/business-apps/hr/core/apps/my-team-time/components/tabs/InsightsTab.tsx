@@ -181,7 +181,7 @@ interface InsightKpiCardProps {
 const InsightKpiCard: React.FC<InsightKpiCardProps> = ({ icon, label, value, subtitle, color }) => (
   <Card
     className="gba:shadow-sm gba:border gba:border-border"
-    data-testid={`insight-kpi-${label.toLowerCase().replace(/\s+/g, '-')}`}
+    data-testid={`insight-kpi-${label.toLowerCase().replaceAll(/\s+/g, '-')}`}
   >
     <CardContent className="gba:p-3">
       <div className="gba:flex gba:items-center gba:gap-2.5">
@@ -785,12 +785,12 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
         <InsightKpiCard
           icon={<PiSunHorizon />}
           label={t('pto_health', 'PTO Health Index')}
-          value={kpis.ptoHealthIndex !== null ? `${kpis.ptoHealthIndex.toFixed(0)}%` : t('na', 'N/A')}
+          value={kpis.ptoHealthIndex === null ? t('na', 'N/A') : `${kpis.ptoHealthIndex.toFixed(0)}%`}
           subtitle={t('leave_vs_accrual', 'Leave usage vs expected accrual')}
           color={
-            kpis.ptoHealthIndex !== null
-              ? getKpiColor(kpis.ptoHealthIndex, { good: 60, warn: 30, direction: 'higher' })
-              : 'var(--nw-muted-foreground)'
+            kpis.ptoHealthIndex === null
+              ? 'var(--nw-muted-foreground)'
+              : getKpiColor(kpis.ptoHealthIndex, { good: 60, warn: 30, direction: 'higher' })
           }
         />
         <InsightKpiCard
@@ -924,7 +924,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                       size={12}
                     />
                     <span className="gba:font-medium gba:text-foreground">{a.employeeName}</span>
-                    <span>– {a.type.replace(/_/g, ' ')}</span>
+                    <span>– {a.type.replaceAll('_', ' ')}</span>
                   </div>
                 ))}
                 {complianceAlerts.length > 2 && (
@@ -1112,7 +1112,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                     <div>
                       <span className="gba:font-medium gba:text-sm">{alert.employeeName}</span>
                       <span className="gba:text-muted-foreground gba:text-xs gba:ml-2">
-                        {alert.type.replace(/_/g, ' ')}
+                        {alert.type.replaceAll('_', ' ')}
                       </span>
                     </div>
                     {getSeverityBadge(alert.severity)}
@@ -1310,7 +1310,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                                 {getImpactBadge(sc.impactLevel)}
                                 <span className="gba:text-muted-foreground">→ {sc.newCoverage}%</span>
                               </div>
-                              {sc.affectedCapabilities.filter(ac => ac.newRisk !== 'low').length > 0 && (
+                              {sc.affectedCapabilities.some(ac => ac.newRisk !== 'low') && (
                                 <div className="gba:ml-4 gba:mt-0.5 gba:space-y-0.5">
                                   {sc.affectedCapabilities
                                     .filter(ac => ac.newRisk !== 'low')

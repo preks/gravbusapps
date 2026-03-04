@@ -1,3 +1,5 @@
+export type ViewMode = 'day' | 'week' | 'month'
+
 export interface TeamMember {
   id: string
   firstName: string
