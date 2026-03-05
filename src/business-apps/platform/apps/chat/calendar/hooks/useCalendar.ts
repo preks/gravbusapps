@@ -131,7 +131,7 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
     }
   }, [currentDate, view, dateRange, locale])
 
-  // Load internal events for current date range
+  // Load internal events for current date range (stable callback for manual refresh)
   const loadEvents = useCallback(async () => {
     if (!apiClient) return
 
@@ -155,6 +155,44 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
       setIsLoading(false)
     }
   }, [apiClient, dateRange])
+
+  // Load events only when date range actually changes (stable deps to avoid request storm)
+  const rangeStartMs = dateRange.start.getTime()
+  const rangeEndMs = dateRange.end.getTime()
+  useEffect(() => {
+    if (!apiClient) return
+
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
+
+    const start = new Date(rangeStartMs)
+    const end = new Date(rangeEndMs)
+    apiClient
+      .getCalendarEvents(start, end)
+      .then(loadedEvents => {
+        if (cancelled) return
+        setInternalEvents(
+          loadedEvents.map(evt => ({
+            ...evt,
+            source: 'internal' as const
+          }))
+        )
+      })
+      .catch(err => {
+        if (!cancelled) {
+          console.error('Error loading calendar events:', err)
+          setError('Failed to load calendar events')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [apiClient, rangeStartMs, rangeEndMs])
 
   // Merge internal + external events (does not re-fetch when external events change)
   const events = useMemo(() => {
@@ -183,11 +221,6 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
       console.error('Error loading pending invitations:', err)
     }
   }, [apiClient])
-
-  // Load events when date range changes
-  useEffect(() => {
-    loadEvents()
-  }, [loadEvents])
 
   // Load invitations on mount
   useEffect(() => {

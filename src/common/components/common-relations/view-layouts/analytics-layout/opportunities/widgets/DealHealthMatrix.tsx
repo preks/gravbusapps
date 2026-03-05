@@ -12,8 +12,7 @@ import {
   ChartTooltip
 } from '@newwork/nw-design-system'
 import { ScatterChart, Scatter, XAxis, YAxis } from 'recharts'
-import { HeartOutlined, WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
-import { HeartIcon } from '@phosphor-icons/react'
+import { HeartIcon, WarningIcon, CheckCircleIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface DealHealthItem {
@@ -126,7 +125,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
             data-testid="excellent-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <CheckCircleOutlined className="gba:text-green-600" />
+              <CheckCircleIcon size={16} className="gba:text-green-600" />
               <span className="gba:text-sm gba:font-medium gba:text-green-600">Excellent</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-green-900">{data.healthDistribution.excellent}</div>
@@ -142,7 +141,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
             data-testid="healthy-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <HeartOutlined className="gba:text-blue-600" />
+              <HeartIcon className="gba:text-blue-600" />
               <span className="gba:text-sm gba:font-medium gba:text-blue-600">Healthy</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-blue-900">{data.healthDistribution.healthy}</div>
@@ -158,7 +157,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
             data-testid="warning-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <WarningOutlined className="gba:text-yellow-600" />
+              <WarningIcon size={16} className="gba:text-yellow-600" />
               <span className="gba:text-sm gba:font-medium gba:text-yellow-600">Warning</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-yellow-900">{data.healthDistribution.warning}</div>
@@ -174,7 +173,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
             data-testid="critical-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <ExclamationCircleOutlined className="gba:text-red-600" />
+              <WarningCircleIcon size={16} className="gba:text-red-600" />
               <span className="gba:text-sm gba:font-medium gba:text-red-600">Critical</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-red-900">{data.healthDistribution.critical}</div>
@@ -214,7 +213,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
         {(selectedCategory === 'all' || selectedCategory === 'critical') && (
           <div data-testid="critical-deals-section">
             <h4 className="gba:text-lg gba:font-semibold gba:mb-3 gba:flex gba:items-center gba:gap-2">
-              <ExclamationCircleOutlined className="gba:text-red-600" />
+              <WarningCircleIcon size={16} className="gba:text-red-600" />
               Critical Deals Requiring Immediate Attention
             </h4>
             <div className="gba:space-y-3">

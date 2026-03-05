@@ -135,6 +135,12 @@ export interface Document {
   publishMetadata?: PublishMetadata
   commentCount?: number
   hasUnresolvedComments?: boolean
+
+  settings?: {
+    external?: import('./externalUnstructuredConnector').ExternalDocumentProvenance
+    readOnly?: boolean
+    [key: string]: unknown
+  }
 }
 
 /**
@@ -174,6 +180,11 @@ export interface DocumentSummary {
   sharedByName?: string // Display name of person who shared (if shared)
   sourceFile?: DocumentFileInfo // Source file info for PDFs
   isPdf?: boolean // Shorthand for sourceFile?.mimeType === 'application/pdf'
+  settings?: {
+    external?: import('./externalUnstructuredConnector').ExternalDocumentProvenance
+    readOnly?: boolean
+    [key: string]: unknown
+  }
 }
 
 /**

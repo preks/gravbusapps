@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { FunctionsServiceClient, LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
+import type { SortingState } from '@tanstack/react-table'
 import { getDefaultVisibleColumns } from '../config/functionsColumns'
 
 export interface PaginationState {
@@ -21,7 +22,9 @@ export interface UseFunctionsDataReturn {
   refetch: () => Promise<void>
 }
 
-export const useFunctionsData = (accessToken?: string): UseFunctionsDataReturn => {
+const compareStrings = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' })
+
+export const useFunctionsData = (accessToken?: string, sorting?: SortingState): UseFunctionsDataReturn => {
   const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
 
   const [allItems, setAllItems] = useState<LatestFunctionItem[]>([])
@@ -38,7 +41,7 @@ export const useFunctionsData = (accessToken?: string): UseFunctionsDataReturn =
     setLoading(true)
     setError(null)
     try {
-      const list = await client.listLatest({ agentEnabled: true })
+      const list = await client.listLatest()
       setAllItems(list)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load functions')
@@ -63,12 +66,37 @@ export const useFunctionsData = (accessToken?: string): UseFunctionsDataReturn =
     )
   }, [allItems, search])
 
-  // Paginate the filtered items
+  const sortedItems = useMemo(() => {
+    const s = sorting && sorting.length ? sorting[0] : null
+    if (!s?.id) return filteredItems
+
+    const dir = s.desc ? -1 : 1
+    const getValue = (item: LatestFunctionItem) => {
+      if (s.id === 'name') return String(item.name || '')
+      if (s.id === 'description') return String(item.description || '')
+      if (s.id === 'agentEnabled') return item.agentEnabled ? 1 : 0
+      if (s.id === 'workflowEnabled') return item.workflowEnabled ? 1 : 0
+      if (s.id === 'version') return Number(item.latestVersion?.version || 0)
+      if (s.id === 'lastVersionAt') return Date.parse(String(item.latestVersion?.createdAt || '')) || 0
+      return ''
+    }
+
+    const items = [...filteredItems]
+    items.sort((a, b) => {
+      const va = getValue(a) as any
+      const vb = getValue(b) as any
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
+      return compareStrings(String(va ?? ''), String(vb ?? '')) * dir
+    })
+    return items
+  }, [filteredItems, sorting])
+
+  // Paginate the sorted items
   const paginatedItems = useMemo(() => {
     const start = pagination.pageIndex * pagination.pageSize
     const end = start + pagination.pageSize
-    return filteredItems.slice(start, end)
-  }, [filteredItems, pagination.pageIndex, pagination.pageSize])
+    return sortedItems.slice(start, end)
+  }, [sortedItems, pagination.pageIndex, pagination.pageSize])
 
   // Reset to first page when search changes
   useEffect(() => {
@@ -77,9 +105,16 @@ export const useFunctionsData = (accessToken?: string): UseFunctionsDataReturn =
     }
   }, [search])
 
+  // Reset to first page when sorting changes
+  useEffect(() => {
+    if (pagination.pageIndex !== 0) {
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+    }
+  }, [sorting])
+
   return {
     data: paginatedItems,
-    total: filteredItems.length,
+    total: sortedItems.length,
     loading,
     error,
     search,

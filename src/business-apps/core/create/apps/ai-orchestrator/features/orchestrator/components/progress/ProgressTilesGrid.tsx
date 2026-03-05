@@ -23,6 +23,7 @@ export interface ProgressTilesGridProps {
   isBuilding: boolean
   currentPhase?: BuildPhase | null
   phaseMessage?: string | null
+  isProgressEstimated?: boolean
   showHeader?: boolean
   'data-testid'?: string
 }
@@ -78,24 +79,43 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
   isBuilding,
   currentPhase,
   phaseMessage,
+  isProgressEstimated = false,
   showHeader = true,
   'data-testid': testId = 'progress-tiles-grid'
 }) => {
-  // Derive display counts from tile states (not the premature completedCount counter).
-  // During the publish phase, tiles that are still being generated show as 'building',
-  // so they won't count as "built" until generation is actually done.
-  const displayBuiltCount = Object.values(tiles).reduce((count, tile) => {
-    if (tile.status === 'completed') {
-      return count + tile.items.filter((i: any) => i.status === 'completed').length
-    }
-    return count
-  }, 0)
+  // Truthful counters are derived from item lifecycle states in the tiles.
+  const displayBuiltCount = Object.values(tiles).reduce(
+    (count, tile) => count + tile.items.filter((i: any) => i.status === 'completed').length,
+    0
+  )
   const displayReusedCount = Object.values(tiles).reduce((count, tile) => {
     return count + tile.items.filter((i: any) => i.status === 'reused').length
   }, 0)
+  const displayFailedCount = Object.values(tiles).reduce((count, tile) => {
+    return count + tile.items.filter((i: any) => i.status === 'error').length
+  }, 0)
 
-  const overallStatus = getOverallStatus(isBuilding, completedCount, failedCount, reusedCount, totalCount)
+  const effectiveCompleted = Math.max(completedCount, displayBuiltCount)
+  const effectiveReused = Math.max(reusedCount, displayReusedCount)
+  const effectiveFailed = Math.max(failedCount, displayFailedCount)
+  const overallStatus = getOverallStatus(isBuilding, effectiveCompleted, effectiveFailed, effectiveReused, totalCount)
   const phaseInfo = getPhaseInfo(currentPhase ?? null)
+  const revealedTilesRef = React.useRef<Set<ComponentType>>(new Set())
+
+  const currentlyRelevantTiles = tileOrder.filter(type => {
+    const tile = tiles[type]
+    if (tile.items.length === 0) return false
+    const hasRelevantItemState = tile.items.some((i: any) =>
+      ['building', 'completed', 'reused', 'error', 'discovering', 'wiring'].includes(i.status)
+    )
+    const hasRelevantTileState = ['building', 'discovering', 'wiring', 'completed', 'error'].includes(tile.status)
+    return hasRelevantTileState || hasRelevantItemState
+  })
+  if (currentlyRelevantTiles.length === 0 && !isBuilding) {
+    revealedTilesRef.current = new Set()
+  }
+  currentlyRelevantTiles.forEach(type => revealedTilesRef.current.add(type))
+  const visibleTiles = tileOrder.filter(type => revealedTilesRef.current.has(type))
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -132,7 +152,7 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
                       {displayReusedCount} reused
                     </span>
                   )}
-                  {failedCount > 0 && `, ${failedCount} failed`}
+                  {displayFailedCount > 0 && `, ${displayFailedCount} failed`}
                   {' of '}
                   {totalCount} components
                 </p>
@@ -143,7 +163,12 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
                 )}
               </div>
             </div>
-            <span className="gba:text-xl gba:font-bold gba:text-foreground">{overallProgress}%</span>
+            <div className="gba:text-right">
+              <span className="gba:text-xl gba:font-bold gba:text-foreground">{overallProgress}%</span>
+              {isProgressEstimated && isBuilding && (
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:leading-none">estimated</p>
+              )}
+            </div>
           </div>
 
           {/* Progress bar - Monochrome */}
@@ -151,20 +176,11 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
         </div>
       )}
 
-      {/* Tiles Grid - sorted: active first, completed/reused next, pending/skipped last */}
-      <div className="gba:grid gba:grid-cols-3 gba:gap-2.5">
-        {[...tileOrder]
-          .sort((a, b) => {
-            const priority = (status: string) => {
-              if (['building', 'discovering', 'wiring', 'analyzing'].includes(status)) return 0
-              if (['completed', 'reused', 'error'].includes(status)) return 1
-              return 2 // pending, skipped
-            }
-            return priority(tiles[a].status) - priority(tiles[b].status)
-          })
-          .map(type => (
-            <BuildTile key={type} tile={tiles[type]} data-testid={`${testId}-tile-${type}`} />
-          ))}
+      {/* Tiles List - stable order to avoid jumpy card movement */}
+      <div className="gba:flex gba:flex-col gba:gap-2">
+        {visibleTiles.map(type => (
+          <BuildTile key={type} tile={tiles[type]} data-testid={`${testId}-tile-${type}`} />
+        ))}
       </div>
     </div>
   )

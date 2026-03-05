@@ -92,7 +92,20 @@ export const useAssetService = (context: BusinessAppContextProps) => {
             currency: asset.currency,
             siteLocation: asset.siteLocation,
             createdAt: asset.createdAt,
-            updatedAt: asset.updatedAt
+            updatedAt: asset.updatedAt,
+            disposalStatus: asset.disposalStatus,
+            disposalOutcomeRef: asset.disposalOutcomeRef,
+            disposalDate: asset.disposalDate,
+            disposalReason: asset.disposalReason,
+            responsibleEmployeeId: asset.responsibleEmployeeId,
+            performerEmployeeId: asset.performerEmployeeId,
+            requireSanitization: asset.requireSanitization,
+            sanitizationMethodRef: asset.sanitizationMethodRef,
+            sanitizationExecutionDate: asset.sanitizationExecutionDate,
+            disposalOutcome: asset.disposalOutcome,
+            sanitizationMethod: asset.sanitizationMethod,
+            responsibleEmployee: asset.responsibleEmployee,
+            performerEmployee: asset.performerEmployee
           }
         })
 
@@ -139,7 +152,20 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           currency: asset.currency,
           siteLocation: asset.siteLocation,
           createdAt: asset.createdAt,
-          updatedAt: asset.updatedAt
+          updatedAt: asset.updatedAt,
+          disposalStatus: asset.disposalStatus,
+          disposalOutcomeRef: asset.disposalOutcomeRef,
+          disposalDate: asset.disposalDate,
+          disposalReason: asset.disposalReason,
+          responsibleEmployeeId: asset.responsibleEmployeeId,
+          performerEmployeeId: asset.performerEmployeeId,
+          requireSanitization: asset.requireSanitization,
+          sanitizationMethodRef: asset.sanitizationMethodRef,
+          sanitizationExecutionDate: asset.sanitizationExecutionDate,
+          disposalOutcome: asset.disposalOutcome,
+          sanitizationMethod: asset.sanitizationMethod,
+          responsibleEmployee: asset.responsibleEmployee,
+          performerEmployee: asset.performerEmployee
         } as Asset
       } catch (error) {
         console.error('Error fetching asset by ID:', error)

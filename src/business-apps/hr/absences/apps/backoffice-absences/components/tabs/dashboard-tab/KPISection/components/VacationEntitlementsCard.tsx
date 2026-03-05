@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card } from '@newwork/nw-design-system'
-import { RiBarChart2Line } from '@remixicon/react'
+import { ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DashboardData } from '../../../../../types'
 
@@ -20,7 +20,7 @@ export const VacationEntitlementsCard: React.FC<VacationEntitlementsCardProps> =
       onClick={onNavigateToEntitlements}
     >
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <RiBarChart2Line className="gba:text-info" size={20} />
+        <ChartBarIcon size={20} className="gba:text-info" />
         <div>
           <h5 className="gba:text-sm gba:font-medium gba:m-0">
             {getTranslationFromI18nKeyAndLabel(

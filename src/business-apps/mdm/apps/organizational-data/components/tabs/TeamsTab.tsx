@@ -10,7 +10,7 @@ import {
   UserIcon,
   CrownSimpleIcon,
   CalendarBlankIcon,
-  SquaresFourIcon,
+  GaugeIcon,
   ListDashesIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -496,7 +496,7 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
                 onClick={() => setViewMode('cards')}
                 data-testid={`${prefixDataTestId || ''}-TeamsTab-CardsView`}
               >
-                <Icon icon={SquaresFourIcon} />
+                <Icon icon={GaugeIcon} />
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="table"

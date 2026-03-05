@@ -1,15 +1,15 @@
 import React from 'react'
 import { Card, Row, Col, Typography } from 'antd'
-import { TeamOutlined, FileTextOutlined, UserOutlined, IdcardOutlined } from '@ant-design/icons'
+import { UsersIcon, FileTextIcon, UserIcon, IdentificationCardIcon } from '@phosphor-icons/react'
 
 const { Title, Text } = Typography
 
 const HrDashboard: React.FC = () => {
   const stats = [
-    { title: 'Total Employees', value: '124', icon: <TeamOutlined />, color: 'var(--nw-info)' },
-    { title: 'Active Documents', value: '856', icon: <FileTextOutlined />, color: 'var(--nw-success)' },
-    { title: 'Open Positions', value: '12', icon: <IdcardOutlined />, color: 'var(--nw-warning)' },
-    { title: 'On Leave', value: '8', icon: <UserOutlined />, color: 'var(--nw-destructive)' }
+    { title: 'Total Employees', value: '124', icon: <UsersIcon size={24} />, color: 'var(--nw-info)' },
+    { title: 'Active Documents', value: '856', icon: <FileTextIcon size={24} />, color: 'var(--nw-success)' },
+    { title: 'Open Positions', value: '12', icon: <IdentificationCardIcon size={24} />, color: 'var(--nw-warning)' },
+    { title: 'On Leave', value: '8', icon: <UserIcon size={24} />, color: 'var(--nw-destructive)' }
   ]
 
   return (
@@ -50,25 +50,25 @@ const HrDashboard: React.FC = () => {
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={6}>
             <Card hoverable className="gba:text-center">
-              <FileTextOutlined style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
+              <FileTextIcon style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
               <div className="gba:mt-2">Manage Documents</div>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Card hoverable className="gba:text-center">
-              <UserOutlined style={{ fontSize: '32px', color: 'var(--nw-success)' }} />
+              <UserIcon style={{ fontSize: '32px', color: 'var(--nw-success)' }} />
               <div className="gba:mt-2">Add Employee</div>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Card hoverable className="gba:text-center">
-              <IdcardOutlined style={{ fontSize: '32px', color: 'var(--nw-warning)' }} />
+              <IdentificationCardIcon style={{ fontSize: '32px', color: 'var(--nw-warning)' }} />
               <div className="gba:mt-2">Post Job</div>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Card hoverable className="gba:text-center">
-              <TeamOutlined style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
+              <UsersIcon style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
               <div className="gba:mt-2">Team Overview</div>
             </Card>
           </Col>

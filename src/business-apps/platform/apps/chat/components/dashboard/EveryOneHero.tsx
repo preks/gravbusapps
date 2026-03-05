@@ -1,16 +1,10 @@
 import React, { useMemo } from 'react'
-import { SpaceHeroBackground } from '../../../spaces/components/SpaceHeroBackground'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 
 interface EveryOneHeroProps {
   userName?: string
   'data-testid'?: string
 }
-
-// Video background - same logic as SpaceHero
-const hostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
-const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
-const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 /**
  * Get time-based greeting
@@ -25,7 +19,7 @@ function getGreeting(): string {
 
 /**
  * EveryOneHero - Premium animated hero for EveryOne Dashboard
- * Uses the same styling as SpaceHero - video or animated gradient background with white text
+ * Uses the same styling as SpaceHero - CSS-only animated background with white text
  */
 export const EveryOneHero: React.FC<EveryOneHeroProps> = ({ userName, 'data-testid': testId = 'everyone-hero' }) => {
   const greeting = useMemo(() => getGreeting(), [])
@@ -37,33 +31,11 @@ export const EveryOneHero: React.FC<EveryOneHeroProps> = ({ userName, 'data-test
   return (
     <div data-testid={testId}>
       <div className="gba:relative gba:overflow-hidden">
-        {/* Video background when available, otherwise canvas animation - same as SpaceHero */}
-        {useVideo ? (
-          <video
-            src={HERO_VIDEO_SRC}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden
-            data-testid={`${testId}-video`}
-          />
-        ) : (
-          <SpaceHeroBackground />
-        )}
+        {/* CSS-only animated background (replaces video) */}
+        <PremiumHeroBackground data-testid={`${testId}-background`} />
 
-        {/* Dark overlay for text readability - same as SpaceHero */}
-        {/* eslint-disable newwork-local/no-hardcoded-colors */}
-        <div
-          className="gba:absolute gba:inset-0 gba:pointer-events-none"
-          style={{
-            background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
-          }}
-          aria-hidden
-        />
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        {/* Overlay for text readability */}
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
 
         {/* Content */}
         <div className="gba:relative gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8">

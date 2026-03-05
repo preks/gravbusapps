@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Tabs, Card, Row, Col, Typography, Space, Spin, Alert, Button } from 'antd'
-import { CalendarOutlined, BarChartOutlined, TableOutlined, ReloadOutlined } from '@ant-design/icons'
+import { CalendarIcon, ChartBarIcon, TableIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAbsenceDataIntegration } from '../../../hooks/useAbsenceDataIntegration'
 import AbsenceStatisticsDashboard from './components/AbsenceStatisticsDashboard'
@@ -78,7 +78,7 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
           type="error"
           showIcon
           action={
-            <Button size="small" onClick={refetch} icon={<ReloadOutlined />}>
+            <Button size="small" onClick={refetch} icon={<ArrowsClockwiseIcon size={16} />}>
               Retry
             </Button>
           }
@@ -133,7 +133,7 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
         </div>
         <Button
           type="primary"
-          icon={<ReloadOutlined />}
+          icon={<ArrowsClockwiseIcon size={16} />}
           onClick={refetch}
           data-testid={`${prefixDataTestId}-refresh-button`}
         >
@@ -152,7 +152,7 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
         <TabPane
           tab={
             <Space>
-              <CalendarOutlined />
+              <CalendarIcon size={16} />
               <span data-testid={`${prefixDataTestId}-overview-tab`}>Overview & Statistics</span>
             </Space>
           }
@@ -164,7 +164,7 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
         <TabPane
           tab={
             <Space>
-              <BarChartOutlined />
+              <ChartBarIcon size={16} />
               <span data-testid={`${prefixDataTestId}-charts-tab`}>Charts & Trends</span>
             </Space>
           }
@@ -176,7 +176,7 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
         <TabPane
           tab={
             <Space>
-              <TableOutlined />
+              <TableIcon size={16} />
               <span data-testid={`${prefixDataTestId}-details-tab`}>Detailed Analysis</span>
             </Space>
           }
