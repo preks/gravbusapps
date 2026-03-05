@@ -32,6 +32,7 @@ export interface ThinkingStep {
   title: string
   detail: string
   status: 'pending' | 'active' | 'complete'
+  /** Real duration in ms when provided by backend; omit for in-progress steps */
   duration?: number
 }
 

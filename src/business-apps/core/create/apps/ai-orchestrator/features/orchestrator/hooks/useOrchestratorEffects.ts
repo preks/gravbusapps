@@ -10,9 +10,16 @@ export interface OrchestratorEffectsDeps {
   }
   buildProgress: UseBuildProgressResult
   initialPrompt?: string
+  isAnalyzeStreaming?: boolean
 }
 
-export const useOrchestratorEffects = ({ state, handlers, buildProgress, initialPrompt }: OrchestratorEffectsDeps) => {
+export const useOrchestratorEffects = ({
+  state,
+  handlers,
+  buildProgress,
+  initialPrompt,
+  isAnalyzeStreaming = false
+}: OrchestratorEffectsDeps) => {
   // Helper to update thinking steps
   const updateThinkingSteps = (prev: any[]) => {
     const nextPending = prev.findIndex(s => s.status === 'pending')
@@ -22,8 +29,7 @@ export const useOrchestratorEffects = ({ state, handlers, buildProgress, initial
     if (currentActive !== -1) {
       updated[currentActive] = {
         ...updated[currentActive],
-        status: 'complete',
-        duration: Math.floor(Math.random() * 500 + 200)
+        status: 'complete'
       }
     }
     updated[nextPending] = { ...updated[nextPending], status: 'active' }
@@ -47,6 +53,10 @@ export const useOrchestratorEffects = ({ state, handlers, buildProgress, initial
       ])
       state.setAnalysisProgress(25)
 
+      if (isAnalyzeStreaming) {
+        return
+      }
+
       const progressInterval = setInterval(() => {
         state.setAnalysisProgress(updateAnalysisProgress)
         state.setThinkingSteps(updateThinkingSteps)
@@ -54,7 +64,7 @@ export const useOrchestratorEffects = ({ state, handlers, buildProgress, initial
 
       return () => clearInterval(progressInterval)
     }
-  }, [state.viewState, state.setThinkingSteps, state.setAnalysisProgress])
+  }, [state.viewState, state.setThinkingSteps, state.setAnalysisProgress, isAnalyzeStreaming])
 
   // Handle initial prompt on mount
   useEffect(() => {
