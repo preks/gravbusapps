@@ -72,17 +72,29 @@ Each issue contains:
 - `buildInfo.evidence.screenshot` — base64 screenshot of the page at report time
 - `buildInfo.evidence.telemetry.console` — array of captured console errors/warnings: `{ level, message, timestamp }`
 - `buildInfo.evidence.telemetry.network` — array of failed network requests: `{ method, url, status, duration }`
+- `resolutionNotes` — explanation of the fix (populated when status=DONE)
+- `resolvedBy` — who resolved it (e.g. "Codex Automation", person name)
+- `resolvedAt` — ISO timestamp of when it was resolved
 
 **Important**: When investigating an issue, ALWAYS fetch it by ID and inspect `buildInfo.evidence` for the screenshot, console logs, and failed network requests. These contain critical debugging context.
 
 ### Update issue status
 
 ```bash
+# Set to in progress
 curl -s -X POST "https://product.newwork.com/api/gravity/issue-status" \
   -H "Content-Type: application/json" \
   -H "X-Gravity-Issues-Write-Token: 55555" \
   -d '{"id": "ISSUE_UUID", "status": "IN_PROGRESS"}' | jq .
+
+# Mark as done WITH resolution details (always do this when closing a bug)
+curl -s -X POST "https://product.newwork.com/api/gravity/issue-status" \
+  -H "Content-Type: application/json" \
+  -H "X-Gravity-Issues-Write-Token: 55555" \
+  -d '{"id": "ISSUE_UUID", "status": "DONE", "resolution_notes": "Description of what was wrong and how it was fixed", "resolved_by": "Codex Automation"}' | jq .
 ```
+
+**Important**: When marking an issue as DONE, ALWAYS include `resolution_notes` (what was wrong and what was changed) and `resolved_by` (your identity, e.g. "Codex Automation" for automated runs, or a person's name).
 
 ### Delete an issue
 
@@ -108,7 +120,7 @@ When asked to fix a bug or work on a reported issue:
 2. Read `buildInfo.evidence.telemetry.console` for console errors/warnings
 3. Read `buildInfo.evidence.telemetry.network` for failed network requests
 4. The `screenKey` maps to a file path under `src/business-apps/` (e.g. `platform/apps/every-office` → `src/business-apps/platform/apps/every-office/`)
-5. After fixing, update the issue status to `IN_PROGRESS` or `DONE`
+5. After fixing, update the issue status to `DONE` with `resolution_notes` explaining the fix and `resolved_by` identifying yourself
 
 When asked for a daily review or summary:
 

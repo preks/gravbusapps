@@ -210,6 +210,49 @@ server.tool(
   }
 )
 
+server.tool(
+  'gravity-get-issue-detail',
+  'Get full detail for a single issue including console logs, failed network requests, and the screenshot image if available.',
+  { id: z.string().uuid() },
+  async ({ id }) => {
+    const data = await fetchJson('/api/gravity/issues', { id, limit: 1 })
+    const item = data?.items?.[0]
+    if (!item) return asTextResult({ ok: false, error: 'Issue not found' })
+
+    const evidence = item.buildInfo?.evidence
+    const dataUrl = evidence?.screenshot?.dataUrl
+    const detail = {
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      type: item.type,
+      status: item.status,
+      screenKey: item.screenKey,
+      screenDisplayName: item.screenDisplayName,
+      ownerEmail: item.ownerEmail,
+      reporterName: item.reporterName,
+      pageUrl: item.pageUrl,
+      resolutionNotes: item.resolutionNotes ?? null,
+      resolvedBy: item.resolvedBy ?? null,
+      resolvedAt: item.resolvedAt ?? null,
+      createdAt: item.createdAt,
+      hasScreenshot: !!dataUrl
+    }
+
+    if (evidence?.telemetry?.console?.length) detail.consoleLogs = evidence.telemetry.console
+    if (evidence?.telemetry?.network?.length) detail.failedRequests = evidence.telemetry.network
+
+    const content = [{ type: 'text', text: JSON.stringify({ ok: true, issue: detail }, null, 2) }]
+
+    if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/)
+      if (match) content.push({ type: 'image', data: match[2], mimeType: match[1] })
+    }
+
+    return { content }
+  }
+)
+
 server.tool('gravity-get-issue-screenshot', { id: z.string().uuid() }, async ({ id }) => {
   const data = await fetchJson('/api/gravity/issues', { id, limit: 1 })
   const item = data?.items?.[0]
@@ -224,10 +267,20 @@ server.tool('gravity-get-issue-screenshot', { id: z.string().uuid() }, async ({ 
   return asImageResult(base64, mimeType)
 })
 
-server.tool('gravity-set-issue-status', { id: z.string().min(1), status: IssueStatus }, async args => {
-  const data = await postJson('/api/gravity/issue-status', args)
-  return asTextResult(data)
-})
+server.tool(
+  'gravity-set-issue-status',
+  'Change the status of an issue. When setting to DONE, include resolution_notes and resolved_by.',
+  {
+    id: z.string().min(1),
+    status: IssueStatus,
+    resolution_notes: z.string().optional().describe('Explanation of how the issue was fixed'),
+    resolved_by: z.string().optional().describe('Who resolved it, e.g. "Codex Automation", a person name, or email')
+  },
+  async args => {
+    const data = await postJson('/api/gravity/issue-status', args)
+    return asTextResult(data)
+  }
+)
 
 server.tool('gravity-delete-issue', { id: z.string().min(1) }, async args => {
   const data = await postJson('/api/gravity/issue-delete', args)
