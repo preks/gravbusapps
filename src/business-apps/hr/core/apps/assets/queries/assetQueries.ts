@@ -48,6 +48,37 @@ export const ASSET_FIELDS = `
     id
     name
   }
+  disposalStatus
+  disposalOutcomeRef
+  disposalDate
+  disposalReason
+  responsibleEmployeeId
+  performerEmployeeId
+  requireSanitization
+  sanitizationMethodRef
+  sanitizationExecutionDate
+  disposalOutcome {
+    id
+    code
+    value
+  }
+  sanitizationMethod {
+    id
+    code
+    value
+  }
+  responsibleEmployee {
+    id
+    displayName
+    firstName
+    lastName
+  }
+  performerEmployee {
+    id
+    displayName
+    firstName
+    lastName
+  }
 `
 
 export const EMPLOYEE_ASSET_FIELDS = `

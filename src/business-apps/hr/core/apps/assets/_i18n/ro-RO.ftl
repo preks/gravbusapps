@@ -13,6 +13,7 @@ issue-date-not-before-purchase = Activul nu poate fi alocat înainte de data ach
 # Actions
 generate_document = Generează document
 export_pdf = Exportă PDF
+export_certificate = Exportă certificat
 actions = Acțiuni
 update_asset = Actualizează activ
 allocate_asset = Alocă activ
