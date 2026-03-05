@@ -29,7 +29,7 @@ import { CreateSessionSidebar } from '../components/chat/CreateSessionSidebar'
 import { OrchestratorCanvasContent } from './OrchestratorCanvasContent.tsx'
 import { useListPlans } from '../hooks/useListPlans'
 import { useCachedPlans } from '../hooks/useCachedPlans'
-import { ScreenBuildingLoader } from '../components/widgets/ScreenBuildingLoader'
+import { SessionSwitchOverlay } from '../components/widgets/SessionSwitchOverlay'
 
 const ORCHESTRATOR_SYSTEM_AUTHOR = 'orchestrator-system'
 
@@ -181,6 +181,10 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   // Preview refresh token — bumped when AI fix modifies screen code
   const [previewRefreshToken, setPreviewRefreshToken] = useState(0)
 
+  // Store builder identity from session
+  const [builtBy, setBuiltBy] = useState<any>(null)
+  const [builtByLoading, setBuiltByLoading] = useState(false)
+
   // Track which state transitions we already posted chat messages for
   const lastChatStateRef = useRef<string | null>(null)
 
@@ -189,6 +193,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
   // Track session restoration loading state for UI feedback
   const [isRestoringSession, setIsRestoringSession] = useState(false)
+  const [restoreComplete, setRestoreComplete] = useState(false)
   const chatSaveTimeoutRef = useRef<number | null>(null)
   const lastUiCheckpointKeyRef = useRef<string | null>(null)
   const initialRestoreKeyRef = useRef<string | null>(null)
@@ -225,6 +230,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     state,
     orchestratorClient,
     buildProgress,
+    userInfo,
     onComplete,
     onBack
   })
@@ -279,7 +285,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     onRefine: handlers.handleRefine,
     onRefineSend: handleRefineSend as Parameters<typeof useCreateChat>[0]['onRefineSend'],
     onStartBuild: handlers.handleStartBuild,
-    onFixSend: handleFixSend as Parameters<typeof useCreateChat>[0]['onFixSend']
+    onFixSend: handleFixSend as Parameters<typeof useCreateChat>[0]['onFixSend'],
+    userInfo
   })
 
   // --- Shared session restore logic (used on mount and when selecting from history) ---
@@ -371,16 +378,29 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     ;(async () => {
       try {
         const plan = await refreshPlan(initialJobId)
-        if (!plan) return
+        if (!plan) {
+          isRestoringSessionRef.current = false
+          setIsRestoringSession(false)
+          return
+        }
         await applyRestoredPlan(plan)
+        setRestoreComplete(true)
       } catch {
         // Ignore restore errors and keep idle state fallback.
-      } finally {
         isRestoringSessionRef.current = false
         setIsRestoringSession(false)
       }
     })()
   }, [initialJobId, accessToken, refreshPlan, applyRestoredPlan])
+
+  // Hide overlay only when restore is complete AND builtBy (session + photo) has finished loading
+  useEffect(() => {
+    if (restoreComplete && !builtByLoading) {
+      isRestoringSessionRef.current = false
+      setIsRestoringSession(false)
+      setRestoreComplete(false)
+    }
+  }, [restoreComplete, builtByLoading])
 
   const handleIdleSubmit = useCallback(
     async (prompt: string) => {
@@ -441,6 +461,45 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       }
     }
   }, [chat.messages, lastSessionId, lastRepoId, builderClient])
+
+  // Fetch session builder info when sessionId is available
+  useEffect(() => {
+    const sessionId = lastSessionId
+    if (!sessionId) {
+      setBuiltBy(null)
+      setBuiltByLoading(false)
+      return
+    }
+
+    // Clear previous builtBy immediately to avoid showing wrong avatar when switching sessions
+    setBuiltBy(null)
+    setBuiltByLoading(true)
+
+    let cancelled = false
+    builderClient
+      .getSession(sessionId)
+      .then(response => {
+        if (!cancelled && response.success && response.session) {
+          setBuiltBy(response.session.createdBy)
+        } else if (!cancelled) {
+          setBuiltBy(null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBuiltBy(null)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setBuiltByLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [lastSessionId, builderClient])
 
   // Create lightweight UI checkpoints on major state transitions with chat pointer metadata.
   useEffect(() => {
@@ -516,18 +575,23 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       setIsRestoringSession(true)
       chat.resetMessages()
 
+      let appliedPlan = false
       try {
         const plan = await refreshPlan(jobId)
         if (!plan) {
           return
         }
         await applyRestoredPlan(plan)
+        appliedPlan = true
+        setRestoreComplete(true)
       } finally {
-        isRestoringSessionRef.current = false
-        setIsRestoringSession(false)
+        if (!appliedPlan) {
+          isRestoringSessionRef.current = false
+          setIsRestoringSession(false)
+        }
       }
     },
-    [chat, orchestratorClient, applyRestoredPlan]
+    [chat, refreshPlan, applyRestoredPlan]
   )
 
   // --- Idle: full-screen (square top so banner has no top border radius) ---
@@ -552,11 +616,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   return (
     <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:relative" data-testid={testId}>
       {/* Session restoration loading overlay */}
-      {isRestoringSession && (
-        <div className="gba:absolute gba:inset-0 gba:bg-background/98 gba:backdrop-blur-md gba:z-100 gba:flex gba:items-center gba:justify-center">
-          <ScreenBuildingLoader />
-        </div>
-      )}
+      {isRestoringSession && <SessionSwitchOverlay />}
 
       <CreateLayout
         sidebarOpen={sidebarOpen}
@@ -589,6 +649,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             onNewSession={handleNewSession}
             onOpenHistory={handleOpenHistory}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             accessToken={accessToken}
           />
         }
@@ -601,6 +663,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             completedPhases={completedPhases}
             accessToken={accessToken}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             previewRefreshToken={previewRefreshToken}
             isRestoringSession={isRestoringSession}
           />

@@ -31,6 +31,7 @@ interface UseCreateChatOptions {
   ) => Promise<void | FixSendResult>
   onStartBuild: (skipComponents?: string[]) => Promise<void>
   onFixSend?: (prompt: string, onPartial?: (partial: AssistantStreamUpdate) => void) => Promise<void | FixSendResult>
+  userInfo?: { id?: string }
 }
 
 export interface UseCreateChatResult {
@@ -165,7 +166,8 @@ export function useCreateChat({
   onRefine,
   onRefineSend,
   onStartBuild,
-  onFixSend
+  onFixSend,
+  userInfo
 }: UseCreateChatOptions): UseCreateChatResult {
   const [messages, setMessages] = useState<CreateChatMessage[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -284,7 +286,7 @@ export function useCreateChat({
       if (currentState === 'review' || refineFromComplete) messageType = 'refinement'
       else if (currentState === 'complete') messageType = 'fix'
 
-      appendMessage({ role: 'user', content, messageType })
+      appendMessage({ role: 'user', content, messageType, createdBy: userInfo?.id })
 
       if (currentState === 'review' || refineFromComplete) {
         void handleReviewSend(content)
@@ -296,7 +298,7 @@ export function useCreateChat({
         addAssistantMessage('Please submit a prompt from the canvas first.')
       }
     },
-    [appendMessage, handleReviewSend, handleCompleteSend, addAssistantMessage, onRefineSend]
+    [appendMessage, handleReviewSend, handleCompleteSend, addAssistantMessage, onRefineSend, userInfo?.id]
   )
 
   const resetMessages = useCallback(() => {
