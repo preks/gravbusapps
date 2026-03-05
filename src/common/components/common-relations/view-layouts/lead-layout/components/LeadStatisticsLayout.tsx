@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, FireOutlined, RocketOutlined, TrophyOutlined } from '@ant-design/icons'
+import { UserIcon, FireIcon, RocketIcon, TrophyIcon } from '@phosphor-icons/react'
 
 export interface LeadStatisticsData {
   recentLeads: {
@@ -62,7 +62,7 @@ export const LeadStatisticsLayout: React.FC<LeadStatisticsLayoutProps> = ({
         key: 'recent-leads',
         title: 'Recent Leads',
         value: recentLeads.current,
-        prefix: <UserOutlined />,
+        prefix: <UserIcon size={16} />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
         description: 'New leads (past 2 weeks)',
@@ -76,7 +76,7 @@ export const LeadStatisticsLayout: React.FC<LeadStatisticsLayoutProps> = ({
         key: 'hot-leads',
         title: 'Hot Leads',
         value: hotLeads.current,
-        prefix: <FireOutlined />,
+        prefix: <FireIcon size={16} />,
         color: '#ff4d4f',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
         description: 'High priority prospects',
@@ -90,7 +90,7 @@ export const LeadStatisticsLayout: React.FC<LeadStatisticsLayoutProps> = ({
         key: 'converted-leads',
         title: 'Converted',
         value: convertedLeads.current,
-        prefix: <RocketOutlined />,
+        prefix: <RocketIcon size={16} />,
         color: '#52c41a',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
         description: 'Successfully converted leads',
@@ -104,7 +104,7 @@ export const LeadStatisticsLayout: React.FC<LeadStatisticsLayoutProps> = ({
         key: 'conversion-rate',
         title: 'Conversion Rate',
         value: conversionRate.currentRate,
-        prefix: <TrophyOutlined />,
+        prefix: <TrophyIcon size={16} />,
         color: '#722ed1',
         precision: 1,
         suffix: '%',

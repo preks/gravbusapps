@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
-import { RiPieChart2Line } from '@remixicon/react'
+import { ChartPieIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface StatusPieChartProps {
@@ -20,7 +20,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
   return (
     <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="status-pie-chart-card">
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <RiPieChart2Line className="gba:text-success" size={20} />
+        <ChartPieIcon size={20} className="gba:text-success" />
         <div>
           <h5 className="gba:text-sm gba:font-medium gba:m-0">
             {getTranslationFromI18nKeyAndLabel(

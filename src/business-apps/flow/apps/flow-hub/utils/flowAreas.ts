@@ -1,54 +1,54 @@
 import { FlowArea, FlowQuickAction } from '../types'
 import {
-  RiPlayLine as Play,
-  RiFolderOpenLine as FolderOpen,
-  RiCheckboxMultipleLine as ListChecks,
-  RiLineChartLine as ChartLine,
-  RiSettings4Line as Gear,
-  RiUser3Line as User,
-  RiTeamLine as Users,
-  RiBarChartLine as ChartBar,
-  RiPieChartLine as ChartPie,
-  RiAddLine as Plus,
-  RiFlowChart as Workflow,
-  RiFileTextLine as FileText,
-  RiCheckboxCircleLine as CheckCircle
-} from '@remixicon/react'
+  PlayIcon,
+  FolderOpenIcon,
+  ListChecksIcon,
+  ChartLineIcon,
+  GearIcon,
+  UserIcon,
+  UsersThreeIcon,
+  ChartBarIcon,
+  ChartPieIcon,
+  PlusIcon,
+  GitBranchIcon,
+  FileTextIcon,
+  CheckCircleIcon
+} from '@phosphor-icons/react'
 
 export const flowAreas: FlowArea[] = [
   {
     id: 'active-tasks',
     title: 'Active Tasks',
     description: 'View and manage your current assigned tasks and flows',
-    icon: ListChecks,
+    icon: ListChecksIcon,
     category: 'core'
   },
   {
     id: 'my-flows',
     title: 'My Flows',
     description: 'Track flows you have initiated and their current status',
-    icon: Workflow,
+    icon: GitBranchIcon,
     category: 'core'
   },
   {
     id: 'templates',
     title: 'Templates',
     description: 'Browse and start new flows from available templates',
-    icon: FileText,
+    icon: FileTextIcon,
     category: 'core'
   },
   {
     id: 'completed',
     title: 'Completed',
     description: 'Review finished flows and completed tasks',
-    icon: CheckCircle,
+    icon: CheckCircleIcon,
     category: 'core'
   },
   {
     id: 'analytics',
     title: 'Analytics',
     description: 'Personal flow analytics, performance insights, and trends',
-    icon: ChartLine,
+    icon: ChartLineIcon,
     category: 'analytics'
   }
 ]
@@ -59,7 +59,7 @@ export const managerFlowAreas: FlowArea[] = [
     id: 'personal-workflows',
     title: 'Personal Flows',
     description: 'Manage your own flow initiations and task assignments',
-    icon: User,
+    icon: UserIcon,
     category: 'management',
     kpiType: 'personal',
     links: [
@@ -75,7 +75,7 @@ export const managerFlowAreas: FlowArea[] = [
     id: 'team-workflows',
     title: 'Team Flows',
     description: 'Oversee and manage your team members flow activities',
-    icon: Users,
+    icon: UsersThreeIcon,
     category: 'management',
     kpiType: 'team',
     links: [
@@ -91,7 +91,7 @@ export const managerFlowAreas: FlowArea[] = [
     id: 'workflow-analytics',
     title: 'Flow Analytics',
     description: 'Personal flow insights, performance metrics, and trends',
-    icon: ChartBar,
+    icon: ChartBarIcon,
     category: 'management',
     kpiType: 'analytics',
     buttonLabel: 'View My Analytics',
@@ -101,7 +101,7 @@ export const managerFlowAreas: FlowArea[] = [
     id: 'team-analytics',
     title: 'Team Analytics',
     description: 'Team flow insights, performance tracking, and metrics',
-    icon: ChartPie,
+    icon: ChartPieIcon,
     category: 'management',
     kpiType: 'analytics',
     buttonLabel: 'View Team Analytics',
@@ -115,7 +115,7 @@ export const adminFlowAreas: FlowArea[] = [
     id: 'workflow-management',
     title: 'Flow Management',
     description: 'Comprehensive flow oversight and system administration',
-    icon: Gear,
+    icon: GearIcon,
     category: 'admin',
     kpiType: 'admin',
     links: [
@@ -131,7 +131,7 @@ export const adminFlowAreas: FlowArea[] = [
     id: 'system-analytics',
     title: 'System Analytics',
     description: 'Enterprise flow analytics, system performance, and insights',
-    icon: ChartLine,
+    icon: ChartLineIcon,
     category: 'admin',
     kpiType: 'analytics',
     buttonLabel: 'View System Analytics',
@@ -143,25 +143,25 @@ export const quickActions: FlowQuickAction[] = [
   {
     id: 'view-inbox',
     label: 'View Inbox',
-    icon: FolderOpen,
+    icon: FolderOpenIcon,
     action: 'view-inbox'
   },
   {
     id: 'start-workflow',
     label: 'Start Flow',
-    icon: Play,
+    icon: PlayIcon,
     action: 'start-workflow'
   },
   {
     id: 'create-template',
     label: 'Create Flow',
-    icon: Plus,
+    icon: PlusIcon,
     action: 'create-template'
   },
   {
     id: 'view-analytics',
     label: 'View Analytics',
-    icon: ChartLine,
+    icon: ChartLineIcon,
     action: 'view-analytics'
   }
 ]

@@ -13,7 +13,7 @@ import {
   SectionKpiCards,
   type KpiCardData
 } from '@newwork/nw-design-system'
-import { PiLink } from 'react-icons/pi'
+import { LinkIcon } from '@phosphor-icons/react'
 import { ExpensePlanItem } from '../types/expensePlanV2Types'
 import { formatDateTime } from '@/common/utils/dateFormatter'
 import Pill from '@/components/pill'
@@ -136,7 +136,7 @@ const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
     <Card data-testid={`${prefixDataTestId}-items-section`}>
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiLink className="gba:h-5 gba:w-5" />
+          <LinkIcon className="gba:h-5 gba:w-5" />
           {t('section-expense-plan-items')}
         </CardTitle>
       </CardHeader>

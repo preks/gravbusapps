@@ -20,7 +20,7 @@ import {
   Label,
   Separator
 } from '@newwork/nw-design-system'
-import { PiArrowLeft, PiMagnifyingGlass } from 'react-icons/pi'
+import { ArrowLeftIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamSpendingAnalytics, DateRangeOption } from '../../hooks/useTeamSpendingAnalytics'
@@ -907,7 +907,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             )}
           </Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+            <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <DebouncedInput
               placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.search_locations',
@@ -985,7 +985,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             )}
           </Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+            <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <DebouncedInput
               placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.search_departments',
@@ -1046,7 +1046,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           className="gba:flex gba:items-center gba:text-primary gba:hover:text-primary/80 gba:transition-colors"
           data-testid="team-spending-analytics-back-button"
         >
-          <PiArrowLeft className="gba:mr-2" />
+          <ArrowLeftIcon className="gba:mr-2" />
           <span>
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',

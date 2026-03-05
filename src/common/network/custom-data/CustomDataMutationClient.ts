@@ -35,23 +35,43 @@ export type CustomDataRowDeleteParams = {
 }
 
 /**
- * Convert snake_case keys to camelCase.
- * Guards against AI-generated code that uses snake_case field names in the
- * values object — the flow-engine stores columns in camelCase and returns
- * 400 "Unknown column" for any snake_case mismatch.
+ * Normalize field names to camelCase.
+ * Handles: snake_case, PascalCase, kebab-case, "Spaces", UPPER_CASE → camelCase
+ *
+ * This is a defensive layer: backend should already enforce camelCase, but
+ * AI-generated screen code may still use wrong casing. This prevents runtime failures.
  */
 function normalizeValueKeys(values: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {}
+
   for (const [key, val] of Object.entries(values)) {
-    const camel = key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
-    if (camel !== key && process.env.NODE_ENV !== 'production') {
+    // Normalize to camelCase
+    // Split on separators first to avoid backtracking vulnerabilities
+    const parts = key.split(/[_\-\s]+/)
+    const normalized = parts
+      .map((part, index) => {
+        // Remove non-alphanumeric chars from each part
+        const cleaned = part.replace(/[^a-zA-Z0-9]/g, '')
+        if (!cleaned) return ''
+        // First part starts lowercase, rest start uppercase
+        if (index === 0) {
+          return cleaned.charAt(0).toLowerCase() + cleaned.slice(1)
+        }
+        return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+      })
+      .join('')
+
+    if (normalized !== key && process.env.NODE_ENV !== 'production') {
       console.warn(
-        `[CustomDataMutationClient] Field key "${key}" was automatically converted to "${camel}". ` +
-          'Use camelCase field names to match the entity schema.'
+        `[CustomDataMutationClient] Field key "${key}" was automatically normalized to "${normalized}". ` +
+          'AI-generated code should use camelCase field names to match entity schema. ' +
+          'This normalization prevents runtime errors but indicates the screen code needs correction.'
       )
     }
-    result[camel] = val
+
+    result[normalized] = val
   }
+
   return result
 }
 
@@ -87,25 +107,58 @@ export class CustomDataMutationClient extends RestClient {
 
   async createRow(params: CustomDataRowCreateParams): Promise<CustomDataFlowMutationResponse> {
     const namespace = (params.namespace ?? this.namespace) || 'default'
-    return this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-create', {
-      namespace,
-      definitionKey: params.definitionKey,
-      values: normalizeValueKeys(params.values),
-      initiator: params.initiator,
-      timeoutMs: params.timeoutMs
-    })
+
+    try {
+      return await this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-create', {
+        namespace,
+        definitionKey: params.definitionKey,
+        values: normalizeValueKeys(params.values),
+        initiator: params.initiator,
+        timeoutMs: params.timeoutMs
+      })
+    } catch (error: any) {
+      // Enhance "Unknown column" errors with field name suggestions
+      if (error?.message?.includes('Unknown column')) {
+        const enhancedMessage = this.enhanceUnknownColumnError(error.message, params.values, params.definitionKey)
+        throw new Error(enhancedMessage)
+      }
+      throw error
+    }
   }
 
   async updateRow(params: CustomDataRowUpdateParams): Promise<CustomDataFlowMutationResponse> {
     const namespace = (params.namespace ?? this.namespace) || 'default'
-    return this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-update', {
-      namespace,
-      definitionKey: params.definitionKey,
-      rowId: params.rowId,
-      values: normalizeValueKeys(params.values),
-      initiator: params.initiator,
-      timeoutMs: params.timeoutMs
-    })
+
+    try {
+      return await this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-update', {
+        namespace,
+        definitionKey: params.definitionKey,
+        rowId: params.rowId,
+        values: normalizeValueKeys(params.values),
+        initiator: params.initiator,
+        timeoutMs: params.timeoutMs
+      })
+    } catch (error: any) {
+      // Enhance "Unknown column" errors with field name suggestions
+      if (error?.message?.includes('Unknown column')) {
+        const enhancedMessage = this.enhanceUnknownColumnError(error.message, params.values, params.definitionKey)
+        throw new Error(enhancedMessage)
+      }
+      throw error
+    }
+  }
+
+  private enhanceUnknownColumnError(originalError: string, values: Record<string, unknown>, entityKey: string): string {
+    const providedFields = Object.keys(values).join(', ')
+
+    return (
+      `${originalError}\n\n` +
+      `Provided fields: ${providedFields}\n` +
+      `This usually means the screen code uses field names that don't match the entity schema.\n` +
+      `The entity "${entityKey}" expects camelCase field names. Field names have been auto-normalized, ` +
+      `but the entity schema may not have these fields.\n` +
+      `Check the data model definition to see the actual field names.`
+    )
   }
 
   async deleteRow(params: CustomDataRowDeleteParams): Promise<CustomDataFlowMutationResponse> {

@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import '@newwork/nw-design-system/style'
 import { PageLayout } from '@newwork/nw-design-system'
-import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWalletDuotone } from 'react-icons/pi'
-
+import { GaugeIcon, PathIcon, HandCoinsIcon, MoneyIcon, CalendarBlankIcon, WalletIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Import tab components
@@ -58,7 +57,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     () => [
       {
         key: 'dashboard',
-        icon: PiGauge,
+        icon: GaugeIcon,
         label: getTranslationFromI18nKeyAndLabel(
           'lowcoder:absence_management_hub_backoffice.dashboard_btn',
           'Dashboard'
@@ -66,7 +65,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
       },
       {
         key: 'expense-plans',
-        icon: PiPath,
+        icon: PathIcon,
         label: getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
           'Expense Plans'
@@ -74,7 +73,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
       },
       {
         key: 'advance-payments',
-        icon: PiHandCoins,
+        icon: HandCoinsIcon,
         label: getTranslationFromI18nKeyAndLabel(
           'lowcoder:backoffice_expense_landing_page.advance_title',
           'Advance Payments'
@@ -82,12 +81,12 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
       },
       {
         key: 'expense-requests',
-        icon: PiMoney,
+        icon: MoneyIcon,
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
       },
       {
         key: 'expense-calendar',
-        icon: PiCalendarBlank,
+        icon: CalendarBlankIcon,
         label: getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.expense_calendar',
           'Expense Calendar'
@@ -325,7 +324,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
   return (
     <div data-testid="manager-expenses-container">
       <PageLayout
-        headerIcon={PiWalletDuotone as any}
+        headerIcon={WalletIcon as any}
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.team_expenses_title',
           'Team Expenses'

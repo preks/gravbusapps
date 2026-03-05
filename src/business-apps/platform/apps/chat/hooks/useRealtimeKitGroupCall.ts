@@ -4,7 +4,7 @@
  * built by buildReturnValue. No business logic; wiring only.
  */
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { RealtimeKitApiClient } from '../services/realtimeKitApiClient'
 import type { CallParticipant } from '../services/webrtcClient'
@@ -166,6 +166,59 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     isInCall
   })
 
+  // When already in the call (meeting in-call dialog), sync transcription from calendar meeting
+  // so the "transcript is being recorded" message shows for all participants regardless of join path
+  const transcriptionSyncDoneRef = useRef(false)
+  useEffect(() => {
+    if (callState.status !== 'connected' && callState.status !== 'joining') {
+      transcriptionSyncDoneRef.current = false
+    }
+  }, [callState.status])
+  useEffect(() => {
+    if (
+      callState.status !== 'connected' ||
+      callState.transcriptionEnabled ||
+      !callState.calendarMeetingId ||
+      !options.calendarApiClient ||
+      transcriptionSyncDoneRef.current
+    ) {
+      return
+    }
+    transcriptionSyncDoneRef.current = true
+    let cancelled = false
+    options.calendarApiClient
+      .getMeeting(callState.calendarMeetingId)
+      .then((response: any) => {
+        if (cancelled) return
+        const meeting = response?.meeting ?? response
+        const enabled =
+          meeting?.transcriptionEnabled === true ||
+          meeting?.metadata?.aiTranscriptionEnabled === true ||
+          Boolean(meeting?.metadata?.aiTranscriptionEnabled)
+        if (enabled) {
+          setCallState((prev: any) => ({ ...prev, transcriptionEnabled: true }))
+        }
+      })
+      .catch(() => {
+        // Best-effort
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    callState.status,
+    callState.transcriptionEnabled,
+    callState.calendarMeetingId,
+    options.calendarApiClient,
+    setCallState
+  ])
+
+  const participantsForDisplay =
+    (combinedCallState.status === 'setup' || combinedCallState.status === 'joining') &&
+    refs.pendingCallParticipantsRef.current?.length
+      ? refs.pendingCallParticipantsRef.current
+      : undefined
+
   return useMemo(
     () =>
       buildReturnValue({
@@ -175,6 +228,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         isHost,
         media,
         participantsHook,
+        participantsForDisplay,
         screenShare,
         websocket,
         activeSpeaker,
@@ -222,6 +276,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       isHost,
       media,
       participantsHook,
+      participantsForDisplay,
       screenShare,
       websocket,
       activeSpeaker,

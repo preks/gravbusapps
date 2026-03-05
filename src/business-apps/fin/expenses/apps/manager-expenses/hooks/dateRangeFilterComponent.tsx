@@ -1,7 +1,7 @@
 import React from 'react'
 import dayjs, { Dayjs } from 'dayjs'
 import { DatePicker, Tooltip } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const { RangePicker } = DatePicker
@@ -57,7 +57,7 @@ export function createDateRangeFilterComponent(
           ),
           placement: 'right'
         },
-        React.createElement(InfoCircleOutlined)
+        React.createElement(InfoIcon, { size: 16 })
       )
     )
   )

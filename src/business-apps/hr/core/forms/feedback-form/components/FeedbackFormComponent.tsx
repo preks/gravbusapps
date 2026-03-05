@@ -12,7 +12,7 @@ import {
   AlertDescription,
   Switch
 } from '@newwork/nw-design-system'
-import { DownOutlined } from '@ant-design/icons'
+import { CaretDownIcon } from '@phosphor-icons/react'
 import { useFeedbackForm } from '../context/FeedbackFormContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -235,7 +235,7 @@ const FeedbackFormComponent: React.FC = () => {
                       )
                     )}
                   </span>
-                  <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
+                  <CaretDownIcon size={16} className="gba:h-4 gba:w-4 gba:opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">

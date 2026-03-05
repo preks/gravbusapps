@@ -173,6 +173,7 @@ export const RatingScales: React.FC<RatingScalesProps> = ({
           editingScale
             ? {
                 id: editingScale.id,
+                version: editingScale.version,
                 name: editingScale.name,
                 values: valuesForEditModal(editingScale),
                 numValues: editingScale.values.length,

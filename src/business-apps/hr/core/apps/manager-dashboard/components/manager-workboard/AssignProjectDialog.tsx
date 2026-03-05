@@ -22,12 +22,30 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { Search, AlertCircle } from 'lucide-react'
+import { ProjectStatusBE, ProjectStatusUI } from '@/business-apps/mdm/apps/project-management/types'
 
 interface Project {
   id: string
   name: string
   matrixUnitId: string | null
   status: string
+}
+
+const formatProjectStatus = (status?: string): string => {
+  switch (status) {
+    case ProjectStatusBE.PLANNED:
+      return ProjectStatusUI.Planned
+    case ProjectStatusBE.IN_PROGRESS:
+      return ProjectStatusUI.InProgress
+    case ProjectStatusBE.ON_HOLD:
+      return ProjectStatusUI.OnHold
+    case ProjectStatusBE.CANCELLED:
+      return ProjectStatusUI.Canceled
+    case ProjectStatusBE.COMPLETED:
+      return ProjectStatusUI.Completed
+    default:
+      return ProjectStatusUI.InProgress
+  }
 }
 
 interface AssignProjectDialogProps {
@@ -382,7 +400,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
                       }`}
                     >
                       <p className="gba:text-sm gba:font-medium">{project.name}</p>
-                      <p className="gba:text-xs gba:text-muted-foreground">{project.status}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{formatProjectStatus(project.status)}</p>
                     </button>
                   ))
                 )}

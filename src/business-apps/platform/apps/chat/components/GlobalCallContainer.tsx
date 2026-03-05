@@ -803,6 +803,7 @@ export const GlobalCallContainer: React.FC = () => {
           onInviteParticipant={callData.onInviteParticipant || undefined}
           activeExperts={callData.activeExperts || []}
           hideReactionsAndHandRaise={hideReactionsAndHandRaise}
+          transcriptionEnabled={callData.callState.transcriptionEnabled}
           prefixDataTestId="global-call"
         />
       </RealtimeKitProvider>

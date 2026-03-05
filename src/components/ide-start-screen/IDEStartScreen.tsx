@@ -3,7 +3,7 @@ import { Card, CardContent, Button, Badge } from '@newwork/nw-design-system'
 import {
   PlayIcon,
   FolderIcon,
-  SquaresFourIcon,
+  GaugeIcon,
   ArticleIcon,
   ChatCircleIcon,
   ClockIcon,
@@ -176,7 +176,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
       case 'popup':
         return <ChatCircleIcon />
       case 'window':
-        return <SquaresFourIcon />
+        return <GaugeIcon />
       default:
         return <PlayIcon />
     }
@@ -374,7 +374,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-background-decorative">
       <PageLayout
         variant="display"
-        headerIcon={<SquaresFourIcon className="gba:text-foreground" />}
+        headerIcon={<GaugeIcon className="gba:text-foreground" />}
         headerLabel="Business Applications"
         headerLabelClassName="gba:!text-black"
         className="gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
@@ -476,7 +476,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <SquaresFourIcon className="gba:text-purple-600" />
+                            <GaugeIcon className="gba:text-purple-600" />
                             Windows
                           </span>
                           <Badge variant="secondary">{pinnedSubModuleItems.windows.length}</Badge>
@@ -521,7 +521,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {exampleItems.items.length > 0 && (
               <div className="gba:mb-8" data-testid="IDE-Examples-Section">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <SquaresFourIcon className="gba:text-foreground" />
+                  <GaugeIcon className="gba:text-foreground" />
                   Examples
                 </h4>
                 <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-6">
@@ -606,7 +606,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                       >
                         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                           <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            <SquaresFourIcon className="gba:text-purple-600" />
+                            <GaugeIcon className="gba:text-purple-600" />
                             Windows
                           </span>
                           <Badge variant="secondary">{exampleItems.windows.length}</Badge>
@@ -672,7 +672,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {/* Module Cards */}
             <div className="gba:mb-4">
               <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                <SquaresFourIcon className="gba:text-foreground" />
+                <GaugeIcon className="gba:text-foreground" />
                 All Applications
               </h4>
               {Object.keys(groupedApps).length === 0 ? (
@@ -692,7 +692,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                         <CardContent className="gba:p-3 gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:h-full">
                           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                             <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                              <SquaresFourIcon className="gba:text-blue-600" />
+                              <GaugeIcon className="gba:text-blue-600" />
                               {formatModuleName(module)}
                             </span>
                             <Badge variant="secondary">{totalApps}</Badge>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Badge, Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
-import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
+import { MapPinIcon, ArrowRightIcon, ArrowLeftIcon, MapTrifoldIcon, FlagIcon, TableIcon, ChartLineIcon } from '@phosphor-icons/react'
 import { formatDateTime } from '@/common/utils/dateFormatter'
 import { getCatalogValue } from '../utils/formatters'
 import { ExpenseRequestTrip } from '../types/expensePlanV2Types'
@@ -16,15 +16,15 @@ interface EnhancedTripSectionProps {
 const getPointTypeIcon = (pointType: string) => {
   switch (pointType) {
     case 'START_POINT':
-      return <PiFlag className="gba:h-5 gba:w-5 gba:text-green-600" />
+      return <FlagIcon className="gba:h-5 gba:w-5 gba:text-green-600" />
     case 'END_POINT':
-      return <PiFlag className="gba:h-5 gba:w-5 gba:text-red-600" />
+      return <FlagIcon className="gba:h-5 gba:w-5 gba:text-red-600" />
     case 'DESTINATION_POINT':
-      return <PiMapPin className="gba:h-5 gba:w-5 gba:text-blue-600" />
+      return <MapPinIcon className="gba:h-5 gba:w-5 gba:text-blue-600" />
     case 'REGION_ARRIVAL':
-      return <PiMapTrifold className="gba:h-5 gba:w-5 gba:text-purple-600" />
+      return <MapTrifoldIcon className="gba:h-5 gba:w-5 gba:text-purple-600" />
     default:
-      return <PiMapPin className="gba:h-5 gba:w-5" />
+      return <MapPinIcon className="gba:h-5 gba:w-5" />
   }
 }
 
@@ -33,9 +33,9 @@ const getDirectionIcon = (direction?: string) => {
   if (!direction) return null
   switch (direction) {
     case 'GO':
-      return <PiArrowRight className="gba:h-4 gba:w-4 gba:text-blue-600" />
+      return <ArrowRightIcon className="gba:h-4 gba:w-4 gba:text-blue-600" />
     case 'BACK':
-      return <PiArrowLeft className="gba:h-4 gba:w-4 gba:text-orange-600" />
+      return <ArrowLeftIcon className="gba:h-4 gba:w-4 gba:text-orange-600" />
     default:
       return null
   }
@@ -243,7 +243,7 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
           onClick={() => setViewMode('table')}
           data-testid={`${prefixDataTestId}-trip-table-view-button`}
         >
-          <PiTable className="gba:h-4 gba:w-4 gba:mr-2" />
+          <TableIcon className="gba:h-4 gba:w-4 gba:mr-2" />
           {t('view-table')}
         </Button>
         <Button
@@ -252,7 +252,7 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
           onClick={() => setViewMode('timeline')}
           data-testid={`${prefixDataTestId}-trip-timeline-view-button`}
         >
-          <PiChartLine className="gba:h-4 gba:w-4 gba:mr-2" />
+          <ChartLineIcon className="gba:h-4 gba:w-4 gba:mr-2" />
           {t('view-timeline')}
         </Button>
       </div>

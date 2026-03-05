@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, SquaresFourIcon } from '@phosphor-icons/react'
+import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -19,7 +19,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <SquaresFourIcon />,
+      icon: <GaugeIcon />,
       label: getTranslationFromI18nKeyAndLabel('portfolio', 'Portfolio')
     },
     {

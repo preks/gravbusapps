@@ -60,7 +60,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [isMemberPanelOpen, setIsMemberPanelOpen] = useState(false)
   const [enableAISentiment, setEnableAISentiment] = useState(false)
-  const [unallocatedDailyCost, setUnallocatedDailyCost] = useState<number>(0)
+  const [unallocatedMonthlyCost, setUnallocatedMonthlyCost] = useState<number>(0)
 
   const graphQLClient = useGraphqlClient(accessToken || '')
   const structureId = getCurrentActiveStructureId()
@@ -319,7 +319,11 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       .filter(member => member.totalGoals === 0)
       .map(member => ({
         id: member.employeeId,
-        name: `${member.firstName} ${member.lastName}`
+        name: `${member.firstName} ${member.lastName}`,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        pictureThumbnail: member.pictureThumbnail,
+        jobPositionName: member.jobPositionName
       }))
   }, [teamPerformance])
 
@@ -408,24 +412,24 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     [directReports, unallocatedEmployeeIds, employeeAllocations]
   )
 
-  // Calculate daily cost of unallocated employees
+  // Calculate monthly cost of unallocated employees based on EmployeeSalary
   useEffect(() => {
     const fetchUnallocatedSalaryCost = async () => {
       if (!unallocatedEmployeeIds || unallocatedEmployeeIds.length === 0) {
-        setUnallocatedDailyCost(0)
+        setUnallocatedMonthlyCost(0)
         return
       }
 
       try {
         const today = new Date().toISOString().split('T')[0]
 
-        const query = `
-          query GetUnallocatedSalaries($employeeIds: [uuid!]!) {
+        const camelCaseQuery = `
+          query GetUnallocatedSalariesCamelCase($employeeIds: [uuid!]!, $today: date!) {
             EmployeeSalary(
               where: { 
                 employeeId: { _in: $employeeIds }
                 isDeleted: { _eq: false }
-                startDate: { _lte: "${today}" }
+                startDate: { _lte: $today }
               }
               limit: 200
             ) {
@@ -433,57 +437,95 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
               employeeId
               annualGrossSalary
               monthlyGrossSalary
-              hourlyGrossSalary
               startDate
               endDate
-              currency {
-                code
-              }
             }
           }
         `
 
-        const response = await graphQLClient.request<{ EmployeeSalary: any[] }>(query, {
-          employeeIds: unallocatedEmployeeIds
-        })
+        const snakeCaseQuery = `
+          query GetUnallocatedSalariesSnakeCase($employeeIds: [uuid!]!, $today: date!) {
+            employee_salary(
+              where: {
+                employee_id: { _in: $employeeIds }
+                is_deleted: { _eq: false }
+                start_date: { _lte: $today }
+              }
+              limit: 200
+            ) {
+              id
+              employee_id
+              annual_gross_salary
+              monthly_gross_salary
+              start_date
+              end_date
+            }
+          }
+        `
 
-        // Find current active salary for each employee
-        const employeeCurrentSalaries = new Map<string, number>()
+        let salaryRecords: any[] = []
 
-        response.EmployeeSalary.forEach(record => {
+        try {
+          const response = await graphQLClient.request<{ EmployeeSalary?: any[] }>(camelCaseQuery, {
+            employeeIds: unallocatedEmployeeIds,
+            today
+          })
+          salaryRecords = response?.EmployeeSalary || []
+        } catch (camelCaseError) {
+          console.warn('EmployeeSalary query failed, trying employee_salary fallback:', camelCaseError)
+          const fallbackResponse = await graphQLClient.request<{ employee_salary?: any[] }>(snakeCaseQuery, {
+            employeeIds: unallocatedEmployeeIds,
+            today
+          })
+          salaryRecords = fallbackResponse?.employee_salary || []
+        }
+
+        // Track the latest active salary record per employee
+        const employeeCurrentSalaries = new Map<string, { monthlyAmount: number; startDateMs: number }>()
+
+        salaryRecords.forEach(record => {
+          const employeeId = record.employeeId || record.employee_id
+          const startDateRaw = record.startDate || record.start_date
+          const endDateRaw = record.endDate || record.end_date
+          const monthlyGrossSalary = record.monthlyGrossSalary ?? record.monthly_gross_salary
+          const annualGrossSalary = record.annualGrossSalary ?? record.annual_gross_salary
+
+          if (!employeeId || !startDateRaw) {
+            return
+          }
+
           // Check if this is an active record
-          const startDate = new Date(record.startDate)
-          const endDate = record.endDate ? new Date(record.endDate) : null
+          const startDate = new Date(startDateRaw)
+          const endDate = endDateRaw ? new Date(endDateRaw) : null
           const now = new Date()
 
           if (startDate <= now && (!endDate || endDate >= now)) {
-            // Get salary amount (prefer annual, then monthly*12, then hourly*2080)
-            let annualAmount = 0
-            if (record.annualGrossSalary != null && record.annualGrossSalary > 0) {
-              annualAmount = record.annualGrossSalary
-            } else if (record.monthlyGrossSalary != null && record.monthlyGrossSalary > 0) {
-              annualAmount = record.monthlyGrossSalary * 12
-            } else if (record.hourlyGrossSalary != null && record.hourlyGrossSalary > 0) {
-              annualAmount = record.hourlyGrossSalary * 2080 // 40 hrs/week * 52 weeks
+            // Get salary amount as MONTHLY (prefer monthlyGross, fallback annualGross / 12)
+            let monthlyAmount = 0
+            if (monthlyGrossSalary != null && monthlyGrossSalary > 0) {
+              monthlyAmount = monthlyGrossSalary
+            } else if (annualGrossSalary != null && annualGrossSalary > 0) {
+              monthlyAmount = annualGrossSalary / 12
             }
 
-            // Only set if we don't have a salary yet or this is a newer record
-            if (!employeeCurrentSalaries.has(record.employeeId)) {
-              employeeCurrentSalaries.set(record.employeeId, annualAmount)
+            const current = employeeCurrentSalaries.get(employeeId)
+            const startDateMs = startDate.getTime()
+            if (!current || startDateMs > current.startDateMs) {
+              employeeCurrentSalaries.set(employeeId, { monthlyAmount, startDateMs })
             }
           }
         })
 
-        // Calculate total daily cost (annual salary / 365 days)
-        let totalDailyCost = 0
-        employeeCurrentSalaries.forEach(annualSalary => {
-          totalDailyCost += annualSalary / 365
+        // Calculate total monthly cost
+        let totalMonthlyCost = 0
+        employeeCurrentSalaries.forEach(salaryData => {
+          totalMonthlyCost += salaryData.monthlyAmount
         })
 
-        setUnallocatedDailyCost(Math.round(totalDailyCost))
+        setUnallocatedMonthlyCost(Math.round(totalMonthlyCost))
       } catch (error) {
         console.error('Failed to fetch unallocated salary cost:', error)
-        setUnallocatedDailyCost(0)
+        setUnallocatedMonthlyCost(0)
       }
     }
 
@@ -506,7 +548,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         remote: remoteCount,
         upcomingAnniversaries: upcomingAnniversaries.length
       },
-      unallocatedDailyCost,
+      unallocatedMonthlyCost,
       unallocatedEmployees: unallocatedEmployeesWithAllocation,
       employeesWithoutGoals: employeesWithoutGoalsList,
       goalsBehindData,
@@ -647,7 +689,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     unallocatedEmployeeIds,
     averageAllocationPercentage,
     unallocatedCount,
-    unallocatedDailyCost,
+    // Kept for backward compatibility naming
+    unallocatedDailyCost: unallocatedMonthlyCost,
+    unallocatedMonthlyCost,
     unallocatedEmployeesWithAllocation,
     directReportsWithAllocation,
     averageTeamProgress,

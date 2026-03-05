@@ -6,7 +6,8 @@
 
 import React, { useMemo, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Upload, Loader2, CheckCircle2 } from 'lucide-react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
@@ -41,6 +42,7 @@ export interface CompleteViewProps {
   publishError?: string | null
   onPublish?: () => void
   onReset?: () => void
+  isRestoringSession?: boolean
 }
 
 function firstScreenWithSession(components: ComponentSpec[]): ComponentSpec | null {
@@ -60,7 +62,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   isPublishing,
   publishSuccess,
   publishError,
-  onPublish
+  onPublish,
+  isRestoringSession = false
 }) => {
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
@@ -81,6 +84,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
               refreshToken={previewRefreshToken}
+              isRestoringSession={isRestoringSession}
             />
           )
         }
@@ -249,31 +253,66 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             <p className="gba:font-semibold gba:text-foreground gba:text-base gba:leading-tight">{appMetadata.name}</p>
             <p className="gba:text-sm gba:text-muted-foreground gba:truncate">{appMetadata.description}</p>
           </div>
-          {publishSuccess ? (
-            <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-success gba:font-medium gba:shrink-0">
-              <CheckCircle2 className="gba:w-4 gba:h-4" />
-              Published!
-            </span>
-          ) : (
-            <Button
-              onClick={onPublish}
-              disabled={isPublishing}
-              title={publishError ?? undefined}
-              className="gba:shrink-0 gba:gap-2 gba:rounded-2xl gba:bg-linear-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white gba:border-0 gba:px-5 gba:font-semibold gba:shadow-none gba:hover:opacity-90"
-            >
-              {isPublishing ? (
-                <>
-                  <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-                  Publishing...
-                </>
-              ) : (
-                <>
-                  <Upload className="gba:w-4 gba:h-4" />
-                  Publish App
-                </>
-              )}
-            </Button>
-          )}
+          {(() => {
+            if (publishSuccess) {
+              return (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+                  <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-success gba:font-medium">
+                    <CheckCircle2 className="gba:w-4 gba:h-4" />
+                    Published!
+                  </span>
+                  {previewComponent?.resourceUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigateTo(buildPlatformUrl(previewComponent.resourceUrl!))}
+                    >
+                      <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                      Open App
+                    </Button>
+                  )}
+                </div>
+              )
+            }
+            if (publishError) {
+              return (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+                  <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-destructive gba:font-medium">
+                    <XCircle className="gba:w-4 gba:h-4 gba:shrink-0" />
+                    Publish failed
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onPublish}
+                    disabled={isPublishing}
+                    aria-label={isPublishing ? 'Retry publishing' : undefined}
+                  >
+                    {isPublishing ? <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin" /> : 'Retry'}
+                  </Button>
+                </div>
+              )
+            }
+            return (
+              <Button
+                onClick={onPublish}
+                disabled={isPublishing}
+                className="gba:shrink-0 gba:gap-2 gba:rounded-2xl gba:bg-linear-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white gba:border-0 gba:px-5 gba:font-semibold gba:shadow-none gba:hover:opacity-90"
+              >
+                {isPublishing ? (
+                  <>
+                    <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="gba:w-4 gba:h-4" />
+                    Publish App
+                  </>
+                )}
+              </Button>
+            )
+          })()}
         </div>
       )}
 

@@ -79,6 +79,19 @@ export interface ToolCall {
   result?: string
   status: 'running' | 'complete'
   id: string
+  order?: number
+  displayTitle?: string
+  displayDetail?: string
+  displayKind?: 'info' | 'success' | 'warning' | 'error'
+  displayStep?: 'call' | 'progress' | 'result'
+  progressLines?: string[]
+}
+
+export interface ChatMessageBlock {
+  type: 'thinking' | 'response'
+  content: string
+  collapsed?: boolean
+  order?: number
 }
 
 export interface ChatMessage {
@@ -86,6 +99,8 @@ export interface ChatMessage {
   content: string
   toolCalls?: ToolCall[]
   thinkingLog?: string
+  thinkingCollapsed?: boolean
+  blocks?: ChatMessageBlock[]
   createdBy?: string
   editHistory?: Array<{
     userId: string
@@ -174,6 +189,18 @@ export interface PublishResponse {
   error?: string
 }
 
+export interface LatestPublishedResourceVersion {
+  repoId: string
+  targetPath: string | null
+  sessionId: string | null
+  versionMajor: number
+  versionMinor: number
+  resourceUrl: string
+  azureUrl: string | null
+  publishedAt: string | null
+  firstPublishedAt: string | null
+}
+
 // ============================================================================
 // Client
 // ============================================================================
@@ -253,10 +280,50 @@ export class BuilderClient {
                 tool: String(call.tool || 'unknown'),
                 status: call.status === 'running' ? 'running' : 'complete',
                 id: String(call.id || ''),
+                order: typeof call.order === 'number' && Number.isFinite(call.order) ? call.order : undefined,
                 args: this.truncateText(call.args, maxToolArgsChars),
-                result: this.truncateText(call.result, maxToolResultChars)
+                result: this.truncateText(call.result, maxToolResultChars),
+                displayTitle: this.truncateText(call.displayTitle, 240),
+                displayDetail: this.truncateText(call.displayDetail, 700),
+                displayKind:
+                  call.displayKind === 'info' ||
+                  call.displayKind === 'success' ||
+                  call.displayKind === 'warning' ||
+                  call.displayKind === 'error'
+                    ? call.displayKind
+                    : undefined,
+                displayStep:
+                  call.displayStep === 'call' || call.displayStep === 'progress' || call.displayStep === 'result'
+                    ? call.displayStep
+                    : undefined,
+                progressLines: Array.isArray(call.progressLines)
+                  ? call.progressLines
+                      .filter((line: unknown): line is string => typeof line === 'string' && line.trim().length > 0)
+                      .slice(-30)
+                      .map(line => this.truncateText(line, 240) || '')
+                      .filter(Boolean)
+                  : undefined
               })
             )
+          : undefined
+      const compactBlocks =
+        Array.isArray(message.blocks) && message.blocks.length > 0
+          ? message.blocks
+              .slice(-50)
+              .map((block): ChatMessageBlock | undefined => {
+                const type = block?.type === 'thinking' ? 'thinking' : block?.type === 'response' ? 'response' : null
+                if (!type) return undefined
+                const maxBlockChars = type === 'thinking' ? maxThinkingChars : maxContentChars
+                const content = this.truncateText(block.content, maxBlockChars)
+                if (!content) return undefined
+                return {
+                  type,
+                  content,
+                  collapsed: type === 'thinking' ? block.collapsed !== false : undefined,
+                  order: typeof block.order === 'number' && Number.isFinite(block.order) ? block.order : undefined
+                }
+              })
+              .filter((block): block is ChatMessageBlock => !!block)
           : undefined
 
       return {
@@ -264,6 +331,8 @@ export class BuilderClient {
         content: this.truncateText(message.content, maxContentChars) ?? '',
         toolCalls: compactToolCalls,
         thinkingLog: this.truncateText(message.thinkingLog, maxThinkingChars),
+        thinkingCollapsed: typeof message.thinkingCollapsed === 'boolean' ? message.thinkingCollapsed : undefined,
+        blocks: compactBlocks,
         messageId: message.messageId,
         createdAt: message.createdAt,
         serverCreatedAt: message.serverCreatedAt
@@ -276,7 +345,8 @@ export class BuilderClient {
       const message = compacted[i]
       const toolChars =
         message.toolCalls?.reduce((acc, call) => acc + (call.args?.length ?? 0) + (call.result?.length ?? 0), 0) ?? 0
-      const messageChars = (message.content?.length ?? 0) + (message.thinkingLog?.length ?? 0) + toolChars
+      const blockChars = message.blocks?.reduce((acc, block) => acc + (block.content?.length ?? 0), 0) ?? 0
+      const messageChars = (message.content?.length ?? 0) + (message.thinkingLog?.length ?? 0) + blockChars + toolChars
       if (bounded.length > 0 && totalChars + messageChars > maxTotalChars) break
       bounded.unshift(message)
       totalChars += messageChars
@@ -749,6 +819,38 @@ export class BuilderClient {
     return response.body
   }
 
+  async listLatestPublishedResources(params?: {
+    prefix?: string
+    search?: string
+    limit?: number
+    offset?: number
+  }): Promise<{ data: LatestPublishedResourceVersion[]; totalCount: number }> {
+    const query = new URLSearchParams()
+    if (params?.prefix) query.set('prefix', params.prefix)
+    if (params?.search) query.set('search', params.search)
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit))
+    if (typeof params?.offset === 'number') query.set('offset', String(params.offset))
+
+    const url = query.toString()
+      ? `${this.baseUrl}/versions/published/latest?${query.toString()}`
+      : `${this.baseUrl}/versions/published/latest`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load latest published resources')
+    }
+
+    return {
+      data: Array.isArray(payload?.data) ? payload.data : [],
+      totalCount: Number(payload?.totalCount ?? payload?.paging?.totalRecords ?? 0)
+    }
+  }
+
   /**
    * Build preview bundle with SSE progress.
    */
@@ -947,6 +1049,8 @@ export class BuilderClient {
         id: string
       }>
       thinkingLog?: string
+      thinkingCollapsed?: boolean
+      blocks?: ChatMessageBlock[]
       messageId?: string
       createdAt?: string
     }> = [],
