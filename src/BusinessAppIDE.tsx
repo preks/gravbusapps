@@ -541,7 +541,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
     // Set open keys based on the currently selected app (from URL)
     // Only if menu is not collapsed initially and using legacy menu
-    const initialSelectedApp = getAppByPath(appFromUrl || '') || getAppByName(appFromUrl || '')
+    const initialSelectedApp = findInitialSelectedApp(effectiveAppFromUrl)
     const initialCollapsed = localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true'
     if (!initialCollapsed && initialSelectedApp) {
       const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp)

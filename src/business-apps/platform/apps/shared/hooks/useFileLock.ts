@@ -38,6 +38,8 @@ export interface UseFileLockOptions {
     forceUnlock?: (id: string) => Promise<boolean>
   }
   autoRefreshInterval?: number // ms, default 5000 (5 seconds)
+  /** When true, editing stays blocked until first lock check finishes. */
+  blockEditingUntilLockResolved?: boolean
   onLockAcquired?: (lock: FileLock) => void
   onLockReleased?: () => void
   onLockExpired?: () => void
@@ -77,6 +79,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     currentUserId,
     apiService,
     autoRefreshInterval = 5000,
+    blockEditingUntilLockResolved = false,
     onLockAcquired,
     onLockReleased,
     onLockExpired,
@@ -91,7 +94,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     isUnlocking: false,
     isChecking: false,
     error: null,
-    canEdit: true,
+    canEdit: !blockEditingUntilLockResolved,
     isLockedByMe: false
   })
 
@@ -163,9 +166,12 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
       setState(prev => ({ ...prev, isLocking: true, error: null }))
 
       try {
+        // Guard against accidentally passing React events from click handlers.
+        const safeReason = typeof reason === 'string' ? reason : undefined
+        const safeDurationMinutes = typeof durationMinutes === 'number' ? durationMinutes : undefined
         const lock = await apiService.lockFile(entityId, {
-          reason,
-          durationMinutes
+          reason: safeReason,
+          durationMinutes: safeDurationMinutes
         })
 
         if (lock) {

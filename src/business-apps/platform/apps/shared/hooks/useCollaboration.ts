@@ -277,7 +277,6 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
 
     // Handle operation applied
     const handleOperationApplied = (data: Parameters<NonNullable<typeof onOperationReceived>>[0]) => {
-      console.log('[useCollaboration] Operation applied:', data)
       onOperationReceived?.(data)
     }
     client.onOperationApplied(handleOperationApplied)

@@ -5,7 +5,7 @@
  * Replaces FortuneSheetGrid; same props and ref contract for TableView and collaboration.
  */
 
-import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo, useState } from 'react'
+import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo, useState } from 'react'
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { CommandType } from '@univerjs/core'
@@ -239,6 +239,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     propsRef.current = { sheet, data, columns, initialSnapshot }
     const callbacksRef = useRef({ onCellChange, onCellsChange, onSnapshotRequested, onDataChange, onCursorEmit })
     callbacksRef.current = { onCellChange, onCellsChange, onSnapshotRequested, onDataChange, onCursorEmit }
+    const readOnlyRef = useRef(props.isReadOnly)
+    readOnlyRef.current = props.isReadOnly
     const lastEmittedCursorPathRef = useRef<string>('')
     // Caches actual column widths and row heights read from the workbook snapshot so that
     // cursor overlays match the real rendered cell dimensions (not hardcoded constants).
@@ -570,8 +572,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return () => clearInterval(id)
     }, [])
 
-    // Only create/destroy Univer when sheet.id changes. Do not depend on data/columns/snapshot
-    // so parent re-renders (new data reference) don't dispose and recreate the workbook (avoids flicker).
+    // Recreate Univer when sheet/snapshot seed/read-only mode changes so read-only transitions
+    // immediately reset interactive state and block local edits visually and behaviorally.
     useEffect(() => {
       if (!containerRef.current) return
       newRowClientIdByIndexRef.current.clear()
@@ -788,6 +790,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const commandDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: { type?: number }) => void): { dispose(): void } }
       ).addEvent?.(commandEventKey, (event: { type?: number }) => {
+        if (readOnlyRef.current) return
         const t = event?.type
         // Only MUTATION (type 2) represents an actual data change. COMMAND (type 0)
         // includes selection/navigation commands which must not trigger snapshots.
@@ -817,6 +820,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
           }
         }) => {
+          if (readOnlyRef.current) return
           if (isLocalEditRef.current) return
           const payload = params?.payload
           let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
@@ -1062,7 +1066,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
 
       return dispose
-    }, [sheet.id, props.snapshotSeed])
+    }, [sheet.id, props.snapshotSeed, props.isReadOnly])
 
     // Track "active sheet" based on pointer/focus so we can hijack shortcuts even when
     // Univer's canvas selection doesn't move DOM focus (common in published embeds).
@@ -1139,6 +1143,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return () => window.removeEventListener('keydown', onKeyDownCapture, true)
     }, [props.isReadOnly])
 
+    // If sheet turns read-only while focused, drop the active interaction flag so
+    // host/global shortcuts don't keep targeting the grid.
+    useEffect(() => {
+      if (!props.isReadOnly) return
+      isSheetInteractionActiveRef.current = false
+    }, [props.isReadOnly])
+
     // When embedded in a published platform, the host may use Cmd+B etc. for its own actions.
     // Hijack these shortcuts when the user is focused inside the spreadsheet so Univer handles them.
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -1159,6 +1170,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         onKeyDown={handleKeyDown}
       >
         <div ref={containerRef} className="gba:w-full gba:h-full" />
+        {props.isReadOnly && (
+          <div
+            data-testid="univer-readonly-overlay"
+            className="gba:absolute gba:inset-0 gba:z-30 gba:cursor-not-allowed"
+            aria-hidden="true"
+          />
+        )}
         <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-20">
           {remoteCursorOverlays.map(cursor =>
             (() => {

@@ -73,7 +73,7 @@ export interface SpreadsheetHeaderProps {
 
   // File lock
   fileLock: {
-    lock: { isLocked: boolean } | null
+    lock: { isLocked: boolean; lockedByName?: string } | null
     isLockedByMe: boolean
     acquireLock: () => void
     releaseLock: () => void
@@ -302,11 +302,14 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Lock status (compact) */}
-              {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
-                <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
+              {/* Lock status (compact, visible to everyone) */}
+              {fileLock.lock?.isLocked && (
+                <Badge
+                  variant={fileLock.isLockedByMe ? 'default' : 'secondary'}
+                  className="gba:flex gba:items-center gba:gap-1"
+                >
                   <Lock className="gba:h-3 gba:w-3" />
-                  Locked
+                  {fileLock.isLockedByMe ? 'Locked' : `Locked by ${fileLock.lock.lockedByName || 'another user'}`}
                 </Badge>
               )}
             </div>
@@ -342,8 +345,8 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onShowCheckpointDialog={onShowCheckpointDialog}
             onShowPublishDialog={onShowPublishDialog}
             isLockedByMe={fileLock.isLockedByMe}
-            onAcquireLock={fileLock.acquireLock}
-            onReleaseLock={fileLock.releaseLock}
+            onAcquireLock={() => void fileLock.acquireLock()}
+            onReleaseLock={() => void fileLock.releaseLock()}
             canEdit={canEdit}
             onAddColumn={onAddColumn}
             onManageColumns={onManageColumns}

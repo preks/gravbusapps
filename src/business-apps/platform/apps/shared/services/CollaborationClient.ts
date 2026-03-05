@@ -267,7 +267,6 @@ export class CollaborationClient {
       return
     }
 
-    console.log('[CollaborationClient] Sending operation:', { entityType, entityId, type: operation.type })
     this.socket.emit(
       'document_operation',
       {
@@ -278,11 +277,6 @@ export class CollaborationClient {
       (response: any) => {
         if (response?.success === false) {
           console.warn('[CollaborationClient] document_operation failed:', response?.error ?? response)
-        } else {
-          console.log('[CollaborationClient] Operation response:', {
-            success: response?.success,
-            version: response?.version
-          })
         }
       }
     )

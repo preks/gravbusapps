@@ -630,8 +630,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     entityId: app.id,
     entityType: 'spreadsheet_app',
     currentUserId: userId,
-    apiService: SpreadsheetApiService
+    apiService: SpreadsheetApiService,
+    autoRefreshInterval: 1000,
+    blockEditingUntilLockResolved: true
   })
+  const canEditWithLock = isEditing && !entityEnabled && fileLock.canEdit
 
   const publishing = usePublishing({
     entityId: app.id,
@@ -1407,6 +1410,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleCellsChange = useCallback(
     (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => {
+      if (!canEditWithLock) return
       if (entityEnabled) return
       if (cells.length === 0) return
 
@@ -1465,6 +1469,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     },
     [
       activeSheetId,
+      canEditWithLock,
       collaboration.emitOperation,
       collaboration.emitCursor,
       entityEnabled,
@@ -1489,7 +1494,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const processUniverDataChange = useCallback(async () => {
     const newData = latestUniverDataRef.current
-    if (!newData || entityEnabled) return
+    if (!newData || entityEnabled || !canEditWithLock) return
 
     const lastProcessed = lastProcessedLengthRef.current
     if (newData.length <= lastProcessed) return
@@ -1607,6 +1612,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     app.id,
     applyBatchDirect,
     createOperationId,
+    canEditWithLock,
     entityEnabled,
     isOpsV2Enabled,
     localSheetDataRef,
@@ -1711,6 +1717,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleUpdateRow = useCallback(
     async (values: Record<string, unknown>) => {
+      if (!canEditWithLock) return
       if (!editingRow) return
       const rowId = String(editingRow._id ?? editingRow.id ?? '')
       if (!rowId) return
@@ -1730,11 +1737,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         console.error('[SpreadsheetAppViewer] Failed to update row:', error)
       }
     },
-    [activeSheetId, app.id, editingRow, localSheetDataRef, onDataChange, onRowUpdate, setLocalSheetData]
+    [
+      canEditWithLock,
+      activeSheetId,
+      app.id,
+      editingRow,
+      localSheetDataRef,
+      onDataChange,
+      onRowUpdate,
+      setLocalSheetData
+    ]
   )
 
   const handleDeleteRow = useCallback(
     async (rowId: string) => {
+      if (!canEditWithLock) return
       const next = localSheetDataRef.current.filter(r => String(r._id ?? r.id ?? '') !== String(rowId))
       setLocalSheetData(next)
       onDataChange?.(activeSheetId, next)
@@ -1744,7 +1761,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         console.error('[SpreadsheetAppViewer] Failed to delete row:', error)
       }
     },
-    [activeSheetId, app.id, localSheetDataRef, onDataChange, setLocalSheetData]
+    [canEditWithLock, activeSheetId, app.id, localSheetDataRef, onDataChange, setLocalSheetData]
   )
 
   // --- Column editing save (from dialog) ---
@@ -1776,6 +1793,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleInsertAnalyticsRows = useCallback(
     async (rows: Array<Record<string, unknown>>): Promise<boolean> => {
+      if (!canEditWithLock) return false
       if (!activeSheetId || rows.length === 0 || entityEnabled) return false
 
       const payloads = buildAnalyticsInsertPayloads(rows, activeSheet.columns)
@@ -1830,6 +1848,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       activeSheet.columns,
       activeSheetId,
       app.id,
+      canEditWithLock,
       entityEnabled,
       localSheetDataRef,
       onDataChange,
@@ -1840,6 +1859,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleApplyFormulaToColumn = useCallback(
     async (columnName: string, formula: string): Promise<boolean> => {
+      if (!canEditWithLock) return false
       if (!columnName || !formula) return false
       const normalizedFormula = formula.trim().startsWith('=') ? formula.trim() : `=${formula.trim()}`
       const cells = localSheetDataRef.current
@@ -1859,7 +1879,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       toast.success(`Applied formula to ${cells.length} row${cells.length > 1 ? 's' : ''}.`)
       return true
     },
-    [handleCellsChange, localSheetDataRef]
+    [canEditWithLock, handleCellsChange, localSheetDataRef]
   )
 
   const handleCreateReviewComment = useCallback(
@@ -1952,7 +1972,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         activeSheet={activeSheet}
         onBack={onBack}
         isEditing={isEditing}
-        canEdit={isEditing && !entityEnabled}
+        canEdit={canEditWithLock}
         headerParticipants={collaboration.headerParticipants}
         isCollaborationConnected={collaboration.isCollaborationConnected}
         isEntityDataLoading={entityState.isLoading}
@@ -1976,8 +1996,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }}
         onShowPublishDialog={() => setShowPublishDialog(true)}
         onOpenAICapability={handleOpenAICapability}
-        onAddColumn={columnsState.handleAddColumn}
-        onManageColumns={() => columnsState.setIsManageColumnsDialogOpen(true)}
+        onAddColumn={() => {
+          if (!canEditWithLock) return
+          columnsState.handleAddColumn()
+        }}
+        onManageColumns={() => {
+          if (!canEditWithLock) return
+          columnsState.setIsManageColumnsDialogOpen(true)
+        }}
         onOpenAnalytics={() => {
           setAnalyticsInitialTab('charts')
           setIsSheetsAIOpen(false)
@@ -2028,12 +2054,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               onCellsChange={handleCellsChange}
               onSnapshotRequested={enqueueUniverSnapshotCheckpoint}
               onDataChange={handleUniverDataChange}
-              onColumnAdd={columnsState.handleAutoColumnAdd}
               participants={collaboration.cursorParticipants}
               onOperationEmit={op => collaboration.emitOperation(op as any)}
               onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}
               collaborationEnabled={collaboration.isCollaborationConnected}
-              isReadOnly={!isEditing || entityEnabled}
+              onColumnAdd={canEditWithLock ? columnsState.handleAutoColumnAdd : undefined}
+              isReadOnly={!canEditWithLock}
               gridRef={spreadsheetGridRef}
             />
           ))}
@@ -2044,6 +2070,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             data={sheetData}
             onEdit={row => setEditingRow(row)}
             onDelete={handleDeleteRow}
+            canEdit={canEditWithLock}
             testId={`${testId}-form-view`}
           />
         )}
@@ -2058,6 +2085,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             data={sheetData}
             view={activeView!}
             onEdit={row => setEditingRow(row)}
+            canEdit={canEditWithLock}
             testId={`${testId}-kanban-view`}
           />
         )}
@@ -2082,8 +2110,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         columns={activeSheet.columns}
         editingColumns={editingColumns}
         setEditingColumns={setEditingColumns}
-        handleAddColumn={columnsState.handleAddColumn}
-        onSaveColumns={onSaveColumns}
+        handleAddColumn={() => {
+          if (!canEditWithLock) return
+          columnsState.handleAddColumn()
+        }}
+        onSaveColumns={cols => {
+          if (!canEditWithLock) return
+          onSaveColumns(cols)
+        }}
         showVersionHistory={showVersionHistory}
         setShowVersionHistory={setShowVersionHistory}
         versioning={{ ...versioning, createCheckpoint: createCheckpointWithFlush } as any}
@@ -2133,7 +2167,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         sheetName={activeSheet.name}
         sheetId={activeSheetId}
         accessToken={accessToken}
-        canEdit={isEditing && !entityEnabled}
+        canEdit={canEditWithLock}
         onInsertRows={handleInsertAnalyticsRows}
         getHeaderRowFromGrid={viewType === 'table' ? getHeaderRowFromGrid : undefined}
         getSheetDataFromGrid={viewType === 'table' && !entityEnabled ? getSheetDataFromGrid : undefined}
