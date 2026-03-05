@@ -6,6 +6,26 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import type { DetectedLanguage } from './useContentTranslation'
 
+const DEFAULT_LABELS = {
+  language: 'Language',
+  detecting: 'Detecting...',
+  translating: 'Translating...',
+  selectTarget: 'Select Target Language',
+  searchPlaceholder: 'Search languages...',
+  noLanguagesFound: 'No languages found',
+  noLanguagesAvailable: 'No languages available'
+} as const
+
+export interface AiTranslationButtonLabels {
+  language?: string
+  detecting?: string
+  translating?: string
+  selectTarget?: string
+  searchPlaceholder?: string
+  noLanguagesFound?: string
+  noLanguagesAvailable?: string
+}
+
 export interface AiTranslationButtonProps {
   detectedLanguage: DetectedLanguage | null
   targetLanguage: string | null
@@ -13,6 +33,7 @@ export interface AiTranslationButtonProps {
   isTranslating?: boolean
   accessToken: string
   onLanguageSelect: (languageId: string) => void
+  labels?: AiTranslationButtonLabels
   'data-testid'?: string
 }
 
@@ -33,8 +54,10 @@ export const AiTranslationButton: React.FC<AiTranslationButtonProps> = ({
   isTranslating = false,
   accessToken,
   onLanguageSelect,
+  labels: labelsProp,
   'data-testid': dataTestId = 'ai-translation-button'
 }) => {
+  const labels = { ...DEFAULT_LABELS, ...labelsProp }
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [languages, setLanguages] = useState<LanguageCatalogEntry[]>([])
   const [priorityLanguages, setPriorityLanguages] = useState<LanguageCatalogEntry[]>([])
@@ -208,15 +231,14 @@ export const AiTranslationButton: React.FC<AiTranslationButtonProps> = ({
 
   // Get display text - show target language if translated, otherwise show detected language
   const displayText = useMemo(() => {
-    if (isDetecting) return 'Detecting...'
-    if (isTranslating) return 'Translating...'
+    if (isDetecting) return labels.detecting
+    if (isTranslating) return labels.translating
     if (targetLanguage) {
-      // Find the target language in priority or regular languages
       const targetLang = [...priorityLanguages, ...languages].find(l => l.id === targetLanguage)
       return targetLang?.value || targetLanguage
     }
-    return detectedLanguage?.catalogEntryValue || detectedLanguage?.languageId || 'Language'
-  }, [isDetecting, isTranslating, targetLanguage, priorityLanguages, languages, detectedLanguage])
+    return detectedLanguage?.catalogEntryValue || detectedLanguage?.languageId || labels.language
+  }, [isDetecting, isTranslating, targetLanguage, priorityLanguages, languages, detectedLanguage, labels])
 
   // Reset search and pagination when popover closes
   useEffect(() => {
@@ -259,7 +281,7 @@ export const AiTranslationButton: React.FC<AiTranslationButtonProps> = ({
       >
         <div className="gba:space-y-2">
           <div className="gba:px-2 gba:py-1.5 gba:text-sm gba:font-semibold gba:text-foreground">
-            Select Target Language
+            {labels.selectTarget}
           </div>
 
           {/* Search Input */}
@@ -268,7 +290,7 @@ export const AiTranslationButton: React.FC<AiTranslationButtonProps> = ({
               <Search className="gba:absolute gba:left-2 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search languages..."
+                placeholder={labels.searchPlaceholder}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="gba:pl-8"
@@ -285,7 +307,7 @@ export const AiTranslationButton: React.FC<AiTranslationButtonProps> = ({
             <div className="gba:max-h-[300px] gba:overflow-y-auto">
               {displayLanguages.length === 0 ? (
                 <div className="gba:px-2 gba:py-4 gba:text-sm gba:text-muted-foreground gba:text-center">
-                  {debouncedSearchQuery ? 'No languages found' : 'No languages available'}
+                  {debouncedSearchQuery ? labels.noLanguagesFound : labels.noLanguagesAvailable}
                 </div>
               ) : (
                 <>

@@ -1,5 +1,6 @@
 import { promptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
+import { executeContentPromptByJson } from '@/common/data/content/prompts'
 
 export interface ContentArticleAnalyzerInput {
   contentEntry: ContentEntry
@@ -73,57 +74,21 @@ export interface ContentArticleAnalyzerOutput {
 }
 
 export class ContentArticleAnalyzerService {
-  private readonly PROMPT_NAME = 'ContentArticleAnalyzer'
-  private promptIdCache: string | null = null
-
   constructor(accessToken: string) {
     promptManagerClient.setAccessToken(accessToken)
   }
 
-  private async getPromptId(): Promise<string> {
-    if (this.promptIdCache) {
-      return this.promptIdCache
-    }
-
-    const response = await promptManagerClient.getPrompts({
-      promptName: this.PROMPT_NAME,
-      limit: 1,
-      returnTotalRecords: false
-    })
-
-    if (!response.data || response.data.length === 0) {
-      throw new Error(`Prompt "${this.PROMPT_NAME}" not found`)
-    }
-
-    const promptId = response.data[0]._id
-    if (!promptId) {
-      throw new Error(`Prompt "${this.PROMPT_NAME}" has no ID`)
-    }
-
-    this.promptIdCache = promptId
-    return promptId
-  }
-
   async analyzeArticle(input: ContentArticleAnalyzerInput): Promise<ContentArticleAnalyzerOutput> {
-    const promptId = await this.getPromptId()
-
-    // Format content entry for prompt
     const contentEntryText = this.formatContentEntry(input.contentEntry)
-
-    // Format descendants (comments and replies)
     const descendantsText = this.formatDescendants(input.descendants)
 
-    const formData = new FormData()
-    formData.append(
-      'user_params',
-      JSON.stringify({
+    const response = await executeContentPromptByJson(promptManagerClient, 'ContentArticleAnalyzer', {
+      user_params: {
         contentEntry: contentEntryText,
         descendants: descendantsText,
         userId: input.userId
-      })
-    )
-
-    const response = await promptManagerClient.executePromptById(promptId, formData)
+      }
+    })
     const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
 
     return JSON.parse(content) as ContentArticleAnalyzerOutput
