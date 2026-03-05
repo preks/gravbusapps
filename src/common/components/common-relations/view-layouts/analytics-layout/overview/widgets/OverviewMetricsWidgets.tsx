@@ -279,7 +279,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         'total-opportunities',
         labels.opportunities.title,
         counts.opportunities,
-        <DollarCircleOutlined />,
+        <CurrencyCircleDollarIcon />,
         labels.opportunities.description,
         trendData?.opportunities,
         trendLoading
@@ -323,7 +323,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
         'opportunity-win-rate',
         labels.opportunityWinRate.title,
         conversionMetrics.opportunityWinRate,
-        <TrophyOutlined />,
+        <TrophyIcon />,
         labels.opportunityWinRate.description,
         trendData?.wonOpportunities,
         trendLoading

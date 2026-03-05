@@ -102,6 +102,7 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
             <CallHeader
               conversationName={conversationName}
               conversationType={callState.conversationType}
+              transcriptionEnabled={transcriptionEnabled}
               callStartTime={callState.startTime}
               participantCount={state.stableRemotePeers.length + 1}
               availableParticipantsCount={availableParticipants?.length || 0}

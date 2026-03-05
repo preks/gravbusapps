@@ -113,7 +113,7 @@ const SalarySearch: React.FC<SalarySearchProps> = ({ onSearch, onFilterChange, o
         </Select>
 
         <Button
-          icon={<FilterOutlined />}
+          icon={<FunnelIcon />}
           onClick={() => onFilterChange(filters)}
           data-testid="salary-apply-filters-button"
           disabled={loading}

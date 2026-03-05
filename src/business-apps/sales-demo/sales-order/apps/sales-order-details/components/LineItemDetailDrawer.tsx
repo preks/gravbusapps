@@ -194,7 +194,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
           <>
             <div data-testid="shipping-section">
               <Title level={5} className="gba:mb-3 gba:flex gba:items-center gba:gap-2">
-                <EnvironmentOutlined />
+                <MapPinIcon />
                 Shipping Information
               </Title>
               <Descriptions column={1} size="small" bordered>

@@ -116,10 +116,11 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             reusedCount={buildProgress.reusedCount}
             totalCount={buildProgress.totalCount}
             failedCount={buildProgress.failedCount}
-            buildLogs={state.buildLogs}
+            buildLogs={buildProgress.buildLogs}
             phaseMessage={buildProgress.phaseMessage}
             isBuilding={buildProgress.isBuilding}
             tiles={buildProgress.tiles}
+            isProgressEstimated={buildProgress.isProgressEstimated}
             appMetadata={orchestratorClient.currentPlan?.appMetadata}
           />
         )

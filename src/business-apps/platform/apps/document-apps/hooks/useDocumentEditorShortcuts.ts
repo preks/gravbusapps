@@ -9,7 +9,10 @@ import { useEffect } from 'react'
 
 export interface UseDocumentEditorShortcutsParams {
   onSave: () => void
-  onAddInlineComment: () => void
+  onAddInlineComment: (
+    contextMenuPosition?: { x: number; y: number },
+    selectionRange?: { from: number; to: number }
+  ) => void
   /** Optional: Mod+k opens link dialog when editor has focus */
   onOpenLinkDialog?: () => void
   editor: { state: { selection: { from: number; to: number } } } | null
@@ -49,14 +52,20 @@ export function useDocumentEditorShortcuts({
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
   }, [onSave, onAddInlineComment, onOpenLinkDialog, editorContainerRef])
 
-  // Context menu: right-click on selected text → add inline comment
+  // Context menu: right-click on selected text → open selection action menu
   useEffect(() => {
-    const handleContextMenu = (e: Event) => {
+    const handleContextMenu = (e: MouseEvent) => {
       if (!editor) return
       const { from, to } = editor.state.selection
       if (from === to) return
       e.preventDefault()
-      onAddInlineComment()
+      onAddInlineComment(
+        {
+          x: e.clientX,
+          y: e.clientY
+        },
+        { from, to }
+      )
     }
 
     const editorElement = editorContainerRef.current?.querySelector('.ProseMirror')

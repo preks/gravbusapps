@@ -281,7 +281,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                 {editMode ? (
                   <Space>
                     <Button
-                      icon={<CheckOutlined />}
+                      icon={<CheckIcon />}
                       type="primary"
                       size="small"
                       onClick={() => {

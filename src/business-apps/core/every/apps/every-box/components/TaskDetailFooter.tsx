@@ -124,18 +124,19 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
   const isSpreadsheetExcelCollectionTask =
     taskAppTag === 'spreadsheet-automation' && taskAutomationType === 'excel_collection'
 
-  // Don't show footer for completed tasks (unless custom children provided)
   const isTaskCompleted = task?.status === 'COMPLETED' || !!task?.completedAt
-  if (isTaskCompleted && !children) {
-    return null
-  }
 
-  // Auto-generate actions from task.availableActions if task is provided
-  // Returns { left: TaskAction[], right: TaskAction[] } for proper positioning
+  // Auto-generate actions from task.availableActions if task is provided.
+  // Must run unconditionally (before any early return) to satisfy Rules of Hooks.
   const { leftActions, rightActions } = useMemo(() => {
     // If manual actions provided, put them all on the right
     if (actions) {
       return { leftActions: [], rightActions: actions }
+    }
+
+    // No footer for completed tasks when no custom children
+    if (isTaskCompleted && !children) {
+      return { leftActions: [], rightActions: [] }
     }
 
     // If no task or availableActions, return empty
@@ -223,10 +224,15 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
     }
 
     return { leftActions: left, rightActions: right }
-  }, [task, actions, onTaskAction, isLoading, t, isSpreadsheetExcelCollectionTask])
+  }, [task, actions, onTaskAction, isLoading, t, isTaskCompleted, children, isSpreadsheetExcelCollectionTask])
 
   // Combined actions for empty check
   const hasActions = leftActions.length > 0 || rightActions.length > 0
+
+  // Don't show footer for completed tasks (unless custom children provided)
+  if (isTaskCompleted && !children) {
+    return null
+  }
 
   // If no actions or children, don't render footer
   if (!hasActions && !children) {

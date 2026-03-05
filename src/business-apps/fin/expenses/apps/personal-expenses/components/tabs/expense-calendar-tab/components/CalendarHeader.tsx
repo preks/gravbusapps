@@ -35,7 +35,7 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({ value, onChange, curren
       <Space>
         <Button
           shape="circle"
-          icon={<LeftOutlined />}
+          icon={<CaretLeftIcon />}
           onClick={() => {
             const newValue = value.subtract(1, 'month')
             setCalendarValue(newValue)

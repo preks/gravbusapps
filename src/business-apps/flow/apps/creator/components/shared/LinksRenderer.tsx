@@ -18,7 +18,7 @@ export const LinksRenderer: React.FC<LinksRendererProps> = ({ links, testId = 'l
       size="small"
       title={
         <div className="gba:flex gba:items-center gba:gap-2">
-          <PaperClipOutlined />
+          <PaperclipIcon />
           <span>{getTranslationFromI18nKeyAndLabel('flow.step.links', 'Links')}</span>
         </div>
       }

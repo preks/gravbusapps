@@ -83,13 +83,13 @@ export const ExecutionWizard: React.FC<ExecutionWizardProps> = ({
       case 'TASK':
         return <UserIcon size={16} />
       case 'APPROVAL':
-        return <SettingOutlined />
+        return <GearIcon />
       case 'INFORMATION':
         return <ChatCircleIcon size={16} />
       case 'ACKNOWLEDGE':
         return <CheckCircleIcon size={16} />
       default:
-        return <FileTextOutlined />
+        return <FileTextIcon />
     }
   }
 

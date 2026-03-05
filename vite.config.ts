@@ -446,7 +446,8 @@ if (globalThis.__APP_BUILD_INFO__) {
     load(id) {
       if (id === 'virtual:wrapped-entries') {
         // Generate a module that re-exports all the wrapped components
-        let code = `import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
+        let code = `import './common/runtime/globalNetworkInterceptorsBootstrap';
+import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
 import { wrapWithLocalizationProvider } from './common/wrapWithLocalizationProvider';
 import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 `
@@ -479,7 +480,10 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 
         // In dev mode (serve), BusinessAppIDE already provides LocalizationProvider
         // So we only wrap with UiCatalog
-        let code = "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n\n"
+        let code =
+          "import '@/common/runtime/globalNetworkInterceptorsBootstrap';\n" +
+          "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n" +
+          "import { wrapWithDevReportDot } from '@/common/dev-report/wrapWithDevReportDot';\n\n"
         code += '// Available screen entries for dynamic loading\n'
         code += 'const availableScreens = ' + availableScreensJson + ';\n\n'
         code += '// Cache for loaded screens with metadata\n'
@@ -523,8 +527,9 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         code += '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n'
         code += '      }\n'
         code += '      \n'
-        code += '      // Wrap with UI catalog only (BusinessAppIDE provides LocalizationProvider)\n'
-        code += '      const wrappedComponent = wrapWithUiCatalog(component);\n'
+        code += '      // Wrap with UI catalog (BusinessAppIDE provides LocalizationProvider)\n'
+        code += '      // Additionally add dev-only issue reporting overlay (IDE + NEWWORK dev tenant)\n'
+        code += '      const wrappedComponent = wrapWithDevReportDot(screenKey)(wrapWithUiCatalog(component));\n'
         code += '      \n'
         code += '      const loadTime = performance.now() - startTime;\n'
         code += '      \n'
@@ -926,23 +931,27 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
       let wrapperContent: string
       if (isNamedExportsOnlyEntry) {
         wrapperContent = `// Auto-generated wrapper file for types/queries/hooks/tabs/components/utils/views/pages/services - re-export all named exports
+import '@/common/runtime/globalNetworkInterceptorsBootstrap';
 export * from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 `
       } else if (isDebugViewEntry) {
         wrapperContent = `// Auto-generated wrapper file (no UiCatalogProvider for DebugView)
+import '@/common/runtime/globalNetworkInterceptorsBootstrap';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 export default OriginalComponent;
 `
       } else {
         wrapperContent = `// Auto-generated wrapper file
+import '@/common/runtime/globalNetworkInterceptorsBootstrap';
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
 import { wrapWithLocalizationProvider } from '@/common/wrapWithLocalizationProvider';
 import { wrapWithBlinkProvider } from '@/common/wrapWithBlinkProvider';
+import { wrapWithDevReportDot } from '@/common/dev-report/wrapWithDevReportDot';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 // Re-export wrapped component
-export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(OriginalComponent)));
+export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(OriginalComponent))));
 `
       }
 

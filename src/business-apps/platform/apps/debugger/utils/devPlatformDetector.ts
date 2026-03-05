@@ -8,25 +8,24 @@ export function isDevPlatform(): boolean {
   }
 
   const lowcoder = (window as any).lowcoder
-  if (!lowcoder || !lowcoder.windowEnvKey) {
-    return false
-  }
+  const candidateEnvKeys = [lowcoder?.windowEnvKey, 'nw-envs'].filter(Boolean)
 
-  const envKey = lowcoder.windowEnvKey
-  const env = (window as any)[envKey]
+  for (const envKey of candidateEnvKeys) {
+    const env = (window as any)[envKey as string]
+    if (!env) continue
 
-  if (!env) {
-    return false
-  }
+    // Check if tenant env is dev
+    if (env.NEXT_PUBLIC_TENANT_ENV === 'dev') {
+      return true
+    }
 
-  // Check if tenant env is dev
-  if (env.NEXT_PUBLIC_TENANT_ENV === 'dev') {
-    return true
-  }
-
-  // Check if GraphQL endpoint contains "dev"
-  if (env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK && env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK.includes('dev')) {
-    return true
+    // Check if GraphQL endpoint contains "dev"
+    if (
+      typeof env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK === 'string' &&
+      env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK.includes('dev')
+    ) {
+      return true
+    }
   }
 
   return false

@@ -109,7 +109,7 @@ const SalesPerformanceOverviewTab: React.FC<SalesPerformanceOverviewTabProps> = 
             <Statistic
               title="Total Sales"
               value={kpiData.totalSales.value}
-              prefix={<DollarOutlined />}
+              prefix={<CurrencyDollarIcon />}
               valueStyle={{ fontSize: '24px' }}
               formatter={value => formatCurrency(Number(value), kpiData.totalSales.currency)}
             />

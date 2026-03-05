@@ -136,7 +136,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
             </Button>
             <Button
               type="primary"
-              icon={<CheckOutlined />}
+              icon={<CheckIcon />}
               onClick={() => handleSubmit('APPROVED')}
               loading={isSubmitting}
               data-testid={`${testId}-approve-button`}
@@ -166,7 +166,7 @@ export const FlowStepModal: React.FC<FlowStepModalProps> = ({
         return (
           <Button
             type="primary"
-            icon={<CheckOutlined />}
+            icon={<CheckIcon />}
             onClick={() => handleSubmit('COMPLETED')}
             loading={isSubmitting}
             data-testid={`${testId}-complete-button`}

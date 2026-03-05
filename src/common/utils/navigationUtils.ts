@@ -122,6 +122,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
   '/platform/create/screen-builder': 'core/create/apps/ai-builder',
   '/platform/create/ai-builder': 'core/create/apps/ai-orchestrator',
+  '/platform/create/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
+  '/platform/create/apps/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
   '/platform/create/resource-preview-demo': 'core/create/apps/resource-preview-demo',
   '/platform/create/debug/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
   '/platform/create/debug/apps/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
@@ -298,6 +300,23 @@ export const buildPlatformUrl = (basePath: string, params?: Record<string, strin
 
   const queryString = new URLSearchParams(params).toString()
   return `${basePath}?${queryString}`
+}
+
+/**
+ * Returns current pathname + search with the given params applied (set or deleted).
+ * Use when already on the target page (e.g. chat) and only search params should change (e.g. view=calendar&meetingId=xxx).
+ * Pass null/undefined to remove a param. Preserves all other current search params.
+ */
+export const getCurrentUrlWithUpdatedSearchParams = (updates: Record<string, string | null | undefined>): string => {
+  if (globalThis.window === undefined) return ''
+  const params = new URLSearchParams(globalThis.window.location.search)
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === null || value === undefined) params.delete(key)
+    else params.set(key, value)
+  }
+  const query = params.toString()
+  const suffix = query ? '?' + query : ''
+  return globalThis.window.location.pathname + suffix
 }
 
 /**

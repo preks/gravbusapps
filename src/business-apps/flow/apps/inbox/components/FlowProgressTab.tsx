@@ -264,12 +264,12 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
       case 'COMPLETED':
         return <CheckCircleIcon size={16} style={{ color: '#52c41a' }} />
       case 'IN_PROGRESS':
-        return <PlayCircleOutlined style={{ color: '#1890ff' }} />
+        return <PlayCircleIcon style={{ color: '#1890ff' }} />
       case 'SCHEDULED':
         return <ClockIcon size={16} style={{ color: '#faad14' }} />
       case 'QUEUED':
       default:
-        return <PauseCircleOutlined style={{ color: '#d9d9d9' }} />
+        return <PauseCircleIcon style={{ color: '#d9d9d9' }} />
     }
   }
 
@@ -347,7 +347,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, acces
         break
       case 'REJECTED':
         tags.push(
-          <Tag key="rejected" color="red" icon={<WarningOutlined />}>
+          <Tag key="rejected" color="red" icon={<WarningIcon />}>
             Rejected
           </Tag>
         )
