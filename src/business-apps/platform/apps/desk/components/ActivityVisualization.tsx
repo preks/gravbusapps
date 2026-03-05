@@ -103,9 +103,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
           <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
             {isLoading ? '—' : total} updates this week
           </h2>
-          <p className="gba:text-muted-foreground">
-            Track your content creation across all applications
-          </p>
+          <p className="gba:text-muted-foreground">Track your content creation across all applications</p>
         </div>
 
         {/* Main content grid */}
@@ -199,8 +197,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
               return (
                 <Card
                   key={item.key}
-                  className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${isHovered ? 'gba:ring-2 gba:ring-offset-2' : ''}`}
-                  style={{ '--tw-ring-color': item.color } as React.CSSProperties}
+                  className={`gba:cursor-default gba:transition-colors gba:duration-200 ${isHovered ? 'gba:bg-muted/40' : ''}`}
                   onMouseEnter={() => setHoveredType(item.key)}
                   onMouseLeave={() => setHoveredType(null)}
                 >
@@ -218,11 +215,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
                           <span className="gba:text-lg gba:font-bold gba:text-foreground">
                             {isLoading ? '—' : item.count}
                           </span>
-                          {item.activity > 0 && (
-                            <span className="gba:text-xs gba:text-success">
-                              +{item.activity}
-                            </span>
-                          )}
+                          {item.activity > 0 && <span className="gba:text-xs gba:text-success">+{item.activity}</span>}
                         </div>
                       </div>
                     </div>
