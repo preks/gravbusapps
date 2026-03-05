@@ -13,19 +13,21 @@ log_phase() {
 BUILD_EXIT=0
 PUBLISH_EXIT=0
 
-log_phase "DETECT CHANGED SCREENS"
-if ! bash scripts/detect-changed-screens.sh; then
-  echo "Change detection failed."
-  exit 1
-fi
-
-log_phase "BUILD CHANGED SCREENS"
-node scripts/build-changed-screens.js changed-tsx.txt
+log_phase "BUILD ALL SCREENS (BATCHED)"
+VITE_HASH_ONLY_BUILD="true" node scripts/build-changed-screens.js
 BUILD_EXIT=$?
 if [[ "$BUILD_EXIT" -ne 0 ]]; then
   echo "Build reported failures (exit: $BUILD_EXIT). Continuing to publish successful build outputs."
 else
   echo "Build completed successfully."
+fi
+
+log_phase "DETECT CHANGED SCREENS BY HASH"
+echo "Fetching latest develop hashes baseline..."
+git fetch origin develop || echo "WARNING: Failed to fetch origin/develop, detector will fallback to local hash file."
+if ! node scripts/detect-changed-screens-by-hash.js; then
+  echo "Hash-based detection failed."
+  exit 1
 fi
 
 log_phase "PUBLISH CHANGED SCREENS"

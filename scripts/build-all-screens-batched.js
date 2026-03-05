@@ -11,10 +11,7 @@ import { fileURLToPath } from 'node:url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const parsedBatchSize = Number.parseInt(process.env.BATCH_SIZE ?? '25', 10)
-const parsedBatchHeapMb = Number.parseInt(process.env.BATCH_HEAP_MB ?? '4096', 10)
-const BATCH_SIZE = Number.isFinite(parsedBatchSize) && parsedBatchSize > 0 ? parsedBatchSize : 25
-const BATCH_HEAP_MB = Number.isFinite(parsedBatchHeapMb) && parsedBatchHeapMb > 0 ? parsedBatchHeapMb : 4096
+const BATCH_SIZE = 50
 
 console.log('🚀 Building all screens in batches...')
 
@@ -82,7 +79,7 @@ async function buildBatch(screens, batchNum, totalBatches) {
       env: {
         ...process.env,
         VITE_BATCH_MODE: 'true',
-        NODE_OPTIONS: `--max-old-space-size=${BATCH_HEAP_MB}` // tuned for CI memory limits
+        NODE_OPTIONS: '--max-old-space-size=6144' // 6GB heap for batch builds
       }
     })
 
@@ -121,7 +118,6 @@ async function main() {
   }
 
   console.log(`📦 Split into ${batches.length} batches of ~${BATCH_SIZE} screens each`)
-  console.log(`🧠 Batch heap limit: ${BATCH_HEAP_MB}MB`)
 
   // Build each batch
   let successCount = 0

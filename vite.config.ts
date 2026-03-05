@@ -1048,7 +1048,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       reportCompressedSize: isUnversionedBuild && isSingleBuild ? true : false,
       // Enable CSS processing
       css: {
-        devSourcemap: !isProduction
+        devSourcemap: true
       },
       cssCodeSplit: true,
       rollupOptions: {
@@ -1080,6 +1080,10 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
           '@phosphor-icons/react',
           '@newwork/gravity-ui-catalog',
           'class-variance-authority',
+          '@univerjs/preset-sheets-core',
+          '@univerjs/preset-sheets-core/locales/en-US',
+          '@univerjs/core',
+          '@univerjs/presets',
           'lucide-react',
           'react',
           'react-dom',
@@ -1101,6 +1105,10 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
             zustand: 'zustand',
             '@newwork/gravity-ui-catalog': 'GravityUICatalog',
             'class-variance-authority': 'classVarianceAuthority',
+            '@univerjs/preset-sheets-core': 'UniverSheetsCorePreset',
+            '@univerjs/preset-sheets-core/locales/en-US': 'UniverPresetSheetsCoreEnUS',
+            '@univerjs/core': 'UniverCore',
+            '@univerjs/presets': 'UniverPresets',
             'lucide-react': 'lucideReact',
             'react-router-dom': 'reactRouterDom'
           },
