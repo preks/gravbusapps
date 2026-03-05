@@ -38,9 +38,9 @@ function normalizeProgressEvent(raw: Record<string, unknown>): BuildProgressEven
   }
 
   return {
-    eventType: (raw.eventType ?? raw.event_type) as BuildProgressEvent['eventType'],
+    eventType: ((raw.eventType ?? raw.event_type) as BuildProgressEvent['eventType']) ?? 'heartbeat',
     jobId: (raw.jobId ?? raw.job_id) as string,
-    timestamp: (raw.timestamp as string) ?? '',
+    timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
     componentType: (raw.componentType ?? raw.component_type) as BuildProgressEvent['componentType'],
     componentId: (raw.componentId ?? raw.component_id) as string | undefined,
     componentName: (raw.componentName ?? raw.component_name) as string | undefined,
@@ -49,10 +49,6 @@ function normalizeProgressEvent(raw: Record<string, unknown>): BuildProgressEven
     progressPercent: (raw.progressPercent ?? raw.progress_percent) as number | undefined,
     createdId: (raw.createdId ?? raw.created_id) as string | undefined,
     errorDetails: (raw.errorDetails ?? raw.error_details) as string | undefined,
-    resourceUrl: (raw.resourceUrl ?? raw.resource_url) as string | undefined,
-    azureUrl: (raw.azureUrl ?? raw.azure_url) as string | undefined,
-    filesPublished: (raw.filesPublished ?? raw.files_published) as number | undefined,
-    content: raw.content as string | undefined,
     metadata: normalizedMetadata,
     totalComponents: (raw.totalComponents ?? raw.total_components) as number | undefined,
     completedComponents: (raw.completedComponents ?? raw.completed_components) as number | undefined,
@@ -196,6 +192,10 @@ export class OrchestratorClient {
     if (!data || data.startsWith(':')) return
     try {
       const raw = JSON.parse(data) as Record<string, unknown>
+      const eventType = (raw.eventType ?? raw.event_type) as string | undefined
+      if (eventType === 'heartbeat') {
+        return
+      }
       const event = normalizeProgressEvent(raw)
       onEvent(event)
     } catch (e) {
@@ -230,7 +230,8 @@ export class OrchestratorClient {
     request: ExecuteRequest,
     onEvent: (event: BuildProgressEvent) => void,
     onError?: (error: Error) => void,
-    onComplete?: () => void
+    onComplete?: () => void,
+    signal?: AbortSignal
   ): Promise<void> {
     try {
       const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}/execute`, {
@@ -240,7 +241,8 @@ export class OrchestratorClient {
           Authorization: `Bearer ${this.accessToken}`,
           Accept: 'text/event-stream'
         },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
+        signal
       })
 
       if (!response.ok) {
@@ -256,6 +258,9 @@ export class OrchestratorClient {
 
       await this.readSseStream(reader, onEvent, onComplete)
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
       onError?.(error instanceof Error ? error : new Error(String(error)))
     }
   }
