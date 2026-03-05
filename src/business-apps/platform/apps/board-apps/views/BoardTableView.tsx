@@ -133,8 +133,13 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     if (activeHighlight === highlightedRowId) return
     setActiveHighlight(highlightedRowId)
     requestAnimationFrame(() => {
-      const el = containerRef.current?.querySelector(`[data-testid="${testId}-row-${highlightedRowId}"]`) as HTMLElement
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const container = containerRef.current
+      const el = container?.querySelector(`[data-testid="${testId}-row-${highlightedRowId}"]`) as HTMLElement
+      if (container && el) {
+        const elTop = el.offsetTop
+        const target = elTop - container.clientHeight / 2 + el.offsetHeight / 2
+        container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+      }
     })
     const timer = setTimeout(() => {
       setActiveHighlight(null)
@@ -311,6 +316,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         onClearAll={fs.clearAll}
         quickSearch={fs.quickSearch}
         onQuickSearchChange={fs.setQuickSearch}
+        isSearching={Boolean(rowsLoading && fs.serverParams.search?.trim())}
         quickFilters={quickFilters}
         activeQuickFilterIds={fs.activeQuickFilterIds}
         onToggleQuickFilter={fs.toggleQuickFilter}

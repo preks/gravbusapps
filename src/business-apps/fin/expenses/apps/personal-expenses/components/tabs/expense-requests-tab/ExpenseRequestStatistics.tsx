@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react'
-import { FileTextOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons'
+import { FileTextIcon, CurrencyDollarIcon, CalendarIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetExpenseRequestStatistics } from '../../../hooks/useGetExpenseRequestStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -172,7 +172,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ' ' +
         currentMonthName,
       value: statistics.currentMonthTotal,
-      prefix: <FileTextOutlined />,
+      prefix: <FileTextIcon size={16} />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -193,7 +193,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ' ' +
         currentMonthName,
       value: formatCurrencyDisplay(statistics.currentMonthAmount || 0, effectiveCurrencyCode),
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon size={16} />,
       color: '#3f8600',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
@@ -212,7 +212,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         'Pending Approval'
       ),
       value: statistics.pendingApproval,
-      prefix: <CalendarOutlined />,
+      prefix: <CalendarIcon size={16} />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
       footer: getTranslationFromI18nKeyAndLabel(
@@ -227,7 +227,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable', 'Reimbursable'),
       value: formatCurrencyDisplay(statistics.reimbursableAmount, effectiveCurrencyCode),
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon size={16} />,
       color: '#722ed1',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },

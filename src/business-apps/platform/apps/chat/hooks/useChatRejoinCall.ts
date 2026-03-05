@@ -6,6 +6,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { ActiveCall, Conversation } from '../types'
 import type { ActiveCallInfo } from '../components/ConversationHeader'
+import { takePendingJoinMeetingForConversation } from '../pendingJoinMeetingFromPlatform'
 
 export type RejoinModalState = {
   roomId: string
@@ -13,6 +14,7 @@ export type RejoinModalState = {
   conversationName?: string
   participantCount?: number
   startedBy?: { id: string; odId: string; odName: string; avatarUrl?: string }
+  transcriptionEnabled?: boolean
 } | null
 
 export interface PresenceDataLike {
@@ -38,6 +40,9 @@ export interface UseChatRejoinCallParams {
   joinGroupCall:
     | ((roomId: string, callType: 'audio' | 'video', initialParticipantsOrPreferences?: unknown) => void)
     | null
+  realtimeKitApiClient?: { getMeetingDetails: (meetingId: string) => Promise<any> } | null
+  /** When provided (e.g. from ChatWithCalendar), used to resolve transcription for calendar meetings so Join dialog shows recording message */
+  calendarApiClient?: { getMeeting: (meetingId: string) => Promise<unknown> } | null
   getUserPresence: (userId: string) => PresenceDataLike
   currentUserId: string | null
 }
@@ -67,6 +72,8 @@ export function useChatRejoinCall({
   groupCallState,
   groupParticipants,
   joinGroupCall,
+  realtimeKitApiClient,
+  calendarApiClient,
   getUserPresence,
   currentUserId
 }: UseChatRejoinCallParams): UseChatRejoinCallReturn {
@@ -124,20 +131,59 @@ export function useChatRejoinCall({
     groupParticipants
   ])
 
-  const handleJoinActiveCall = useCallback(() => {
+  const handleJoinActiveCall = useCallback(async () => {
     if (!activeCallInfo || !stableActiveConversation) return
     const callFromMap = activeConversationCalls.get(stableActiveConversation.id)
     const conversationActiveCall = (stableActiveConversation as Conversation & { activeCall?: ActiveCall }).activeCall
     const conversationNameFromCall = callFromMap?.conversationName
     const startedByFromConversation = conversationActiveCall?.startedBy
-    setRejoinModalState({
+    const baseState: NonNullable<RejoinModalState> = {
       roomId: activeCallInfo.roomId,
       callType: activeCallInfo.callType,
       conversationName: conversationNameFromCall ?? stableActiveConversation.name,
       participantCount: activeCallInfo.participantCount,
       startedBy: startedByFromConversation
-    })
-  }, [activeCallInfo, stableActiveConversation, activeConversationCalls])
+    }
+
+    // Resolve transcription before opening dialog so the message shows immediately (same as PreCallSetup)
+    let transcriptionEnabled = false
+    let meetingIdStr: string | null = null
+    const rawMeetingId = stableActiveConversation?.metadata?.meetingId
+    if (typeof rawMeetingId === 'string') {
+      meetingIdStr = rawMeetingId
+    } else if (rawMeetingId != null) {
+      meetingIdStr = String(rawMeetingId)
+    }
+    // Fallback: calendar/join-meeting may have stored meetingId when conversation lacks metadata (e.g. opened from calendar)
+    if (stableActiveConversation?.id && meetingIdStr == null) {
+      const pendingId = takePendingJoinMeetingForConversation(stableActiveConversation.id)
+      if (pendingId) meetingIdStr = pendingId
+    }
+
+    if (meetingIdStr && calendarApiClient?.getMeeting) {
+      try {
+        const response = await calendarApiClient.getMeeting(meetingIdStr)
+        const meeting = (response as { meeting?: unknown })?.meeting ?? response
+        const raw = meeting as { transcriptionEnabled?: boolean; metadata?: { aiTranscriptionEnabled?: boolean } }
+        transcriptionEnabled =
+          raw?.transcriptionEnabled === true ||
+          raw?.metadata?.aiTranscriptionEnabled === true ||
+          Boolean(raw?.metadata?.aiTranscriptionEnabled)
+      } catch {
+        // Best-effort
+      }
+    } else if (realtimeKitApiClient) {
+      try {
+        const res = await realtimeKitApiClient.getMeetingDetails(activeCallInfo.roomId)
+        const data = res?.data ?? res
+        transcriptionEnabled = (data as { transcriptionEnabled?: boolean })?.transcriptionEnabled === true
+      } catch {
+        // Best-effort
+      }
+    }
+
+    setRejoinModalState({ ...baseState, transcriptionEnabled })
+  }, [activeCallInfo, stableActiveConversation, activeConversationCalls, realtimeKitApiClient, calendarApiClient])
 
   const handleRejoinWithPreferences = useCallback(
     (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {

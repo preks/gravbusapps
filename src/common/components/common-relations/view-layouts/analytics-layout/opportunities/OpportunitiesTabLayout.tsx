@@ -1,12 +1,12 @@
 import React from 'react'
 import { WidgetGroup } from '@/components/widget-group'
 import {
-  DollarCircleOutlined,
-  TrophyOutlined,
-  ClockCircleOutlined,
-  RiseOutlined,
-  PercentageOutlined
-} from '@ant-design/icons'
+  CurrencyCircleDollarIcon,
+  TrophyIcon,
+  ClockIcon,
+  TrendUpIcon,
+  PercentIcon
+} from '@phosphor-icons/react'
 import {
   OpportunityLifecycleChart,
   TimeFilter as OpportunityTimeFilter,
@@ -149,7 +149,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       key: 'total-opportunities',
       title: 'Total Opportunities',
       value: totalOpportunities,
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon size={16} />,
       description: 'All opportunities in pipeline',
       ...(trendData && !trendLoading
         ? {
@@ -166,7 +166,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       title: 'Total Pipeline Value',
       value: formatCurrencyCompact(totalValue, kpiCurrency, undefined, 1, true),
       valueIsString: true,
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon size={16} />,
       description: 'Combined value of all opportunities',
       ...(trendData && !trendLoading
         ? {
@@ -183,7 +183,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       title: 'Win Rate',
       value: trendData?.actualWinRateThisMonth || winRate,
       suffix: '%',
-      prefix: <TrophyOutlined />,
+      prefix: <TrophyIcon />,
       description: 'Percentage of won opportunities',
       ...(trendData && !trendLoading
         ? {
@@ -206,7 +206,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
         true
       ),
       valueIsString: true,
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon size={16} />,
       description: 'Average opportunity value',
       ...(trendData && !trendLoading
         ? {
@@ -226,7 +226,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       key: 'opportunities-this-period',
       title: 'New This Period',
       value: trendData?.currentPeriodOpportunities || lifecycleData.reduce((s, i) => s + (i as any).count || 0, 0),
-      prefix: <RiseOutlined />,
+      prefix: <TrendUpIcon size={16} />,
       description: 'Opportunities created in selected period',
       ...(trendData && !trendLoading
         ? {
@@ -246,7 +246,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       title: 'Avg. Opportunity Value',
       value: formatCurrencyCompact(avgSalesCycle, kpiCurrency, undefined, 1, true),
       valueIsString: true,
-      prefix: <DollarCircleOutlined />,
+      prefix: <CurrencyCircleDollarIcon size={16} />,
       description: 'Average value per opportunity',
       ...(trendData && !trendLoading && trendData.actualAvgOpportunityValueLastMonth !== undefined
         ? {
@@ -263,7 +263,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       title: 'Conversion Rate',
       value: trendData?.actualConversionRateThisMonth ?? 0,
       suffix: '%',
-      prefix: <PercentageOutlined />,
+      prefix: <PercentIcon />,
       description: 'Leads converted to opportunities',
       ...(trendData && !trendLoading
         ? {
@@ -281,7 +281,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       title: 'Pipeline Velocity',
       value: typeof _pipelineVelocity === 'number' && Number.isFinite(_pipelineVelocity) ? _pipelineVelocity : 0,
       suffix: ' days',
-      prefix: <ClockCircleOutlined />,
+      prefix: <ClockIcon size={16} />,
       description: 'Average time in pipeline',
       ...(trendData && !trendLoading
         ? {

@@ -1,0 +1,3 @@
+[mcp_servers.gravity-issues]
+url = "https://product.newwork.com/api/mcp"
+http_headers = { "Authorization" = "Bearer 55555" }

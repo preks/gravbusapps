@@ -4,11 +4,13 @@
  * Connects to the document-service backend API for email management.
  */
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { normalizeLabels } from '../utils/labelUtils'
 import type {
   EmailAccount,
   EmailFolder,
   EmailMessage,
   EmailMessageSummary,
+  EmailLabelSuggestion,
   PaginatedResponse,
   CreateEmailAccountRequest,
   SendEmailRequest,
@@ -36,7 +38,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 
   const text = await response.text()
-  return text ? JSON.parse(text) : null
+  return (text ? JSON.parse(text) : null) as T
 }
 
 export const EmailApiService = {
@@ -90,6 +92,7 @@ export const EmailApiService = {
     folderId?: string
     threadId?: string
     search?: string
+    labels?: string[]
     unreadOnly?: boolean
     starredOnly?: boolean
     hasAttachments?: boolean
@@ -100,7 +103,15 @@ export const EmailApiService = {
   }): Promise<PaginatedResponse<EmailMessageSummary>> {
     const params = new URLSearchParams()
     Object.entries(options).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) params.set(key, String(value))
+      if (value === undefined || value === null) return
+      if (Array.isArray(value)) {
+        value
+          .map(v => String(v).trim())
+          .filter(Boolean)
+          .forEach(v => params.append(key, v))
+        return
+      }
+      params.set(key, String(value))
     })
     return apiRequest(`/emails/messages?${params.toString()}`)
   },
@@ -177,6 +188,47 @@ export const EmailApiService = {
    */
   async getSharedMessage(messageId: string): Promise<EmailMessage> {
     return apiRequest<EmailMessage>(`/emails/messages/${messageId}/shared`)
+  },
+
+  async addMessageLabels(messageId: string, labels: string[]): Promise<{ labels: string[] }> {
+    const normalized = normalizeLabels(labels)
+    if (normalized.length === 0) return { labels: [] }
+
+    return apiRequest<{ labels: string[] }>(`/emails/messages/${messageId}/labels/add`, {
+      method: 'PATCH',
+      body: JSON.stringify({ labels: normalized })
+    })
+  },
+
+  async removeMessageLabels(messageId: string, labels: string[]): Promise<{ labels: string[] }> {
+    const normalized = normalizeLabels(labels)
+    if (normalized.length === 0) return { labels: [] }
+
+    return apiRequest<{ labels: string[] }>(`/emails/messages/${messageId}/labels/remove`, {
+      method: 'PATCH',
+      body: JSON.stringify({ labels: normalized })
+    })
+  },
+
+  async searchLabelSuggestions(query: string, limit = 10): Promise<EmailLabelSuggestion[]> {
+    const q = query.trim()
+    if (!q) return []
+    const params = new URLSearchParams({ q, limit: String(limit) })
+    return apiRequest<EmailLabelSuggestion[]>(`/emails/labels/suggestions?${params.toString()}`)
+  },
+
+  async softDeleteLabelByName(name: string): Promise<{ success: boolean }> {
+    const normalized = normalizeLabels([name])
+    if (normalized.length === 0) return { success: true }
+
+    return apiRequest<{ success: boolean }>('/emails/labels/soft-delete', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: normalized[0] })
+    })
+  },
+
+  async softDeleteLabelById(id: string): Promise<{ success: boolean }> {
+    return apiRequest<{ success: boolean }>(`/emails/labels/${id}`, { method: 'DELETE' })
   },
 
   // ============ Attachments ============

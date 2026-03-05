@@ -1,28 +1,26 @@
 /**
  * One-off effects for RTK group call: media sync, join completion, logging/metrics,
- * transcript-ready, heartbeat, other-tab storage, timer sync, cleanup, debug. Effect-only hook.
+ * heartbeat, other-tab storage, timer sync, cleanup, debug. Effect-only hook.
  */
 
 import { useEffect, type Dispatch, type SetStateAction } from 'react'
-import { toast } from '@newwork/nw-design-system'
 import { setActiveCallInStorage, ACTIVE_CALL_KEY, DECLINED_INVITE_KEY } from '../../utils/activeCallStorage'
 import { clearRingingLeader } from '../../utils/ringingLeader'
 import type { RealtimeKitCallRefs } from './contextTypes'
 import type { GroupCallInvite } from '../../services/callTypes'
 
 /**
- * Effect-only hook. Runs media sync, join completion, quality metrics, transcript listener,
- * heartbeat, storage listener, timer sync, cleanup, and dev debug helpers.
+ * Effect-only hook. Runs media sync, join completion, quality metrics, heartbeat,
+ * storage listener, timer sync, cleanup, and dev debug helpers.
  *
  * Needs: callState, setCallState, meeting, media, participantsHook, wsClient, currentUser,
  * refs, activeConversationCalls, setIncomingInvite, incomingInvite, stopDurationTimer,
  * combinedCallState, leaveCall, diagnostics, isInCall.
  *
  * Does: Syncs media state into callState; on meeting join sets status to 'connected'; optional
- * log on session start; periodic call quality metrics; transcript-ready socket listener + toast;
- * heartbeat (setActiveCallInStorage every 1s when connected); storage listener to dismiss invite
- * when user joins in another tab; sync timer from activeConversationCalls; cleanup on unmount;
- * in dev, attach/detach debug helpers on window.
+ * log on session start; periodic call quality metrics; heartbeat (setActiveCallInStorage every 1s
+ * when connected); storage listener to dismiss invite when user joins in another tab; sync timer
+ * from activeConversationCalls; cleanup on unmount; in dev, attach/detach debug helpers on window.
  *
  * Returns: void (effect-only).
  */
@@ -51,7 +49,6 @@ export function useRealtimeKitSideEffects(params: {
     meeting,
     media,
     participantsHook,
-    wsClient,
     currentUser,
     refs,
     activeConversationCalls,
@@ -103,21 +100,6 @@ export function useRealtimeKitSideEffects(params: {
     media,
     participantsHook.participants
   ])
-
-  const transcriptSocket = wsClient?.getSocket()
-  useEffect(() => {
-    const socket = transcriptSocket
-    if (!socket) return
-    const handleTranscriptReady = (data: { noteId: string; meetingId: string; meetingTitle: string }) => {
-      toast.success('Meeting Transcript Ready', {
-        description: `${data.meetingTitle} - Transcript has been saved and shared with all participants`,
-        duration: 1000000
-      })
-    }
-    socket.off('transcript-ready')
-    socket.on('transcript-ready', handleTranscriptReady)
-    return () => socket.off('transcript-ready', handleTranscriptReady)
-  }, [transcriptSocket])
 
   useEffect(() => {
     if (callState.status !== 'connected' || !currentUser || !callState.roomId) return

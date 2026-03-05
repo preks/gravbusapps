@@ -41,10 +41,11 @@ export const ReactionsOverlay: React.FC<ReactionsOverlayProps> = ({
     <>
       {filteredReactions.map(reaction => {
         const option = reactionIdToOption.get(reaction.emoji)
+        const emojiChar = option?.emoji ?? reaction.emoji
         return (
           <div
             key={reaction.id}
-            className={`gba:absolute gba:pointer-events-none gba:flex gba:items-center gba:justify-center ${option?.colorClass ?? 'gba:text-foreground'}`}
+            className="gba:absolute gba:pointer-events-none gba:flex gba:items-center gba:justify-center gba:text-foreground"
             style={{
               left: '50%',
               bottom: '20%',
@@ -53,11 +54,7 @@ export const ReactionsOverlay: React.FC<ReactionsOverlayProps> = ({
             }}
             data-testid={`${prefixDataTestId}-reaction-${reaction.id}`}
           >
-            {option ? (
-              <option.Icon size={40} weight="fill" className="gba:shrink-0" />
-            ) : (
-              <span className="gba:text-4xl">{reaction.emoji}</span>
-            )}
+            <span className="gba:text-4xl gba:shrink-0">{emojiChar}</span>
           </div>
         )
       })}

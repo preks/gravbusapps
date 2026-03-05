@@ -288,8 +288,8 @@ export const BoardDashboardView: React.FC<BoardDashboardViewProps> = ({
   }
 
   return (
-    <div className="gba:p-4" data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:justify-end gba:mb-3 gba:gap-2">
+    <div className="gba:p-5" data-testid={testId}>
+      <div className="gba:flex gba:items-center gba:justify-end gba:mb-4 gba:gap-2">
         {accessToken && (
           <AskDashboardInput
             columns={columns}
@@ -314,7 +314,7 @@ export const BoardDashboardView: React.FC<BoardDashboardViewProps> = ({
         </Button>
       </div>
       {(dashboardLoading || isSampled) && (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2 gba:px-1" data-testid={`${testId}-status`}>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3 gba:px-1" data-testid={`${testId}-status`}>
           {dashboardLoading && (
             <>
               <Spinner className="gba:w-3 gba:h-3" />
@@ -334,7 +334,7 @@ export const BoardDashboardView: React.FC<BoardDashboardViewProps> = ({
         </div>
       )}
       <div
-        className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-3"
+        className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-4"
         onDragOver={handleGridDragOver}
         onDrop={handleGridDrop}
       >

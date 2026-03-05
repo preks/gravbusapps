@@ -24,12 +24,17 @@ export const BoardsHomeGreeting: React.FC<BoardsHomeGreetingProps> = ({
   }, [userName])
 
   return (
-    <section className="gba:rounded-xl gba:bg-card gba:p-4" data-testid={testId}>
-      <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-0.5" data-testid={`${testId}-heading`}>
+    <section data-testid={testId}>
+      <h1
+        className="gba:text-2xl gba:font-semibold gba:text-foreground gba:tracking-tight"
+        data-testid={`${testId}-heading`}
+      >
         {greeting}
         {firstName && <span>, {firstName}</span>}
-      </h2>
-      <p className="gba:text-sm gba:text-muted-foreground">Build anything. Track everything.</p>
+      </h1>
+      <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
+        Here&apos;s what&apos;s happening across your boards.
+      </p>
     </section>
   )
 }

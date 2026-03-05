@@ -16,6 +16,8 @@ import { formatDuration } from '../../utils/callUtils'
 export interface CallHeaderProps {
   /** Call title or conversation name */
   conversationName?: string
+  /** Whether AI transcription is enabled (show recording indicator) */
+  transcriptionEnabled?: boolean
   /** Call start timestamp (Unix ms) - used to calculate live duration */
   callStartTime: number | null
   /** Number of participants in the call */
@@ -54,6 +56,7 @@ export interface CallHeaderProps {
 
 export const CallHeader: React.FC<CallHeaderProps> = ({
   conversationName,
+  transcriptionEnabled = false,
   callStartTime,
   participantCount,
   callType,
@@ -113,7 +116,26 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
     <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2.5 gba:flex-shrink-0">
       {/* Left side - Title and info */}
       <div className="gba:flex gba:items-center gba:gap-3">
-        <h3 className="gba:font-semibold gba:text-sm">{callTitle}</h3>
+        <h3 className="gba:font-semibold gba:text-sm">
+          <span className="gba:inline-flex gba:items-center gba:gap-2">
+            {transcriptionEnabled && (
+              <span
+                className="gba:inline-flex gba:items-center gba:justify-center"
+                data-testid={`${prefixDataTestId}-transcription-indicator`}
+                title={t('chat-call-transcriptRecordingHeader') || 'Call transcript is being recorded'}
+              >
+                <span
+                  className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:flex-shrink-0"
+                  aria-hidden
+                />
+                <span className="gba:sr-only">
+                  {t('chat-call-transcriptRecordingHeader') || 'Call transcript is being recorded'}
+                </span>
+              </span>
+            )}
+            <span>{callTitle}</span>
+          </span>
+        </h3>
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
           {/* Duration - updates independently */}
           <span className="gba:font-mono gba:font-medium">{formatDuration(duration)}</span>

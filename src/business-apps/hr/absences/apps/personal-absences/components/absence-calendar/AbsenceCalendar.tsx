@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { Calendar, Tag, Typography, Tabs } from 'antd'
 import { AbsenceListDisplay } from './components/AbsenceListDisplay'
 import dayjs, { Dayjs } from 'dayjs'
@@ -175,13 +175,13 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
             <div className="gba:calendar-controls-bar">
               <div className="gba:calendar-controls-leftbar">
                 <button className="gba:calendar-toggle-btn" onClick={handlePrevMonth}>
-                  <LeftOutlined className="gba:calendar-icon-thick" />
+                  <CaretLeftIcon size={16} className="gba:calendar-icon-thick" />
                 </button>
                 <button className="gba:calendar-today-btn" onClick={handleToday}>
                   Today
                 </button>
                 <button className="gba:calendar-toggle-btn" onClick={handleNextMonth}>
-                  <RightOutlined className="gba:calendar-icon-thick" />
+                  <CaretRightIcon size={16} className="gba:calendar-icon-thick" />
                 </button>
                 <span className="gba:calendar-toggle-group-label">{calendarValue.format('MMMM YYYY')}</span>
               </div>
@@ -238,13 +238,13 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
           <div className="gba:calendar-controls-bar">
             <div className="gba:calendar-controls-leftbar">
               <button className="gba:calendar-toggle-btn" onClick={handlePrevMonth}>
-                <LeftOutlined className="gba:calendar-icon-thick" />
+                <CaretLeftIcon size={16} className="gba:calendar-icon-thick" />
               </button>
               <button className="gba:calendar-today-btn" onClick={handleToday}>
                 Today
               </button>
               <button className="gba:calendar-toggle-btn" onClick={handleNextMonth}>
-                <RightOutlined className="gba:calendar-icon-thick" />
+                <CaretRightIcon size={16} className="gba:calendar-icon-thick" />
               </button>
               <span className="gba:calendar-toggle-group-label">{calendarValue.format('MMMM YYYY')}</span>
             </div>

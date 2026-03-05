@@ -479,7 +479,9 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 
         // In dev mode (serve), BusinessAppIDE already provides LocalizationProvider
         // So we only wrap with UiCatalog
-        let code = "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n\n"
+        let code =
+          "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n" +
+          "import { wrapWithDevReportDot } from '@/common/dev-report/wrapWithDevReportDot';\n\n"
         code += '// Available screen entries for dynamic loading\n'
         code += 'const availableScreens = ' + availableScreensJson + ';\n\n'
         code += '// Cache for loaded screens with metadata\n'
@@ -523,8 +525,9 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         code += '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n'
         code += '      }\n'
         code += '      \n'
-        code += '      // Wrap with UI catalog only (BusinessAppIDE provides LocalizationProvider)\n'
-        code += '      const wrappedComponent = wrapWithUiCatalog(component);\n'
+        code += '      // Wrap with UI catalog (BusinessAppIDE provides LocalizationProvider)\n'
+        code += '      // Additionally add dev-only issue reporting overlay (IDE + NEWWORK dev tenant)\n'
+        code += '      const wrappedComponent = wrapWithDevReportDot(screenKey)(wrapWithUiCatalog(component));\n'
         code += '      \n'
         code += '      const loadTime = performance.now() - startTime;\n'
         code += '      \n'
@@ -939,10 +942,11 @@ export default OriginalComponent;
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
 import { wrapWithLocalizationProvider } from '@/common/wrapWithLocalizationProvider';
 import { wrapWithBlinkProvider } from '@/common/wrapWithBlinkProvider';
+import { wrapWithDevReportDot } from '@/common/dev-report/wrapWithDevReportDot';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 // Re-export wrapped component
-export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(OriginalComponent)));
+export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(OriginalComponent))));
 `
       }
 
@@ -1050,7 +1054,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
 
         external: [
           'antd',
-          '@ant-design/icons',
           '@dnd-kit/core',
           '@dnd-kit/utilities',
           '@dnd-kit/sortable',
@@ -1060,7 +1063,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
           'react-i18next',
           '@phosphor-icons/react',
           '@newwork/gravity-ui-catalog',
-          '@remixicon/react',
           'class-variance-authority',
           'lucide-react',
           'react',
@@ -1073,7 +1075,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
             react: 'React',
             'react-dom': 'ReactDOM',
             antd: 'antd',
-            '@ant-design/icons': 'antDesignIcons',
             'react-i18next': 'reactI18next',
             '@phosphor-icons/react': 'PhosphorIconsReact',
             clsx: 'clsx',
@@ -1083,7 +1084,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
             '@dnd-kit/utilities': 'DNDKitUtilities',
             zustand: 'zustand',
             '@newwork/gravity-ui-catalog': 'GravityUICatalog',
-            '@remixicon/react': 'remixIconReact',
             'class-variance-authority': 'classVarianceAuthority',
             'lucide-react': 'lucideReact',
             'react-router-dom': 'reactRouterDom'

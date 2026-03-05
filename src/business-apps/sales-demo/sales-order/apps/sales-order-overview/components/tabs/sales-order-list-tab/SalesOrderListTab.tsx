@@ -14,7 +14,7 @@ import {
   Button,
   Dropdown
 } from 'antd'
-import { SearchOutlined, MoreOutlined, PlusOutlined, DownOutlined } from '@ant-design/icons'
+import { MagnifyingGlassIcon, DotsThreeIcon, PlusIcon, CaretDownIcon } from '@phosphor-icons/react'
 import Pill from '@/components/pill/Pill'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -156,7 +156,7 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
         >
           <Button
             type="text"
-            icon={<MoreOutlined />}
+            icon={<DotsThreeIcon size={16} />}
             data-testid={`actions-${record.id}`}
             style={{ backgroundColor: '#000000', color: '#ffffff' }}
             className="gba:hover:bg-gray-800"
@@ -245,12 +245,12 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
         >
           <Button
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<PlusIcon size={16} />}
             data-testid="create-order-btn"
             style={{ backgroundColor: '#000000', borderColor: '#000000', color: '#ffffff' }}
             className="gba:hover:bg-gray-800 gba:hover:border-gray-800"
           >
-            Actions <DownOutlined />
+            Actions <CaretDownIcon size={16} />
           </Button>
         </Dropdown>
       </div>
@@ -335,7 +335,7 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Form.Item label="Search by Order Number" name="searchTerm">
-                <Input placeholder="Enter order number..." prefix={<SearchOutlined />} data-testid="search-input" />
+                <Input placeholder="Enter order number..." prefix={<MagnifyingGlassIcon size={16} />} data-testid="search-input" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12} className="gba:flex gba:items-end">

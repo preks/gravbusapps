@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Button, Alert, Label, useTranslation } from '@newwork/nw-design-system'
-import { UserOutlined } from '@ant-design/icons'
+import { UserIcon } from '@phosphor-icons/react'
 import { useFeedbackRequestForm } from '../context/FeedbackRequestFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -202,7 +202,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
             ) : (
               <div className="gba:p-3 gba:bg-muted gba:rounded-lg gba:border-border">
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <UserOutlined />
+                  <UserIcon size={16} />
                   <span className="gba:font-medium">{formValues.employeeName}</span>
                 </div>
               </div>

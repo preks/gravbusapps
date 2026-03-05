@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { CalendarOutlined, FileTextOutlined } from '@ant-design/icons'
+import { CalendarIcon, FileTextIcon } from '@phosphor-icons/react'
 import { ExpenseStatus } from '../../../utils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -97,7 +97,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'Pending Approval'
         ),
         value: planStats.pendingCount.toString(),
-        prefix: <CalendarOutlined />,
+        prefix: <CalendarIcon size={16} />,
         color: 'var(--nw-warning)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
@@ -114,7 +114,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'Total Plans (Submitted)'
         ),
         value: planStats.totalCount.toString(),
-        prefix: <FileTextOutlined />,
+        prefix: <FileTextIcon size={16} />,
         color: 'var(--nw-primary)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(

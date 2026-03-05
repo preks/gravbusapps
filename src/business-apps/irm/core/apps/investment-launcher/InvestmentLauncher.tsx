@@ -15,9 +15,7 @@ import { InvestmentArea, InvestmentQuickAction } from './types'
 import { useInvestmentDashboardStats } from './hooks/useInvestmentDashboardStats'
 import { startProcess } from '@/common/utils/start-process'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import * as RemixIcons from '@remixicon/react'
-// Import PhosphorIcons for LauncherLayout
-import { TrendUpIcon } from '@phosphor-icons/react'
+import { TrendUpIcon, WarningIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 type InvestmentLauncherProps = BusinessAppContextProps
 
@@ -428,13 +426,13 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = context => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-decorative-1">
         <div className="max-w-md mx-auto p-6">
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
-            <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
+            <WarningIcon size={16} className="h-4 w-4" />
             <AlertTitle>Error Loading Stats</AlertTitle>
             <AlertDescription>
               {error}
               <div className="mt-2">
                 <Button size="sm" variant="outline" onClick={refetch}>
-                  <RemixIcons.RiRefreshLine className="h-4 w-4 mr-1" />
+                  <ArrowsClockwiseIcon size={16} className="h-4 w-4 mr-1" />
                   Retry
                 </Button>
               </div>
