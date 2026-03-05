@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react'
+import React, { ReactNode, useEffect, useRef } from 'react'
 import { SectionKpiCards, KpiCardData, Button, Icon } from '@newwork/nw-design-system'
 import { WarningIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -87,7 +87,7 @@ export interface WidgetGroupProps {
   onRetry?: () => void
 
   /**
-   * Optional click handler for legacy callers; no-op in current implementation to keep tree static
+   * Function to call when a widget card is clicked (makes cards clickable when provided)
    */
   onWidgetClick?: (widgetKey: string) => void
 
@@ -272,6 +272,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   isLoading = false,
   error = null,
   onRetry,
+  onWidgetClick,
   cardsClassName,
   className = 'gba:py-2',
   skeletonCount = 4,
@@ -279,6 +280,34 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   useWidgetStructureForLoading = false,
   'data-testid': dataTestId = 'widget-group'
 }) => {
+  const cardsRef = useRef<HTMLDivElement>(null)
+
+  // When onWidgetClick is used, apply data-widget-key and clickable class to card DOM (design system does not expose these)
+  useEffect(() => {
+    if (!onWidgetClick || !cardsRef.current) return
+    const applyCursorStyling = () => {
+      if (!cardsRef.current) return
+      const cards = cardsRef.current.querySelectorAll('div[class*="card"], div[class*="Card"]')
+      widgets.forEach((widget, widgetIndex) => {
+        const cardsPerWidget = Math.ceil(cards.length / Math.max(widgets.length, 1))
+        const startIndex = widgetIndex * cardsPerWidget
+        const endIndex = Math.min(startIndex + cardsPerWidget, cards.length)
+        const widgetCards = Array.from(cards).slice(startIndex, endIndex)
+        widgetCards.forEach(card => {
+          card.setAttribute('data-widget-key', widget.key)
+          if (widget.onClick) {
+            card.classList.add('clickable')
+          } else {
+            card.classList.remove('clickable')
+          }
+        })
+      })
+    }
+    applyCursorStyling()
+    const timeoutId = setTimeout(applyCursorStyling, 100)
+    return () => clearTimeout(timeoutId)
+  }, [onWidgetClick, widgets])
+
   // Transform widgets to KPI cards (declare before content usage)
   const kpiCards: KpiCardData[] = widgets.map(widget => transformWidgetToKpiCard(widget))
   // Build cards for each state but keep a single return to avoid tree shape churn
@@ -348,12 +377,38 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
         )}
       </div>
     )
+  } else if (onWidgetClick) {
+    content = (
+      <div
+        className="gba:relative"
+        style={{ cursor: 'default' }}
+        onClick={e => {
+          const target = e.target as HTMLElement
+          const cardElement = target.closest('[data-widget-key]')
+          if (cardElement) {
+            const widgetKey = cardElement.getAttribute('data-widget-key')
+            if (widgetKey) {
+              const widgetIndex = widgets.findIndex(w => w.key === widgetKey)
+              if (widgetIndex >= 0 && widgetIndex < widgets.length) {
+                onWidgetClick(widgetKey)
+                if (widgets[widgetIndex]?.onClick) {
+                  widgets[widgetIndex].onClick!()
+                }
+              }
+            }
+          }
+        }}
+        data-testid={`${dataTestId}-clickable-container`}
+      >
+        <div ref={cardsRef} className="widget-group-cards">
+          <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
+        </div>
+      </div>
+    )
   } else {
     content = <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
   }
-  // No DOM post-mutations; keep the tree static/stable
 
-  // Stable wrapper with a single return path
   return (
     <div className={className} data-testid={dataTestId}>
       {content}
