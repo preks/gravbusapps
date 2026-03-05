@@ -70,10 +70,13 @@ export const CreateAgentChat = ({
   const employeeId = actualBuilder?.employeeId || actualBuilder?.employeeDetails?.employeeId || undefined
   const { pictureThumbnail, isLoading: pictureLoading } = useCurrentUserPicture(employeeId, accessToken ?? '')
 
-  const authorIds = useMemo(
-    () => [...new Set(messages.filter(m => m.role === 'user' && m.createdBy).map(m => m.createdBy!))],
-    [messages]
-  )
+  const authorIds = useMemo(() => {
+    const fromCreatedBy = messages.filter(m => m.role === 'user' && m.createdBy).map(m => m.createdBy!)
+    const fromEditHistory = messages
+      .filter(m => m.role === 'user' && !m.createdBy && (m.editHistory?.length ?? 0) > 0)
+      .flatMap(m => (m.editHistory ?? []).map(e => e.userId).filter(Boolean))
+    return [...new Set([...fromCreatedBy, ...fromEditHistory])]
+  }, [messages])
   const currentUserInAuthors = !!userInfo?.id && authorIds.includes(userInfo.id)
   const currentUserEmployeeId = currentUserInAuthors ? userInfo?.employeeDetails?.employeeId : undefined
   const { pictureThumbnail: currentUserPictureThumbnail } = useCurrentUserPicture(
@@ -102,35 +105,43 @@ export const CreateAgentChat = ({
 
   const { getAuthor } = useMessageAuthors({ accessToken: accessToken ?? '', userIds: authorIds })
 
+  /**
+   * Deterministic author resolver. Precedence:
+   * 1. message.createdBy -> resolved author
+   * 2. editHistory[last].userId -> legacy hint
+   * 3. Legacy fallback: if isLegacySession show logged-in user; else "Unknown collaborator"
+   */
   const getAuthorDisplayForMessage = useCallback(
     (message: CreateChatMessage): { name: string; avatar?: string; initials: string } | undefined => {
       if (message.role !== 'user') return undefined
-      const createdBy = message.createdBy
+
+      const createdBy = message.createdBy ?? message.editHistory?.slice(-1)[0]?.userId
 
       if (createdBy === userInfo?.id) {
-        const display = getCurrentUserDisplay(
+        return getCurrentUserDisplay(
           userInfo,
           builtBy,
           builtBy?.pictureThumbnail ?? pictureThumbnail,
           currentUserPictureThumbnail ?? undefined
         )
-        return display
       }
 
       if (createdBy) {
         const author = getAuthor(createdBy)
         if (author) return author
-        return { name: 'Loading...', initials: '?', avatar: undefined }
+        return { name: 'Unknown', initials: '?', avatar: undefined }
       }
 
-      // Legacy user message (no createdBy): show incognito icon for legacy sessions; otherwise "You"
-      if (isLegacySession) return undefined
-      return getCurrentUserDisplay(
-        userInfo,
-        builtBy,
-        builtBy?.pictureThumbnail ?? pictureThumbnail,
-        currentUserPictureThumbnail ?? undefined
-      )
+      // Legacy user message (no createdBy, no editHistory hint)
+      if (isLegacySession) {
+        return getCurrentUserDisplay(
+          userInfo,
+          builtBy,
+          builtBy?.pictureThumbnail ?? pictureThumbnail,
+          currentUserPictureThumbnail ?? undefined
+        )
+      }
+      return { name: 'Unknown collaborator', initials: '?', avatar: undefined }
     },
     [userInfo, getAuthor, builtBy, pictureThumbnail, currentUserPictureThumbnail, isLegacySession]
   )

@@ -52,6 +52,7 @@ function extractSessionContextFromPlan(plan: BuildPlan): { sessionId: string; re
 function toPersistedChatMessages(messages: CreateChatMessage[]): BuilderChatMessage[] {
   return messages.map(message => {
     const m = message as CreateChatMessage & Partial<BuilderChatMessage>
+    const isSystem = message.role === 'system' || message.messageType === 'system'
     return {
       role: message.role === 'user' ? 'user' : 'assistant',
       content: message.content,
@@ -59,7 +60,7 @@ function toPersistedChatMessages(messages: CreateChatMessage[]): BuilderChatMess
       thinkingLog: m.thinkingLog,
       thinkingCollapsed: m.thinkingCollapsed,
       blocks: m.blocks,
-      createdBy: message.role === 'system' ? ORCHESTRATOR_SYSTEM_AUTHOR : m.createdBy,
+      createdBy: isSystem ? ORCHESTRATOR_SYSTEM_AUTHOR : m.createdBy,
       editHistory: m.editHistory,
       messageId: message.id,
       createdAt: message.createdAt,
@@ -342,14 +343,14 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       }
 
       if (!loadedHistory && plan.originalPrompt) {
-        chat.addUserMessage(plan.originalPrompt, 'prompt')
+        chat.addUserMessage(plan.originalPrompt, 'prompt', { createdBy: userInfo?.id })
       }
 
       lastChatStateRef.current = loadedHistory ? `${resolvedViewState}:${plan.jobId}` : null
       state.setChatActive(true)
       state.setViewState(resolvedViewState)
     },
-    [chat, state, builderClient, setSessionFromBuild, resolveViewStateFromCheckpoint]
+    [chat, state, builderClient, setSessionFromBuild, resolveViewStateFromCheckpoint, userInfo?.id]
   )
 
   // Keep ?jobId= in sync with the active plan so page refresh restores the session
@@ -405,11 +406,11 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   const handleIdleSubmit = useCallback(
     async (prompt: string) => {
       state.setChatActive(true)
-      chat.addUserMessage(prompt, 'prompt')
+      chat.addUserMessage(prompt, 'prompt', { createdBy: userInfo?.id })
       chat.addAssistantMessage('Analyzing your request and planning the solution...', 'system')
       await handlers.handleAnalyze(prompt)
     },
-    [handlers, state, chat]
+    [handlers, state, chat, userInfo?.id]
   )
 
   // Post contextual chat messages on state transitions (deduplicated via ref)

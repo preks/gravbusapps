@@ -94,6 +94,14 @@ export interface ChatMessageBlock {
   order?: number
 }
 
+/**
+ * Chat message contract aligned with backend ChatHistoryMessageDto.
+ * Required persisted metadata for author identity and round-trip:
+ * - createdBy: user id for user messages; 'orchestrator-system' for system messages
+ * - messageId, createdAt/serverCreatedAt for restore/version flows
+ * - editHistory for collaboration attribution
+ * Adapters MUST preserve these fields when persisting; do not strip on save.
+ */
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
@@ -101,7 +109,9 @@ export interface ChatMessage {
   thinkingLog?: string
   thinkingCollapsed?: boolean
   blocks?: ChatMessageBlock[]
+  /** Author user id (user messages) or 'orchestrator-system' (system messages). Required for identity round-trip. */
   createdBy?: string
+  /** Edit history for collaboration attribution. Preserve on save. */
   editHistory?: Array<{
     userId: string
     editedAt: string
@@ -457,6 +467,14 @@ export class BuilderClient {
         thinkingLog: this.truncateText(message.thinkingLog, maxThinkingChars),
         thinkingCollapsed: typeof message.thinkingCollapsed === 'boolean' ? message.thinkingCollapsed : undefined,
         blocks: compactBlocks,
+        createdBy: typeof message.createdBy === 'string' ? message.createdBy : undefined,
+        editHistory: Array.isArray(message.editHistory)
+          ? message.editHistory
+              .map((entry: { userId?: string; editedAt?: string }) =>
+                entry?.userId && entry?.editedAt ? { userId: entry.userId, editedAt: entry.editedAt } : null
+              )
+              .filter((e): e is { userId: string; editedAt: string } => e !== null)
+          : undefined,
         messageId: message.messageId,
         createdAt: message.createdAt,
         serverCreatedAt: message.serverCreatedAt
@@ -987,7 +1005,9 @@ export class BuilderClient {
     }
     if (typeof params?.limit === 'number') query.set('limit', String(params.limit))
 
-    const url = query.toString() ? `${this.baseUrl}/metrics/sessions?${query.toString()}` : `${this.baseUrl}/metrics/sessions`
+    const url = query.toString()
+      ? `${this.baseUrl}/metrics/sessions?${query.toString()}`
+      : `${this.baseUrl}/metrics/sessions`
     const response = await fetch(url, {
       method: 'GET',
       headers: this.getHeaders(true)

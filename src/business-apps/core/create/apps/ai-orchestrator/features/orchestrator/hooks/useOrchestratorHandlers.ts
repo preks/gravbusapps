@@ -43,6 +43,7 @@ function buildCreatedByFromUserInfo(userInfo: any):
       lastName?: string
       displayName?: string
       email?: string
+      pictureThumbnail?: string
       consentToStorePii: boolean
     } {
   if (!userInfo) return undefined
@@ -56,6 +57,7 @@ function buildCreatedByFromUserInfo(userInfo: any):
       userInfo.userName ||
       userInfo.employeeDetails?.displayName,
     email: userInfo.email || userInfo.employeeDetails?.email,
+    pictureThumbnail: userInfo.pictureThumbnail || userInfo.employeeDetails?.pictureThumbnail,
     consentToStorePii: true
   }
 }
