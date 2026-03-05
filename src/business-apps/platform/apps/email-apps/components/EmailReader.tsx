@@ -4,7 +4,7 @@
  * Supports optional thread/conversation view.
  */
 
-import React, { useRef, useEffect, useCallback, useState } from 'react'
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
@@ -12,6 +12,9 @@ import {
   Button,
   Badge,
   Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -33,7 +36,8 @@ import {
   Loader2,
   MessageSquare,
   Plus,
-  X
+  X,
+  Check
 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailThreadView } from './EmailThreadView'
@@ -41,9 +45,14 @@ import { EmailCrmBooking } from './EmailCrmBooking'
 import { useLabelSuggestions } from '../hooks/useLabelSuggestions'
 import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { getInitials, formatFullDate, formatFileSize } from '../utils/emailDisplayUtils'
-import { normalizeLabels } from '../utils/labelUtils'
+import {
+  normalizeLabelName,
+  normalizeLabelObjects,
+  LABEL_COLOR_PALETTE,
+  getLabelChipClassName
+} from '../utils/labelUtils'
 import { runOptimisticLabelMutation } from '../utils/runOptimisticLabelMutation'
-import type { EmailMessage, EmailAccount, ComposeMode } from '../types'
+import type { EmailMessage, EmailAccount, ComposeMode, AddLabelInput, EmailLabel } from '../types'
 
 interface EmailReaderProps {
   message: EmailMessage | null
@@ -52,7 +61,7 @@ interface EmailReaderProps {
   onToggleStar: (id: string) => void
   onArchive: (id: string) => void
   onRefreshMessages?: () => void
-  onMessageLabelsUpdated?: (messageId: string, labels?: string[]) => Promise<void> | void
+  onMessageLabelsUpdated?: (messageId: string, labels?: EmailLabel[]) => Promise<void> | void
   accessToken?: string
   activeAccount?: EmailAccount | null
   employeeId?: string
@@ -83,13 +92,14 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const [threadMessages, setThreadMessages] = useState<EmailMessage[]>([])
   const [isLoadingThread, setIsLoadingThread] = useState(false)
   const [labelsInput, setLabelsInput] = useState('')
-  const [localLabels, setLocalLabels] = useState<string[]>([])
+  const [selectedLabelColor, setSelectedLabelColor] = useState<string | null>(null)
+  const [editingLabelOriginalName, setEditingLabelOriginalName] = useState<string | null>(null)
+  const [localLabels, setLocalLabels] = useState<EmailLabel[]>([])
   const [isAddLabelMenuOpen, setIsAddLabelMenuOpen] = useState(false)
   const [isMutatingLabels, setIsMutatingLabels] = useState(false)
   const [suggestionRefreshTick, setSuggestionRefreshTick] = useState(0)
+  const [activeLabelSuggestionIndex, setActiveLabelSuggestionIndex] = useState(-1)
   const lastThreadIdRef = useRef<string | null>(null)
-  const addLabelMenuRef = useRef<HTMLDivElement>(null)
-  const addLabelToggleRef = useRef<HTMLButtonElement>(null)
 
   const senderAvatar = useSenderAvatar(message?.fromAddress?.address, accessToken)
 
@@ -135,52 +145,40 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   }, [message?.htmlBody])
 
   useEffect(() => {
-    setLocalLabels(normalizeLabels(message?.labels || []))
+    setLocalLabels(normalizeLabelObjects(message?.labels || []))
     setLabelsInput('')
+    setSelectedLabelColor(null)
+    setEditingLabelOriginalName(null)
     setIsAddLabelMenuOpen(false)
+    setActiveLabelSuggestionIndex(-1)
   }, [message?.id, message?.labels])
 
   useEffect(() => {
-    if (!isAddLabelMenuOpen) return
+    setActiveLabelSuggestionIndex(-1)
+  }, [labelsInput, isAddLabelMenuOpen])
 
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node
-      if (addLabelMenuRef.current?.contains(target) || addLabelToggleRef.current?.contains(target)) {
-        return
-      }
-      setIsAddLabelMenuOpen(false)
-    }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsAddLabelMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleEscape)
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [isAddLabelMenuOpen])
+  const existingLabelNames = useMemo(() => localLabels.map(label => label.name), [localLabels])
 
   const { suggestions: labelSuggestions, isLoading: isLoadingSuggestions } = useLabelSuggestions({
     query: labelsInput,
-    existingLabels: localLabels,
+    existingLabels: existingLabelNames,
     refreshKey: suggestionRefreshTick
   })
 
   const showThread =
     threadEnabled && threadMessages.length > 1 && !!message?.threadId && lastThreadIdRef.current === message.threadId
 
-  const addLabelsToMessage = useCallback(
-    async (rawLabels: string[]) => {
+  const submitLabelDraft = useCallback(
+    async (rawName: string) => {
       if (!message || isMutatingLabels) return
 
-      const toAdd = normalizeLabels(rawLabels)
-      if (toAdd.length === 0) return
+      const previousName = editingLabelOriginalName ? normalizeLabelName(editingLabelOriginalName) : null
+      // Existing labels are color-edit only for now; name changes are disabled.
+      const nextName = previousName ?? normalizeLabelName(rawName)
+      if (!nextName) return
+      const color =
+        typeof selectedLabelColor === 'string' && selectedLabelColor.trim() ? selectedLabelColor.trim() : undefined
+      const payload: AddLabelInput = color ? { name: nextName, color } : { name: nextName }
 
       const previous = localLabels
       setLabelsInput('')
@@ -188,13 +186,32 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
         previousLabels: previous,
         setLocalLabels,
         setIsMutating: setIsMutatingLabels,
-        getOptimisticLabels: labels => [...labels, ...toAdd],
+        getOptimisticLabels: labels => {
+          const merged = previousName ? labels.filter(existing => existing.name !== previousName) : [...labels]
+          const existingIdx = merged.findIndex(existing => existing.name === nextName)
+          const nextLabel: EmailLabel = {
+            id: existingIdx >= 0 ? merged[existingIdx].id : '',
+            name: nextName,
+            color: payload.color || null
+          }
+          if (existingIdx >= 0) {
+            merged[existingIdx] = nextLabel
+          } else {
+            merged.push(nextLabel)
+          }
+          return normalizeLabelObjects(merged)
+        },
         mutate: async () => {
-          const result = await EmailApiService.addMessageLabels(message.id, toAdd)
-          return result.labels || []
+          if (previousName && previousName !== nextName) {
+            await EmailApiService.removeMessageLabels(message.id, [previousName])
+          }
+          const result = await EmailApiService.addMessageLabels(message.id, [payload])
+          return normalizeLabelObjects(result.labels || [])
         },
         onSuccess: async updatedLabels => {
           setIsAddLabelMenuOpen(false)
+          setSelectedLabelColor(null)
+          setEditingLabelOriginalName(null)
           toast.success(t('reader-labels-add-success'))
           await onMessageLabelsUpdated?.(message.id, updatedLabels)
           setSuggestionRefreshTick(prevTick => prevTick + 1)
@@ -205,35 +222,51 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
         }
       })
     },
-    [message, localLabels, isMutatingLabels, t, onMessageLabelsUpdated, onRefreshMessages]
+    [
+      message,
+      localLabels,
+      isMutatingLabels,
+      editingLabelOriginalName,
+      selectedLabelColor,
+      t,
+      onMessageLabelsUpdated,
+      onRefreshMessages
+    ]
   )
 
   const handleAddLabel = useCallback(async () => {
-    await addLabelsToMessage([labelsInput])
-  }, [addLabelsToMessage, labelsInput])
+    await submitLabelDraft(labelsInput)
+  }, [submitLabelDraft, labelsInput])
 
   const handleAddSuggestion = useCallback(
     async (suggestionName: string) => {
-      await addLabelsToMessage([suggestionName])
+      await submitLabelDraft(suggestionName)
     },
-    [addLabelsToMessage]
+    [submitLabelDraft]
   )
+
+  const handleStartEditLabel = useCallback((label: EmailLabel) => {
+    setEditingLabelOriginalName(label.name)
+    setLabelsInput(label.name)
+    setSelectedLabelColor(label.color)
+    setIsAddLabelMenuOpen(true)
+  }, [])
 
   const handleRemoveLabel = useCallback(
     async (label: string) => {
       if (!message || isMutatingLabels) return
 
-      const normalized = normalizeLabels([label])
-      if (normalized.length === 0) return
+      const normalized = normalizeLabelName(label)
+      if (!normalized) return
 
       await runOptimisticLabelMutation({
         previousLabels: localLabels,
         setLocalLabels,
         setIsMutating: setIsMutatingLabels,
-        getOptimisticLabels: labels => labels.filter(existing => existing !== normalized[0]),
+        getOptimisticLabels: labels => labels.filter(existing => existing.name !== normalized),
         mutate: async () => {
-          const result = await EmailApiService.removeMessageLabels(message.id, normalized)
-          return result.labels || []
+          const result = await EmailApiService.removeMessageLabels(message.id, [normalized])
+          return normalizeLabelObjects(result.labels || [])
         },
         onSuccess: async updatedLabels => {
           toast.success(t('reader-labels-remove-success'))
@@ -288,7 +321,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const from = message.fromAddress
   const toNames = message.toAddresses.map(a => a.name || a.address).join(', ')
   const hasAnyAttachments = (message.attachments?.length ?? 0) > 0 || message.hasAttachments
-  const shouldShowLabelSuggestions = labelsInput.trim().length > 0
+  const shouldShowLabelSuggestions = !editingLabelOriginalName && normalizeLabelName(labelsInput).length > 0
 
   let labelSuggestionsContent: React.ReactNode = null
   if (isLoadingSuggestions) {
@@ -302,12 +335,15 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   } else {
     labelSuggestionsContent = (
       <>
-        {labelSuggestions.map(suggestion => (
+        {labelSuggestions.map((suggestion, index) => (
           <button
             key={`${message.id}-label-suggestion-${suggestion.id}`}
             type="button"
-            className="gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded hover:gba:bg-muted/50 gba:text-sm"
+            className={`gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded gba:text-sm ${
+              activeLabelSuggestionIndex === index ? 'gba:bg-muted/60' : 'hover:gba:bg-muted/50'
+            }`}
             onClick={() => void handleAddSuggestion(suggestion.name)}
+            onMouseEnter={() => setActiveLabelSuggestionIndex(index)}
             data-testid={`${testId}-label-suggestion-${suggestion.id}`}
           >
             {suggestion.name}
@@ -428,60 +464,96 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
               <span className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-empty')}</span>
             )}
             {localLabels.map(label => (
-              <span key={`${message.id}-label-${label}`} className="gba:inline-flex gba:items-center gba:gap-1">
-                <Badge variant="secondary" className="gba:h-5 gba:text-[10px]">
-                  {label}
-                </Badge>
+              <span
+                key={`${message.id}-label-${label.id || label.name}`}
+                className="gba:inline-flex gba:items-center gba:gap-1"
+              >
+                <button
+                  type="button"
+                  className="gba:inline-flex"
+                  onClick={() => handleStartEditLabel(label)}
+                  disabled={isMutatingLabels}
+                  data-testid={`${testId}-edit-label-${label.name}`}
+                >
+                  <Badge
+                    variant="secondary"
+                    className={`gba:h-5 gba:text-[10px] ${getLabelChipClassName(label.color)}`}
+                  >
+                    {label.name}
+                  </Badge>
+                </button>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="gba:h-5 gba:w-5"
-                  onClick={() => handleRemoveLabel(label)}
+                  onClick={() => handleRemoveLabel(label.name)}
                   disabled={isMutatingLabels}
-                  data-testid={`${testId}-remove-label-${label}`}
+                  data-testid={`${testId}-remove-label-${label.name}`}
                 >
                   <X className="gba:w-3 gba:h-3" />
                 </Button>
               </span>
             ))}
-            <div className="gba:relative gba:inline-flex gba:items-center">
-              <Button
-                ref={addLabelToggleRef}
-                variant="outline"
-                size="icon"
-                className="gba:h-5 gba:w-5"
-                onClick={() => {
-                  setIsAddLabelMenuOpen(prev => {
-                    const next = !prev
-                    if (!next) {
-                      setLabelsInput('')
-                    }
-                    return next
-                  })
+            <div className="gba:inline-flex gba:items-center">
+              <Popover
+                open={isAddLabelMenuOpen}
+                onOpenChange={open => {
+                  setIsAddLabelMenuOpen(open)
+                  if (!open) {
+                    setLabelsInput('')
+                    setSelectedLabelColor(null)
+                    setEditingLabelOriginalName(null)
+                  }
                 }}
-                disabled={isMutatingLabels}
-                data-testid={`${testId}-labels-menu-toggle`}
               >
-                <Plus className="gba:w-3 gba:h-3" />
-              </Button>
-              {isAddLabelMenuOpen && (
-                <div
-                  ref={addLabelMenuRef}
-                  className="gba:absolute gba:top-full gba:right-0 gba:mt-2 gba:z-20 gba:w-60 gba:border gba:rounded-md gba:bg-popover gba:p-2 gba:space-y-2"
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="gba:h-5 gba:w-5"
+                    disabled={isMutatingLabels}
+                    data-testid={`${testId}-labels-menu-toggle`}
+                  >
+                    <Plus className="gba:w-3 gba:h-3" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={8}
+                  onOpenAutoFocus={event => {
+                    if (editingLabelOriginalName) event.preventDefault()
+                  }}
+                  className="gba:z-50 gba:w-40 gba:border gba:rounded-md gba:bg-popover gba:p-1.5 gba:space-y-1.5"
                   data-testid={`${testId}-labels-menu`}
                 >
-                  <div className="gba:flex gba:items-center gba:gap-2">
+                  <div className="gba:flex gba:w-full gba:items-center gba:gap-1">
                     <Input
                       value={labelsInput}
                       onChange={e => setLabelsInput(e.target.value)}
+                      readOnly={!!editingLabelOriginalName}
                       onKeyDown={event => {
+                        if (event.key === 'ArrowDown' && shouldShowLabelSuggestions && labelSuggestions.length > 0) {
+                          event.preventDefault()
+                          setActiveLabelSuggestionIndex(prev => Math.min(prev + 1, labelSuggestions.length - 1))
+                          return
+                        }
+                        if (event.key === 'ArrowUp' && shouldShowLabelSuggestions && labelSuggestions.length > 0) {
+                          event.preventDefault()
+                          setActiveLabelSuggestionIndex(prev => Math.max(prev - 1, -1))
+                          return
+                        }
                         if (event.key === 'Enter') {
                           event.preventDefault()
+                          if (activeLabelSuggestionIndex >= 0 && labelSuggestions[activeLabelSuggestionIndex]) {
+                            void handleAddSuggestion(labelSuggestions[activeLabelSuggestionIndex].name)
+                            return
+                          }
                           void handleAddLabel()
                         }
                       }}
                       placeholder={t('reader-labels-input-placeholder')}
-                      className="gba:h-8"
+                      className="gba:h-6 gba:min-w-0 gba:flex-1 gba:text-xs"
                       data-testid={`${testId}-labels-input`}
                     />
                     <Button
@@ -489,16 +561,41 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                       variant="outline"
                       onClick={handleAddLabel}
                       disabled={isMutatingLabels}
+                      className="gba:h-6 gba:w-6 gba:px-0"
                       data-testid={`${testId}-labels-add`}
                     >
-                      {t('reader-labels-add')}
+                      {editingLabelOriginalName ? (
+                        <Check className="gba:w-3.5 gba:h-3.5" />
+                      ) : (
+                        <Plus className="gba:w-3.5 gba:h-3.5" />
+                      )}
                     </Button>
                   </div>
                   {shouldShowLabelSuggestions && (
-                    <div className="gba:border gba:rounded-md gba:p-2 gba:space-y-1">{labelSuggestionsContent}</div>
+                    <div className="gba:border gba:rounded-md gba:p-1.5 gba:space-y-1">{labelSuggestionsContent}</div>
                   )}
-                </div>
-              )}
+                  <div className="gba:space-y-0.5">
+                    <p className="gba:m-0 gba:text-xs gba:leading-none gba:text-muted-foreground">
+                      {t('reader-labels-color-title')}
+                    </p>
+                    <div className="gba:grid gba:w-fit gba:grid-cols-4 gba:gap-x-5 gba:gap-y-1">
+                      {LABEL_COLOR_PALETTE.map(option => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={`gba:h-5 gba:w-5 gba:rounded-sm gba:border ${option.swatchClassName} ${
+                            selectedLabelColor === option.hex
+                              ? 'gba:ring-2 gba:ring-primary-ring gba:ring-offset-1'
+                              : ''
+                          }`}
+                          onClick={() => setSelectedLabelColor(prev => (prev === option.hex ? null : option.hex))}
+                          data-testid={`${testId}-label-color-${option.id}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>

@@ -22,7 +22,7 @@ import {
   EmailEmptyState,
   MicrosoftOAuthCallback
 } from './components'
-import type { EmailMessage, ComposeMode } from './types'
+import type { EmailMessage, ComposeMode, EmailLabel } from './types'
 import translations from './_i18n'
 
 // Capture OAuth params at module load time (before platform can strip them)
@@ -294,7 +294,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   )
 
   const handleMessageLabelsUpdatedFromList = useCallback(
-    (messageId: string, labels?: string[]) => {
+    (messageId: string, labels?: EmailLabel[]) => {
       if (labels) {
         updateMessageLabels(messageId, labels)
         return
