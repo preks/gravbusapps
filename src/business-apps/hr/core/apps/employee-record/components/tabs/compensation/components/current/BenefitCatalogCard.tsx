@@ -8,6 +8,7 @@ import { parseBenefitObjectValue } from '../../utils/benefitDetailsUtils'
 import AvailableBenefitLayout from './AvailableBenefitLayout'
 import ActiveBenefitLayout from './ActiveBenefitLayout'
 import ScheduledBenefitLayout from './ScheduledBenefitLayout'
+import NotApprovedBenefitLayout from './NotApprovedBenefitLayout'
 
 interface BenefitCatalogCardProps extends BusinessAppContextProps {
   /**
@@ -111,7 +112,11 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
       return `${baseClasses} gba:bg-decorative-secondary`
     }
 
-    return `${baseClasses} gba:border-border gba:hover:border-accent`
+    if (benefit.isCancelled) {
+      return `${baseClasses} gba:border-border gba:bg-background`
+    }
+
+    return `${baseClasses} gba:border-border gba:bg-background gba:hover:border-accent`
   }
 
   const valueDisplay = benefit.isActive || benefit.isScheduled ? getBenefitValueDisplay() : null
@@ -127,8 +132,20 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
 
   return (
     <Card className={cardClassName} data-testid={`benefit-catalog-card-${benefit.code}`}>
+      {/* Not approved benefits (CANCELLED_COMPENSATION) */}
+      {benefit.isCancelled && (
+        <NotApprovedBenefitLayout
+          t={t}
+          benefit={benefit}
+          employeeId={employeeId}
+          locale={locale}
+          onViewDetails={handleViewDetails}
+          accessToken={accessToken}
+        />
+      )}
+
       {/* Available Benefits Layout */}
-      {!benefit.isActive && !benefit.isScheduled && (
+      {!benefit.isActive && !benefit.isScheduled && !benefit.isCancelled && (
         <AvailableBenefitLayout
           t={t}
           benefit={benefit}

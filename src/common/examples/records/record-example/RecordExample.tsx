@@ -23,6 +23,8 @@ import ConditionSection from '@/common/components/common-relations/record-sectio
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { FileTextIcon, UsersIcon, BuildingIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 const mockAccountData = {
   name: 'Acme Corporation',
@@ -434,6 +436,9 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
   const [activeTab, setActiveTab] = useState('overview')
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [documentsError, setDocumentsError] = useState<string | null>(null)
+
+  // REST client for document operations (Example uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   const entityIds = useMemo(() => mockEntityIds, [])
 
@@ -1076,6 +1081,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                   isLoading={documentsLoading}
                   error={documentsError}
                   onRefresh={handleRefreshDocuments}
+                  restClient={restClient}
                   createFolderActionProps={{
                     contextsArray: [FlowContextName.customerAccountEntity],
                     externalContextData: {

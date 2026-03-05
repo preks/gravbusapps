@@ -5,7 +5,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { ExpenseAllowance } from '../types/expensePlanRecord.types'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../utils/currency'
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { CheckIcon, XIcon } from '@phosphor-icons/react'
 
 interface ExpensePlanAllowancesProps {
   expenseAllowances: ExpenseAllowance[]
@@ -21,7 +21,7 @@ const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAl
 
   // Boolean indicator component
   const BooleanIndicator = ({ value }: { value: boolean }) =>
-    value ? <CheckOutlined className="gba:text-green-500" /> : <CloseOutlined className="gba:text-red-500" />
+    value ? <CheckIcon size={16} className="gba:text-green-500" /> : <XIcon size={16} className="gba:text-red-500" />
 
   const columns: ColumnsType<ExpenseAllowance> = [
     {

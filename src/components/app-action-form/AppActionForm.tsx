@@ -48,6 +48,15 @@ export interface AppActionFormProps {
   // Optional completion callback and success navigation
   onProcessCompletion?: (detail: { resolution?: 'success' | 'failure' } | null) => void
   /**
+   * Optional payload for the cancel event. When provided, form validation is run before cancel;
+   * cancel is only dispatched if validation passes. Use for flows where comments are required for both approve and reject.
+   */
+  getCancelPayload?: () => Record<string, unknown>
+  /**
+   * Optional callback run before cancel validation (e.g. to set form values so validation can require comments only on reject).
+   */
+  onBeforeCancel?: () => void | Promise<void>
+  /**
    * @deprecated This prop is obsolete and will be removed in a future version. It is not used by AppActionForm.
    */
   businessAppContext?: BusinessAppContextProps
@@ -211,7 +220,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   allowStepJumping = true,
   handlePreSubmit,
   isSubmitDisabled = false,
-  onProcessCompletion
+  onProcessCompletion,
+  getCancelPayload,
+  onBeforeCancel
 }) => {
   const { t } = useTranslation(translations)
   const [loading, setLoading] = useState(false)
@@ -317,13 +328,22 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit]
   )
 
-  const handleCancel = useCallback(() => {
-    dispatchProcessContinueEvent(cancelEventType, {})
+  const handleCancel = useCallback(async () => {
+    let payload: Record<string, unknown> = {}
+    if (getCancelPayload && externalForm) {
+      await onBeforeCancel?.()
+      const valid = await externalForm.trigger()
+      if (!valid) {
+        return
+      }
+      payload = getCancelPayload() ?? {}
+    }
+    dispatchProcessContinueEvent(cancelEventType, payload)
     setMessage(null)
     if (onCancel) {
       onCancel()
     }
-  }, [cancelEventType, onCancel])
+  }, [cancelEventType, onCancel, getCancelPayload, onBeforeCancel, externalForm])
 
   // IMPORTANT: Hooks must not be called conditionally. Always create an internal form instance
   // and choose layout behavior via props. This prevents crashes when disableFormSubmission flips

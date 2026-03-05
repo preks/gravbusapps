@@ -13,7 +13,7 @@ import {
   CardTitle,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash, PiBriefcase } from 'react-icons/pi'
+import { PlusIcon, TrashIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -29,7 +29,7 @@ const JobHistoryItem: React.FC<{
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
-            <PiBriefcase className="gba:w-5 gba:h-5" />
+            <BriefcaseIcon className="gba:w-5 gba:h-5" />
             Position {historyIndex + 1}
           </CardTitle>
           <Button
@@ -41,7 +41,7 @@ const JobHistoryItem: React.FC<{
             data-testid={formatDataTestId('job-candidate-form', `job-history-remove-${historyIndex}`)}
             aria-label="Remove job history"
           >
-            <PiTrash className="gba:w-4 gba:h-4" />
+            <TrashIcon className="gba:w-4 gba:h-4" />
           </Button>
         </div>
       </CardHeader>
@@ -151,7 +151,7 @@ export const JobHistoryArrayField: React.FC = () => {
     <div className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
         <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-          <PiBriefcase className="gba:w-5 gba:h-5" />
+          <BriefcaseIcon className="gba:w-5 gba:h-5" />
           Employment History
         </h3>
       </div>
@@ -178,7 +178,7 @@ export const JobHistoryArrayField: React.FC = () => {
         className="gba:w-full gba:mt-2"
         data-testid={formatDataTestId('job-candidate-form', 'job-history-add')}
       >
-        <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+        <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
         Add Employment
       </Button>
     </div>

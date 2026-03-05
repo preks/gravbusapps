@@ -11,7 +11,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { PiPlus, PiMinus } from 'react-icons/pi'
+import { PlusIcon, MinusIcon } from '@phosphor-icons/react'
 import { LEGAL_FORM, INDUSTRY_CLASS, COUNTRY, COUNTRY_REGION } from '@/common/constants/commonCatalogs'
 import { getAutoFilledClassName } from '../utils/autoFilledClassName'
 import translations from './_i18n'
@@ -260,7 +260,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
               className="gba:text-xs gba:px-2 gba:py-1"
               data-testid="lead-segment-add-address-line"
             >
-              <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
+              <PlusIcon className="gba:w-3 gba:h-3 gba:mr-1" />
               {t('lead-segment-add-address-line')}
             </Button>
           </div>
@@ -300,7 +300,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                   className="gba:flex gba:items-center gba:gap-1"
                   data-testid={`lead-segment-remove-address-line-${lineIndex + 1}`}
                 >
-                  <PiMinus className="gba:w-4 gba:h-4" />
+                  <MinusIcon className="gba:w-4 gba:h-4" />
                 </Button>
               )}
             </div>

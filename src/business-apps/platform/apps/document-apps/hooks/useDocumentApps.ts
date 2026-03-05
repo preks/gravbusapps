@@ -9,8 +9,10 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
 import { DocumentApiService } from '../services/DocumentApiService'
 import type { Document, DocumentSummary, ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
+import translations from '../_i18n'
 
 interface UseDocumentAppsState {
   documents: DocumentSummary[]
@@ -47,6 +49,7 @@ interface UseDocumentAppsResult extends UseDocumentAppsState {
  * Hook for managing documents using the document-service backend
  */
 export function useDocumentApps(accessToken: string, userId?: string): UseDocumentAppsResult {
+  const { t } = useTranslation(translations)
   const [state, setState] = useState<UseDocumentAppsState>({
     documents: [],
     currentDocument: null,
@@ -61,17 +64,30 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
   }, [accessToken])
 
   /**
-   * Load all documents from the backend
+   * Load all documents from the backend (paginated fetch, max 100 per request)
    */
   const refreshDocuments = useCallback(async () => {
     if (!accessToken) {
-      setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
+      setState(prev => ({ ...prev, isLoading: false, error: t('doc-apps-error-not-authenticated') }))
       return
     }
 
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
-      const rawDocuments = await DocumentApiService.listDocuments()
+
+      const PAGE_SIZE = 100
+      let allRawDocuments: Awaited<ReturnType<typeof DocumentApiService.listDocuments>> = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore) {
+        const pageItems = await DocumentApiService.listDocuments({ limit: PAGE_SIZE, page })
+        allRawDocuments = [...allRawDocuments, ...pageItems]
+        hasMore = pageItems.length === PAGE_SIZE
+        page++
+      }
+
+      const rawDocuments = allRawDocuments
 
       // Enhance documents with ownership info (backend may already provide some of this)
       const documents = rawDocuments.map(doc => {
@@ -95,10 +111,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to load documents'
+        error: error instanceof Error ? error.message : t('doc-apps-error-load-documents')
       }))
     }
-  }, [accessToken, userId])
+  }, [accessToken, userId, t])
 
   // Load documents on mount
   useEffect(() => {
@@ -129,11 +145,11 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return document
       } catch (error) {
         console.error('[useDocumentApps] Failed to load document:', error)
-        toast.error('Failed to load document')
+        toast.error(t('doc-apps-error-load-document'))
         return null
       }
     },
-    [accessToken, userId]
+    [accessToken, userId, t]
   )
 
   /**
@@ -146,17 +162,17 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const newDocument = await DocumentApiService.createDocument(document)
         if (newDocument) {
-          toast.success('Document created successfully')
+          toast.success(t('doc-apps-toast-document-created'))
           await refreshDocuments()
         }
         return newDocument
       } catch (error) {
         console.error('[useDocumentApps] Failed to create document:', error)
-        toast.error('Failed to create document')
+        toast.error(t('doc-apps-toast-create-failed'))
         return null
       }
     },
-    [accessToken, refreshDocuments]
+    [accessToken, refreshDocuments, t]
   )
 
   /**
@@ -192,11 +208,11 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return updatedDocument
       } catch (error) {
         console.error('[useDocumentApps] Failed to update document:', error)
-        toast.error('Failed to save document')
+        toast.error(t('doc-apps-toast-save-failed'))
         return null
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   /**
@@ -209,7 +225,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const success = await DocumentApiService.deleteDocument(id)
         if (success) {
-          toast.success('Document deleted')
+          toast.success(t('doc-apps-toast-document-deleted'))
           setState(prev => ({
             ...prev,
             documents: prev.documents.filter(d => d.id !== id),
@@ -219,11 +235,11 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return success
       } catch (error) {
         console.error('[useDocumentApps] Failed to delete document:', error)
-        toast.error('Failed to delete document')
+        toast.error(t('doc-apps-toast-delete-failed'))
         return false
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   /**
@@ -236,17 +252,17 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const duplicate = await DocumentApiService.duplicateDocument(id)
         if (duplicate) {
-          toast.success('Document duplicated')
+          toast.success(t('doc-apps-toast-document-duplicated'))
           await refreshDocuments()
         }
         return duplicate
       } catch (error) {
         console.error('[useDocumentApps] Failed to duplicate document:', error)
-        toast.error('Failed to duplicate document')
+        toast.error(t('doc-apps-toast-duplicate-failed'))
         return null
       }
     },
-    [accessToken, refreshDocuments]
+    [accessToken, refreshDocuments, t]
   )
 
   /**
@@ -260,17 +276,17 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         const shares = userIds.map(userId => ({ userId, permission }))
         const success = await DocumentApiService.shareDocument(id, shares)
         if (success) {
-          toast.success('Document shared successfully')
+          toast.success(t('doc-apps-toast-share-success'))
           await refreshDocuments()
         }
         return success
       } catch (error) {
         console.error('[useDocumentApps] Failed to share document:', error)
-        toast.error('Failed to share document')
+        toast.error(t('doc-apps-toast-share-failed'))
         return false
       }
     },
-    [accessToken, refreshDocuments]
+    [accessToken, refreshDocuments, t]
   )
 
   /**
@@ -283,17 +299,17 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const success = await DocumentApiService.revokeAccess(id, userId)
         if (success) {
-          toast.success('Access revoked')
+          toast.success(t('doc-apps-toast-access-revoked'))
           await refreshDocuments()
         }
         return success
       } catch (error) {
         console.error('[useDocumentApps] Failed to revoke access:', error)
-        toast.error('Failed to revoke access')
+        toast.error(t('doc-apps-toast-revoke-failed'))
         return false
       }
     },
-    [accessToken, refreshDocuments]
+    [accessToken, refreshDocuments, t]
   )
 
   /**
@@ -313,7 +329,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         if (success) {
           // Update document status
           await DocumentApiService.updateDocumentStatus(config.documentId, 'pending_approval')
-          toast.success('Document sent for approval')
+          toast.success(t('doc-apps-toast-sent-approval'))
           await refreshDocuments()
 
           // Get the approval status
@@ -323,11 +339,11 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       } catch (error) {
         console.error('[useDocumentApps] Failed to send for approval:', error)
-        toast.error('Failed to send for approval')
+        toast.error(t('doc-apps-toast-send-approval-failed'))
         return null
       }
     },
-    [accessToken, refreshDocuments]
+    [accessToken, refreshDocuments, t]
   )
 
   /**
@@ -342,17 +358,17 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
 
         if (success) {
           await DocumentApiService.updateDocumentStatus(documentId, 'draft')
-          toast.success('Approval cancelled')
+          toast.success(t('doc-apps-toast-approval-cancelled'))
           await refreshDocuments()
         }
         return success
       } catch (error) {
         console.error('[useDocumentApps] Failed to cancel approval:', error)
-        toast.error('Failed to cancel approval')
+        toast.error(t('doc-apps-toast-cancel-approval-failed'))
         return false
       }
     },
-    [accessToken, refreshDocuments]
+    [accessToken, refreshDocuments, t]
   )
 
   /**

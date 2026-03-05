@@ -97,7 +97,7 @@ export const ContentEntrySelector: React.FC<ContentEntrySelectorProps> = ({
   }, [searchQuery, graphqlClient])
 
   useEffect(() => {
-    const timer = setTimeout(searchContent, 300)
+    const timer = setTimeout(() => { searchContent() }, 300)
     return () => clearTimeout(timer)
   }, [searchContent])
 

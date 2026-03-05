@@ -6,7 +6,6 @@
  */
 
 import { useState, useCallback } from 'react'
-import { rtkDebug } from '../utils/rtkDebug'
 
 export interface UseRealtimeKitScreenShareOptions {
   meeting: any // RealtimeKit meeting object
@@ -59,7 +58,6 @@ export const useRealtimeKitScreenShare = ({
    */
   const toggleScreenShare = useCallback(async (): Promise<boolean> => {
     if (!meeting?.self) {
-      rtkDebug.error('[RTK] Cannot toggle screen share: meeting.self not available')
       return false
     }
 
@@ -72,15 +70,12 @@ export const useRealtimeKitScreenShare = ({
         setIsScreenSharing(false)
         setScreenShareTrack(null)
         onScreenShareStateChange?.(false)
-        rtkDebug.log('[RTK] ✅ Screen share stopped via SDK')
         return false
       } else {
         // Start screen sharing
         // Check browser support
         if (!navigator.mediaDevices?.getDisplayMedia) {
-          const error = new Error('Screen sharing is not supported in this browser')
-          rtkDebug.error('[RTK] Screen share error:', error.message)
-          throw error
+          throw new Error('Screen sharing is not supported in this browser')
         }
 
         await meeting.self.enableScreenShare()
@@ -157,18 +152,6 @@ export const useRealtimeKitScreenShare = ({
           }
         }
 
-        const screenShareEnabled = meeting.self?.screenShareEnabled
-
-        rtkDebug.log('[RTK] ✅ Screen share started via SDK', {
-          screenShareEnabled,
-          screenShareTracksCount: screenShareTracks.length,
-          screenShareTrackIds: screenShareTracks.map((t: MediaStreamTrack) => t.id)
-        })
-
-        if (screenShareTracks.length === 0) {
-          rtkDebug.warn('[RTK] ⚠️ Screen share enabled but no tracks available yet - may need more time')
-        }
-
         // Store the first video track (screen share is typically video only)
         const videoTrack = screenShareTracks.find(t => t.kind === 'video') || null
         setScreenShareTrack(videoTrack)
@@ -177,23 +160,9 @@ export const useRealtimeKitScreenShare = ({
         return true
       }
     } catch (error: any) {
-      rtkDebug.error('[RTK] ❌ Failed to toggle screen share:', error)
-
-      // Reset state on error
       setIsScreenSharing(false)
       setScreenShareTrack(null)
       onScreenShareStateChange?.(false)
-
-      // Provide user-friendly error messages
-      const errorMessage = error?.message || 'Unknown error'
-      if (errorMessage.includes('Permission denied') || errorMessage.includes('NotAllowedError')) {
-        rtkDebug.error('[RTK] Screen share permission denied by user')
-      } else if (errorMessage.includes('NotSupportedError') || errorMessage.includes('not supported')) {
-        rtkDebug.error('[RTK] Screen sharing not supported in this browser')
-      } else if (errorMessage.includes('NotFoundError') || errorMessage.includes('No screen')) {
-        rtkDebug.error('[RTK] No screen or window available for sharing')
-      }
-
       throw error
     }
   }, [meeting, isScreenSharing, onScreenShareStateChange])

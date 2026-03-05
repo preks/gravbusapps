@@ -16,12 +16,11 @@
 # - Use with caution: this will publish every screen found in src/business-apps/
 # - Default: "false"
 #
-# SKIP_RESOURCE_URL_SYNC (production only):
-# - Controls whether resource URL synchronization from dev to prod should be skipped
-# - Default: "true" (full resource URL sync disabled)
-# - Set to "true" to skip resource URL creation/update in prod while still reading from dev
-# - When enabled: reads resource URL from dev for correct screen key generation but skips prod sync
-# - This can speed up deployment when resource URLs already exist in prod or sync is not needed
+# Resource URL sync (production only):
+# - Resource URL sync is a separate manual step after production publish
+# - Publish always creates `published-screens.txt` artifact with successfully promoted screens
+# - Manual sync step consumes EXACTLY `published-screens.txt` and performs exact-match sync only
+# - No fuzzy URL matching is performed during sync
 #
 # SECONDARY TARGET (optional):
 # - To deploy to a second system in addition to staging, set the following vars
@@ -136,8 +135,8 @@ definitions:
         name: Publish Changed Screens
         runs-on:
           - 'self.hosted'
-          - 'do.global.runner.size2'
-        size: 2x
+          - 'do.global.runner.size4'
+        size: 4x
         clone:
           enabled: true
           depth: full
@@ -147,7 +146,7 @@ definitions:
           - docker
         script:
           - export RC_UPLOAD="true"
-          - bash scripts/detect-and-publish-changed-screens.sh
+          - bash scripts/build-hash-detect-and-publish-screens.sh
         artifacts:
           - changed-tsx.txt
 
@@ -192,10 +191,10 @@ definitions:
         services:
           - docker
         script:
-          - export SKIP_RESOURCE_URL_SYNC="true"
           - node scripts/publish-prod-screens.js
         artifacts:
           - changed-tsx.txt
+          - published-screens.txt
 
     - step: &publish-manual-screens
         name: Publish Manual Screens
@@ -214,8 +213,8 @@ definitions:
           - export RC_UPLOAD="true"
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
-              echo "🌍 PUBLISH_ALL_SCREENS=true: Publishing ALL screens to development"
-              echo "⚠️  WARNING: This will publish every screen in the repository!"
+              echo "PUBLISH_ALL_SCREENS=true: Publishing ALL screens to development"
+              echo "WARNING: This will publish every screen in the repository!"
               node scripts/publish-all-screens.js
             elif [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
@@ -245,8 +244,8 @@ definitions:
         script:
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
-              echo "🌍 PUBLISH_ALL_SCREENS=true: Publishing ALL screens to production"
-              echo "⚠️  WARNING: This will publish every screen in the repository!"
+              echo "PUBLISH_ALL_SCREENS=true: Publishing ALL screens to production"
+              echo "WARNING: This will publish every screen in the repository!"
               node scripts/publish-all-prod-screens.js
             elif [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
@@ -260,6 +259,22 @@ definitions:
           - changed-tsx.txt
           - manual-screens.txt
           - all-screens.txt
+          - published-screens.txt
+    - step: &sync-resource-urls
+        name: Sync Resource URLs (manual)
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size2'
+        size: 2x
+        clone:
+          enabled: true
+          depth: full
+        caches:
+          - nodecustom
+        services:
+          - docker
+        script:
+          - node scripts/sync-resource-urls.js
     - step: &sonar_scan
         name: Sonar scan
         runs-on:
@@ -319,8 +334,20 @@ pipelines:
     main:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
+      - step:
+          <<: *sync-resource-urls
+          trigger: manual
 
   custom:
+    # Weekly Snyk Code scan + Claude auto-fix (schedule via Bitbucket UI)
+    weekly-snyk-code-fix:
+      - step:
+          name: Snyk Code Scan & Auto-fix
+          caches:
+            - nodecustom
+          script:
+            - bash scripts/claude/snyk_autofix.sh
+
     dry-run:
       - step: *detect-changed-screens
 
@@ -356,11 +383,6 @@ pipelines:
             allowed-values:
               - "true"
               - "false"
-          - name: SKIP_RESOURCE_URL_SYNC
-            default: "true"
-            allowed-values:
-              - "true"
-              - "false"
       - step:
           name: Enforce develop/main branches for production publish
           runs-on:
@@ -375,6 +397,9 @@ pipelines:
               fi
       - step: *install_dependencies
       - step: *publish-manual-prod-screens
+      - step:
+          <<: *sync-resource-urls
+          trigger: manual
 
     calculate-hashes:
       - variables:
@@ -408,7 +433,7 @@ pipelines:
           caches:
             - nodecustom
           script:
-            - echo "🔧 Calculating hashes for $HASH_ENV environment"
+            - echo "Calculating hashes for $HASH_ENV environment"
             - |
               ARGS="--env=$HASH_ENV"
               if [ -n "$SCREENS" ]; then

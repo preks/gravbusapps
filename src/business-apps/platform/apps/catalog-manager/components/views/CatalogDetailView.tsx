@@ -39,14 +39,15 @@ export const CatalogDetailView: React.FC<CatalogDetailViewProps> = ({
   const { updateCatalog } = useUpdateCatalog(context)
   const [prefetchedEntries, setPrefetchedEntries] = useState<{ entries: any[]; totalCount: number } | null>(null)
 
-  // Load full catalog data locally
+  // Initial load uses a modest limit; table loads more on scroll via externalLoadEntries
+  const INITIAL_ENTRIES_LIMIT = 100
   useEffect(() => {
     let isMounted = true
     const load = async () => {
       const identifier = catalog.identifier || catalog.name
       const version = catalog.version || 'v1'
       const full = await fetchCatalog(
-        { identifier, version, entriesLimit: 100, entriesOffset: 0 },
+        { identifier, version, entriesLimit: INITIAL_ENTRIES_LIMIT, entriesOffset: 0 },
         { includeCatalogEntries: true, includeChildCatalogEntries: true, includeParentCatalogEntry: true }
       )
       if (isMounted && full) {

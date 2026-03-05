@@ -19,6 +19,7 @@ export interface Version {
   createdAt: string
   createdBy: string
   createdByName?: string
+  createdByAvatar?: string
   changeDescription?: string
   isCheckpoint: boolean // Manual checkpoint vs auto-save
   isAutoSave: boolean // Auto-saved version

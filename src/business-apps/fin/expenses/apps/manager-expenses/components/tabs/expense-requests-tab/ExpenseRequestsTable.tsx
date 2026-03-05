@@ -17,8 +17,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
-
+import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 // Enable localized date formatting
 dayjs.extend(localizedFormat)
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
@@ -274,9 +273,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         return null
       }
       return sorting.order === 'ASC' ? (
-        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+        <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
       ) : (
-        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+        <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
       )
     },
     [sorting]

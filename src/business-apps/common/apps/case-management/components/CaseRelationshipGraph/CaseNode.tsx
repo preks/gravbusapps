@@ -8,7 +8,7 @@
  */
 
 import React, { memo, useState, useRef, useEffect, useCallback } from 'react'
-import { Handle, Position, NodeProps } from 'reactflow'
+import { Handle, Position, NodeProps } from '@xyflow/react'
 import { Badge, Avatar, AvatarFallback, AvatarImage, Progress } from '@newwork/nw-design-system'
 import { FileText, ExternalLink, AlertTriangle, Clock, MessageSquare, Activity, CalendarClock, Zap } from 'lucide-react'
 import { CaseStatus, CasePriority } from '../../types'

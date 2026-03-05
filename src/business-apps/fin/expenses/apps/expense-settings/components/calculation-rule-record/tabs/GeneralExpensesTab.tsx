@@ -18,24 +18,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
+  DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import { DeleteConfirmationDialog } from '../shared'
+import { DeleteConfirmationDialog, AdditionalPropertiesDisplay } from '../shared'
 import { GeneralExpenseForm, GeneralExpenseFormData, UsageInfo } from '../../../forms/general-expense-form'
-import {
-  PiPlus,
-  PiCalendar,
-  PiReceipt,
-  PiPercent,
-  PiDotsThreeVertical,
-  PiPencil,
-  PiTrash,
-  PiInfo
-} from 'react-icons/pi'
+import { PlusIcon, CalendarIcon, ReceiptIcon, PercentIcon, DotsThreeVerticalIcon, PencilIcon, TrashIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -457,36 +444,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
     return parts.length >= 3 ? parts[2] : taxCodeRef
   }
 
-  // Render additionalProperties with hover tooltip (same as MileageRulesTab)
-  const renderAdditionalProperties = (additionalProperties?: Record<string, unknown>) => {
-    if (!additionalProperties || Object.keys(additionalProperties).length === 0) {
-      return <span className="gba:text-muted-foreground">None</span>
-    }
-
-    const propertyCount = Object.keys(additionalProperties).length
-
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="gba:flex gba:items-center gba:gap-1 gba:cursor-help">
-              <Badge variant="secondary">{propertyCount}</Badge>
-              <Button variant="ghost" size="icon" className="gba:h-6 gba:w-6 gba:text-info">
-                <PiInfo className="gba:h-4 gba:w-4" />
-              </Button>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="gba:max-w-md gba:p-3 gba:bg-popover gba:text-popover-foreground">
-            <div className="gba:font-medium gba:mb-2">Additional Properties:</div>
-            <pre className="gba:text-xs gba:bg-background gba:text-foreground gba:p-2 gba:rounded gba:overflow-auto gba:max-h-64 gba:whitespace-pre-wrap gba:border">
-              {JSON.stringify(additionalProperties, null, 2)}
-            </pre>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
-  }
-
   if (isLoading) {
     return (
       <div
@@ -529,7 +486,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
           </p>
         </div>
         <Button onClick={handleAdd} data-testid="add-general-expense-button">
-          <PiPlus className="gba:mr-2" />
+          <PlusIcon className="gba:mr-2" />
           Add General Expense
         </Button>
       </div>
@@ -624,7 +581,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                               {isCheckingUsage ? (
                                 <Spinner className="gba:h-4 gba:w-4" />
                               ) : (
-                                <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                               )}
                             </Button>
                           </DropdownMenuTrigger>
@@ -636,7 +593,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                               }}
                               data-testid={`general-expense-edit-${record.id}`}
                             >
-                              <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                              <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                               Update
                             </DropdownMenuItem>
                             {/* Only show delete option if expense is not used */}
@@ -651,7 +608,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                                   className="gba:text-destructive"
                                   data-testid={`general-expense-delete-${record.id}`}
                                 >
-                                  <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                  <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                   Delete
                                 </DropdownMenuItem>
                               </>
@@ -663,7 +620,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
                     <TableCell data-testid={`general-expense-code-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiReceipt
+                        <ReceiptIcon
                           className="gba:text-muted-foreground"
                           data-testid={`general-expense-code-icon-${record.id}`}
                         />
@@ -693,7 +650,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
                     <TableCell data-testid={`general-expense-tax-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiPercent
+                        <PercentIcon
                           className="gba:text-muted-foreground"
                           data-testid={`general-expense-tax-icon-${record.id}`}
                         />
@@ -708,7 +665,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
                     <TableCell data-testid={`general-expense-validity-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiCalendar
+                        <CalendarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`general-expense-validity-icon-${record.id}`}
                         />
@@ -738,7 +695,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                     </TableCell>
 
                     <TableCell data-testid={`general-expense-additional-cell-${record.id}`} className="gba:text-center">
-                      {renderAdditionalProperties(record.additionalProperties)}
+                      <AdditionalPropertiesDisplay additionalProperties={record.additionalProperties} />
                     </TableCell>
                   </TableRow>
                 ))

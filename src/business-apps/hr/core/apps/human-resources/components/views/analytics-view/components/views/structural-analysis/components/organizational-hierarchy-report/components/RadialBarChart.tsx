@@ -16,17 +16,17 @@ import {
   Table
 } from 'antd'
 import {
-  ReloadOutlined,
-  TeamOutlined,
-  ApartmentOutlined,
-  GlobalOutlined,
-  BankOutlined,
-  EyeOutlined,
-  SwitcherOutlined,
-  DollarCircleOutlined,
-  TableOutlined,
-  BarChartOutlined
-} from '@ant-design/icons'
+  ArrowsClockwiseIcon,
+  UsersIcon,
+  BuildingsIcon,
+  GlobeIcon,
+  BankIcon,
+  EyeIcon,
+  TreeStructureIcon,
+  CurrencyCircleDollarIcon,
+  TableIcon,
+  ChartBarIcon
+} from '@phosphor-icons/react'
 import {
   RadialBarChart as RechartsRadialBarChart,
   RadialBar,
@@ -257,7 +257,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         type="error"
         showIcon
         action={
-          <Button size="small" onClick={onRefresh} icon={<ReloadOutlined />}>
+          <Button size="small" onClick={onRefresh} icon={<ArrowsClockwiseIcon size={16} />}>
             {t('common-retry')}
           </Button>
         }
@@ -274,10 +274,10 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
         <div className="gba:flex gba:items-center gba:gap-4">
           <Title level={3} className="gba:m-0 gba:text-foreground">
-            <ApartmentOutlined className="gba:mr-2 gba:text-info" />
+            <BuildingsIcon size={16} className="gba:mr-2 gba:text-info" />
             {t('hr-analytics-organizational-hierarchy-report')}
           </Title>
-          <Tag color="var(--nw-color-info-secondary)" icon={<TeamOutlined />}>
+          <Tag color="var(--nw-color-info-secondary)" icon={<UsersIcon size={16} />}>
             {statistics.totalEmployees} {t('hr-analytics-employees')}
           </Tag>
         </div>
@@ -285,7 +285,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         {/* View Mode Switcher */}
         <Space>
           <Text strong>
-            <EyeOutlined className="gba:mr-2" />
+            <EyeIcon size={16} className="gba:mr-2" />
             {t('hr-analytics-view-by')}
           </Text>
           <Radio.Group
@@ -299,18 +299,18 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
               value="location"
               data-testid="OrganizationalHierarchyReport-RadialBarChart-LocationModeButton"
             >
-              <GlobalOutlined className="gba:mr-1" />
+              <GlobeIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-location')}
             </Radio.Button>
             <Radio.Button value="company" data-testid="OrganizationalHierarchyReport-RadialBarChart-CompanyModeButton">
-              <BankOutlined className="gba:mr-1" />
+              <BankIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-company')}
             </Radio.Button>
             <Radio.Button
               value="costcenter"
               data-testid="OrganizationalHierarchyReport-RadialBarChart-CostCenterModeButton"
             >
-              <DollarCircleOutlined className="gba:mr-1" />
+              <CurrencyCircleDollarIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-cost-center')}
             </Radio.Button>
           </Radio.Group>
@@ -331,7 +331,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Statistic
               title={t('hr-analytics-total-employees')}
               value={statistics.totalEmployees}
-              prefix={<TeamOutlined style={{ color: 'var(--nw-entity-employee)' }} />}
+              prefix={<UsersIcon size={16} style={{ color: 'var(--nw-entity-employee)' }} />}
               valueStyle={{ color: 'var(--nw-entity-employee)' }}
             />
           </Card>
@@ -341,7 +341,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Statistic
               title={t('hr-analytics-departments-label')}
               value={statistics.totalOrganizationalUnits}
-              prefix={<ApartmentOutlined style={{ color: 'var(--nw-entity-department)' }} />}
+              prefix={<BuildingsIcon size={16} style={{ color: 'var(--nw-entity-department)' }} />}
               valueStyle={{ color: 'var(--nw-entity-department)' }}
             />
           </Card>
@@ -351,7 +351,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Statistic
               title={t('hr-analytics-levels-title')}
               value={statistics.maxLevels}
-              prefix={<SwitcherOutlined style={{ color: 'var(--nw-entity-strategy)' }} />}
+              prefix={<TreeStructureIcon size={16} style={{ color: 'var(--nw-entity-strategy)' }} />}
               valueStyle={{ color: 'var(--nw-entity-strategy)' }}
             />
           </Card>
@@ -375,11 +375,11 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
               }
               prefix={
                 viewMode === 'company' ? (
-                  <BankOutlined style={{ color: 'var(--nw-entity-order)' }} />
+                  <BankIcon size={16} style={{ color: 'var(--nw-entity-order)' }} />
                 ) : viewMode === 'costcenter' ? (
-                  <DollarCircleOutlined style={{ color: 'var(--nw-entity-department)' }} />
+                  <CurrencyCircleDollarIcon size={16} style={{ color: 'var(--nw-entity-department)' }} />
                 ) : (
-                  <GlobalOutlined style={{ color: 'var(--nw-entity-location)' }} />
+                  <GlobeIcon size={16} style={{ color: 'var(--nw-entity-location)' }} />
                 )
               }
               valueStyle={{
@@ -399,7 +399,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       <Card
         title={
           <span>
-            <BarChartOutlined className="gba:mr-2" />
+            <ChartBarIcon size={16} className="gba:mr-2" />
             {t('hr-analytics-organizational-hierarchy')} -{' '}
             {viewMode === 'company'
               ? t('hr-analytics-by-company')
@@ -446,7 +446,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Card
               title={
                 <span>
-                  <SwitcherOutlined className="gba:mr-2" />
+                  <TreeStructureIcon size={16} className="gba:mr-2" />
                   {t('hr-analytics-level-breakdown')}
                 </span>
               }
@@ -486,7 +486,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       <Card
         title={
           <span>
-            <TableOutlined className="gba:mr-2" />
+            <TableIcon size={16} className="gba:mr-2" />
             {t('hr-analytics-detailed-level-report')} -{' '}
             {viewMode === 'company'
               ? t('hr-analytics-by-company')

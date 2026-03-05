@@ -5,32 +5,16 @@ import { useEmployeeUpcomingAbsence } from '../../hooks/useEmployeeUpcomingAbsen
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
-import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData'
+import { Employee } from '../../hooks/useEmployeeData'
 // Extend dayjs with plugins
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from '@newwork/nw-design-system'
-import {
-  PiBriefcase,
-  PiStack,
-  PiListNumbers,
-  PiFunction,
-  PiClock,
-  PiCalendarCheck,
-  PiLightning,
-  PiCalendarX,
-  PiCheckCircle,
-  PiSignIn,
-  PiSignOut
-} from 'react-icons/pi'
+import { Card, CardContent, Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
+import { BriefcaseIcon, StackIcon, ListNumbersIcon, FunctionIcon, ClockIcon, CalendarCheckIcon, CalendarXIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
-import { UserInfoProps } from '@/common/BusinessAppContext'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
-import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Button, Tooltip } from 'antd'
 import JobDetailsDrawer from './JobDetailsDrawer'
 import JobFamilyDrawerContent, { getJobFamilyIcon, getJobFamilyTitle } from './drawer-content/JobFamilyDrawerContent'
 import JobFunctionDrawerContent, {
@@ -45,8 +29,6 @@ interface SummaryTabProps {
   employee: Employee
   accessToken: string
   currentUserEmployeeId?: string
-  userInfo?: UserInfoProps // Current user info
-  employeeAbsenceEntitlement: EmployeeAbsenceEntitlement[]
 }
 
 /**
@@ -58,12 +40,7 @@ interface SummaryTabProps {
 // Employee availability & schedule information comes from employee data
 // Specific schedule information should be retrieved from the API
 
-const SummaryTab: React.FC<SummaryTabProps> = ({
-  employee,
-  accessToken,
-  currentUserEmployeeId,
-  employeeAbsenceEntitlement
-}) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentUserEmployeeId }) => {
   const { t } = useTranslation(translations)
   // Fetch upcoming absence for this employee
   const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id)
@@ -210,158 +187,143 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
         {/* Organization Chart Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" className="gba:min-h-[420px]" data-testid="summary-section-organization-chart">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold">{t('summary-organization-chart')}</h3>
-            </div>
-            <div className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
-              <div
-                className="gba:flex gba:flex-col gba:items-center"
-                style={{
-                  maxHeight: '650px',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                  padding: '0.5rem'
-                }}
-              >
-                {/* Supervisor */}
-                {employee.employeePosition?.supervisor && employee.employeePosition?.supervisor.id !== employee.id && (
-                  <div className="gba:flex gba:flex-col gba:items-center">
-                    <a
-                      className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                      href="#"
-                      onClick={e => {
-                        e.preventDefault()
-                        if (
-                          employee.employeePosition?.supervisor?.id &&
-                          employee.employeePosition.supervisor.id !== employee.id
-                        ) {
-                          navigateTo(
-                            buildPlatformUrl('/platform/employee-record', {
-                              employeeId: employee.employeePosition.supervisor.id
-                            })
-                          )
-                        }
-                      }}
-                      data-testid="supervisor-link"
-                    >
-                      <Avatar
-                        src={
-                          employee.employeePosition.supervisor.pictureThumbnail
-                            ? `data:image/gif;base64,${employee.employeePosition.supervisor.pictureThumbnail}`
-                            : undefined
-                        }
-                        initials={`${employee.employeePosition.supervisor.firstName?.[0] || ''}${employee.employeePosition.supervisor.lastName?.[0] || ''}`}
-                        alt={`${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}`}
-                        // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-                        contentType={employee.employeePosition.supervisor.pictureThumbnail ? 'image' : 'initials'}
-                        // @ts-expect-error - Type issue in gravity-ui-catalog for size
-                        size="xl"
-                        // @ts-expect-error - Type issue in gravity-ui-catalog for shape
-                        shape="circle"
-                        // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
-                        appearance="gradient"
-                      />
-                      <div className="gba:mt-2 gba:text-center">
-                        <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
-                          {employee.employeePosition.supervisor.displayName}
-                        </div>
-                        <div className="gba:text-xs gba:text-muted-foreground">
-                          {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
-                        </div>
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-organization-chart">
+            <CardContent className="gba:p-4">
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+                <h3 className="gba:text-xl gba:font-semibold">{t('summary-organization-chart')}</h3>
+              </div>
+              <div className="gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
+                <div className="gba:flex gba:flex-col gba:items-center gba:max-h-[650px] gba:overflow-y-auto gba:overflow-x-hidden gba:p-2">
+                  {/* Supervisor */}
+                  {employee.employeePosition?.supervisor &&
+                    employee.employeePosition?.supervisor.id !== employee.id && (
+                      <div className="gba:flex gba:flex-col gba:items-center">
+                        <a
+                          className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
+                          href="#"
+                          onClick={e => {
+                            e.preventDefault()
+                            if (
+                              employee.employeePosition?.supervisor?.id &&
+                              employee.employeePosition.supervisor.id !== employee.id
+                            ) {
+                              navigateTo(
+                                buildPlatformUrl('/platform/employee-record', {
+                                  employeeId: employee.employeePosition.supervisor.id
+                                })
+                              )
+                            }
+                          }}
+                          data-testid="supervisor-link"
+                        >
+                          <Avatar className="gba:h-12 gba:w-12">
+                            {employee.employeePosition.supervisor.pictureThumbnail && (
+                              <AvatarImage
+                                src={`data:image/gif;base64,${employee.employeePosition.supervisor.pictureThumbnail}`}
+                                alt={`${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}`}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {`${employee.employeePosition.supervisor.firstName?.[0] || ''}${employee.employeePosition.supervisor.lastName?.[0] || ''}`}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="gba:mt-2 gba:text-center">
+                            <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
+                              {employee.employeePosition.supervisor.displayName}
+                            </div>
+                            <div className="gba:text-xs gba:text-muted-foreground">
+                              {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
+                            </div>
+                          </div>
+                        </a>
+                        <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
                       </div>
-                    </a>
-                    <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
+                    )}
+
+                  {/* Current Employee */}
+                  <div className="gba:flex gba:flex-col gba:items-center">
+                    <div className="gba:ring-2 gba:ring-primary gba:rounded-full gba:p-1">
+                      <Avatar className="gba:h-12 gba:w-12">
+                        {employee.pictureThumbnail && (
+                          <AvatarImage
+                            src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+                            alt={`${employee.firstName} ${employee.lastName}`}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="gba:mt-2 gba:text-center">
+                      <div className="gba:font-medium gba:text-sm">{employee.displayName}</div>
+                      <div className="gba:text-xs gba:text-muted-foreground">
+                        {employee.employeePosition?.jobPosition?.name || ''}
+                      </div>
+                    </div>
+                    {subordinates.length > 0 && (
+                      <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subordinates */}
+                {subordinates.length > 0 && (
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
+                    {subordinates.map(member => (
+                      <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigateTo(
+                              buildPlatformUrl('/platform/employee-record', {
+                                employeeId: member.id
+                              })
+                            )
+                          }}
+                          className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center gba:bg-transparent gba:border-none gba:p-0"
+                          title={t('summary-view-profile', { name: member.displayName })}
+                          data-testid={`team-member-link-${member.id}`}
+                        >
+                          <Avatar className="gba:h-12 gba:w-12">
+                            {member.profilePicture && (
+                              <AvatarImage
+                                src={`data:image/gif;base64,${member.profilePicture}`}
+                                alt={`${member.firstName} ${member.lastName}`}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="gba:mt-2 gba:text-center gba:w-full">
+                            <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
+                              {member.displayName}
+                            </div>
+                            <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:w-full gba:text-center gba:px-1">
+                              {member.position}
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
-
-                {/* Current Employee */}
-                <div className="gba:flex gba:flex-col gba:items-center">
-                  <div className="gba:ring-2 gba:ring-blue-400 gba:rounded-full gba:p-1">
-                    <Avatar
-                      src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
-                      initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
-                      alt={`${employee.firstName} ${employee.lastName}`}
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-                      contentType={employee.pictureThumbnail ? 'image' : 'initials'}
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for size
-                      size="xl"
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for shape
-                      shape="circle"
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
-                      appearance="gradient"
-                    />
-                  </div>
-                  <div className="gba:mt-2 gba:text-center">
-                    <div className="gba:font-medium gba:text-sm">{employee.displayName}</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">
-                      {employee.employeePosition?.jobPosition?.name || ''}
-                    </div>
-                  </div>
-                  {subordinates.length > 0 && (
-                    <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
-                  )}
-                </div>
               </div>
-
-              {/* Subordinates */}
-              {subordinates.length > 0 && (
-                <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
-                  {subordinates.map(member => (
-                    <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigateTo(
-                            buildPlatformUrl('/platform/employee-record', {
-                              employeeId: member.id
-                            })
-                          )
-                        }}
-                        className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center gba:bg-transparent gba:border-none gba:p-0"
-                        title={t('summary-view-profile', { name: member.displayName })}
-                        data-testid={`team-member-link-${member.id}`}
-                      >
-                        <Avatar
-                          src={member.profilePicture ? `data:image/gif;base64,${member.profilePicture}` : undefined}
-                          initials={`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`}
-                          alt={`${member.firstName} ${member.lastName}`}
-                          // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-                          contentType={member.profilePicture ? 'image' : 'initials'}
-                          // @ts-expect-error - Type issue in gravity-ui-catalog for size
-                          size="xl"
-                          // @ts-expect-error - Type issue in gravity-ui-catalog for shape
-                          shape="circle"
-                          // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
-                          appearance="gradient"
-                        />
-                        <div className="gba:mt-2 gba:text-center gba:w-full">
-                          <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
-                            {member.displayName}
-                          </div>
-                          <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:w-full gba:text-center gba:px-1">
-                            {member.position}
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            </CardContent>
           </Card>
         </div>
 
         {/* Job Information Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" style={{ minHeight: '420px' }} data-testid="summary-section-job-information">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold">{t('summary-job-information')}</h3>
-            </div>
-            <div className="gba:p-4">
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-job-information">
+            <CardContent className="gba:p-4">
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+                <h3 className="gba:text-xl gba:font-semibold">{t('summary-job-information')}</h3>
+              </div>
               <div className="gba:space-y-4">
                 <div className="gba:flex gba:items-center">
-                  <PiBriefcase className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                  <BriefcaseIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-profile')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">
@@ -373,7 +335,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {/* Optional Job Family section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiStack className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <StackIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-family')}</div>
                       <button
@@ -384,7 +346,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             getJobFamilyIcon()
                           )
                         }
-                        className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        className="gba:text-sm gba:text-primary gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-family-button"
                       >
                         {/* Display job family from updated data structure, fallback to organizationalUnit name */}
@@ -398,7 +360,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {/* Optional Job Function section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiFunction className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <FunctionIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:flex gba:justify-between gba:w-full">
                         <div className="gba:text-sm gba:font-medium gba:text-foreground">
@@ -413,7 +375,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             getJobFunctionIcon()
                           )
                         }
-                        className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        className="gba:text-sm gba:text-primary gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-function-button"
                       >
                         {employee.employeePosition?.jobPosition?.jobFunction?.name || t('employee-record-not-assigned')}
@@ -425,7 +387,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {/* Optional Job Level section - only show if data is available */}
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
-                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <ListNumbersIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-level')}</div>
                       <button
@@ -436,7 +398,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             getJobLevelIcon()
                           )
                         }
-                        className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        className="gba:text-sm gba:text-primary gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-level-button"
                       >
                         {employee.employeePosition?.jobPosition?.jobLevel?.name || t('employee-record-not-assigned')}
@@ -448,7 +410,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 {/* SAP Number (HR Reference Code) */}
                 {employee?.hrReferenceCode && (
                   <div className="gba:flex gba:items-center">
-                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <ListNumbersIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div>
                       <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-sap-number')}</div>
                       <div className="gba:text-sm gba:text-muted-foreground">{String(employee.hrReferenceCode)}</div>
@@ -456,17 +418,17 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   </div>
                 )}
               </div>
-            </div>
+            </CardContent>
           </Card>
         </div>
 
         {/* Availability & Schedule Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" style={{ minHeight: '420px' }} data-testid="summary-section-availability">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold">{t('summary-availability-schedule')}</h3>
-            </div>
-            <div className="gba:p-4">
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-availability">
+            <CardContent className="gba:p-4">
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+                <h3 className="gba:text-xl gba:font-semibold">{t('summary-availability-schedule')}</h3>
+              </div>
               <div className="gba:space-y-4">
                 {/* Status display */}
                 <div className="gba:flex gba:items-center">
@@ -476,7 +438,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                       data-testid="current-status-icon"
                     />
                   ) : (
-                    <PiCheckCircle
+                    <CheckCircleIcon
                       className="gba:h-5 gba:w-5 gba:text-success gba:mr-3"
                       data-testid="current-status-icon"
                     />
@@ -520,7 +482,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
                 {/* Timezone */}
                 <div className="gba:flex gba:items-center">
-                  <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                  <ClockIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-timezone')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">Europe/Berlin</div>
@@ -529,85 +491,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
                 {/* Working hours */}
                 <div className="gba:flex gba:items-center">
-                  <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                  <CalendarCheckIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-weekly-hours')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">{computedWorkingHours}</div>
                   </div>
                 </div>
-
-                {/* Quick Actions - Only visible when user is viewing their own profile */}
-                {isCurrentUser &&
-                  (() => {
-                    const requestAbsenceText = t('summary-request-absence')
-                    return (
-                      <div className="">
-                        <div className="gba:flex gba:items-center gba:mb-3">
-                          <PiLightning className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
-                          <div
-                            className="gba:text-sm gba:font-medium gba:text-foreground"
-                            data-testid="quick-actions-heading"
-                          >
-                            {t('summary-quick-actions')}
-                          </div>
-                        </div>
-                        <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
-                          <Tooltip title={t('summary-clock-in')}>
-                            <Button
-                              type="default"
-                              size="small"
-                              className="gba:hover:bg-gray-100 gba:flex-1"
-                              data-testid="clock-in-button"
-                              onClick={() => {
-                                // Clock in action logic would go here
-                                console.log('Clock in clicked')
-                              }}
-                            >
-                              <span data-testid="clock-in-button-text">
-                                <PiSignIn className="gba:h-3 gba:w-3" />
-                              </span>
-                            </Button>
-                          </Tooltip>
-                          <Tooltip title={t('summary-clock-out')}>
-                            <Button
-                              type="default"
-                              size="small"
-                              className="gba:hover:bg-gray-100 gba:flex-1"
-                              data-testid="clock-out-button"
-                              onClick={() => {
-                                // Clock out action logic would go here
-                                console.log('Clock out clicked')
-                              }}
-                            >
-                              <span data-testid="clock-out-button-text">
-                                <PiSignOut className="gba:h-3 gba:w-3" />
-                              </span>
-                            </Button>
-                          </Tooltip>
-                          <AppActionMenu
-                            data-testid="request-absence-button"
-                            contextsArray={[FlowContextName.employeeAbsenceRecord]}
-                            externalContextData={{
-                              employeeId: employee.id,
-                              flowType: 'vacation',
-                              absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')
-                                ?.type?.id,
-                              startDate: null,
-                              endDate: null
-                            }}
-                            prefixDataTestId="request-absence"
-                            accessToken={accessToken}
-                            key={requestAbsenceText}
-                          >
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:flex-1 gba:min-w-0">
-                              <PiCalendarX className="gba:h-4 gba:w-4" />
-                              <span className="gba:text-xs gba:md:text-sm gba:truncate">{requestAbsenceText}</span>
-                            </div>
-                          </AppActionMenu>
-                        </div>
-                      </div>
-                    )
-                  })()}
 
                 {/* Upcoming Absence Section */}
                 {firstUpcomingValidAbsence && (
@@ -616,7 +505,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     data-testid="upcoming-absence-section"
                   >
                     <div className="gba:flex gba:items-center gba:mb-3">
-                      <PiCalendarX className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                      <CalendarXIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                       <div
                         className="gba:text-sm gba:font-medium gba:text-foreground"
                         data-testid="upcoming-absence-heading"
@@ -624,7 +513,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         {t('summary-next-planned-absence')}
                       </div>
                     </div>
-                    <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-border">
+                    <div className="gba:bg-muted gba:p-3 gba:rounded gba:border gba:border-border">
                       <div className="gba:flex gba:justify-between gba:items-center">
                         <div>
                           <p className="gba:text-sm gba:font-medium" data-testid="absence-type">
@@ -642,9 +531,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         </div>
                         <div
                           className={cn('gba:text-xs gba:px-2 gba:py-1 gba:rounded', {
-                            'gba:bg-green-100 gba:text-green-800': firstUpcomingValidAbsence.status === 'APPROVED',
-                            'gba:bg-red-100 gba:text-red-800': firstUpcomingValidAbsence.status === 'REJECTED',
-                            'gba:bg-yellow-100 gba:text-yellow-800': firstUpcomingValidAbsence.status === 'PENDING'
+                            'gba:bg-success-secondary gba:text-success-secondary-foreground':
+                              firstUpcomingValidAbsence.status === 'APPROVED',
+                            'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground':
+                              firstUpcomingValidAbsence.status === 'REJECTED',
+                            'gba:bg-warning-secondary gba:text-warning-secondary-foreground':
+                              firstUpcomingValidAbsence.status === 'PENDING'
                           })}
                           data-testid="absence-status"
                         >
@@ -664,7 +556,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   </div>
                 )}
               </div>
-            </div>
+            </CardContent>
           </Card>
         </div>
 

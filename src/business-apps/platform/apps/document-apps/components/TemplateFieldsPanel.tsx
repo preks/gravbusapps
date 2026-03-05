@@ -7,8 +7,8 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Spinner, Badge } from '@newwork/nw-design-system'
-import { ChevronDown, ChevronRight, Database, FolderOpen } from 'lucide-react'
+import { Spinner, Badge, Input, useTranslation } from '@newwork/nw-design-system'
+import { ChevronDown, ChevronRight, Database, FolderOpen, Search, X } from 'lucide-react'
 import {
   getTemplateEntities,
   getTemplateEntity,
@@ -20,6 +20,7 @@ import {
   type TemplateEntityDomain
 } from '../entities'
 import { useTemplateEntityFields, type TemplateEntityFieldFromGraphQL } from '../hooks/useTemplateEntityFields'
+import translations from '../_i18n'
 import { extractEntityKeysFromContent } from '../utils/templatePlaceholders'
 
 export interface TemplateFieldsPanelProps {
@@ -44,22 +45,44 @@ const FieldButtons: React.FC<{
   onInsert: (placeholder: string) => void
   testId: string
   indent?: boolean
-}> = ({ entityKey, fields, onInsert, testId, indent = true }) => (
-  <div className={`gba:space-y-0.5 ${indent ? 'gba:pl-6 gba:pr-2 gba:pb-2' : 'gba:pl-2 gba:pr-2 gba:pb-1'}`}>
-    {fields.map(field => (
-      <button
-        key={field.key}
-        type="button"
-        onClick={() => onInsert(formatTemplatePlaceholder(entityKey, field.key))}
-        className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:rounded gba:text-left gba:text-xs hover:gba:bg-muted/60 gba:transition-colors"
-        title={formatTemplatePlaceholder(entityKey, field.key)}
-        data-testid={`${testId}-field-${entityKey}-${field.key.replaceAll('.', '-')}`}
+  searchQuery?: string
+}> = ({ entityKey, fields, onInsert, testId, indent = true, searchQuery = '' }) => {
+  const { t } = useTranslation(translations)
+  const filteredFields = searchQuery.trim()
+    ? fields.filter(
+        field =>
+          field.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          field.key.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : fields
+
+  if (filteredFields.length === 0 && searchQuery.trim()) {
+    return (
+      <div
+        className={`gba:text-xs gba:text-muted-foreground gba:italic ${indent ? 'gba:pl-6 gba:pr-2 gba:pb-2' : 'gba:pl-2 gba:pr-2 gba:pb-1'}`}
       >
-        <span className="gba:truncate gba:font-medium">{field.displayName}</span>
-      </button>
-    ))}
-  </div>
-)
+        {t('template-fields-no-match', { query: searchQuery })}
+      </div>
+    )
+  }
+
+  return (
+    <div className={`gba:space-y-0.5 ${indent ? 'gba:pl-6 gba:pr-2 gba:pb-2' : 'gba:pl-2 gba:pr-2 gba:pb-1'}`}>
+      {filteredFields.map(field => (
+        <button
+          key={field.key}
+          type="button"
+          onClick={() => onInsert(formatTemplatePlaceholder(entityKey, field.key))}
+          className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:rounded gba:text-left gba:text-xs hover:gba:bg-muted/60 gba:transition-colors"
+          title={formatTemplatePlaceholder(entityKey, field.key)}
+          data-testid={`${testId}-field-${entityKey}-${field.key.replaceAll('.', '-')}`}
+        >
+          <span className="gba:truncate gba:font-medium">{field.displayName}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
 
 /** Renders field list for one entity; fetches fields from GraphQL when mounted */
 const EntityFieldsList: React.FC<{
@@ -67,7 +90,9 @@ const EntityFieldsList: React.FC<{
   accessToken: string | undefined
   onInsert: (placeholder: string) => void
   testId: string
-}> = ({ entityKey, accessToken, onInsert, testId }) => {
+  searchQuery?: string
+}> = ({ entityKey, accessToken, onInsert, testId, searchQuery = '' }) => {
+  const { t } = useTranslation(translations)
   const { directFields, catalogGroups, isLoading, error } = useTemplateEntityFields(entityKey, accessToken)
   const [catalogsExpanded, setCatalogsExpanded] = useState(true)
   const [expandedCatalog, setExpandedCatalog] = useState<string | null>(null)
@@ -80,21 +105,21 @@ const EntityFieldsList: React.FC<{
     return (
       <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:flex gba:items-center gba:gap-2">
         <Spinner size="sm" />
-        <span className="gba:text-xs gba:text-muted-foreground">Loading fields from GraphQL...</span>
+        <span className="gba:text-xs gba:text-muted-foreground">{t('template-fields-loading')}</span>
       </div>
     )
   }
   if (error) {
     return (
       <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:text-xs gba:text-destructive">
-        Failed to load fields: {error.message}
+        {t('template-fields-load-failed', { message: error.message })}
       </div>
     )
   }
   if (directFields.length === 0 && catalogGroups.length === 0) {
     return (
       <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:text-xs gba:text-muted-foreground">
-        No fields from GraphQL for this type.
+        {t('template-fields-no-fields')}
       </div>
     )
   }
@@ -104,9 +129,15 @@ const EntityFieldsList: React.FC<{
       {directFields.length > 0 && (
         <>
           <div className="gba:px-3 gba:pt-1 gba:pb-0.5 gba:text-xs gba:font-medium gba:text-muted-foreground">
-            Fields
+            {t('template-fields-fields-label')}
           </div>
-          <FieldButtons entityKey={entityKey} fields={directFields} onInsert={onInsert} testId={testId} />
+          <FieldButtons
+            entityKey={entityKey}
+            fields={directFields}
+            onInsert={onInsert}
+            testId={testId}
+            searchQuery={searchQuery}
+          />
         </>
       )}
       {catalogGroups.length > 0 && (
@@ -123,7 +154,7 @@ const EntityFieldsList: React.FC<{
               <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
             )}
             <FolderOpen className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
-            <span>Catalog values (contract type, employment type, currency)</span>
+            <span>{t('template-fields-catalog-values')}</span>
           </button>
           {catalogsExpanded && (
             <div className="gba:pl-2 gba:space-y-0.5">
@@ -151,6 +182,7 @@ const EntityFieldsList: React.FC<{
                         onInsert={onInsert}
                         testId={testId}
                         indent={false}
+                        searchQuery={searchQuery}
                       />
                     )}
                   </div>
@@ -172,10 +204,21 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
   templateContent,
   'data-testid': testId = 'template-fields-panel'
 }) => {
+  const { t } = useTranslation(translations)
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set())
   const [expandedDomains, setExpandedDomains] = useState<Set<TemplateEntityDomain>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
 
   const entityList = useMemo(() => getTemplateEntities(domain, context), [domain, context])
+
+  // Auto-expand all entities when searching
+  const shouldAutoExpand = searchQuery.trim().length > 0
+
+  const isEntityExpanded = (entityKey: string) => {
+    if (shouldAutoExpand) return true
+    return expandedEntities.has(entityKey)
+  }
+
   const entitiesByDomain = useMemo(() => {
     const map = new Map<TemplateEntityDomain, TemplateEntityDefinition[]>()
     for (const entity of entityList) {
@@ -208,7 +251,10 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
     })
   }
 
-  const isDomainExpanded = (d: TemplateEntityDomain) => expandedDomains.size === 0 || expandedDomains.has(d)
+  const isDomainExpanded = (d: TemplateEntityDomain) => {
+    if (shouldAutoExpand) return true
+    return expandedDomains.size === 0 || expandedDomains.has(d)
+  }
   const ensureDomainsInitialized = (domains: { domain: TemplateEntityDomain }[]) => {
     setExpandedDomains(prev => {
       if (prev.size > 0) return prev
@@ -221,12 +267,36 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
       className="gba:w-64 gba:h-full gba:min-h-0 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col gba:overflow-hidden"
       data-testid={testId}
     >
-      <div className="gba:flex-shrink-0 gba:px-3 gba:py-3 gba:border-b">
-        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Insert field</h3>
+      <div className="gba:flex-shrink-0 gba:px-3 gba:py-3 gba:border-b gba:space-y-3">
+        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('template-fields-insert')}</h3>
+
+        {/* Search input */}
+        <div className="gba:relative">
+          <Search className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder={t('template-fields-search-placeholder')}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="gba:pl-8 gba:pr-8 gba:h-8 gba:text-xs"
+            data-testid={`${testId}-search-input`}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors"
+              data-testid={`${testId}-search-clear`}
+            >
+              <X className="gba:w-4 gba:h-4" />
+            </button>
+          )}
+        </div>
+
         {entitiesUsedInContent.length > 0 && (
-          <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-border">
+          <div className="gba:pt-2 gba:border-t gba:border-border">
             <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">
-              Entities used in this template
+              {t('template-fields-entities-used')}
             </p>
             <div className="gba:flex gba:flex-wrap gba:gap-1">
               {entitiesUsedInContent.map(key => {
@@ -248,7 +318,7 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
       </div>
       <div className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:overflow-x-hidden gba:py-2">
         {entityList.length === 0 ? (
-          <p className="gba:px-3 gba:text-xs gba:text-muted-foreground">No entity types available.</p>
+          <p className="gba:px-3 gba:text-xs gba:text-muted-foreground">{t('template-fields-no-entity-types')}</p>
         ) : (
           <div className="gba:space-y-1">
             {entitiesByDomain.map(({ domain, entities }) => {
@@ -274,7 +344,7 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
                   {domainExpanded && (
                     <div className="gba:pl-4 gba:border-l-2 gba:border-l-border gba:ml-2 gba:space-y-0.5">
                       {entities.map((entity: TemplateEntityDefinition) => {
-                        const isExpanded = expandedEntities.has(entity.entityKey)
+                        const isExpanded = isEntityExpanded(entity.entityKey)
                         return (
                           <div key={entity.entityKey} className="gba:rounded-md gba:overflow-hidden">
                             <button
@@ -297,6 +367,7 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
                                 accessToken={accessToken}
                                 onInsert={onInsertField}
                                 testId={testId}
+                                searchQuery={searchQuery}
                               />
                             )}
                           </div>

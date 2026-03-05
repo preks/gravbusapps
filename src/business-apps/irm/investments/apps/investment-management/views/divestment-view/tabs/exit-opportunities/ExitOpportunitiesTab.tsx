@@ -18,6 +18,17 @@ export type ExitOpportunitiesTabProps = BusinessAppContextProps
 
 export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context => {
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+  const prefilledInvestmentId = useMemo(() => {
+    const fromAdditionalData = context.additionalData?.investmentId
+    if (typeof fromAdditionalData === 'string' && fromAdditionalData.trim()) {
+      return fromAdditionalData.trim()
+    }
+
+    const fromUrl = new URLSearchParams(globalThis.window?.location.search ?? '').get('investmentId')
+    if (fromUrl?.trim()) return fromUrl.trim()
+
+    return undefined
+  }, [context.additionalData])
 
   const config = useMemo(() => {
     const baseConfig = createOpportunityConfig<
@@ -51,7 +62,10 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
       flowContexts: {
         entity: FlowContextName.investmentOpportunityEntity,
         create: FlowContextName.investmentOpportunityCreate,
-        createContextData: { dealType: 'DIVESTMENT_DEAL' }
+        createContextData: {
+          dealType: 'DIVESTMENT_DEAL',
+          ...(prefilledInvestmentId ? { investmentId: prefilledInvestmentId } : {})
+        }
       },
 
       urlPaths: {
@@ -151,7 +165,7 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
         return baseSortable
       }
     } as typeof baseConfig
-  }, [context, fetchInvestmentOpportunities])
+  }, [context, fetchInvestmentOpportunities, prefilledInvestmentId])
 
   return (
     <OpportunityLayout

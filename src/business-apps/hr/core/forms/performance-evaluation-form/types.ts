@@ -10,6 +10,7 @@ export interface PerformanceEvaluationFormValues {
   employeeId?: string
   employeeName?: string
   topics: EvaluationTopic[]
+  comments?: string
 }
 
 export interface TextTransformationRequest {
@@ -40,4 +41,5 @@ export interface PerformanceEvaluationFormProps {
   onSubmit?: (values: PerformanceEvaluationFormValues) => Promise<void>
   onCancel?: () => Promise<void>
   preSelectedEmployeeId?: string
+  preSelectedUserId?: string
 }

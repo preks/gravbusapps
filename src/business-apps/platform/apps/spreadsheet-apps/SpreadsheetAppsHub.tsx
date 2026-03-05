@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
+  useTranslation,
   Card,
   Button,
   Input,
@@ -68,6 +69,7 @@ import {
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 // Components
 import { ExcelUploader } from './components/ExcelUploader'
@@ -87,6 +89,8 @@ import { useSpreadsheetAppsHubFavorites } from './hooks/useSpreadsheetAppsHubFav
 import { useSpreadsheetAppsHubFiltering } from './hooks/useSpreadsheetAppsHubFiltering'
 import { useSpreadsheetAppsHubUrlState } from './hooks/useSpreadsheetAppsHubUrlState'
 import { useSpreadsheetAppsHubUserLookup } from './hooks/useSpreadsheetAppsHubUserLookup'
+import { useHubPagination } from '../shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // Services
 import { generateAppSchema, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -95,6 +99,7 @@ import { setSpreadsheetApiAuthTokenProvider } from './services/SpreadsheetApiSer
 // Types
 import type { ParsedExcelFile, SpreadsheetAnalysis, SpreadsheetApp, SpreadsheetAppSummary } from './types'
 import { getIconByName } from './utils/appIcons'
+import translations from './_i18n'
 
 export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -116,7 +121,11 @@ function getInitials(name: string): string {
 /**
  * Format relative time
  */
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(
+  dateString: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  locale: string
+): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -124,12 +133,12 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins} min ago`
-  if (diffHours < 24) return `${diffHours} hours ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  return date.toLocaleDateString('en-US', {
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  if (diffDays === 1) return t('time-yesterday')
+  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
@@ -139,18 +148,26 @@ function formatRelativeTime(dateString: string): string {
 /**
  * Format date for table display
  */
-function formatDate(dateString: string): string {
+function formatDate(
+  dateString: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  locale: string
+): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
   if (diffDays === 0) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    return date.toLocaleTimeString(locale, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: !locale.startsWith('de')
+    })
   }
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  return date.toLocaleDateString('en-US', {
+  if (diffDays === 1) return t('time-yesterday')
+  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
@@ -165,6 +182,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   userInfo,
   'data-testid': testId = 'spreadsheet-apps-hub'
 }) => {
+  const { t } = useTranslation(translations)
+  const currentLocale = getCurrentActiveUserLocale()
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
@@ -306,6 +325,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     sortOrder
   })
 
+  const {
+    paginatedItems: paginatedApps,
+    currentPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    pageSize
+  } = useHubPagination({ items: filteredApps, pageSize: 20 })
+
   // Handlers
   const handleManageShares = useCallback(
     (id: string) => {
@@ -434,7 +462,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleDeleteApp = useCallback(
     async (id: string) => {
-      if (confirm('Are you sure you want to delete this spreadsheet?')) {
+      if (confirm(t('hub-delete-confirm-single'))) {
         const success = await deleteApp(id)
         if (success && selectedAppId === id) {
           setSelectedAppId(null)
@@ -448,7 +476,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         })
       }
     },
-    [deleteApp, selectedAppId, updateUrl]
+    [deleteApp, selectedAppId, updateUrl, t]
   )
 
   const handleDuplicateApp = useCallback(
@@ -608,7 +636,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           ? `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
           : userInfo?.givenName && userInfo?.familyName
             ? `${userInfo.givenName} ${userInfo.familyName}`
-            : userInfo?.nickName || userInfo?.userName || 'Someone'
+            : userInfo?.nickName || userInfo?.userName || t('share-blink-someone')
 
       const success = await shareApp(selectedAppForShare.id, userIds, actualPermission, currentUserName)
       if (success) {
@@ -702,7 +730,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const handleCreateEmptyApp = useCallback(async () => {
     if (!newAppName.trim() || !userInfo) return
 
-    const appName = newAppName.trim() || 'New Spreadsheet'
+    const appName = newAppName.trim() || t('hub-create-default-name')
     const appSchema = generateEmptyAppSchema(appName, userInfo.id || userInfo?.employeeDetails?.employeeId || 'unknown')
 
     const createdApp = await createApp(appSchema)
@@ -716,22 +744,25 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       setIsCreateEmptyDialogOpen(false)
       setNewAppName('')
     }
-  }, [newAppName, userInfo, createApp, updateUrl, refreshApps, loadApp])
+  }, [newAppName, userInfo, createApp, updateUrl, refreshApps, loadApp, t])
 
-  const toggleFavorite = useCallback((id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    setFavorites(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        toast.success('Removed from favorites')
-      } else {
-        next.add(id)
-        toast.success('Added to favorites')
-      }
-      return next
-    })
-  }, [])
+  const toggleFavorite = useCallback(
+    (id: string, e?: React.MouseEvent) => {
+      e?.stopPropagation()
+      setFavorites(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) {
+          next.delete(id)
+          toast.success(t('hub-removed-favorite'))
+        } else {
+          next.add(id)
+          toast.success(t('hub-added-favorite'))
+        }
+        return next
+      })
+    },
+    [t]
+  )
 
   const toggleSelectApp = useCallback((id: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
@@ -754,13 +785,16 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     }
   }, [selectedApps.size, filteredApps])
 
-  const copyLink = useCallback((app: SpreadsheetAppSummary) => {
-    const url = new URL(window.location.href)
-    url.searchParams.set('appId', app.id)
-    if (app.filePath) url.searchParams.set('filePath', encodeURIComponent(app.filePath))
-    navigator.clipboard.writeText(url.toString())
-    toast.success('Link copied to clipboard')
-  }, [])
+  const copyLink = useCallback(
+    (app: SpreadsheetAppSummary) => {
+      const url = new URL(window.location.href)
+      url.searchParams.set('appId', app.id)
+      if (app.filePath) url.searchParams.set('filePath', encodeURIComponent(app.filePath))
+      navigator.clipboard.writeText(url.toString())
+      toast.success(t('hub-link-copied'))
+    },
+    [t]
+  )
 
   // Render based on current view
   if (currentView === 'viewer' && currentApp) {
@@ -801,7 +835,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   if (currentView === 'editor' && currentApp) {
     if (currentAppPermission !== 'owner' && currentAppPermission !== 'edit') {
-      toast.error('You do not have permission to edit this spreadsheet')
+      toast.error(t('hub-edit-permission-denied'))
       handleBack()
       return null
     }
@@ -822,19 +856,19 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const getSectionTitle = () => {
     switch (activeSection) {
       case 'home':
-        return 'Home'
+        return t('hub-section-home')
       case 'my-files':
-        return 'My Spreadsheets'
+        return t('hub-section-my-files')
       case 'shared':
-        return 'Shared with me'
+        return t('hub-section-shared')
       case 'favorites':
-        return 'Favorites'
+        return t('hub-section-favorites')
       case 'recent':
-        return 'Recent'
+        return t('hub-section-recent')
       case 'trash':
-        return 'Trash'
+        return t('hub-section-trash')
       default:
-        return 'Spreadsheets'
+        return t('hub-section-default')
     }
   }
 
@@ -863,7 +897,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                       <ChevronLeft className="gba:w-4 gba:h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Back to Desk</TooltipContent>
+                  <TooltipContent>{t('hub-back-to-desk')}</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
@@ -881,7 +915,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+                <TooltipContent>
+                  {isSidebarCollapsed ? t('hub-expand-sidebar') : t('hub-collapse-sidebar')}
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -893,8 +929,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
               </div>
               <div>
-                <h1 className="gba:font-semibold gba:text-foreground">Spreadsheets</h1>
-                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+                <h1 className="gba:font-semibold gba:text-foreground">{t('hub-brand-title')}</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('hub-brand-subtitle')}</p>
               </div>
             </div>
           )}
@@ -915,22 +951,22 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-600 gba:text-white hover:gba:from-emerald-600 hover:gba:to-teal-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
               >
                 <Plus className="gba:w-4 gba:h-4" />
-                {!isSidebarCollapsed && 'New'}
+                {!isSidebarCollapsed && t('hub-new')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
               <DropdownMenuItem onClick={() => setIsCreateEmptyDialogOpen(true)}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-emerald-500" />
                 <div>
-                  <div className="gba:font-medium">Blank Spreadsheet</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Start from scratch</div>
+                  <div className="gba:font-medium">{t('hub-blank-spreadsheet')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('hub-start-from-scratch')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleStartUpload}>
                 <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
                 <div>
-                  <div className="gba:font-medium">Upload Excel</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Import .xlsx or .xls file</div>
+                  <div className="gba:font-medium">{t('hub-upload-excel')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('hub-import-excel')}</div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -952,10 +988,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     }`}
                   >
                     <Home className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Home'}
+                    {!isSidebarCollapsed && t('hub-section-home')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('hub-section-home')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -969,10 +1005,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     }`}
                   >
                     <FolderClosed className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'My Spreadsheets'}
+                    {!isSidebarCollapsed && t('hub-section-my-files')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">My Spreadsheets</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('hub-section-my-files')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -988,7 +1024,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <Users className="gba:w-4 gba:h-4" />
                     {!isSidebarCollapsed && (
                       <>
-                        Shared with me
+                        {t('hub-section-shared')}
                         {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length > 0 && (
                           <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
                             {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length}
@@ -1000,7 +1036,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 </TooltipTrigger>
                 {isSidebarCollapsed && (
                   <TooltipContent side="right">
-                    Shared with me{' '}
+                    {t('hub-section-shared')}{' '}
                     {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length > 0 &&
                       `(${apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length})`}
                   </TooltipContent>
@@ -1018,10 +1054,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     }`}
                   >
                     <Star className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Favorites'}
+                    {!isSidebarCollapsed && t('hub-section-favorites')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Favorites</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('hub-section-favorites')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -1035,24 +1071,26 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     }`}
                   >
                     <Clock className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Recent'}
+                    {!isSidebarCollapsed && t('hub-section-recent')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('hub-section-recent')}</TooltipContent>}
               </Tooltip>
             </TooltipProvider>
           </div>
 
           {!isSidebarCollapsed && (
             <div className="gba:mt-6 gba:pt-4 gba:border-t">
-              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('hub-storage')}
+              </p>
               <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                   <Database
                     className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
                   />
                   <span className="gba:text-xs gba:text-muted-foreground">
-                    {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                    {storageMode === 'database' ? t('hub-storage-cloud') : t('hub-storage-local')}
                   </span>
                 </div>
                 <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
@@ -1061,7 +1099,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     style={{ width: `${Math.min((apps.length / 50) * 100, 100)}%` }}
                   />
                 </div>
-                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{apps.length} spreadsheets</p>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
+                  {t('hub-spreadsheets-count', { count: apps.length })}
+                </p>
               </div>
             </div>
           )}
@@ -1079,9 +1119,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                   <TooltipContent side="right">
                     <div>
                       <p className="gba:font-medium">
-                        {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                        {storageMode === 'database' ? t('hub-storage-cloud') : t('hub-storage-local')}
                       </p>
-                      <p className="gba:text-xs gba:text-muted-foreground">{apps.length} spreadsheets</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {t('hub-spreadsheets-count', { count: apps.length })}
+                      </p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -1099,15 +1141,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
               <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
                 <X className="gba:w-4 gba:h-4 gba:mr-2" />
-                Cancel
+                {t('common-cancel')}
               </Button>
 
               <div className="gba:text-center gba:mb-8">
                 <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
                   <Upload className="gba:w-8 gba:h-8 gba:text-white" />
                 </div>
-                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload Excel File</h2>
-                <p className="gba:text-muted-foreground">Transform your spreadsheet into a powerful app with AI</p>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">
+                  {t('hub-upload-file-title')}
+                </h2>
+                <p className="gba:text-muted-foreground">{t('hub-upload-file-description')}</p>
               </div>
 
               <ExcelUploader
@@ -1119,10 +1163,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               {isAnalyzing && (
                 <Card className="gba:p-8 gba:text-center">
                   <Spinner size="lg" className="gba:mx-auto gba:mb-4" />
-                  <h3 className="gba:font-semibold gba:text-foreground gba:mb-2">Analyzing your spreadsheet...</h3>
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    AI is detecting column types and suggesting the best structure
-                  </p>
+                  <h3 className="gba:font-semibold gba:text-foreground gba:mb-2">{t('hub-analyzing-title')}</h3>
+                  <p className="gba:text-sm gba:text-muted-foreground">{t('hub-analyzing-description')}</p>
                 </Card>
               )}
             </div>
@@ -1135,7 +1177,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             <div className="gba:max-w-4xl gba:mx-auto">
               <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
                 <X className="gba:w-4 gba:h-4 gba:mr-2" />
-                Cancel
+                {t('common-cancel')}
               </Button>
               <SheetAnalysisPreview
                 analysis={analysis}
@@ -1165,7 +1207,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedApps(new Set())}>
                         <X className="gba:w-4 gba:h-4 gba:mr-1" />
-                        Clear ({selectedApps.size})
+                        {t('hub-clear-selected', { count: selectedApps.size })}
                       </Button>
                       <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-2" />
                       <Button
@@ -1176,7 +1218,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         }}
                       >
                         <Share2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                        Share
+                        {t('common-share')}
                       </Button>
                       <Button
                         variant="ghost"
@@ -1186,20 +1228,20 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         }}
                       >
                         <Download className="gba:w-4 gba:h-4 gba:mr-1" />
-                        Download
+                        {t('common-download')}
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="gba:text-destructive"
                         onClick={() => {
-                          if (confirm(`Delete ${selectedApps.size} spreadsheet(s)?`)) {
+                          if (confirm(t('hub-delete-selected-confirm', { count: selectedApps.size }))) {
                             selectedApps.forEach(id => handleDeleteApp(id))
                           }
                         }}
                       >
                         <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                        Delete
+                        {t('common-delete')}
                       </Button>
                     </>
                   ) : (
@@ -1208,7 +1250,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
                             <ArrowUpDown className="gba:w-4 gba:h-4 gba:mr-1" />
-                            Sort
+                            {t('hub-sort')}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
@@ -1219,7 +1261,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             }}
                           >
                             {sortBy === 'name' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                            Name
+                            {t('hub-sort-name')}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -1228,7 +1270,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             }}
                           >
                             {sortBy === 'modified' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                            Modified
+                            {t('hub-sort-modified')}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -1237,7 +1279,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             }}
                           >
                             {sortBy === 'created' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                            Created
+                            {t('hub-sort-created')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1252,7 +1294,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                   <div className="gba:relative">
                     <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                     <Input
-                      placeholder="Search..."
+                      placeholder={t('common-search-placeholder')}
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       className="gba:pl-9 gba:w-64 gba:h-9"
@@ -1307,27 +1349,27 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                   </div>
                   <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
                     {activeSection === 'favorites'
-                      ? 'No favorites yet'
+                      ? t('hub-no-favorites')
                       : activeSection === 'shared'
-                        ? 'Nothing shared with you'
-                        : 'No spreadsheets yet'}
+                        ? t('hub-nothing-shared')
+                        : t('hub-no-spreadsheets')}
                   </h3>
                   <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                     {activeSection === 'favorites'
-                      ? 'Star your frequently used spreadsheets to see them here.'
+                      ? t('hub-no-favorites-description')
                       : activeSection === 'shared'
-                        ? 'When someone shares a spreadsheet with you, it will appear here.'
-                        : 'Create your first spreadsheet to get started.'}
+                        ? t('hub-nothing-shared-description')
+                        : t('hub-no-spreadsheets-description')}
                   </p>
                   {activeSection !== 'favorites' && activeSection !== 'shared' && (
                     <div className="gba:flex gba:gap-3">
                       <Button onClick={() => setIsCreateEmptyDialogOpen(true)}>
                         <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Create Spreadsheet
+                        {t('hub-create-spreadsheet')}
                       </Button>
                       <Button variant="outline" onClick={handleStartUpload}>
                         <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Upload Excel
+                        {t('hub-upload-excel')}
                       </Button>
                     </div>
                   )}
@@ -1342,7 +1384,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
                       <div className="gba:w-8 gba:flex-shrink-0">
                         <Checkbox
-                          checked={selectedApps.size === filteredApps.length && filteredApps.length > 0}
+                          checked={selectedApps.size === paginatedApps.length && paginatedApps.length > 0}
                           onCheckedChange={selectAllApps}
                         />
                       </div>
@@ -1354,7 +1396,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
                         }}
                       >
-                        Name
+                        {t('hub-sort-name')}
                         {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                       </div>
                       <div
@@ -1364,10 +1406,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
                         }}
                       >
-                        Modified
+                        {t('hub-sort-modified')}
                         {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                       </div>
-                      <div className="gba:w-40 gba:flex-shrink-0">Modified By</div>
+                      <div className="gba:w-40 gba:flex-shrink-0">{t('hub-table-modified-by')}</div>
                       <div
                         className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
                         onClick={() => {
@@ -1375,17 +1417,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
                         }}
                       >
-                        Created
+                        {t('hub-sort-created')}
                         {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                       </div>
-                      <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">Rows</div>
+                      <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">{t('hub-table-rows')}</div>
                       <div className="gba:w-10 gba:flex-shrink-0" />
                     </div>
                   </div>
 
                   {/* Table Body */}
                   <div className="gba:divide-y gba:divide-border">
-                    {filteredApps.map(app => {
+                    {paginatedApps.map(app => {
                       const isOwner = app.isOwner ?? app.createdBy === currentUserId
                       const isSelected = selectedApps.has(app.id)
                       const isFavorite = favorites.has(app.id)
@@ -1432,7 +1474,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                 <span className="gba:font-medium gba:text-foreground gba:truncate">{app.name}</span>
                                 {app.isShared && !isOwner && (
                                   <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                    Shared
+                                    {t('hub-shared-badge')}
                                   </Badge>
                                 )}
                                 {isOwner && sharedWith.length > 0 && (
@@ -1465,11 +1507,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         </button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>
-                                          Shared with {sharedWith.length}{' '}
-                                          {sharedWith.length === 1 ? 'person' : 'people'}
+                                        <p>{t('hub-shared-with', { count: sharedWith.length })}</p>
+                                        <p className="gba:text-xs gba:text-muted-foreground">
+                                          {t('hub-click-to-manage')}
                                         </p>
-                                        <p className="gba:text-xs gba:text-muted-foreground">Click to manage</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
@@ -1483,7 +1524,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                           {/* Modified */}
                           <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                            {formatDate(app.updatedAt)}
+                            {formatDate(app.updatedAt, t, currentLocale)}
                           </div>
 
                           {/* Modified By */}
@@ -1496,14 +1537,14 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                 </AvatarFallback>
                               </Avatar>
                               <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                                {ownerInfo?.name || 'Unknown'}
+                                {ownerInfo?.name || t('hub-unknown-user')}
                               </span>
                             </div>
                           </div>
 
                           {/* Created */}
                           <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                            {formatDate(app.createdAt)}
+                            {formatDate(app.createdAt, t, currentLocale)}
                           </div>
 
                           {/* Rows */}
@@ -1525,42 +1566,42 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleOpenApp(app.id)}>
                                   <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Open
+                                  {t('common-open')}
                                 </DropdownMenuItem>
                                 {isOwner && (
                                   <DropdownMenuItem onClick={() => handleShareApp(app.id)}>
                                     <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    Share
+                                    {t('common-share')}
                                   </DropdownMenuItem>
                                 )}
                                 {isOwner && sharedWith.length > 0 && (
                                   <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
                                     <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    Manage sharing
+                                    {t('hub-manage-sharing')}
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem onClick={() => copyLink(app)}>
                                   <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Copy link
+                                  {t('hub-copy-link')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleExportApp(app.id)}>
                                   <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Download
+                                  {t('common-download')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
                                   <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Settings
+                                  {t('common-settings')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
                                   <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Duplicate
+                                  {t('common-duplicate')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => toggleFavorite(app.id)}>
                                   <Star
                                     className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
                                   />
-                                  {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                                  {isFavorite ? t('hub-remove-favorite') : t('hub-add-favorite')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -1568,7 +1609,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   onClick={() => handleDeleteApp(app.id)}
                                 >
                                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                  Delete
+                                  {t('common-delete')}
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1583,7 +1624,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               {/* Grid View */}
               {!isLoadingApps && filteredApps.length > 0 && viewLayout === 'grid' && (
                 <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-                  {filteredApps.map(app => {
+                  {paginatedApps.map(app => {
                     const isOwner = app.isOwner ?? app.createdBy === currentUserId
                     const isSelected = selectedApps.has(app.id)
                     const isFavorite = favorites.has(app.id)
@@ -1634,7 +1675,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           {app.isShared && !isOwner && (
                             <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                               <Users className="gba:w-3 gba:h-3 gba:mr-1" />
-                              Shared
+                              {t('hub-shared-badge')}
                             </Badge>
                           )}
                         </div>
@@ -1643,8 +1684,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         <div className="gba:p-3">
                           <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">{app.name}</h3>
                           <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                            <span>{formatRelativeTime(app.updatedAt)}</span>
-                            <span>{app.rowCount} rows</span>
+                            <span>{formatRelativeTime(app.updatedAt, t, currentLocale)}</span>
+                            <span>
+                              {t('hub-table-rows')}: {app.rowCount}
+                            </span>
                           </div>
                         </div>
 
@@ -1654,7 +1697,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           onClick={e => e.stopPropagation()}
                         >
                           <Button size="sm" variant="secondary" onClick={() => handleOpenApp(app.id)}>
-                            Open
+                            {t('common-open')}
                           </Button>
                           {isOwner && (
                             <Button size="sm" variant="ghost" onClick={() => handleShareApp(app.id)}>
@@ -1670,15 +1713,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
                                 <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Settings
+                                {t('common-settings')}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
                                 <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Duplicate
+                                {t('common-duplicate')}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleExportApp(app.id)}>
                                 <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Download
+                                {t('common-download')}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -1686,7 +1729,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                 onClick={() => handleDeleteApp(app.id)}
                               >
                                 <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Delete
+                                {t('common-delete')}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -1697,6 +1740,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {!isLoadingApps && filteredApps.length > 0 && (
+              <HubPaginationFooter
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={goToPage}
+                data-testid={`${testId}-pagination`}
+              />
+            )}
           </>
         )}
       </main>
@@ -1757,14 +1812,14 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       <Dialog open={isCreateEmptyDialogOpen} onOpenChange={setIsCreateEmptyDialogOpen}>
         <DialogContent className="gba:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create New Spreadsheet</DialogTitle>
+            <DialogTitle>{t('hub-create-new-spreadsheet')}</DialogTitle>
           </DialogHeader>
           <div className="gba:space-y-4 gba:py-4">
             <div className="gba:space-y-2">
-              <Label htmlFor="app-name">Name</Label>
+              <Label htmlFor="app-name">{t('hub-name')}</Label>
               <Input
                 id="app-name"
-                placeholder="My Spreadsheet"
+                placeholder={t('hub-name-placeholder')}
                 value={newAppName}
                 onChange={e => setNewAppName(e.target.value)}
                 autoFocus
@@ -1778,10 +1833,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateEmptyDialogOpen(false)}>
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button onClick={handleCreateEmptyApp} disabled={!newAppName.trim()}>
-              Create
+              {t('common-create')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import { getAndClearPendingStartCall } from '../pendingStartCallFromPlatform'
+import { setPendingJoinMeeting } from '../pendingJoinMeetingFromPlatform'
 
 type CallType = 'audio' | 'video'
 
@@ -61,6 +63,11 @@ export const useStartCallFromPlatform = ({
   const pendingEventRef = useRef<StartCallPayload | null>(null)
 
   useEffect(() => {
+    const earlyPayload = getAndClearPendingStartCall()
+    if (earlyPayload) {
+      pendingEventRef.current = earlyPayload
+    }
+
     const processStartCall = async (payload: StartCallPayload) => {
       if (processingRef.current || !initiateGroupCall) {
         return
@@ -154,7 +161,8 @@ export const useStartCallFromPlatform = ({
       window.dispatchEvent(new CustomEvent('chat:group-call-started', { detail: { conversationId } }))
     }
 
-    // Handle joining a calendar meeting from the dashboard (Upcoming Meetings section)
+    // Handle joining a calendar meeting (from Calendar or Upcoming Meetings).
+    // Must use only event.detail — never URL or current tab — so join is correct when user is on another tab.
     const handleJoinMeeting = (event: Event) => {
       const customEvent = event as CustomEvent<JoinMeetingPayload>
       const { meetingId, conversationId, title, participants } = customEvent.detail
@@ -171,6 +179,9 @@ export const useStartCallFromPlatform = ({
 
       // Use conversationId if available, otherwise use meetingId as the room identifier
       const roomId = conversationId || meetingId
+
+      // Store so rejoin modal can show transcription message when conversation lacks metadata.meetingId
+      if (meetingId && roomId) setPendingJoinMeeting(meetingId, roomId)
 
       // Join the calendar meeting with video by default
       // Pass the meetingId as calendarMeetingId so the call is linked to the calendar event

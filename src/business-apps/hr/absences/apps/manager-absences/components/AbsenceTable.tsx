@@ -14,7 +14,7 @@ import {
   Button,
   Badge
 } from '@newwork/nw-design-system'
-import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { CalendarIcon, UserIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EnhancedAbsence } from '../types'
 import { useAbsenceColors } from '../utils/absenceColors'
@@ -125,8 +125,8 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
 
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null
-    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+    if (sortOrder === 'ASC') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+    if (sortOrder === 'DESC') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
     return null
   }
 
@@ -241,7 +241,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-employee-name-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiUser size={16} className="gba:text-muted-foreground" />
+                        <UserIcon size={16} className="gba:text-muted-foreground" />
                         <span className="gba:font-medium gba:text-sm">{getEmployeeName(record)}</span>
                       </div>
                     </div>
@@ -267,7 +267,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   >
                     {record.startDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-muted-foreground" />
+                        <CalendarIcon size={16} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDate(record.startDate, 'date.short') || '-'}</span>
                       </div>
                     ) : (
@@ -280,7 +280,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   >
                     {record.endDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-muted-foreground" />
+                        <CalendarIcon size={16} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDate(record.endDate, 'date.short') || '-'}</span>
                       </div>
                     ) : (
@@ -305,7 +305,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   >
                     {record.createdAt ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-muted-foreground" />
+                        <CalendarIcon size={16} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDate(record.createdAt, 'date.short') || '-'}</span>
                       </div>
                     ) : (

@@ -18,6 +18,37 @@ import { useFlowStepData } from '../hooks/useFlowStepData'
 import { TaskAiSection } from './TaskAiSection'
 import translations from '../_i18n'
 
+const isExpenseTask = (task: UnifiedTask): boolean => {
+  const parts: Array<string> = []
+
+  const tagValues =
+    task?.tags && typeof task.tags === 'object'
+      ? Object.values(task.tags)
+          .map(v => (typeof v === 'string' ? v : ''))
+          .filter(Boolean)
+      : []
+
+  parts.push(
+    String(task?.referenceTaskName || ''),
+    String(task?.name || ''),
+    String(task?.title || ''),
+    String(task?.type || ''),
+    String(task?.taskCategory || ''),
+    String(task?.message || ''),
+    ...tagValues
+  )
+
+  const haystack = parts.join(' ').toLowerCase()
+
+  // Finance/Expenses-related task screens where the AI summary banner is noisy.
+  return (
+    haystack.includes('expense') ||
+    haystack.includes('advance payment') ||
+    haystack.includes('handout payment') ||
+    haystack.includes('transfer payment')
+  )
+}
+
 interface TaskDetailContentProps {
   task: UnifiedTask
   onClose: () => void
@@ -221,6 +252,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   ])
 
   const taskInputs = task?.sourceMetadata?.inputs || task?.inputs
+  const shouldShowAiSection = !isExpenseTask(task)
 
   const nativeScreenAdditionalData = React.useMemo(() => {
     const data = {
@@ -493,14 +525,16 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               onTaskUpdated={onTaskUpdated}
               isLoadingMetadata={false}
               belowHeaderSlot={
-                <TaskAiSection
-                  taskId={task.id}
-                  source={task.source}
-                  accessToken={accessToken}
-                  taskTitle={task.title || task.name}
-                  taskDescription={task.description}
-                  contactId={task.sourceMetadata?.creatorUserId as string | undefined}
-                />
+                shouldShowAiSection ? (
+                  <TaskAiSection
+                    taskId={task.id}
+                    source={task.source}
+                    accessToken={accessToken}
+                    taskTitle={task.title || task.name}
+                    taskDescription={task.description}
+                    contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+                  />
+                ) : null
               }
             />
           </div>
@@ -512,16 +546,18 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       return (
         <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:relative">
           {/* AI Summary (cannot be injected into iframe) */}
-          <div className="gba:px-6 gba:pt-4">
-            <TaskAiSection
-              taskId={task.id}
-              source={task.source}
-              accessToken={accessToken}
-              taskTitle={task.title || task.name}
-              taskDescription={task.description}
-              contactId={task.sourceMetadata?.creatorUserId as string | undefined}
-            />
-          </div>
+          {shouldShowAiSection && (
+            <div className="gba:px-6 gba:pt-4">
+              <TaskAiSection
+                taskId={task.id}
+                source={task.source}
+                accessToken={accessToken}
+                taskTitle={task.title || task.name}
+                taskDescription={task.description}
+                contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+              />
+            </div>
+          )}
 
           {/* Screen content */}
           <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
@@ -545,14 +581,16 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       return (
         <div className="gba:px-6 gba:py-4 gba:space-y-6">
           {/* AI Summary at top */}
-          <TaskAiSection
-            taskId={task.id}
-            source={task.source}
-            accessToken={accessToken}
-            taskTitle={task.title || task.name}
-            taskDescription={task.description}
-            contactId={task.sourceMetadata?.creatorUserId as string | undefined}
-          />
+          {shouldShowAiSection && (
+            <TaskAiSection
+              taskId={task.id}
+              source={task.source}
+              accessToken={accessToken}
+              taskTitle={task.title || task.name}
+              taskDescription={task.description}
+              contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+            />
+          )}
 
           {/* Placeholder for tasks without screens */}
           <div className="gba:text-muted-foreground gba:text-center gba:py-4">

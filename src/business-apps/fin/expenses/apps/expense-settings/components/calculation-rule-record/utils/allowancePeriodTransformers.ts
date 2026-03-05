@@ -9,7 +9,7 @@ export interface AllowancePeriodFormValues {
   name: string
   fromTime?: string
   toTime?: string
-  minHours: number
+  minHours: number | string // Allow string during editing (e.g., "12." or "0.5")
   midnightRule: boolean
   overnightAccommodation?: boolean
   startAfter?: string
@@ -92,7 +92,7 @@ export const transformAllowancePeriodForSave = (
   overnightAccomodation: formValues.overnightAccommodation,
   fromTime: formValues.fromTime,
   toTime: formValues.toTime,
-  minHours: formValues.minHours,
+  minHours: typeof formValues.minHours === 'string' ? Number.parseFloat(formValues.minHours) || 0 : formValues.minHours,
   midnightRule: formValues.midnightRule,
   startAfter: formValues.startAfter,
   returnBefore: formValues.returnBefore,

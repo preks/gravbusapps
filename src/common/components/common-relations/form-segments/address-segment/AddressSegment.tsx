@@ -14,7 +14,7 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
-import { PiPlus, PiMinus, PiTrash } from 'react-icons/pi'
+import { PlusIcon, MinusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { COUNTRY, COUNTRY_REGION } from '@/common/constants/commonCatalogs'
 import { AddressType, ADDRESS_TYPE_OPTIONS } from '@/common/data/relations/types/relationEnums'
@@ -109,7 +109,7 @@ const AddressItemComponent: React.FC<AddressItemProps> = ({
           className="gba:mt-6"
           data-testid={`address-segment-remove-address-${addressIndex}`}
         >
-          <PiTrash className="gba:w-4 gba:h-4" />
+          <TrashIcon className="gba:w-4 gba:h-4" />
         </Button>
       </div>
 
@@ -154,7 +154,7 @@ const AddressItemComponent: React.FC<AddressItemProps> = ({
                   className="gba:flex gba:items-center gba:gap-1"
                   data-testid={`address-segment-remove-line-${addressIndex}-${lineIndex + 1}`}
                 >
-                  <PiMinus className="gba:w-4 gba:h-4" />
+                  <MinusIcon className="gba:w-4 gba:h-4" />
                 </Button>
               )}
             </div>
@@ -171,7 +171,7 @@ const AddressItemComponent: React.FC<AddressItemProps> = ({
             className="gba:text-xs gba:px-2 gba:py-1"
             data-testid={`address-segment-add-line-${addressIndex}`}
           >
-            <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
+            <PlusIcon className="gba:w-3 gba:h-3 gba:mr-1" />
             {t('address-add-line')}
           </Button>
         </div>
@@ -356,7 +356,7 @@ const AddressSegment: React.FC<AddressSegmentProps> = ({ customFields, isActive 
         className="gba:w-full gba:mt-4"
         data-testid="address-segment-add-address"
       >
-        <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+        <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
         {t('address-add-address')}
       </Button>
 

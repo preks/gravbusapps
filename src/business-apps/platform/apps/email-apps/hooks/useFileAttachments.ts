@@ -10,6 +10,11 @@ import type { SendAttachment } from '../types'
 const MAX_TOTAL_SIZE = 25 * 1024 * 1024 // 25 MB
 const MAX_SINGLE_FILE = 10 * 1024 * 1024 // 10 MB per file
 
+export interface UseFileAttachmentsOptions {
+  /** Translation function for toast messages. When omitted, falls back to English. */
+  t?: (key: string, vars?: Record<string, string | number>) => string
+}
+
 /** Reads a File as base64 string (without data-uri prefix) */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -23,7 +28,8 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-export function useFileAttachments() {
+export function useFileAttachments(options: UseFileAttachmentsOptions = {}) {
+  const { t } = options
   const [attachments, setAttachments] = useState<SendAttachment[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -37,13 +43,17 @@ export function useFileAttachments() {
 
       for (const file of fileArray) {
         if (file.size > MAX_SINGLE_FILE) {
-          toast.error(`"${file.name}" exceeds the 10 MB per-file limit`)
+          const msg = t
+            ? t('composer-toast-file-size-exceeded', { name: file.name })
+            : `"${file.name}" exceeds the 10 MB per-file limit`
+          toast.error(msg)
           continue
         }
 
         const runningTotal = totalSize + newAttachments.reduce((s, a) => s + (a.size || 0), 0) + file.size
         if (runningTotal > MAX_TOTAL_SIZE) {
-          toast.error('Total attachments exceed 25 MB limit')
+          const msg = t ? t('composer-toast-total-size-exceeded') : 'Total attachments exceed 25 MB limit'
+          toast.error(msg)
           break
         }
 
@@ -59,7 +69,8 @@ export function useFileAttachments() {
             size: file.size
           })
         } catch {
-          toast.error(`Failed to read "${file.name}"`)
+          const msg = t ? t('composer-toast-file-read-failed', { name: file.name }) : `Failed to read "${file.name}"`
+          toast.error(msg)
         }
       }
 
@@ -67,7 +78,7 @@ export function useFileAttachments() {
         setAttachments(prev => [...prev, ...newAttachments])
       }
     },
-    [attachments, totalSize]
+    [attachments, totalSize, t]
   )
 
   const removeAttachment = useCallback((index: number) => {

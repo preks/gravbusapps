@@ -16,7 +16,7 @@ import {
   toast,
   Spinner
 } from '@newwork/nw-design-system'
-import { CalendarBlank, PencilSimple, Play, Plus, Warning as WarningIcon } from '@phosphor-icons/react'
+import { CalendarBlank, PencilSimple, Play, Plus, Trash, Warning as WarningIcon } from '@phosphor-icons/react'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from '../types'
 import CycleEditorModal, {
   CycleEditorValues,
@@ -54,6 +54,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   const { t } = useTranslation(translations)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
+  const [dateOverlapError, setDateOverlapError] = useState<string | null>(null)
 
   const isDateWithinCyclePeriod = (cycle: PerformanceCycle): boolean => {
     const today = new Date()
@@ -83,6 +84,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   }
 
   const handleEdit = (cycle: PerformanceCycle) => {
+    setDateOverlapError(null)
     setEditing(cycle)
     setIsModalOpen(true)
   }
@@ -94,15 +96,26 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
         className: 'gba:text-base',
         icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
       })
+      return
     }
+    setDateOverlapError(null)
     setEditing(null)
     setIsModalOpen(true)
   }
 
   const handleSaveFromModal = async (values: CycleEditorValues) => {
-    await onSaveFromModal(values)
-    setEditing(null)
-    setIsModalOpen(false)
+    try {
+      setDateOverlapError(null)
+      await onSaveFromModal(values)
+      setEditing(null)
+      setIsModalOpen(false)
+    } catch (err) {
+      const isOverlap = err instanceof Error && (err as Error & { code?: string }).code === 'DATES_OVERLAP'
+      if (isOverlap) {
+        setDateOverlapError(err instanceof Error ? err.message : t('cycles-error-dates-overlap'))
+      }
+      throw err
+    }
   }
 
   return (
@@ -139,6 +152,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                   <TableHead className="gba:w-[24px]"></TableHead>
                   <TableHead>{t('table-name')}</TableHead>
                   <TableHead>{t('table-dates')}</TableHead>
+                  <TableHead>{t('table-evaluation-period')}</TableHead>
                   <TableHead>{t('table-type')}</TableHead>
                   <TableHead>{t('table-scale')}</TableHead>
                   <TableHead>{t('table-values')}</TableHead>
@@ -150,13 +164,13 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
               <TableBody>
                 {cyclesLoading && cycles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="gba:py-8 gba:text-center">
+                    <TableCell colSpan={10} className="gba:py-8 gba:text-center">
                       <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
                     </TableCell>
                   </TableRow>
                 ) : cycles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="gba:text-center gba:text-muted-foreground">
+                    <TableCell colSpan={10} className="gba:text-center gba:text-muted-foreground">
                       {t('empty-no-cycles')}
                     </TableCell>
                   </TableRow>
@@ -164,6 +178,10 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                   cycles.map((c, i) => {
                     const participants = c.participants.join(', ')
                     const dates = `${c.startDate} → ${c.endDate}`
+                    const evalPeriod =
+                      c.evaluationPeriodStartDate && c.evaluationPeriodEndDate
+                        ? `${c.evaluationPeriodStartDate} → ${c.evaluationPeriodEndDate}`
+                        : '-'
                     const valueTitles =
                       (c.valueIds ?? [])
                         .map(id => valuesStore.find(v => v.id === id)?.title)
@@ -174,6 +192,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                         <TableCell>{i + 1}</TableCell>
                         <TableCell className="gba:font-medium">{c.name}</TableCell>
                         <TableCell>{dates}</TableCell>
+                        <TableCell>{evalPeriod}</TableCell>
                         <TableCell>{c.frequency}</TableCell>
                         <TableCell>
                           {c.ratingScaleId ? ratingScales.find(s => s.id === c.ratingScaleId)?.name || '-' : '-'}
@@ -191,6 +210,15 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                           <div className="gba:flex gba:justify-end gba:gap-1">
                             <Button variant="ghost" size="icon" onClick={() => handleEdit(c)} aria-label="Edit">
                               <PencilSimple />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onDeleteCycle(c)}
+                              data-testid={`cycle-delete-${c.id}`}
+                              aria-label="Delete"
+                            >
+                              <Trash />
                             </Button>
                             {c.status === 'Inactive' ? (
                               <Button
@@ -221,14 +249,6 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                               <Play weight="fill" className="gba:mr-1" size={16} />
                               {t('button-start')}
                             </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => onDeleteCycle(c)}
-                              data-testid={`cycle-delete-${c.id}`}
-                            >
-                              {t('button-delete')}
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -242,8 +262,13 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
       </Card>
       <CycleEditorModal
         open={isModalOpen}
-        onOpenChange={open => setIsModalOpen(open)}
+        onOpenChange={open => {
+          if (!open) setDateOverlapError(null)
+          setIsModalOpen(open)
+        }}
         onSave={handleSaveFromModal}
+        dateOverlapError={dateOverlapError}
+        onClearDateError={() => setDateOverlapError(null)}
         availableValues={valuesStore}
         availableRatingScales={ratingScales}
         initialValues={
@@ -254,6 +279,8 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                 name: editing.name,
                 startDate: editing.startDate,
                 endDate: editing.endDate,
+                evaluationPeriodStartDate: editing.evaluationPeriodStartDate,
+                evaluationPeriodEndDate: editing.evaluationPeriodEndDate,
                 frequency:
                   (String(editing.frequency).toUpperCase().includes('QUARTERLY')
                     ? 'Quarterly'

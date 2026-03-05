@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import type { Dayjs } from 'dayjs'
 import { Typography, Space, Button } from 'antd'
-import { LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -35,7 +35,7 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({ value, onChange, curren
       <Space>
         <Button
           shape="circle"
-          icon={<LeftOutlined />}
+          icon={<CaretLeftIcon />}
           onClick={() => {
             const newValue = value.subtract(1, 'month')
             setCalendarValue(newValue)
@@ -46,7 +46,7 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({ value, onChange, curren
         />
         <Button
           shape="circle"
-          icon={<RightOutlined />}
+          icon={<CaretRightIcon size={16} />}
           onClick={() => {
             const newValue = value.add(1, 'month')
             setCalendarValue(newValue)

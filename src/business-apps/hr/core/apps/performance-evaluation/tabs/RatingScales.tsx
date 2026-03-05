@@ -14,9 +14,10 @@ import {
   useTranslation,
   Spinner
 } from '@newwork/nw-design-system'
-import { PlusIcon } from '@phosphor-icons/react'
+import { PencilSimple, Plus, Trash } from '@phosphor-icons/react'
 import type { RatingScale } from '../types'
 import RatingScaleEditorModal, { RatingScaleValues } from '../RatingScaleEditorModal'
+import { scaleTypeToDisplayMode } from '../hooks/useInsertRatingScale'
 import translations from '../_i18n'
 
 /** Display "1 star"/"2 stars" etc. as ★, ★★, … in the Rating Scales table. */
@@ -28,6 +29,22 @@ function formatRatingScaleValueForDisplay(value: string): string {
     return '★'.repeat(n)
   }
   return value
+}
+
+/** For STAR_RATING_SCALE_TYPE, API stores "1 star", "2 stars" – convert to ★, ★★ for edit modal preview. */
+function valuesForEditModal(scale: RatingScale): string[] {
+  if (scale.scaleType === 'STAR_RATING_SCALE_TYPE') {
+    return scale.values.map((label, i) => {
+      const re = /^(\d+)\s+stars?$/i
+      const match = re.exec(label.trim())
+      if (match) {
+        const n = Math.max(0, Math.min(parseInt(match[1], 10), 10))
+        return '★'.repeat(n)
+      }
+      return '★'.repeat(i + 1)
+    })
+  }
+  return scale.values
 }
 
 export interface RatingScalesProps {
@@ -73,7 +90,7 @@ export const RatingScales: React.FC<RatingScalesProps> = ({
                 <Spinner className="gba:h-5 gba:w-5" data-testid="performance-rating-scales-loading" />
               )}
               <Button variant="default" onClick={handleAdd} data-testid="performance-rating-scales-add-button">
-                <PlusIcon className="gba:mr-2" size={16} />
+                <Plus className="gba:mr-2" size={16} />
                 {t('button-add')}
               </Button>
             </div>
@@ -121,22 +138,22 @@ export const RatingScales: React.FC<RatingScalesProps> = ({
                         <div className="gba:flex gba:justify-end gba:gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => {
                               setEditingScale(s)
                               setIsScaleModalOpen(true)
                             }}
                             aria-label="Edit Scale"
                           >
-                            {t('button-edit')}
+                            <PencilSimple />
                           </Button>
                           <Button
-                            variant="destructive"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => onDeleteScale(s)}
                             aria-label="Delete Scale"
                           >
-                            {t('button-delete')}
+                            <Trash />
                           </Button>
                         </div>
                       </TableCell>
@@ -156,8 +173,11 @@ export const RatingScales: React.FC<RatingScalesProps> = ({
           editingScale
             ? {
                 id: editingScale.id,
+                version: editingScale.version,
                 name: editingScale.name,
-                values: editingScale.values
+                values: valuesForEditModal(editingScale),
+                numValues: editingScale.values.length,
+                displayMode: scaleTypeToDisplayMode(editingScale.scaleType)
               }
             : undefined
         }

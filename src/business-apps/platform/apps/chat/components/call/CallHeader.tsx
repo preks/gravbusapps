@@ -10,29 +10,14 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Users, Minimize2, MessageSquare } from 'lucide-react'
+import { Users, Minimize2, MessageSquare, LayoutGrid } from 'lucide-react'
 import { formatDuration } from '../../utils/callUtils'
-
-/**
- * Parse direct call meeting name format: "Call {Name A} | {Name B}"
- * For direct calls, strip the participant names and return just "Call"
- */
-const parseDirectCallTitle = (conversationName?: string, conversationType?: string): string | undefined => {
-  if (!conversationName || conversationType !== 'direct') return conversationName
-
-  // Check if it matches the format "Call {Name A} | {Name B}"
-  const match = conversationName.match(/^Call\s+(.+?)\s+\|\s+(.+)$/)
-  if (match) {
-    // For direct calls in the active call modal, just return "Call" (strip the participant names)
-    return 'Call'
-  }
-
-  return conversationName
-}
 
 export interface CallHeaderProps {
   /** Call title or conversation name */
   conversationName?: string
+  /** Whether AI transcription is enabled (show recording indicator) */
+  transcriptionEnabled?: boolean
   /** Call start timestamp (Unix ms) - used to calculate live duration */
   callStartTime: number | null
   /** Number of participants in the call */
@@ -57,6 +42,12 @@ export interface CallHeaderProps {
   onToggleMinimize?: () => void
   /** Callback to close/end the call */
   onClose?: () => void
+  /** Show Large gallery toggle (e.g. when participant count > 10) */
+  showLargeGalleryControl?: boolean
+  /** Current gallery size mode */
+  gallerySize?: 'default' | 'large'
+  /** Callback to toggle gallery size */
+  onToggleGallerySize?: () => void
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Translation function */
@@ -65,6 +56,7 @@ export interface CallHeaderProps {
 
 export const CallHeader: React.FC<CallHeaderProps> = ({
   conversationName,
+  transcriptionEnabled = false,
   callStartTime,
   participantCount,
   callType,
@@ -75,6 +67,9 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
   onToggleParticipantsPanel,
   onToggleChat,
   onToggleMinimize,
+  showLargeGalleryControl = false,
+  gallerySize = 'default',
+  onToggleGallerySize,
   prefixDataTestId = 'rtk-group-call',
   t = (key: string) => key
 }) => {
@@ -99,28 +94,18 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
     return () => clearInterval(timer)
   }, [callStartTime])
 
-  // Determine the call title based on conversation type
+  // Use backend-generated call name when provided; otherwise fallback by conversation type
   const getCallTitle = (): string => {
-    // Parse the conversationName to strip participant names for direct calls
-    // This handles the "Call {Name A} | {Name B}" format from the backend
-    const parsedName = parseDirectCallTitle(conversationName, conversationType)
-
-    // If conversationName is explicitly provided (after parsing), use it
-    if (parsedName) {
-      return parsedName
+    if (conversationName?.trim()) {
+      return conversationName
     }
-
-    // Otherwise, use appropriate default based on conversation type
     switch (conversationType) {
       case 'direct':
-        // 1-on-1 call
         return t('chat-directCall') || 'Call'
       case 'meeting':
-        // Calendar meeting
         return t('chat-meeting') || 'Meeting'
       case 'group':
       default:
-        // Group call
         return t('groupCall-title') || 'Group Call'
     }
   }
@@ -131,7 +116,26 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
     <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2.5 gba:flex-shrink-0">
       {/* Left side - Title and info */}
       <div className="gba:flex gba:items-center gba:gap-3">
-        <h3 className="gba:font-semibold gba:text-sm">{callTitle}</h3>
+        <h3 className="gba:font-semibold gba:text-sm">
+          <span className="gba:inline-flex gba:items-center gba:gap-2">
+            {transcriptionEnabled && (
+              <span
+                className="gba:inline-flex gba:items-center gba:justify-center"
+                data-testid={`${prefixDataTestId}-transcription-indicator`}
+                title={t('chat-call-transcriptRecordingHeader') || 'Call transcript is being recorded'}
+              >
+                <span
+                  className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:flex-shrink-0"
+                  aria-hidden
+                />
+                <span className="gba:sr-only">
+                  {t('chat-call-transcriptRecordingHeader') || 'Call transcript is being recorded'}
+                </span>
+              </span>
+            )}
+            <span>{callTitle}</span>
+          </span>
+        </h3>
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
           {/* Duration - updates independently */}
           <span className="gba:font-mono gba:font-medium">{formatDuration(duration)}</span>
@@ -173,6 +177,21 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
                 <span className="gba:absolute gba:-top-1 gba:-right-1 gba:w-[16px] gba:h-[16px] gba:rounded-full gba:bg-primary gba:animate-ping gba:opacity-75" />
               </>
             )}
+          </button>
+        )}
+
+        {/* Large gallery toggle - only when many participants */}
+        {showLargeGalleryControl && onToggleGallerySize && (
+          <button
+            onClick={onToggleGallerySize}
+            className={`gba:relative gba:p-1.5 gba:rounded gba:transition-colors ${
+              gallerySize === 'large' ? 'gba:bg-accent' : 'hover:gba:bg-accent'
+            }`}
+            data-testid={`${prefixDataTestId}-large-gallery-btn`}
+            aria-label={t('groupCall-largeGallery') || 'Large gallery'}
+            title={t('groupCall-largeGallery') || 'Large gallery'}
+          >
+            <LayoutGrid className="gba:w-4 gba:h-4" />
           </button>
         )}
 

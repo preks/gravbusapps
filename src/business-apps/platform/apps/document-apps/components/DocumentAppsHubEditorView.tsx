@@ -7,11 +7,14 @@
 
 import React from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { PagedDocumentEditor } from './PagedDocumentEditor'
 import { PdfDocumentViewer } from './PdfDocumentViewer'
 import { TemplateFieldsPanel } from './TemplateFieldsPanel'
+import { ExternalDocumentSourceBadge } from './external-import/ExternalDocumentSourceBadge'
 import type { PagedDocumentEditorRef } from './PagedDocumentEditor'
-import type { Document, DocumentTemplate, ParsedWordDocument } from '../types'
+import type { Document, DocumentTemplate, DocumentFormatting, ParsedWordDocument } from '../types'
 
 export interface DocumentAppsHubEditorViewProps {
   templateBeingEdited: DocumentTemplate | null
@@ -23,7 +26,10 @@ export interface DocumentAppsHubEditorViewProps {
   currentDocumentPermission: string
   createDocument: (opts: unknown) => Promise<Document | null>
   loadDocument: (id: string) => Promise<Document | null>
-  updateDocument: (id: string, updates: { title?: string; content?: string }) => Promise<Document | null>
+  updateDocument: (
+    id: string,
+    updates: { title?: string; content?: string; formatting?: DocumentFormatting }
+  ) => Promise<Document | null>
   updateTemplate: (id: string, updates: { name?: string; content?: string }) => Promise<DocumentTemplate | null>
   updateUrl: (docId: string | null, view?: string) => void
   setSelectedDocumentId: (id: string | null) => void
@@ -64,6 +70,7 @@ export function DocumentAppsHubEditorView({
   effectiveEntityContext,
   testId
 }: DocumentAppsHubEditorViewProps): React.ReactElement {
+  const { t } = useTranslation(translations)
   const canEdit = currentDocumentPermission === 'owner' || currentDocumentPermission === 'edit'
 
   if (templateBeingEdited) {
@@ -86,7 +93,7 @@ export function DocumentAppsHubEditorView({
           const updated = await updateTemplate(templateBeingEdited.id, { name: title, content })
           if (updated) {
             setTemplateBeingEdited(updated)
-            toast.success('Template saved')
+            toast.success(t('editor-toast-template-saved'))
           }
         }}
         onBack={() => {
@@ -96,7 +103,7 @@ export function DocumentAppsHubEditorView({
           setActiveSection('templates')
         }}
         onSendForApproval={() => {
-          toast.info('Templates are edited here; use documents for approval workflow.')
+          toast.info(t('editor-toast-templates-info'))
         }}
         accessToken={accessToken}
         userInfo={userInfo}
@@ -110,10 +117,11 @@ export function DocumentAppsHubEditorView({
       <PagedDocumentEditor
         initialContent={parsedWordDocument.html}
         initialTitle={parsedWordDocument.fileName.replace(/\.(docx?|doc)$/i, '')}
-        onSave={async (title, content) => {
+        onSave={async (title, content, formatting) => {
           const newDoc = await createDocument({
             title,
             content,
+            formatting,
             status: 'draft',
             createdBy: currentUserId,
             sourceFile: {
@@ -132,7 +140,7 @@ export function DocumentAppsHubEditorView({
         }}
         onBack={handleBack}
         onSendForApproval={() => {
-          toast.info('Please save the document first before sending for approval')
+          toast.info(t('editor-toast-save-first'))
         }}
         accessToken={accessToken}
         userInfo={userInfo}
@@ -154,16 +162,44 @@ export function DocumentAppsHubEditorView({
         />
       )
     }
+
+    const externalProvenance = currentDocument.settings?.external
+    const isExternalReadOnly = !!externalProvenance || currentDocument.settings?.readOnly === true
+
     return (
       <PagedDocumentEditor
         key={currentDocument.id}
         document={currentDocument}
-        onSave={async (title, content) => {
-          await updateDocument(currentDocument.id, { title, content })
+        onSave={async (title, content, formatting) => {
+          await updateDocument(currentDocument.id, { title, content, formatting })
+        }}
+        onPersistFormatting={async formatting => {
+          await updateDocument(currentDocument.id, { formatting })
         }}
         onBack={handleBack}
         onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
-        isReadOnly={!canEdit}
+        isReadOnly={!canEdit || isExternalReadOnly}
+        headerExtra={
+          externalProvenance ? (
+            <ExternalDocumentSourceBadge
+              provenance={externalProvenance}
+              onCreateEditableCopy={async () => {
+                const copy = await createDocument({
+                  title: `${currentDocument.title} (copy)`,
+                  content: currentDocument.content,
+                  status: 'draft',
+                  createdBy: currentUserId
+                })
+                if (copy) {
+                  setSelectedDocumentId(copy.id)
+                  await loadDocument(copy.id)
+                  updateUrl(copy.id, 'editor')
+                }
+              }}
+              data-testid={`${testId}-external-source-badge`}
+            />
+          ) : undefined
+        }
         accessToken={accessToken}
         userInfo={userInfo}
         data-testid={`${testId}-editor`}
@@ -173,10 +209,11 @@ export function DocumentAppsHubEditorView({
 
   return (
     <PagedDocumentEditor
-      onSave={async (title, content) => {
+      onSave={async (title, content, formatting) => {
         const newDoc = await createDocument({
           title,
           content,
+          formatting,
           status: 'draft',
           createdBy: currentUserId
         })
@@ -188,7 +225,7 @@ export function DocumentAppsHubEditorView({
       }}
       onBack={handleBack}
       onSendForApproval={() => {
-        toast.info('Please save the document first before sending for approval')
+        toast.info(t('editor-toast-save-first'))
       }}
       accessToken={accessToken}
       userInfo={userInfo}

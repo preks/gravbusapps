@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
-import { Button, useTranslation } from '@newwork/nw-design-system'
-import { Spin, Tooltip } from 'antd'
-import { LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { Button, Spinner, Tooltip, TooltipContent, TooltipTrigger, useTranslation } from '@newwork/nw-design-system'
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { CalendarProps } from '../../../queries/types'
 
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -11,7 +10,7 @@ import {
   getAbsenceStatusLabel,
   getAllAbsenceStatusConfigs,
   getAbsenceStatusBackgroundClass,
-  getBadgeVariantBackgroundClass
+  getAbsenceStatusTextClass
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import translations from './_i18n'
 import { calculateContextMenuPosition } from './utils/contextMenuPositioning'
@@ -27,19 +26,47 @@ import 'dayjs/locale/de'
 // Extend plugins
 dayjs.extend(isBetween)
 
+const toDateKey = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const match = value.match(/\d{4}-\d{2}-\d{2}/)
+    if (match?.[0]) return match[0]
+  }
+  const parsed = dayjs(value as any)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : null
+}
+
+const isDateKeyInRange = (dateKey: string, startKey: string, endKey: string) => {
+  return dateKey >= startKey && dateKey <= endKey
+}
+
 // Function to generate tooltip content for absence segments
-const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; showDuration?: boolean }) => {
+const getAbsenceTooltipContent = (
+  absence: any,
+  opts?: { showStatus?: boolean; showDuration?: boolean; computedEffectiveDays?: number | null }
+) => {
   const startDate = dayjs(absence.startDate)
   const endDate = dayjs(absence.endDate)
-  const duration = endDate.diff(startDate, 'day') + 1
+  // Prefer business days for display
+  const toFiniteNumber = (v: any): number | null => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null
+    if (typeof v === 'string' && v.trim() !== '') {
+      const n = Number(v)
+      return Number.isFinite(n) ? n : null
+    }
+    return null
+  }
+  const providedEff = toFiniteNumber(absence?.effectiveDays)
+  const providedWork = toFiniteNumber(absence?.workingDays)
+  const computed = toFiniteNumber(opts?.computedEffectiveDays)
+  const businessDays = providedEff ?? providedWork ?? computed
+  // Fallback to calendar span only if no business-days info is available
+  const duration = businessDays ?? endDate.diff(startDate, 'day') + 1
+  const status = absence.originalStatus || absence.status
 
   return (
     <div className="gba:max-w-xs gba:p-2">
       <div className="gba:font-semibold gba:text-sm gba:mb-2 gba:flex gba:items-center gba:gap-2">
-        <div
-          className="gba:w-3 gba:h-3 gba:rounded-full"
-          style={{ backgroundColor: absence.statusColor || 'var(--nw-offline)' }}
-        />
+        <div className={`gba:w-3 gba:h-3 gba:rounded-full ${getAbsenceStatusBackgroundClass(status)}`} />
         {absence.type}
       </div>
       <div className="gba:space-y-1 gba:text-xs">
@@ -48,8 +75,8 @@ const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; s
             <span className="gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}:
             </span>
-            <span className="gba:font-medium" style={{ color: absence.statusColor || 'var(--nw-offline)' }}>
-              {getAbsenceStatusLabel(absence.originalStatus || absence.status)}
+            <span className={`gba:font-medium ${getAbsenceStatusTextClass(status)}`}>
+              {getAbsenceStatusLabel(status)}
             </span>
           </div>
         )}
@@ -95,7 +122,13 @@ const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; s
   )
 }
 
-const AbsenceCalendar: React.FC<CalendarProps> = ({
+const AbsenceCalendar: React.FC<
+  CalendarProps & {
+    effectiveDates?: Set<string>
+    allowWeekendPaintingInFallback?: boolean
+    nonWorkingDates?: Set<string>
+  }
+> = ({
   absenceList,
   loading,
   error,
@@ -114,7 +147,10 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   customLegend,
   holidayDates,
   employee,
-  onAbsenceTypeSelect
+  onAbsenceTypeSelect,
+  effectiveDates,
+  allowWeekendPaintingInFallback,
+  nonWorkingDates
 }) => {
   const { t } = useTranslation(translations)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -181,14 +217,16 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
 
     // Check if the day(s) have any existing absences (vacations or other absences) - if so, don't allow right-click to create new ones
     const hasExistingAbsences = absenceList.some((absence: any) => {
-      const absenceStart = dayjs(absence.startDate)
-      const absenceEnd = dayjs(absence.endDate)
-      // Check if the absence overlaps with the date range we're checking
+      const absenceStartKey = toDateKey(absence.startDate)
+      const absenceEndKey = toDateKey(absence.endDate)
+      const selectedStartKey = dateRangeToCheck.start.format('YYYY-MM-DD')
+      const selectedEndKey = dateRangeToCheck.end.format('YYYY-MM-DD')
+      if (!absenceStartKey || !absenceEndKey) return false
       return (
-        dateRangeToCheck.start.isBetween(absenceStart, absenceEnd, null, '[]') ||
-        dateRangeToCheck.end.isBetween(absenceStart, absenceEnd, null, '[]') ||
-        absenceStart.isBetween(dateRangeToCheck.start, dateRangeToCheck.end, null, '[]') ||
-        absenceEnd.isBetween(dateRangeToCheck.start, dateRangeToCheck.end, null, '[]')
+        isDateKeyInRange(selectedStartKey, absenceStartKey, absenceEndKey) ||
+        isDateKeyInRange(selectedEndKey, absenceStartKey, absenceEndKey) ||
+        isDateKeyInRange(absenceStartKey, selectedStartKey, selectedEndKey) ||
+        isDateKeyInRange(absenceEndKey, selectedStartKey, selectedEndKey)
       )
     })
 
@@ -284,7 +322,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   if (loading) {
     return (
       <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -302,11 +340,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
       {contextMenuOpen && (
         <div
           ref={contextMenuRef}
-          className="gba:fixed gba:bg-popover gba:border gba:border-border gba:rounded-md gba:shadow-lg gba:z-[10000] gba:w-[180px] gba:py-1"
-          style={{
-            left: `${contextMenuPosition.x}px`,
-            top: `${contextMenuPosition.y}px`
-          }}
+          className={`gba:fixed gba:bg-popover gba:border gba:border-border gba:rounded-md gba:shadow-lg gba:z-[10000] gba:w-[180px] gba:py-1 gba:left-[${contextMenuPosition.x}px] gba:top-[${contextMenuPosition.y}px]`}
           data-testid="absence-context-menu"
         >
           {AVAILABLE_ABSENCE_TYPES.map(absenceType => (
@@ -354,7 +388,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 data-testid="calendar-prev-month"
                 onClick={() => setCurrentDate(dayjs(currentDate).subtract(1, 'month'))}
               >
-                <LeftOutlined className="gba:mr-1" />
+                <ChevronLeftIcon className="gba:mr-1 gba:h-4 gba:w-4" />
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous', 'Previous')}
               </Button>
             )}
@@ -376,7 +410,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 onClick={() => setCurrentDate(dayjs(currentDate).add(1, 'month'))}
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next', 'Next')}
-                <RightOutlined className="gba:ml-1" />
+                <ChevronRightIcon className="gba:ml-1 gba:h-4 gba:w-4" />
               </Button>
             )}
           </div>
@@ -419,8 +453,11 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
               const daysToSubtract = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1 // Convert Sunday (0) to 6, others to day-1
               const startOfCalendar = firstDayOfMonth.subtract(daysToSubtract, 'day')
 
-              // Calculate how many days to display (either 35 or 42 depending on the month)
-              const daysToDisplay = Math.ceil((daysInMonth + firstDayOfMonth.day()) / 7) * 7
+              // Calculate how many days to display for a Monday-first grid.
+              // We must use the Monday-based leading offset (`daysToSubtract`),
+              // not dayjs Sunday-based `day()`, otherwise months starting on Sunday
+              // can lose their final week.
+              const daysToDisplay = Math.ceil((daysInMonth + daysToSubtract) / 7) * 7
 
               return Array.from({ length: daysToDisplay }).map((_, idx) => {
                 // Create a new dayjs object for each day to avoid mutation issues
@@ -437,6 +474,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                     ? currentDay.isAfter(selectedStartDate, 'day') && currentDay.isBefore(selectedEndDate, 'day')
                     : false
                 const isHolidayDay = isHoliday(holidayDates, currentDay)
+                const isWeekend = currentDay.day() === 0 || currentDay.day() === 6
 
                 const handleDayClick = () => {
                   if (!enableSelection) return
@@ -471,7 +509,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   } else if (isInSelectedRange) {
                     bgClass = 'gba:bg-info-secondary/20'
                   } else if (isToday) {
-                    bgClass = 'gba:bg-info-secondary/20 gba:border-info'
+                    bgClass = 'gba:bg-primary/05'
                   } else if (isHolidayDay) {
                     bgClass = 'gba:bg-card gba:border-warning'
                   }
@@ -498,8 +536,8 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       </div>
                       {isCurrentMonth && isHolidayDay && (
                         <div className="gba:flex gba:gap-1 gba:mt-1">
-                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-warning-secondary/80">
-                            <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-background">
+                            <span className="gba:text-xs gba:font-medium gba:text-info-secondary-foreground gba:truncate gba:leading-none">
                               {t('holiday')}
                             </span>
                           </div>
@@ -507,8 +545,8 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       )}
                       {isCurrentMonth && isToday && (
                         <div className="gba:flex gba:gap-1 gba:mt-1">
-                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-info-secondary/80">
-                            <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-primary">
+                            <span className="gba:text-xs gba:font-medium gba:text-primary-foreground gba:truncate gba:leading-none">
                               {t('today')}
                             </span>
                           </div>
@@ -516,53 +554,92 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       )}
                       {isCurrentMonth &&
                         (() => {
+                          // Rendering rules:
+                          // - With effectiveDates: apply BE effective-day filtering only to APPROVED absences.
+                          // - Without effectiveDates: fallback non-working/holiday/weekend filtering should also only constrain APPROVED absences.
                           const overlappingAbsences = absenceList.filter((absence: any) => {
-                            const absenceStart = dayjs(absence.startDate)
-                            const absenceEnd = dayjs(absence.endDate)
-                            return currentDay.isBetween(absenceStart, absenceEnd, null, '[]')
+                            const absenceStartKey = toDateKey(absence.startDate)
+                            const absenceEndKey = toDateKey(absence.endDate)
+                            if (!absenceStartKey || !absenceEndKey) return false
+                            return isDateKeyInRange(dayKey, absenceStartKey, absenceEndKey)
                           })
 
-                          if (overlappingAbsences.length === 0) return null
+                          const renderableAbsences = overlappingAbsences.filter((absence: any) => {
+                            const status = String(absence.originalStatus || absence.status || '').toUpperCase()
+                            if (status !== 'APPROVED') return true
+                            // DailyAbsenceFactView does not reliably contain a row for every approved
+                            // absence day, so using effectiveDates as an allowlist causes approved
+                            // absences to disappear when the view has no matching fact entry.
+                            // Always use the working-day fallback checks instead.
+                            if (isHolidayDay) return false
+                            if (nonWorkingDates && nonWorkingDates.has(dayKey)) return false
+                            if (isWeekend && !allowWeekendPaintingInFallback) return false
+                            return true
+                          })
+
+                          if (renderableAbsences.length === 0) return null
 
                           // Render small colored segments for each overlapping absence (max 3)
                           const maxSegments = 3
-                          const segments = overlappingAbsences.slice(0, maxSegments)
-                          const segmentWidth = `${100 / segments.length}%`
+                          const segments = renderableAbsences.slice(0, maxSegments)
 
-                          const resolveSegmentBgClass = (a: any): string => {
-                            // When consumer provides planned/effective minutes (e.g., DailyLog)
-                            if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
-                              if (a.effectiveMinutes >= a.plannedMinutes) {
-                                return getBadgeVariantBackgroundClass('success')
-                              }
-                              return getBadgeVariantBackgroundClass('warning')
-                            }
-                            return getAbsenceStatusBackgroundClass(a.originalStatus || a.status)
-                          }
+                          const resolveSegmentTextClass = (a: any): string =>
+                            getAbsenceStatusTextClass(a.originalStatus || a.status)
+
+                          const segmentWidth = `${100 / segments.length}%`
 
                           return (
                             <div className="gba:flex gba:gap-1 gba:mt-1">
-                              {segments.map((a: any, idx: number) => (
+                              {segments.map((a: any) => (
                                 <Tooltip
-                                  key={`seg-${idx}`}
-                                  title={getAbsenceTooltipContent(a, {
-                                    showStatus: showStatusInTooltip,
-                                    showDuration: showDurationInTooltip
-                                  })}
-                                  placement="top"
-                                  mouseEnterDelay={0.3}
-                                  overlayStyle={{ zIndex: 9999 }}
+                                  key={`${a.id || a.type}-${a.startDate}-${a.endDate}-${a.originalStatus || a.status}`}
                                 >
-                                  <div
-                                    className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${resolveSegmentBgClass(a)}`}
-                                    style={{
-                                      width: segmentWidth
-                                    }}
-                                  >
-                                    <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
-                                      {a.type}
-                                    </span>
-                                  </div>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 gba:bg-background"
+                                      style={{
+                                        width: segmentWidth
+                                      }}
+                                    >
+                                      <span
+                                        className={`gba:text-xs gba:font-medium gba:truncate gba:leading-none ${resolveSegmentTextClass(a)}`}
+                                      >
+                                        {a.type}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="gba:max-w-xs gba:z-[9999]">
+                                    {getAbsenceTooltipContent(a, {
+                                      showStatus: showStatusInTooltip,
+                                      showDuration: showDurationInTooltip,
+                                      computedEffectiveDays: (() => {
+                                        // Compute effective count for this absence when not provided by BE
+                                        const s = dayjs(a.startDate)
+                                        const e = dayjs(a.endDate)
+                                        let count = 0
+                                        let d = s
+                                        while (d.isBefore(e) || d.isSame(e, 'day')) {
+                                          const key = d.format('YYYY-MM-DD')
+                                          if (effectiveDates) {
+                                            if (effectiveDates.has(key)) count += 1
+                                          } else {
+                                            const isHol = isHoliday(holidayDates, d)
+                                            const isWknd = d.day() === 0 || d.day() === 6
+                                            const isNonWorking = !!(nonWorkingDates && nonWorkingDates.has(key))
+                                            if (
+                                              !isHol &&
+                                              !isNonWorking &&
+                                              (!isWknd || allowWeekendPaintingInFallback)
+                                            ) {
+                                              count += 1
+                                            }
+                                          }
+                                          d = d.add(1, 'day')
+                                        }
+                                        return count
+                                      })()
+                                    })}
+                                  </TooltipContent>
                                 </Tooltip>
                               ))}
                             </div>
@@ -634,7 +711,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   </div>
                 ))}
               <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning-secondary" />
+                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-info-secondary" />
                 <span className="gba:text-xs">{t('holiday')}</span>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2">

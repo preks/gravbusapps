@@ -9,6 +9,7 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
   onSubmit = async () => {},
   onCancel = async () => {},
   preSelectedEmployeeId,
+  preSelectedUserId,
   accessToken,
   userInfo,
   additionalData
@@ -29,6 +30,11 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
     additionalData
   }
 
+  // Only pass preSelectedUserId when explicitly provided (e.g. receiverId from task).
+  // Do not default to userInfo?.id: when the screen passes only preSelectedEmployeeId (employee
+  // being evaluated), we must use employee-by-id lookup so the header shows that employee.
+  const effectivePreSelectedUserId = preSelectedUserId
+
   return (
     <PerformanceEvaluationFormProvider
       businessAppContext={businessAppContext}
@@ -36,6 +42,7 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
       onSubmit={onSubmit}
       onCancel={onCancel}
       preSelectedEmployeeId={preSelectedEmployeeId}
+      preSelectedUserId={effectivePreSelectedUserId}
     >
       <PerformanceEvaluationFormComponent />
     </PerformanceEvaluationFormProvider>

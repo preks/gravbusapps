@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Loader2, Database } from 'lucide-react'
-import { getAllIndexingStatus, IndexingStatus } from '../api/adminClient'
+import { builderClient, type IndexingStatus } from '@/common/network/ai/builder'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface IndexingProgressProps {
@@ -21,7 +21,7 @@ export const IndexingProgress: React.FC<IndexingProgressProps> = ({ compact = fa
 
     const loadStatus = async () => {
       try {
-        const data = await getAllIndexingStatus()
+        const data = await builderClient.getAllIndexingStatus()
         if (mounted) {
           setStatuses(data)
           setLoading(false)
@@ -194,7 +194,7 @@ export function useIndexingStatus() {
 
     const loadStatus = async () => {
       try {
-        const data = await getAllIndexingStatus()
+        const data = await builderClient.getAllIndexingStatus()
         if (mounted) {
           setStatuses(data)
           setLoading(false)

@@ -207,7 +207,8 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const { options: assetOptions, isLoading: assetsLoading } = useAssetsCatalog(context)
   const { options: brandOptions, isLoading: brandsLoading } = useBrandsCatalog(context)
   const { options: locationOptions, isLoading: locationsLoading } = useSiteLocations(context)
-  const { getAssetById, getAssets, getCurrentAllocation } = useAssetService(context)
+  const { getAssetById, getAssets, getCurrentAllocation, getAllocationsForAsset, deallocateAsset } =
+    useAssetService(context)
 
   const [currentAllocation, setCurrentAllocation] = React.useState<any>(null)
 
@@ -494,6 +495,18 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         typeof values.warrantyPeriodMonths === 'number' && values.warrantyPeriodMonths > 0
           ? values.warrantyPeriodMonths
           : undefined
+
+      // When setting asset to "in repair", close any active allocation with end date = today
+      if (values.status === AssetStatus.UNDER_REPAIR) {
+        const allocations = await getAllocationsForAsset(assetId)
+        const today = new Date().toISOString().slice(0, 10)
+        for (const alloc of allocations) {
+          if (!alloc.endDate) {
+            await deallocateAsset(alloc.id, alloc.version, today)
+          }
+        }
+      }
+
       await assetProcessClient.updateAsset({
         id: assetId,
         version: assetVersion,

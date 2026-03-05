@@ -52,6 +52,14 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
   // Dynamic API configuration for document operations
   apiConfig?: ApiConfig
 
+  // REST client for document operations
+  // Each consumer should pass the appropriate restClient with correct base URL
+  restClient: RestClient
+
+  // Optional company data for MDM move operations
+  // Required when using MDM domain to provide structureId and code
+  companyData?: { structureId: string; code: string }
+
   // Optional: Search control (parent handles search logic, this just provides UI)
   searchTerm?: string
   onSearchChange?: (searchTerm: string) => void
@@ -138,6 +146,7 @@ export interface NewFolderDialogState {
 // REST Client interface
 export interface RestClient {
   post: <T = any>(url: string, data?: any, config?: any) => Promise<T>
+  put: <T = any>(url: string, data?: any, config?: any) => Promise<T>
   delete: <T = any>(url: string, config?: any) => Promise<T>
   get: <T = any>(url: string, config?: any) => Promise<T>
 }

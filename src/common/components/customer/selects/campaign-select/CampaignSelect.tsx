@@ -20,6 +20,8 @@ export interface CampaignOption {
 export interface CampaignSelectProps {
   value?: string | null
   onValueChange?: (value: string | null) => void
+  /** Called with the full campaign object (id + name) when the selection changes */
+  onCampaignOptionChange?: (campaign: { id: string; name: string } | null) => void
   placeholder?: string
   searchPlaceholder?: string
   className?: string
@@ -44,6 +46,7 @@ const CampaignSelect = React.forwardRef<HTMLButtonElement, CampaignSelectProps &
     {
       value,
       onValueChange,
+      onCampaignOptionChange,
       placeholder = 'Search Campaign...',
       searchPlaceholder = 'Type to search...',
       className,
@@ -67,6 +70,21 @@ const CampaignSelect = React.forwardRef<HTMLButtonElement, CampaignSelectProps &
     React.useEffect(() => {
       search('')
     }, [search])
+
+    const handleValueChange = React.useCallback(
+      (id: string | null) => {
+        onValueChange?.(id)
+        if (onCampaignOptionChange) {
+          if (!id) {
+            onCampaignOptionChange(null)
+          } else {
+            const match = campaignsOptions.find(c => c.id === id)
+            onCampaignOptionChange(match ? { id: match.id, name: match.name } : { id, name: id })
+          }
+        }
+      },
+      [onValueChange, onCampaignOptionChange, campaignsOptions]
+    )
 
     // Transform campaigns to Combobox options with type display
     const options: any[] = useMemo(() => {
@@ -153,7 +171,7 @@ const CampaignSelect = React.forwardRef<HTMLButtonElement, CampaignSelectProps &
         className={`gba:[&&]:h-auto ${className || ''}`}
         options={finalOptions as any}
         value={value || ''}
-        onValueChange={onValueChange}
+        onValueChange={handleValueChange}
         placeholder={placeholder}
         searchPlaceholder={searchPlaceholder}
         emptyText={getEmptyText(loading, error)}

@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useEmailAccounts, useEmailFolders, useEmails, useEmailDirectory } from './hooks'
@@ -22,6 +23,7 @@ import {
   MicrosoftOAuthCallback
 } from './components'
 import type { EmailMessage, ComposeMode } from './types'
+import translations from './_i18n'
 
 // Capture OAuth params at module load time (before platform can strip them)
 ;(() => {
@@ -65,6 +67,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   userInfo,
   'data-testid': testId = 'email-apps-hub'
 }) => {
+  const { t } = useTranslation(translations)
+
   // Check if this is an OAuth callback redirect
   const [isOAuthCallback, setIsOAuthCallback] = useState(() => {
     const hasVerifier = !!(
@@ -106,6 +110,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [starredOnly, setStarredOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([])
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
   const [threadViewEnabled, setThreadViewEnabled] = useState(() => {
@@ -128,7 +133,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     isLoading: isLoadingAccounts,
     syncAccount,
     refreshAccounts
-  } = useEmailAccounts(accessToken)
+  } = useEmailAccounts(accessToken, { t })
 
   const { folders, inboxFolder } = useEmailFolders(accessToken, defaultAccount?.id)
 
@@ -144,6 +149,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     toggleStar,
     deleteMessage,
     moveToFolder,
+    updateMessageLabels,
     loadMore,
     refreshMessages
   } = useEmails({
@@ -151,6 +157,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     folderId: selectedFolderId || undefined,
     accountId: defaultAccount?.id,
     search: searchQuery || undefined,
+    labels: selectedLabels.length ? selectedLabels : undefined,
     starredOnly,
     threadView: threadViewEnabled
   })
@@ -172,10 +179,13 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     refreshAccounts()
   }, [refreshAccounts])
 
-  const handleOAuthError = useCallback((error: string) => {
-    toast.error(`Sign-in failed: ${error}`)
-    // Keep the OAuth callback view visible so users can copy diagnostics.
-  }, [])
+  const handleOAuthError = useCallback(
+    (error: string) => {
+      toast.error(t('toast-signin-failed', { error }))
+      // Keep the OAuth callback view visible so users can copy diagnostics.
+    },
+    [t]
+  )
 
   // Handlers
   const handleCompose = useCallback((mode: ComposeMode = 'new', replyTo?: EmailMessage) => {
@@ -204,24 +214,24 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const handleSync = useCallback(async () => {
     if (!defaultAccount) return
     try {
-      toast.info('Syncing emails...')
+      toast.info(t('toast-syncing'))
       await syncAccount(defaultAccount.id)
       await refreshMessages()
-      toast.success('Emails synced')
+      toast.success(t('toast-synced'))
     } catch {
-      toast.error('Sync failed')
+      toast.error(t('toast-sync-failed'))
     }
-  }, [defaultAccount, syncAccount, refreshMessages])
+  }, [defaultAccount, syncAccount, refreshMessages, t])
 
   const handleArchive = useCallback(
     async (id: string) => {
       const archiveFolder = folders.find(f => f.type === 'archive')
       if (archiveFolder) {
         await moveToFolder(id, archiveFolder.id)
-        toast.success('Email archived')
+        toast.success(t('toast-archived'))
       }
     },
-    [folders, moveToFolder]
+    [folders, moveToFolder, t]
   )
 
   const handleBack = useCallback(() => {
@@ -233,6 +243,67 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       addRecentRecipients(recipients)
     },
     [addRecentRecipients]
+  )
+
+  const handleReplyFromList = useCallback(
+    async (messageId: string) => {
+      try {
+        const message = await EmailApiService.getMessage(messageId)
+        handleCompose('reply', message)
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [handleCompose, t]
+  )
+
+  const handleReplyAllFromList = useCallback(
+    async (messageId: string) => {
+      try {
+        const message = await EmailApiService.getMessage(messageId)
+        handleCompose('reply-all', message)
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [handleCompose, t]
+  )
+
+  const handleForwardFromList = useCallback(
+    async (messageId: string) => {
+      try {
+        const message = await EmailApiService.getMessage(messageId)
+        handleCompose('forward', message)
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [handleCompose, t]
+  )
+
+  const handleToggleReadFromList = useCallback(
+    async (messageId: string, isRead: boolean) => {
+      try {
+        await EmailApiService.markRead(messageId, isRead)
+        await refreshMessages()
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [refreshMessages, t]
+  )
+
+  const handleMessageLabelsUpdatedFromList = useCallback(
+    (messageId: string, labels?: string[]) => {
+      if (labels) {
+        updateMessageLabels(messageId, labels)
+        return
+      }
+      if (selectedMessage?.id === messageId) {
+        void selectMessage(messageId)
+      }
+    },
+    [updateMessageLabels, selectedMessage?.id, selectMessage]
   )
 
   // Auto-select inbox when folders load
@@ -279,7 +350,9 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     )
   }
 
-  const currentFolderName = starredOnly ? 'Starred' : folders.find(f => f.id === selectedFolderId)?.name || 'Inbox'
+  const currentFolderName = starredOnly
+    ? t('folder-starred')
+    : folders.find(f => f.id === selectedFolderId)?.name || t('folder-inbox')
 
   // Empty state: no accounts
   if (!isLoadingAccounts && accounts.length === 0) {
@@ -325,9 +398,18 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         total={total}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        selectedLabels={selectedLabels}
+        onLabelsChange={setSelectedLabels}
         onSelectMessage={selectMessage}
         onToggleStar={toggleStar}
+        onReply={handleReplyFromList}
+        onReplyAll={handleReplyAllFromList}
+        onForward={handleForwardFromList}
+        onToggleRead={handleToggleReadFromList}
+        onArchive={handleArchive}
+        onDelete={deleteMessage}
         onRefresh={refreshMessages}
+        onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
         onLoadMore={loadMore}
         folderName={currentFolderName}
       />
@@ -339,6 +421,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onDelete={deleteMessage}
         onToggleStar={toggleStar}
         onArchive={handleArchive}
+        onRefreshMessages={refreshMessages}
+        onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
         accessToken={accessToken}
         activeAccount={defaultAccount}
         employeeId={userInfo?.employeeDetails?.employeeId}

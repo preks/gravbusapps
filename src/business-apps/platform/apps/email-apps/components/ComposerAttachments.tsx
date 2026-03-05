@@ -11,6 +11,8 @@ interface ComposerAttachmentsProps {
   attachments: SendAttachment[]
   onRemove: (index: number) => void
   totalSize: number
+  /** Optional formatter for summary text when multiple files: (count, size) => string */
+  formatSummary?: (count: number, size: string) => string
   'data-testid'?: string
 }
 
@@ -63,7 +65,9 @@ export const ComposerAttachments: React.FC<ComposerAttachmentsProps> = ({
       </div>
       {attachments.length > 1 && (
         <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
-          {attachments.length} files · {formatSize(totalSize)}
+          {formatSummary
+            ? formatSummary(attachments.length, formatSize(totalSize))
+            : `${attachments.length} files · ${formatSize(totalSize)}`}
         </p>
       )}
     </div>

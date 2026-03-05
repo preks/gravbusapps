@@ -12,6 +12,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
+import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
 
 export interface ValueEditorValues {
   id?: string
@@ -57,7 +58,7 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="performance-values-editor-modal">
+      <DialogContent data-testid="performance-values-editor-modal" onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{initialValues ? t('values-modal-title-edit') : t('values-modal-title-add')}</DialogTitle>
           <DialogDescription>{t('values-modal-description')}</DialogDescription>
@@ -67,19 +68,31 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
             <div className="gba:space-y-2">
               <Label htmlFor="value-title">{t('field-title')} *</Label>
-              <Input id="value-title" value={title} onChange={e => setTitle(e.target.value)} />
+              <Input
+                id="value-title"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                maxLength={PERFORMANCE_VALIDATION.VALUE_TITLE_MAX_LENGTH}
+              />
             </div>
             <div className="gba:space-y-2">
               <Label htmlFor="value-description">{t('field-description')}</Label>
-              <Input id="value-description" value={description} onChange={e => setDescription(e.target.value)} />
-            </div>
-            <label className="gba:flex gba:items-center gba:gap-2">
-              <Checkbox
-                checked={recordState?.toLowerCase() === 'active'}
-                onCheckedChange={(v: boolean) => setRecordState(v ? 'active' : 'inactive')}
+              <Input
+                id="value-description"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                maxLength={PERFORMANCE_VALIDATION.VALUE_DESCRIPTION_MAX_LENGTH}
               />
-              <span>{t('field-active')}</span>
-            </label>
+            </div>
+            {initialValues && (
+              <label className="gba:flex gba:items-center gba:gap-2">
+                <Checkbox
+                  checked={recordState?.toLowerCase() === 'active'}
+                  onCheckedChange={(v: boolean) => setRecordState(v ? 'active' : 'inactive')}
+                />
+                <span>{t('field-active')}</span>
+              </label>
+            )}
           </div>
 
           <div className="gba:flex gba:justify-end gba:gap-2">

@@ -4,16 +4,11 @@
  * Works with any entity type (Lead, Contact, Account, etc.)
  */
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCsvParser, useCatalogLookup } from '@/common/components/common-relations/apps/data-import/hooks'
 import { ImportAnalyzer } from '@/common/components/common-relations/apps/data-import/services'
+import { transformCommunicationChannels } from '@/common/components/common-relations/apps/data-import/utils'
 import {
-  convertParsedDataToEntities,
-  transformCommunicationChannels
-} from '@/common/components/common-relations/apps/data-import/utils'
-import {
-  ParsedRow,
   FieldMapping,
   ImportAnalyzerResponse,
   ImportStep,
@@ -23,18 +18,22 @@ import {
 } from '@/common/components/common-relations/apps/data-import/types'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { flowbotClient } from '@/common/network/flowbot'
 
 export interface UseEntityImportReturn<T> {
   // File state
   file: File | null
-  csvText: string
-  parsedData: ParsedRow[]
 
   // Analysis state
   agentResponse: ImportAnalyzerResponse | null
 
   // Conversion state
   convertedEntities: T[]
+
+  // Campaign state
+  campaignId: string
+  campaignName: string
+  setCampaign: (id: string | null, name?: string | null) => void
 
   // UI state
   step: ImportStep
@@ -45,19 +44,14 @@ export interface UseEntityImportReturn<T> {
   // Handlers
   handleFileChange: (file: File | null) => Promise<void>
   analyzeWithAgent: () => Promise<void>
-  convertData: (mappings: FieldMapping[], transformFn?: (entity: ConvertedEntity) => T) => void
+  convertData: (
+    mappings: FieldMapping[],
+    enforcedFieldsJson?: string,
+    transformFn?: (entity: ConvertedEntity) => T
+  ) => Promise<void>
   importToBackend: () => Promise<void>
   downloadJSON: () => void
   reset: () => void
-
-  // Catalog lookup
-  lookupCatalogEntry: (catalogIdentifier: string, searchValue: string) => string | null
-  isLoadingCatalogs: boolean
-}
-
-// Helper function to get required catalog identifiers from config
-function getRequiredCatalogIdentifiers(config: ImportConfig): string[] {
-  return config.targetFields.filter(field => field.type === 'catalog' && field.catalog).map(field => field.catalog!)
 }
 
 // Entity type configuration maps
@@ -70,8 +64,20 @@ const INVESTMENT_TYPE_MAP = {
 const STANDARD_ENTITY_ENDPOINTS = {
   lead: 'Leads',
   contact: 'Contacts',
-  account: 'Accounts'
+  account: 'Accounts',
+  opportunity: 'Opportunities'
 } as const
+
+function stripEmptyValues<T extends Record<string, any>>(entity: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(entity).filter(([, value]) => {
+      if (value === null || value === undefined || value === '') return false
+      if (Array.isArray(value)) return value.length > 0
+      if (typeof value === 'object') return Object.keys(value).length > 0
+      return true
+    })
+  ) as Partial<T>
+}
 
 // Helper function to build investment payload
 function buildInvestmentPayload(
@@ -143,54 +149,44 @@ export function useEntityImport<T = ConvertedEntity>(
 
   // State
   const [file, setFile] = useState<File | null>(null)
-  const [csvText, setCsvText] = useState<string>('')
-  const [parsedData, setParsedData] = useState<ParsedRow[]>([])
   const [agentResponse, setAgentResponse] = useState<ImportAnalyzerResponse | null>(null)
   const [convertedEntities, setConvertedEntities] = useState<T[]>([])
+  const [campaignId, setCampaignIdState] = useState<string>('')
+  const [campaignName, setCampaignNameState] = useState<string>('')
   const [step, setStep] = useState<ImportStep>('upload')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
 
+  const setCampaign = useCallback((id: string | null, name?: string | null) => {
+    setCampaignIdState(id || '')
+    setCampaignNameState(name || '')
+  }, [])
+
   // Services
   const aiServiceRef = useRef<ImportAnalyzer | null>(null)
 
-  // Initialize AI service
+  // Initialize AI service and flowbot client
   useEffect(() => {
     if (accessToken) {
-      aiServiceRef.current = new ImportAnalyzer(accessToken, config.aiAgentName)
+      aiServiceRef.current = new ImportAnalyzer(accessToken, config.entityType)
+      flowbotClient.setAccessToken(accessToken)
     }
-  }, [accessToken, config.aiAgentName])
+  }, [accessToken, config.entityType])
 
   // Hooks
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
-  const { parseCSVFile } = useCsvParser()
-  const catalogIdentifiers = useMemo(() => getRequiredCatalogIdentifiers(config), [config])
-  const { lookupCatalogEntry, isLoadingCatalogs } = useCatalogLookup({
-    accessToken,
-    catalogIdentifiers
-  })
 
   // Handle file change
   const handleFileChange = useCallback(async (selectedFile: File | null) => {
     if (!selectedFile) {
       setFile(null)
-      setCsvText('')
-      setParsedData([])
       setError(null)
       return
     }
 
     setFile(selectedFile)
     setError(null)
-
-    try {
-      // Read file content
-      const text = await selectedFile.text()
-      setCsvText(text)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to read file')
-    }
   }, [])
 
   // Analyze with AI
@@ -209,13 +205,6 @@ export function useEntityImport<T = ConvertedEntity>(
     setError(null)
 
     try {
-      // Parse CSV to get data (for display)
-      if (csvText) {
-        const parsed = await parseCSVFile(file)
-        setParsedData(parsed)
-      }
-
-      // Call AI service with file
       const agentResult = await aiServiceRef.current.analyzeImport(file)
 
       // Validate mappings - filter out invalid target fields
@@ -230,6 +219,27 @@ export function useEntityImport<T = ConvertedEntity>(
         return isValid
       })
 
+      // Normalize mappings based on config:
+      // - ensure catalog mappings carry the correct catalogIdentifier
+      // - ensure direct mappings don't carry a catalogIdentifier
+      const targetFieldByValue = new Map(config.targetFields.map(f => [f.value, f] as const))
+      const normalizedMappings = validMappings.map(mapping => {
+        const targetField = targetFieldByValue.get(mapping.targetField)
+        if (!targetField) return mapping
+        if (targetField.type === 'catalog') {
+          return {
+            ...mapping,
+            transformationType: 'catalog' as const,
+            catalogIdentifier: targetField.catalog
+          }
+        }
+        return {
+          ...mapping,
+          transformationType: 'direct' as const,
+          catalogIdentifier: undefined
+        }
+      })
+
       // Update unmapped fields to include the invalid mappings
       const invalidSourceFields = agentResult.fieldMappings
         .filter(m => !validTargetFields.has(m.targetField))
@@ -239,7 +249,7 @@ export function useEntityImport<T = ConvertedEntity>(
 
       setAgentResponse({
         ...agentResult,
-        fieldMappings: validMappings,
+        fieldMappings: normalizedMappings,
         unmappedSourceFields: updatedUnmappedFields
       })
       setStep('mapping')
@@ -248,13 +258,18 @@ export function useEntityImport<T = ConvertedEntity>(
     } finally {
       setIsLoading(false)
     }
-  }, [file, csvText, parseCSVFile, config.targetFields])
+  }, [file, config.targetFields])
 
   // Convert data
   const convertData = useCallback(
-    (mappings: FieldMapping[], transformFn?: (entity: ConvertedEntity) => T) => {
-      if (parsedData.length === 0 || mappings.length === 0) {
-        setError('No data or mappings available')
+    async (mappings: FieldMapping[], enforcedFieldsJson?: string, transformFn?: (entity: ConvertedEntity) => T) => {
+      if (!file) {
+        setError('No file available')
+        return
+      }
+
+      if (mappings.length === 0) {
+        setError('No mappings available')
         return
       }
 
@@ -262,10 +277,21 @@ export function useEntityImport<T = ConvertedEntity>(
       setError(null)
 
       try {
-        const converted = convertParsedDataToEntities(parsedData, mappings, lookupCatalogEntry)
+        // Remove enforced fields from the mappings so they are not double-counted
+        const enforcedKeys = enforcedFieldsJson
+          ? new Set(Object.keys(JSON.parse(enforcedFieldsJson) as Record<string, string>))
+          : new Set<string>()
+        const filteredMappings =
+          enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(m.targetField)) : mappings
+
+        // Build mapping JSON for backend
+        const mappingJson = JSON.stringify({ fieldMappings: filteredMappings })
+
+        // Call backend extract endpoint with enforced fields
+        const response = await flowbotClient.extractFromFile(config.entityType, file, mappingJson, enforcedFieldsJson)
 
         // Apply transformation function if provided (for nested structures like investments)
-        const transformedEntities = transformFn ? converted.map(transformFn) : (converted as T[])
+        const transformedEntities = transformFn ? response.records.map(transformFn) : (response.records as T[])
 
         // Post-process: Transform flat communication fields into communicationChannels array for contacts and accounts
         const finalEntities =
@@ -281,7 +307,7 @@ export function useEntityImport<T = ConvertedEntity>(
         setIsLoading(false)
       }
     },
-    [parsedData, lookupCatalogEntry, config.entityType]
+    [file, config.entityType]
   )
 
   // Import to backend
@@ -297,11 +323,22 @@ export function useEntityImport<T = ConvertedEntity>(
     try {
       const ownerEmployeeId = props.userInfo?.employeeDetails?.employeeId
 
-      // Inject ownerEmployee into all entities before import
-      const entitiesWithOwner = convertedEntities.map((entity: any) => ({
-        ...entity,
-        ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId
-      }))
+      // Inject ownerEmployee and optional campaignId into all entities before import
+      const entitiesWithOwner = convertedEntities.map((entity: any) => {
+        const base = {
+          ...entity,
+          ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId,
+          ...(campaignId ? { salesCampaign: campaignId } : {})
+        }
+
+        // Align with createLead defaulting: ensure a status is present for leads.
+        if (config.entityType === 'lead' && !base.leadStatusRef) {
+          base.leadStatusRef =
+            config.domain === 'investment' ? 'InvestmentLeadStatus:v1:OPEN' : 'SalesLeadStatus:v1:OPEN'
+        }
+
+        return stripEmptyValues(base)
+      })
 
       let result: ImportResult
 
@@ -322,7 +359,8 @@ export function useEntityImport<T = ConvertedEntity>(
         const entityPrefix = config.domain === 'investment' ? 'Investment' : ''
         const entitySuffix = STANDARD_ENTITY_ENDPOINTS[config.entityType as keyof typeof STANDARD_ENTITY_ENDPOINTS]
         const endpoint = `/${domainPrefix}/create${entityPrefix}${entitySuffix}`
-        const entityTypePlural = `${config.entityType}s`
+        // Use mapping-based pluralization (e.g. opportunity → opportunities)
+        const entityTypePlural = entitySuffix.toLowerCase()
 
         const response = await restClient.post(
           endpoint,
@@ -350,7 +388,7 @@ export function useEntityImport<T = ConvertedEntity>(
     } finally {
       setIsLoading(false)
     }
-  }, [convertedEntities, config.entityType, config.domain, props.userInfo, restClient, accessToken])
+  }, [convertedEntities, config.entityType, config.domain, props.userInfo, restClient, accessToken, campaignId])
 
   // Download JSON
   const downloadJSON = useCallback(() => {
@@ -367,10 +405,10 @@ export function useEntityImport<T = ConvertedEntity>(
   // Reset
   const reset = useCallback(() => {
     setFile(null)
-    setCsvText('')
-    setParsedData([])
     setAgentResponse(null)
     setConvertedEntities([])
+    setCampaignIdState('')
+    setCampaignNameState('')
     setStep('upload')
     setError(null)
     setImportResult(null)
@@ -378,10 +416,11 @@ export function useEntityImport<T = ConvertedEntity>(
 
   return {
     file,
-    csvText,
-    parsedData,
     agentResponse,
     convertedEntities,
+    campaignId,
+    campaignName,
+    setCampaign,
     step,
     isLoading,
     error,
@@ -391,8 +430,6 @@ export function useEntityImport<T = ConvertedEntity>(
     convertData,
     importToBackend,
     downloadJSON,
-    reset,
-    lookupCatalogEntry,
-    isLoadingCatalogs
+    reset
   }
 }

@@ -5,8 +5,12 @@
  * page breaks, and Word-like editing experience.
  */
 
-import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { DOMSerializer } from '@tiptap/pm/model'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -16,15 +20,17 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
-import { Image } from '@tiptap/extension-image'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { FontFamily } from '@tiptap/extension-font-family'
+import { FontSize } from '@tiptap/extension-text-style/font-size'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
 import { Typography } from '@tiptap/extension-typography'
+import { TaskList } from '@tiptap/extension-task-list'
+import { TaskItem } from '@tiptap/extension-task-item'
 import {
   Button,
   Input,
@@ -34,16 +40,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Badge,
+  Label,
   Separator,
+  Textarea,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  AiButton,
+  Switch,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
   Save,
   FileText,
-  Download,
   Clock,
   CheckCircle,
   Printer,
@@ -52,6 +62,10 @@ import {
   Send,
   ZoomIn,
   ZoomOut,
+  LayoutPanelLeft,
+  ChevronRight,
+  ChevronDown,
+  Search,
   UserCheck,
   AlertCircle,
   XCircle,
@@ -59,15 +73,34 @@ import {
   Lock,
   Unlock,
   MessageSquare,
-  Upload
+  Upload,
+  Wand2,
+  RefreshCw
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { Document, DocumentApprovalRequest } from '../../types'
-import { useDocumentEditorAvatars, useYjsDocumentSync, useDocumentEditorShortcuts } from '../../hooks'
-import { PageBreak } from './extensions/PageBreak'
+import type { Document, DocumentApprovalRequest, DocumentFormatting } from '../../types'
+import {
+  getPaginationConfigFromFormatting,
+  resolvePageLayout,
+  getDefaultPageLayout,
+  DEFAULT_PAGE_COLOR
+} from '../../utils/pageLayoutUtils'
+import { isAllowedHref, escapeHtmlAttr, escapeHtmlText } from '../../utils/linkUtils'
+import {
+  useDocumentEditorAvatars,
+  useYjsDocumentSync,
+  useDocumentEditorShortcuts,
+  useVersionUserDisplays
+} from '../../hooks'
+import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
+import { PaginationPlus } from 'tiptap-pagination-plus'
+import { LineAndParagraphSpacing } from './extensions/LineAndParagraphSpacing'
+import { DocumentImage, PageBreak, SearchHighlight } from './extensions'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
-import { exportToWord, exportToPDF, printHtmlDocument } from '../../utils/exportUtils'
+import DOMPurify from 'dompurify'
+import { exportToWord, exportToPDF, printHtmlDocument, embedImagesInHtml } from '../../utils/exportUtils'
+import { useImageDataUrlResolver } from '../../hooks/useImageDataUrlResolver'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
@@ -76,6 +109,11 @@ import { useFileLock } from '../../../shared/hooks/useFileLock'
 import { useComments } from '../../../shared/hooks/useComments'
 import { usePublishing } from '../../../shared/hooks/usePublishing'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../spaces/hooks/useSpaceDocumentActivity'
+import { buildDocumentEditAdditionInfo } from '@/common/utils/buildDocumentEditPrompt'
+import { openEveryAI } from '@/common/utils/openEveryAI'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { env } from '@/common/env/EnvUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
 import { CheckpointDialog } from '../../../shared/components/CheckpointDialog'
 import { AutoSaveIndicator } from '../../../shared/components/AutoSaveIndicator'
@@ -84,16 +122,48 @@ import { PublishDialog } from '../../../shared/components/PublishDialog'
 import { CommentPanel } from '../../../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
+import { AiEditPanel } from '../AiEditPanel'
+import { PageSetupDialog } from './PageSetupDialog'
+import { LinkDialog, type LinkDialogInitialValues, type LinkDialogMode } from './LinkDialog'
+import { LinkBubbleMenu } from './LinkBubbleMenu'
+import { InsertImageDialog } from './InsertImageDialog'
+import { NavigationPanel } from './NavigationPanel'
+import { useEditorImageHandlers } from './hooks/useEditorImageHandlers'
+import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 
-// A4 dimensions in pixels at 96 DPI
-const A4_WIDTH_PX = 794 // 210mm
-const A4_HEIGHT_PX = 1123 // 297mm
-const PAGE_MARGIN_PX = 96 // 1 inch = 96px at 96 DPI
+// A4 dimensions and margins at 96 DPI (aligned with pageLayoutConstants)
+const PAGE_GAP_PX = 24
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
+const AUTOCOMPLETE_PLUGIN_KEY = new PluginKey('documentAutocompleteGhost')
+const CURRENT_SELECTION_PLUGIN_KEY = new PluginKey('documentCurrentSelectionHighlight')
+const AUTOCOMPLETE_DEBOUNCE_MS = 350
+const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
+const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
+
+function isTruthyFlag(value: string | null | undefined): boolean {
+  if (!value) return false
+  return ['1', 'true', 'on', 'yes'].includes(value.toLowerCase())
+}
+
+function isAutocompleteRolloutEnabled(): boolean {
+  if (globalThis.window !== undefined) {
+    const localOverride = globalThis.localStorage.getItem(AUTOCOMPLETE_ROLLOUT_STORAGE_KEY)
+    if (localOverride !== null) {
+      return isTruthyFlag(localOverride)
+    }
+  }
+
+  // Enabled by default; explicit env flag can disable globally.
+  const envValue = env('NEXT_PUBLIC_DOCUMENT_AUTOCOMPLETE_ENABLED')
+  if (envValue === null || envValue === undefined || envValue === '') {
+    return true
+  }
+  return isTruthyFlag(envValue)
+}
 
 // Collaboration cursor styles
 const CURSOR_STYLES = `
@@ -179,10 +249,90 @@ function getAvatarUrl(picture?: string): string | undefined {
   return `data:image/png;base64,${picture}`
 }
 
+function stripHtmlTagsLinear(input: string): string {
+  let result = ''
+  let insideTag = false
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i]
+    if (char === '<') {
+      insideTag = true
+      continue
+    }
+    if (char === '>' && insideTag) {
+      insideTag = false
+      continue
+    }
+    if (!insideTag) {
+      result += char
+    }
+  }
+  return result
+}
+
+function collapseWhitespaceLinear(input: string): string {
+  let result = ''
+  let previousWasWhitespace = false
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i]
+    const isWhitespace = /\s/.test(char)
+    if (isWhitespace) {
+      if (!previousWasWhitespace) {
+        result += ' '
+        previousWasWhitespace = true
+      }
+      continue
+    }
+    result += char
+    previousWasWhitespace = false
+  }
+  return result.trim()
+}
+
+function normalizeHtmlForComparison(html: string): string {
+  try {
+    if (globalThis.window === undefined) {
+      return html.trim()
+    }
+    const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
+    const normalized = doc.body.innerHTML
+      .split('\u200B')
+      .join('')
+      .split(/>\s+</)
+      .join('><')
+      .split(/\s+/)
+      .join(' ')
+      .trim()
+    return normalized
+  } catch {
+    return html.split('\u200B').join('').split(/>\s+</).join('><').split(/\s+/).join(' ').trim()
+  }
+}
+
+function areHtmlSemanticallyEquivalent(left: string, right: string): boolean {
+  if (left === right) return true
+  const normalizedLeft = normalizeHtmlForComparison(left)
+  const normalizedRight = normalizeHtmlForComparison(right)
+  if (normalizedLeft === normalizedRight) return true
+
+  try {
+    if (globalThis.window !== undefined) {
+      const leftDoc = new globalThis.DOMParser().parseFromString(left, 'text/html')
+      const rightDoc = new globalThis.DOMParser().parseFromString(right, 'text/html')
+      const leftText = (leftDoc.body.textContent || '').split(/\s+/).join(' ').trim()
+      const rightText = (rightDoc.body.textContent || '').split(/\s+/).join(' ').trim()
+      return leftText === rightText
+    }
+  } catch {
+    // ignore and return false below
+  }
+  return false
+}
+
 /**
  * ApprovalStatusBadge Component - Shows detailed approval status in header
  */
 const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }> = ({ approvalRequest }) => {
+  const { t } = useTranslation(translations)
   const approvedBy = approvalRequest.approvers?.filter(a => a.status === 'approved') || []
   const pendingApprovers = approvalRequest.approvers?.filter(a => a.status === 'pending') || []
   const rejectedBy = approvalRequest.approvers?.filter(a => a.status === 'rejected') || []
@@ -195,12 +345,15 @@ const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }
       <div className="gba:ml-4 gba:px-3 gba:py-2 gba:rounded-lg gba:bg-warning/10 gba:border gba:border-warning/30">
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-warning">
           <AlertCircle className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm gba:font-medium">Pending Approval</span>
+          <span className="gba:text-sm gba:font-medium">{t('editor-approval-pending')}</span>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
           {pendingApprovers.slice(0, 3).map((approver, idx) => (
             <Avatar key={idx} className="gba:w-6 gba:h-6">
-              <AvatarImage src={getAvatarUrl(approver.userPicture)} alt={approver.userName || 'Approver'} />
+              <AvatarImage
+                src={getAvatarUrl(approver.userPicture)}
+                alt={approver.userName || t('editor-approval-approver-alt')}
+              />
               <AvatarFallback className="gba:text-[8px] gba:bg-warning/20 gba:text-warning">
                 {approver.userName ? getInitials(approver.userName) : '?'}
               </AvatarFallback>
@@ -220,11 +373,14 @@ const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }
       <div className="gba:ml-4 gba:px-3 gba:py-2 gba:rounded-lg gba:bg-success/10 gba:border gba:border-success/30">
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-success">
           <CheckCircle className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm gba:font-medium">Approved</span>
+          <span className="gba:text-sm gba:font-medium">{t('editor-approval-approved')}</span>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
           <Avatar className="gba:w-6 gba:h-6">
-            <AvatarImage src={getAvatarUrl(lastApproved.userPicture)} alt={lastApproved.userName || 'Approver'} />
+            <AvatarImage
+              src={getAvatarUrl(lastApproved.userPicture)}
+              alt={lastApproved.userName || t('editor-approval-approver-alt')}
+            />
             <AvatarFallback className="gba:text-[8px] gba:bg-success/20 gba:text-success">
               {lastApproved.userName ? getInitials(lastApproved.userName) : <UserCheck className="gba:w-3 gba:h-3" />}
             </AvatarFallback>
@@ -242,7 +398,7 @@ const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }
         </div>
         {approvedBy.length > 1 && (
           <div className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">
-            +{approvedBy.length - 1} more {approvedBy.length - 1 === 1 ? 'approver' : 'approvers'}
+            {t('editor-approval-more', { count: approvedBy.length - 1 })}
           </div>
         )}
       </div>
@@ -255,11 +411,14 @@ const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }
       <div className="gba:ml-4 gba:px-3 gba:py-2 gba:rounded-lg gba:bg-destructive/10 gba:border gba:border-destructive/30">
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-destructive">
           <XCircle className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm gba:font-medium">Rejected</span>
+          <span className="gba:text-sm gba:font-medium">{t('editor-approval-rejected')}</span>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
           <Avatar className="gba:w-6 gba:h-6">
-            <AvatarImage src={getAvatarUrl(lastRejected.userPicture)} alt={lastRejected.userName || 'Rejector'} />
+            <AvatarImage
+              src={getAvatarUrl(lastRejected.userPicture)}
+              alt={lastRejected.userName || t('editor-approval-rejector-alt')}
+            />
             <AvatarFallback className="gba:text-[8px] gba:bg-destructive/20 gba:text-destructive">
               {lastRejected.userName ? getInitials(lastRejected.userName) : '?'}
             </AvatarFallback>
@@ -289,13 +448,17 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   document?: Document
   initialContent?: string
   initialTitle?: string
-  onSave: (title: string, content: string) => Promise<void>
+  onSave: (title: string, content: string, formatting?: DocumentFormatting) => Promise<void>
   onBack: () => void
+  /** When provided, page setup changes are persisted immediately on OK (so layout survives when leaving without Save). */
+  onPersistFormatting?: (formatting: DocumentFormatting) => Promise<void>
   onSaveAsTemplate?: (title: string, content: string) => void
   onSendForApproval?: () => void
   isReadOnly?: boolean
   /** Left panel (e.g. Insert field for templates); shown when editing a template */
   leftPanel?: React.ReactNode
+  /** Extra content rendered below the title row (e.g. external-source badge) */
+  headerExtra?: React.ReactNode
   'data-testid'?: string
 }
 
@@ -331,6 +494,107 @@ function scrollInlineCommentDomIntoView(commentId: string) {
   }, 100)
 }
 
+function renderSaveStatus(
+  isSaving: boolean,
+  hasUnsavedChanges: boolean,
+  lastSaved: Date | null,
+  formatLastSaved: (d: Date | null) => string,
+  t: (key: string) => string
+): React.ReactNode {
+  if (isSaving) {
+    return (
+      <Badge variant="secondary" className="gba:gap-1">
+        <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
+        {t('editor-saving')}
+      </Badge>
+    )
+  }
+  if (hasUnsavedChanges) {
+    return (
+      <Badge variant="outline" className="gba:gap-1">
+        <Clock className="gba:w-3 gba:h-3" />
+        {t('editor-unsaved')}
+      </Badge>
+    )
+  }
+  if (lastSaved) {
+    return (
+      <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+        <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
+        {formatLastSaved(lastSaved)}
+      </span>
+    )
+  }
+  return null
+}
+
+interface TabKeyEditorRef {
+  state: { selection: { $from: { depth: number; node: (d: number) => { type: { name: string } } } } }
+  commands: {
+    goToPreviousCell: () => void
+    goToNextCell: () => boolean
+    insertContent: (c: string) => void
+  }
+  chain: () => { addRowAfter: () => { goToNextCell: () => { run: () => void } } }
+}
+
+/** Tab key handler for editor: table cell navigation or insert tab. Extracted to keep component complexity low. */
+function handleTabKeyInPagedEditor(event: KeyboardEvent, editorRef: React.RefObject<TabKeyEditorRef | null>): boolean {
+  if (event.key !== 'Tab') return false
+  event.preventDefault()
+  const ed = editorRef.current
+  if (!ed) return true
+  const $from = ed.state.selection.$from
+  let inTableCell = false
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type.name === 'tableCell') {
+      inTableCell = true
+      break
+    }
+  }
+  if (inTableCell) {
+    if (event.shiftKey) {
+      ed.commands.goToPreviousCell()
+    } else {
+      const moved = ed.commands.goToNextCell()
+      if (!moved) ed.chain().addRowAfter().goToNextCell().run()
+    }
+  } else if (!event.shiftKey) {
+    ed.commands.insertContent('\t')
+  }
+  return true
+}
+
+function getSpaceIdFromWindow(): string | null {
+  if (globalThis.window === undefined) return null
+  return new URLSearchParams(globalThis.window.location.search).get('spaceId')
+}
+
+function useNavigationPanelState(): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
+  const [show, setShow] = useState(() => {
+    if (globalThis.window === undefined) return false
+    return globalThis.window.localStorage.getItem('document-editor-navigation-panel-open') === 'true'
+  })
+  useEffect(() => {
+    if (globalThis.window === undefined) return
+    globalThis.window.localStorage.setItem('document-editor-navigation-panel-open', String(show))
+  }, [show])
+  return [show, setShow]
+}
+
+function useCollaborationCursorStyles(): void {
+  useEffect(() => {
+    if (globalThis.window === undefined) return
+    const styleId = 'collaboration-cursor-styles'
+    const doc = globalThis.window.document
+    if (doc.getElementById(styleId)) return
+    const styleEl = doc.createElement('style')
+    styleEl.id = styleId
+    styleEl.textContent = CURSOR_STYLES
+    doc.head.appendChild(styleEl)
+  }, [])
+}
+
 /**
  * PagedDocumentEditor Component
  */
@@ -339,20 +603,23 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     {
       document,
       initialContent = '',
-      initialTitle = 'Untitled Document',
+      initialTitle,
       onSave,
       onBack,
+      onPersistFormatting,
       onSaveAsTemplate,
       onSendForApproval,
       isReadOnly = false,
       leftPanel,
+      headerExtra,
       accessToken: accessTokenProp,
       'data-testid': testId = 'paged-document-editor'
     },
     ref
   ) {
+    const { t } = useTranslation(translations)
     // Editor state
-    const [title, setTitle] = useState(document?.title || initialTitle)
+    const [title, setTitle] = useState(document?.title || initialTitle || t('title-untitled-document'))
     const [isSaving, setIsSaving] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date | null>(document ? new Date(document.updatedAt) : null)
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -360,6 +627,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [zoom, setZoom] = useState(100)
     const [pageCount, setPageCount] = useState(1)
     const [currentPage, setCurrentPage] = useState(1)
+    const [layoutFormatting, setLayoutFormatting] = useState<DocumentFormatting>(() => getDefaultPageLayout())
 
     const editorContainerRef = useRef<HTMLDivElement>(null)
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -370,17 +638,88 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       DocumentApiService.setAccessToken(accessTokenProp || null)
     }, [accessTokenProp])
 
+    const resolvedLayout = resolvePageLayout(layoutFormatting)
+    const paginationConfig = getPaginationConfigFromFormatting(layoutFormatting)
+    const isPageless = resolvedLayout.pageless
+    const pageColor = resolvedLayout.pageColor ?? DEFAULT_PAGE_COLOR
+
+    useEffect(() => {
+      const fromDoc = resolvePageLayout(document?.formatting)
+      setLayoutFormatting({
+        ...getDefaultPageLayout(),
+        ...document?.formatting,
+        pageSize: fromDoc.pageSize,
+        orientation: fromDoc.orientation,
+        margins: fromDoc.margins,
+        marginUnit: fromDoc.marginUnit,
+        pageColor: fromDoc.pageColor,
+        pageless: fromDoc.pageless
+      })
+    }, [document?.id])
+
     // Versioning UI state
     const [showVersionHistory, setShowVersionHistory] = useState(false)
     const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
     const [showPublishDialog, setShowPublishDialog] = useState(false)
-    const [showComments, setShowComments] = useState(false)
+    const [showPageSetupDialog, setShowPageSetupDialog] = useState(false)
+    const [showInsertImageDialog, setShowInsertImageDialog] = useState(false)
+    const [showLinkDialog, setShowLinkDialog] = useState(false)
+    const [linkDialogMode, setLinkDialogMode] = useState<LinkDialogMode>('insert')
+    const [linkDialogInitialValues, setLinkDialogInitialValues] = useState<LinkDialogInitialValues | undefined>()
+    const [linkDialogInsertWithNoSelection, setLinkDialogInsertWithNoSelection] = useState(false)
+    // Right sidebar: only one can be open at a time (comments vs AI editor)
+    type RightSidebar = 'closed' | 'comments' | 'ai'
+    const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
+    const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
-    const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
+    const [pendingSelection, setPendingSelection] = useState<{
+      from: number
+      to: number
+      text: string
+      html: string
+    } | null>(null)
+    const [showAiInstructionDialog, setShowAiInstructionDialog] = useState(false)
+    const [aiInstruction, setAiInstruction] = useState('')
+    const [aiSelectionSnapshot, setAiSelectionSnapshot] = useState('')
+    const [aiSelectionSnapshotHtml, setAiSelectionSnapshotHtml] = useState('')
+    const everyAiFallbackPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const suppressYjsSnapshotSaveRef = useRef(false)
+    const [isAutocompleteToggleEnabled, setIsAutocompleteToggleEnabled] = useState(false)
+    const [autocompleteSuggestion, setAutocompleteSuggestion] = useState('')
+    const [autocompleteCursorPos, setAutocompleteCursorPos] = useState<number | null>(null)
+    const [currentSelectionRange, setCurrentSelectionRange] = useState<{ from: number; to: number } | null>(null)
+    const isAutocompleteLoadingRef = useRef(false)
+    const autocompleteSuggestionRef = useRef('')
+    const autocompleteCursorPosRef = useRef<number | null>(null)
+    const autocompleteDebounceRef = useRef<NodeJS.Timeout | null>(null)
+    const autocompleteRequestControllerRef = useRef<AbortController | null>(null)
+    const scheduleAutocompleteRef = useRef<() => void>(() => {})
+    const autocompleteRolloutEnabled = useMemo(() => isAutocompleteRolloutEnabled(), [])
+    const [isAiSelectionPreviewExpanded, setIsAiSelectionPreviewExpanded] = useState(false)
+    const aiSelectionPreviewText = useMemo(() => {
+      const directText = aiSelectionSnapshot.trim()
+      if (directText) return directText
+
+      const html = aiSelectionSnapshotHtml.trim()
+      if (!html) return ''
+
+      if (globalThis.window === undefined) {
+        return collapseWhitespaceLinear(stripHtmlTagsLinear(html))
+      }
+
+      const parsed = new globalThis.DOMParser().parseFromString(html, 'text/html')
+      return collapseWhitespaceLinear(parsed.body.textContent || '')
+    }, [aiSelectionSnapshot, aiSelectionSnapshotHtml])
+    const hasLongAiSelectionPreview = aiSelectionPreviewText.length > 220
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
+
+    // Collaborative page layout (formatting) sync via Yjs.
+    // Content is already synced via Collaboration; formatting must be synced separately.
+    const formattingYMap = React.useMemo(() => ydoc.getMap('documentFormatting'), [ydoc])
+    const metaYMap = React.useMemo(() => ydoc.getMap('documentMeta'), [ydoc])
 
     const collaborationExtension = React.useMemo(
       () => (document?.id ? Collaboration.configure({ document: ydoc }) : null),
@@ -398,10 +737,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Get access token for collaboration and avatar fetching - prefer prop, fallback to localStorage
     const accessToken = accessTokenProp || localStorage.getItem('business-app-ide-access-token') || ''
 
+    useEffect(() => {
+      flowbotClient.setAccessToken(accessToken)
+    }, [accessToken])
+
+    const entityId = document?.id || ''
+
     // Collaboration state
     const { participants: rawParticipants, socket: collaborationSocket } = useCollaboration({
       entityType: 'document',
-      entityId: document?.id || '',
+      entityId,
       enabled: !!document?.id,
       accessToken,
       onError: onErrorCallback
@@ -411,10 +756,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       accessToken,
       rawParticipants
     })
+    const autocompleteToggleStorageKey = useMemo(
+      () => (currentUserId ? `${AUTOCOMPLETE_TOGGLE_STORAGE_KEY}:${currentUserId}` : AUTOCOMPLETE_TOGGLE_STORAGE_KEY),
+      [currentUserId]
+    )
 
     // Versioning, Comments, Locking, Publishing hooks
     const versioning = useVersioning({
-      entityId: document?.id || '',
+      entityId,
       entityType: 'document',
       apiService: DocumentApiService,
       autoSaveEnabled: !!document?.id && !isReadOnly,
@@ -422,23 +771,27 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       onVersionCreated: () => {}
     })
 
+    const versionUserDisplayMap = useVersionUserDisplays(versioning.versions, accessToken)
+
     const comments = useComments({
-      entityId: document?.id || '',
+      entityId,
       entityType: 'document',
       apiService: DocumentApiService
     })
 
     const fileLock = useFileLock({
-      entityId: document?.id || '',
+      entityId,
       entityType: 'document',
       currentUserId: currentUserId || undefined,
       apiService: DocumentApiService
     })
 
+    const currentPublishStatus = document?.publishMetadata?.status || 'draft'
+
     const publishing = usePublishing({
-      entityId: document?.id || '',
+      entityId,
       entityType: 'document',
-      currentStatus: document?.publishMetadata?.status || 'draft',
+      currentStatus: currentPublishStatus,
       apiService: DocumentApiService
     })
 
@@ -448,11 +801,73 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       ydoc,
       awareness,
       editorRef,
+      suppressSnapshotSaveRef: suppressYjsSnapshotSaveRef,
       isReadOnly,
       title,
       setLastSaved,
       setHasUnsavedChanges
     })
+
+    // Seed collaborative title once synced (do not overwrite an existing value from the room).
+    useEffect(() => {
+      if (!document?.id) return
+      if (!isYjsSynced) return
+      if (metaYMap.get('title')) return
+      const initial = (document?.title || '').trim()
+      if (!initial) return
+      metaYMap.set('title', initial)
+    }, [document?.id, document?.title, isYjsSynced, metaYMap])
+
+    // Seed collaborative formatting once synced (do not overwrite an existing value from the room).
+    useEffect(() => {
+      if (!document?.id) return
+      if (!isYjsSynced) return
+      if (formattingYMap.get('formatting')) return
+      if (!document?.formatting) return
+      formattingYMap.set('formatting', document.formatting)
+    }, [document?.id, document?.formatting, formattingYMap, isYjsSynced])
+
+    // Apply title updates from other collaborators.
+    useEffect(() => {
+      if (!document?.id) return
+
+      const applyFromYjs = () => {
+        const next = metaYMap.get('title')
+        if (typeof next !== 'string') return
+        const nextTitle = next.trim()
+        if (!nextTitle) return
+        setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+        lastSavedTitleRef.current = nextTitle
+      }
+
+      applyFromYjs()
+      const handler = () => applyFromYjs()
+      metaYMap.observe(handler)
+      return () => metaYMap.unobserve(handler)
+    }, [document?.id, metaYMap])
+
+    // Apply formatting updates from other collaborators.
+    useEffect(() => {
+      if (!document?.id) return
+
+      const applyFromYjs = () => {
+        const next = formattingYMap.get('formatting') as DocumentFormatting | undefined
+        if (!next) return
+        setLayoutFormatting(prev => {
+          const prevJson = JSON.stringify(prev ?? {})
+          const nextJson = JSON.stringify(next ?? {})
+          if (prevJson === nextJson) return prev
+          return next
+        })
+      }
+
+      // Apply immediately in case the map already has a value.
+      applyFromYjs()
+
+      const handler = () => applyFromYjs()
+      formattingYMap.observe(handler)
+      return () => formattingYMap.unobserve(handler)
+    }, [document?.id, formattingYMap])
 
     const editorContent = React.useMemo(
       () => (document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>'),
@@ -462,20 +877,164 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
       [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
     )
+    const isAutocompleteActive = autocompleteRolloutEnabled && isAutocompleteToggleEnabled && editorEditable
 
-    // Set local awareness state (user meta shown in cursors/selections)
+    useEffect(() => {
+      if (!autocompleteRolloutEnabled) {
+        setIsAutocompleteToggleEnabled(false)
+        return
+      }
+      try {
+        const stored = globalThis.localStorage.getItem(autocompleteToggleStorageKey)
+        if (stored === null) {
+          setIsAutocompleteToggleEnabled(false)
+        } else {
+          setIsAutocompleteToggleEnabled(stored === 'true')
+        }
+      } catch {
+        setIsAutocompleteToggleEnabled(false)
+      }
+    }, [autocompleteRolloutEnabled, autocompleteToggleStorageKey])
+
+    useEffect(() => {
+      if (!autocompleteRolloutEnabled) return
+      try {
+        globalThis.localStorage.setItem(autocompleteToggleStorageKey, String(isAutocompleteToggleEnabled))
+      } catch {
+        // ignore storage write issues
+      }
+    }, [autocompleteRolloutEnabled, autocompleteToggleStorageKey, isAutocompleteToggleEnabled])
+
+    const clearAutocompleteSuggestion = useCallback(() => {
+      setAutocompleteSuggestion('')
+      setAutocompleteCursorPos(null)
+      isAutocompleteLoadingRef.current = false
+    }, [])
+
+    const getAutocompleteContext = useCallback(() => {
+      const editorInstance = editorRef.current
+      if (!editorInstance) return null
+      const selection = editorInstance.state.selection
+      if (!selection.empty) return null
+
+      const { $from } = selection
+      const parentText = $from.parent.textContent || ''
+      const prefixText = parentText.slice(0, $from.parentOffset)
+      const suffixText = parentText.slice($from.parentOffset)
+      if (prefixText.trim().length < 3) return null
+
+      return {
+        cursorPos: selection.from,
+        prefixText: prefixText.slice(-600),
+        suffixText: suffixText.slice(0, 250)
+      }
+    }, [])
+
+    const requestAutocomplete = useCallback(
+      async (context: { cursorPos: number; prefixText: string; suffixText: string }) => {
+        if (!isAutocompleteActive) return
+        autocompleteRequestControllerRef.current?.abort()
+        const controller = new AbortController()
+        autocompleteRequestControllerRef.current = controller
+        isAutocompleteLoadingRef.current = true
+
+        try {
+          const response = await flowbotClient.getDocumentAutocomplete(
+            {
+              document_id: document?.id,
+              title,
+              prefix_text: context.prefixText,
+              suffix_text: context.suffixText,
+              max_tokens: 80,
+              llm_provider: 'openai'
+            },
+            { signal: controller.signal }
+          )
+
+          const editorInstance = editorRef.current
+          if (!editorInstance) return
+          if (!editorInstance.state.selection.empty || editorInstance.state.selection.from !== context.cursorPos) return
+
+          const completion = (response.completion_text || '').trim()
+          if (!completion) {
+            clearAutocompleteSuggestion()
+            return
+          }
+
+          setAutocompleteSuggestion(completion)
+          setAutocompleteCursorPos(context.cursorPos)
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') return
+          clearAutocompleteSuggestion()
+        } finally {
+          if (autocompleteRequestControllerRef.current === controller) {
+            autocompleteRequestControllerRef.current = null
+          }
+          isAutocompleteLoadingRef.current = false
+        }
+      },
+      [clearAutocompleteSuggestion, document?.id, isAutocompleteActive, title]
+    )
+
+    const scheduleAutocomplete = useCallback(() => {
+      if (!isAutocompleteActive) {
+        if (autocompleteDebounceRef.current) {
+          clearTimeout(autocompleteDebounceRef.current)
+        }
+        autocompleteRequestControllerRef.current?.abort()
+        clearAutocompleteSuggestion()
+        return
+      }
+
+      if (autocompleteDebounceRef.current) {
+        clearTimeout(autocompleteDebounceRef.current)
+      }
+      autocompleteRequestControllerRef.current?.abort()
+      clearAutocompleteSuggestion()
+
+      const context = getAutocompleteContext()
+      if (!context) return
+
+      autocompleteDebounceRef.current = setTimeout(() => {
+        void requestAutocomplete(context)
+      }, AUTOCOMPLETE_DEBOUNCE_MS)
+    }, [clearAutocompleteSuggestion, getAutocompleteContext, isAutocompleteActive, requestAutocomplete])
+
+    // Set local awareness state (user meta shown in cursors/selections).
+    // Defer until editor view is mounted so collaboration cursor does not dispatch before view exists.
     useEffect(() => {
       if (!document?.id) return
       if (!currentUserId) return
       if (!isYjsSynced) return
 
-      awareness.setLocalStateField('user', {
+      const userState = {
         id: currentUserId,
         userId: currentUserId,
-        name: currentUserName || 'User',
+        name: currentUserName || t('editor-user-fallback'),
         color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
-        avatar: currentUserAvatar // Include avatar URL for cursor rendering
-      })
+        avatar: currentUserAvatar
+      }
+
+      let cancelled = false
+      const deadline = Date.now() + 5000
+      const applyWhenViewReady = () => {
+        if (cancelled) return
+        try {
+          const ed = editorRef.current as { view?: unknown } | null
+          if (ed?.view) {
+            awareness.setLocalStateField('user', userState)
+            return
+          }
+        } catch {
+          // view getter may throw when not mounted
+        }
+        if (Date.now() > deadline) return
+        setTimeout(applyWhenViewReady, 50)
+      }
+      setTimeout(applyWhenViewReady, 0)
+      return () => {
+        cancelled = true
+      }
     }, [document?.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
 
     // Broadcast document activity to Spaces app
@@ -483,15 +1042,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!document?.id || !currentUserId) return
 
       const activityType = isReadOnly ? 'viewing' : 'editing'
-      const docTitle = document.title || 'Untitled Document'
-      const urlSpaceId =
-        typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
+      const docTitle = document.title || t('title-untitled-document')
+      const urlSpaceId = getSpaceIdFromWindow()
 
       // Emit activity when starting
       emitDocumentActivity({
         userId: currentUserId,
-        userName: currentUserName || 'User',
-        userAvatar: currentUserAvatar,
+        userName: currentUserName || t('editor-user-fallback'),
+        userAvatar: currentUserAvatar || undefined,
         documentId: document.id,
         documentTitle: docTitle,
         documentType: 'document',
@@ -503,8 +1061,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const keepAliveInterval = setInterval(() => {
         emitDocumentActivity({
           userId: currentUserId,
-          userName: currentUserName || 'User',
-          userAvatar: currentUserAvatar,
+          userName: currentUserName || t('editor-user-fallback'),
+          userAvatar: currentUserAvatar || undefined,
           documentId: document.id,
           documentTitle: docTitle,
           documentType: 'document',
@@ -518,7 +1076,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         clearInterval(keepAliveInterval)
         emitDocumentActivityEnd(currentUserId, document.id)
       }
-    }, [document?.id, document?.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly])
+    }, [document?.id, document?.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly, t])
+
+    const isCollaborationMode = Boolean(document?.id)
+
+    const imageHandlers = useEditorImageHandlers({
+      editorRef,
+      documentId: document?.id ?? null,
+      accessToken
+    })
 
     // Initialize TipTap editor
     const editor = useEditor(
@@ -528,13 +1094,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             heading: {
               levels: [1, 2, 3, 4, 5, 6]
             },
-            // Disable history when using Collaboration (Yjs provides its own history)
-            history: document?.id ? false : {}
-          }),
+            // Disable local history/undo-redo in collaboration mode (Yjs provides this).
+            ...(isCollaborationMode ? { history: false, undoRedo: false } : {}),
+            // Avoid duplicate names when Link/Underline are configured explicitly below.
+            link: false,
+            underline: false
+          } as any),
           Placeholder.configure({
-            placeholder: 'Start writing your document...'
+            placeholder: t('editor-content-placeholder')
           }),
           TextAlign.configure({
+            types: ['heading', 'paragraph']
+          }),
+          LineAndParagraphSpacing.configure({
             types: ['heading', 'paragraph']
           }),
           Underline,
@@ -544,12 +1116,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             multicolor: true
           }),
           Link.configure({
-            openOnClick: false,
+            openOnClick: true,
             HTMLAttributes: {
-              class: 'editor-link'
-            }
+              class: 'editor-link',
+              rel: 'noopener noreferrer'
+            },
+            isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
           }),
-          Image.configure({
+          DocumentImage.configure({
+            getAccessToken: () => accessToken,
             HTMLAttributes: {
               class: 'editor-image'
             }
@@ -564,13 +1139,46 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           TableHeader,
           TableCell,
           FontFamily,
+          FontSize.configure({ types: ['textStyle'] }),
           Subscript,
           Superscript,
           Typography,
+          TaskList,
+          TaskItem.configure({
+            nested: true,
+            HTMLAttributes: {
+              class: 'editor-task-item'
+            }
+          }),
           PageBreak,
+          SearchHighlight,
+          ...(paginationConfig
+            ? [
+                PaginationPlus.configure({
+                  pageWidth: paginationConfig.pageWidth,
+                  pageHeight: paginationConfig.pageHeight,
+                  pageGap: PAGE_GAP_PX,
+                  marginTop: paginationConfig.marginTop,
+                  marginBottom: paginationConfig.marginBottom,
+                  marginLeft: paginationConfig.marginLeft,
+                  marginRight: paginationConfig.marginRight,
+                  contentMarginTop: 0,
+                  contentMarginBottom: 0,
+                  pageBreakBackground: '#f3f4f6',
+                  pageGapBorderSize: 0,
+                  pageGapBorderColor: '#f3f4f6',
+                  headerLeft: '',
+                  headerRight: '',
+                  footerLeft: '',
+                  footerRight: '',
+                  customHeader: {},
+                  customFooter: {}
+                })
+              ]
+            : []),
           InlineCommentExtension.configure({
             onCommentClick: commentId => {
-              setShowComments(true)
+              setRightSidebar('comments')
               setTimeout(() => {
                 const commentElement = globalThis.document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
                 commentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -583,41 +1191,173 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         // In CRDT mode, the Yjs doc becomes the single source of truth.
         content: editorContent,
         editable: editorEditable,
+        editorProps: {
+          attributes: {
+            dir: 'auto'
+          },
+          handlePaste: imageHandlers.handlePaste,
+          handleDrop: imageHandlers.handleDrop,
+          handleKeyDown(view, event) {
+            const currentSuggestion = autocompleteSuggestionRef.current
+            const currentCursorPos = autocompleteCursorPosRef.current
+
+            if (
+              event.key === 'Tab' &&
+              currentSuggestion &&
+              currentCursorPos === view.state.selection.from &&
+              view.state.selection.empty
+            ) {
+              event.preventDefault()
+              const tr = view.state.tr.insertText(currentSuggestion, view.state.selection.from, view.state.selection.to)
+              view.dispatch(tr)
+              clearAutocompleteSuggestion()
+              return true
+            }
+
+            if (event.key === 'Escape' && currentSuggestion) {
+              event.preventDefault()
+              clearAutocompleteSuggestion()
+              return true
+            }
+
+            return handleTabKeyInPagedEditor(event, editorRef)
+          }
+        },
         onUpdate: () => {
-          updatePageCount()
+          schedulePaginationRebuild()
           if (document?.id) versioning.markAsChanged()
           if (!document?.id) {
             setHasUnsavedChanges(true)
             if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current)
             autoSaveTimeoutRef.current = setTimeout(() => handleSave(), AUTO_SAVE_DELAY_MS)
           }
+          scheduleAutocompleteRef.current()
         }
       },
-      [document?.id, ydoc, editorContent, editorEditable]
+      [
+        document?.id,
+        ydoc,
+        editorContent,
+        editorEditable,
+        isCollaborationMode,
+        t,
+        isPageless,
+        accessToken,
+        imageHandlers.handlePaste,
+        imageHandlers.handleDrop,
+        paginationConfig?.pageWidth,
+        paginationConfig?.pageHeight,
+        paginationConfig?.marginTop,
+        paginationConfig?.marginBottom,
+        paginationConfig?.marginLeft,
+        paginationConfig?.marginRight
+      ]
     )
 
-    // Inject collaboration cursor styles once on mount
-    useEffect(() => {
-      // Guard against SSR / non-browser environments
-      if (typeof window === 'undefined') return
-
-      const styleId = 'collaboration-cursor-styles'
-      // Use window.document to avoid shadowing from the 'document' prop
-      if (!window.document.getElementById(styleId)) {
-        const styleEl = window.document.createElement('style')
-        styleEl.id = styleId
-        styleEl.textContent = CURSOR_STYLES
-        window.document.head.appendChild(styleEl)
-      }
-      return () => {
-        // Don't remove on unmount - other editors might need it
-      }
-    }, [])
+    useCollaborationCursorStyles()
 
     // Update refs when values change
     useEffect(() => {
       editorRef.current = editor
     }, [editor])
+
+    useEffect(() => {
+      scheduleAutocompleteRef.current = scheduleAutocomplete
+    }, [scheduleAutocomplete])
+
+    useEffect(() => {
+      autocompleteSuggestionRef.current = autocompleteSuggestion
+      autocompleteCursorPosRef.current = autocompleteCursorPos
+    }, [autocompleteSuggestion, autocompleteCursorPos])
+
+    useEffect(() => {
+      if (!editor) return
+      const existing = AUTOCOMPLETE_PLUGIN_KEY.get(editor.state)
+      if (existing) editor.unregisterPlugin(AUTOCOMPLETE_PLUGIN_KEY)
+
+      if (
+        !isAutocompleteActive ||
+        !autocompleteSuggestion ||
+        autocompleteCursorPos === null ||
+        !editor.state.selection.empty ||
+        editor.state.selection.from !== autocompleteCursorPos
+      ) {
+        return
+      }
+
+      const plugin = new Plugin({
+        key: AUTOCOMPLETE_PLUGIN_KEY,
+        props: {
+          decorations(state) {
+            const position = Math.min(Math.max(autocompleteCursorPos, 0), state.doc.content.size)
+            const ghost = globalThis.document.createElement('span')
+            ghost.className = 'document-autocomplete-ghost-text'
+            ghost.textContent = autocompleteSuggestion
+            return DecorationSet.create(state.doc, [
+              Decoration.widget(position, ghost, {
+                side: 1,
+                ignoreSelection: true
+              })
+            ])
+          }
+        }
+      })
+
+      editor.registerPlugin(plugin)
+      return () => {
+        const activePlugin = AUTOCOMPLETE_PLUGIN_KEY.get(editor.state)
+        if (activePlugin) editor.unregisterPlugin(AUTOCOMPLETE_PLUGIN_KEY)
+      }
+    }, [editor, isAutocompleteActive, autocompleteSuggestion, autocompleteCursorPos])
+
+    useEffect(() => {
+      if (!editor) return
+      const handleSelectionUpdate = () => {
+        clearAutocompleteSuggestion()
+        const { from, to, empty } = editor.state.selection
+        setCurrentSelectionRange(empty ? null : { from, to })
+      }
+      const { from, to, empty } = editor.state.selection
+      setCurrentSelectionRange(empty ? null : { from, to })
+      editor.on('selectionUpdate', handleSelectionUpdate)
+      return () => {
+        editor.off('selectionUpdate', handleSelectionUpdate)
+      }
+    }, [editor, clearAutocompleteSuggestion])
+
+    useEffect(() => {
+      if (!editor) return
+      const existing = CURRENT_SELECTION_PLUGIN_KEY.get(editor.state)
+      if (existing) {
+        editor.unregisterPlugin(CURRENT_SELECTION_PLUGIN_KEY)
+      }
+
+      if (!currentSelectionRange) return
+
+      const plugin = new Plugin({
+        key: CURRENT_SELECTION_PLUGIN_KEY,
+        props: {
+          decorations(state) {
+            const from = Math.max(0, Math.min(currentSelectionRange.from, state.doc.content.size))
+            const to = Math.max(from, Math.min(currentSelectionRange.to, state.doc.content.size))
+            if (from === to) return DecorationSet.empty
+            return DecorationSet.create(state.doc, [
+              Decoration.inline(from, to, {
+                class: 'current-selection-highlight'
+              })
+            ])
+          }
+        }
+      })
+
+      editor.registerPlugin(plugin)
+      return () => {
+        const active = CURRENT_SELECTION_PLUGIN_KEY.get(editor.state)
+        if (active) {
+          editor.unregisterPlugin(CURRENT_SELECTION_PLUGIN_KEY)
+        }
+      }
+    }, [editor, currentSelectionRange])
 
     // Expose insertAtCursor for template "Insert field" panel
     useImperativeHandle(
@@ -625,7 +1365,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       () => ({
         insertAtCursor(htmlOrText: string) {
           const ed = editorRef.current
-          if (ed) ed.commands.insertContent(htmlOrText)
+          if (ed) {
+            const sanitized = DOMPurify.sanitize(htmlOrText, { USE_PROFILES: { html: true } }) || ''
+            if (sanitized) ed.commands.insertContent(sanitized)
+          }
         }
       }),
       []
@@ -643,55 +1386,176 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [editor, isReadOnly, document?.id, isYjsSynced, fileLock.canEdit])
 
     // Handler for inline comment (defined after editor)
-    const handleAddInlineComment = useCallback(() => {
-      if (!editor) return
+    const handleAddInlineComment = useCallback(
+      (contextMenuPosition?: { x: number; y: number }, selectionRange?: { from: number; to: number }) => {
+        if (!editor) return
 
-      const { from, to } = editor.state.selection
-      if (from === to) return // No selection
+        const from = selectionRange?.from ?? editor.state.selection.from
+        const to = selectionRange?.to ?? editor.state.selection.to
+        if (from === to) return // No selection
 
-      const selectedText = editor.state.doc.textBetween(from, to)
-      const { view } = editor
-      const coords = view.coordsAtPos(from)
+        const selectedText = editor.state.doc.textBetween(from, to, '\n\n', '\n').trim()
+        const slice = editor.state.doc.slice(from, to)
+        const serializer = DOMSerializer.fromSchema(editor.schema)
+        const domFragment = serializer.serializeFragment(slice.content)
+        const selectedContainer = globalThis.document.createElement('div')
+        selectedContainer.appendChild(domFragment)
+        const selectedHtml = selectedContainer.innerHTML.trim()
+        const { view } = editor
+        const coords = view.coordsAtPos(from)
 
-      setPendingSelection({ from, to, text: selectedText })
-      setInlineCommentPosition({
-        top: coords.top + window.scrollY + 30,
-        left: coords.left + window.scrollX
-      })
-      setShowInlineCommentPopover(true)
-    }, [editor])
+        setPendingSelection({ from, to, text: selectedText, html: selectedHtml })
+        setInlineCommentPosition({
+          top: contextMenuPosition?.y ? contextMenuPosition.y + 8 : coords.top + 30,
+          left: contextMenuPosition?.x ? contextMenuPosition.x + 8 : coords.left
+        })
+        setShowInlineCommentPopover(true)
+      },
+      [editor]
+    )
 
-    // Calculate page count based on content height
-    const updatePageCount = useCallback(() => {
-      if (!editorContainerRef.current) return
+    // Page count and current page from PaginationPlus DOM.
+    //
+    // PaginationPlus renders a `[data-rm-pagination]` wrapper with one `.rm-page-break` child per page.
+    // Each `.rm-page-break` contains a `.breaker` element positioned at the end of that page.
+    // We compute:
+    // - total pages = number of `.rm-page-break` children (fallback to 1)
+    // - current page = 1 + number of *page boundaries* (breaker elements except last page) above viewport center
+    const paginationModelRef = useRef<{ totalPages: number; boundaryEls: HTMLElement[] }>({
+      totalPages: 1,
+      boundaryEls: []
+    })
+    const paginationRafRef = useRef<number | null>(null)
+    const paginationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const PAGINATION_DEBOUNCE_MS = 150
 
-      const editorContent = editorContainerRef.current.querySelector('.ProseMirror')
-      if (!editorContent) return
+    const computeCurrentPageFromBoundaries = useCallback(
+      (container: HTMLDivElement, totalPages: number, boundaryEls: HTMLElement[]) => {
+        if (totalPages <= 1 || boundaryEls.length === 0) return 1
+        const containerRect = container.getBoundingClientRect()
+        const viewportCenterY = containerRect.top + containerRect.height / 2
 
-      const contentHeight = editorContent.scrollHeight
-      const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
-      const pages = Math.max(1, Math.ceil(contentHeight / pageContentHeight))
-      setPageCount(pages)
-    }, [])
+        let passedBoundaries = 0
+        for (const boundaryEl of boundaryEls) {
+          const boundaryTop = boundaryEl.getBoundingClientRect().top
+          if (viewportCenterY >= boundaryTop) {
+            passedBoundaries += 1
+          } else {
+            break
+          }
+        }
 
-    // Update page count when content changes
+        return Math.min(Math.max(1, 1 + passedBoundaries), totalPages)
+      },
+      []
+    )
+
+    const rebuildPaginationModel = useCallback(() => {
+      const container = editorContainerRef.current
+      if (!container) return
+
+      const paginationRoot = container.querySelector('[data-rm-pagination]')
+      const pageEls = paginationRoot ? Array.from(paginationRoot.children) : []
+      const pageBreakEls = pageEls.filter((el): el is HTMLElement => el instanceof HTMLElement)
+      const totalPages = pageBreakEls.length > 0 ? pageBreakEls.length : 1
+
+      // Boundaries between pages are the `.breaker` elements for all but the last page.
+      const boundaryEls = pageBreakEls
+        .slice(0, -1)
+        .map(el => el.querySelector('.breaker'))
+        .filter((el): el is HTMLElement => el instanceof HTMLElement)
+
+      paginationModelRef.current = { totalPages, boundaryEls }
+
+      setPageCount(totalPages)
+      setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+    }, [computeCurrentPageFromBoundaries])
+
+    const schedulePaginationRebuild = useCallback(
+      (immediate = false) => {
+        const run = () => {
+          if (paginationRafRef.current) cancelAnimationFrame(paginationRafRef.current)
+          paginationRafRef.current = requestAnimationFrame(() => {
+            paginationRafRef.current = null
+            rebuildPaginationModel()
+          })
+        }
+        if (immediate) {
+          if (paginationDebounceRef.current) {
+            clearTimeout(paginationDebounceRef.current)
+            paginationDebounceRef.current = null
+          }
+          run()
+          return
+        }
+        if (paginationDebounceRef.current) clearTimeout(paginationDebounceRef.current)
+        paginationDebounceRef.current = setTimeout(() => {
+          paginationDebounceRef.current = null
+          run()
+        }, PAGINATION_DEBOUNCE_MS)
+      },
+      [rebuildPaginationModel]
+    )
+
     useEffect(() => {
-      updatePageCount()
+      schedulePaginationRebuild(true)
+      const onResize = () => schedulePaginationRebuild(true)
+      globalThis.window.addEventListener('resize', onResize)
+      return () => globalThis.window.removeEventListener('resize', onResize)
+    }, [schedulePaginationRebuild])
 
-      // Also update on window resize
-      window.addEventListener('resize', updatePageCount)
-      return () => window.removeEventListener('resize', updatePageCount)
-    }, [updatePageCount])
+    // Keep pagination model synced in edit/collaboration mode (DOM updates are async).
+    useEffect(() => {
+      if (!document?.id) return
+      schedulePaginationRebuild(true)
+    }, [document?.id, isYjsSynced, schedulePaginationRebuild])
 
-    // Handle scroll to track current page
+    // Observe editor DOM changes so the page model updates when PaginationPlus inserts/reflows its DOM.
+    // (In edit/collaboration mode this often happens after initial render, without a user-driven update.)
+    useEffect(() => {
+      const container = editorContainerRef.current
+      if (!container) return
+
+      // Prefer the actual editor DOM root if available.
+      const root: HTMLElement | null = (editor?.view?.dom ??
+        container.querySelector('.ProseMirror')) as HTMLElement | null
+
+      if (!root) return
+
+      const observer = new MutationObserver(() => {
+        schedulePaginationRebuild(false)
+      })
+
+      observer.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: false,
+        characterData: false
+      })
+
+      schedulePaginationRebuild(true)
+
+      return () => {
+        observer.disconnect()
+        if (paginationDebounceRef.current) {
+          clearTimeout(paginationDebounceRef.current)
+          paginationDebounceRef.current = null
+        }
+      }
+    }, [editor, schedulePaginationRebuild])
+
+    const scrollThrottleRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null)
     const handleScroll = useCallback(
       (e: React.UIEvent<HTMLDivElement>) => {
-        const scrollTop = e.currentTarget.scrollTop
-        const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
-        const currentPageNum = Math.floor(scrollTop / pageContentHeight) + 1
-        setCurrentPage(Math.min(currentPageNum, pageCount))
+        const container = e.currentTarget
+        if (scrollThrottleRef.current) return
+        scrollThrottleRef.current = requestAnimationFrame(() => {
+          scrollThrottleRef.current = null
+          const { totalPages, boundaryEls } = paginationModelRef.current
+          setCurrentPage(computeCurrentPageFromBoundaries(container, totalPages, boundaryEls))
+        })
       },
-      [pageCount]
+      [computeCurrentPageFromBoundaries]
     )
 
     // Cleanup auto-save timeout on unmount
@@ -700,6 +1564,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         if (autoSaveTimeoutRef.current) {
           clearTimeout(autoSaveTimeoutRef.current)
         }
+        if (autocompleteDebounceRef.current) {
+          clearTimeout(autocompleteDebounceRef.current)
+        }
+        autocompleteRequestControllerRef.current?.abort()
       }
     }, [])
 
@@ -709,14 +1577,101 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setHasUnsavedChanges(true)
     }, [])
 
-    // Save document
+    const handlePageSetupApply = useCallback(
+      (nextFormatting: DocumentFormatting) => {
+        setLayoutFormatting(nextFormatting)
+        // Sync formatting to other collaborators (edit mode only).
+        if (document?.id && isYjsSynced) {
+          formattingYMap.set('formatting', nextFormatting)
+        }
+        if (document?.id && onPersistFormatting) {
+          void onPersistFormatting(nextFormatting)
+        }
+      },
+      [document?.id, formattingYMap, isYjsSynced, onPersistFormatting]
+    )
+
+    const openLinkDialog = useCallback(() => {
+      if (!editor) return
+      const { from, to } = editor.state.selection
+      const isEmpty = from === to
+      if (editor.isActive('link')) {
+        setLinkDialogMode('edit')
+        setLinkDialogInitialValues({
+          href: editor.getAttributes('link').href || '',
+          displayText: editor.state.doc.textBetween(from, to),
+          openInNewTab: editor.getAttributes('link').target === '_blank'
+        })
+        setLinkDialogInsertWithNoSelection(false)
+      } else if (isEmpty) {
+        setLinkDialogMode('insert')
+        setLinkDialogInitialValues({ href: '', displayText: '', openInNewTab: false })
+        setLinkDialogInsertWithNoSelection(true)
+      } else {
+        setLinkDialogMode('insert')
+        setLinkDialogInitialValues({
+          href: '',
+          displayText: editor.state.doc.textBetween(from, to),
+          openInNewTab: false
+        })
+        setLinkDialogInsertWithNoSelection(false)
+      }
+      setShowLinkDialog(true)
+    }, [editor])
+
+    const handleLinkApply = useCallback(
+      (values: { href: string; displayText?: string; openInNewTab: boolean }) => {
+        if (!editor) return
+        const { href, displayText: displayTextVal, openInNewTab } = values
+        if (!isAllowedHref(href)) return
+        const target = openInNewTab ? '_blank' : undefined
+        if (linkDialogMode === 'edit') {
+          editor.chain().focus().extendMarkRange('link').setLink({ href, target }).run()
+          return
+        }
+        if (linkDialogInsertWithNoSelection) {
+          const text = displayTextVal?.trim() || href
+          const rel = 'noopener noreferrer'
+          const targetAttr = openInNewTab ? ' target="_blank"' : ''
+          const html = `<a href="${escapeHtmlAttr(href)}"${targetAttr} rel="${rel}">${escapeHtmlText(text)}</a>`
+          editor.chain().focus().insertContent(html).run()
+          return
+        }
+        editor.chain().focus().setLink({ href, target }).run()
+      },
+      [editor, linkDialogMode, linkDialogInsertWithNoSelection]
+    )
+
+    const handleLinkRemove = useCallback(() => {
+      if (!editor) return
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    }, [editor])
+
+    // Save document (pass merged formatting so layout is persisted)
     const handleSave = useCallback(async () => {
       if (isReadOnly || isSaving || !editor) return
 
       setIsSaving(true)
       try {
+        const nextTitle = title.trim() || title
+        // Keep collaborative title in sync when saving from toolbar/shortcuts
+        // (e.g. when user saves without blurring the title input).
+        if (document?.id && isYjsSynced) {
+          metaYMap.set('title', nextTitle.trim())
+        }
+
         const content = editor.getHTML()
-        await onSave(title, content)
+        const formatting: DocumentFormatting = {
+          ...document?.formatting,
+          ...layoutFormatting,
+          pageSize: resolvedLayout.pageSize,
+          orientation: resolvedLayout.orientation,
+          margins: resolvedLayout.margins,
+          marginUnit: resolvedLayout.marginUnit,
+          pageColor: resolvedLayout.pageColor,
+          pageless: resolvedLayout.pageless
+        }
+        await onSave(nextTitle, content, formatting)
         setLastSaved(new Date())
         setHasUnsavedChanges(false)
       } catch (error) {
@@ -724,55 +1679,136 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       } finally {
         setIsSaving(false)
       }
-    }, [title, editor, onSave, isReadOnly, isSaving])
+    }, [
+      title,
+      editor,
+      onSave,
+      isReadOnly,
+      isSaving,
+      document?.id,
+      document?.formatting,
+      isYjsSynced,
+      metaYMap,
+      layoutFormatting,
+      resolvedLayout
+    ])
+
+    const lastSavedTitleRef = useRef(title)
+
+    useEffect(() => {
+      // Keep in sync when title is loaded/changed programmatically.
+      lastSavedTitleRef.current = title
+    }, [document?.id])
+
+    const persistTitleIfChanged = useCallback(() => {
+      if (isReadOnly) return
+      if (isSaving) return
+
+      const nextTitle = title.trim()
+      if (!nextTitle) return
+
+      if (nextTitle === lastSavedTitleRef.current) return
+      lastSavedTitleRef.current = nextTitle
+      setTitle(nextTitle)
+
+      // Sync to other collaborators (edit mode only).
+      if (document?.id && isYjsSynced) {
+        metaYMap.set('title', nextTitle)
+      }
+
+      void handleSave()
+    }, [document?.id, handleSave, isReadOnly, isSaving, isYjsSynced, metaYMap, title])
+
+    const handleTitleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== 'Enter') return
+      e.preventDefault()
+      e.currentTarget.blur()
+    }, [])
+
+    const handleTitleBlur = useCallback(() => {
+      persistTitleIfChanged()
+    }, [persistTitleIfChanged])
 
     useDocumentEditorShortcuts({
       onSave: () => {
         void handleSave()
       },
       onAddInlineComment: handleAddInlineComment,
+      onOpenLinkDialog: openLinkDialog,
       editor,
       editorContainerRef
     })
 
-    // Export to Word
+    useEditorKeyboardIsolation(editorContainerRef)
+
+    const getImageDataUrl = useImageDataUrlResolver(accessToken)
+
+    // Build HTML with images embedded (each img src resolved to data URL so PDF/print show pictures)
+    const getExportHtmlWithEmbeddedImages = useCallback(async (): Promise<string> => {
+      if (!editor) return ''
+      return embedImagesInHtml(editor.getHTML(), getImageDataUrl)
+    }, [editor, getImageDataUrl])
+
+    // Export to Word — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
     const handleExportWord = useCallback(async () => {
       if (!editor) return
       setIsExporting(true)
       try {
-        await exportToWord(title, editor.getHTML())
+        const htmlWithImages = await getExportHtmlWithEmbeddedImages()
+        const safeHtml = DOMPurify.sanitize(htmlWithImages, {
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+          FORBID_ATTR: [],
+          ALLOW_DATA_ATTR: true
+        })
+        await exportToWord(title, safeHtml)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to Word failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor])
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
-    // Export to PDF
+    // Export to PDF — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
     const handleExportPDF = useCallback(async () => {
       if (!editor) return
       setIsExporting(true)
       try {
-        await exportToPDF(title, editor.getHTML())
+        const htmlWithImages = await getExportHtmlWithEmbeddedImages()
+        const safeHtml = DOMPurify.sanitize(htmlWithImages, {
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+          FORBID_ATTR: [],
+          ALLOW_DATA_ATTR: true
+        })
+        await exportToPDF(title, safeHtml)
       } catch (error) {
         console.error('[PagedDocumentEditor] Export to PDF failed:', error)
       } finally {
         setIsExporting(false)
       }
-    }, [title, editor])
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
-    // Print document
-    const handlePrint = useCallback(() => {
+    // Print document — CWE-79: use DOMPurify.sanitize so SAST recognizes the sanitizer
+    const handlePrint = useCallback(async () => {
       if (!editor) return
-      printHtmlDocument({
-        title,
-        htmlContent: editor.getHTML(),
-        extraCss: `
+      try {
+        const htmlContent = await getExportHtmlWithEmbeddedImages()
+        const safeHtml = DOMPurify.sanitize(htmlContent, {
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+          FORBID_ATTR: [],
+          ALLOW_DATA_ATTR: true
+        })
+        printHtmlDocument({
+          title,
+          htmlContent: safeHtml,
+          extraCss: `
         .page-break { page-break-after: always; break-after: page; }
         @media print { .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
       `
-      })
-    }, [title, editor])
+        })
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Print failed:', error)
+      }
+    }, [title, editor, getExportHtmlWithEmbeddedImages])
 
     // Zoom controls
     const handleZoomIn = useCallback(() => {
@@ -787,6 +1823,206 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setZoom(100)
     }, [])
 
+    const getCurrentEditorSelectionContext = useCallback(() => {
+      if (!editor) return { text: '', html: '' }
+      const { from, to } = editor.state.selection
+      if (from === to) return { text: '', html: '' }
+      const text = editor.state.doc.textBetween(from, to, '\n\n', '\n').trim()
+      const slice = editor.state.doc.slice(from, to)
+      const div = globalThis.document.createElement('div')
+      const serializer = DOMSerializer.fromSchema(editor.schema)
+      const domFragment = serializer.serializeFragment(slice.content)
+      div.appendChild(domFragment)
+      const selectedHtml = div.innerHTML.trim()
+      return { text, html: selectedHtml }
+    }, [editor])
+
+    useEffect(() => {
+      if (!editor || !showAiInstructionDialog) return
+
+      const syncSelectionSnapshot = () => {
+        const selectionContext = getCurrentEditorSelectionContext()
+        setAiSelectionSnapshot(selectionContext.text)
+        setAiSelectionSnapshotHtml(selectionContext.html)
+      }
+
+      // Sync immediately when panel opens, then keep it updated.
+      syncSelectionSnapshot()
+      editor.on('selectionUpdate', syncSelectionSnapshot)
+      return () => {
+        editor.off('selectionUpdate', syncSelectionSnapshot)
+      }
+    }, [editor, getCurrentEditorSelectionContext, showAiInstructionDialog])
+
+    const handleAiEditClick = useCallback(() => {
+      if (!document?.id) return
+
+      const useLegacyPanel =
+        globalThis.window !== undefined && globalThis.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
+      if (useLegacyPanel) {
+        setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))
+        return
+      }
+
+      if (showAiInstructionDialog) {
+        setShowAiInstructionDialog(false)
+        setAiInstruction('')
+        setAiSelectionSnapshot('')
+        setAiSelectionSnapshotHtml('')
+        return
+      }
+
+      const selectionContext = getCurrentEditorSelectionContext()
+      setAiSelectionSnapshot(selectionContext.text)
+      setAiSelectionSnapshotHtml(selectionContext.html)
+      setAiInstruction('')
+      setShowAiInstructionDialog(true)
+    }, [document?.id, getCurrentEditorSelectionContext, showAiInstructionDialog])
+
+    const handleConfirmAiInstruction = useCallback(() => {
+      if (!document?.id) return
+      const trimmedInstruction = aiInstruction.trim()
+      if (!trimmedInstruction) return
+
+      const prompt = trimmedInstruction
+      const additionInfo = buildDocumentEditAdditionInfo({
+        documentId: document.id,
+        documentTitle: title,
+        selectedText: aiSelectionSnapshot,
+        selectedHtml: aiSelectionSnapshotHtml,
+        fullDocumentHtml: editor?.getHTML() || ''
+      })
+
+      setShowAiInstructionDialog(false)
+      setAiInstruction('')
+      setAiSelectionSnapshot('')
+      setAiSelectionSnapshotHtml('')
+
+      openEveryAI({ prompt, additionInfo, skills: ['Documents'] })
+
+      // Fallback: if this shell does not handle openEveryAI events, navigate directly.
+      globalThis.setTimeout(() => {
+        const everyAiMounted = Boolean(globalThis.document.querySelector('[data-testid="every-ai-app"]'))
+        if (!everyAiMounted) {
+          navigateTo('/platform/every-ai')
+        }
+      }, 800)
+    }, [aiInstruction, aiSelectionSnapshot, aiSelectionSnapshotHtml, document?.id, editor, title])
+
+    const applyLatestDocumentContent = useCallback(
+      async (html: string, updatedAt?: string): Promise<boolean> => {
+        if (!editor) return false
+        const scrollContainer = editorContainerRef.current
+        const scrollTopBefore = scrollContainer?.scrollTop ?? 0
+        const wasEditable = editor.isEditable
+
+        try {
+          suppressYjsSnapshotSaveRef.current = true
+          const fragment = ydoc.getXmlFragment('default')
+          ydoc.transact(() => {
+            fragment.delete(0, fragment.length)
+          })
+
+          if (!wasEditable) {
+            editor.setEditable(true)
+          }
+
+          editor.commands.setContent(html, { emitUpdate: true })
+          await new Promise(resolve => setTimeout(resolve, 0))
+
+          const applied = areHtmlSemanticallyEquivalent(editor.getHTML(), html)
+
+          if (applied) {
+            setHasUnsavedChanges(false)
+            if (updatedAt) {
+              setLastSaved(new Date(updatedAt))
+            }
+          }
+          return applied
+        } finally {
+          if (!wasEditable) {
+            editor.setEditable(false)
+          }
+          setTimeout(() => {
+            suppressYjsSnapshotSaveRef.current = false
+          }, 1500)
+          if (scrollContainer) {
+            const container = scrollContainer
+            requestAnimationFrame(() => {
+              container.scrollTop = scrollTopBefore
+            })
+          }
+        }
+      },
+      [editor, ydoc]
+    )
+
+    const syncEditorFromLatestDocument = useCallback(async (): Promise<boolean> => {
+      if (!document?.id || !editor) return false
+      try {
+        const latest = await DocumentApiService.getDocument(document.id, { fresh: true })
+        if (!latest?.content) return false
+        const currentHtml = editor.getHTML()
+        if (areHtmlSemanticallyEquivalent(latest.content, currentHtml)) return false
+        return await applyLatestDocumentContent(latest.content, latest.updatedAt)
+      } catch (error) {
+        console.warn('[PagedDocumentEditor] Failed syncing document after AI edit', error)
+        return false
+      }
+    }, [applyLatestDocumentContent, document?.id, editor])
+
+    const clearEveryAiFallbackPoll = useCallback(() => {
+      if (everyAiFallbackPollRef.current) {
+        clearTimeout(everyAiFallbackPollRef.current)
+        everyAiFallbackPollRef.current = null
+      }
+    }, [])
+
+    const startEveryAiFallbackPoll = useCallback(() => {
+      clearEveryAiFallbackPoll()
+      // Start later to give AI time, then keep retrying until chat completion event clears polling.
+      const initialDelayMs = 8000
+      const repeatDelayMs = 2000
+      const maxPollDurationMs = 3 * 60 * 1000
+      const startedAt = Date.now()
+
+      const runAttempt = () => {
+        if (!document?.id) return
+        const elapsedMs = Date.now() - startedAt
+        if (elapsedMs >= maxPollDurationMs) {
+          clearEveryAiFallbackPoll()
+          return
+        }
+        void syncEditorFromLatestDocument().then(applied => {
+          if (applied) {
+            clearEveryAiFallbackPoll()
+            return
+          }
+
+          // Keep polling until completion event arrives and clears this timer.
+          everyAiFallbackPollRef.current = setTimeout(runAttempt, repeatDelayMs)
+        })
+      }
+
+      everyAiFallbackPollRef.current = setTimeout(runAttempt, initialDelayMs)
+    }, [clearEveryAiFallbackPoll, document?.id, syncEditorFromLatestDocument])
+
+    useEffect(() => {
+      if (!document?.id) return
+
+      const handleEveryAiOpened = (event: Event) => {
+        const customEvent = event as CustomEvent<{ type?: string; payload?: { prompt?: string } }>
+        if (customEvent.detail?.type !== 'OPEN_EVERY_AI') return
+
+        startEveryAiFallbackPoll()
+      }
+
+      globalThis.addEventListener('openEveryAI', handleEveryAiOpened)
+      return () => globalThis.removeEventListener('openEveryAI', handleEveryAiOpened)
+    }, [document?.id, startEveryAiFallbackPoll])
+
+    useEffect(() => () => clearEveryAiFallbackPoll(), [clearEveryAiFallbackPoll])
+
     // Get word count
     const wordCount =
       editor?.storage.characterCount?.words?.() || editor?.getText().trim().split(/\s+/).filter(Boolean).length || 0
@@ -796,50 +2032,74 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     // Format last saved time
     const formatLastSaved = (date: Date | null): string => {
-      if (!date) return 'Not saved'
+      if (!date) return t('editor-status-not-saved')
       const now = new Date()
       const diffMs = now.getTime() - date.getTime()
       const diffMinutes = Math.floor(diffMs / 60000)
 
-      if (diffMinutes < 1) return 'Saved just now'
-      if (diffMinutes === 1) return 'Saved 1 minute ago'
-      if (diffMinutes < 60) return `Saved ${diffMinutes} minutes ago`
+      if (diffMinutes < 1) return t('editor-status-saved-now')
+      if (diffMinutes === 1) return t('editor-status-saved-minute')
+      if (diffMinutes < 60) return t('editor-status-saved-minutes', { count: diffMinutes })
 
-      return `Saved at ${date.toLocaleTimeString()}`
+      return t('editor-status-saved-at', { time: date.toLocaleTimeString() })
     }
 
+    // Measure header + toolbar height for sidebar alignment
+    const headerToolbarRef = useRef<HTMLDivElement>(null)
+    const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState(0)
+
+    useEffect(() => {
+      if (!headerToolbarRef.current) return
+      const measure = () => {
+        const rect = headerToolbarRef.current?.getBoundingClientRect()
+        if (rect) setMeasuredHeaderHeight(rect.bottom)
+      }
+      measure()
+      const observer = new ResizeObserver(measure)
+      observer.observe(headerToolbarRef.current)
+      return () => observer.disconnect()
+    }, [])
+
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:relative" data-testid={testId}>
         {/* Header */}
-        <div className="gba:border-b gba:bg-card gba:shadow-sm">
+        <div ref={headerToolbarRef} className="gba:border-b gba:bg-card gba:shadow-sm">
           <div className="gba:px-4 gba:py-3">
-            <div className="gba:flex gba:items-center gba:justify-between">
+            <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
               {/* Left side - Back button and title */}
-              <div className="gba:flex gba:items-center gba:gap-4">
-                <Button variant="ghost" size="icon" onClick={onBack} title="Back to documents">
+              <div className="gba:flex gba:items-center gba:gap-4 gba:min-w-0 gba:flex-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onBack}
+                  title={t('editor-back-title')}
+                  className="gba:shrink-0"
+                >
                   <ArrowLeft className="gba:w-5 gba:h-5" />
                 </Button>
 
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+                <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0 gba:flex-1">
+                  <div className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
                     <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
                   </div>
-                  <div className="gba:flex gba:flex-col">
+                  <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1">
                     <Input
                       ref={titleInputRef}
                       value={title}
                       onChange={handleTitleChange}
-                      placeholder="Document Title"
+                      onKeyDown={handleTitleKeyDown}
+                      onBlur={handleTitleBlur}
+                      placeholder={t('editor-title-placeholder')}
                       disabled={isReadOnly}
-                      className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
+                      className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:min-w-0 gba:w-full gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
                     />
                     <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                      <span>{wordCount.toLocaleString()} words</span>
+                      <span>{t('editor-word-count', { count: wordCount })}</span>
                       <span>•</span>
-                      <span>{charCount.toLocaleString()} characters</span>
+                      <span>{t('editor-character-count', { count: charCount })}</span>
                       <span>•</span>
                       <span>
-                        Page {currentPage} of {pageCount}
+                        {t('editor-page-of', { current: Math.min(currentPage, pageCount), total: pageCount })}
                       </span>
                     </div>
                   </div>
@@ -861,24 +2121,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     className="gba:mr-2"
                   />
                 )}
-                {/* Save status */}
+                {/* Save status - main save flow (lastSaved) so user always sees "Saved" feedback */}
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
-                  {isSaving ? (
-                    <Badge variant="secondary" className="gba:gap-1">
-                      <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                      Saving...
-                    </Badge>
-                  ) : hasUnsavedChanges ? (
-                    <Badge variant="outline" className="gba:gap-1">
-                      <Clock className="gba:w-3 gba:h-3" />
-                      Unsaved changes
-                    </Badge>
-                  ) : lastSaved ? (
-                    <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                      <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
-                      {formatLastSaved(lastSaved)}
-                    </span>
-                  ) : null}
+                  {renderSaveStatus(isSaving, hasUnsavedChanges, lastSaved, formatLastSaved, t)}
                 </div>
 
                 <Separator orientation="vertical" className="gba:h-6" />
@@ -889,7 +2134,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     variant="ghost"
                     size="icon"
                     onClick={handleZoomOut}
-                    title="Zoom Out"
+                    title={t('editor-zoom-out')}
                     className="gba:h-8 gba:w-8"
                   >
                     <ZoomOut className="gba:w-4 gba:h-4" />
@@ -906,7 +2151,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     variant="ghost"
                     size="icon"
                     onClick={handleZoomIn}
-                    title="Zoom In"
+                    title={t('editor-zoom-in')}
                     className="gba:h-8 gba:w-8"
                   >
                     <ZoomIn className="gba:w-4 gba:h-4" />
@@ -926,28 +2171,39 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     className="gba:bg-primary gba:text-primary-foreground"
                   >
                     <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {isSaving ? 'Saving...' : 'Save Document'}
+                    {isSaving ? t('editor-saving') : t('editor-save-document')}
                   </Button>
                 )}
 
                 {/* Versioning Features - Clean & Compact (for existing documents) */}
                 {document?.id && (
                   <>
-                    {/* Auto-save indicator */}
+                    {/* Current checkpoint label + checkpoint button (save status is in header) */}
                     <AutoSaveIndicator
                       isSaving={versioning.isSaving}
                       lastSaveTime={versioning.lastSaveTime}
                       hasUnsavedChanges={versioning.hasUnsavedChanges}
+                      currentVersion={(() => {
+                        const latestCheckpoint = versioning.versions.find(v => v.isCheckpoint)
+                        return latestCheckpoint
+                          ? {
+                              version: latestCheckpoint.version,
+                              changeDescription: latestCheckpoint.changeDescription
+                            }
+                          : null
+                      })()}
+                      showVersionOnly
+                      onVersionClick={() => setShowVersionHistory(true)}
                       onManualSave={() => setShowCheckpointDialog(true)}
                       data-testid="auto-save-indicator"
                     />
 
                     {/* Comments button */}
                     <Button
-                      variant={showComments ? 'default' : 'ghost'}
+                      variant={rightSidebar === 'comments' ? 'default' : 'ghost'}
                       size="sm"
-                      onClick={() => setShowComments(!showComments)}
-                      title="Comments (Right-click on text to add inline comment)"
+                      onClick={() => setRightSidebar(prev => (prev === 'comments' ? 'closed' : 'comments'))}
+                      title={t('editor-comments-title')}
                       data-testid="comments-button"
                       className="gba:h-8"
                     >
@@ -963,7 +2219,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
                       <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
                         <Lock className="gba:h-3 gba:w-3" />
-                        Locked
+                        {t('editor-locked')}
                       </Badge>
                     )}
 
@@ -974,45 +2230,69 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
                 <Separator orientation="vertical" className="gba:h-6" />
 
-                {/* Document Actions Menu */}
+                {/* Word-style floating Find / Navigation button (icon + label + chevron) */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNavigationPanel(prev => !prev)}
+                  title={t('navigation-panel-title')}
+                  data-testid="navigation-panel-toggle"
+                  className={`gba:rounded-full gba:px-3 gba:gap-1.5 gba:text-foreground ${showNavigationPanel ? 'gba:bg-muted/50' : ''}`}
+                >
+                  <Search className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
+                  <span>{t('navigation-panel-find-tab')}</span>
+                  <ChevronDown className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPageSetupDialog(true)}
+                  data-testid="page-setup-button"
+                >
+                  <LayoutPanelLeft className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('page-setup-title')}
+                </Button>
+
+                {/* Document Actions Menu (includes Export) */}
                 {document?.id && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm">
                         <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Document
+                        {t('editor-document-menu')}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
                         <History className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Version History
+                        {t('editor-version-history')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)}>
                         <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Save Checkpoint
+                        {t('editor-save-checkpoint')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {fileLock.isLockedByMe ? (
                         <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
                           <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Unlock Document
+                          {t('editor-unlock-document')}
                         </DropdownMenuItem>
                       ) : (
                         <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
                           <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Lock Document
+                          {t('editor-lock-document')}
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
                         <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Publish...
+                        {t('editor-publish')}
                       </DropdownMenuItem>
                       {onSaveAsTemplate && (
                         <DropdownMenuItem onClick={() => editor && onSaveAsTemplate(title, editor.getHTML())}>
                           <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Save as Template
+                          {t('editor-save-template')}
                         </DropdownMenuItem>
                       )}
                       {onSendForApproval && (
@@ -1020,57 +2300,123 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={onSendForApproval}>
                             <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                            Send for Approval
+                            {t('editor-send-for-approval')}
                           </DropdownMenuItem>
                         </>
                       )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleExportWord} disabled={isExporting}>
+                        <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('editor-export-word')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportPDF} disabled={isExporting}>
+                        <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('editor-export-pdf')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handlePrint}>
+                        <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('editor-print')}
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
 
-                {/* Export dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={isExporting}>
-                      <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Export
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleExportWord}>
-                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Export as Word (.docx)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportPDF}>
-                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Export as PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handlePrint}>
-                      <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Print
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {document?.id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void syncEditorFromLatestDocument()}
+                    title="Reload latest document content"
+                    data-testid="reload-document-button"
+                  >
+                    <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Reload
+                  </Button>
+                )}
+
+                {/* AI Editor button (same style as notes Transform) */}
+                {document?.id && autocompleteRolloutEnabled && (
+                  <div
+                    className="gba:flex gba:items-center gba:gap-2 gba:px-2"
+                    data-testid="document-autocomplete-toggle"
+                  >
+                    <span className="gba:text-xs gba:text-muted-foreground">Autocomplete</span>
+                    <Switch
+                      checked={isAutocompleteToggleEnabled}
+                      onCheckedChange={checked => {
+                        setIsAutocompleteToggleEnabled(checked)
+                        clearAutocompleteSuggestion()
+                      }}
+                    />
+                  </div>
+                )}
+
+                {document?.id && (
+                  <AiButton
+                    size="sm"
+                    showIcon
+                    icon={<Wand2 className="gba:w-4 gba:h-4" />}
+                    iconPosition="before"
+                    onClick={handleAiEditClick}
+                    data-testid="ai-edit-button"
+                  >
+                    {t('editor-ai-edit')}
+                  </AiButton>
+                )}
               </div>
             </div>
           </div>
 
+          {headerExtra && <div className="gba:px-4 gba:pb-2">{headerExtra}</div>}
+
           {/* Toolbar */}
-          <EditorToolbar editor={editor} data-testid={`${testId}-toolbar`} />
+          <EditorToolbar
+            editor={editor}
+            onOpenLinkDialog={openLinkDialog}
+            onOpenInsertImageDialog={() => setShowInsertImageDialog(true)}
+            data-testid={`${testId}-toolbar`}
+          />
         </div>
 
-        {/* Main content: optional left panel + editor area */}
-        <div className={`gba:flex gba:flex-1 gba:min-h-0 ${leftPanel ? 'gba:flex-row' : 'gba:flex-col'}`}>
-          {leftPanel ? (
+        {/* Main content: Navigation panel, or expand strip + optional template panel, then editor */}
+        <div className="gba:flex gba:flex-1 gba:min-h-0 gba:flex-row">
+          {showNavigationPanel ? (
             <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
-              {leftPanel}
+              <NavigationPanel
+                editor={editor}
+                onClose={() => {
+                  setShowNavigationPanel(false)
+                  editor?.commands.clearSearchHighlights?.()
+                }}
+                data-testid={`${testId}-navigation-panel`}
+              />
             </div>
-          ) : null}
-          {/* Editor Area with Page Layout */}
+          ) : (
+            <>
+              {/* Expand strip: icon-only button when navigation is collapsed (nicer, no text) */}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowNavigationPanel(true)}
+                title={t('navigation-panel-show')}
+                aria-label={t('navigation-panel-show')}
+                data-testid="navigation-panel-expand"
+                className="gba:flex-shrink-0 gba:h-full gba:rounded-none gba:border-r gba:border-y-0 gba:border-l-0 gba:w-10 gba:min-w-10"
+              >
+                <ChevronRight className="gba:h-5 gba:w-5" aria-hidden />
+              </Button>
+              {leftPanel ? (
+                <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
+                  {leftPanel}
+                </div>
+              ) : null}
+            </>
+          )}
+          {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
           <div
             ref={editorContainerRef}
-            className="gba:flex-1 gba:overflow-auto gba:bg-muted/50 gba:min-w-0"
+            className="gba:flex-1 gba:overflow-auto gba:min-w-0 document-editor-viewport"
             onScroll={handleScroll}
           >
             <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
@@ -1081,55 +2427,239 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   transformOrigin: 'top center'
                 }}
               >
-                {/* Page visual representation */}
-                <div
-                  className="gba:bg-white gba:shadow-lg gba:rounded-sm gba:relative"
-                  style={{
-                    width: `${A4_WIDTH_PX}px`,
-                    minHeight: `${A4_HEIGHT_PX}px`,
-                    padding: `${PAGE_MARGIN_PX}px`
-                  }}
-                >
-                  <EditorContent editor={editor} className="editor-content" />
-
-                  {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
-                </div>
+                <EditorContent editor={editor} className="editor-content" />
+                {editor && (
+                  <BubbleMenu
+                    editor={editor}
+                    shouldShow={({ editor: e }) => e.isActive('link')}
+                    pluginKey="linkBubbleMenu"
+                  >
+                    <LinkBubbleMenu editor={editor} onEdit={openLinkDialog} data-testid="document-link-bubble-menu" />
+                  </BubbleMenu>
+                )}
+                {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Editor Styles */}
+        {document?.id && showAiInstructionDialog && (
+          <div className="gba:absolute gba:top-24 gba:right-6 gba:z-30 gba:pointer-events-none">
+            <div
+              className="gba:pointer-events-auto gba:w-[420px] gba:max-w-[calc(100vw-3rem)] gba:rounded-md gba:border gba:bg-background gba:p-3 gba:space-y-2 gba:shadow-lg"
+              data-testid="document-ai-instruction-inline"
+            >
+              <Label htmlFor="document-ai-instruction-input">Instruction</Label>
+              <Textarea
+                id="document-ai-instruction-input"
+                value={aiInstruction}
+                onChange={e => setAiInstruction(e.target.value)}
+                onInput={e => {
+                  const textarea = e.currentTarget
+                  textarea.style.height = 'auto'
+                  textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`
+                }}
+                onKeyDown={e => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && aiInstruction.trim()) {
+                    e.preventDefault()
+                    handleConfirmAiInstruction()
+                  }
+                }}
+                placeholder="Example: rewrite this in a more formal tone and fix grammar mistakes."
+                rows={4}
+                className="gba:min-h-[96px] gba:max-h-[220px] gba:overflow-y-auto"
+                autoFocus
+                data-testid="document-ai-instruction-input"
+              />
+              {aiSelectionPreviewText && (
+                <div className="gba:space-y-1">
+                  <p className="gba:text-xs gba:text-muted-foreground" data-testid="document-ai-selection-hint">
+                    Selection detected. Edits will focus on this content unless you say otherwise.
+                  </p>
+                  <button
+                    type="button"
+                    className={`gba:overflow-y-auto gba:rounded-md gba:border gba:bg-muted/30 gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground gba:text-left gba:w-full gba:appearance-none ${
+                      isAiSelectionPreviewExpanded ? 'gba:max-h-52' : 'gba:max-h-24'
+                    } ${hasLongAiSelectionPreview ? 'gba:cursor-pointer' : ''}`}
+                    data-testid="document-ai-selection-preview"
+                    onDoubleClick={() => {
+                      if (hasLongAiSelectionPreview) {
+                        setIsAiSelectionPreviewExpanded(prev => !prev)
+                      }
+                    }}
+                    title={hasLongAiSelectionPreview ? 'Double-click to expand/collapse preview' : undefined}
+                  >
+                    <div className="gba:whitespace-pre-wrap">{aiSelectionPreviewText}</div>
+                  </button>
+                  {hasLongAiSelectionPreview && (
+                    <p className="gba:text-[10px] gba:text-muted-foreground">
+                      Double-click to {isAiSelectionPreviewExpanded ? 'collapse' : 'expand'}.
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="gba:flex gba:justify-end gba:gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAiInstructionDialog(false)
+                    setAiInstruction('')
+                    setAiSelectionSnapshot('')
+                    setAiSelectionSnapshotHtml('')
+                  }}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={handleConfirmAiInstruction}
+                  disabled={!aiInstruction.trim()}
+                  data-testid="document-ai-instruction-confirm"
+                >
+                  Submit
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Editor Styles — viewport/canvas: light gray; pages: white */}
         <style>{`
+        .document-editor-viewport {
+          background-color: #f3f4f6;
+        }
+        /* Base defaults; font-family/font-size from toolbar (textStyle marks) override via inline styles */
         .paged-document-editor .ProseMirror {
           outline: none;
+          background-color: ${pageColor};
           font-family: 'Times New Roman', Georgia, serif;
-          font-size: 12pt;
-          line-height: 1.6;
+          font-size: 16px;
+          line-height: 1.15;
           color: #1a1a1a;
-          min-height: ${A4_HEIGHT_PX - PAGE_MARGIN_PX * 2}px;
+          min-height: ${paginationConfig ? paginationConfig.pageHeight - paginationConfig.marginTop - paginationConfig.marginBottom : 400}px;
+        }
+
+        .paged-document-editor .ProseMirror .editor-link {
+          color: var(--nw-primary);
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        .paged-document-editor .ProseMirror .navigation-search-highlight {
+          background: color-mix(in srgb, var(--nw-primary) 22%, transparent);
+          border-radius: 2px;
+        }
+        .paged-document-editor .ProseMirror .navigation-search-highlight-current {
+          background: color-mix(in srgb, var(--nw-primary) 45%, transparent);
+          border-radius: 2px;
+          outline: 2px solid var(--nw-primary);
+          outline-offset: 1px;
         }
 
         .paged-document-editor .ProseMirror p {
-          margin: 0 0 10pt 0;
+          margin: 0;
+        }
+
+        /* Lists (Tailwind preflight resets list-style to none) */
+        .paged-document-editor .ProseMirror ol {
+          list-style: decimal;
+          list-style-position: outside;
+          padding-inline-start: 24pt;
+          margin: 0 0 12pt 0;
+        }
+
+        .paged-document-editor .ProseMirror ul {
+          list-style: disc;
+          list-style-position: outside;
+          padding-inline-start: 24pt;
+          margin: 0 0 12pt 0;
+        }
+
+        /* Task list: no bullets, checkbox per item (NodeView uses .editor-task-item) */
+        .paged-document-editor .ProseMirror ul[data-type="taskList"] {
+          list-style: none;
+          padding-inline-start: 24pt;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] {
+          display: flex;
+          align-items: flex-start;
+          gap: 8pt;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > label,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > label {
+          flex-shrink: 0;
+          cursor: pointer;
+          margin: 0.2em 0 0 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > label input[type="checkbox"],
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > label input[type="checkbox"] {
+          cursor: pointer;
+          width: 1em;
+          height: 1em;
+          margin: 0;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item > div,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"] > div {
+          flex: 1;
+          min-width: 0;
+        }
+        .paged-document-editor .ProseMirror li.editor-task-item[data-checked="true"] > div,
+        .paged-document-editor .ProseMirror li[data-type="taskItem"][data-checked="true"] > div {
+          text-decoration: line-through;
+          color: var(--nw-muted-foreground, #6b7280);
+        }
+
+        .paged-document-editor .ProseMirror li {
+          margin: 0 0 6pt 0;
+        }
+
+        /* TipTap often wraps list-item text in <p>. Keep it inline so markers align nicely. */
+        .paged-document-editor .ProseMirror li > p {
+          display: inline;
+          margin: 0;
+        }
+
+        .document-ai-selection-preview-content ul {
+          list-style: disc;
+          list-style-position: outside;
+          padding-left: 1.25rem;
+          margin: 0.25rem 0;
+        }
+
+        .document-ai-selection-preview-content ol {
+          list-style: decimal;
+          list-style-position: outside;
+          padding-left: 1.25rem;
+          margin: 0.25rem 0;
+        }
+
+        .document-ai-selection-preview-content li {
+          margin: 0.15rem 0;
+        }
+
+        .document-ai-selection-preview-content li > p {
+          display: inline;
+          margin: 0;
         }
 
         .paged-document-editor .ProseMirror h1 {
-          font-size: 24pt;
+          font-size: 2rem;
           font-weight: 700;
           margin: 0 0 16pt 0;
           line-height: 1.2;
         }
 
         .paged-document-editor .ProseMirror h2 {
-          font-size: 18pt;
+          font-size: 1.5rem;
           font-weight: 600;
           margin: 20pt 0 12pt 0;
           line-height: 1.3;
         }
 
         .paged-document-editor .ProseMirror h3 {
-          font-size: 14pt;
+          font-size: 1.125rem;
           font-weight: 600;
           margin: 16pt 0 10pt 0;
           line-height: 1.4;
@@ -1138,7 +2668,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror h4,
         .paged-document-editor .ProseMirror h5,
         .paged-document-editor .ProseMirror h6 {
-          font-size: 12pt;
+          font-size: 1rem;
           font-weight: 600;
           margin: 14pt 0 8pt 0;
         }
@@ -1168,7 +2698,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           padding: 12pt;
           overflow-x: auto;
           font-family: 'Courier New', monospace;
-          font-size: 10pt;
+          font-size: 0.875rem;
           margin: 12pt 0;
         }
 
@@ -1177,7 +2707,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           padding: 2pt 4pt;
           border-radius: 2pt;
           font-family: 'Courier New', monospace;
-          font-size: 10pt;
+          font-size: 0.875rem;
         }
 
         .paged-document-editor .ProseMirror a {
@@ -1188,27 +2718,53 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         .paged-document-editor .ProseMirror img {
           max-width: 100%;
           height: auto;
-          margin: 12pt 0;
+          margin: 0;
+          vertical-align: bottom;
           border-radius: 4pt;
+        }
+        .paged-document-editor .ProseMirror .editor-image {
+          margin: 0;
+        }
+
+        /* Tables: print-first (no horizontal scrolling) */
+        .paged-document-editor .ProseMirror .tableWrapper {
+          width: 100%;
+          max-width: 100%;
+          overflow: hidden;
+          margin: 16pt 0;
+          border: 1pt solid #d0d0d0;
+          border-radius: 4pt;
+          background: #fff;
         }
 
         .paged-document-editor .ProseMirror table {
           border-collapse: collapse;
           width: 100%;
-          margin: 16pt 0;
+          max-width: 100%;
+          table-layout: fixed;
+          margin: 0;
         }
 
         .paged-document-editor .ProseMirror td,
         .paged-document-editor .ProseMirror th {
           border: 1pt solid #333;
-          padding: 8pt 12pt;
-          text-align: left;
+          padding: 4pt 6pt;
+          text-align: start;
           vertical-align: top;
+          font-size: 0.875rem;
+          line-height: 1.3;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
 
         .paged-document-editor .ProseMirror th {
           background: #f5f5f5;
           font-weight: bold;
+        }
+
+        /* Let header rows behave nicely in print/page flows */
+        .paged-document-editor .ProseMirror thead {
+          display: table-header-group;
         }
 
         .paged-document-editor .ProseMirror hr {
@@ -1241,7 +2797,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           position: relative;
           background: white;
           padding: 4pt 12pt;
-          font-size: 9pt;
+          font-size: 0.75rem;
           color: #888;
           text-transform: uppercase;
           letter-spacing: 1pt;
@@ -1262,6 +2818,29 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         /* Selection styling */
         .paged-document-editor .ProseMirror ::selection {
           background: #b4d5fe;
+        }
+
+        /* AI selection highlight (persistent decoration while AI panel is open) */
+        .paged-document-editor .ProseMirror .ai-selection-highlight {
+          background: rgba(139, 180, 254, 0.35);
+          border-bottom: 2px solid rgba(99, 140, 230, 0.6);
+          border-radius: 2px;
+          transition: background 0.2s ease;
+        }
+
+        /* Subtle live selection decoration (non-invasive) */
+        .paged-document-editor .ProseMirror .current-selection-highlight {
+          background: rgba(147, 197, 253, 0.22);
+          border-bottom: 1px solid rgba(59, 130, 246, 0.35);
+          border-radius: 2px;
+        }
+
+        .paged-document-editor .ProseMirror .document-autocomplete-ghost-text {
+          color: #9ca3af;
+          opacity: 0.9;
+          user-select: none;
+          pointer-events: none;
+          white-space: pre-wrap;
         }
 
         /* Table resize handles */
@@ -1310,6 +2889,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <VersionHistory
             versions={versioning.versions}
             isLoading={versioning.isLoading}
+            userDisplayMap={versionUserDisplayMap}
             onRestore={async versionNumber => {
               // Get the version data first
               const versionData = await DocumentApiService.getVersion(document.id, versionNumber)
@@ -1346,7 +2926,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <CheckpointDialog
             isOpen={showCheckpointDialog}
             onClose={() => setShowCheckpointDialog(false)}
-            onSave={versioning.createCheckpoint}
+            onSave={async description => {
+              await versioning.createCheckpoint(description)
+            }}
             isSaving={versioning.isSaving}
             data-testid="document-checkpoint-dialog"
           />
@@ -1356,16 +2938,79 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <PublishDialog
             isOpen={showPublishDialog}
             onClose={() => setShowPublishDialog(false)}
-            onPublish={publishing.publish}
+            onPublish={async (publishNotes, createCheckpoint) => {
+              await publishing.publish(publishNotes, createCheckpoint)
+            }}
             isPublishing={publishing.isPublishing}
             entityType="document"
             data-testid="document-publish-dialog"
           />
         )}
 
-        {document?.id && showComments && (
+        {showPageSetupDialog && (
+          <PageSetupDialog
+            open={showPageSetupDialog}
+            onOpenChange={setShowPageSetupDialog}
+            formatting={layoutFormatting}
+            onApply={handlePageSetupApply}
+            data-testid="document-page-setup-dialog"
+          />
+        )}
+
+        {showInsertImageDialog && editor && (
+          <InsertImageDialog
+            open={showInsertImageDialog}
+            onOpenChange={setShowInsertImageDialog}
+            editor={editor}
+            documentId={document?.id ?? null}
+            accessToken={accessToken}
+            data-testid="document-insert-image-dialog"
+          />
+        )}
+
+        {showLinkDialog && (
+          <LinkDialog
+            open={showLinkDialog}
+            onOpenChange={setShowLinkDialog}
+            mode={linkDialogMode}
+            initialValues={linkDialogInitialValues}
+            onApply={handleLinkApply}
+            onRemoveLink={linkDialogMode === 'edit' ? handleLinkRemove : undefined}
+            data-testid="document-link-dialog"
+          />
+        )}
+
+        {document?.id && rightSidebar === 'comments' && (
           <CommentPanel
             comments={comments.comments}
+            messages={{
+              title: t('shared-comment-panel-title'),
+              unresolvedCount: t('shared-comment-unresolved'),
+              unresolvedTab: t('shared-comment-unresolved-tab'),
+              resolvedTab: t('shared-comment-resolved-tab'),
+              allCaughtUp: t('shared-comment-all-caught-up'),
+              allResolved: t('shared-comment-all-resolved'),
+              noResolved: t('shared-comment-no-resolved'),
+              resolvedHere: t('shared-comment-resolved-here'),
+              loading: t('shared-comment-loading'),
+              addPlaceholder: t('shared-comment-placeholder')
+            }}
+            threadMessages={{
+              reply: t('shared-comment-reply'),
+              edit: t('shared-comment-edit'),
+              resolve: t('shared-comment-resolve'),
+              delete: t('shared-comment-delete'),
+              resolved: t('shared-comment-resolved'),
+              confirmDelete: t('shared-comment-confirm-delete'),
+              editPlaceholder: t('shared-comment-edit-placeholder'),
+              replyPlaceholder: t('shared-comment-reply-placeholder')
+            }}
+            editorMessages={{
+              cancel: t('shared-comment-cancel'),
+              send: t('shared-comment-send'),
+              sending: t('shared-comment-sending'),
+              sendHint: t('shared-comment-send-hint')
+            }}
             unresolvedCount={comments.unresolvedCount}
             isLoading={comments.isLoading}
             onCreateComment={async (content, parentId) => {
@@ -1373,7 +3018,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 type: parentId ? 'document' : 'document',
                 content,
                 parentId,
-                // Pass current user info to avoid fetching on every comment
                 createdByName: currentUserName || undefined,
                 createdByAvatar: currentUserAvatar || undefined
               })
@@ -1381,14 +3025,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onUpdateComment={async (commentId, content) => {
               await comments.updateComment(commentId, { content })
             }}
-            onResolveComment={comments.resolveComment}
-            onDeleteComment={comments.deleteComment}
-            onClose={() => setShowComments(false)}
+            onResolveComment={async commentId => {
+              await comments.resolveComment(commentId)
+            }}
+            onDeleteComment={async commentId => {
+              await comments.deleteComment(commentId)
+            }}
+            onClose={() => setRightSidebar('closed')}
             currentUserId={currentUserId || undefined}
             currentUserName={currentUserName || undefined}
             currentUserAvatar={currentUserAvatar || undefined}
             accessToken={accessToken}
-            headerHeight={120}
+            headerHeight={measuredHeaderHeight || 120}
             onUnhighlight={commentId => {
               if (!editor) return
               const selection = findInlineCommentSelection(editor, commentId)
@@ -1406,10 +3054,36 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           />
         )}
 
+        {document?.id && rightSidebar === 'ai' && (
+          <AiEditPanel
+            editor={editor}
+            documentId={document.id}
+            documentTitle={title}
+            onClose={() => setRightSidebar('closed')}
+            currentUserId={currentUserId || undefined}
+            headerHeight={measuredHeaderHeight || 120}
+            data-testid="document-ai-edit-panel"
+          />
+        )}
+
         {/* Inline comment popover (Google Docs style) */}
         <InlineCommentPopover
           isOpen={showInlineCommentPopover}
           position={inlineCommentPosition}
+          onEditWithAI={() => {
+            if (!pendingSelection) return
+            setAiSelectionSnapshot(pendingSelection.text)
+            setAiSelectionSnapshotHtml(pendingSelection.html)
+            setAiInstruction('')
+            setShowAiInstructionDialog(true)
+            setShowInlineCommentPopover(false)
+            setPendingSelection(null)
+          }}
+          messages={{
+            addComment: t('shared-comment-add'),
+            placeholder: t('shared-comment-placeholder'),
+            comment: t('shared-comment-button')
+          }}
           onSubmit={async content => {
             if (!pendingSelection || !editor) return
 

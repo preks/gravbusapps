@@ -19,6 +19,7 @@ import DynamicInvestmentFields from './DynamicInvestmentFields'
 import { TrendUpIcon } from '@phosphor-icons/react'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import { createGetPages } from '../utils'
+import { getFlowContextForInvestment } from '@/common/data/investment/utils/investmentGroupRouting'
 
 interface InvestmentSectionProps extends Partial<BusinessAppContextProps> {
   investmentId?: string
@@ -330,19 +331,10 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
     return null
   }
 
-  // Determine context based on investment type
-  const getContext = () => {
-    const code = (pageData?.investmentType?.code || pageData?.investmentGroup?.code || '').toUpperCase()
-    if (code.includes('REAL_ESTATE')) return FlowContextName.realEstateInvestmentEntity
-    if (code.includes('LIQUID_FUND')) return FlowContextName.liquidFundInvestmentEntity
-    if (code.includes('EQUITY')) return FlowContextName.equityInvestmentEntity
-    return FlowContextName.investmentEntity
-  }
-
   return {
     type: 'AppActionButton' as const,
     config: {
-      contextsArray: actionButtonProps.contextsArray || [getContext()],
+      contextsArray: actionButtonProps.contextsArray || [getFlowContextForInvestment(pageData)],
       externalContextData: {
         ...actionButtonProps.externalContextData,
         investmentId: pageData?.id // Override with current page investmentId (must come after spread)

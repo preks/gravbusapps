@@ -24,14 +24,24 @@ import {
   CarouselContent,
   CarouselItem,
   CarouselNext,
-  CarouselPrevious
+  CarouselPrevious,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 // Components
-import { ContentBackground, HeroSection, AppCard, QuickActions, ActivityVisualization, RecentItems } from './components'
+import {
+  ContentBackground,
+  HeroSection,
+  AppCard,
+  QuickActions,
+  NexusTeaser,
+  ActivityVisualization,
+  RecentItems
+} from './components'
 import { DocumentChat } from './components/chat/DocumentChat'
+import deskTranslations from './_i18n'
 
 // Hooks
 import { useDeskData, type ContentItem } from './hooks/useDeskData'
@@ -80,6 +90,7 @@ const navigateToApp = (appPath: string, params?: Record<string, string>) => {
  * Every Desk Component - Premium Edition
  */
 export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-testid': testId = 'desk-hub' }) => {
+  const { t } = useTranslation(deskTranslations)
   const [searchQuery, setSearchQuery] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [chatScope, setChatScope] = useState<'all' | 'space'>('all')
@@ -218,6 +229,9 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           data-testid={`${testId}-quick-actions`}
         />
 
+        {/* Nexus Teaser */}
+        <NexusTeaser data-testid={`${testId}-nexus-teaser`} />
+
         {/* Spaces Section */}
         {spaces.length > 0 && (
           <section
@@ -237,9 +251,9 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                     className="desk-section-title gba:text-2xl gba:sm:text-3xl gba:font-semibold gba:mb-2 gba:block gba:text-left gba:w-full gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-90 gba:transition-opacity focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary focus:gba:ring-offset-2 gba:rounded"
                     data-testid={`${testId}-spaces-section-title`}
                   >
-                    Your Spaces
+                    {t('spaces-title')}
                   </button>
-                  <p className="gba:text-muted-foreground">Collaborative workspaces for your team</p>
+                  <p className="gba:text-muted-foreground">{t('spaces-subtitle')}</p>
                 </div>
               </div>
 
@@ -249,11 +263,11 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                 className="gba:w-full gba:overflow-hidden"
                 data-testid={`${testId}-spaces-carousel`}
               >
-                <CarouselContent className="gba:-ml-2 gba:md:-ml-4">
+                <CarouselContent className="gba:-ml-2 gba:md:-ml-4 gba:items-stretch">
                   {spaces.map((space, index) => (
                     <CarouselItem
                       key={space.id}
-                      className="gba:pl-2 gba:md:pl-4 gba:basis-full gba:sm:basis-[85%] gba:md:basis-1/2 gba:lg:basis-1/3"
+                      className="gba:pl-2 gba:md:pl-4 gba:!min-w-[280px] gba:!flex-[0_0_280px] gba:flex"
                       style={{ animation: `fadeInUp 0.4s ease-out ${index * 0.05}s both` }}
                     >
                       <SpaceCard
@@ -289,11 +303,9 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
               <div>
                 <h2 className="desk-section-title gba:text-2xl gba:sm:text-3xl gba:font-semibold gba:mb-2">
-                  Your work
+                  {t('your-work-title')}
                 </h2>
-                <p className="gba:text-muted-foreground">
-                  Access your documents, spreadsheets, notes, and slides in one place
-                </p>
+                <p className="gba:text-muted-foreground">{t('your-work-subtitle')}</p>
               </div>
               <Button
                 variant="ghost"
@@ -314,8 +326,8 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
             {!isAppsCollapsed && (
               <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 lg:gba:grid-cols-4 gba:gap-4">
                 <AppCard
-                  title="Documents"
-                  description="Create and edit rich text documents with collaboration"
+                  title={t('app-documents-title')}
+                  description={t('app-documents-description')}
                   icon={FileText}
                   count={stats.documents.total}
                   sharedCount={stats.documents.shared}
@@ -327,8 +339,8 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   data-testid={`${testId}-app-documents`}
                 />
                 <AppCard
-                  title="Spreadsheets"
-                  description="Build data apps with formulas, charts, and AI analysis"
+                  title={t('app-spreadsheets-title')}
+                  description={t('app-spreadsheets-description')}
                   icon={FileSpreadsheet}
                   count={stats.spreadsheets.total}
                   sharedCount={stats.spreadsheets.shared}
@@ -340,8 +352,8 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   data-testid={`${testId}-app-spreadsheets`}
                 />
                 <AppCard
-                  title="Notes"
-                  description="Capture ideas quickly with rich formatting and tags"
+                  title={t('app-notes-title')}
+                  description={t('app-notes-description')}
                   icon={StickyNote}
                   count={stats.notes.total}
                   sharedCount={stats.notes.shared}
@@ -353,8 +365,8 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   data-testid={`${testId}-app-notes`}
                 />
                 <AppCard
-                  title="Slides"
-                  description="Create slide decks with live collaboration"
+                  title={t('app-slides-title')}
+                  description={t('app-slides-description')}
                   icon={Presentation}
                   count={stats.slides.total}
                   sharedCount={stats.slides.shared}
@@ -395,8 +407,8 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           <div className="gba:absolute gba:inset-0 gba:bg-background" />
           <div className="gba:relative gba:max-w-4xl gba:mx-auto gba:text-center">
             <p className="gba:text-muted-foreground">
-              Part of the <span className="gba:font-semibold gba:text-foreground">NEWWORK</span> platform. Your content,
-              unified.
+              {t('footer-tagline-before')} <span className="gba:font-semibold gba:text-foreground">NEWWORK</span>{' '}
+              {t('footer-tagline-after')}
             </p>
           </div>
         </section>

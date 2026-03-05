@@ -29,7 +29,7 @@ import { LeadDocuments } from './components/LeadDocuments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
-import type { Investment } from '@/common/data/investment/types'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import {
   buildInvestmentAccountFromLead,
   buildInvestmentContactFromLead,
@@ -316,8 +316,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>
-        {lead?.displayName ||
-          `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() ||
+        {`${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() ||
+          lead?.companyName ||
           getTranslationFromI18nKeyAndLabel('crm.investments.lead.title', 'Investment Lead')}
       </span>
       {lead?.sensitive === true && (
@@ -381,7 +381,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   )
 
   const leadDisplayName =
-    lead?.displayName || `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() || 'Investment Lead'
+    `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() || lead?.companyName || 'Investment Lead'
 
   const headerActionButton = useMemo(
     () =>

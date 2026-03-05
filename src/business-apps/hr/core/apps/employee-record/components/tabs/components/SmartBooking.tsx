@@ -193,11 +193,12 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
         }
 
         // Distribute recorded hours based on absolute allocation percentage
+        // Keep full precision here - hoursToTimeString handles display rounding via Math.round
         const distributedHours = (allocation.percentage / 100) * recordedHoursForDay
 
         return {
           date: dayjs(day).toISOString(),
-          hours: Number.parseFloat(distributedHours.toFixed(1))
+          hours: distributedHours
         }
       })
 
@@ -285,8 +286,9 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   // Helper function to check day editability status
   const getDayEditStatus = useCallback(
     (day: DayHours, booking: WeekBooking) => {
-      const currentMonth = dayjs().month()
-      const currentYear = dayjs().year()
+      const today = dayjs()
+      const currentMonth = today.month()
+      const currentYear = today.year()
       const dateKey = dayjs(day.date).format('YYYY-MM-DD')
       const bookedKey = booking.projectId ? `${booking.projectId}-${dateKey}` : ''
 
@@ -294,7 +296,16 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       const isBeforeAssignment = booking.assignedAt ? dayjs(day.date).isBefore(dayjs(booking.assignedAt), 'day') : false
       const dayMonth = dayjs(day.date).month()
       const dayYear = dayjs(day.date).year()
-      const isNotCurrentMonth = dayMonth !== currentMonth || dayYear !== currentYear
+
+      const isCurrentMonth = dayMonth === currentMonth && dayYear === currentYear
+
+      // Allow previous month if we are within the first 7 days of the current month (grace period)
+      const isInGracePeriod = today.date() <= 7
+      const previousMonth = today.subtract(1, 'month')
+      const isPreviousMonthInGracePeriod =
+        isInGracePeriod && dayMonth === previousMonth.month() && dayYear === previousMonth.year()
+
+      const isNotCurrentMonth = !isCurrentMonth && !isPreviousMonthInGracePeriod
       const isEditable = !isSubmitted && !isBeforeAssignment && !isNotCurrentMonth
 
       return { isSubmitted, isBeforeAssignment, isNotCurrentMonth, isEditable, dateKey, bookedKey }
@@ -474,6 +485,18 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
           projectId: booking.projectId,
           days: modifiedDays
         })
+      }
+    }
+
+    // Add already-submitted hours to dailyTotals so discrepancy check accounts for the full picture
+    for (const dateKey of editableDates) {
+      for (const booking of currentBookings) {
+        if (!booking.projectId) continue
+        const bookedKey = `${booking.projectId}-${dateKey}`
+        const booked = bookedHours[bookedKey]
+        if (booked) {
+          dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + booked.hours
+        }
       }
     }
 
@@ -749,17 +772,12 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
             return (
               <TableRow key={booking.teamId} className={isHistoricalBooking ? 'gba:bg-muted/30' : ''}>
                 <TableCell className="gba:font-medium">
-                  <div>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      {booking.teamName}
-                      {isHistoricalBooking && (
-                        <span className="gba:text-xs gba:bg-muted gba:text-muted-foreground gba:px-1.5 gba:py-0.5 gba:rounded">
-                          Removed
-                        </span>
-                      )}
-                    </div>
-                    {booking.projectName && !isHistoricalBooking && (
-                      <div className="gba:text-xs gba:text-muted-foreground">{booking.projectName}</div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    {booking.projectName}
+                    {isHistoricalBooking && (
+                      <span className="gba:text-xs gba:bg-muted gba:text-muted-foreground gba:px-1.5 gba:py-0.5 gba:rounded">
+                        Removed
+                      </span>
                     )}
                   </div>
                 </TableCell>
@@ -805,12 +823,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
                           // Not current month: show disabled input with HH:MM value
                           return (
                             <div className="gba:flex gba:justify-center">
-                              <Input
-                                type="time"
-                                disabled
-                                className="gba:w-24 gba:text-center"
-                                value={hoursToTimeString(day.hours)}
-                              />
+                              <Input type="time" disabled className="gba:w-24 gba:text-center" value="00:00" />
                             </div>
                           )
                         }

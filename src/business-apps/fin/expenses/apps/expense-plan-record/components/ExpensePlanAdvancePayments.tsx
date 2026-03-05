@@ -7,7 +7,7 @@ import { AdvancePayment } from '../types/expensePlanRecord.types'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../utils/currency'
 import ExpensePlanAdvancePaymentsSummary from './ExpensePlanAdvancePaymentsSummary'
-import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
 
 interface ExpensePlanAdvancePaymentsProps {
   advancePayments: AdvancePayment[]
@@ -131,9 +131,9 @@ const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({
       align: 'center',
       render: (confirmed: boolean) =>
         confirmed ? (
-          <CheckCircleOutlined className="gba:text-green-500" />
+          <CheckCircleIcon size={16} className="gba:text-green-500" />
         ) : (
-          <CloseCircleOutlined className="gba:text-red-500" />
+          <XCircleIcon size={16} className="gba:text-red-500" />
         )
     }
   ]

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Spinner } from '@newwork/nw-design-system'
-import { BankOutlined } from '@ant-design/icons'
+import { BankIcon } from '@phosphor-icons/react'
 
 export interface AccountsByIndustryItem {
   industry: string
@@ -85,7 +85,7 @@ export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data, 
     <Card data-testid="account-health-matrix">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <BankOutlined />
+          <BankIcon size={16} />
           Account Health Matrix
         </CardTitle>
       </CardHeader>

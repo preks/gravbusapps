@@ -96,6 +96,15 @@ export interface FlowStep {
   links?: Link[]
   assignment: TaskAssignment // Required to match backend API
   eventSubscriptions?: EventSubscription[] // Event subscriptions for reactive automation
+  /**
+   * Optional ordered list of custom states for this user task step.
+   * Used for kanban-style boards and user-driven state transitions.
+   */
+  customStates?: string[]
+  /**
+   * Optional default priority to apply when tasks for this step are created.
+   */
+  defaultPriority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 }
 
 // Event subscription types for reactive automation
@@ -192,6 +201,15 @@ export class FlowTemplateClient extends RestClient {
     includeDrafts?: boolean
     templateType?: 'TEMPLATE' | 'SELF_SERVICE'
     search?: string
+    /**
+     * Tag filters using Flow Engine query format: `tag.<key>=<value>`.
+     * Example: `{ spaceId: '123', solution: 'compliance' }` -> `?tag.spaceId=123&tag.solution=compliance`
+     */
+    tags?: Record<string, string>
+    /**
+     * Backward compatibility (deprecated): older callers used `tagFilters`.
+     * It is mapped to `tags` internally.
+     */
     tagFilters?: Record<string, string>
   }): Promise<{
     templates: FlowTemplate[]
@@ -207,9 +225,13 @@ export class FlowTemplateClient extends RestClient {
     if (params?.includeDrafts !== undefined) searchParams.append('includeDrafts', params.includeDrafts.toString())
     if (params?.templateType) searchParams.append('templateType', params.templateType)
     if (params?.search?.trim()) searchParams.append('search', params.search.trim())
-    if (params?.tagFilters) {
-      Object.entries(params.tagFilters).forEach(([key, value]) => {
-        searchParams.append(`tagFilters[${key}]`, value)
+    const tags = params?.tags || params?.tagFilters
+    if (tags) {
+      Object.entries(tags).forEach(([key, value]) => {
+        if (!key) return
+        if (value === undefined || value === null) return
+        const normalizedKey = key.startsWith('tag.') ? key.slice(4) : key
+        searchParams.append(`tag.${normalizedKey}`, String(value))
       })
     }
 
@@ -315,6 +337,26 @@ export class FlowTemplateClient extends RestClient {
     input: any
   }> {
     const response = await this.post<ApiResponse<any>>(`/${id}/execute`, params)
+    return response.data
+  }
+
+  /**
+   * Execute a workflow from an inline template definition (no template creation).
+   * Maps to POST /api/templates/execute-dynamic in Flow Engine.
+   */
+  async executeDynamicTemplate(params: {
+    templateDefinition: Omit<FlowTemplate, 'id'>
+    initiatorId: string
+    stepAssignments?: any
+  }): Promise<{
+    workflowId: string
+    workflowName: string
+    version: number
+    tags?: any
+    isDynamic: true
+    executionInput: any
+  }> {
+    const response = await this.post<ApiResponse<any>>(`/execute-dynamic`, params)
     return response.data
   }
 }

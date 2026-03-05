@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+PHASE_DIVIDER="================================================================================"
+
+log_phase() {
+  echo ""
+  echo "$PHASE_DIVIDER"
+  echo "$1"
+  echo "$PHASE_DIVIDER"
+}
+
 # Function to extract directory paths from .tsx files
 extract_app_paths() {
   local input_file="$1"
@@ -138,21 +147,18 @@ extract_app_paths "$temp_tsx_file" "changed-tsx.txt"
 # Report direct screen changes
 if [[ -s changed-tsx.txt ]]; then
   echo ""
-  echo "📋 Direct screen changes detected:"
+  echo "Direct screen changes detected:"
   cat changed-tsx.txt
   direct_count=$(wc -l < changed-tsx.txt)
   echo "   Total: $direct_count screen(s)"
 else
   echo ""
-  echo "ℹ️  No direct screen changes detected"
+  echo "INFO: No direct screen changes detected"
   touch changed-tsx.txt
 fi
 
-# ============================================================================
-# SMART DEPENDENCY ANALYSIS - Always run to catch indirect changes
-# ============================================================================
-echo ""
-echo "🔬 Running smart dependency analysis..."
+log_phase "SMART DEPENDENCY ANALYSIS"
+echo "Running smart dependency analysis..."
 
 # Get ALL changed files for dependency analysis
 temp_all_changes=$(mktemp)
@@ -191,7 +197,10 @@ is_screen_specific() {
 # - Global shared code (src/* except business-apps)
 # - Module-level shared code (business-apps/**/hooks/, components/, etc. - NOT in screens itself)
 has_package_changes=$(grep -qE '^(package\.json)' "$temp_all_changes" 2>/dev/null && echo "yes" || echo "no")
-has_global_shared=$(grep -E '^src/' "$temp_all_changes" 2>/dev/null | grep -vE '^src/business-apps/' | grep -q . && echo "yes" || echo "no")
+# Dev-only files that live in src/ but are never imported by published screens.
+# Excluding them prevents a full rebuild being triggered when only these files change.
+DEV_ONLY_GLOBAL_FILES='src/BusinessAppIDE.tsx'
+has_global_shared=$(grep -E '^src/' "$temp_all_changes" 2>/dev/null | grep -vE '^src/business-apps/' | grep -vF "$DEV_ONLY_GLOBAL_FILES" | grep -q . && echo "yes" || echo "no")
 
 # Check for module-level shared code (in business-apps but NOT in screens)
 module_shared_changes=""
@@ -204,11 +213,11 @@ has_module_shared=$([[ -n "$module_shared_changes" ]] && echo "yes" || echo "no"
 
 if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_module_shared" == "yes" ]]; then
   echo ""
-  echo "🔗 Shared code / dependency changes found:"
+  echo "Shared code / dependency changes found:"
   
   # Show package changes
   if [[ "$has_package_changes" == "yes" ]]; then
-    echo "   📦 Package files:"
+    echo "   Package files:"
     grep -E '^(package\.json)' "$temp_all_changes" | while read -r line; do
       echo "      - $line"
     done
@@ -218,7 +227,7 @@ if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_
   if [[ "$has_global_shared" == "yes" ]]; then
     global_shared=$(grep -E '^src/' "$temp_all_changes" | grep -vE '^src/business-apps/' || true)
     global_count=$(echo "$global_shared" | wc -l | tr -d ' ')
-    echo "   📁 Global shared code:"
+    echo "   Global shared code:"
     while IFS= read -r line; do
       [[ -n "$line" ]] && echo "      - $line"
     done <<< "$global_shared" || true
@@ -230,7 +239,7 @@ if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_
   # Show module-level shared changes
   if [[ "$has_module_shared" == "yes" ]]; then
     module_count=$(echo "$module_shared_changes" | wc -l | tr -d ' ')
-    echo "   📂 Module-level shared code:"
+    echo "   Module-level shared code:"
     while IFS= read -r line; do
       [[ -n "$line" ]] && echo "      - $line"
     done <<< "$module_shared_changes" || true
@@ -241,18 +250,18 @@ if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_
   
   # Run the smart dependency analyzer
   echo ""
-  echo "🔍 Analyzing which screens are affected by these changes..."
+  echo "Analyzing which screens are affected by these changes..."
   
   if node scripts/analyze-dependencies.js "$temp_all_changes"; then
     # Check if dependency analyzer found affected screens
     if [[ -f dependency-affected-screens.txt && -s dependency-affected-screens.txt ]]; then
       dep_affected_count=$(wc -l < dependency-affected-screens.txt)
       echo ""
-      echo "✅ Dependency analysis found $dep_affected_count affected screen(s)"
+      echo "Dependency analysis found $dep_affected_count affected screen(s)"
       
       # Merge with direct changes (deduplicate)
       echo ""
-      echo "🔀 Merging direct and dependency-affected screens..."
+      echo "Merging direct and dependency-affected screens..."
       
       # Convert dependency-affected-screens.txt format to match changed-tsx.txt
       # dependency-affected-screens.txt has: src/business-apps/hr/core/apps/employee-directory
@@ -263,32 +272,29 @@ if [[ "$has_package_changes" == "yes" || "$has_global_shared" == "yes" || "$has_
       sort -u changed-tsx.txt -o changed-tsx.txt
       
       final_count=$(wc -l < changed-tsx.txt)
-      echo "📋 Final screen list: $final_count unique screen(s)"
+      echo "Final screen list: $final_count unique screen(s)"
       
       # Clean up
       rm -f dependency-affected-screens.txt
     else
       echo ""
-      echo "ℹ️  No additional screens affected by dependency changes"
+      echo "INFO: No additional screens affected by dependency changes"
     fi
   else
     echo ""
-    echo "⚠️  Dependency analysis failed - continuing with direct changes only"
+    echo "WARNING: Dependency analysis failed - continuing with direct changes only"
   fi
 else
-  echo "ℹ️  No dependency-related changes (src/common/, src/components/, package.json)"
+  echo "INFO: No dependency-related changes (src/common/, src/components/, package.json)"
 fi
 
 rm -f "$temp_all_changes"
 
 # Final report
-echo ""
-echo "=" 
-echo "📊 FINAL CHANGE DETECTION RESULTS"
-echo "="
+log_phase "FINAL CHANGE DETECTION RESULTS"
 if [[ -s changed-tsx.txt ]]; then
   total=$(wc -l < changed-tsx.txt)
-  echo "✅ Total screens to publish: $total"
+  echo "Total screens to publish: $total"
 else
-  echo "ℹ️  No screens to publish"
+  echo "INFO: No screens to publish"
 fi

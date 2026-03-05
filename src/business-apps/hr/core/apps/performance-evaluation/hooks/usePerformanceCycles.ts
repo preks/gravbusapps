@@ -22,6 +22,8 @@ export interface PerformanceCycleFromApi {
   name: string
   startDate: string
   endDate: string
+  evaluationPeriodStartDate?: string
+  evaluationPeriodEndDate?: string
   frequency: FrequencyType
   participants: ParticipantType[]
   stages: EvaluationStage[]
@@ -104,12 +106,16 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
   const valueIds = (api.performanceCycleCompanyValue ?? [])
     .map(pc => pc.companyValueId)
     .filter((id): id is string => id != null && id !== '')
+  const evaluationPeriodStartDate = formatDateOnly(api.evaluationPeriodStartDate ?? '')
+  const evaluationPeriodEndDate = formatDateOnly(api.evaluationPeriodEndDate ?? '')
   return {
     id: api.id,
     version: api.version ?? 0,
     name: api.name ?? '',
     startDate,
     endDate,
+    evaluationPeriodStartDate: evaluationPeriodStartDate || undefined,
+    evaluationPeriodEndDate: evaluationPeriodEndDate || undefined,
     frequency: apiFrequencyToUi(api.frequency),
     participants: participants.length ? participants : ['Self', 'Manager'],
     stages: [],

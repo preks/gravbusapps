@@ -25,6 +25,7 @@ import {
   Button,
   Badge,
   Dialog,
+  useTranslation,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -85,6 +86,7 @@ import { useVersioning } from '../shared/hooks/useVersioning'
 import { useFileLock } from '../shared/hooks/useFileLock'
 import { useComments } from '../shared/hooks/useComments'
 import { usePublishing } from '../shared/hooks/usePublishing'
+import { useEditorKeyboardIsolation } from '../shared/hooks/useEditorKeyboardIsolation'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/useSpaceDocumentActivity'
 import { VersionHistory } from '../shared/components/VersionHistory'
 import { CheckpointDialog } from '../shared/components/CheckpointDialog'
@@ -126,23 +128,23 @@ import {
 } from './components/handwriting'
 import type { NoteActionItemFlow } from './types'
 import type { NoteTranslation, TranslationLanguage } from './types/translation'
-import { TRANSLATION_LANGUAGE_NAMES } from './types/translation'
 import { TextTransformService } from './services/TextTransformService'
 import { useActionItemFlowStatusSync } from './hooks/useActionItemFlowStatusSync'
 import { useActionItemAssigneeEnrichment } from './hooks/useActionItemAssigneeEnrichment'
+import noteAppTranslations from './_i18n'
 
-// Note color mapping
-const noteColors: Array<{ value: NoteColor; label: string; class: string }> = [
-  { value: 'default', label: 'Default', class: 'gba:bg-card' },
-  { value: 'red', label: 'Red', class: 'gba:bg-red-100 dark:gba:bg-red-900/20' },
-  { value: 'orange', label: 'Orange', class: 'gba:bg-orange-100 dark:gba:bg-orange-900/20' },
-  { value: 'yellow', label: 'Yellow', class: 'gba:bg-yellow-100 dark:gba:bg-yellow-900/20' },
-  { value: 'green', label: 'Green', class: 'gba:bg-green-100 dark:gba:bg-green-900/20' },
-  { value: 'teal', label: 'Teal', class: 'gba:bg-teal-100 dark:gba:bg-teal-900/20' },
-  { value: 'blue', label: 'Blue', class: 'gba:bg-blue-100 dark:gba:bg-blue-900/20' },
-  { value: 'purple', label: 'Purple', class: 'gba:bg-purple-100 dark:gba:bg-purple-900/20' },
-  { value: 'pink', label: 'Pink', class: 'gba:bg-pink-100 dark:gba:bg-pink-900/20' },
-  { value: 'gray', label: 'Gray', class: 'gba:bg-gray-100 dark:gba:bg-gray-800/50' }
+// Note color mapping (labels via i18n key editor-color-{value})
+const noteColors: Array<{ value: NoteColor; class: string }> = [
+  { value: 'default', class: 'gba:bg-card' },
+  { value: 'red', class: 'gba:bg-red-100 dark:gba:bg-red-900/20' },
+  { value: 'orange', class: 'gba:bg-orange-100 dark:gba:bg-orange-900/20' },
+  { value: 'yellow', class: 'gba:bg-yellow-100 dark:gba:bg-yellow-900/20' },
+  { value: 'green', class: 'gba:bg-green-100 dark:gba:bg-green-900/20' },
+  { value: 'teal', class: 'gba:bg-teal-100 dark:gba:bg-teal-900/20' },
+  { value: 'blue', class: 'gba:bg-blue-100 dark:gba:bg-blue-900/20' },
+  { value: 'purple', class: 'gba:bg-purple-100 dark:gba:bg-purple-900/20' },
+  { value: 'pink', class: 'gba:bg-pink-100 dark:gba:bg-pink-900/20' },
+  { value: 'gray', class: 'gba:bg-gray-100 dark:gba:bg-gray-800/50' }
 ]
 
 /**
@@ -161,6 +163,7 @@ const formatPictureUrl = (url: string | null | undefined): string | null => {
  * Must use NodeViewWrapper as root for ReactNodeViewRenderer
  */
 const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
+  const { t } = useTranslation(noteAppTranslations)
   const { id, label, type, subtitle, pictureThumbnail } = node.attrs
   const entityType = (type || 'unknown') as EntityType
   const Icon = ENTITY_ICONS[entityType] || FileText
@@ -193,7 +196,7 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
         contentEditable={false}
         data-entity-id={id}
         data-entity-type={entityType}
-        title={`Drag to move • Click to open ${label || 'entity'}`}
+        title={t('editor-drag-open-tooltip', { label: label || t('editor-entity-fallback') })}
       >
         {/* Drag handle indicator */}
         <span className="gba:flex gba:flex-col gba:gap-px gba:opacity-40 gba:mr-0.5 gba:shrink-0">
@@ -222,7 +225,9 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
 
         {/* Content */}
         <span className="gba:flex gba:flex-col gba:leading-tight gba:justify-center">
-          <span className="gba:font-semibold gba:truncate gba:max-w-[150px]">{label || 'Unknown'}</span>
+          <span className="gba:font-semibold gba:truncate gba:max-w-[150px]">
+            {label || t('editor-entity-unknown')}
+          </span>
           {subtitle && (
             <span className="gba:text-[10px] gba:opacity-70 gba:truncate gba:max-w-[150px]">{subtitle}</span>
           )}
@@ -271,6 +276,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   userInfo,
   'data-testid': testId = 'note-editor'
 }) => {
+  const { t } = useTranslation(noteAppTranslations)
   // Editor state
   const [title, setTitle] = useState(note.title || '')
   const [isSaving, setIsSaving] = useState(false)
@@ -362,46 +368,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [])
 
   // Get access token for GraphQL - must be before effects that use it
-  // In published platform screens, the token may live under different storage keys.
-  const accessToken = React.useMemo(() => {
-    const direct = accessTokenProp || (note as any).accessToken
-    if (direct) return direct as string
-    if (typeof window === 'undefined') return ''
-
-    try {
-      const ideToken = window.localStorage.getItem('business-app-ide-access-token')
-      if (ideToken) return ideToken
-    } catch {
-      // ignore
-    }
-
-    try {
-      const authData = window.localStorage.getItem('keycloak-token')
-      if (authData) {
-        try {
-          const parsed = JSON.parse(authData)
-          return (parsed.token || parsed.access_token || '') as string
-        } catch {
-          return authData
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    return ''
-  }, [accessTokenProp, note.id])
+  const accessToken = accessTokenProp || ''
   const graphqlClient = useGraphQLClient(accessToken)
-
-  // Persist token for NoteApiService (it reads from localStorage).
-  useEffect(() => {
-    if (!accessToken) return
-    try {
-      localStorage.setItem('business-app-ide-access-token', accessToken)
-    } catch {
-      // ignore
-    }
-  }, [accessToken])
 
   // Fill missing avatar/name for older flows
   useActionItemAssigneeEnrichment({
@@ -460,6 +428,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     currentStatus: note.publishMetadata?.status || 'draft',
     apiService: NoteApiService
   })
+
+  useEditorKeyboardIsolation(editorContainerRef)
 
   useEffect(() => {
     if (!rawParticipants.length) {
@@ -577,7 +547,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     if (!note.id || !currentUserId) return
 
     const activityType = isReadOnly ? 'viewing' : 'editing'
-    const docTitle = title || note.title || 'Untitled Note'
+    const docTitle = title || note.title || t('title-untitled-note')
     const urlSpaceId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
 
     // Emit activity when starting
@@ -657,23 +627,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           setCurrentUserName(contextUserName)
         }
 
-        const token =
-          accessToken ||
-          localStorage.getItem('business-app-ide-access-token') ||
-          (() => {
-            try {
-              const authData = localStorage.getItem('keycloak-token')
-              if (!authData) return null
-              try {
-                const parsed = JSON.parse(authData)
-                return parsed.token || parsed.access_token || null
-              } catch {
-                return authData
-              }
-            } catch {
-              return null
-            }
-          })()
+        const token = accessToken || null
         if (token) {
           const base64Url = token.split('.')[1]
           if (!base64Url) return
@@ -729,17 +683,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     return createMentionSuggestion(accessToken)
   }, [accessToken])
 
+  const isCollaborationMode = Boolean(note.id)
+
   // Initialize TipTap editor
   const editor = useEditor(
     {
       extensions: [
         StarterKit.configure({
           heading: { levels: [1, 2, 3] },
-          // Disable history when using Yjs collaboration (Yjs provides its own history)
-          ...(note.id ? { history: false } : {})
+          // Disable local history/undo-redo in collaboration mode (Yjs provides this).
+          ...(isCollaborationMode ? { history: false, undoRedo: false } : {}),
+          // Avoid duplicate names when Link/Underline are configured explicitly below.
+          link: false,
+          underline: false
         } as any),
         Placeholder.configure({
-          placeholder: 'Start writing... Type @ to mention entities'
+          placeholder: t('editor-placeholder')
         }),
         TextAlign.configure({
           types: ['heading', 'paragraph']
@@ -881,7 +840,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       }
     },
-    [note.id, note.content, ydoc, isReadOnly, mentionSuggestion]
+    [note.id, note.content, ydoc, isReadOnly, mentionSuggestion, isCollaborationMode]
   )
 
   useEffect(() => {
@@ -1156,7 +1115,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           hasCurrentUserId: Boolean(currentUserId || contextUserId),
           collaborationParticipantsCount: participants.length,
           finalCount: fallback.length,
-          lastError: error instanceof Error ? error.message : 'Unknown error',
+          lastError: error instanceof Error ? error.message : t('editor-error-unknown'),
           updatedAt: new Date().toISOString()
         })
       }
@@ -1173,7 +1132,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     currentUserName,
     currentUserAvatar,
     contextUserId,
-    contextUserName
+    contextUserName,
+    t
   ])
 
   // Sync participants to Kanban extension storage
@@ -1354,48 +1314,48 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const handleTextTransform = useCallback(
     async (type: TransformType, options?: { targetLanguage?: TranslationLanguage }) => {
       if (!accessToken) {
-        toast.error('Not authenticated')
+        toast.error(t('editor-toast-not-authenticated'))
         return
       }
 
       const text = getPlainTextForTransform()
       if (!text) {
-        toast.error('No text to transform')
+        toast.error(t('editor-toast-no-text'))
         return
       }
 
       setIsTransforming(true)
       try {
         const service = new TextTransformService(accessToken)
-        const result = await service.transform(type, text, options)
+        const result = await service.transform(type, text, { ...options, translate: t })
         if (!result.success) {
-          toast.error(result.error || 'Transform failed')
+          toast.error(result.error || t('editor-toast-transform-failed'))
           return
         }
 
         switch (type) {
           case 'copy-text':
             await navigator.clipboard.writeText(result.transformedContent)
-            toast.success('Copied to clipboard')
+            toast.success(t('editor-toast-copied'))
             break
           case 'to-text':
             // For typed notes, this just copies a plain-text version
             await navigator.clipboard.writeText(result.transformedContent)
-            toast.success('Plain text copied')
+            toast.success(t('editor-toast-plain-text-copied'))
             break
           case 'create-text-note':
             await navigator.clipboard.writeText(result.transformedContent)
-            toast.success('Copied (create note manually)')
+            toast.success(t('editor-toast-copied-create-manually'))
             break
           case 'summarize':
             setCurrentSummary(result.transformedContent)
             void persistMeta(result.transformedContent, actionItemFlows, translations)
-            toast.success('Summary generated')
+            toast.success(t('editor-toast-summary-generated'))
             break
           case 'translate':
             setTranslations(prev => {
               const targetLang = options?.targetLanguage || 'en'
-              const targetLanguageName = TRANSLATION_LANGUAGE_NAMES[targetLang] || 'English'
+              const targetLanguageName = t(`translation-language-${targetLang}`)
               const entry: NoteTranslation = {
                 id: `tr_${Date.now()}`,
                 targetLanguage: targetLang,
@@ -1407,27 +1367,27 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               void persistMeta(currentSummary, actionItemFlows, next)
               return next
             })
-            toast.success('Translation created')
+            toast.success(t('editor-toast-translation-created'))
             break
           case 'action-items':
             if (result.actionItems && result.actionItems.length > 0) {
               setCurrentActionItems(result.actionItems)
               setActionItemsModalOpen(true)
-              toast.success(`Found ${result.actionItems.length} action item${result.actionItems.length > 1 ? 's' : ''}`)
+              toast.success(t('editor-toast-action-items-found', { count: result.actionItems.length }))
             } else {
-              toast.success('No action items found')
+              toast.success(t('editor-toast-no-action-items'))
             }
             break
           default:
             setCurrentSummary(result.transformedContent)
         }
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Transform failed')
+        toast.error(e instanceof Error ? e.message : t('editor-toast-transform-failed'))
       } finally {
         setIsTransforming(false)
       }
     },
-    [accessToken, actionItemFlows, currentSummary, getPlainTextForTransform, persistMeta, translations]
+    [accessToken, actionItemFlows, currentSummary, getPlainTextForTransform, persistMeta, t, translations]
   )
 
   const handleDeleteTranslation = useCallback(
@@ -1437,7 +1397,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         void persistMeta(currentSummary, actionItemFlows, next)
         return next
       })
-      toast.success('Translation deleted')
+      toast.success(t('editor-toast-translation-deleted'))
     },
     [actionItemFlows, currentSummary, persistMeta]
   )
@@ -1773,15 +1733,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   // Format last saved
   const formatLastSaved = (date: Date | null): string => {
-    if (!date) return 'Not saved'
+    if (!date) return t('editor-not-saved')
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffMinutes = Math.floor(diffMs / 60000)
 
-    if (diffMinutes < 1) return 'Saved just now'
-    if (diffMinutes === 1) return 'Saved 1 minute ago'
-    if (diffMinutes < 60) return `Saved ${diffMinutes} minutes ago`
-    return `Saved at ${date.toLocaleTimeString()}`
+    if (diffMinutes < 1) return t('editor-saved-just-now')
+    if (diffMinutes === 1) return t('editor-saved-1-min')
+    if (diffMinutes < 60) return t('editor-saved-mins', { count: diffMinutes })
+    return t('editor-saved-at', { time: date.toLocaleTimeString() })
   }
 
   // Word count
@@ -1801,7 +1761,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             <div className="gba:flex gba:items-center gba:gap-3">
               <Button variant="ghost" size="sm" onClick={onBack} className="gba:gap-2">
                 <ArrowLeft className="gba:w-4 gba:h-4" />
-                Back
+                {t('editor-back')}
               </Button>
 
               <Separator orientation="vertical" className="gba:h-6" />
@@ -1813,18 +1773,18 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 </div>
                 <div className="gba:flex gba:flex-col">
                   <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:max-w-[200px]">
-                    {title || 'Untitled Note'}
+                    {title || t('title-untitled-note')}
                   </span>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
                     {isSaving ? (
                       <span className="gba:flex gba:items-center gba:gap-1">
                         <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                        Saving...
+                        {t('editor-saving')}
                       </span>
                     ) : hasUnsavedChanges ? (
                       <span className="gba:flex gba:items-center gba:gap-1 gba:text-warning-foreground">
                         <Clock className="gba:w-3 gba:h-3" />
-                        Unsaved changes
+                        {t('editor-unsaved')}
                       </span>
                     ) : lastSaved ? (
                       <span className="gba:flex gba:items-center gba:gap-1">
@@ -1833,7 +1793,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                       </span>
                     ) : null}
                     <span>•</span>
-                    <span>{wordCount} words</span>
+                    <span>{t('editor-word-count', { count: wordCount })}</span>
                   </div>
                 </div>
               </div>
@@ -1851,7 +1811,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   data-testid={`${testId}-action-items-open`}
                 >
                   <ListTodo className="gba:w-4 gba:h-4" />
-                  Tasks ({actionItemFlows.length})
+                  {t('handwriting-tasks', { count: actionItemFlows.length })}
                 </Button>
               )}
 
@@ -1859,7 +1819,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               {participants.length > 0 && (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2 gba:pr-2 gba:border-r">
                   <PresenceIndicator participants={participants} maxVisible={4} size="sm" showLabel={false} />
-                  <span className="gba:text-xs gba:text-muted-foreground">{participants.length} active</span>
+                  <span className="gba:text-xs gba:text-muted-foreground">
+                    {t('editor-active-collaborators', { count: participants.length })}
+                  </span>
                 </div>
               )}
 
@@ -1884,14 +1846,14 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                                   : 'gba:border-transparent'
                               } ${color.class}`}
                               onClick={() => handleColorChange(color.value)}
-                              title={color.label}
+                              title={t(`editor-color-${color.value}`)}
                             />
                           ))}
                         </div>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TooltipTrigger>
-                  <TooltipContent>Change color</TooltipContent>
+                  <TooltipContent>{t('editor-change-color')}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
 
@@ -1904,7 +1866,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         <Share2 className="gba:w-4 gba:h-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Share</TooltipContent>
+                    <TooltipContent>{t('editor-share-tooltip')}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
@@ -1923,7 +1885,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         <Pin className={`gba:w-4 gba:h-4 ${note.isPinned ? 'gba:fill-current' : ''}`} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>{note.isPinned ? 'Unpin' : 'Pin'}</TooltipContent>
+                    <TooltipContent>
+                      {note.isPinned ? t('editor-unpin-tooltip') : t('editor-pin-tooltip')}
+                    </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
@@ -1945,7 +1909,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 variant={showComments ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setShowComments(!showComments)}
-                title="Comments (Right-click on text to add inline comment)"
+                title={t('editor-comments-tooltip')}
                 data-testid="note-comments-button"
                 className="gba:h-8"
               >
@@ -1961,7 +1925,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
                 <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
                   <LockIcon className="gba:h-3 gba:w-3" />
-                  Locked
+                  {t('editor-locked')}
                 </Badge>
               )}
 
@@ -1975,58 +1939,58 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Note
+                    {t('editor-note-menu')}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
                     <History className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Version History
+                    {t('editor-version-history')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)}>
                     <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Save Checkpoint
+                    {t('editor-save-checkpoint')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {fileLock.isLockedByMe ? (
                     <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
                       <UnlockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Unlock Note
+                      {t('editor-unlock-note')}
                     </DropdownMenuItem>
                   ) : (
                     <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
                       <LockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Lock Note
+                      {t('editor-lock-note')}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
                     <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Publish...
+                    {t('editor-publish')}
                   </DropdownMenuItem>
                   {onDuplicate && (
                     <DropdownMenuItem onClick={onDuplicate}>
                       <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Duplicate
+                      {t('editor-duplicate')}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem>
                     <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export
+                    {t('editor-export')}
                   </DropdownMenuItem>
                   {onArchive && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={onArchive}>
                         <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Archive
+                        {t('editor-archive')}
                       </DropdownMenuItem>
                     </>
                   )}
                   {onDelete && (
                     <DropdownMenuItem onClick={onDelete} className="gba:text-destructive">
                       <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Delete
+                      {t('editor-delete')}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -2063,7 +2027,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Bold className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Bold (⌘B)</TooltipContent>
+                <TooltipContent>{t('editor-format-bold')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2079,7 +2043,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Italic className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Italic (⌘I)</TooltipContent>
+                <TooltipContent>{t('editor-format-italic')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2095,7 +2059,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <UnderlineIcon className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Underline (⌘U)</TooltipContent>
+                <TooltipContent>{t('editor-format-underline')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2111,7 +2075,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Strikethrough className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Strikethrough</TooltipContent>
+                <TooltipContent>{t('editor-format-strikethrough')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2130,7 +2094,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Heading1 className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Heading 1</TooltipContent>
+                <TooltipContent>{t('editor-format-heading-1')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2146,7 +2110,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Heading2 className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Heading 2</TooltipContent>
+                <TooltipContent>{t('editor-format-heading-2')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2162,7 +2126,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Heading3 className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Heading 3</TooltipContent>
+                <TooltipContent>{t('editor-format-heading-3')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2181,7 +2145,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <List className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Bullet List</TooltipContent>
+                <TooltipContent>{t('editor-format-bullet-list')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2197,7 +2161,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <ListOrdered className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Numbered List</TooltipContent>
+                <TooltipContent>{t('editor-format-numbered-list')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2213,7 +2177,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <CheckSquare className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Task List</TooltipContent>
+                <TooltipContent>{t('editor-format-task-list')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2232,7 +2196,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Quote className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Quote</TooltipContent>
+                <TooltipContent>{t('editor-format-quote')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2248,7 +2212,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Code className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Code Block</TooltipContent>
+                <TooltipContent>{t('editor-format-code-block')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2270,7 +2234,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <AtSign className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Mention Entity (@)</TooltipContent>
+                <TooltipContent>{t('editor-format-mention')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -2327,7 +2291,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <LayoutGrid className="gba:w-4 gba:h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Insert Kanban Board</TooltipContent>
+                <TooltipContent>{t('editor-format-insert-kanban')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -2345,7 +2309,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               value={title}
               onChange={handleTitleChange}
               onKeyDown={handleTitleKeyDown}
-              placeholder="Untitled"
+              placeholder={t('editor-title-placeholder')}
               disabled={isReadOnly}
               className="gba:w-full gba:text-4xl gba:font-bold gba:bg-transparent gba:border-0 gba:outline-none gba:mb-4 gba:text-foreground placeholder:gba:text-muted-foreground/50"
               data-testid="note-editor-title-input"
@@ -2411,7 +2375,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         {actionItemFlows.length > 0 && (
           <div className="gba:hidden gba:lg:block gba:w-80 gba:border-l gba:border-border gba:bg-card gba:overflow-y-auto gba:p-4">
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-              <div className="gba:text-sm gba:font-semibold gba:text-foreground">Action Items</div>
+              <div className="gba:text-sm gba:font-semibold gba:text-foreground">{t('handwriting-action-items')}</div>
               <div className="gba:flex gba:items-center gba:gap-2">
                 <div className="gba:text-xs gba:text-muted-foreground">{actionItemFlows.length}</div>
                 <Button
@@ -2437,7 +2401,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           <DialogContent className="gba:sm:max-w-[650px] gba:max-h-[80vh] gba:overflow-y-auto">
             <DialogHeader>
               <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-                <DialogTitle>Action Items</DialogTitle>
+                <DialogTitle>{t('handwriting-action-items')}</DialogTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -2449,7 +2413,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   <RefreshCw className={`gba:w-4 gba:h-4 ${isFlowStatusSyncing ? 'gba:animate-spin' : ''}`} />
                 </Button>
               </div>
-              <DialogDescription>Status of blinks created from this note.</DialogDescription>
+              <DialogDescription>{t('handwriting-action-items-desc')}</DialogDescription>
             </DialogHeader>
             <ActionItemsList flows={actionItemFlows} data-testid={`${testId}-action-items-list-dialog`} />
           </DialogContent>
@@ -2461,7 +2425,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         open={actionItemsModalOpen}
         onOpenChange={setActionItemsModalOpen}
         actionItems={currentActionItems}
-        noteTitle={title || note.title || 'Untitled'}
+        noteTitle={title || note.title || t('title-untitled')}
         noteId={note.id}
         accessToken={accessToken}
         currentUserId={currentUserId || note.ownerId || 'unknown'}
@@ -2473,13 +2437,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       <div className="gba:border-t gba:bg-background/80 gba:px-6 gba:py-2">
         <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
           <div className="gba:flex gba:items-center gba:gap-4">
-            <span>{wordCount} words</span>
-            <span>{charCount} characters</span>
+            <span>{t('editor-word-count', { count: wordCount })}</span>
+            <span>{t('editor-char-count', { count: charCount })}</span>
           </div>
           {isCollaborationConnected && (
             <span className="gba:flex gba:items-center gba:gap-1">
               <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
-              Synced
+              {t('editor-synced')}
             </span>
           )}
         </div>
@@ -2938,10 +2902,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           }}
         >
           <div className="gba:px-2 gba:py-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground gba:flex gba:items-center gba:justify-between">
-            <span>Add to Kanban</span>
+            <span>{t('editor-add-to-kanban')}</span>
             {taskContextMenu.taskItemPositions.length > 1 && (
               <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4">
-                {taskContextMenu.taskItemPositions.length} items
+                {t('editor-items-count', { count: taskContextMenu.taskItemPositions.length })}
               </Badge>
             )}
           </div>
@@ -2953,7 +2917,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               onClick={handleCreateKanbanWithTasks}
             >
               <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-2 gba:text-muted-foreground" />
-              Create Kanban Board
+              {t('editor-create-kanban-board')}
             </button>
           ) : taskContextMenu.kanbanBoards.length === 1 ? (
             // Single Kanban - show columns directly
@@ -2981,9 +2945,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   onClick={() => handleAddTaskToKanban(board.id, 'todo')}
                 >
                   <LayoutGrid className="gba:w-3.5 gba:h-3.5 gba:mr-2 gba:text-muted-foreground" />
-                  {board.data.columns[0]?.title || 'Kanban'}
+                  {board.data.columns[0]?.title || t('editor-kanban-fallback')}
                   <span className="gba:ml-auto gba:text-xs gba:text-muted-foreground">
-                    {board.data.columns.reduce((sum, col) => sum + col.cards.length, 0)} cards
+                    {t('editor-cards-count', {
+                      count: board.data.columns.reduce((sum, col) => sum + col.cards.length, 0)
+                    })}
                   </span>
                 </button>
               ))}

@@ -1,11 +1,13 @@
 import React from 'react'
-import { Card, CardContent, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Button, useTranslation } from '@newwork/nw-design-system'
 import { Plus, ArrowRight, LucideIcon } from 'lucide-react'
+import deskTranslations from '../_i18n'
 
 export interface AppCardProps {
   title: string
   description: string
-  icon: LucideIcon
+  /** Kept for API compat; icons are not displayed. */
+  icon?: LucideIcon
   count: number
   sharedCount?: number
   /** Kept for API compat; Desk uses glass blue style for all cards. */
@@ -17,9 +19,8 @@ export interface AppCardProps {
   isLoading?: boolean
 }
 
-/* Card hover/gradient – subtle blue tint; icon uses .desk-app-card-icon-glass in CSS */
+/* Card hover/gradient – subtle blue tint; decorative tokens for premium look */
 const glassBlue = {
-  hoverBorder: 'hover:gba:border-primary/40',
   gradient: 'gba:from-primary/5 gba:to-transparent',
   ring: 'hover:gba:ring-primary/20 hover:gba:ring-2'
 }
@@ -31,7 +32,6 @@ const glassBlue = {
 export const AppCard: React.FC<AppCardProps> = ({
   title,
   description,
-  icon: Icon,
   count,
   sharedCount = 0,
   onOpen,
@@ -40,33 +40,29 @@ export const AppCard: React.FC<AppCardProps> = ({
   animationDelay = 0,
   isLoading = false
 }) => {
+  const { t } = useTranslation(deskTranslations)
   return (
     <Card
-      className={`gba:group gba:relative gba:overflow-hidden gba:border gba:border-border gba:bg-card gba:transition-all gba:duration-300 ${glassBlue.hoverBorder} hover:gba:shadow-lg gba:cursor-pointer`}
+      className={`gba:group gba:relative gba:overflow-hidden gba:border gba:border-border gba:bg-background gba:transition-all gba:duration-300 gba:hover:scale-[1.02] gba:cursor-pointer`}
       onClick={onOpen}
       data-testid={testId}
       style={{ animation: `fadeInUp 0.5s ease-out ${animationDelay}s both` }}
     >
-      {/* Hover gradient overlay – glass blue tint */}
+      {/* Hover gradient overlay – subtle blue tint */}
       <div
         className={`gba:absolute gba:inset-0 gba:bg-gradient-to-br ${glassBlue.gradient} gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:duration-300`}
       />
 
       <CardContent className="gba:relative gba:p-5">
-        {/* Header */}
-        <div className="gba:flex gba:items-start gba:justify-between gba:mb-4">
-          {/* Icon container – blueish glass (CSS class for explicit blue) */}
-          <div
-            className="desk-app-card-icon-glass gba:w-12 gba:h-12 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:transition-transform gba:duration-300 group-hover:gba:scale-110"
-          >
-            <Icon className="gba:h-6 gba:w-6" />
-          </div>
-
-          {/* Create button */}
+        {/* Header: title + create button */}
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:mb-3">
+          <h3 className="gba:font-funnel-display gba:text-xl gba:sm:text-2xl gba:font-semibold gba:text-foreground gba:tracking-tight gba:leading-tight">
+            {title}
+          </h3>
           <Button
             size="sm"
             variant="outline"
-            className={`gba:h-8 gba:w-8 gba:p-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-all gba:duration-200 ${glassBlue.ring}`}
+            className={`gba:h-8 gba:w-8 gba:p-0 gba:flex-shrink-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-all gba:duration-200 ${glassBlue.ring}`}
             onClick={e => {
               e.stopPropagation()
               onCreate()
@@ -76,26 +72,21 @@ export const AppCard: React.FC<AppCardProps> = ({
           </Button>
         </div>
 
-        {/* Title & Description */}
-        <h3 className="gba:text-lg gba:font-semibold gba:text-card-foreground gba:mb-1">{title}</h3>
-        <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{description}</p>
+        <p className="gba:text-sm gba:text-muted-foreground gba:mb-4 gba:leading-relaxed">{description}</p>
 
-        {/* Stats */}
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div className="gba:flex gba:items-baseline gba:gap-2">
-            <span className="gba:text-2xl gba:font-bold gba:text-card-foreground">
-              {isLoading ? '—' : count}
-            </span>
+        {/* Stats: count + golden badge + open hint */}
+        <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+            <span className="gba:text-2xl gba:font-bold gba:text-foreground">{isLoading ? '—' : count}</span>
             {sharedCount > 0 && (
-              <span className="gba:text-xs gba:text-muted-foreground">
-                ({sharedCount} shared)
+              <span className="gba:inline-flex gba:items-center gba:px-1.5 gba:py-0 gba:h-5 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-[10px] gba:font-medium gba:flex-shrink-0">
+                {t('app-shared-count', { count: sharedCount })}
               </span>
             )}
           </div>
 
-          {/* Open hint */}
-          <div className="gba:flex gba:items-center gba:text-sm gba:font-medium gba:text-muted-foreground group-hover:gba:text-foreground gba:transition-colors">
-            <span className="gba:mr-1">Open</span>
+          <div className="gba:flex gba:items-center gba:text-sm gba:font-medium gba:text-muted-foreground group-hover:gba:text-foreground gba:transition-colors gba:flex-shrink-0">
+            <span className="gba:mr-1">{t('app-open')}</span>
             <ArrowRight className="gba:h-4 gba:w-4 gba:transition-transform group-hover:gba:translate-x-1" />
           </div>
         </div>

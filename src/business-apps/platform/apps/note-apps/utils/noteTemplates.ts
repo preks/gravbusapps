@@ -4,7 +4,7 @@
  * Pre-built templates for common note types.
  */
 
-import type { NoteTemplate, NoteColor } from '../types'
+import type { NoteTemplate } from '../types'
 
 /**
  * Built-in note templates
@@ -13,7 +13,9 @@ export const builtInTemplates: NoteTemplate[] = [
   {
     id: 'template-meeting-notes',
     name: 'Meeting Notes',
+    nameKey: 'template-name-meeting-notes',
     description: 'Capture meeting agenda, attendees, and action items',
+    descriptionKey: 'template-desc-meeting-notes',
     icon: '📋',
     color: 'blue',
     category: 'meeting',
@@ -47,7 +49,9 @@ export const builtInTemplates: NoteTemplate[] = [
   {
     id: 'template-daily-journal',
     name: 'Daily Journal',
+    nameKey: 'template-name-daily-journal',
     description: 'Reflect on your day with prompts for gratitude and goals',
+    descriptionKey: 'template-desc-daily-journal',
     icon: '📓',
     color: 'yellow',
     category: 'personal',
@@ -86,7 +90,9 @@ export const builtInTemplates: NoteTemplate[] = [
   {
     id: 'template-project-plan',
     name: 'Project Plan',
+    nameKey: 'template-name-project-plan',
     description: 'Structure your project with goals, milestones, and tasks',
+    descriptionKey: 'template-desc-project-plan',
     icon: '🎯',
     color: 'green',
     category: 'project',
@@ -141,7 +147,9 @@ export const builtInTemplates: NoteTemplate[] = [
   {
     id: 'template-weekly-review',
     name: 'Weekly Review',
+    nameKey: 'template-name-weekly-review',
     description: 'Review your week and plan for the next one',
+    descriptionKey: 'template-desc-weekly-review',
     icon: '📊',
     color: 'purple',
     category: 'personal',
@@ -193,7 +201,9 @@ export const builtInTemplates: NoteTemplate[] = [
   {
     id: 'template-brainstorm',
     name: 'Brainstorm',
+    nameKey: 'template-name-brainstorm',
     description: 'Capture ideas freely with mind mapping structure',
+    descriptionKey: 'template-desc-brainstorm',
     icon: '💡',
     color: 'orange',
     category: 'work',
@@ -243,7 +253,9 @@ export const builtInTemplates: NoteTemplate[] = [
   {
     id: 'template-1on1',
     name: '1:1 Meeting',
+    nameKey: 'template-name-1on1',
     description: 'Template for one-on-one meetings with team members',
+    descriptionKey: 'template-desc-1on1',
     icon: '👥',
     color: 'teal',
     category: 'meeting',
@@ -288,7 +300,9 @@ export const builtInTemplates: NoteTemplate[] = [
   {
     id: 'template-bug-report',
     name: 'Bug Report',
+    nameKey: 'template-name-bug-report',
     description: 'Document bugs with steps to reproduce and expected behavior',
+    descriptionKey: 'template-desc-bug-report',
     icon: '🐛',
     color: 'red',
     category: 'work',
@@ -335,7 +349,9 @@ export const builtInTemplates: NoteTemplate[] = [
   {
     id: 'template-blank',
     name: 'Blank Note',
+    nameKey: 'template-blank-note',
     description: 'Start with a clean slate',
+    descriptionKey: 'template-blank-desc',
     icon: '📄',
     color: 'default',
     category: 'other',
@@ -359,16 +375,10 @@ export function getTemplatesByCategory(category: NoteTemplate['category']): Note
 }
 
 /**
- * Get all template categories
+ * Get all template categories (labels resolved via i18n in TemplateGallery getCategoryLabel)
  */
-export function getTemplateCategories(): Array<{ value: NoteTemplate['category']; label: string }> {
-  return [
-    { value: 'meeting', label: 'Meetings' },
-    { value: 'project', label: 'Projects' },
-    { value: 'personal', label: 'Personal' },
-    { value: 'work', label: 'Work' },
-    { value: 'other', label: 'Other' }
-  ]
+export function getTemplateCategories(): Array<{ value: NoteTemplate['category'] }> {
+  return [{ value: 'meeting' }, { value: 'project' }, { value: 'personal' }, { value: 'work' }, { value: 'other' }]
 }
 
 /**

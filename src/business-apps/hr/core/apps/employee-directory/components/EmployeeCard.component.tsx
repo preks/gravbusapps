@@ -1,15 +1,17 @@
 import React, { useCallback } from 'react'
-import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
 import {
-  PiChatBold,
-  PiPhoneBold,
-  PiVideoCameraBold,
-  PiUserBold,
-  PiBuildingsBold,
-  PiOfficeChairBold
-} from 'react-icons/pi'
+  ChatIcon,
+  PhoneIcon,
+  VideoCameraIcon,
+  UserIcon,
+  BuildingsIcon,
+  OfficeChairIcon
+} from '@phosphor-icons/react'
 import { Avatar, AvatarImage, AvatarFallback, Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { postToPlatform } from '@/common/utils/postToPlatform'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 /**
  * Employee type definition for the card.
@@ -41,25 +43,42 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
 
   const avatarSrcValue = employee.profilePicture ? `data:image/gif;base64,${employee.profilePicture}` : undefined
   const profileUrl = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id })
-  const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat()
+  const displayName = `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim()
+  const avatarUrl = employee.profilePicture ? `data:image/gif;base64,${employee.profilePicture}` : undefined
 
   const handleChat = useCallback(() => {
-    if (employee.userId) {
-      openChatWithUser(employee.userId)
-    }
-  }, [employee.userId, openChatWithUser])
+    if (!employee.userId) return
+    postToPlatform({
+      type: 'OPEN_CHAT_WITH_USER',
+      payload: { userId: employee.userId, userName: displayName || employee.userId }
+    })
+  }, [employee.userId, displayName])
 
   const handleCall = useCallback(() => {
-    if (employee.userId) {
-      openAudioConferenceWithUser(employee.userId)
-    }
-  }, [employee.userId, openAudioConferenceWithUser])
+    if (!employee.userId) return
+    postToPlatform({
+      type: 'START_CALL_WITH_USER',
+      payload: {
+        userId: employee.userId,
+        displayName: displayName || employee.userId,
+        avatarUrl,
+        callType: 'audio'
+      }
+    })
+  }, [employee.userId, displayName, avatarUrl])
 
   const handleVideoCall = useCallback(() => {
-    if (employee.userId) {
-      openVideoConferenceWithUser(employee.userId)
-    }
-  }, [employee.userId, openVideoConferenceWithUser])
+    if (!employee.userId) return
+    postToPlatform({
+      type: 'START_CALL_WITH_USER',
+      payload: {
+        userId: employee.userId,
+        displayName: displayName || employee.userId,
+        avatarUrl,
+        callType: 'video'
+      }
+    })
+  }, [employee.userId, displayName, avatarUrl])
 
   const handleProfile = useCallback(() => {
     navigateTo(profileUrl)
@@ -99,14 +118,14 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
             </div>
 
             <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-              <PiOfficeChairBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
+              <OfficeChairIcon weight="bold" className="gba:text-muted-foreground gba:mr-1.5" size={14} />
               <span className="gba:truncate" title={employee.jobTitle}>
                 {employee.jobTitle}
               </span>
             </div>
 
             <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-              <PiBuildingsBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
+              <BuildingsIcon weight="bold" className="gba:text-muted-foreground gba:mr-1.5" size={14} />
               <span className="gba:truncate" title={employee.organizationalUnit}>
                 {employee.organizationalUnit}
               </span>
@@ -119,7 +138,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
         onCall={handleCall}
         onVideoCall={handleVideoCall}
         onProfile={handleProfile}
-        hasEmail={!!employee.workEmail}
+        hasUserId={!!employee.userId}
       />
     </div>
   )
@@ -130,7 +149,7 @@ interface ActionsOverlayProps {
   onCall?: () => void
   onVideoCall?: () => void
   onProfile?: () => void
-  hasEmail?: boolean
+  hasUserId?: boolean
 }
 
 export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>> = ({
@@ -138,49 +157,58 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
   onCall,
   onVideoCall,
   onProfile,
-  hasEmail = false
-}) => (
-  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
-    <div className="gba:flex gba:gap-2">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onChat}
-        disabled={!hasEmail}
-        aria-label="Chat"
-        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
-      >
-        <PiChatBold size={24} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onCall}
-        disabled={!hasEmail}
-        aria-label="Call"
-        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
-      >
-        <PiPhoneBold size={24} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onVideoCall}
-        disabled={!hasEmail}
-        aria-label="Video Call"
-        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
-      >
-        <PiVideoCameraBold size={24} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onProfile}
-        aria-label="Go to Profile"
-        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
-      >
-        <PiUserBold size={24} />
-      </Button>
+  hasUserId = false
+}) => {
+  const teamChatEnabled = useFeature<boolean>(Feature.Core.TeamChat.Key)
+
+  return (
+    <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
+      <div className="gba:flex gba:gap-2">
+        {teamChatEnabled && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onChat}
+            disabled={!hasUserId}
+            aria-label="Chat"
+            className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+            data-testid="employee-directory-card-chat"
+          >
+            <ChatIcon weight="bold" size={24} />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onCall}
+          disabled={!hasUserId}
+          aria-label="Call"
+          className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+          data-testid="employee-directory-card-audio-call"
+        >
+          <PhoneIcon weight="bold" size={24} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onVideoCall}
+          disabled={!hasUserId}
+          aria-label="Video Call"
+          className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+          data-testid="employee-directory-card-video-call"
+        >
+          <VideoCameraIcon weight="bold" size={24} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onProfile}
+          aria-label="Go to Profile"
+          className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+        >
+          <UserIcon weight="bold" size={24} />
+        </Button>
+      </div>
     </div>
-  </div>
-)
+  )
+}

@@ -75,6 +75,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
 
   // Determine if we should show full benefit details (active or scheduled)
   const showFullDetails = benefit.isActive || benefit.isScheduled
+  const showCancelledDetails = benefit.isCancelled
 
   return (
     <Sheet
@@ -107,6 +108,38 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
                 catalogValue={catalogValue}
                 title={title}
               />
+            ) : showCancelledDetails ? (
+              <>
+                <AvailableBenefitContent
+                  benefit={benefit}
+                  t={t}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                  benefitDetails={benefitDetails}
+                />
+                {/* Notes and Comments for not approved benefits */}
+                {(benefit.notes || benefit.comments) && (
+                  <div className="gba:space-y-3 gba:pt-4 gba:border-t">
+                    <h3 className="gba:text-sm gba:font-semibold gba:text-foreground gba:uppercase gba:tracking-wide">
+                      {t('benefit-details-additional-info')}
+                    </h3>
+                    <div className="gba:space-y-2 gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">
+                      {benefit.notes && (
+                        <div data-testid="benefit-details-notes-value">
+                          <span className="gba:text-muted-foreground">{t('benefit-details-justification')}: </span>
+                          {benefit.notes}
+                        </div>
+                      )}
+                      {benefit.comments && (
+                        <div data-testid="benefit-details-comments-value">
+                          <span className="gba:text-muted-foreground">{t('benefit-details-comments')}: </span>
+                          {benefit.comments}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <AvailableBenefitContent
                 benefit={benefit}

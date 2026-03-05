@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At } from '@phosphor-icons/react'
+import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At, UserCircle } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
@@ -44,13 +44,7 @@ function shouldSendMessage(params: { disabled?: boolean; value: string; fileCoun
 }
 
 interface ChatInputProps {
-  onSend: (
-    text: string,
-    files: File[],
-    isThinking: boolean,
-    isSearching: boolean,
-    mentions?: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
-  ) => void
+  onSend: (text: string, files: File[], isThinking: boolean, isSearching: boolean) => void
   onClear: () => void
   disabled?: boolean
   className?: string
@@ -79,6 +73,8 @@ interface ChatInputProps {
   darkMode?: boolean
   /** When true, show fewer suggestions (e.g. in sidebar) so they fit in one row */
   compactSuggestions?: boolean
+  /** Callback to open the user preferences modal */
+  onOpenPreferences?: () => void
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -102,7 +98,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onClearCancelledMessage,
   accessToken = '',
   darkMode = false,
-  compactSuggestions = false
+  compactSuggestions = false,
+  onOpenPreferences
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -111,6 +108,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const contentEditableRef = useRef<HTMLDivElement>(null)
+  const isTypingInContentEditableRef = useRef(false)
   const isMobileWithCamera = useIsMobileWithCamera()
 
   // Entity mentions hook
@@ -122,35 +121,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     handleTextChange,
     insertEntity,
     clearMentions,
-    closeMention
-  } = useEntityMentions(accessToken)
+    closeMention,
+    removeMention
+  } = useEntityMentions(accessToken, { insertionMode: 'markdown_link' })
 
   const handleSend = useCallback(() => {
     const { canSend, trimmed } = shouldSendMessage({ disabled, value, fileCount: files.length })
     if (!canSend) return
-
-    // Convert selectedEntities to the format expected by onSend
-    const mentionsForSend = selectedEntities.map(entity => ({
-      id: entity.id,
-      typeKey: entity.type,
-      display: entity.name,
-      raw: entity,
-      start: entity.startIndex,
-      end: entity.endIndex
-    }))
-
     onSend(
       trimmed,
       files.map(f => f.file),
       false,
-      isSearching,
-      mentionsForSend.length > 0 ? mentionsForSend : undefined
+      isSearching
     )
     setValue('')
     clearFiles()
     setIsSearching(false)
     clearMentions()
-  }, [value, files, onSend, clearFiles, disabled, isSearching, selectedEntities, clearMentions])
+  }, [value, files, onSend, clearFiles, disabled, isSearching, clearMentions])
 
   const pickFiles = useCallback(
     (list: FileList | null) => {
@@ -188,6 +176,114 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [handleTextChange]
   )
 
+  const renderContentWithMentionsHTML = useCallback((): string => {
+    if (selectedEntities.length === 0) {
+      return value.replace(/\n/g, '<br>')
+    }
+
+    const sortedMentions = [...selectedEntities].sort((a, b) => a.startIndex - b.startIndex)
+    let html = ''
+    let lastIndex = 0
+
+    for (const mention of sortedMentions) {
+      if (mention.startIndex > lastIndex) {
+        const textBefore = value.slice(lastIndex, mention.startIndex)
+        html += textBefore.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+      }
+
+      const mentionMarkdown = value.slice(mention.startIndex, mention.endIndex)
+      const escapedMarkdown = mentionMarkdown
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+      const escapedMentionName = mention.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      html += `<span contenteditable="false" class="mention-badge gba:inline-flex gba:align-middle gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-primary/25 gba:bg-primary/10 gba:px-1.5 gba:py-0 gba:leading-none gba:text-xs gba:text-primary" data-mention-id="${mention.id}" data-mention-start="${mention.startIndex}" data-mention-end="${mention.endIndex}" data-mention-markdown="${escapedMarkdown}">${escapedMentionName}</span>`
+      lastIndex = mention.endIndex
+    }
+
+    if (lastIndex < value.length) {
+      const textAfter = value.slice(lastIndex)
+      html += textAfter.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+    }
+
+    return html || value.replace(/\n/g, '<br>')
+  }, [value, selectedEntities])
+
+  const getTextFromContentEditable = useCallback((element: HTMLElement): string => {
+    const clone = element.cloneNode(true) as HTMLElement
+    clone.querySelectorAll('.mention-badge').forEach(badge => {
+      const markdown = badge.getAttribute('data-mention-markdown') || ''
+      const textNode = document.createTextNode(markdown)
+      badge.parentNode?.replaceChild(textNode, badge)
+    })
+    return (clone.innerText || clone.textContent || '').replace(/\u00a0/g, ' ')
+  }, [])
+
+  const getContentEditableCaretPosition = useCallback((): number => {
+    if (!contentEditableRef.current) return value.length
+    const selection = window.getSelection()
+    if (!selection?.rangeCount) return value.length
+
+    const range = selection.getRangeAt(0)
+    const walker = document.createTreeWalker(
+      contentEditableRef.current,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+      null
+    )
+
+    let position = 0
+    let node: Node | null
+    while ((node = walker.nextNode())) {
+      if (node === range.startContainer) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          position += range.startOffset
+        }
+        break
+      }
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        position += node.textContent?.length || 0
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element
+        if (el.classList.contains('mention-badge')) {
+          const markdown = el.getAttribute('data-mention-markdown') || ''
+          position += markdown.length
+        }
+      }
+    }
+
+    return position
+  }, [value.length])
+
+  const removeMentionFromInput = useCallback(
+    (mentionId: string, mentionStart: number) => {
+      const mention = selectedEntities.find(m => m.id === mentionId && m.startIndex === mentionStart)
+      if (!mention) return false
+
+      const newValue = `${value.slice(0, mention.startIndex)}${value.slice(mention.endIndex)}`
+      setValue(newValue)
+      removeMention(mention)
+      handleTextChange(newValue, mention.startIndex)
+      return true
+    },
+    [selectedEntities, value, removeMention, handleTextChange]
+  )
+
+  const handleContentEditableInput = useCallback(
+    (e: React.FormEvent<HTMLDivElement>) => {
+      isTypingInContentEditableRef.current = true
+      const newValue = getTextFromContentEditable(e.currentTarget)
+      const caretPosition = getContentEditableCaretPosition()
+      setValue(newValue)
+      handleTextChange(newValue, Math.min(caretPosition, newValue.length))
+      setTimeout(() => {
+        isTypingInContentEditableRef.current = false
+      }, 60)
+    },
+    [getTextFromContentEditable, getContentEditableCaretPosition, handleTextChange]
+  )
+
   // Handle entity selection from mention popover
   const handleEntitySelect = useCallback(
     (entity: EntityReference) => {
@@ -198,7 +294,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       // Focus and set cursor position
       setTimeout(() => {
-        if (textareaRef.current) {
+        if (contentEditableRef.current) {
+          contentEditableRef.current.focus()
+          const selection = window.getSelection()
+          if (selection) {
+            const range = document.createRange()
+            range.selectNodeContents(contentEditableRef.current)
+            range.collapse(false)
+            selection.removeAllRanges()
+            selection.addRange(range)
+          }
+        } else if (textareaRef.current) {
           textareaRef.current.focus()
           textareaRef.current.setSelectionRange(newCaretPosition, newCaretPosition)
         }
@@ -209,7 +315,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Handle @ button click - insert @ and trigger mention
   const handleAtClick = useCallback(() => {
-    const currentPos = textareaRef.current?.selectionStart || value.length
+    const currentPos =
+      selectedEntities.length > 0
+        ? getContentEditableCaretPosition()
+        : (textareaRef.current?.selectionStart ?? value.length)
     const beforeCursor = value.slice(0, currentPos)
     const afterCursor = value.slice(currentPos)
 
@@ -223,12 +332,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
     // Focus and set cursor position
     setTimeout(() => {
-      if (textareaRef.current) {
+      if (selectedEntities.length > 0 && contentEditableRef.current) {
+        contentEditableRef.current.focus()
+      } else if (textareaRef.current) {
         textareaRef.current.focus()
         textareaRef.current.setSelectionRange(newCaretPosition, newCaretPosition)
       }
     }, 0)
-  }, [value, handleTextChange])
+  }, [value, handleTextChange, selectedEntities.length, getContentEditableCaretPosition])
 
   // Check if voice mode is supported (has the callback)
   const voiceModeSupported = !!onToggleVoiceMode
@@ -240,7 +351,30 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Handle keyboard navigation for mentions
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) => {
+      if (e.key === 'Backspace' && selectedEntities.length > 0 && contentEditableRef.current) {
+        const selection = window.getSelection()
+        const range = selection?.rangeCount ? selection.getRangeAt(0) : null
+        if (range) {
+          const container = range.startContainer
+          if (container.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
+            const prevSibling = container.previousSibling
+            if (prevSibling && prevSibling.nodeType === Node.ELEMENT_NODE) {
+              const badge = prevSibling as Element
+              if (badge.classList.contains('mention-badge')) {
+                const mentionId = badge.getAttribute('data-mention-id') || ''
+                const mentionStart = Number(badge.getAttribute('data-mention-start') || 0)
+                if (removeMentionFromInput(mentionId, mentionStart)) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  return
+                }
+              }
+            }
+          }
+        }
+      }
+
       // If mention popover is open, handle navigation
       if (mentionState?.isActive && entities.length > 0) {
         if (e.key === 'ArrowDown') {
@@ -281,7 +415,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         handleSend()
       }
     },
-    [mentionState, entities, selectedMentionIndex, handleEntitySelect, closeMention, handleSend]
+    [
+      mentionState,
+      entities,
+      selectedMentionIndex,
+      handleEntitySelect,
+      closeMention,
+      handleSend,
+      selectedEntities.length,
+      removeMentionFromInput
+    ]
   )
 
   // Restore cancelled message to input when cancelledMessageText changes
@@ -300,6 +443,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }, 0)
     }
   }, [cancelledMessageText, onClearCancelledMessage])
+
+  useEffect(() => {
+    if (!contentEditableRef.current || selectedEntities.length === 0 || isTypingInContentEditableRef.current) {
+      return
+    }
+    const html = renderContentWithMentionsHTML()
+    if (contentEditableRef.current.innerHTML !== html) {
+      contentEditableRef.current.innerHTML = html
+    }
+  }, [renderContentWithMentionsHTML, selectedEntities.length])
 
   // Blue color theme for animations (matching the EveryAI hero)
   const goldRgb = '59, 130, 246' // Royal blue
@@ -405,8 +558,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           text,
                           files.map(f => f.file),
                           false,
-                          isSearching,
-                          undefined
+                          isSearching
                         )
                         clearFiles()
                         setIsSearching(false)
@@ -680,6 +832,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         )}
                       </button>
 
+                      {/* My Preferences */}
+                      <button
+                        onClick={() => {
+                          onOpenPreferences?.()
+                        }}
+                        className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
+                        onMouseEnter={e => {
+                          if (!darkMode) {
+                            ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (!darkMode) {
+                            ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                          }
+                        }}
+                        disabled={disabled}
+                      >
+                        <div
+                          className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
+                          style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
+                        >
+                          <UserCircle
+                            className="gba:h-4 gba:w-4"
+                            style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
+                            weight="bold"
+                          />
+                        </div>
+                        <span className="gba:font-medium">My preferences</span>
+                      </button>
+
                       {/* Divider */}
                       <div
                         className="gba:h-px gba:my-1.5"
@@ -723,16 +906,31 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   />
                 )}
 
-                {/* Textarea - Seamless integration */}
-                <Textarea
-                  ref={textareaRef}
-                  value={value}
-                  onChange={e => handleValueChange(e.target.value)}
-                  placeholder={placeholder}
-                  className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
-                  onKeyDown={handleKeyDown}
-                  disabled={disabled}
-                />
+                {/* Input with inline mention chips when mentions exist */}
+                {selectedEntities.length > 0 ? (
+                  <div
+                    ref={contentEditableRef}
+                    contentEditable={!disabled}
+                    suppressContentEditableWarning
+                    onInput={handleContentEditableInput}
+                    onKeyDown={handleKeyDown}
+                    data-placeholder={placeholder}
+                    className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:overflow-y-auto gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:outline-none ${darkMode ? 'gba:text-white before:gba:text-white/50' : 'gba:text-foreground before:gba:text-muted-foreground'} ${!value ? 'before:content-[attr(data-placeholder)] before:pointer-events-none' : ''}`}
+                    role="textbox"
+                    aria-multiline="true"
+                    data-testid="chat-input-contenteditable"
+                  />
+                ) : (
+                  <Textarea
+                    ref={textareaRef}
+                    value={value}
+                    onChange={e => handleValueChange(e.target.value)}
+                    placeholder={placeholder}
+                    className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
+                    onKeyDown={handleKeyDown}
+                    disabled={disabled}
+                  />
+                )}
 
                 {/* Right side: Voice + Send - vertical premium stack */}
                 <div className="gba:flex gba:flex-col gba:items-center gba:gap-1.5 gba:flex-shrink-0">

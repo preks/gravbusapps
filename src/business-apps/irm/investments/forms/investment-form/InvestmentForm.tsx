@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useEffect } from 'react'
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { InvestmentLayout, InvestmentFormValues } from '@/common/components/investment/form-layouts/investment-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -74,6 +74,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
+  const hasAppliedInitialValues = useRef(false)
 
   // Get current form values using useWatch
   const formValues = useWatch({ control: form.control }) as InvestmentFormValues
@@ -226,12 +227,37 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     getPathByType
   ])
 
+  // Reset once for plain create mode to avoid clobbering user-selected group/type.
+  // Update mode and opportunity-prefill mode still rehydrate as data arrives.
+  useEffect(() => {
+    hasAppliedInitialValues.current = false
+  }, [investmentId, opportunityId])
+
   // Reset form when initial values change
   useEffect(() => {
-    if (enhancedInitialValues) {
-      form.reset(enhancedInitialValues as Partial<InvestmentFormValues>)
+    if (!enhancedInitialValues) return
+
+    const shouldRehydrateOnEveryChange = isUpdate || Boolean(mappedInitialValues)
+    if (!shouldRehydrateOnEveryChange && hasAppliedInitialValues.current) {
+      return
     }
-  }, [enhancedInitialValues, form])
+
+    const currentTypeId = form.getValues('investment.investmentTypeId')
+    const currentGroupRef = form.getValues('investment.investmentGroupRef')
+    const nextValues: Partial<InvestmentFormValues> = {
+      ...enhancedInitialValues,
+      investment: {
+        ...(enhancedInitialValues.investment || {}),
+        ...(!shouldRehydrateOnEveryChange && {
+          investmentTypeId: enhancedInitialValues.investment?.investmentTypeId ?? currentTypeId,
+          investmentGroupRef: enhancedInitialValues.investment?.investmentGroupRef ?? currentGroupRef
+        })
+      }
+    }
+
+    form.reset(nextValues)
+    hasAppliedInitialValues.current = true
+  }, [enhancedInitialValues, form, isUpdate, mappedInitialValues])
 
   // Get investment type ID from current form values
   const investmentTypeId = useMemo(() => {
@@ -270,31 +296,35 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   // Handle group selection
   const handleGroupSelect = useCallback(
     (group: string) => {
+      const setValueUnsafe = form.setValue as (name: string, value: unknown) => void
       // Check if this group has child types (Level 1 types under this group)
       const childTypes = getTypesByParent(group)
       const hasChildTypes = childTypes && childTypes.length > 0
 
       if (hasChildTypes) {
         // Has child types (Equity, Real Estate, Liquid Fund) - clear investmentTypeId to force user selection
-        form.setValue('investment.investmentTypeId', undefined as any)
+        setValueUnsafe('investment.investmentTypeId', undefined)
       } else {
         // No child types (Private Equity) - use group ID as investmentTypeId so fields are loaded
-        form.setValue('investment.investmentTypeId', group)
+        setValueUnsafe('investment.investmentTypeId', group)
       }
+      // Persist group directly so payload can always include investmentGroupRef,
+      // even when a dedicated investment type does not exist.
+      setValueUnsafe('investment.investmentGroupRef', group)
 
       // Set baseTypeId directly
       setBaseTypeId(group)
       if (!formValues.investment.name) {
-        form.setValue('investment.name', '')
+        setValueUnsafe('investment.name', '')
       }
-      form.setValue('investment.investmentStatus', { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any)
+      setValueUnsafe('investment.investmentStatus', { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' })
 
       // Clear all subtype data when group changes
-      form.setValue('investment.currency', undefined as any)
-      form.setValue('investment.investmentAccountId', undefined as any)
-      form.setValue('equityInvestment', undefined as any)
-      form.setValue('realEstateInvestment', undefined as any)
-      form.setValue('liquidFundInvestment', undefined as any)
+      setValueUnsafe('investment.currency', undefined)
+      setValueUnsafe('investment.investmentAccountId', undefined)
+      setValueUnsafe('equityInvestment', undefined)
+      setValueUnsafe('realEstateInvestment', undefined)
+      setValueUnsafe('liquidFundInvestment', undefined)
 
       setSkipAutoDetection(false)
       setCurrentStep('form')
@@ -344,15 +374,26 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   const handleSubmit = useCallback(
     async (formData: InvestmentFormValues) => {
       try {
-        const investment = sanitizeInvestment(formData, getPathByType)
-        const payload = buildInvestmentPayload(investment)
+        const sanitizedInvestment = sanitizeInvestment(formData, getPathByType)
+        const investmentForPayload =
+          isUpdate && fetchedInvestment
+            ? {
+                ...sanitizedInvestment,
+                // Preserve hidden planned/actual exit lifecycle fields during generic updates.
+                planedExit: sanitizedInvestment.planedExit ?? fetchedInvestment.planedExit,
+                plannedExitDate: sanitizedInvestment.plannedExitDate ?? fetchedInvestment.plannedExitDate,
+                exitDate: sanitizedInvestment.exitDate ?? fetchedInvestment.exitDate
+              }
+            : sanitizedInvestment
+
+        const payload = buildInvestmentPayload(investmentForPayload)
         return payload
       } catch (error) {
         console.error('Error building payload:', error)
         throw error
       }
     },
-    [getPathByType]
+    [getPathByType, isUpdate, fetchedInvestment]
   )
 
   // Handle form cancellation
@@ -363,11 +404,13 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   // Handle going back to group selection (only for create mode)
   const handleBack = useCallback(() => {
     if (!isUpdate) {
-      form.setValue('investment.investmentTypeId', undefined as any)
+      const setValueUnsafe = form.setValue as (name: string, value: unknown) => void
+      setValueUnsafe('investment.investmentTypeId', undefined)
+      setValueUnsafe('investment.investmentGroupRef', undefined)
       setBaseTypeId(null)
-      form.setValue('equityInvestment', undefined as any)
-      form.setValue('realEstateInvestment', undefined as any)
-      form.setValue('liquidFundInvestment', undefined as any)
+      setValueUnsafe('equityInvestment', undefined)
+      setValueUnsafe('realEstateInvestment', undefined)
+      setValueUnsafe('liquidFundInvestment', undefined)
       setCurrentStep('select')
       setSkipAutoDetection(true)
     }
