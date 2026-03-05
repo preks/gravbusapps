@@ -3,19 +3,21 @@
 ## Product Issues API
 
 This project tracks bugs and feature suggestions via a remote API at `https://product.newwork.com`.
-Use the following curl commands to interact with it. All requests require the auth header shown below.
 
-### Auth header (required on every request)
+### Authentication
 
-```
--H "X-Gravity-Issues-Token: 55555"
+The API token is stored in `.codex/config.toml` under `mcp_servers.gravity-issues.http_headers.Authorization`. Extract the Bearer token from there and use it as the value for `X-Gravity-Issues-Token` and `X-Gravity-Issues-Write-Token` headers.
+
+```bash
+# Extract token from config (do this first)
+TOKEN=$(grep -oP 'Bearer \K\S+' .codex/config.toml | tr -d '"')
 ```
 
 ### List issues
 
 ```bash
 curl -s "https://product.newwork.com/api/gravity/issues" \
-  -H "X-Gravity-Issues-Token: 55555" | jq .
+  -H "X-Gravity-Issues-Token: $TOKEN" | jq .
 ```
 
 ### Filter issues
@@ -39,19 +41,19 @@ Examples:
 ```bash
 # All open issues
 curl -s "https://product.newwork.com/api/gravity/issues?status=OPEN" \
-  -H "X-Gravity-Issues-Token: 55555" | jq .
+  -H "X-Gravity-Issues-Token: $TOKEN" | jq .
 
 # Issues reported in the last 24 hours
 curl -s "https://product.newwork.com/api/gravity/issues?since=$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-1d +%Y-%m-%dT%H:%M:%SZ)" \
-  -H "X-Gravity-Issues-Token: 55555" | jq .
+  -H "X-Gravity-Issues-Token: $TOKEN" | jq .
 
 # Issues from a specific date range
 curl -s "https://product.newwork.com/api/gravity/issues?since=2026-03-01&until=2026-03-04" \
-  -H "X-Gravity-Issues-Token: 55555" | jq .
+  -H "X-Gravity-Issues-Token: $TOKEN" | jq .
 
 # Open bugs on a specific screen
 curl -s "https://product.newwork.com/api/gravity/issues?status=OPEN&type=BUG&screenKey=platform/apps/every-office" \
-  -H "X-Gravity-Issues-Token: 55555" | jq .
+  -H "X-Gravity-Issues-Token: $TOKEN" | jq .
 ```
 
 ### Get single issue with full details
@@ -60,7 +62,7 @@ Always fetch a single issue by ID to get complete information including logs and
 
 ```bash
 curl -s "https://product.newwork.com/api/gravity/issues?id=ISSUE_UUID" \
-  -H "X-Gravity-Issues-Token: 55555" | jq '.items[0]'
+  -H "X-Gravity-Issues-Token: $TOKEN" | jq '.items[0]'
 ```
 
 ### Response format
@@ -84,13 +86,13 @@ Each issue contains:
 # Set to in progress
 curl -s -X POST "https://product.newwork.com/api/gravity/issue-status" \
   -H "Content-Type: application/json" \
-  -H "X-Gravity-Issues-Write-Token: 55555" \
+  -H "X-Gravity-Issues-Write-Token: $TOKEN" \
   -d '{"id": "ISSUE_UUID", "status": "IN_PROGRESS"}' | jq .
 
 # Mark as done WITH resolution details (always do this when closing a bug)
 curl -s -X POST "https://product.newwork.com/api/gravity/issue-status" \
   -H "Content-Type: application/json" \
-  -H "X-Gravity-Issues-Write-Token: 55555" \
+  -H "X-Gravity-Issues-Write-Token: $TOKEN" \
   -d '{"id": "ISSUE_UUID", "status": "DONE", "resolution_notes": "Description of what was wrong and how it was fixed", "resolved_by": "Codex Automation"}' | jq .
 ```
 
@@ -101,7 +103,7 @@ curl -s -X POST "https://product.newwork.com/api/gravity/issue-status" \
 ```bash
 curl -s -X POST "https://product.newwork.com/api/gravity/issue-delete" \
   -H "Content-Type: application/json" \
-  -H "X-Gravity-Issues-Write-Token: 55555" \
+  -H "X-Gravity-Issues-Write-Token: $TOKEN" \
   -d '{"id": "ISSUE_UUID"}' | jq .
 ```
 
@@ -109,18 +111,19 @@ curl -s -X POST "https://product.newwork.com/api/gravity/issue-delete" \
 
 ```bash
 curl -s "https://product.newwork.com/api/gravity/screens" \
-  -H "X-Gravity-Issues-Token: 55555" | jq .
+  -H "X-Gravity-Issues-Token: $TOKEN" | jq .
 ```
 
 ## Workflow
 
 When asked to fix a bug or work on a reported issue:
 
-1. Fetch the issue details by ID using the API above
-2. Read `buildInfo.evidence.telemetry.console` for console errors/warnings
-3. Read `buildInfo.evidence.telemetry.network` for failed network requests
-4. The `screenKey` maps to a file path under `src/business-apps/` (e.g. `platform/apps/every-office` → `src/business-apps/platform/apps/every-office/`)
-5. After fixing, update the issue status to `DONE` with `resolution_notes` explaining the fix and `resolved_by` identifying yourself
+1. Extract the API token from `.codex/config.toml`
+2. Fetch the issue details by ID using the API above
+3. Read `buildInfo.evidence.telemetry.console` for console errors/warnings
+4. Read `buildInfo.evidence.telemetry.network` for failed network requests
+5. The `screenKey` maps to a file path under `src/business-apps/` (e.g. `platform/apps/every-office` → `src/business-apps/platform/apps/every-office/`)
+6. After fixing, update the issue status to `DONE` with `resolution_notes` explaining the fix and `resolved_by` identifying yourself
 
 When asked for a daily review or summary:
 
