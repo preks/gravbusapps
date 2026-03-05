@@ -36,6 +36,20 @@ function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   return { row, col }
 }
 
+function parseA1Reference(cellRef: string): { row: number; col: number } | null {
+  const normalized = cellRef.trim().toUpperCase()
+  const singleCellMatch = /^([A-Z]+)(\d+)$/.exec(normalized)
+  if (!singleCellMatch) return null
+  const [, columnLetters, rowStr] = singleCellMatch
+  const row = Number(rowStr) - 1
+  if (!Number.isFinite(row) || row < 0) return null
+  let col = 0
+  for (let i = 0; i < columnLetters.length; i++) {
+    col = col * 26 + (columnLetters.charCodeAt(i) - 64)
+  }
+  return { row, col: col - 1 }
+}
+
 type SheetRangeShape = { startRow: number; endRow: number; startColumn: number; endColumn: number }
 type SheetCellMatrix = Record<number, Record<number, unknown>>
 
@@ -179,6 +193,14 @@ export interface UniverSheetGridProps {
   onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => void
   onSnapshotRequested?: () => Promise<void> | void
   onDataChange: (data: Record<string, unknown>[]) => void
+  onOpenCommentRequest?: () => void
+  commentedCells?: Array<{
+    cellReference: string
+    content: string
+    createdByName?: string
+    createdByAvatar?: string
+    createdAt?: string
+  }>
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
   onFormulaEvaluated?: (rowId: string, columnId: string, result: unknown) => void
   participants?: DocumentParticipant[]
@@ -205,6 +227,32 @@ export interface UniverSheetGridHandle {
   getWorkbookSnapshot: () => Record<string, unknown> | null
   getVisibleRangeValues: (rowCount: number, colCount: number) => Record<number, Record<number, unknown>> | null
   applyRemoteDimensions: (payload: CellDimensionsPayload) => void
+  getActiveCellReference: () => string | null
+}
+
+function toA1Reference(row: number, col: number): string {
+  if (row < 0 || col < 0) return ''
+  let column = col
+  let letters = ''
+  while (column >= 0) {
+    letters = String.fromCharCode((column % 26) + 65) + letters
+    column = Math.floor(column / 26) - 1
+  }
+  return `${letters}${row + 1}`
+}
+
+function formatCommentTime(value?: string): string {
+  if (!value) return ''
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toLocaleString()
+}
+
+function getInitials(name?: string): string {
+  const n = (name || '').trim()
+  if (!n) return 'U'
+  const parts = n.split(/\s+/).slice(0, 2)
+  return parts.map(p => p[0]?.toUpperCase() || '').join('') || 'U'
 }
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
@@ -234,11 +282,26 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const snapshotCheckpointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const requestSnapshotCheckpointRef = useRef<((force?: boolean) => void) | null>(null)
     const newRowClientIdByIndexRef = useRef<Map<number, string>>(new Map())
+    const activeSelectionRef = useRef<{ row: number; col: number } | null>(null)
     const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
     const propsRef = useRef({ sheet, data, columns, initialSnapshot })
     propsRef.current = { sheet, data, columns, initialSnapshot }
-    const callbacksRef = useRef({ onCellChange, onCellsChange, onSnapshotRequested, onDataChange, onCursorEmit })
-    callbacksRef.current = { onCellChange, onCellsChange, onSnapshotRequested, onDataChange, onCursorEmit }
+    const callbacksRef = useRef({
+      onCellChange,
+      onCellsChange,
+      onSnapshotRequested,
+      onDataChange,
+      onCursorEmit,
+      onOpenCommentRequest: props.onOpenCommentRequest
+    })
+    callbacksRef.current = {
+      onCellChange,
+      onCellsChange,
+      onSnapshotRequested,
+      onDataChange,
+      onCursorEmit,
+      onOpenCommentRequest: props.onOpenCommentRequest
+    }
     const readOnlyRef = useRef(props.isReadOnly)
     readOnlyRef.current = props.isReadOnly
     const lastEmittedCursorPathRef = useRef<string>('')
@@ -257,9 +320,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const sheetScrollRef = useRef<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 })
     // Allows the Univer init effect to trigger a cursor position refresh on scroll
     const refreshCursorRectsRef = useRef<(() => void) | null>(null)
+    const refreshCommentRectsRef = useRef<(() => void) | null>(null)
     const [cursorRects, setCursorRects] = useState<
       Record<string, { top: number; left: number; width: number; height: number }>
     >({})
+    const [commentRects, setCommentRects] = useState<Record<string, { top: number; left: number; width: number }>>({})
+    const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null)
     const remoteCursorOverlays = useMemo(
       () =>
         (props.participants ?? [])
@@ -278,6 +344,39 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             (entry): entry is { id: string; userName: string; userColor: string; row: number; col: number } => !!entry
           ),
       [props.participants]
+    )
+    const commentOverlays = useMemo(
+      () =>
+        (props.commentedCells ?? [])
+          .map(comment => {
+            const parsed = parseA1Reference(comment.cellReference)
+            if (!parsed) return null
+            return {
+              id: comment.cellReference,
+              ref: comment.cellReference,
+              row: parsed.row,
+              col: parsed.col,
+              content: comment.content,
+              createdByName: comment.createdByName,
+              createdByAvatar: comment.createdByAvatar,
+              createdAt: comment.createdAt
+            }
+          })
+          .filter(
+            (
+              entry
+            ): entry is {
+              id: string
+              ref: string
+              row: number
+              col: number
+              content: string
+              createdByName?: string
+              createdByAvatar?: string
+              createdAt?: string
+            } => !!entry
+          ),
+      [props.commentedCells]
     )
 
     const areCursorRectsEqual = (
@@ -426,6 +525,53 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
     }, [remoteCursorOverlays, resolveCellRect])
 
+    useEffect(() => {
+      if (commentOverlays.length === 0) {
+        refreshCommentRectsRef.current = null
+        setCommentRects({})
+        setHoveredCommentId(null)
+        return
+      }
+      const refresh = () => {
+        const next: Record<string, { top: number; left: number; width: number }> = {}
+        for (const marker of commentOverlays) {
+          const rect = resolveCellRect(marker.row, marker.col)
+          if (rect) next[marker.id] = { top: rect.top, left: rect.left, width: rect.width }
+        }
+        setCommentRects(prev => {
+          const prevKeys = Object.keys(prev)
+          const nextKeys = Object.keys(next)
+          if (prevKeys.length !== nextKeys.length) return next
+          for (const key of nextKeys) {
+            const p = prev[key]
+            const n = next[key]
+            if (!p) return next
+            if (Math.abs(p.top - n.top) > 0.5 || Math.abs(p.left - n.left) > 0.5 || Math.abs(p.width - n.width) > 0.5) {
+              return next
+            }
+          }
+          return prev
+        })
+      }
+      refreshCommentRectsRef.current = refresh
+      refresh()
+      const onResize = () => refresh()
+      const onScroll = () => refresh()
+      window.addEventListener('resize', onResize)
+      window.addEventListener('scroll', onScroll, true)
+      return () => {
+        refreshCommentRectsRef.current = null
+        window.removeEventListener('resize', onResize)
+        window.removeEventListener('scroll', onScroll, true)
+      }
+    }, [commentOverlays, resolveCellRect])
+
+    useEffect(() => {
+      if (!hoveredCommentId) return
+      const stillExists = commentOverlays.some(marker => marker.id === hoveredCommentId)
+      if (!stillExists) setHoveredCommentId(null)
+    }, [commentOverlays, hoveredCommentId])
+
     const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown) => {
       const api = univerAPIRef.current
       if (!api) return
@@ -509,6 +655,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           })
         }
         refreshCursorRectsRef.current?.()
+        refreshCommentRectsRef.current?.()
       },
       [sheet.id]
     )
@@ -543,15 +690,127 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       []
     )
 
+    const getActiveCellReference = useCallback((): string | null => {
+      let active = activeSelectionRef.current
+      if (!active) {
+        const workbook = univerAPIRef.current?.getActiveWorkbook?.()
+        const activeRange =
+          (workbook as { getActiveRange?: () => unknown } | null | undefined)?.getActiveRange?.() ??
+          (workbook?.getActiveSheet?.() as { getActiveRange?: () => unknown } | undefined)?.getActiveRange?.()
+        const rangeRecord = activeRange as
+          | {
+              getRow?: () => number
+              getColumn?: () => number
+              getRange?: () => { startRow?: number; startColumn?: number }
+              startRow?: number
+              startColumn?: number
+              row?: number
+              column?: number
+            }
+          | undefined
+        const nestedRange = rangeRecord?.getRange?.()
+        const row = rangeRecord?.getRow?.() ?? nestedRange?.startRow ?? rangeRecord?.startRow ?? rangeRecord?.row
+        const col =
+          rangeRecord?.getColumn?.() ?? nestedRange?.startColumn ?? rangeRecord?.startColumn ?? rangeRecord?.column
+        if (typeof row === 'number' && typeof col === 'number') {
+          active = { row, col }
+        }
+      }
+      if (!active) return null
+      const a1 = toA1Reference(active.row, active.col)
+      return a1 || null
+    }, [])
+
+    useEffect(() => {
+      const container = containerRef.current
+      if (!container || props.isReadOnly) return
+
+      const labelCandidates = ['Cut', 'Paste', 'Delete', 'Insert', 'Freeze']
+      const customLabel = 'Add comment'
+      const customMarkerAttr = 'data-univer-custom-comment-item'
+
+      const tryInjectMenuItem = (anchorX: number, anchorY: number): boolean => {
+        const allElements = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+        const visible = allElements.filter(el => {
+          const rect = el.getBoundingClientRect()
+          if (rect.width < 80 || rect.height < 40) return false
+          const style = window.getComputedStyle(el)
+          return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
+        })
+        const candidates = visible.filter(el => {
+          const text = (el.textContent || '').trim()
+          if (!text) return false
+          const hits = labelCandidates.filter(label => text.includes(label)).length
+          return hits >= 2
+        })
+        if (candidates.length === 0) return false
+
+        const closest = candidates
+          .map(el => {
+            const rect = el.getBoundingClientRect()
+            const cx = rect.left + rect.width / 2
+            const cy = rect.top + rect.height / 2
+            const dist = Math.hypot(cx - anchorX, cy - anchorY)
+            return { el, dist }
+          })
+          .sort((a, b) => a.dist - b.dist)[0]?.el
+        if (!closest) return false
+        if (closest.querySelector(`[${customMarkerAttr}]`)) return true
+
+        const templateItem = (closest.querySelector<HTMLElement>('[role="menuitem"]') ??
+          closest.querySelector<HTMLElement>('li') ??
+          closest.firstElementChild) as HTMLElement | null
+        if (!templateItem) return false
+
+        const item = templateItem.cloneNode(true) as HTMLElement
+        item.setAttribute(customMarkerAttr, 'true')
+        item.querySelectorAll('[aria-haspopup="true"]').forEach(node => node.removeAttribute('aria-haspopup'))
+        item.querySelectorAll<HTMLElement>('span,div,p').forEach(node => {
+          const text = (node.textContent || '').trim()
+          if (labelCandidates.includes(text)) {
+            node.textContent = customLabel
+          }
+        })
+        if (!(item.textContent || '').includes(customLabel)) {
+          item.textContent = customLabel
+        }
+        item.addEventListener('click', () => {
+          callbacksRef.current.onOpenCommentRequest?.()
+        })
+        closest.prepend(item)
+        return true
+      }
+
+      const onNativeContextMenu = (e: MouseEvent) => {
+        const x = e.clientX
+        const y = e.clientY
+        let attempts = 0
+        const maxAttempts = 6
+        const run = () => {
+          attempts += 1
+          const ok = tryInjectMenuItem(x, y)
+          if (!ok && attempts < maxAttempts) {
+            window.setTimeout(run, 40)
+          }
+        }
+        window.setTimeout(run, 0)
+      }
+
+      // Capture-phase lets us react to native Univer menu opening without replacing it.
+      container.addEventListener('contextmenu', onNativeContextMenu, true)
+      return () => container.removeEventListener('contextmenu', onNativeContextMenu, true)
+    }, [props.isReadOnly])
+
     useImperativeHandle(
       ref,
       () => ({
         applyRemoteCellUpdate,
         getWorkbookSnapshot,
         getVisibleRangeValues,
-        applyRemoteDimensions
+        applyRemoteDimensions,
+        getActiveCellReference
       }),
-      [applyRemoteCellUpdate, getWorkbookSnapshot, getVisibleRangeValues, applyRemoteDimensions]
+      [applyRemoteCellUpdate, getWorkbookSnapshot, getVisibleRangeValues, applyRemoteDimensions, getActiveCellReference]
     )
 
     // Keep conversion context in sync when data/columns change (e.g. after save) so value-change handler maps indices correctly.
@@ -705,6 +964,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const handleSheetScroll = (scrollLeft: number, scrollTop: number) => {
         sheetScrollRef.current = { scrollLeft, scrollTop }
         refreshCursorRectsRef.current?.()
+        refreshCommentRectsRef.current?.()
       }
       let scrollStateReadBlockedUntil = 0
       const syncScrollFromWorksheet = () => {
@@ -788,8 +1048,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const commandEventKey =
         (univerAPI as { Event?: { CommandExecuted?: string } }).Event?.CommandExecuted ?? 'CommandExecuted'
       const commandDisposable = (
-        univerAPI as { addEvent?(event: string, cb: (p: { type?: number }) => void): { dispose(): void } }
-      ).addEvent?.(commandEventKey, (event: { type?: number }) => {
+        univerAPI as {
+          addEvent?(
+            event: string,
+            cb: (p: { type?: number; id?: string; commandId?: string; params?: unknown }) => void
+          ): { dispose(): void }
+        }
+      ).addEvent?.(commandEventKey, (event: { type?: number; id?: string; commandId?: string; params?: unknown }) => {
+        const commandId = String(event?.id ?? event?.commandId ?? '').toLowerCase()
+        if (commandId.includes('comment') || commandId.includes('thread')) {
+          callbacksRef.current.onOpenCommentRequest?.()
+        }
         if (readOnlyRef.current) return
         const t = event?.type
         // Only MUTATION (type 2) represents an actual data change. COMMAND (type 0)
@@ -903,6 +1172,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const selectionEventKey =
         (univerAPI as { Event?: { SelectionMoveEnd?: string } }).Event?.SelectionMoveEnd ?? 'SelectionMoveEnd'
       const emitCursorByRowCol = (startRow: number, startColumn: number) => {
+        activeSelectionRef.current = { row: startRow, col: startColumn }
         const onCursorEmitCb = callbacksRef.current.onCursorEmit
         if (!onCursorEmitCb) return
         const path = [`row:${startRow}`, `col:${startColumn}`]
@@ -1210,6 +1480,78 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               )
             })()
           )}
+        </div>
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-10">
+          {commentOverlays.map(marker => {
+            const rect = commentRects[marker.id]
+            const top = rect ? rect.top : CURSOR_OVERLAY_HEADER_HEIGHT_PX + marker.row * CURSOR_OVERLAY_ROW_HEIGHT_PX
+            const leftBase = rect
+              ? rect.left
+              : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + marker.col * CURSOR_OVERLAY_COL_WIDTH_PX
+            const width = rect ? rect.width : CURSOR_OVERLAY_COL_WIDTH_PX
+            return (
+              <React.Fragment key={marker.id}>
+                <div
+                  className="gba:absolute gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-blue-500 gba:border gba:border-white gba:shadow-sm"
+                  style={{
+                    top: Math.max(0, top + 2),
+                    left: Math.max(0, leftBase + Math.max(0, width - 10))
+                  }}
+                  title={`Comment: ${marker.ref}`}
+                  data-testid="univer-cell-comment-badge"
+                />
+                <div
+                  className="gba:absolute gba:pointer-events-auto"
+                  style={{
+                    top: Math.max(0, top),
+                    left: Math.max(0, leftBase),
+                    width: Math.max(12, width),
+                    height: CURSOR_OVERLAY_ROW_HEIGHT_PX
+                  }}
+                  onMouseEnter={() => setHoveredCommentId(marker.id)}
+                  onMouseLeave={() => setHoveredCommentId(prev => (prev === marker.id ? null : prev))}
+                />
+              </React.Fragment>
+            )
+          })}
+          {(() => {
+            if (!hoveredCommentId) return null
+            const marker = commentOverlays.find(entry => entry.id === hoveredCommentId)
+            if (!marker) return null
+            const rect = commentRects[marker.id]
+            const top = rect ? rect.top : CURSOR_OVERLAY_HEADER_HEIGHT_PX + marker.row * CURSOR_OVERLAY_ROW_HEIGHT_PX
+            const left = rect ? rect.left : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + marker.col * CURSOR_OVERLAY_COL_WIDTH_PX
+            const author = marker.createdByName || 'User'
+            const avatar = marker.createdByAvatar
+            const time = formatCommentTime(marker.createdAt)
+            return (
+              <div
+                className="gba:absolute gba:w-[260px] gba:max-w-[65vw] gba:rounded-2xl gba:border gba:bg-card gba:p-4 gba:shadow-xl"
+                style={{ top: Math.max(8, top - 164), left: Math.max(8, left - 24) }}
+                data-testid="univer-cell-comment-hover-card"
+              >
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  {avatar ? (
+                    <img
+                      src={avatar}
+                      alt={author}
+                      className="gba:h-9 gba:w-9 gba:rounded-full gba:object-cover gba:border"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-emerald-800 gba:text-xs gba:font-semibold gba:text-white">
+                      {getInitials(author)}
+                    </div>
+                  )}
+                  <div className="gba:flex gba:flex-col">
+                    <div className="gba:text-sm gba:leading-none gba:font-semibold">{author}</div>
+                    {time && <div className="gba:text-xs gba:leading-none gba:text-muted-foreground">{time}</div>}
+                  </div>
+                </div>
+                <div className="gba:mt-3 gba:text-sm gba:leading-snug">{marker.content || ''}</div>
+              </div>
+            )
+          })()}
         </div>
       </div>
     )

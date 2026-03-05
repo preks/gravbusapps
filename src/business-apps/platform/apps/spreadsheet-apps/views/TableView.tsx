@@ -21,6 +21,14 @@ export interface TableViewProps {
   onCellChange?: (rowId: string, columnName: string, value: unknown) => void
   onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => void
   onSnapshotRequested?: () => Promise<void> | void
+  onOpenCommentRequest?: () => void
+  commentedCells?: Array<{
+    cellReference: string
+    content: string
+    createdByName?: string
+    createdByAvatar?: string
+    createdAt?: string
+  }>
   isEditable?: boolean
   onAddRow?: () => void
   showAddRow?: boolean
@@ -55,6 +63,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   onCellChange,
   onCellsChange,
   onSnapshotRequested,
+  onOpenCommentRequest,
+  commentedCells,
   onDataChange,
   onColumnAdd,
   participants,
@@ -110,6 +120,8 @@ export const TableView = memo<TableViewProps>(function TableView({
         onCellChange={handleCellChange}
         onCellsChange={handleCellsChange}
         onSnapshotRequested={handleSnapshotRequested}
+        onOpenCommentRequest={onOpenCommentRequest}
+        commentedCells={commentedCells}
         onDataChange={handleDataChange}
         onColumnAdd={onColumnAdd}
         participants={participants}

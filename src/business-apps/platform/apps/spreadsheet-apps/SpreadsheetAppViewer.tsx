@@ -793,6 +793,71 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [isExporting, setIsExporting] = useState(false)
 
   const spreadsheetGridRef = useRef<UniverSheetGridHandle | null>(null)
+  const commentedCells = useMemo(() => {
+    const allComments = Array.isArray(comments.comments) ? comments.comments : []
+    const roots = allComments
+      .filter(comment => {
+        const record = comment as {
+          type?: string
+          parentId?: string
+          resolvedAt?: string
+          sheetId?: string
+          cellReference?: string
+          content?: string
+          createdByName?: string
+          createdByAvatar?: string
+          createdAt?: string
+        }
+        return (
+          record.type === 'cell' &&
+          !record.parentId &&
+          !record.resolvedAt &&
+          typeof record.cellReference === 'string' &&
+          record.cellReference.trim().length > 0 &&
+          (!record.sheetId || record.sheetId === activeSheetId)
+        )
+      })
+      .map(comment => {
+        const record = comment as {
+          cellReference: string
+          content?: string
+          createdByName?: string
+          createdByAvatar?: string
+          createdAt?: string
+        }
+        return {
+          cellReference: record.cellReference.trim().toUpperCase(),
+          content: String(record.content || ''),
+          createdByName: record.createdByName,
+          createdByAvatar: record.createdByAvatar,
+          createdAt: record.createdAt
+        }
+      })
+    const latestByCell = new Map<
+      string,
+      { cellReference: string; content: string; createdByName?: string; createdByAvatar?: string; createdAt?: string }
+    >()
+    for (const comment of roots) {
+      const existing = latestByCell.get(comment.cellReference)
+      if (!existing) {
+        latestByCell.set(comment.cellReference, comment)
+        continue
+      }
+      const existingTs = existing.createdAt ? Date.parse(existing.createdAt) : 0
+      const nextTs = comment.createdAt ? Date.parse(comment.createdAt) : 0
+      if (nextTs >= existingTs) {
+        latestByCell.set(comment.cellReference, comment)
+      }
+    }
+    return Array.from(latestByCell.values())
+  }, [comments.comments, activeSheetId])
+  const getSelectedCellRef = useCallback(
+    (): string | null => spreadsheetGridRef.current?.getActiveCellReference?.() ?? null,
+    []
+  )
+  const handleOpenCommentRequest = useCallback(() => {
+    setShowComments(true)
+  }, [])
 
   const resolveRemoteCellCoordinates = useCallback(
     (
@@ -2053,6 +2118,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               onCellChange={handleCellChange}
               onCellsChange={handleCellsChange}
               onSnapshotRequested={enqueueUniverSnapshotCheckpoint}
+              onOpenCommentRequest={handleOpenCommentRequest}
+              commentedCells={commentedCells}
               onDataChange={handleUniverDataChange}
               participants={collaboration.cursorParticipants}
               onOperationEmit={op => collaboration.emitOperation(op as any)}
@@ -2129,6 +2196,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         publishing={publishing as any}
         showComments={showComments}
         setShowComments={setShowComments}
+        getSelectedCellRef={getSelectedCellRef}
+        activeSheetId={activeSheetId}
         comments={comments as any}
         currentUserId={userId}
         currentUserName={collaboration.currentUserName}
