@@ -183,7 +183,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       title: 'Win Rate',
       value: trendData?.actualWinRateThisMonth || winRate,
       suffix: '%',
-      prefix: <TrophyOutlined />,
+      prefix: <TrophyIcon />,
       description: 'Percentage of won opportunities',
       ...(trendData && !trendLoading
         ? {
@@ -263,7 +263,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       title: 'Conversion Rate',
       value: trendData?.actualConversionRateThisMonth ?? 0,
       suffix: '%',
-      prefix: <PercentageOutlined />,
+      prefix: <PercentIcon />,
       description: 'Leads converted to opportunities',
       ...(trendData && !trendLoading
         ? {

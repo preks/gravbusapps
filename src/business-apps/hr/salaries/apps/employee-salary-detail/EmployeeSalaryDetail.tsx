@@ -115,7 +115,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
           {isAdvancedSalaryEnabled && (
-            <Button type="primary" icon={<PlusOutlined />} data-testid="add-salary-button-empty">
+            <Button type="primary" icon={<PlusIcon />} data-testid="add-salary-button-empty">
               {getTranslationFromI18nKeyAndLabel('salary.button.add', 'Add Salary')}
             </Button>
           )}
@@ -232,7 +232,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
                     </h3>
 
                     {isAdvancedSalaryEnabled && (
-                      <Button icon={<PlusOutlined />} data-testid="add-component-button">
+                      <Button icon={<PlusIcon />} data-testid="add-component-button">
                         {getTranslationFromI18nKeyAndLabel('salary.components.add', 'Add Component')}
                       </Button>
                     )}

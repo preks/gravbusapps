@@ -547,11 +547,11 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
       case 'APPROVAL':
         return <CheckCircleIcon size={16} style={{ color: '#52c41a' }} />
       case 'ACKNOWLEDGE':
-        return <EyeOutlined style={{ color: '#1890ff' }} />
+        return <EyeIcon style={{ color: '#1890ff' }} />
       case 'TASK':
         return <ListBulletsIcon size={16} style={{ color: '#722ed1' }} />
       case 'INFORMATION':
-        return <InfoCircleOutlined style={{ color: '#faad14' }} />
+        return <InfoIcon style={{ color: '#faad14' }} />
       default:
         return <ClockIcon size={16} style={{ color: '#8c8c8c' }} />
     }

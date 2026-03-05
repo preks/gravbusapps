@@ -20,6 +20,7 @@ export interface BuildingViewProps {
   phaseMessage: string | null
   isBuilding: boolean
   tiles: TileState
+  isProgressEstimated?: boolean
   appMetadata?: AppMetadata
 }
 
@@ -35,6 +36,7 @@ export const BuildingView: React.FC<BuildingViewProps> = ({
   phaseMessage,
   isBuilding,
   tiles,
+  isProgressEstimated = false,
   appMetadata
 }) => {
   return (
@@ -75,6 +77,7 @@ export const BuildingView: React.FC<BuildingViewProps> = ({
                 <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-muted-foreground">
                   <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin" />
                   {phaseMessage || 'Processing build...'}
+                  {isProgressEstimated && <span className="gba:text-[10px] gba:italic">(progress estimated)</span>}
                 </span>
               )}
             </div>
@@ -100,6 +103,7 @@ export const BuildingView: React.FC<BuildingViewProps> = ({
               isBuilding={isBuilding}
               currentPhase={currentPhase}
               phaseMessage={phaseMessage}
+              isProgressEstimated={isProgressEstimated}
               showHeader={false}
             />
           </div>

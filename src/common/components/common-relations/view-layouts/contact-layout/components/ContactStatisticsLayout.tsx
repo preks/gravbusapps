@@ -62,7 +62,7 @@ export const ContactStatisticsLayout: React.FC<ContactStatisticsLayoutProps> = (
       key: 'active-contacts',
       title: 'Active Contacts',
       value: activeContacts.current,
-      prefix: <ContactsOutlined />,
+      prefix: <AddressBookIcon />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'With active opportunities',

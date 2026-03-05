@@ -160,7 +160,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: totalPlans,
-        prefix: <FileTextOutlined />,
+        prefix: <FileTextIcon />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(

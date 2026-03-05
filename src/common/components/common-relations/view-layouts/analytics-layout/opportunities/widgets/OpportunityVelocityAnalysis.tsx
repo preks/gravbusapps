@@ -87,7 +87,7 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4 gba:mb-6">
           <div className="gba:bg-blue-50 gba:p-4 gba:rounded-lg" data-testid="avg-pipeline-days">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <ClockCircleOutlined className="gba:text-blue-600" />
+              <ClockIcon className="gba:text-blue-600" />
               <span className="gba:text-sm gba:font-medium gba:text-blue-600">Avg. Pipeline Days</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-blue-900">{data.averageDaysInPipeline}</div>
@@ -126,7 +126,7 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
         <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6 gba:mt-6">
           <div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-              <TrophyOutlined className="gba:text-green-600" />
+              <TrophyIcon className="gba:text-green-600" />
               <h4 className="gba:text-lg gba:font-semibold gba:text-green-800">Recent Wins</h4>
               <Badge variant="secondary" className="gba:ml-2">
                 {data.quickWins.length}

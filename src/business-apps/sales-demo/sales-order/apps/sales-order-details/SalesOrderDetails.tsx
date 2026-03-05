@@ -891,7 +891,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
                     {order.deliveryAddressStreet && (
                       <Descriptions.Item label="Delivery Address">
                         <Space>
-                          <EnvironmentOutlined />
+                          <MapPinIcon />
                           <Text>{order.deliveryAddressStreet}</Text>
                         </Space>
                       </Descriptions.Item>
@@ -899,7 +899,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orde
                     {order.invoiceAddressStreet && (
                       <Descriptions.Item label="Invoice Address">
                         <Space>
-                          <EnvironmentOutlined />
+                          <MapPinIcon />
                           <Text>{order.invoiceAddressStreet}</Text>
                         </Space>
                       </Descriptions.Item>

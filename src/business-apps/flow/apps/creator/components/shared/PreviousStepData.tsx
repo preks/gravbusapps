@@ -134,7 +134,7 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
         render: (timestamp: string) => (
           <Space direction="vertical" size="small">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <CalendarOutlined className="gba:text-green-500" />
+              <CalendarIcon className="gba:text-green-500" />
               <span className="gba:text-sm">{new Date(timestamp).toLocaleDateString()}</span>
             </div>
             <Text type="secondary" className="gba:text-xs">

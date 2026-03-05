@@ -397,7 +397,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
             data-testid="method-quote-card"
           >
             <div className="gba:p-4">
-              <FileTextOutlined className="gba:text-4xl gba:text-blue-500 gba:mb-4" />
+              <FileTextIcon className="gba:text-4xl gba:text-blue-500 gba:mb-4" />
               <Title level={4} className="gba:mb-2">
                 From Existing Quote
               </Title>

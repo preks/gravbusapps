@@ -217,7 +217,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
             <Statistic
               title="Overall Conversion Rate"
               value={pipelineMetrics.conversionRate}
-              prefix={<BarChartOutlined />}
+              prefix={<ChartBarIcon />}
               suffix="%"
               valueStyle={{
                 fontSize: '24px',

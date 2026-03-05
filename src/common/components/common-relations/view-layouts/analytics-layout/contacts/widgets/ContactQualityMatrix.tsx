@@ -138,7 +138,7 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data
             </div>
             <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-yellow-50 gba:border-yellow-200">
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <InfoCircleOutlined className="gba:text-yellow-600" />
+                <InfoIcon className="gba:text-yellow-600" />
                 <span className="gba:text-sm gba:font-medium gba:text-yellow-600">Missing Accounts</span>
               </div>
               <div className="gba:text-2xl gba:font-bold gba:text-yellow-900">{data.issuesSummary.missingAccounts}</div>
