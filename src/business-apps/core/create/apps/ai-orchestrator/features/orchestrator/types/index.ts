@@ -25,13 +25,18 @@ export type { BuildStatus, BuildPhase, ClarifyingQuestion, BuildAnalysis, UserSu
 export type {
   AnalyzeRequest,
   AnalyzeResponse,
+  AnalyzeStreamEvent,
   ExecuteRequest,
   UpdatePlanRequest,
   RefinePlanRequest,
   ListPlansParams,
   ListPlansResponse,
   ListPlansPaging,
-  ListPlansLinks
+  ListPlansLinks,
+  DraftCheckpoint,
+  CreateDraftCheckpointRequest,
+  RestoreDraftCheckpointRequest,
+  RestoreDraftCheckpointResponse
 } from './api'
 
 // Progress tracking types
@@ -47,5 +52,13 @@ export type { AgentToolUpdate, FlowStepUpdate, FlowUpdate, ScreenUpdate, WiringP
 export type { OrchestratorViewState, ComponentTileInfo, TileState } from './ui'
 
 // Chat types
-export type { ChatMessageRole, ChatMessageType, CreateChatMessage, CanvasTab, CanvasTabInfo } from './chat'
+export type {
+  ChatMessageRole,
+  ChatMessageType,
+  ChatMessageBlock,
+  ChatMessageToolCall,
+  CreateChatMessage,
+  CanvasTab,
+  CanvasTabInfo
+} from './chat'
 export { CANVAS_TABS } from './chat'
