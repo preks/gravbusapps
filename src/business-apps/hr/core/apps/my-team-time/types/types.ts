@@ -44,6 +44,14 @@ export interface TeamAbsenceToday {
   employeeAbsenceId: string
 }
 
+export interface AbsenceNetEntry {
+  employeeId: string
+  typeRef: string
+  dayDate: string
+  netSignedEps: number | null
+  netConsumed: number | null
+}
+
 export interface PendingAbsenceRequest {
   id: string
   startDate: string

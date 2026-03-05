@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_TEAM_ATTENDANCE_FOR_RANGE, GET_TEAM_ABSENCES_CALENDAR_RANGE } from '../queries/queries'
-import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday, ViewMode } from '../types/types'
-import { toDateString } from '../utils/timeUtils'
+import {
+  GET_TEAM_ATTENDANCE_FOR_RANGE,
+  GET_TEAM_ABSENCES_CALENDAR_RANGE,
+  GET_TEAM_ABSENCE_NET_FOR_RANGE
+} from '../queries/queries'
+import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday, AbsenceNetEntry, ViewMode } from '../types/types'
+import { toLocalDateKey } from '../utils/timeUtils'
 
 interface UseTeamAttendanceReturn {
   attendance: TeamAttendanceEntry[]
   absences: TeamAbsenceToday[]
+  absenceNet: AbsenceNetEntry[]
   currentDate: Date
   viewMode: ViewMode
   setViewMode: (mode: ViewMode) => void
@@ -29,13 +34,14 @@ export const useTeamAttendance = (
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   const [attendance, setAttendance] = useState<TeamAttendanceEntry[]>([])
   const [absences, setAbsences] = useState<TeamAbsenceToday[]>([])
+  const [absenceNet, setAbsenceNet] = useState<AbsenceNetEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const getDateRange = useCallback((): { from: string; to: string } => {
     const d = new Date(currentDate)
     if (viewMode === 'day') {
-      const str = toDateString(d)
+      const str = toLocalDateKey(d)
       return { from: str, to: str }
     }
     if (viewMode === 'week') {
@@ -44,11 +50,11 @@ export const useTeamAttendance = (
       monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7))
       const sunday = new Date(monday)
       sunday.setDate(monday.getDate() + 6)
-      return { from: toDateString(monday), to: toDateString(sunday) }
+      return { from: toLocalDateKey(monday), to: toLocalDateKey(sunday) }
     }
     const monthStart = new Date(d.getFullYear(), d.getMonth(), 1)
     const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-    return { from: toDateString(monthStart), to: toDateString(monthEnd) }
+    return { from: toLocalDateKey(monthStart), to: toLocalDateKey(monthEnd) }
   }, [currentDate, viewMode])
 
   const fetchData = useCallback(async () => {
@@ -63,13 +69,18 @@ export const useTeamAttendance = (
     try {
       const { from, to } = getDateRange()
 
-      const [attendanceResult, absenceResult] = await Promise.all([
+      const [attendanceResult, absenceResult, absenceNetResult] = await Promise.all([
         graphqlClient.request<any>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
           employeeIds: memberIds,
           dateFrom: from,
           dateTo: to
         }),
         graphqlClient.request<any>(GET_TEAM_ABSENCES_CALENDAR_RANGE, {
+          employeeIds: memberIds,
+          from,
+          to
+        }),
+        graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
           employeeIds: memberIds,
           from,
           to
@@ -100,6 +111,16 @@ export const useTeamAttendance = (
           status: r.status,
           dayDate: r.dayDate,
           employeeAbsenceId: r.employeeAbsenceId
+        }))
+      )
+
+      setAbsenceNet(
+        (absenceNetResult?.DailyAbsenceNetView ?? []).map((r: any) => ({
+          employeeId: r.employeeId,
+          typeRef: r.typeRef,
+          dayDate: r.dayDate,
+          netSignedEps: r.netSignedEps !== undefined && r.netSignedEps !== null ? Number(r.netSignedEps) : null,
+          netConsumed: r.netConsumed !== undefined && r.netConsumed !== null ? Number(r.netConsumed) : null
         }))
       )
     } catch (err) {
@@ -143,6 +164,7 @@ export const useTeamAttendance = (
   return {
     attendance,
     absences,
+    absenceNet,
     currentDate,
     viewMode,
     setViewMode,

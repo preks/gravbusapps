@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_TEAM_ATTENDANCE_FOR_RANGE, GET_TEAM_ABSENCE_NET_FOR_RANGE } from '../queries/queries'
 import { TeamMember, TeamAttendanceEntry, CapacityRow } from '../types/types'
-import { toDateString, toLocalDateKey, getPlannedMinutesForDate, parseDurationToMinutes } from '../utils/timeUtils'
+import { toLocalDateKey, getPlannedMinutesForDate, parseDurationToMinutes } from '../utils/timeUtils'
 
 interface UseTeamCapacityReturn {
   rows: CapacityRow[]
@@ -50,8 +50,8 @@ export const useTeamCapacity = (
     try {
       const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
       const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
-      const fromStr = toDateString(monthStart)
-      const toStr = toDateString(monthEnd)
+      const fromStr = toLocalDateKey(monthStart)
+      const toStr = toLocalDateKey(monthEnd)
 
       const queries: Promise<any>[] = [
         graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
@@ -87,7 +87,7 @@ export const useTeamCapacity = (
         let contractTargetMinutes = 0
         const cursor = new Date(monthStart)
         while (cursor <= monthEnd) {
-          contractTargetMinutes += getPlannedMinutesForDate(toDateString(cursor), member.workingHours)
+          contractTargetMinutes += getPlannedMinutesForDate(toLocalDateKey(cursor), member.workingHours)
           cursor.setDate(cursor.getDate() + 1)
         }
 
@@ -101,7 +101,7 @@ export const useTeamCapacity = (
         let targetUpToNow = 0
         const targetCursor = new Date(monthStart)
         while (targetCursor <= endDate) {
-          const planned = getPlannedMinutesForDate(toDateString(targetCursor), member.workingHours)
+          const planned = getPlannedMinutesForDate(toLocalDateKey(targetCursor), member.workingHours)
           targetUpToNow += planned
           if (planned > 0) {
             const dateStr = toLocalDateKey(targetCursor)

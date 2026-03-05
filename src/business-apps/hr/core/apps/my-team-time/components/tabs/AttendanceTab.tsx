@@ -22,8 +22,7 @@ import {
   getLocationLabel,
   parseDurationToMinutes,
   toLocalDateKey,
-  getPlannedMinutesForDate,
-  toDateString
+  getPlannedMinutesForDate
 } from '../../utils/timeUtils'
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -201,6 +200,7 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
   const {
     attendance,
     absences,
+    absenceNet,
     currentDate,
     viewMode,
     setViewMode,
@@ -249,6 +249,18 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
     return { from: new Date(d.getFullYear(), d.getMonth(), 1), to: new Date(d.getFullYear(), d.getMonth() + 1, 0) }
   }, [currentDate, viewMode])
 
+  const netByEmployeeAndDay = useMemo((): Map<string, Map<string, number>> => {
+    const map = new Map<string, Map<string, number>>()
+    for (const row of absenceNet) {
+      const value = Number(row.netSignedEps ?? row.netConsumed) || 0
+      if (value <= 0) continue
+      if (!map.has(row.employeeId)) map.set(row.employeeId, new Map())
+      const dayMap = map.get(row.employeeId)!
+      dayMap.set(row.dayDate, (dayMap.get(row.dayDate) ?? 0) + value)
+    }
+    return map
+  }, [absenceNet])
+
   const periodSummaries = useMemo((): Record<string, PeriodSummary> => {
     if (viewMode === 'day') return {}
     const result: Record<string, PeriodSummary> = {}
@@ -256,19 +268,18 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
 
     for (const member of members) {
       const memberAttendance = attendance.filter(a => a.employeeId === member.id)
-      const memberAbsences = absences.filter(a => a.employeeId === member.id && a.status === 'APPROVED')
-      const absenceDates = new Set(memberAbsences.map(a => a.dayDate))
+      const memberNetByDay = netByEmployeeAndDay.get(member.id) ?? new Map<string, number>()
 
       let targetMinutes = 0
       let daysOff = 0
       const d = new Date(from)
       while (d <= to) {
-        const dateKey = toDateString(d)
+        const dateKey = toLocalDateKey(d)
         const planned = getPlannedMinutesForDate(dateKey, member.workingHours)
-        if (absenceDates.has(dateKey)) {
-          daysOff++
-        } else {
-          targetMinutes += planned
+        if (planned > 0) {
+          const netFraction = Math.min(memberNetByDay.get(dateKey) ?? 0, 1)
+          daysOff += netFraction
+          targetMinutes += planned * (1 - netFraction)
         }
         d.setDate(d.getDate() + 1)
       }
@@ -276,10 +287,15 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
       const actualMinutes = memberAttendance.reduce((sum, e) => sum + parseDurationToMinutes(e.effectiveTime), 0)
       const diffMinutes = actualMinutes - targetMinutes
 
-      result[member.id] = { targetMinutes, actualMinutes, daysOff, diffMinutes }
+      result[member.id] = {
+        targetMinutes: Math.round(targetMinutes),
+        actualMinutes,
+        daysOff: Math.round(daysOff * 10) / 10,
+        diffMinutes: Math.round(diffMinutes)
+      }
     }
     return result
-  }, [viewMode, dateRange, members, attendance, absences])
+  }, [viewMode, dateRange, members, attendance, absenceNet, netByEmployeeAndDay])
 
   const getMemberEntry = (memberId: string): TeamAttendanceEntry | null => {
     if (viewMode === 'day') {
