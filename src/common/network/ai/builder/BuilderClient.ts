@@ -201,6 +201,130 @@ export interface LatestPublishedResourceVersion {
   firstPublishedAt: string | null
 }
 
+export type BuilderMetricsTimeframe = 'last24h' | 'last7d' | 'last30d' | 'mtd' | 'all'
+
+export interface SessionUsageMetric {
+  sessionId: string
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeTokens: number
+  timeframeCalls: number
+  lastUsedAt: string | null
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface SessionUsageMetricsResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  sessions: SessionUsageMetric[]
+}
+
+export interface AiModelUsageMetric {
+  model: string
+  provider: string
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeCalls: number
+  priceInputUsdPerMillion: number
+  priceOutputUsdPerMillion: number
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface AiTotalsMetric {
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeCalls: number
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface LlmPricingConfigEntry {
+  id: string
+  provider: string
+  model: string
+  inputUsdPerMillion: number
+  outputUsdPerMillion: number
+  source: string
+  updatedAt: string | null
+}
+
+export interface LlmPricingConfigResponse {
+  generatedAt: string
+  note: string
+  entries: LlmPricingConfigEntry[]
+}
+
+export interface UpdateLlmPricingConfigRequest {
+  entries: Array<{
+    id?: string
+    provider: string
+    model?: string
+    inputUsdPerMillion: number
+    outputUsdPerMillion: number
+  }>
+}
+
+export interface MetricsTimeseriesPoint {
+  bucketStart: string
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  calls: number
+  totalCostUsd: number
+}
+
+export interface MetricsTimeseriesResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  points: MetricsTimeseriesPoint[]
+}
+
+export interface BuilderServiceMetricsResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  sessions: {
+    total: number
+    withinTimeframe: number
+  }
+  screens: {
+    versionsCreated: number
+    versionsPublished: number
+    createdWithinTimeframe: number
+    publishedWithinTimeframe: number
+  }
+  builds: {
+    total: number
+    completed: number
+    failed: number
+    successRate: number
+    avgDurationSeconds: number
+    withinTimeframe: number
+  }
+  ai: {
+    byModel: AiModelUsageMetric[]
+    totals: AiTotalsMetric
+  }
+  orchestration: {
+    total: number
+    completed: number
+    failed: number
+    running: number
+    withinTimeframe: number
+  }
+}
+
 // ============================================================================
 // Client
 // ============================================================================
@@ -849,6 +973,87 @@ export class BuilderClient {
       data: Array.isArray(payload?.data) ? payload.data : [],
       totalCount: Number(payload?.totalCount ?? payload?.paging?.totalRecords ?? 0)
     }
+  }
+
+  async getSessionUsageMetrics(params?: {
+    timeframe?: BuilderMetricsTimeframe
+    sessionIds?: string[]
+    limit?: number
+  }): Promise<SessionUsageMetricsResponse> {
+    const query = new URLSearchParams()
+    if (params?.timeframe) query.set('timeframe', params.timeframe)
+    if (Array.isArray(params?.sessionIds) && params.sessionIds.length > 0) {
+      query.set('sessionIds', params.sessionIds.join(','))
+    }
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit))
+
+    const url = query.toString() ? `${this.baseUrl}/metrics/sessions?${query.toString()}` : `${this.baseUrl}/metrics/sessions`
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load session usage metrics')
+    }
+
+    return {
+      generatedAt: typeof payload?.generatedAt === 'string' ? payload.generatedAt : new Date().toISOString(),
+      timeframe: (payload?.timeframe || params?.timeframe || 'last7d') as BuilderMetricsTimeframe,
+      sessions: Array.isArray(payload?.sessions) ? payload.sessions : []
+    }
+  }
+
+  async getServiceMetrics(timeframe: BuilderMetricsTimeframe = 'last7d'): Promise<BuilderServiceMetricsResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics?timeframe=${encodeURIComponent(timeframe)}`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load AI Builder metrics')
+    }
+
+    return payload as BuilderServiceMetricsResponse
+  }
+
+  async getMetricsTimeseries(timeframe: BuilderMetricsTimeframe = 'last7d'): Promise<MetricsTimeseriesResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/timeseries?timeframe=${encodeURIComponent(timeframe)}`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load AI Builder timeseries metrics')
+    }
+    return payload as MetricsTimeseriesResponse
+  }
+
+  async getLlmPricingConfig(): Promise<LlmPricingConfigResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/pricing`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load LLM pricing configuration')
+    }
+    return payload as LlmPricingConfigResponse
+  }
+
+  async updateLlmPricingConfig(request: UpdateLlmPricingConfigRequest): Promise<LlmPricingConfigResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/pricing`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(request)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to update LLM pricing configuration')
+    }
+    return payload as LlmPricingConfigResponse
   }
 
   /**
