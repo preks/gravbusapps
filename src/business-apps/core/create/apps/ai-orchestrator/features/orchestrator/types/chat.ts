@@ -7,6 +7,27 @@ export type ChatMessageRole = 'user' | 'assistant' | 'system'
 
 export type ChatMessageType = 'prompt' | 'refinement' | 'build-command' | 'fix' | 'system' | 'general'
 
+export interface ChatMessageBlock {
+  type: 'thinking' | 'response'
+  content: string
+  collapsed?: boolean
+  order?: number
+}
+
+export interface ChatMessageToolCall {
+  tool: string
+  args?: string
+  result?: string
+  status: 'running' | 'complete'
+  id: string
+  order?: number
+  displayTitle?: string
+  displayDetail?: string
+  displayKind?: 'info' | 'success' | 'warning' | 'error'
+  displayStep?: 'call' | 'progress' | 'result'
+  progressLines?: string[]
+}
+
 export interface CreateChatMessage {
   id: string
   role: ChatMessageRole
@@ -14,6 +35,16 @@ export interface CreateChatMessage {
   createdAt: string
   messageType: ChatMessageType
   isStreaming?: boolean
+  toolCalls?: ChatMessageToolCall[]
+  thinkingLog?: string
+  thinkingCollapsed?: boolean
+  blocks?: ChatMessageBlock[]
+  createdBy?: string
+  editHistory?: Array<{
+    userId: string
+    editedAt: string
+  }>
+  serverCreatedAt?: string
 }
 
 export type CanvasTab =
