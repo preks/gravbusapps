@@ -8,13 +8,13 @@
 import React from 'react'
 import { Drawer, Typography, Descriptions, Divider, Empty, Dropdown, Button } from 'antd'
 import {
-  ShoppingCartOutlined,
-  DollarOutlined,
-  InfoCircleOutlined,
-  SettingOutlined,
-  DownOutlined,
-  EnvironmentOutlined
-} from '@ant-design/icons'
+  ShoppingCartIcon,
+  CurrencyDollarIcon,
+  InfoIcon,
+  GearIcon,
+  CaretDownIcon,
+  MapPinIcon
+} from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { SalesOrderItem } from '../types'
 
@@ -85,7 +85,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
           style={{ backgroundColor: '#000000', borderColor: '#000000', color: '#ffffff' }}
           className="gba:hover:bg-gray-800 gba:hover:border-gray-800"
         >
-          Actions <DownOutlined />
+          Actions <CaretDownIcon size={16} />
         </Button>
       </Dropdown>
     </div>
@@ -102,7 +102,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
         {/* Product Information */}
         <div data-testid="product-info-section">
           <Title level={5} className="gba:mb-3 gba:flex gba:items-center gba:gap-2">
-            <ShoppingCartOutlined />
+            <ShoppingCartIcon size={16} />
             Product Information
           </Title>
           <Descriptions column={1} size="small" bordered>
@@ -125,7 +125,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
         {/* Inventory & Stock */}
         <div data-testid="inventory-section">
           <Title level={5} className="gba:mb-3 gba:flex gba:items-center gba:gap-2">
-            <InfoCircleOutlined />
+            <InfoIcon size={16} />
             Inventory & Stock
           </Title>
           <Descriptions column={1} size="small" bordered>
@@ -155,7 +155,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
         {/* Pricing & Costs */}
         <div data-testid="pricing-section">
           <Title level={5} className="gba:mb-3 gba:flex gba:items-center gba:gap-2">
-            <DollarOutlined />
+            <CurrencyDollarIcon size={16} />
             Pricing & Costs
           </Title>
           <Descriptions column={1} size="small" bordered>
@@ -194,7 +194,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
           <>
             <div data-testid="shipping-section">
               <Title level={5} className="gba:mb-3 gba:flex gba:items-center gba:gap-2">
-                <EnvironmentOutlined />
+                <MapPinIcon />
                 Shipping Information
               </Title>
               <Descriptions column={1} size="small" bordered>
@@ -232,7 +232,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
         {/* System Information */}
         <div data-testid="system-info-section">
           <Title level={5} className="gba:mb-3 gba:flex gba:items-center gba:gap-2">
-            <SettingOutlined />
+            <GearIcon size={16} />
             System Information
           </Title>
           <Descriptions column={1} size="small" bordered>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system'
-import { RiBarChartLine } from '@remixicon/react'
+import { ChartBarIcon } from '@phosphor-icons/react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -42,7 +42,7 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
               )}
             </div>
           </div>
-          <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
+          <ChartBarIcon size={24} className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
         </div>
       </CardHeader>
       <CardContent>

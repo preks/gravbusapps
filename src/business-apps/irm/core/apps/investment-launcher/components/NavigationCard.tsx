@@ -1,12 +1,11 @@
 import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import * as RemixIcons from '@remixicon/react'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { InvestmentNavigationCardProps } from '../types'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ area, onClick, stats }) => {
-  // Get the icon component dynamically
-  const IconComponent = (RemixIcons as any)[area.icon] || RemixIcons.RiQuestionLine
+  const IconComponent = area.icon
 
   const handleClick = () => {
     onClick(area)
@@ -235,14 +234,14 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
                 onClick={e => handleActionClick('leads', { leadStatus: 'InvestmentLeadStatus:v1:OPEN' }, e)}
               >
                 <span className="gba:text-gray-600">Active Leads</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={e => handleActionClick('leads', { leadStatus: 'InvestmentLeadStatus:v1:CONVERTED' }, e)}
               >
                 <span className="gba:text-gray-600">Converted Leads</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
             </>
           )}
@@ -254,14 +253,14 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
                 onClick={e => handleActionClick('opportunities', { subView: 'pipeline' }, e)}
               >
                 <span className="gba:text-gray-600">Pipeline Management</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={e => handleActionClick('opportunities', { status: 'OPPORTUNITY_OPEN' }, e)}
               >
                 <span className="gba:text-gray-600">Active Opportunities</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
             </>
           )}
@@ -273,14 +272,14 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
                 onClick={e => handleActionClick('accounts', {}, e)}
               >
                 <span className="gba:text-gray-600">Customers</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={e => handleActionClick('accounts', { status: 'inactive' }, e)}
               >
                 <span className="gba:text-gray-600">Inactive Accounts</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
             </>
           )}
@@ -292,21 +291,21 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
                 onClick={e => handleActionClick('contacts', { contactType: 'FOUNDER_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Founder Contacts</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={e => handleActionClick('contacts', { contactType: 'PRIMARY_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Primary Contacts</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={e => handleActionClick('contacts', { contactType: 'SECONDARY_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Secondary Contacts</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
             </>
           )}
@@ -318,21 +317,21 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
                 onClick={e => handleInvestmentTypeClick('equity', e)}
               >
                 <span className="gba:text-gray-600">Equity Investments</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={e => handleInvestmentTypeClick('liquid-funds', e)}
               >
                 <span className="gba:text-gray-600">Liquid Funds Investments</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={e => handleInvestmentTypeClick('real-estate', e)}
               >
                 <span className="gba:text-gray-600">Real Estate Investments</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
             </>
           )}
@@ -344,14 +343,14 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({ are
                 onClick={e => handleActionClick('analytics', { type: 'performance' }, e)}
               >
                 <span className="gba:text-gray-600">Performance Analytics</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={e => handleActionClick('analytics', { type: 'portfolio' }, e)}
               >
                 <span className="gba:text-gray-600">Portfolio Reports</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                <CaretRightIcon size={16} className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
             </>
           )}

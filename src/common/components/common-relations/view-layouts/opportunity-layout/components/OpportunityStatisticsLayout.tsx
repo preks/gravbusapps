@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DollarOutlined, TrophyOutlined, RiseOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { CurrencyDollarIcon, TrophyIcon, TrendUpIcon, ClockIcon } from '@phosphor-icons/react'
 
 interface TrendData {
   current: number
@@ -50,7 +50,7 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
         key: 'recent-opportunities',
         title: 'Recent Opportunities',
         value: recentOpportunities.current,
-        prefix: <ClockCircleOutlined />,
+        prefix: <ClockIcon size={16} />,
         color: '#1890ff',
         span: { xs: 24, sm: 12, lg: 6 },
         description: 'Past 2 weeks',
@@ -64,7 +64,7 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
         key: 'total-opportunities',
         title: 'Total Opportunities',
         value: totalOpportunities.current,
-        prefix: <DollarOutlined />,
+        prefix: <CurrencyDollarIcon size={16} />,
         color: '#52c41a',
         span: { xs: 24, sm: 12, lg: 6 },
         description: 'All opportunities',
@@ -78,7 +78,7 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
         key: 'this-quarter',
         title: 'This Quarter',
         value: opportunitiesThisQuarter.current,
-        prefix: <TrophyOutlined />,
+        prefix: <TrophyIcon />,
         color: '#fa8c16',
         span: { xs: 24, sm: 12, lg: 6 },
         description: 'New opportunities',
@@ -92,7 +92,7 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
         key: 'this-year',
         title: 'This Year',
         value: opportunitiesThisYear.current,
-        prefix: <RiseOutlined />,
+        prefix: <TrendUpIcon size={16} />,
         color: '#eb2f96',
         span: { xs: 24, sm: 12, lg: 6 },
         description: 'New opportunities',

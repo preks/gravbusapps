@@ -186,7 +186,22 @@ completed-showing = Afișare {$current} din {$total} sarcini finalizate
 completed-load-more = Încarcă mai multe
 
 # UniversalCflowTaskDetails Component
+task-details-related-links = Link-uri asociate
+task-details-meeting-links = Link-uri întâlnire
 task-details-related-to = Legat de
+task-details-meeting-recording-notice = Înregistrare și transcriere. Prin participare, acceptați includerea.
+task-details-meeting-participants = Participanți
+task-details-meeting-participants-with-count = Participanți ({$count})
+task-details-meeting-organiser = Organizator
+task-details-meeting-invitation-title-with-count = Invitație la întâlnire: {$count} participanți
+task-details-meeting-participants-show-more = Arată încă {$count}
+task-details-meeting-participants-show-less = Arată mai puțin
+task-details-meeting-please-respond = Vă rugăm să răspundeți la această invitație.
+task-details-meeting-participant-view-profile = Vezi profilul
+task-details-meeting-status-pending = În așteptare
+task-details-meeting-status-accepted = Acceptat
+task-details-meeting-status-declined = Refuzat
+task-details-meeting-status-tentative = Poate
 task-details-attachments = Atașamente ({$count})
 task-details-form = Formular
 task-due-date-label = Scadență

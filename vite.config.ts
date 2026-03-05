@@ -1054,7 +1054,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
 
         external: [
           'antd',
-          '@ant-design/icons',
           '@dnd-kit/core',
           '@dnd-kit/utilities',
           '@dnd-kit/sortable',
@@ -1064,7 +1063,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
           'react-i18next',
           '@phosphor-icons/react',
           '@newwork/gravity-ui-catalog',
-          '@remixicon/react',
           'class-variance-authority',
           'lucide-react',
           'react',
@@ -1077,7 +1075,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
             react: 'React',
             'react-dom': 'ReactDOM',
             antd: 'antd',
-            '@ant-design/icons': 'antDesignIcons',
             'react-i18next': 'reactI18next',
             '@phosphor-icons/react': 'PhosphorIconsReact',
             clsx: 'clsx',
@@ -1087,7 +1084,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
             '@dnd-kit/utilities': 'DNDKitUtilities',
             zustand: 'zustand',
             '@newwork/gravity-ui-catalog': 'GravityUICatalog',
-            '@remixicon/react': 'remixIconReact',
             'class-variance-authority': 'classVarianceAuthority',
             'lucide-react': 'lucideReact',
             'react-router-dom': 'reactRouterDom'

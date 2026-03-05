@@ -19,6 +19,7 @@ export interface UseYjsDocumentSyncParams {
   ydoc: import('yjs').Doc
   awareness: import('y-protocols/awareness').Awareness
   editorRef: React.MutableRefObject<unknown>
+  suppressSnapshotSaveRef?: React.MutableRefObject<boolean>
   isReadOnly: boolean
   title: string
   setLastSaved: (date: Date | null) => void
@@ -36,6 +37,7 @@ export function useYjsDocumentSync({
   ydoc,
   awareness,
   editorRef,
+  suppressSnapshotSaveRef,
   isReadOnly,
   title,
   setLastSaved,
@@ -125,6 +127,9 @@ export function useYjsDocumentSync({
         await new Promise(resolve => setTimeout(resolve, 100))
       },
       onLocalDocumentChange: () => {
+        if (suppressSnapshotSaveRef?.current) {
+          return
+        }
         const ed = editorRef.current
         if (ed) scheduleSnapshotSaveRef.current(ed as { getHTML?: () => string })
       }
@@ -138,7 +143,7 @@ export function useYjsDocumentSync({
       providerRef.current = null
       setIsYjsSynced(false)
     }
-  }, [documentId, collaborationSocket, ydoc, awareness, editorRef, getEditorReadyPromise])
+  }, [documentId, collaborationSocket, ydoc, awareness, editorRef, suppressSnapshotSaveRef, getEditorReadyPromise])
 
   // Cleanup snapshot timeout on unmount
   useEffect(() => {

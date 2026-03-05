@@ -112,7 +112,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
           from: data.from,
           conversationId: data.conversationId,
           conversationName: data.conversationName || data.conversationId,
-          conversationType: data.conversationType as 'direct' | 'group' | 'meeting' | undefined
+          conversationType: data.conversationType as 'direct' | 'group' | 'meeting' | undefined,
+          transcriptionEnabled: data.transcriptionEnabled === true
         }
       })
     }

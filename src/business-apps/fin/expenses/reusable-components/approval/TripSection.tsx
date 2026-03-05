@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger, Button, Separator } from '@newwork/nw-design-system'
-import { DownOutlined, EnvironmentOutlined } from '@ant-design/icons'
+import { CaretDownIcon, MapPinIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -61,7 +61,7 @@ const TripSection: React.FC<TripSectionProps> = ({
         {/* Start Location */}
         <div className="gba:mb-2" data-testid={`${prefixDataTestId}-start-location`}>
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-            <EnvironmentOutlined className="gba:text-base gba:text-muted-foreground" />
+            <MapPinIcon size={16} className="gba:text-base gba:text-muted-foreground" />
             <span className="gba:font-semibold gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_request.add_request_trip_details.start_location',
@@ -81,7 +81,7 @@ const TripSection: React.FC<TripSectionProps> = ({
         {/* End Location */}
         <div className="gba:mb-2" data-testid={`${prefixDataTestId}-end-location`}>
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-            <EnvironmentOutlined className="gba:text-base gba:text-muted-foreground" />
+            <MapPinIcon size={16} className="gba:text-base gba:text-muted-foreground" />
             <span className="gba:font-semibold gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_request.add_request_trip_details.end_location_text',
@@ -107,7 +107,7 @@ const TripSection: React.FC<TripSectionProps> = ({
         className="gba:w-full"
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-          <EnvironmentOutlined className="gba:text-base gba:text-muted-foreground" />
+          <MapPinIcon size={16} className="gba:text-base gba:text-muted-foreground" />
           <span className="gba:font-semibold gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:approve_expense_request.destination_location',
@@ -122,7 +122,8 @@ const TripSection: React.FC<TripSectionProps> = ({
               className="gba:p-1 gba:h-auto"
               data-testid={`${prefixDataTestId}-destination-toggle`}
             >
-              <DownOutlined
+              <CaretDownIcon
+                size={16}
                 className={`gba:text-base gba:transition-transform gba:duration-200 ${isDestinationExpanded ? 'gba:rotate-180' : 'gba:rotate-0'}`}
               />
             </Button>

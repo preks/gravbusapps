@@ -72,6 +72,7 @@ export interface EmailMessageSummary {
   isRead: boolean
   isStarred: boolean
   hasAttachments: boolean
+  labels?: string[]
   importance: string
   crmEntityType?: string
   crmEntityId?: string
@@ -98,6 +99,12 @@ export interface EmailMessage extends EmailMessageSummary {
   references?: string
   headers: Record<string, string>
   rawSize: number
+}
+
+/** Label suggestion from reusable labels catalog */
+export interface EmailLabelSuggestion {
+  id: string
+  name: string
 }
 
 /** Paginated response from API */

@@ -7,6 +7,7 @@ export interface RealtimeKitMeeting {
   callType: 'audio' | 'video'
   createdAt: string
   participantCount: number
+  transcriptionEnabled?: boolean
 }
 
 export interface CreateMeetingResponse {

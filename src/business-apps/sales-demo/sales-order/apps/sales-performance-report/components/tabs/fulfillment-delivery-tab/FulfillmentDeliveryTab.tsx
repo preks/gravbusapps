@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, Row, Col, Statistic, Alert, Typography, Spin, Progress, Table } from 'antd'
-import { TruckOutlined, ClockCircleOutlined, CheckCircleOutlined, GlobalOutlined } from '@ant-design/icons'
+import { TruckIcon, ClockIcon, CheckCircleIcon, GlobeIcon } from '@phosphor-icons/react'
 import {
   BarChart,
   Bar,
@@ -320,7 +320,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({ accessT
             <Statistic
               title="On-Time Delivery Rate"
               value={fulfillmentMetrics.onTimeDeliveryRate}
-              prefix={<CheckCircleOutlined />}
+              prefix={<CheckCircleIcon size={16} />}
               suffix="%"
               valueStyle={{
                 fontSize: '24px',
@@ -338,7 +338,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({ accessT
             <Statistic
               title="Average Lead Time"
               value={fulfillmentMetrics.averageLeadTime}
-              prefix={<ClockCircleOutlined />}
+              prefix={<ClockIcon size={16} />}
               suffix=" days"
               valueStyle={{ fontSize: '24px' }}
             />
@@ -353,7 +353,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({ accessT
             <Statistic
               title="Avg Fulfillment Time"
               value={fulfillmentMetrics.averageFulfillmentTime}
-              prefix={<TruckOutlined />}
+              prefix={<TruckIcon size={16} />}
               suffix=" days"
               valueStyle={{ fontSize: '24px' }}
             />
@@ -368,7 +368,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({ accessT
             <Statistic
               title="Orders Delivered"
               value={fulfillmentMetrics.totalOrdersDelivered}
-              prefix={<GlobalOutlined />}
+              prefix={<GlobeIcon size={16} />}
               valueStyle={{ fontSize: '24px' }}
             />
             <Text type="secondary" style={{ fontSize: '12px' }}>

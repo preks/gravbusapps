@@ -1,7 +1,7 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { Card, Typography, Spin, Empty, Tooltip, theme } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
@@ -96,7 +96,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
           <Tooltip
             title={t('hr-analytics-contract-types-tooltip')}
           >
-            <InfoCircleOutlined className="gba:ml-2" />
+            <InfoIcon size={16} className="gba:ml-2" />
           </Tooltip>
         </div>
       }

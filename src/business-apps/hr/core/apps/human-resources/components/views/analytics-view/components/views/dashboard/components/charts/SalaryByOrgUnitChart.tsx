@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from 'react'
 import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Typography, Spin, Empty, Tooltip, Statistic } from 'antd'
-import { InfoCircleOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons'
+import { InfoIcon, TrendUpIcon, UsersIcon } from '@phosphor-icons/react'
 import {
   BarChart,
   Bar,
@@ -163,7 +163,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
             <Tooltip
               title={t('hr-analytics-salary-by-org-unit-tooltip')}
             >
-              <InfoCircleOutlined className="gba:ml-2 gba:text-muted-foreground" />
+              <InfoIcon size={16} className="gba:ml-2 gba:text-muted-foreground" />
             </Tooltip>
           </div>
         </div>
@@ -177,7 +177,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
           <Statistic
             title={t('hr-analytics-total-employees')}
             value={totalEmployees}
-            prefix={<TeamOutlined />}
+            prefix={<UsersIcon size={16} />}
             className="gba:text-foreground"
           />
         </Card>
@@ -189,7 +189,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
             title={t('hr-analytics-highest-salary')}
             value={highestSalary}
             precision={0}
-            prefix={<RiseOutlined />}
+            prefix={<TrendUpIcon size={16} />}
             formatter={(value: number | string) => `$${Number(value).toLocaleString()}`}
             valueStyle={{ color: 'var(--nw-info)' }}
           />
