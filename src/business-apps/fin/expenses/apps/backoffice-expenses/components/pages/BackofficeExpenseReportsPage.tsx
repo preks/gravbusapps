@@ -84,7 +84,8 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     selectedReportType,
     reportDataType,
     setSelectedReportType,
-    fetchAllForExport
+    fetchAllForExport,
+    fetchAllForFilterOptions
   } = useBackofficeExpenseReportData(contextProps, filtersByReportType, sorting)
   const { organizationalUnits } = useFilterData({ accessToken })
   const selectedFilters = useMemo(
@@ -574,9 +575,20 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     totalWithin:
       'Share of requests where Total Cycle SLA Status is Within SLA. Formula: within-SLA total-cycle rows / evaluable total-cycle rows.'
   }
+  const approvalPayoutRowsForKpi = useMemo<any[]>(() => {
+    const approvalSnapshotRows = reportSnapshotsByType[ReportType.APPROVAL_PAYOUT_CYCLE]?.rows
+    if (Array.isArray(approvalSnapshotRows) && approvalSnapshotRows.length > 0) {
+      return approvalSnapshotRows
+    }
+    if (selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE && Array.isArray(baseReportRows)) {
+      return baseReportRows
+    }
+    return []
+  }, [reportSnapshotsByType, selectedReportType, baseReportRows])
+
   const approvalPayoutSlaKpiValues = useMemo(
-    () => computeSlaKpis(selectedReportType, Array.isArray(reportData) ? (reportData as any[]) : []),
-    [selectedReportType, reportData]
+    () => computeSlaKpis(ReportType.APPROVAL_PAYOUT_CYCLE, approvalPayoutRowsForKpi),
+    [approvalPayoutRowsForKpi]
   )
   const approvalSlaCards = [
     {
@@ -724,15 +736,10 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   useEffect(() => {
     if (!selectedReportType) return
     if (fullFilterOptionsByType[selectedReportType]) return
-    if (searchTerm.trim()) return
-    const selectedStatuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
-    const selectedEmployees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
-    const selectedDepartments = Array.isArray(selectedFilters?.departmentName) ? selectedFilters.departmentName : []
-    if (selectedStatuses.length > 0 || selectedEmployees.length > 0 || selectedDepartments.length > 0) return
 
     let cancelled = false
     const loadAllRowsForFilterOptions = async () => {
-      const allRows = (await fetchAllForExport()) as any[]
+      const allRows = (await fetchAllForFilterOptions()) as any[]
       if (cancelled) return
       const employees = Array.from(
         new Set(allRows.map(row => String(row?.employeeName || '').trim()).filter(Boolean))
@@ -749,14 +756,11 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     return () => {
       cancelled = true
     }
-  }, [selectedReportType, fullFilterOptionsByType, searchTerm, selectedFilters, fetchAllForExport])
+  }, [selectedReportType, fullFilterOptionsByType, fetchAllForFilterOptions])
 
   const employeeFilterOptions = useMemo(() => {
     const fullEmployees = selectedReportType ? fullFilterOptionsByType[selectedReportType]?.employees || [] : []
-    if (fullEmployees.length > 0) {
-      return fullEmployees.map(value => ({ id: value, label: value }))
-    }
-    return []
+    return fullEmployees.map(value => ({ id: value, label: value }))
   }, [selectedReportType, fullFilterOptionsByType])
   const departmentFilterOptions = useMemo(() => {
     const structureDepartments = getActiveStructureDepartmentNames(organizationalUnits || []).map(value => ({

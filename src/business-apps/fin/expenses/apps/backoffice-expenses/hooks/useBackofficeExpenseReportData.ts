@@ -160,6 +160,7 @@ export interface UseBackofficeExpenseReportDataReturn {
   setSearchTerm: (term: string) => void
   fetchReportData: () => Promise<void>
   fetchAllForExport: () => Promise<ReportItem[]>
+  fetchAllForFilterOptions: () => Promise<ReportItem[]>
 }
 
 interface UseBackofficeExpenseReportFilters {
@@ -1558,6 +1559,137 @@ export const useBackofficeExpenseReportData = (
     fetchApprovalPayoutCycleForExport
   ])
 
+  const fetchRawExpenseItemsForFilterOptions = useCallback(
+    async (offset: number, limit: number) => {
+      const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
+        limit,
+        offset,
+        searchTerm: '%%',
+        orderBy: reportOrderBy
+      })
+      const employeeIds = (result?.ExpenseItem || [])
+        .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return processExpenseItemsData(result, employeeNameById)
+    },
+    [graphqlClient, reportOrderBy, resolveEmployeeNamesByIds]
+  )
+
+  const fetchRawExpensePlansForFilterOptions = useCallback(
+    async (offset: number, limit: number) => {
+      const where = buildExpensePlanWhereForExport('', [], [])
+      const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
+        where,
+        limit,
+        offset,
+        orderBy: reportOrderBy
+      })
+      const employeeIds = (result?.ExpensePlan || [])
+        .flatMap((plan: any) => [String(plan?.employeeId || ''), String(plan?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return processExpensePlansData(result, employeeNameById)
+    },
+    [graphqlClient, buildExpensePlanWhereForExport, reportOrderBy, resolveEmployeeNamesByIds]
+  )
+
+  const fetchRawExpenseRequestsForFilterOptions = useCallback(
+    async (offset: number, limit: number) => {
+      const where = buildExpenseRequestWhere('', [], [], [])
+      const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BACKOFFICE, {
+        where,
+        limit,
+        offset,
+        orderBy: reportOrderBy
+      })
+      const employeeIds = (result?.ExpenseRequest || [])
+        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return processExpenseRequestsData(result, employeeNameById)
+    },
+    [graphqlClient, buildExpenseRequestWhere, reportOrderBy, resolveEmployeeNamesByIds]
+  )
+
+  const fetchRawAdvancePaymentsForFilterOptions = useCallback(
+    async (offset: number, limit: number) => {
+      const where = buildAdvancePaymentWhereForExport('', [], [])
+      const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
+        where,
+        limit,
+        offset,
+        orderBy: reportOrderBy
+      })
+      const employeeIds = (result?.AdvancePayment || [])
+        .flatMap((payment: any) => [
+          String(payment?.expensePlan?.employeeId || ''),
+          String(payment?.createdBy || ''),
+          String(payment?.expensePlan?.createdBy || '')
+        ])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      return (result?.AdvancePayment || []).map((payment: any) => mapAdvancePaymentToReport(payment, employeeNameById))
+    },
+    [
+      graphqlClient,
+      buildAdvancePaymentWhereForExport,
+      reportOrderBy,
+      resolveEmployeeNamesByIds,
+      mapAdvancePaymentToReport
+    ]
+  )
+
+  const fetchRawApprovalPayoutCycleForFilterOptions = useCallback(
+    async (offset: number, limit: number) => {
+      const where = buildExpenseRequestWhere('', [], [], [])
+      const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
+        where,
+        limit,
+        offset,
+        orderBy: reportOrderBy
+      })
+      const employeeIds = (result?.ExpenseRequest || [])
+        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
+        .filter(Boolean)
+      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
+      const slaPolicy = await loadExpensesSlaPolicy()
+      return processApprovalPayoutCycleData(result, employeeNameById, slaPolicy)
+    },
+    [graphqlClient, buildExpenseRequestWhere, reportOrderBy, resolveEmployeeNamesByIds, loadExpensesSlaPolicy]
+  )
+
+  const fetchAllForFilterOptions = useCallback(async (): Promise<ReportItem[]> => {
+    if (!graphqlClient || !selectedReportType) return []
+    try {
+      switch (selectedReportType) {
+        case ReportType.EXPENSE_ITEM:
+          return await fetchBatchedData(fetchRawExpenseItemsForFilterOptions, 'items')
+        case ReportType.EXPENSE_PLAN:
+          return await fetchBatchedData(fetchRawExpensePlansForFilterOptions, 'plans')
+        case ReportType.EXPENSE_REQUEST:
+          return await fetchBatchedData(fetchRawExpenseRequestsForFilterOptions, 'requests')
+        case ReportType.ADVANCE_PAYMENT:
+          return await fetchBatchedData(fetchRawAdvancePaymentsForFilterOptions, 'advance payments')
+        case ReportType.APPROVAL_PAYOUT_CYCLE:
+          return await fetchBatchedData(fetchRawApprovalPayoutCycleForFilterOptions, 'approval and payout cycle')
+        default:
+          return []
+      }
+    } catch {
+      return []
+    }
+  }, [
+    graphqlClient,
+    selectedReportType,
+    fetchBatchedData,
+    fetchRawExpenseItemsForFilterOptions,
+    fetchRawExpensePlansForFilterOptions,
+    fetchRawExpenseRequestsForFilterOptions,
+    fetchRawAdvancePaymentsForFilterOptions,
+    fetchRawApprovalPayoutCycleForFilterOptions
+  ])
+
   const fetchReportData = useCallback(async () => {
     if (!selectedReportType) return
     const fetchToken = ++activeFetchTokenRef.current
@@ -1700,6 +1832,7 @@ export const useBackofficeExpenseReportData = (
     searchTerm,
     setSearchTerm,
     fetchReportData,
-    fetchAllForExport
+    fetchAllForExport,
+    fetchAllForFilterOptions
   }
 }
