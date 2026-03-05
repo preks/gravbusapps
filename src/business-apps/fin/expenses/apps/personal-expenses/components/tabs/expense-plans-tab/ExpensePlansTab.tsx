@@ -79,7 +79,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     const token = selectedFilters.find(f => f.startsWith('currency:'))
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
-  const { currencyStats, initialized: currencyInit } = useExpensePlanCurrencies(props, selectedFilters, setFilters)
+  const { currencyStats } = useExpensePlanCurrencies(props, selectedFilters, setFilters)
 
   // Add a filter "pill" for the Top Destination widget so users can see/remove it.
   const topDestinationPill = useMemo(() => {
@@ -108,35 +108,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const prevSelectedFiltersRef = useRef<string | null>(null)
   // Track previous search to detect when search is cleared
   const prevSearchRef = useRef<string>('')
-
-  // Persist and restore currency filter per user to avoid losing it on tab switches
-  useEffect(() => {
-    const employeeId = props.userInfo?.employeeDetails?.employeeId
-    if (!employeeId) return
-    try {
-      const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`
-      const persisted = sessionStorage.getItem(storageKey)
-      if (!suppressCurrencyAutoSelect && persisted && !selectedFilters.some(f => f.startsWith('currency:'))) {
-        const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'))
-        setFilters([...nonCurrency, `currency:${persisted}`])
-        return
-      }
-      // If currencies are initialized and still no selection, default to EUR
-      if (!suppressCurrencyAutoSelect && currencyInit && !selectedFilters.some(f => f.startsWith('currency:'))) {
-        const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'))
-        setFilters([...nonCurrency, 'currency:Currency:v1:EUR'])
-        sessionStorage.setItem(storageKey, 'Currency:v1:EUR')
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }, [
-    props.userInfo?.employeeDetails?.employeeId,
-    selectedFilters,
-    setFilters,
-    currencyInit,
-    suppressCurrencyAutoSelect
-  ])
 
   // Synchronize activeWidget with selectedFilters when filters change externally
   useEffect(() => {
@@ -202,22 +173,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setActiveWidget(null)
     setDestinationFilter(null)
   }, [setFilters])
-
-  // Helper to persist currency selection in session storage
-  const persistCurrencySelection = (employeeId: string | undefined, filters: string[]) => {
-    if (!employeeId) return
-    try {
-      const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`
-      const newCurrency = (filters.find(f => f.startsWith('currency:')) || '').replace('currency:', '')
-      if (newCurrency) {
-        sessionStorage.setItem(storageKey, newCurrency)
-      } else {
-        sessionStorage.removeItem(storageKey)
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }
 
   // Helper function to build widget-specific filters
   const buildWidgetFilters = useCallback(
@@ -311,18 +266,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
   // Only fetch when filters, page, pageSize, or sorting changes and context is ready
   useEffect(() => {
-    // Check sessionStorage first for persisted currency (synchronous, no waiting)
-    const employeeId = props.userInfo?.employeeDetails?.employeeId
-    let persistedCurrency: string | null = null
-    if (employeeId) {
-      try {
-        const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`
-        persistedCurrency = sessionStorage.getItem(storageKey)
-      } catch {
-        // ignore storage errors
-      }
-    }
-
     // Avoid an initial fetch that will immediately be invalidated by currency auto-selection.
     // We only fetch once currency is explicitly present in filters (unless user suppressed auto-select).
     const hasExplicitCurrency = !!explicitSelectedCurrencyRef
@@ -332,7 +275,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       (suppressCurrencyAutoSelect || hasExplicitCurrency)
 
     if (canFetch) {
-      const statsCurrency = explicitSelectedCurrencyRef || persistedCurrency || 'Currency:v1:EUR'
+      const statsCurrency = explicitSelectedCurrencyRef || 'Currency:v1:EUR'
       fetchOverview(memoizedFilters, currentPage, pageSize, sortField, sortOrder, statsCurrency)
     }
   }, [
@@ -563,8 +506,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         // Strip synthetic token before storing in the real filters state.
         const strippedFilters = filters.filter(f => !f.startsWith(TOP_DESTINATION_FILTER_TOKEN_PREFIX))
 
-        // keep currency filter persisted
-        persistCurrencySelection(props.userInfo?.employeeDetails?.employeeId, strippedFilters)
         // manage auto-select suppression
         if (strippedFilters.length === 0) {
           setSuppressCurrencyAutoSelect(true)
@@ -578,9 +519,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         if (filterId.startsWith('currency:')) {
           const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'))
           const newFilters = selected ? [...nonCurrency, filterId] : nonCurrency
-          // persist currency change
-          persistCurrencySelection(props.userInfo?.employeeDetails?.employeeId, newFilters)
-          // If user deselects the currency, suppress auto-selection (persisted or default)
+          // If user deselects the currency, suppress auto-selection on next mount
           setSuppressCurrencyAutoSelect(!selected)
           setFilters(newFilters)
         } else {
