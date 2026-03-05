@@ -56,48 +56,6 @@ export const useOrchestratorEffects = ({ state, handlers, buildProgress, initial
     }
   }, [state.viewState, state.setThinkingSteps, state.setAnalysisProgress])
 
-  // Build log tracking
-  useEffect(() => {
-    if (!buildProgress.isBuilding && !buildProgress.currentPhase) return
-
-    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false })
-
-    // Log phase transitions (only once per phase)
-    if (buildProgress.currentPhase && !state.loggedPhasesRef.current.has(buildProgress.currentPhase)) {
-      state.loggedPhasesRef.current.add(buildProgress.currentPhase)
-
-      if (buildProgress.currentPhase === 'discovery') {
-        state.setBuildLogs(prev => [
-          ...prev,
-          { timestamp, type: 'info', message: 'Starting resource discovery phase...' }
-        ])
-      } else if (buildProgress.currentPhase === 'building') {
-        state.setBuildLogs(prev => [
-          ...prev,
-          { timestamp, type: 'info', message: 'Starting component building phase...' }
-        ])
-      } else if (buildProgress.currentPhase === 'wiring') {
-        state.setBuildLogs(prev => [
-          ...prev,
-          { timestamp, type: 'info', message: 'Starting component wiring phase...' }
-        ])
-      }
-    }
-
-    // Log component completions (only when count increases)
-    if (buildProgress.completedCount > state.lastCompletedCountRef.current) {
-      state.lastCompletedCountRef.current = buildProgress.completedCount
-      state.setBuildLogs(prev => [...prev, { timestamp, type: 'success', message: 'Component completed successfully' }])
-    }
-  }, [
-    buildProgress.currentPhase,
-    buildProgress.completedCount,
-    buildProgress.isBuilding,
-    state.setBuildLogs,
-    state.loggedPhasesRef,
-    state.lastCompletedCountRef
-  ])
-
   // Handle initial prompt on mount
   useEffect(() => {
     if (initialPrompt && !state.hasTriggeredInitialAnalysis.current) {

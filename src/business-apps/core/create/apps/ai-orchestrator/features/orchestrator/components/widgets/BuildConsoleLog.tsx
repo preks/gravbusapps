@@ -66,7 +66,7 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
           <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-1.5 gba:w-1.5 gba:rounded-full gba:opacity-75 gba:bg-foreground"></span>
           <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-1.5 gba:w-1.5 gba:bg-foreground"></span>
         </span>
-        <span className="gba:text-xs gba:font-medium">Build Log</span>
+        <span className="gba:text-xs gba:font-medium">Build Events</span>
         {isBuilding && <span className="gba:text-[10px] gba:text-muted-foreground">(live)</span>}
       </div>
 

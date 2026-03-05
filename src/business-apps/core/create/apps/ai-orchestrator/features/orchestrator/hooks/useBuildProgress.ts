@@ -1,11 +1,10 @@
 /**
- * Hook for subscribing to build progress via SSE
- *
- * Manages the connection to the SSE stream and updates tile states
- * based on incoming progress events.
+ * Hook for subscribing to build progress via SSE.
+ * Uses an event ledger as the single source of truth.
  */
 
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { BuildLogEntry } from '../components/widgets/BuildConsoleLog'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
 import type {
   BuildPlan,
@@ -18,6 +17,20 @@ import type {
   BuildStatus
 } from '../types'
 
+type ComponentUpdateFn = ((id: string, updates: any) => void) | null | undefined
+
+interface DerivedProgressState {
+  tiles: TileState
+  completedCount: number
+  failedCount: number
+  reusedCount: number
+  currentPhase: BuildPhase | null
+  phaseMessage: string | null
+  overallProgress: number
+  buildLogs: BuildLogEntry[]
+  isProgressEstimated: boolean
+}
+
 export interface UseBuildProgressOptions {
   client: OrchestratorClient
   plan: BuildPlan | null
@@ -29,9 +42,6 @@ export interface UseBuildProgressOptions {
     componentId: string,
     updates: Partial<{
       status: BuildStatus
-      resourceUrl: string
-      azureUrl: string
-      publishedFileCount: number
       errorMessage: string
       createdId: string
       metadata: Record<string, unknown>
@@ -40,28 +50,38 @@ export interface UseBuildProgressOptions {
 }
 
 export interface UseBuildProgressResult {
-  // State
   isBuilding: boolean
   buildError: string | null
   tiles: TileState
   overallProgress: number
   completedCount: number
   failedCount: number
-  reusedCount: number // Components reused from existing resources
+  reusedCount: number
   totalCount: number
-  currentPhase: BuildPhase | null // Current build phase
-  phaseMessage: string | null // Current phase status message
-  buildDuration: number // Elapsed build time in milliseconds
-
-  // Methods
+  currentPhase: BuildPhase | null
+  phaseMessage: string | null
+  buildDuration: number
+  buildLogs: BuildLogEntry[]
+  isProgressEstimated: boolean
+  eventLedger: BuildProgressEvent[]
   startBuild: (skipComponents?: string[], sessionId?: string, repoId?: string) => Promise<void>
   cancelBuild: () => void
   resetProgress: () => void
 }
 
-/**
- * Create initial tile state for a component type
- */
+const DONE_STATUSES = new Set<BuildStatus>(['completed', 'reused', 'error', 'skipped', 'cancelled'])
+
+function getIconForType(type: ComponentType): string {
+  const icons: Record<ComponentType, string> = {
+    screen: 'Monitor',
+    agent: 'Bot',
+    function: 'Code2',
+    flow: 'Workflow',
+    data_model: 'Database'
+  }
+  return icons[type]
+}
+
 function createInitialTile(type: ComponentType, title: string, description: string): ComponentTileInfo {
   return {
     type,
@@ -75,23 +95,6 @@ function createInitialTile(type: ComponentType, title: string, description: stri
   }
 }
 
-/**
- * Get icon name for component type
- */
-function getIconForType(type: ComponentType): string {
-  const icons: Record<ComponentType, string> = {
-    screen: 'Monitor',
-    agent: 'Bot',
-    function: 'Code2',
-    flow: 'Workflow',
-    data_model: 'Database'
-  }
-  return icons[type]
-}
-
-/**
- * Create initial tile state from a build plan
- */
 function createInitialTileState(plan: BuildPlan | null): TileState {
   const tiles: TileState = {
     screen: createInitialTile('screen', 'Screens', 'UI screens and dashboards'),
@@ -101,142 +104,497 @@ function createInitialTileState(plan: BuildPlan | null): TileState {
     data_model: createInitialTile('data_model', 'Data Models', 'Catalogs and entities')
   }
 
-  if (plan) {
-    // Populate items from plan components
-    for (const component of plan.components) {
-      const tile = tiles[component.type]
-      if (tile) {
-        tile.items.push({
-          id: component.id,
-          name: component.name,
-          status: component.status
-        })
-      }
-    }
+  if (!plan) return tiles
 
-    // Mark tiles with no items as skipped
-    for (const key of Object.keys(tiles) as ComponentType[]) {
-      if (tiles[key].items.length === 0) {
-        tiles[key].status = 'skipped'
-      }
+  for (const component of plan.components) {
+    const tile = tiles[component.type]
+    tile.items.push({
+      id: component.id,
+      name: component.name,
+      status: component.status
+    })
+  }
+
+  for (const type of Object.keys(tiles) as ComponentType[]) {
+    if (tiles[type].items.length === 0) {
+      tiles[type].status = 'skipped'
     }
   }
 
   return tiles
 }
 
-// ─── Module-level tile updaters (extracted to reduce function nesting depth) ────
-
-type ComponentUpdateFn = ((id: string, updates: any) => void) | null | undefined
-const DONE_STATUSES = ['completed', 'reused', 'error', 'skipped']
-
-function applyComponentReused(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
-  t.currentOperation = e.message
-  t.reusedCount = (t.reusedCount || 0) + 1
-  t.items = t.items.map((i: any) =>
-    i.id === e.componentId ? { ...i, status: 'reused', createdId: e.createdId, reused: true } : i
-  )
-  const allDone = t.items.every((i: any) => DONE_STATUSES.includes(i.status))
-  if (allDone) {
-    t.status = t.items.some((i: any) => i.status === 'error') ? 'error' : 'completed'
-  } else if (t.status !== 'building') {
-    t.status = 'building'
+function toLogType(event: BuildProgressEvent): BuildLogEntry['type'] {
+  if (event.eventType === 'wiring_error') return 'warning'
+  if (event.eventType.endsWith('_error') || event.status === 'error') return 'error'
+  if (
+    event.eventType === 'build_complete' ||
+    event.eventType === 'component_completed' ||
+    event.eventType === 'component_reused'
+  ) {
+    return 'success'
   }
-  if (e.componentId) {
-    onUpdate?.(e.componentId, { status: 'reused', createdId: e.createdId })
+  return 'info'
+}
+
+function toLogTimestamp(rawTimestamp: string): string {
+  const date = new Date(rawTimestamp)
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toLocaleTimeString('en-US', { hour12: false })
+  }
+  return date.toLocaleTimeString('en-US', { hour12: false })
+}
+
+function pushEvent(ledger: BuildProgressEvent[], event: BuildProgressEvent): BuildProgressEvent[] {
+  const prev = ledger[ledger.length - 1]
+  if (
+    prev?.eventType === event.eventType &&
+    prev?.componentId === event.componentId &&
+    prev?.status === event.status &&
+    prev?.message === event.message
+  ) {
+    return ledger
+  }
+  return [...ledger, event]
+}
+
+interface PhaseTrackingState {
+  currentPhase: BuildPhase | null
+  phaseMessage: string | null
+  sawDiscoveryComplete: boolean
+  sawWiringCompleted: boolean
+  sawBuildError: boolean
+  sawBuildComplete: boolean
+}
+
+interface TileStatusSummary {
+  completedCount: number
+  failedCount: number
+  reusedCount: number
+  totalActiveItems: number
+  tileReused: number
+  tileFailed: number
+  tileBuilding: number
+  tilePending: number
+  tileProgressAccumulator: number
+  totalProgressAccumulator: number
+  hasMeasuredProgress: boolean
+}
+
+interface TileAggregationResult {
+  completedCount: number
+  failedCount: number
+  reusedCount: number
+  totalActiveItems: number
+  progressAccumulator: number
+  hasProgressPercent: boolean
+}
+
+interface ProgressSample {
+  ts: number
+  progress: number | null
+  message: string
+}
+
+type FinishBuildFn = (success: boolean, errorMessage?: string, event?: BuildProgressEvent) => void
+
+function createPhaseTrackingState(): PhaseTrackingState {
+  return {
+    currentPhase: null,
+    phaseMessage: null,
+    sawDiscoveryComplete: false,
+    sawWiringCompleted: false,
+    sawBuildError: false,
+    sawBuildComplete: false
   }
 }
 
-function applyComponentStarted(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
-  t.status = 'building'
-  t.currentOperation = e.message
-  t.items = t.items.map((i: any) => (i.id === e.componentId ? { ...i, status: 'building' } : i))
-  if (e.componentId) {
-    onUpdate?.(e.componentId, { status: 'building' })
+function updatePhaseFromEvent(event: BuildProgressEvent, phaseState: PhaseTrackingState): void {
+  switch (event.eventType) {
+    case 'discovery_started':
+      phaseState.currentPhase = 'discovery'
+      break
+    case 'build_started':
+      phaseState.currentPhase = 'building'
+      break
+    case 'wiring_started':
+    case 'wiring_completed':
+    case 'wiring_error':
+      phaseState.currentPhase = 'wiring'
+      break
+    case 'build_complete':
+      phaseState.currentPhase = 'complete'
+      break
+  }
+
+  if (event.message) {
+    phaseState.phaseMessage = event.message
   }
 }
 
-function applyComponentCompleted(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
-  t.currentOperation = undefined
-  t.items = t.items.map((i: any) =>
-    i.id === e.componentId ? { ...i, status: 'completed', createdId: e.createdId } : i
-  )
-  const allDone = t.items.every((i: any) => DONE_STATUSES.includes(i.status))
-  if (allDone) {
-    t.status = t.items.some((i: any) => i.status === 'error') ? 'error' : 'completed'
+function updatePhaseFlags(event: BuildProgressEvent, phaseState: PhaseTrackingState): void {
+  if (event.eventType === 'discovery_complete') phaseState.sawDiscoveryComplete = true
+  if (event.eventType === 'wiring_completed') phaseState.sawWiringCompleted = true
+  if (event.eventType === 'build_complete') phaseState.sawBuildComplete = true
+  if (event.eventType === 'build_error') phaseState.sawBuildError = true
+}
+
+function updateTileItem(tiles: TileState, event: BuildProgressEvent, updater: (item: any) => void): void {
+  if (!event.componentType || !event.componentId) return
+  const tile = tiles[event.componentType]
+  if (!tile) return
+
+  const idx = tile.items.findIndex(item => item.id === event.componentId)
+  if (idx < 0) return
+
+  const updatedItem = { ...tile.items[idx] }
+  updater(updatedItem)
+  tile.items[idx] = updatedItem
+}
+
+function applyEventToTileState(
+  event: BuildProgressEvent,
+  tiles: TileState,
+  componentProgress: Map<string, number>
+): void {
+  switch (event.eventType) {
+    case 'component_reused':
+      updateTileItem(tiles, event, item => {
+        item.status = 'reused'
+        item.reused = true
+        item.createdId = event.createdId
+      })
+      break
+    case 'component_started':
+      updateTileItem(tiles, event, item => {
+        item.status = 'building'
+      })
+      break
+    case 'component_progress':
+      updateTileItem(tiles, event, item => {
+        if (DONE_STATUSES.has(item.status) === false) {
+          item.status = 'building'
+        }
+      })
+      if (event.componentId && event.progressPercent !== undefined) {
+        componentProgress.set(event.componentId, Math.max(0, Math.min(100, event.progressPercent)))
+      }
+      break
+    case 'component_completed':
+      updateTileItem(tiles, event, item => {
+        item.status = 'completed'
+        item.createdId = event.createdId
+      })
+      break
+    case 'component_error':
+      updateTileItem(tiles, event, item => {
+        item.status = 'error'
+        item.error = event.errorDetails || event.message
+      })
+      break
   }
-  if (e.componentId) {
-    const updates: any = { status: 'completed', createdId: e.createdId }
-    if (e.metadata) updates.metadata = e.metadata
-    onUpdate?.(e.componentId, updates)
+
+  if (!event.componentType) return
+  const tile = tiles[event.componentType]
+  if (!tile) return
+
+  if (event.message) {
+    tile.currentOperation = event.message
+  }
+  if (event.progressPercent !== undefined) {
+    tile.progressPercent = event.progressPercent
   }
 }
 
-function applyComponentError(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
-  t.currentOperation = undefined
-  t.items = t.items.map((i: any) => (i.id === e.componentId ? { ...i, status: 'error', error: e.errorDetails } : i))
-  if (e.componentId) {
-    const updates: any = { status: 'error', errorMessage: e.errorDetails || e.message }
-    if (e.metadata) updates.metadata = e.metadata
-    onUpdate?.(e.componentId, updates)
+function summarizeTileItems(tile: ComponentTileInfo, componentProgress: Map<string, number>): TileStatusSummary {
+  let completedCount = 0
+  let failedCount = 0
+  let reusedCount = 0
+  let totalActiveItems = 0
+  let tileReused = 0
+  let tileFailed = 0
+  let tileBuilding = 0
+  let tilePending = 0
+  let tileProgressAccumulator = 0
+  let totalProgressAccumulator = 0
+  let hasMeasuredProgress = false
+
+  for (const item of tile.items) {
+    totalActiveItems++
+
+    switch (item.status) {
+      case 'completed':
+        completedCount++
+        tileProgressAccumulator += 100
+        totalProgressAccumulator += 100
+        break
+      case 'reused':
+        tileReused++
+        reusedCount++
+        tileProgressAccumulator += 100
+        totalProgressAccumulator += 100
+        break
+      case 'error':
+        tileFailed++
+        failedCount++
+        tileProgressAccumulator += 100
+        totalProgressAccumulator += 100
+        break
+      case 'building': {
+        tileBuilding++
+        const measuredProgress = componentProgress.get(item.id)
+        if (measuredProgress === undefined) {
+          tileProgressAccumulator += 40
+          totalProgressAccumulator += 40
+          break
+        }
+
+        hasMeasuredProgress = true
+        tileProgressAccumulator += measuredProgress
+        totalProgressAccumulator += measuredProgress
+        break
+      }
+      default:
+        tilePending++
+    }
+  }
+
+  return {
+    completedCount,
+    failedCount,
+    reusedCount,
+    totalActiveItems,
+    tileReused,
+    tileFailed,
+    tileBuilding,
+    tilePending,
+    tileProgressAccumulator,
+    totalProgressAccumulator,
+    hasMeasuredProgress
   }
 }
 
-function applyComponentProgress(t: any, e: BuildProgressEvent) {
-  if (e.message && e.message.length > 10) {
-    t.currentOperation = e.message
+function applyTileDerivedState(
+  tile: ComponentTileInfo,
+  summary: TileStatusSummary,
+  currentPhase: BuildPhase | null,
+  phaseMessage: string | null
+): void {
+  tile.reusedCount = summary.tileReused
+  tile.progressPercent = Math.round(summary.tileProgressAccumulator / tile.items.length)
+
+  if (summary.tileBuilding > 0) {
+    tile.status = currentPhase === 'discovery' ? 'discovering' : 'building'
+    return
   }
-  if (e.progressPercent !== undefined) t.progressPercent = e.progressPercent
+
+  if (summary.tilePending > 0) {
+    tile.status = currentPhase === 'discovery' ? 'discovering' : 'pending'
+    if (currentPhase === 'discovery') {
+      tile.currentOperation = phaseMessage || 'Discovering reusable resources...'
+    }
+    return
+  }
+
+  if (summary.tileFailed > 0) {
+    tile.status = 'error'
+    tile.currentOperation = undefined
+    return
+  }
+
+  tile.status = 'completed'
+  tile.currentOperation = undefined
 }
 
-function applyPublishProgress(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
-  t.currentOperation = e.message
-  if (e.componentId) {
-    onUpdate?.(e.componentId, {
-      resourceUrl: e.resourceUrl,
-      azureUrl: e.azureUrl,
-      publishedFileCount: e.filesPublished,
-      metadata: e.metadata
+function aggregateTiles(
+  tiles: TileState,
+  componentProgress: Map<string, number>,
+  currentPhase: BuildPhase | null,
+  phaseMessage: string | null
+): TileAggregationResult {
+  let completedCount = 0
+  let failedCount = 0
+  let reusedCount = 0
+  let totalActiveItems = 0
+  let progressAccumulator = 0
+  let hasProgressPercent = false
+
+  for (const type of Object.keys(tiles) as ComponentType[]) {
+    const tile = tiles[type]
+    if (tile.items.length === 0) {
+      tile.status = 'skipped'
+      tile.currentOperation = undefined
+      tile.progressPercent = 0
+      continue
+    }
+
+    const summary = summarizeTileItems(tile, componentProgress)
+    applyTileDerivedState(tile, summary, currentPhase, phaseMessage)
+
+    completedCount += summary.completedCount
+    failedCount += summary.failedCount
+    reusedCount += summary.reusedCount
+    totalActiveItems += summary.totalActiveItems
+    progressAccumulator += summary.totalProgressAccumulator
+    hasProgressPercent = hasProgressPercent || summary.hasMeasuredProgress
+  }
+
+  return {
+    completedCount,
+    failedCount,
+    reusedCount,
+    totalActiveItems,
+    progressAccumulator,
+    hasProgressPercent
+  }
+}
+
+function calculateOverallProgress(phaseState: PhaseTrackingState, componentProgressPercent: number): number {
+  if (phaseState.sawBuildComplete) return 100
+  if (phaseState.currentPhase === 'wiring') return phaseState.sawWiringCompleted ? 96 : 90
+  if (phaseState.currentPhase === 'building') return 15 + Math.round(componentProgressPercent * 0.72)
+  if (phaseState.currentPhase === 'discovery') return phaseState.sawDiscoveryComplete ? 15 : 5
+  if (phaseState.sawBuildError) return Math.min(99, 15 + Math.round(componentProgressPercent * 0.72))
+  return 0
+}
+
+function toBuildLogs(eventLedger: BuildProgressEvent[]): BuildLogEntry[] {
+  return eventLedger
+    .filter(event => event.eventType !== 'heartbeat' && Boolean(event.message))
+    .slice(-200)
+    .map(event => ({
+      timestamp: toLogTimestamp(event.timestamp),
+      type: toLogType(event),
+      message: event.message,
+      componentName: event.componentName
+    }))
+}
+
+export function deriveProgressState(plan: BuildPlan | null, eventLedger: BuildProgressEvent[]): DerivedProgressState {
+  const tiles = createInitialTileState(plan)
+  const componentProgress = new Map<string, number>()
+  const phaseState = createPhaseTrackingState()
+
+  for (const event of eventLedger) {
+    const shouldProcessEvent = event.eventType === 'build_complete' || Boolean(event.message)
+    if (shouldProcessEvent === false) continue
+
+    updatePhaseFromEvent(event, phaseState)
+    updatePhaseFlags(event, phaseState)
+    applyEventToTileState(event, tiles, componentProgress)
+  }
+
+  const aggregation = aggregateTiles(tiles, componentProgress, phaseState.currentPhase, phaseState.phaseMessage)
+
+  const componentProgressPercent =
+    aggregation.totalActiveItems > 0
+      ? Math.max(0, Math.min(100, Math.round(aggregation.progressAccumulator / aggregation.totalActiveItems)))
+      : 0
+
+  const overallProgress = Math.max(0, Math.min(100, calculateOverallProgress(phaseState, componentProgressPercent)))
+  const buildLogs = toBuildLogs(eventLedger)
+
+  return {
+    tiles,
+    completedCount: aggregation.completedCount,
+    failedCount: aggregation.failedCount,
+    reusedCount: aggregation.reusedCount,
+    currentPhase: phaseState.currentPhase,
+    phaseMessage: phaseState.phaseMessage,
+    overallProgress,
+    buildLogs,
+    isProgressEstimated: !phaseState.sawBuildComplete && !aggregation.hasProgressPercent
+  }
+}
+
+function syncComponentWithPlan(event: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
+  if (!event.componentId) return
+
+  if (event.eventType === 'component_started') {
+    onUpdate?.(event.componentId, { status: 'building' })
+    return
+  }
+  if (event.eventType === 'component_reused') {
+    onUpdate?.(event.componentId, { status: 'reused', createdId: event.createdId, metadata: event.metadata })
+    return
+  }
+  if (event.eventType === 'component_progress') {
+    onUpdate?.(event.componentId, { status: 'building', metadata: event.metadata })
+    return
+  }
+  if (event.eventType === 'component_completed') {
+    onUpdate?.(event.componentId, { status: 'completed', createdId: event.createdId, metadata: event.metadata })
+    return
+  }
+  if (event.eventType === 'component_error') {
+    onUpdate?.(event.componentId, {
+      status: 'error',
+      errorMessage: event.errorDetails || event.message,
+      metadata: event.metadata
     })
   }
 }
 
-/**
- * Reducer for tiles state - ensures atomic updates without race conditions
- */
-function tilesReducer(
-  state: TileState,
-  action:
-    | { type: 'UPDATE_TILE'; componentType: ComponentType; updater: (tile: any) => any }
-    | { type: 'RESET'; plan: BuildPlan | null }
-): TileState {
-  if (action.type === 'RESET') {
-    return createInitialTileState(action.plan)
-  }
-
-  if (action.type === 'UPDATE_TILE') {
-    const { componentType, updater } = action
-    const prevTile = state[componentType]
-    if (!prevTile) return state
-
-    // Clone tile and items immutably
-    const newTile = { ...prevTile, items: [...prevTile.items] }
-    // Apply updater function
-    updater(newTile)
-
-    // Return new state with updated tile
-    return {
-      ...state,
-      [componentType]: newTile
-    }
-  }
-
-  return state
+function getProgressSamplingKey(event: BuildProgressEvent): string {
+  return event.componentId || `${event.componentType || 'unknown'}:${event.componentName || 'unknown'}`
 }
 
-/**
- * Hook for managing build progress with SSE streaming
- */
+function getEventTimestampMs(event: BuildProgressEvent): number {
+  const parsedTimestamp = Date.parse(event.timestamp || '')
+  return Number.isFinite(parsedTimestamp) ? parsedTimestamp : Date.now()
+}
+
+function shouldKeepProgressSample(
+  event: BuildProgressEvent,
+  previousSample: ProgressSample | undefined,
+  currentProgress: number | null,
+  currentTimestamp: number
+): boolean {
+  if (!previousSample) return true
+
+  const timeDelta = currentTimestamp - previousSample.ts
+  const progressDelta =
+    currentProgress !== null && previousSample.progress !== null
+      ? Math.abs(currentProgress - previousSample.progress)
+      : 0
+  const messageChanged = event.message !== previousSample.message
+  const isFinalProgress = currentProgress !== null && currentProgress >= 100
+
+  return isFinalProgress || progressDelta >= 5 || (messageChanged && timeDelta >= 900) || timeDelta >= 1600
+}
+
+function sampleComponentProgress(event: BuildProgressEvent, progressSampling: Map<string, ProgressSample>): boolean {
+  if (event.eventType !== 'component_progress') return true
+
+  const progressKey = getProgressSamplingKey(event)
+  const currentTimestamp = getEventTimestampMs(event)
+  const currentProgress = typeof event.progressPercent === 'number' ? event.progressPercent : null
+  const previousSample = progressSampling.get(progressKey)
+  const shouldKeep = shouldKeepProgressSample(event, previousSample, currentProgress, currentTimestamp)
+
+  if (shouldKeep === false) return false
+
+  progressSampling.set(progressKey, {
+    ts: currentTimestamp,
+    progress: currentProgress,
+    message: event.message || ''
+  })
+
+  return true
+}
+
+function handleTerminalBuildEvent(event: BuildProgressEvent, finishBuild: FinishBuildFn): void {
+  if (event.eventType === 'build_error') {
+    const message = event.message || event.errorDetails || 'Build failed'
+    finishBuild(false, message)
+    return
+  }
+
+  if (event.eventType === 'build_complete') {
+    finishBuild(true, undefined, event)
+  }
+}
+
 export function useBuildProgress({
   client,
   plan,
@@ -247,22 +605,17 @@ export function useBuildProgress({
 }: UseBuildProgressOptions): UseBuildProgressResult {
   const [isBuilding, setIsBuilding] = useState(false)
   const [buildError, setBuildError] = useState<string | null>(null)
-  const [tiles, dispatchTiles] = useReducer(tilesReducer, plan, createInitialTileState)
-  const [completedCount, setCompletedCount] = useState(0)
-  const [failedCount, setFailedCount] = useState(0)
-  const [reusedCount, setReusedCount] = useState(0)
-  const [currentPhase, setCurrentPhase] = useState<BuildPhase | null>(null)
-  const [phaseMessage, setPhaseMessage] = useState<string | null>(null)
-
   const [buildDuration, setBuildDuration] = useState(0)
+  const [eventLedger, setEventLedger] = useState<BuildProgressEvent[]>([])
 
   const abortControllerRef = useRef<AbortController | null>(null)
   const buildStartTimeRef = useRef<number>(0)
+  const currentJobIdRef = useRef<string | null>(null)
+  const completedCallbackSentRef = useRef(false)
   const onComponentUpdateRef = useRef(onComponentUpdate)
   const onBuildCompleteRef = useRef(onBuildComplete)
-  const currentJobIdRef = useRef<string | null>(null)
+  const progressSamplingRef = useRef<Map<string, { ts: number; progress: number | null; message: string }>>(new Map())
 
-  // Keep refs in sync with props
   useEffect(() => {
     onComponentUpdateRef.current = onComponentUpdate
   }, [onComponentUpdate])
@@ -270,244 +623,100 @@ export function useBuildProgress({
     onBuildCompleteRef.current = onBuildComplete
   }, [onBuildComplete])
 
-  // Internal reset helper
+  const totalCount = plan?.components.length || 0
+  const derived = useMemo(() => deriveProgressState(plan, eventLedger), [plan, eventLedger])
+
   const resetState = useCallback(() => {
-    dispatchTiles({ type: 'RESET', plan })
-    setCompletedCount(0)
-    setFailedCount(0)
-    setReusedCount(0)
-    setOverallProgress(0)
+    setEventLedger([])
     setBuildDuration(0)
     setBuildError(null)
-    setCurrentPhase(null)
-    setPhaseMessage(null)
-  }, [plan])
+    completedCallbackSentRef.current = false
+    progressSamplingRef.current.clear()
+  }, [])
 
-  // Reset tile state ONLY when jobId changes (new build), NOT on every plan object change
   useEffect(() => {
     const newJobId = plan?.jobId ?? null
     if (currentJobIdRef.current !== newJobId) {
       currentJobIdRef.current = newJobId
       resetState()
+      setIsBuilding(false)
     }
   }, [plan?.jobId, resetState])
 
-  const totalCount = plan?.components.length || 0
-
-  // Event-driven progress — bumped monotonically by SSE event handlers.
-  // This avoids the problem of completedCount hitting 100% prematurely
-  // (component_completed fires during the fast building phase, well before
-  // actual screen generation in the publish phase).
-  const [overallProgress, setOverallProgress] = useState(0)
-
-  /**
-   * Handle phase-level events
-   */
-  const handlePhaseEvent = useCallback(
-    (event: BuildProgressEvent) => {
-      const phaseHandlers: Record<string, () => void> = {
-        discovery_started: () => {
-          setCurrentPhase('discovery')
-          setPhaseMessage(event.message)
-          setOverallProgress(p => Math.max(p, 5))
-        },
-        discovery_complete: () => {
-          setPhaseMessage(event.message)
-          setOverallProgress(p => Math.max(p, 10))
-        },
-        build_started: () => {
-          setCurrentPhase('building')
-          setPhaseMessage(event.message)
-          setOverallProgress(p => Math.max(p, 12))
-        },
-        // Wiring + Publish happen after the fast building phase but BEFORE
-        // the actual screen generation. Keep the timeline at 'building' so users
-        // see building as the long active phase (which it is from their perspective).
-        wiring_started: () => {
-          setPhaseMessage('Connecting components...')
-          setOverallProgress(p => Math.max(p, 18))
-        },
-        wiring_progress: () => setPhaseMessage(event.message),
-        wiring_completed: () => {
-          setPhaseMessage(event.message)
-          setOverallProgress(p => Math.max(p, 22))
-        },
-        publish_started: () => {
-          setPhaseMessage('Preparing screen generation...')
-          setOverallProgress(p => Math.max(p, 25))
-        },
-        publish_progress: () => {
-          setPhaseMessage(event.message)
-          setOverallProgress(p => Math.max(p, 30))
-        },
-        publish_completed: () => {
-          // Only now advance past building → wiring is auto-marked complete
-          setCurrentPhase('wiring')
-          setPhaseMessage(event.message)
-          setOverallProgress(p => Math.max(p, 92))
-        },
-        publish_error: () => setPhaseMessage(event.message),
-        publish_skipped: () => setPhaseMessage(event.message),
-        // AI Builder streaming events — show stable descriptive messages
-        // (raw token-level content would flash too fast to read)
-        ai_builder_started: () => {
-          setPhaseMessage(`Generating code for ${event.componentName || 'screen'}...`)
-          setOverallProgress(p => Math.max(p, 35))
-        },
-        ai_builder_response: () => {
-          // Don't update phaseMessage on every token — keep the stable message
-        },
-        ai_builder_tool_call: () => {
-          setPhaseMessage(`Writing files for ${event.componentName || 'screen'}...`)
-          setOverallProgress(p => Math.min(p + 5, 78))
-        },
-        ai_builder_tool_result: () => {
-          setPhaseMessage(`Files written for ${event.componentName || 'screen'}`)
-          setOverallProgress(p => Math.min(p + 5, 83))
-        },
-        ai_builder_done: () => {
-          setPhaseMessage(`Code generation complete for ${event.componentName || 'screen'}`)
-          setOverallProgress(p => Math.max(p, 88))
-        },
-        ai_builder_error: () => setPhaseMessage(event.message),
-        screen_generation_complete: () => {
-          setPhaseMessage(event.message)
-          setOverallProgress(p => Math.max(p, 90))
-        },
-        build_complete: () => {
-          setCurrentPhase('complete')
-          setIsBuilding(false)
-          setPhaseMessage(event.message)
-          setOverallProgress(100)
-          if (buildStartTimeRef.current > 0) {
-            setBuildDuration(Date.now() - buildStartTimeRef.current)
-          }
-          const success = event.status === 'completed'
-          onComplete?.(success)
-          onBuildCompleteRef.current?.(event)
-        }
+  const finishBuild = useCallback(
+    (success: boolean, errorMessage?: string, event?: BuildProgressEvent) => {
+      if (completedCallbackSentRef.current) return
+      completedCallbackSentRef.current = true
+      setIsBuilding(false)
+      if (buildStartTimeRef.current > 0) {
+        setBuildDuration(Date.now() - buildStartTimeRef.current)
       }
-
-      const handler = phaseHandlers[event.eventType]
-      if (handler) {
-        handler()
-        return true
+      if (!success && errorMessage) {
+        setBuildError(errorMessage)
+        onError?.(errorMessage)
       }
-      return false
+      if (success && event) {
+        onBuildCompleteRef.current?.(event)
+      }
+      onComplete?.(success)
     },
-    [onComplete]
+    [onComplete, onError]
   )
 
-  /**
-   * Handle component-level events
-   */
-  const handleComponentEvent = useCallback((event: BuildProgressEvent) => {
-    if (!event.componentType) return
-
-    const onUpdate = onComponentUpdateRef.current
-
-    dispatchTiles({
-      type: 'UPDATE_TILE',
-      componentType: event.componentType,
-      updater: (tile: any) => {
-        switch (event.eventType) {
-          case 'component_reused':
-            applyComponentReused(tile, event, onUpdate)
-            break
-          case 'component_started':
-            applyComponentStarted(tile, event, onUpdate)
-            break
-          case 'component_completed':
-            applyComponentCompleted(tile, event, onUpdate)
-            break
-          case 'component_error':
-            applyComponentError(tile, event, onUpdate)
-            break
-          case 'component_progress':
-            applyComponentProgress(tile, event)
-            break
-          case 'publish_progress':
-            applyPublishProgress(tile, event, onUpdate)
-            break
-        }
-      }
-    })
-
-    // Update counts
-    const countUpdaters: Record<string, () => void> = {
-      component_completed: () => setCompletedCount(prev => prev + 1),
-      component_error: () => setFailedCount(prev => prev + 1),
-      component_reused: () => setReusedCount(prev => prev + 1)
-    }
-    countUpdaters[event.eventType]?.()
-  }, [])
-
-  /**
-   * Handle incoming progress event
-   */
   const handleProgressEvent = useCallback(
     (event: BuildProgressEvent) => {
-      // Handle as phase event first
-      const isPhaseEvent = handlePhaseEvent(event)
+      if (event.eventType === 'heartbeat') return
+      const shouldProcessEvent = sampleComponentProgress(event, progressSamplingRef.current)
+      if (shouldProcessEvent === false) return
 
-      // For publish/AI builder events that also carry component info,
-      // forward to component handler so the tile shows current operation.
-      // Use stable descriptive messages — never raw streaming tokens.
-      if (isPhaseEvent && event.componentType) {
-        const tileMessages: Record<string, string | null> = {
-          publish_started: `Generating ${event.componentName || 'screen'}...`,
-          publish_progress: `Building ${event.componentName || 'screen'}...`,
-          ai_builder_started: `Generating code for ${event.componentName || 'screen'}...`,
-          ai_builder_tool_call: `Writing files for ${event.componentName || 'screen'}...`,
-          ai_builder_tool_result: `Files written for ${event.componentName || 'screen'}`,
-          ai_builder_done: `Code generation complete`,
-          ai_builder_error: event.message || 'Error during generation',
-          publish_completed: `Published ${event.componentName || 'screen'}`,
-          screen_generation_complete: `Screen generated`
+      syncComponentWithPlan(event, onComponentUpdateRef.current)
+      setEventLedger(prev => pushEvent(prev, event))
+      handleTerminalBuildEvent(event, finishBuild)
+    },
+    [finishBuild]
+  )
+
+  const reconcileAfterStreamEnd = useCallback(async () => {
+    if (!plan || completedCallbackSentRef.current) return
+    try {
+      const status = await client.getJobStatus(plan.jobId)
+      if (status.status === 'completed') {
+        const event: BuildProgressEvent = {
+          eventType: 'build_complete',
+          jobId: plan.jobId,
+          timestamp: new Date().toISOString(),
+          status: 'completed',
+          message:
+            `Build complete: ${status.completedComponents} completed, ` +
+            `${status.failedComponents} failed, ${status.skippedComponents || 0} skipped`,
+          totalComponents: status.totalComponents,
+          completedComponents: status.completedComponents,
+          failedComponents: status.failedComponents,
+          skippedComponents: status.skippedComponents
         }
-        const tileMessage = tileMessages[event.eventType]
-        if (tileMessage !== undefined) {
-          dispatchTiles({
-            type: 'UPDATE_TILE',
-            componentType: event.componentType,
-            updater: (tile: any) => {
-              // Reset tile to 'building' during any active publish/generation work
-              const activeBuildEvents = [
-                'publish_started',
-                'publish_progress',
-                'ai_builder_started',
-                'ai_builder_tool_call',
-                'ai_builder_tool_result'
-              ]
-              if (activeBuildEvents.includes(event.eventType)) {
-                tile.status = 'building'
-              }
-              // Mark tile completed when publish finishes
-              if (event.eventType === 'publish_completed' || event.eventType === 'screen_generation_complete') {
-                tile.status = 'completed'
-              }
-              if (tileMessage) {
-                tile.currentOperation = tileMessage
-              }
-            }
-          })
-        }
-        // Skip ai_builder_response entirely — it's token-level noise
+        handleProgressEvent(event)
         return
       }
 
-      if (isPhaseEvent) return
+      if (status.status === 'error' || status.status === 'cancelled') {
+        const event: BuildProgressEvent = {
+          eventType: 'build_error',
+          jobId: plan.jobId,
+          timestamp: new Date().toISOString(),
+          status: 'error',
+          message: status.errorMessage || 'Build failed before completion'
+        }
+        handleProgressEvent(event)
+        return
+      }
 
-      // Handle as component event
-      handleComponentEvent(event)
-    },
-    [handlePhaseEvent, handleComponentEvent, dispatchTiles]
-  )
+      finishBuild(false, `Build stream ended while status is still '${status.status}'.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Build stream ended unexpectedly'
+      finishBuild(false, message)
+    }
+  }, [client, finishBuild, handleProgressEvent, plan])
 
-  /**
-   * Start the build execution
-   * First run: omit sessionId/repoId. Refine/execute-again: pass stored sessionId/repoId.
-   */
   const startBuild = useCallback(
     async (skipComponents?: string[], sessionId?: string, repoId?: string) => {
       if (!plan) {
@@ -515,64 +724,55 @@ export function useBuildProgress({
         return
       }
 
+      abortControllerRef.current?.abort()
+      abortControllerRef.current = new AbortController()
+      buildStartTimeRef.current = Date.now()
+      completedCallbackSentRef.current = false
+      progressSamplingRef.current.clear()
       setIsBuilding(true)
       setBuildError(null)
-      buildStartTimeRef.current = Date.now()
-      abortControllerRef.current = new AbortController()
+      setBuildDuration(0)
+      setEventLedger([])
 
       const request: ExecuteRequest = {
         jobId: plan.jobId,
         skipComponents: skipComponents ?? []
       }
-      if (sessionId !== undefined && sessionId !== '') request.sessionId = sessionId
-      if (repoId !== undefined && repoId !== '') request.repoId = repoId
+      if (sessionId) request.sessionId = sessionId
+      if (repoId) request.repoId = repoId
 
-      try {
-        await client.executeWithProgress(
-          plan.jobId,
-          request,
-          handleProgressEvent,
-          error => {
-            setBuildError(error.message)
-            setIsBuilding(false)
-            onError?.(error.message)
-          },
-          () => {
-            // Stream ended
-            setIsBuilding(false)
-          }
-        )
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Build failed'
-        setBuildError(errorMessage)
-        setIsBuilding(false)
-        onError?.(errorMessage)
-      }
+      await client.executeWithProgress(
+        plan.jobId,
+        request,
+        handleProgressEvent,
+        error => {
+          if (abortControllerRef.current?.signal.aborted) return
+          finishBuild(false, error.message)
+        },
+        () => {
+          if (abortControllerRef.current?.signal.aborted) return
+          void reconcileAfterStreamEnd()
+        },
+        abortControllerRef.current.signal
+      )
     },
-    [client, plan, handleProgressEvent, onError]
+    [client, finishBuild, handleProgressEvent, onError, plan, reconcileAfterStreamEnd]
   )
 
-  /**
-   * Cancel the current build
-   */
   const cancelBuild = useCallback(() => {
     abortControllerRef.current?.abort()
     setIsBuilding(false)
-
     if (plan) {
       client.cancelBuild(plan.jobId).catch(console.error)
     }
   }, [client, plan])
 
-  /**
-   * Reset progress state (for retry)
-   */
   const resetProgress = useCallback(() => {
-    resetState()
+    abortControllerRef.current?.abort()
     setIsBuilding(false)
+    resetState()
   }, [resetState])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort()
@@ -583,14 +783,17 @@ export function useBuildProgress({
     isBuilding,
     buildError,
     buildDuration,
-    tiles,
-    overallProgress,
-    completedCount,
-    failedCount,
-    reusedCount,
+    tiles: derived.tiles,
+    overallProgress: derived.overallProgress,
+    completedCount: derived.completedCount,
+    failedCount: derived.failedCount,
+    reusedCount: derived.reusedCount,
     totalCount,
-    currentPhase,
-    phaseMessage,
+    currentPhase: derived.currentPhase,
+    phaseMessage: derived.phaseMessage,
+    buildLogs: derived.buildLogs,
+    isProgressEstimated: derived.isProgressEstimated,
+    eventLedger,
     startBuild,
     cancelBuild,
     resetProgress
