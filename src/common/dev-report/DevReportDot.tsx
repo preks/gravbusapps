@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Dialog,
@@ -23,28 +23,12 @@ import {
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env, setProductReportBaseUrlOverride } from '@/common/env/EnvUtils'
-import { isHdCaptureActive, stopHdCapture } from './hdCapture'
 import { submitGravityIssue } from './productReportApi'
 import { captureDevReportScreenshot } from './screenshot'
 import { getDevReportTelemetrySnapshot, startDevReportTelemetry } from './telemetry'
 import type { CreateGravityIssueRequest, GravityIssueType } from './types'
 
-const HD_STORAGE_KEY = 'dev-report-hd-screenshots'
-
-function readHdPref(): boolean {
-  try {
-    return localStorage.getItem(HD_STORAGE_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-function writeHdPref(on: boolean) {
-  try {
-    localStorage.setItem(HD_STORAGE_KEY, on ? '1' : '0')
-  } catch {
-    /* ignore */
-  }
-}
+type Phase = 'form' | 'ask-screenshot' | 'capturing' | 'submitting'
 
 export interface DevReportDotProps {
   enabled: boolean
@@ -61,22 +45,14 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
   const [type, setType] = useState<GravityIssueType>('BUG')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [pendingScreenshot, setPendingScreenshot] = useState<Awaited<
-    ReturnType<typeof captureDevReportScreenshot>
-  > | null>(null)
-  const [hdEnabled, setHdEnabled] = useState(readHdPref)
-  const [hdActive, setHdActive] = useState(false)
-
-  const canSubmit = useMemo(() => {
-    return title.trim().length > 0 && description.trim().length > 0 && !isSubmitting
-  }, [description, isSubmitting, title])
+  const [phase, setPhase] = useState<Phase>('form')
 
   if (!enabled) return null
 
   const baseUrl = useMemo(() => env('NEXT_PUBLIC_PRODUCT_REPORT_BASE_URL') || '', [baseUrlRefresh])
   const hasBaseUrl = Boolean(baseUrl)
+  const canSubmit = title.trim().length > 0 && description.trim().length > 0 && phase === 'form'
 
   useEffect(() => {
     if (hasBaseUrl) return
@@ -89,32 +65,19 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
     startDevReportTelemetry()
   }, [enabled])
 
-  const refreshHdStatus = useCallback(() => setHdActive(isHdCaptureActive()), [])
-
-  const handleDotClick = async () => {
-    setPendingScreenshot(null)
-    const screenshotRes = await captureDevReportScreenshot(hdEnabled)
-    setPendingScreenshot(screenshotRes)
-    refreshHdStatus()
+  const handleDotClick = () => {
+    setPhase('form')
+    setSubmitError(null)
     setProductReportUrl(env('NEXT_PUBLIC_PRODUCT_REPORT_BASE_URL') || productReportUrl || '')
     setBaseUrlRefresh(v => v + 1)
     setOpen(true)
   }
 
   const handleOpenChange = (next: boolean) => {
+    if (phase === 'capturing' || phase === 'submitting') return
     setSubmitError(null)
     setOpen(next)
-    if (!next) setPendingScreenshot(null)
-  }
-
-  const handleToggleHd = () => {
-    const next = !hdEnabled
-    setHdEnabled(next)
-    writeHdPref(next)
-    if (!next) {
-      stopHdCapture()
-      setHdActive(false)
-    }
+    if (!next) setPhase('form')
   }
 
   const handleSaveProductReportUrl = () => {
@@ -131,19 +94,18 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
     })
   }
 
-  const handleSubmit = async () => {
+  const handleSubmitClick = () => {
     if (!canSubmit) return
     if (!hasBaseUrl) {
       setSubmitError('Please configure the Product Report URL first')
       return
     }
+    setPhase('ask-screenshot')
+  }
 
-    setIsSubmitting(true)
-    setSubmitError(null)
-
+  const doSubmit = async (screenshotRes: { screenshot: any; error?: string }) => {
     const pageUrl = typeof window !== 'undefined' ? window.location.href : undefined
     const buildInfo = typeof globalThis !== 'undefined' ? ((globalThis as any).__APP_BUILD_INFO__ ?? null) : null
-    const screenshotRes = pendingScreenshot ?? { screenshot: null, error: 'no_pre_capture' }
     const telemetry = getDevReportTelemetrySnapshot()
 
     const payload: CreateGravityIssueRequest = {
@@ -182,16 +144,34 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
       setDescription('')
       setType('BUG')
       setOpen(false)
-      setIsSubmitting(false)
+      setPhase('form')
       return
     }
 
-    setIsSubmitting(false)
+    setPhase('form')
     setSubmitError(result.error || 'Failed to submit')
     toast.error('Failed to submit report', {
       description: <span className="gba:text-foreground">{result.error || 'Unknown error'}</span>,
       position: 'top-right'
     })
+  }
+
+  const handleScreenshotYes = async () => {
+    setOpen(false)
+    setPhase('capturing')
+
+    await new Promise(r => setTimeout(r, 300))
+
+    const screenshotRes = await captureDevReportScreenshot()
+
+    setPhase('submitting')
+    setOpen(true)
+    await doSubmit(screenshotRes)
+  }
+
+  const handleScreenshotNo = async () => {
+    setPhase('submitting')
+    await doSubmit({ screenshot: null, error: 'user_skipped' })
   }
 
   const tooltipLabel = type === 'BUG' ? 'Report bug' : 'Suggest feature'
@@ -217,141 +197,145 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="gba:max-w-[560px]" data-testid="dev-report-dialog">
-          <DialogHeader>
-            <DialogTitle>Report</DialogTitle>
-            <DialogDescription>
-              Submit a bug report or feature suggestion for <code className="gba:font-medium">{screenKey}</code>.
-            </DialogDescription>
-          </DialogHeader>
+          {phase === 'form' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Report</DialogTitle>
+                <DialogDescription>
+                  Submit a bug report or feature suggestion for <code className="gba:font-medium">{screenKey}</code>.
+                </DialogDescription>
+              </DialogHeader>
 
-          <div className="gba:space-y-4">
-            {!hasBaseUrl && (
-              <div className="gba:space-y-2 gba:rounded-md gba:bg-muted gba:p-3" data-testid="dev-report-config">
-                <Label htmlFor="dev-report-product-report-url">Product Report URL</Label>
-                <div className="gba:flex gba:gap-2">
+              <div className="gba:space-y-4">
+                {!hasBaseUrl && (
+                  <div className="gba:space-y-2 gba:rounded-md gba:bg-muted gba:p-3" data-testid="dev-report-config">
+                    <Label htmlFor="dev-report-product-report-url">Product Report URL</Label>
+                    <div className="gba:flex gba:gap-2">
+                      <Input
+                        id="dev-report-product-report-url"
+                        value={productReportUrl}
+                        onChange={e => setProductReportUrl(e.target.value)}
+                        placeholder="https://…"
+                        data-testid="dev-report-product-report-url"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSaveProductReportUrl}
+                        disabled={productReportUrl.trim().length === 0}
+                        data-testid="dev-report-product-report-url-save"
+                      >
+                        Save
+                      </Button>
+                    </div>
+                    <div className="gba:text-sm gba:text-muted-foreground">
+                      Your browser blocked automatic setup. Enter a valid URL to store it locally for dev reporting.
+                    </div>
+                  </div>
+                )}
+
+                <div className="gba:space-y-2">
+                  <Label>Type</Label>
+                  <Select value={type} onValueChange={v => setType(v as GravityIssueType)}>
+                    <SelectTrigger data-testid="dev-report-type-trigger" aria-label="Type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BUG" data-testid="dev-report-type-bug">
+                        Bug report
+                      </SelectItem>
+                      <SelectItem value="SUGGESTION" data-testid="dev-report-type-suggestion">
+                        Feature suggestion
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="gba:space-y-2">
+                  <Label htmlFor="dev-report-title">Name</Label>
                   <Input
-                    id="dev-report-product-report-url"
-                    value={productReportUrl}
-                    onChange={e => setProductReportUrl(e.target.value)}
-                    placeholder="https://…"
-                    data-testid="dev-report-product-report-url"
+                    id="dev-report-title"
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    placeholder="Short title"
+                    data-testid="dev-report-title"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSaveProductReportUrl}
-                    disabled={isSubmitting || productReportUrl.trim().length === 0}
-                    data-testid="dev-report-product-report-url-save"
+                </div>
+
+                <div className="gba:space-y-2">
+                  <Label htmlFor="dev-report-description">Description</Label>
+                  <Textarea
+                    id="dev-report-description"
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="What happened? What did you expect?"
+                    rows={6}
+                    data-testid="dev-report-description"
+                  />
+                </div>
+
+                {submitError && (
+                  <div
+                    className="gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:px-3 gba:py-2 gba:text-sm"
+                    data-testid="dev-report-error"
                   >
-                    Save
-                  </Button>
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  Your browser blocked automatic setup. Enter a valid URL to store it locally for dev reporting.
-                </div>
+                    {submitError}
+                  </div>
+                )}
               </div>
-            )}
 
-            <div className="gba:space-y-2">
-              <Label>Type</Label>
-              <Select value={type} onValueChange={v => setType(v as GravityIssueType)} disabled={isSubmitting}>
-                <SelectTrigger data-testid="dev-report-type-trigger" aria-label="Type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BUG" data-testid="dev-report-type-bug">
-                    Bug report
-                  </SelectItem>
-                  <SelectItem value="SUGGESTION" data-testid="dev-report-type-suggestion">
-                    Feature suggestion
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <DialogFooter className="gba:gap-2">
+                <Button type="button" variant="outline" onClick={() => setOpen(false)} data-testid="dev-report-cancel">
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSubmitClick}
+                  disabled={!canSubmit || !hasBaseUrl}
+                  data-testid="dev-report-submit"
+                >
+                  Submit
+                </Button>
+              </DialogFooter>
+            </>
+          )}
 
-            <div className="gba:space-y-2">
-              <Label htmlFor="dev-report-title">Name</Label>
-              <Input
-                id="dev-report-title"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Short title"
-                disabled={isSubmitting}
-                data-testid="dev-report-title"
-              />
-            </div>
+          {phase === 'ask-screenshot' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Include screenshot?</DialogTitle>
+                <DialogDescription>Capture the current page state to attach to your report.</DialogDescription>
+              </DialogHeader>
 
-            <div className="gba:space-y-2">
-              <Label htmlFor="dev-report-description">Description</Label>
-              <Textarea
-                id="dev-report-description"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="What happened? What did you expect?"
-                rows={6}
-                disabled={isSubmitting}
-                data-testid="dev-report-description"
-              />
-            </div>
+              <DialogFooter className="gba:gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleScreenshotNo}
+                  data-testid="dev-report-screenshot-no"
+                >
+                  No, skip
+                </Button>
+                <Button type="button" onClick={handleScreenshotYes} data-testid="dev-report-screenshot-yes">
+                  Yes, capture
+                </Button>
+              </DialogFooter>
+            </>
+          )}
 
-            <div
-              className="gba:flex gba:items-center gba:justify-between gba:rounded-md gba:bg-muted gba:px-3 gba:py-2"
-              data-testid="dev-report-hd-toggle"
-            >
-              <div>
-                <div className="gba:text-sm gba:font-medium">HD screenshots</div>
-                <div className="gba:text-xs gba:text-muted-foreground">
-                  {hdActive ? 'Active — pixel-perfect capture' : 'One-time tab sharing on first use'}
+          {phase === 'submitting' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Submitting…</DialogTitle>
+                <DialogDescription>Your report is being sent.</DialogDescription>
+              </DialogHeader>
+              <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+                <div className="gba:text-sm gba:text-muted-foreground" data-testid="dev-report-submitting">
+                  Submitting report…
                 </div>
               </div>
-              <Button
-                type="button"
-                variant={hdEnabled ? 'default' : 'outline'}
-                size="sm"
-                onClick={handleToggleHd}
-                disabled={isSubmitting}
-                data-testid="dev-report-hd-toggle-btn"
-              >
-                {hdEnabled ? 'On' : 'Off'}
-              </Button>
-            </div>
-
-            {isSubmitting && (
-              <div className="gba:text-sm gba:text-muted-foreground" data-testid="dev-report-submitting">
-                Submitting…
-              </div>
-            )}
-
-            {submitError && (
-              <div
-                className="gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:px-3 gba:py-2 gba:text-sm"
-                data-testid="dev-report-error"
-              >
-                {submitError}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="gba:gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isSubmitting}
-              data-testid="dev-report-cancel"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!canSubmit || !hasBaseUrl}
-              loading={isSubmitting}
-              data-testid="dev-report-submit"
-            >
-              Submit
-            </Button>
-          </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </TooltipProvider>
