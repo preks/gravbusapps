@@ -13,6 +13,7 @@ export interface UseSlidesHubUrlStateParams {
   setSelectedSlideId: (id: string | null) => void
   activeSection: SidebarSection
   setActiveSection: (section: SidebarSection) => void
+  onInitialLoadComplete?: () => void
 }
 
 export interface UseSlidesHubUrlStateReturn {
@@ -38,11 +39,13 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     setCurrentView,
     setSelectedSlideId,
     activeSection,
-    setActiveSection
+    setActiveSection,
+    onInitialLoadComplete
   } = params
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  const initialLoadCompleteRef = useRef(false)
 
   const updateUrl = useCallback(
     (slideId: string | null, view?: HubView) => {
@@ -83,18 +86,31 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
   // Load slide from URL on mount
   useEffect(() => {
     const { slideId, view } = getUrlParams()
-    if (!slideId) return
+
+    // No slideId in URL - mark as complete immediately
+    if (!slideId) {
+      if (!initialLoadCompleteRef.current) {
+        initialLoadCompleteRef.current = true
+        onInitialLoadComplete?.()
+      }
+      return
+    }
+
     if (currentSlideId) return
     if (isLoadingSlide) return
     if (loadAttemptedRef.current === slideId) return
 
     loadAttemptedRef.current = slideId
     loadSlideById(slideId).then(slide => {
+      if (!initialLoadCompleteRef.current) {
+        initialLoadCompleteRef.current = true
+        onInitialLoadComplete?.()
+      }
       if (!slide) return
       setSelectedSlideId(slideId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })
-  }, [currentSlideId, isLoadingSlide, loadSlideById, setCurrentView, setSelectedSlideId])
+  }, [currentSlideId, isLoadingSlide, loadSlideById, setCurrentView, setSelectedSlideId, onInitialLoadComplete])
 
   // Track if we came from desk
   useEffect(() => {

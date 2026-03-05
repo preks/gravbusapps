@@ -232,6 +232,9 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     pageSize
   } = useHubPagination({ items: filteredSlides, pageSize: 20 })
 
+  // Track if initial URL load has been processed
+  const [initialUrlProcessed, setInitialUrlProcessed] = useState(false)
+
   const { updateUrl, resetLoadAttempt } = useSlidesHubUrlState({
     currentView,
     currentSlideId: selectedSlideId,
@@ -240,15 +243,18 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     setCurrentView,
     setSelectedSlideId,
     activeSection,
-    setActiveSection
+    setActiveSection,
+    onInitialLoadComplete: () => setInitialUrlProcessed(true)
   })
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
+  // Only run after initial URL processing is complete to avoid clearing slideId on refresh
   useEffect(() => {
+    if (!initialUrlProcessed) return
     if (currentView === 'list' && !selectedSlideId) {
       updateUrl(null)
     }
-  }, [activeSection, currentView, selectedSlideId, updateUrl])
+  }, [activeSection, currentView, selectedSlideId, updateUrl, initialUrlProcessed])
 
   // Persist sidebar collapsed state
   useEffect(() => {

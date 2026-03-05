@@ -503,3 +503,91 @@ export const gradientToCss = (gradient: GradientConfig): string => {
   }
   return `radial-gradient(circle, ${stops})`
 }
+
+// AI Presentation Assist - Effect Types
+export type EffectType =
+  | 'highlight' // Yellow background pulse - for key terms
+  | 'underline' // Animated underline - for emphasis
+  | 'magnify' // Scale up 115% - for focus
+  | 'pulse' // Opacity pulse - for subtle attention
+  | 'glow' // Box shadow glow - for important items
+  | 'bounce' // Subtle Y-axis bounce - for lists/bullets
+  | 'spotlight' // Dim others to 30% opacity - for isolation
+
+export type EffectIntensity = 'subtle' | 'normal' | 'strong'
+
+export interface ElementEffect {
+  id: string // Unique effect instance ID
+  elementId: string // Target slide element ID
+  effect: EffectType
+  duration: number // ms (default: 1500, range: 500-3000)
+  intensity: EffectIntensity
+  timestamp: number // When effect was triggered
+  source: 'speech' | 'manual' // How effect was triggered
+}
+
+export interface EffectClearCommand {
+  type: 'clear-single' | 'clear-all' | 'clear-element'
+  effectId?: string // For clear-single
+  elementId?: string // For clear-element
+}
+
+export interface AIAssistConfig {
+  enabled: boolean
+  language: string // Speech recognition language (default: 'en-US')
+  sensitivity: 'low' | 'medium' | 'high' // Match threshold
+  effectStyle: EffectIntensity
+  enabledEffects: EffectType[] // Which effects to use
+  videoAutoplay: boolean // Auto-play videos on trigger phrases
+  showTranscript: boolean // Show live transcript panel
+  showMatchFeedback: boolean // Visual feedback on matches
+  cooldownMs: number // Per-element cooldown (default: 5000)
+  duplicateDetectionMs: number // Block duplicate transcripts for this duration (default: 2000)
+  maxConcurrentEffects: number // Limit simultaneous animations (default: 3)
+  transcriptBufferSize: number // Max words to keep (default: 500)
+}
+
+export const DEFAULT_AI_ASSIST_CONFIG: AIAssistConfig = {
+  enabled: false,
+  language: 'en-US',
+  sensitivity: 'medium',
+  effectStyle: 'normal',
+  enabledEffects: ['highlight', 'magnify', 'spotlight'],
+  videoAutoplay: true,
+  showTranscript: false,
+  showMatchFeedback: true,
+  cooldownMs: 5000,
+  duplicateDetectionMs: 2000,
+  maxConcurrentEffects: 3,
+  transcriptBufferSize: 500
+}
+
+export const EFFECT_TYPE_OPTIONS: { value: EffectType; label: string; description: string }[] = [
+  { value: 'highlight', label: 'Highlight', description: 'Yellow background pulse' },
+  { value: 'underline', label: 'Underline', description: 'Animated underline' },
+  { value: 'magnify', label: 'Magnify', description: 'Scale up for focus' },
+  { value: 'pulse', label: 'Pulse', description: 'Opacity pulse' },
+  { value: 'glow', label: 'Glow', description: 'Box shadow glow' },
+  { value: 'bounce', label: 'Bounce', description: 'Subtle bounce' },
+  { value: 'spotlight', label: 'Spotlight', description: 'Dim other elements' }
+]
+
+export function createEffect(
+  elementId: string,
+  effect: EffectType,
+  options?: Partial<Pick<ElementEffect, 'duration' | 'intensity' | 'source'>>
+): ElementEffect {
+  return {
+    id: `effect-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    elementId,
+    effect,
+    duration: options?.duration ?? 1500,
+    intensity: options?.intensity ?? 'normal',
+    timestamp: Date.now(),
+    source: options?.source ?? 'speech'
+  }
+}
+
+export function isEffectExpired(effect: ElementEffect): boolean {
+  return Date.now() - effect.timestamp > effect.duration
+}

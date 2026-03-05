@@ -135,6 +135,7 @@ editor-add = Adăugare
 editor-duplicate-slide = Duplicare slide
 editor-delete-slide = Ștergere slide
 editor-properties = Proprietăți
+editor-show-properties = Afișare Proprietăți
 editor-select-element = Selectați un element pentru a edita proprietățile
 editor-edit-text = Editare text
 editor-done = Gata

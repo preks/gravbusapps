@@ -5,7 +5,7 @@
  * Shows thumbnail preview of first slide and template metadata.
  */
 
-import React from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { Button, Badge, useTranslation } from '@newwork/nw-design-system'
 import { Briefcase, Palette, Minimize2, Folder, Trash2, Globe, Lock, MoreVertical } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@newwork/nw-design-system'
@@ -13,6 +13,9 @@ import type { SlideTemplateSummary, TemplateCategory } from '../types'
 import type { SlideData } from './slideElements'
 import { gradientToCss } from './slideElements'
 import translations from '../_i18n'
+
+const SLIDE_WIDTH = 1280
+const SLIDE_HEIGHT = 720
 
 export interface TemplateCardProps {
   template: SlideTemplateSummary
@@ -39,8 +42,21 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
   'data-testid': testId = 'template-card'
 }) => {
   const { t } = useTranslation(translations)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(0.15)
 
-  const thumbScale = 200 / 1280
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth
+        setScale(containerWidth / SLIDE_WIDTH)
+      }
+    }
+
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [])
 
   return (
     <div
@@ -51,7 +67,11 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
       data-testid={testId}
     >
       {/* Thumbnail Preview */}
-      <div className="gba:relative gba:overflow-hidden gba:bg-muted" style={{ aspectRatio: '16 / 9' }}>
+      <div
+        ref={containerRef}
+        className="gba:relative gba:overflow-hidden gba:bg-muted"
+        style={{ aspectRatio: '16 / 9' }}
+      >
         {previewSlide ? (
           <div
             className="gba:absolute gba:inset-0"
@@ -67,9 +87,9 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                width: 1280,
-                height: 720,
-                transform: `scale(${thumbScale})`,
+                width: SLIDE_WIDTH,
+                height: SLIDE_HEIGHT,
+                transform: `scale(${scale})`,
                 transformOrigin: 'top left'
               }}
             >

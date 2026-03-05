@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@newwork/nw-design-system'
-import type { SlideData } from './slideElements'
+import type { SlideData, ElementEffect } from './slideElements'
 import type { SlideTheme } from './slideThemes'
 import { SlideCanvas } from './SlideCanvas'
 import type { CastSlideData } from '../hooks/usePresentationCast'
 import type { PresentationConnection, PresentationConnectionAvailableEvent } from '../types/presentationApi'
 import '../types/presentationApi'
+import './slideAnimations.css'
 
 export interface CastReceiverProps {
   'data-testid'?: string
@@ -22,9 +23,9 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
   const [scale, setScale] = useState(1)
   const [isConnected, setIsConnected] = useState(false)
   const [isPresentationReceiver, setIsPresentationReceiver] = useState(false)
-  const [showSlideTransition, setShowSlideTransition] = useState(false)
   const [connectionSource, setConnectionSource] = useState<'api' | 'window' | null>(null)
   const [showControls, setShowControls] = useState(true)
+  const [activeEffects, setActiveEffects] = useState<Map<string, ElementEffect>>(new Map())
 
   const containerRef = useRef<HTMLDivElement>(null)
   const connectionRef = useRef<PresentationConnection | null>(null)
@@ -33,8 +34,166 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null)
   const handleMessageRef = useRef<((data: CastSlideData, source: 'api' | 'window') => void) | null>(null)
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const effectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   const currentSlide = slides[currentIndex]
+
+  // Apply effect CSS classes to an element
+  const applyEffect = useCallback((effect: ElementEffect) => {
+    const element = document.querySelector(`[data-element-id="${effect.elementId}"]`) as HTMLElement
+    if (!element) {
+      console.warn('[CastReceiver] Element not found for effect:', effect.elementId)
+      return false
+    }
+
+    // Remove any existing effect classes from this element
+    element.classList.remove(
+      'effect-highlight',
+      'effect-underline',
+      'effect-magnify',
+      'effect-pulse',
+      'effect-glow',
+      'effect-bounce',
+      'effect-spotlight-active',
+      'effect-cleared'
+    )
+    element.classList.remove(
+      'effect-highlight-subtle',
+      'effect-highlight-normal',
+      'effect-highlight-strong',
+      'effect-underline-subtle',
+      'effect-underline-normal',
+      'effect-underline-strong',
+      'effect-magnify-subtle',
+      'effect-magnify-normal',
+      'effect-magnify-strong',
+      'effect-pulse-subtle',
+      'effect-pulse-normal',
+      'effect-pulse-strong',
+      'effect-glow-subtle',
+      'effect-glow-normal',
+      'effect-glow-strong',
+      'effect-bounce-subtle',
+      'effect-bounce-normal',
+      'effect-bounce-strong'
+    )
+
+    // Handle spotlight effect (dim other elements)
+    if (effect.effect === 'spotlight') {
+      // Add spotlight-active to target
+      element.classList.add('effect-spotlight-active')
+      // Dim all other slide elements
+      document.querySelectorAll('[data-element-id]').forEach(el => {
+        if (el !== element) {
+          el.classList.add('effect-spotlight-dimmed')
+          el.classList.remove('effect-spotlight-restored')
+        }
+      })
+    } else {
+      // Apply effect class with intensity
+      element.classList.add(`effect-${effect.effect}`)
+      element.classList.add(`effect-${effect.effect}-${effect.intensity}`)
+      element.style.setProperty('--effect-duration', `${effect.duration}ms`)
+    }
+
+    console.log('[CastReceiver] Applied effect:', effect.effect, 'to', effect.elementId)
+    return true
+  }, [])
+
+  // Clear effect from an element
+  const clearEffect = useCallback(
+    (effectId: string, elementId?: string) => {
+      const targetElementId = elementId || activeEffects.get(effectId)?.elementId
+      if (!targetElementId) return
+
+      const element = document.querySelector(`[data-element-id="${targetElementId}"]`) as HTMLElement
+      if (element) {
+        // Clear all effect classes
+        element.classList.add('effect-cleared')
+        setTimeout(() => {
+          element.classList.remove(
+            'effect-highlight',
+            'effect-underline',
+            'effect-magnify',
+            'effect-pulse',
+            'effect-glow',
+            'effect-bounce',
+            'effect-spotlight-active',
+            'effect-cleared'
+          )
+          element.classList.remove(
+            'effect-highlight-subtle',
+            'effect-highlight-normal',
+            'effect-highlight-strong',
+            'effect-underline-subtle',
+            'effect-underline-normal',
+            'effect-underline-strong',
+            'effect-magnify-subtle',
+            'effect-magnify-normal',
+            'effect-magnify-strong',
+            'effect-pulse-subtle',
+            'effect-pulse-normal',
+            'effect-pulse-strong',
+            'effect-glow-subtle',
+            'effect-glow-normal',
+            'effect-glow-strong',
+            'effect-bounce-subtle',
+            'effect-bounce-normal',
+            'effect-bounce-strong'
+          )
+          element.style.removeProperty('--effect-duration')
+        }, 50)
+      }
+
+      // Restore spotlight-dimmed elements
+      document.querySelectorAll('.effect-spotlight-dimmed').forEach(el => {
+        el.classList.remove('effect-spotlight-dimmed')
+        el.classList.add('effect-spotlight-restored')
+      })
+
+      // Clear timer if exists
+      const timer = effectTimersRef.current.get(effectId)
+      if (timer) {
+        clearTimeout(timer)
+        effectTimersRef.current.delete(effectId)
+      }
+    },
+    [activeEffects]
+  )
+
+  // Clear all effects
+  const clearAllEffects = useCallback(() => {
+    activeEffects.forEach((effect, effectId) => {
+      clearEffect(effectId, effect.elementId)
+    })
+    setActiveEffects(new Map())
+    effectTimersRef.current.forEach(timer => clearTimeout(timer))
+    effectTimersRef.current.clear()
+  }, [activeEffects, clearEffect])
+
+  // Handle video control commands
+  const handleVideoControl = useCallback((elementId: string, action: 'play' | 'pause' | 'restart') => {
+    const video = document.querySelector(`[data-element-id="${elementId}"] video`) as HTMLVideoElement
+    if (!video) {
+      console.warn('[CastReceiver] Video element not found:', elementId)
+      return false
+    }
+
+    switch (action) {
+      case 'play':
+        video.play().catch(e => console.warn('[CastReceiver] Video play failed:', e))
+        break
+      case 'pause':
+        video.pause()
+        break
+      case 'restart':
+        video.currentTime = 0
+        video.play().catch(e => console.warn('[CastReceiver] Video restart failed:', e))
+        break
+    }
+    console.log('[CastReceiver] Video control:', action, elementId)
+    return true
+  }, [])
 
   // Send acknowledgment back to controller
   const sendAck = useCallback((type: string, data?: Record<string, unknown>) => {
@@ -138,11 +297,10 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
 
         case 'slide-update':
         case 'navigate':
-          // Show transition effect when slide changes
+          // Clear all effects on slide change
           if (data.slideIndex !== prevIndexRef.current) {
-            setShowSlideTransition(true)
-            setTimeout(() => setShowSlideTransition(false), 300)
             prevIndexRef.current = data.slideIndex
+            clearAllEffects()
           }
           setCurrentIndex(data.slideIndex)
           if (data.slide && data.slides) {
@@ -161,9 +319,92 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
           setTheme(data.theme)
           sendAck('theme-received')
           break
+
+        case 'effect':
+          console.log('[CastReceiver] Received effect message with', data.effects?.length || 0, 'effects')
+          if (data.effects && data.effects.length > 0) {
+            console.log(
+              '[CastReceiver] Effects to apply:',
+              data.effects.map(e => ({ id: e.id, effect: e.effect, elementId: e.elementId }))
+            )
+            data.effects.forEach(effect => {
+              console.log('[CastReceiver] Attempting to apply effect:', effect.effect, 'to element:', effect.elementId)
+              // Apply the effect
+              const applied = applyEffect(effect)
+              console.log('[CastReceiver] Effect applied result:', applied)
+              if (applied) {
+                // Track active effect
+                setActiveEffects(prev => new Map(prev).set(effect.id, effect))
+
+                // Schedule auto-cleanup
+                const timer = setTimeout(() => {
+                  clearEffect(effect.id, effect.elementId)
+                  setActiveEffects(prev => {
+                    const next = new Map(prev)
+                    next.delete(effect.id)
+                    return next
+                  })
+                }, effect.duration + 100)
+                effectTimersRef.current.set(effect.id, timer)
+
+                sendAck('effect-applied', { effectId: effect.id, elementId: effect.elementId })
+              }
+            })
+          }
+          break
+
+        case 'clear-effects':
+          if (data.clearCommand) {
+            const cmd = data.clearCommand
+            switch (cmd.type) {
+              case 'clear-single':
+                if (cmd.effectId) {
+                  clearEffect(cmd.effectId)
+                  setActiveEffects(prev => {
+                    const next = new Map(prev)
+                    next.delete(cmd.effectId!)
+                    return next
+                  })
+                }
+                break
+              case 'clear-element':
+                if (cmd.elementId) {
+                  activeEffects.forEach((effect, effectId) => {
+                    if (effect.elementId === cmd.elementId) {
+                      clearEffect(effectId, effect.elementId)
+                    }
+                  })
+                  setActiveEffects(prev => {
+                    const next = new Map(prev)
+                    prev.forEach((effect, effectId) => {
+                      if (effect.elementId === cmd.elementId) {
+                        next.delete(effectId)
+                      }
+                    })
+                    return next
+                  })
+                }
+                break
+              case 'clear-all':
+                clearAllEffects()
+                break
+            }
+            sendAck('effect-cleared')
+          }
+          break
+
+        case 'video-control':
+          if (data.videoControl) {
+            const { elementId, action } = data.videoControl
+            const success = handleVideoControl(elementId, action)
+            if (success) {
+              sendAck('video-controlled', { elementId })
+            }
+          }
+          break
       }
     },
-    [sendAck]
+    [sendAck, applyEffect, clearEffect, clearAllEffects, handleVideoControl, activeEffects]
   )
 
   // Keep ref updated for stable channel listener
@@ -349,18 +590,8 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
       style={{ backgroundColor: theme?.preview.background || '#000000' }}
       data-testid={testId}
     >
-      {/* Slide transition overlay */}
-      {showSlideTransition && (
-        <div className="gba:absolute gba:inset-0 gba:bg-black/20 gba:z-10 gba:pointer-events-none gba:animate-pulse" />
-      )}
-
-      {/* Slide container with transition */}
-      <div
-        className={cn(
-          'gba:relative gba:transition-opacity gba:duration-200',
-          showSlideTransition ? 'gba:opacity-90' : 'gba:opacity-100'
-        )}
-      >
+      {/* Slide container */}
+      <div className="gba:relative">
         <SlideCanvas
           elements={currentSlide.elements}
           selectedIds={new Set()}

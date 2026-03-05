@@ -71,7 +71,9 @@ import {
   AreaChart,
   Activity,
   Target,
-  ExternalLink
+  ExternalLink,
+  X,
+  PanelRight
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -87,6 +89,11 @@ import { SlideEditorHeaderActions } from './editor/SlideEditorHeaderActions'
 import { SLIDE_THEMES, getThemeById } from './slideThemes'
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
 import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
+import { useEffectManager } from '../hooks/useEffectManager'
+import { useSpeechMatcher, type MatchResult, type VideoTriggerResult } from '../hooks/useSpeechMatcher'
+import { AIAssistSettings, loadAIAssistConfig, saveAIAssistConfig } from './AIAssistSettings'
+import type { AIAssistConfig } from './slideElements'
+import type { AIAssistStatus } from './PresenterView'
 import {
   type AnySlideElement,
   type SlideData,
@@ -331,6 +338,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [selectedSlideIndices, setSelectedSlideIndices] = useState<Set<number>>(new Set([0]))
   const [slideSelectionAnchor, setSlideSelectionAnchor] = useState<number | null>(null)
   const [selectedElementIds, setSelectedElementIds] = useState<Set<string>>(new Set())
+  const [showPropertyPanel, setShowPropertyPanel] = useState(true)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isPresentMode, setIsPresentMode] = useState(false)
@@ -346,6 +354,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showNotesPanel, setShowNotesPanel] = useState(false)
   const [presenterMode, setPresenterMode] = useState(false)
   const [presentationTitle, setPresentationTitle] = useState(slide.title)
+
+  // AI Assist state
+  const [aiAssistConfig, setAiAssistConfig] = useState<AIAssistConfig>(() => loadAIAssistConfig())
+  const [showAIAssistSettings, setShowAIAssistSettings] = useState(false)
   const [newTitle, setNewTitle] = useState(slide.title)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
@@ -400,7 +412,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     connectionState: castConnectionState,
     startCasting,
     stopCasting,
-    sendSlideData
+    sendSlideData,
+    sendEffects,
+    sendClearEffects,
+    sendVideoControl
   } = usePresentationCast({
     receiverUrl: castReceiverUrl,
     onConnectionChange: state => {
@@ -482,6 +497,119 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const slides = useMemo(() => {
     return collaborativeSlides?.length ? collaborativeSlides : [defaultSlide]
   }, [collaborativeSlides, defaultSlide])
+
+  // AI Assist - Effect Manager
+  const effectManager = useEffectManager({
+    config: aiAssistConfig,
+    onSendEffect: sendEffects,
+    onSendClear: sendClearEffects
+  })
+
+  // AI Assist - Speech Matcher (handles matching + video triggers)
+  const handleSpeechMatch = useCallback(
+    (matches: MatchResult[]) => {
+      console.log('[SlideEditor] handleSpeechMatch called with', matches.length, 'matches')
+      console.log('[SlideEditor] aiAssistConfig.enabled:', aiAssistConfig.enabled)
+      console.log('[SlideEditor] isCastConnected:', isCastConnected)
+
+      if (!aiAssistConfig.enabled || !isCastConnected) {
+        console.log('[SlideEditor] Skipping effects - enabled:', aiAssistConfig.enabled, 'connected:', isCastConnected)
+        return
+      }
+
+      // Pick a random enabled effect type for each match
+      const enabledEffects = aiAssistConfig.enabledEffects
+      console.log('[SlideEditor] Enabled effects:', enabledEffects)
+      if (enabledEffects.length === 0) return
+
+      matches.forEach(match => {
+        const randomEffect = enabledEffects[Math.floor(Math.random() * enabledEffects.length)]
+        console.log('[SlideEditor] Queueing effect:', randomEffect, 'for element:', match.elementId)
+        effectManager.queueEffect(match.elementId, randomEffect)
+      })
+    },
+    [aiAssistConfig.enabled, aiAssistConfig.enabledEffects, isCastConnected, effectManager]
+  )
+
+  const handleVideoTrigger = useCallback(
+    (result: VideoTriggerResult) => {
+      if (!aiAssistConfig.enabled || !isCastConnected) return
+      sendVideoControl(result.elementId, result.action)
+    },
+    [aiAssistConfig.enabled, isCastConnected, sendVideoControl]
+  )
+
+  const speechMatcher = useSpeechMatcher({
+    slides,
+    currentIndex: currentSlideIndex,
+    config: aiAssistConfig,
+    onMatch: handleSpeechMatch,
+    onVideoTrigger: handleVideoTrigger
+  })
+
+  // AI Assist toggle handler
+  const handleToggleAIAssist = useCallback(() => {
+    const newEnabled = !aiAssistConfig.enabled
+    const newConfig = { ...aiAssistConfig, enabled: newEnabled }
+    setAiAssistConfig(newConfig)
+    saveAIAssistConfig(newConfig)
+
+    if (newEnabled) {
+      speechMatcher.startListening()
+    } else {
+      speechMatcher.stopListening()
+      effectManager.clearAllEffects()
+    }
+  }, [aiAssistConfig, speechMatcher, effectManager])
+
+  // AI Assist config change handler
+  const handleAIAssistConfigChange = useCallback(
+    (changes: Partial<AIAssistConfig>) => {
+      const newConfig = { ...aiAssistConfig, ...changes }
+      setAiAssistConfig(newConfig)
+      saveAIAssistConfig(newConfig)
+    },
+    [aiAssistConfig]
+  )
+
+  // Handle element click from presenter view - trigger highlight effect on presenting window
+  const handlePresenterElementClick = useCallback(
+    (elementId: string) => {
+      if (!isCastConnected) return
+
+      // Get a random enabled effect, default to highlight
+      const enabledEffects =
+        aiAssistConfig.enabledEffects.length > 0 ? aiAssistConfig.enabledEffects : ['highlight' as const]
+      const effectType = enabledEffects[Math.floor(Math.random() * enabledEffects.length)]
+
+      effectManager.queueEffect(elementId, effectType)
+    },
+    [isCastConnected, aiAssistConfig.enabledEffects, effectManager]
+  )
+
+  // AI Assist status for PresenterView - list specific dependencies to avoid excessive re-renders
+  const aiAssistStatus: AIAssistStatus = useMemo(
+    () => ({
+      enabled: aiAssistConfig.enabled,
+      isListening: speechMatcher.isListening,
+      isSupported: speechMatcher.isSupported,
+      transcript: speechMatcher.transcript,
+      recentMatches: speechMatcher.recentMatches,
+      error: speechMatcher.error,
+      volumeLevel: speechMatcher.volumeLevel,
+      cooldownProgress: speechMatcher.cooldownProgress
+    }),
+    [
+      aiAssistConfig.enabled,
+      speechMatcher.isListening,
+      speechMatcher.isSupported,
+      speechMatcher.transcript,
+      speechMatcher.recentMatches,
+      speechMatcher.error,
+      speechMatcher.volumeLevel,
+      speechMatcher.cooldownProgress
+    ]
+  )
 
   const currentTheme = useMemo(() => {
     return collaborativeThemeId ? getThemeById(collaborativeThemeId) : SLIDE_THEMES[0]
@@ -1626,9 +1754,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       {/* Header - matching PagedDocumentEditor style */}
       <div className="gba:border-b gba:bg-card gba:shadow-sm">
         <div className="gba:px-4 gba:py-3">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            {/* Left side - Back button and title */}
-            <div className="gba:flex gba:items-center gba:gap-4">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+            {/* Back button and title */}
+            <div className="gba:flex gba:items-center gba:gap-4 gba:flex-shrink-0">
               <Button variant="ghost" size="icon" onClick={onBack} title={t('editor-back-to-slides')}>
                 <ArrowLeft className="gba:w-5 gba:h-5" />
               </Button>
@@ -1657,206 +1785,199 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               </div>
             </div>
 
-            {/* Right side - Actions */}
+            {/* Collaboration presence indicator */}
+            {participantsWithAvatars.length > 0 && (
+              <>
+                <Separator orientation="vertical" className="gba:h-6" />
+                <PresenceIndicator participants={participantsWithAvatars} maxVisible={3} size="sm" showLabel={false} />
+              </>
+            )}
+
+            <Separator orientation="vertical" className="gba:h-6" />
+
+            <SlideEditorHeaderActions
+              slideId={slideId}
+              slideTitle={presentationTitle}
+              accessToken={accessToken}
+              currentUserId={currentUserId}
+              currentUserName={currentUserName}
+              applyContentJsonSnapshot={contentJson => {
+                applyContentJsonSnapshot(contentJson)
+              }}
+              data-testid={`${testId}-header-actions`}
+            />
+
+            <Separator orientation="vertical" className="gba:h-6" />
+
+            {/* Save status */}
             <div className="gba:flex gba:items-center gba:gap-2">
-              {/* Collaboration presence indicator (same as document editor) */}
-              {participantsWithAvatars.length > 0 && (
-                <>
-                  <PresenceIndicator
-                    participants={participantsWithAvatars}
-                    maxVisible={3}
-                    size="sm"
-                    showLabel={false}
-                    className="gba:mr-2"
-                  />
-                  <Separator orientation="vertical" className="gba:h-6" />
-                </>
+              {isSaving ? (
+                <Badge variant="secondary" className="gba:gap-1">
+                  <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
+                  {t('editor-saving')}
+                </Badge>
+              ) : isSynced ? (
+                <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                  <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
+                  {t('editor-synced')}
+                </span>
+              ) : (
+                <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                  <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
+                  {t('editor-connecting')}
+                </span>
               )}
+            </div>
 
-              <SlideEditorHeaderActions
-                slideId={slideId}
-                slideTitle={presentationTitle}
-                accessToken={accessToken}
-                currentUserId={currentUserId}
-                currentUserName={currentUserName}
-                applyContentJsonSnapshot={contentJson => {
-                  applyContentJsonSnapshot(contentJson)
-                }}
-                data-testid={`${testId}-header-actions`}
-              />
+            <Separator orientation="vertical" className="gba:h-6" />
 
-              <Separator orientation="vertical" className="gba:h-6" />
+            {/* Zoom controls */}
+            <div className="gba:flex gba:items-center gba:gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCanvasScale(Math.max(0.25, canvasScale - 0.1))}
+                title={t('editor-zoom-out')}
+                className="gba:h-8 gba:w-8"
+              >
+                <ZoomOut className="gba:w-4 gba:h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCanvasScale(0.65)}
+                className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
+              >
+                {Math.round(canvasScale * 100)}%
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCanvasScale(Math.min(1.5, canvasScale + 0.1))}
+                title={t('editor-zoom-in')}
+                className="gba:h-8 gba:w-8"
+              >
+                <ZoomIn className="gba:w-4 gba:h-4" />
+              </Button>
+            </div>
 
-              {/* Save status */}
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
-                {isSaving ? (
-                  <Badge variant="secondary" className="gba:gap-1">
-                    <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                    {t('editor-saving')}
-                  </Badge>
-                ) : isSynced ? (
-                  <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                    <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
-                    {t('editor-synced')}
-                  </span>
-                ) : (
-                  <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                    <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                    {t('editor-connecting')}
-                  </span>
-                )}
-              </div>
+            <Separator orientation="vertical" className="gba:h-6" />
 
-              <Separator orientation="vertical" className="gba:h-6" />
+            {/* Speaker Notes button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowNotesPanel(!showNotesPanel)}
+              className={showNotesPanel ? 'gba:bg-accent' : ''}
+            >
+              <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('editor-speaker-notes')}
+            </Button>
 
-              {/* Zoom controls */}
-              <div className="gba:flex gba:items-center gba:gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setCanvasScale(Math.max(0.25, canvasScale - 0.1))}
-                  title={t('editor-zoom-out')}
-                  className="gba:h-8 gba:w-8"
-                >
-                  <ZoomOut className="gba:w-4 gba:h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setCanvasScale(0.65)}
-                  className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
-                >
-                  {Math.round(canvasScale * 100)}%
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setCanvasScale(Math.min(1.5, canvasScale + 0.1))}
-                  title={t('editor-zoom-in')}
-                  className="gba:h-8 gba:w-8"
-                >
-                  <ZoomIn className="gba:w-4 gba:h-4" />
-                </Button>
-              </div>
-
-              <Separator orientation="vertical" className="gba:h-6" />
-
-              {/* Speaker Notes button */}
+            {/* Cast status indicator */}
+            {isCastConnected && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowNotesPanel(!showNotesPanel)}
-                className={showNotesPanel ? 'gba:bg-accent' : ''}
+                onClick={handleStopCast}
+                className="gba:gap-2 gba:text-green-600 gba:border-green-600"
+                data-testid={`${testId}-cast-stop`}
               >
-                <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
-                {t('editor-speaker-notes')}
+                <Cast className="gba:w-4 gba:h-4" />
+                {isCastFallback ? t('cast-connected-window') : t('cast-connected')}
+                <MonitorX className="gba:w-4 gba:h-4" />
               </Button>
+            )}
 
-              {/* Cast status indicator */}
-              {isCastConnected && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleStopCast}
-                  className="gba:gap-2 gba:text-green-600 gba:border-green-600"
-                  data-testid={`${testId}-cast-stop`}
-                >
-                  <Cast className="gba:w-4 gba:h-4" />
-                  {isCastFallback ? t('cast-connected-window') : t('cast-connected')}
-                  <MonitorX className="gba:w-4 gba:h-4" />
+            {/* Present dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm">
+                  <Play className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('editor-present')}
+                  <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
                 </Button>
-              )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setIsPresentMode(true)
+                    document.documentElement.requestFullscreen?.().catch(() => {})
+                  }}
+                >
+                  <Play className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('editor-present')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPresenterMode(true)}>
+                  <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('presenter-view')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleStartWindowPresent}
+                  disabled={isCastConnected || castConnectionState === 'connecting'}
+                >
+                  <ExternalLink className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('present-in-window')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleStartCast}
+                  disabled={isCastConnected || castConnectionState === 'connecting'}
+                >
+                  <Cast className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {castConnectionState === 'connecting' ? t('cast-connecting') : t('cast-to-display')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              {/* Present dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="default" size="sm">
-                    <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('editor-present')}
-                    <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setIsPresentMode(true)
-                      document.documentElement.requestFullscreen?.().catch(() => {})
-                    }}
-                  >
-                    <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('editor-present')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setPresenterMode(true)}>
-                    <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('presenter-view')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleStartWindowPresent}
-                    disabled={isCastConnected || castConnectionState === 'connecting'}
-                  >
-                    <ExternalLink className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('present-in-window')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleStartCast}
-                    disabled={isCastConnected || castConnectionState === 'connecting'}
-                  >
-                    <Cast className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {castConnectionState === 'connecting' ? t('cast-connecting') : t('cast-to-display')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {/* Export dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('editor-export')}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleSave(false)}>
+                  <Save className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('editor-save-now')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExportToPptx}>
+                  <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('editor-export-pptx')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowPdfExportDialog(true)}>
+                  <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('editor-export-pdf')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              {/* Export dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('editor-export')}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleSave(false)}>
-                    <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('editor-save-now')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleExportToPptx}>
-                    <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('editor-export-pptx')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowPdfExportDialog(true)}>
-                    <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {t('editor-export-pdf')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {/* Save as Template */}
+            <SaveTemplateButton
+              slides={slides}
+              themeId={currentTheme?.id || 'corporate-blue'}
+              disabled={!isSynced || slides.length === 0}
+              data-testid={`${testId}-save-template-button`}
+            />
 
-              {/* Save as Template */}
-              <SaveTemplateButton
-                slides={slides}
-                themeId={currentTheme?.id || 'corporate-blue'}
-                disabled={!isSynced || slides.length === 0}
-                data-testid={`${testId}-save-template-button`}
-              />
-
-              {/* AI Tools */}
-              <RefineSlideButton
-                currentSlide={currentSlide}
-                onRefine={handleRefineSlide}
-                accessToken={accessToken || ''}
-                theme={currentTheme}
-                disabled={!isSynced}
-                data-testid={`${testId}-refine-button`}
-              />
-              <GeneratePresentationButton
-                onGenerate={handleGeneratedSlides}
-                accessToken={accessToken || ''}
-                disabled={!isSynced}
-                data-testid={`${testId}-generate-button`}
-              />
-            </div>
+            {/* AI Tools */}
+            <RefineSlideButton
+              currentSlide={currentSlide}
+              onRefine={handleRefineSlide}
+              accessToken={accessToken || ''}
+              theme={currentTheme}
+              disabled={!isSynced}
+              data-testid={`${testId}-refine-button`}
+            />
+            <GeneratePresentationButton
+              onGenerate={handleGeneratedSlides}
+              accessToken={accessToken || ''}
+              disabled={!isSynced}
+              data-testid={`${testId}-generate-button`}
+            />
           </div>
         </div>
       </div>
@@ -2069,6 +2190,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           disabled={!isSynced}
           data-testid={`${testId}-template-browser-button`}
         />
+
+        {/* Property Panel Toggle */}
+        {!showPropertyPanel && (
+          <>
+            <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPropertyPanel(true)}
+              title={t('editor-show-properties') || 'Show Properties'}
+              data-testid={`${testId}-show-property-panel`}
+            >
+              <PanelRight className="gba:w-4 gba:h-4" />
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Main Content */}
@@ -2330,7 +2467,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 background={currentSlide.background}
                 onSelectElements={ids => {
                   setSelectedElementIds(ids)
-                  // Update awareness with primary selection (first element)
+                  if (!showPropertyPanel && ids.size > 0) {
+                    setShowPropertyPanel(true)
+                  }
                   if (isSynced && awareness) {
                     const primaryId = ids.size > 0 ? [...ids][0] : null
                     awareness.setLocalStateField(
@@ -2394,20 +2533,31 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           </div>
         </div>
 
-        {/* Property Panel */}
-        <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
-          <div className="gba:p-3 gba:border-b">
-            <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
+        {/* Property Panel - Always visible until X button is clicked */}
+        {showPropertyPanel && (
+          <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
+            <div className="gba:p-3 gba:border-b gba:flex gba:items-center gba:justify-between">
+              <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-6 gba:w-6"
+                onClick={() => setShowPropertyPanel(false)}
+                data-testid={`${testId}-close-property-panel`}
+              >
+                <X className="gba:h-4 gba:w-4" />
+              </Button>
+            </div>
+            <PropertyPanel
+              element={selectedElement}
+              onUpdate={updates => selectedElementId && updateElement(selectedElementId, updates)}
+              onDelete={deleteElement}
+              onDuplicate={duplicateElement}
+              onBringForward={bringForward}
+              onSendBackward={sendBackward}
+            />
           </div>
-          <PropertyPanel
-            element={selectedElement}
-            onUpdate={updates => selectedElementId && updateElement(selectedElementId, updates)}
-            onDelete={deleteElement}
-            onDuplicate={duplicateElement}
-            onBringForward={bringForward}
-            onSendBackward={sendBackward}
-          />
-        </div>
+        )}
       </div>
 
       {/* Text Editing Dialog - Enterprise-grade with voice input */}
@@ -2806,8 +2956,23 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           castConnectionState={castConnectionState}
           isCastFallback={isCastFallback}
           onStopCast={handleStopCast}
+          aiAssistStatus={aiAssistStatus}
+          onToggleAIAssist={handleToggleAIAssist}
+          onOpenAIAssistSettings={() => setShowAIAssistSettings(true)}
+          showTranscript={aiAssistConfig.showTranscript}
+          showMatchFeedback={aiAssistConfig.showMatchFeedback}
+          onElementClick={handlePresenterElementClick}
         />
       )}
+
+      {/* AI Assist Settings Dialog */}
+      <AIAssistSettings
+        open={showAIAssistSettings}
+        onOpenChange={setShowAIAssistSettings}
+        config={aiAssistConfig}
+        onChange={handleAIAssistConfigChange}
+        t={t}
+      />
     </div>
   )
 }

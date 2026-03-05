@@ -154,6 +154,7 @@ editor-add = Hinzufügen
 editor-duplicate-slide = Folie duplizieren
 editor-delete-slide = Folie löschen
 editor-properties = Eigenschaften
+editor-show-properties = Eigenschaften anzeigen
 editor-select-element = Element auswählen, um seine Eigenschaften zu bearbeiten
 editor-edit-text = Text bearbeiten
 editor-done = Fertig

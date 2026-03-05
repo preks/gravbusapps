@@ -12,5 +12,14 @@ export {
   type ConnectionState,
   type ReceiverAckData,
   type UsePresentationCastOptions,
-  type UsePresentationCastReturn
+  type UsePresentationCastReturn,
+  type VideoControlCommand
 } from './usePresentationCast'
+export { useEffectManager, type UseEffectManagerOptions, type UseEffectManagerReturn } from './useEffectManager'
+export {
+  useSpeechMatcher,
+  type MatchResult,
+  type VideoTriggerResult,
+  type UseSpeechMatcherOptions,
+  type UseSpeechMatcherReturn
+} from './useSpeechMatcher'

@@ -1,7 +1,7 @@
 // Presentation casting hook with W3C Presentation API and fallback support.
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { SlideData } from '../components/slideElements'
+import type { SlideData, ElementEffect, EffectClearCommand } from '../components/slideElements'
 import type { SlideTheme } from '../components/slideThemes'
 import type {
   PresentationAvailability,
@@ -13,17 +13,37 @@ import '../types/presentationApi'
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'closed'
 export type CastMode = 'auto' | 'cast' | 'window'
 
+export interface VideoControlCommand {
+  elementId: string
+  action: 'play' | 'pause' | 'restart'
+}
+
 export interface CastSlideData {
-  type: 'slide-update' | 'theme-update' | 'navigate' | 'init'
+  type: 'slide-update' | 'theme-update' | 'navigate' | 'init' | 'effect' | 'clear-effects' | 'video-control'
   slideIndex: number
   totalSlides: number
   slide: SlideData
   theme: SlideTheme
   slides?: SlideData[]
+  // Effect commands
+  effects?: ElementEffect[]
+  clearCommand?: EffectClearCommand
+  // Video control
+  videoControl?: VideoControlCommand
 }
 
 export interface ReceiverAckData {
-  ackType: string
+  ackType:
+    | 'connected'
+    | 'slide-received'
+    | 'theme-received'
+    | 'ready'
+    | 'effect-applied'
+    | 'effect-cleared'
+    | 'video-controlled'
+    | string
+  effectId?: string
+  elementId?: string
   slideIndex?: number
   totalSlides?: number
 }
@@ -45,6 +65,12 @@ export interface UsePresentationCastReturn {
   startCasting: (slides: SlideData[], theme: SlideTheme, currentIndex: number, mode?: CastMode) => Promise<void>
   stopCasting: () => void
   sendSlideData: (data: CastSlideData) => void
+  /** Send effect commands to receiver */
+  sendEffects: (effects: ElementEffect[]) => void
+  /** Send clear effects command to receiver */
+  sendClearEffects: (command: EffectClearCommand) => void
+  /** Send video control command to receiver */
+  sendVideoControl: (elementId: string, action: 'play' | 'pause' | 'restart') => void
 }
 
 const STORAGE_KEY = 'slide-cast-presentation-id'
@@ -65,6 +91,7 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null)
   const retryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const connectionEstablishedTimeRef = useRef<number | null>(null)
+  const receivedAckRef = useRef<boolean>(false)
 
   const updateConnectionState = useCallback(
     (state: ConnectionState) => {
@@ -175,6 +202,14 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
       broadcastChannelRef.current.onmessage = (event: MessageEvent) => {
         const data = event.data
         if (data && typeof data === 'object' && data.type === 'cast-ack') {
+          // Mark ack received and clear retry interval to stop sending stale init data
+          if (!receivedAckRef.current && data.ackType === 'connected') {
+            receivedAckRef.current = true
+            if (retryIntervalRef.current) {
+              clearInterval(retryIntervalRef.current)
+              retryIntervalRef.current = null
+            }
+          }
           onReceiverAck?.({ ackType: data.ackType, slideIndex: data.slideIndex, totalSlides: data.totalSlides })
         }
       }
@@ -186,6 +221,14 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
 
       const data = event.data
       if (data && typeof data === 'object' && data.type === 'cast-ack') {
+        // Mark ack received and clear retry interval to stop sending stale init data
+        if (!receivedAckRef.current && data.ackType === 'connected') {
+          receivedAckRef.current = true
+          if (retryIntervalRef.current) {
+            clearInterval(retryIntervalRef.current)
+            retryIntervalRef.current = null
+          }
+        }
         onReceiverAck?.({ ackType: data.ackType, slideIndex: data.slideIndex, totalSlides: data.totalSlides })
       }
     }
@@ -435,8 +478,8 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
 
         fallbackWindowRef.current = newWindow
 
-        // Track if we've received an ack from the receiver
-        let receivedAck = false
+        // Reset ack state for new connection
+        receivedAckRef.current = false
         let retryCount = 0
         const maxRetries = 15
 
@@ -444,25 +487,6 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
         if (retryIntervalRef.current) {
           clearInterval(retryIntervalRef.current)
           retryIntervalRef.current = null
-        }
-
-        // Set up ack listener before sending data
-        if (broadcastChannelRef.current) {
-          const originalOnMessage = broadcastChannelRef.current.onmessage
-          broadcastChannelRef.current.onmessage = (event: MessageEvent) => {
-            console.log('[Cast] Editor received BroadcastChannel message:', event.data)
-            const data = event.data
-            if (data && typeof data === 'object' && data.type === 'cast-ack') {
-              console.log('[Cast] Received ack from receiver:', data.ackType)
-              receivedAck = true
-              if (retryIntervalRef.current) {
-                clearInterval(retryIntervalRef.current)
-                retryIntervalRef.current = null
-              }
-              onReceiverAck?.({ ackType: data.ackType, slideIndex: data.slideIndex, totalSlides: data.totalSlides })
-            }
-            originalOnMessage?.(event)
-          }
         }
 
         // Send initial data via both channels
@@ -478,7 +502,7 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
             return
           }
 
-          if (receivedAck) {
+          if (receivedAckRef.current) {
             console.log('[Cast] Received ack, stopping retries')
             if (retryIntervalRef.current) {
               clearInterval(retryIntervalRef.current)
@@ -537,11 +561,12 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
   )
 
   const stopCasting = useCallback(() => {
-    // Clear retry interval
+    // Clear retry interval and reset ack state
     if (retryIntervalRef.current) {
       clearInterval(retryIntervalRef.current)
       retryIntervalRef.current = null
     }
+    receivedAckRef.current = false
 
     if (connectionRef.current) {
       connectionRef.current.terminate()
@@ -559,12 +584,18 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
   }, [updateConnectionState])
 
   const sendSlideData = useCallback((data: CastSlideData) => {
+    console.log('[Cast] sendSlideData called with type:', data.type)
+    console.log('[Cast] BroadcastChannel available:', !!broadcastChannelRef.current)
+    console.log('[Cast] Connection available:', !!connectionRef.current, connectionRef.current?.state)
+    console.log('[Cast] Fallback window available:', !!fallbackWindowRef.current, fallbackWindowRef.current?.closed)
+
     // Send via Presentation API
     if (connectionRef.current && connectionRef.current.state === 'connected') {
       try {
         connectionRef.current.send(JSON.stringify(data))
-      } catch {
-        // Connection may have closed
+        console.log('[Cast] Sent via Presentation API')
+      } catch (e) {
+        console.warn('[Cast] Presentation API send failed:', e)
       }
     }
 
@@ -572,8 +603,9 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
     if (broadcastChannelRef.current) {
       try {
         broadcastChannelRef.current.postMessage(data)
-      } catch {
-        // Channel may have closed
+        console.log('[Cast] Sent via BroadcastChannel')
+      } catch (e) {
+        console.warn('[Cast] BroadcastChannel send failed:', e)
       }
     }
 
@@ -581,11 +613,63 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
     if (fallbackWindowRef.current && !fallbackWindowRef.current.closed) {
       try {
         fallbackWindowRef.current.postMessage(data, window.location.origin)
-      } catch {
-        // Window may have closed
+        console.log('[Cast] Sent via postMessage to fallback window')
+      } catch (e) {
+        console.warn('[Cast] postMessage send failed:', e)
       }
     }
   }, [])
+
+  // Send effect commands to receiver
+  const sendEffects = useCallback(
+    (effects: ElementEffect[]) => {
+      console.log('[Cast] sendEffects called with', effects.length, 'effects')
+      if (effects.length === 0) return
+      console.log(
+        '[Cast] Sending effects:',
+        effects.map(e => ({ id: e.id, effect: e.effect, elementId: e.elementId }))
+      )
+      sendSlideData({
+        type: 'effect',
+        effects,
+        slideIndex: 0,
+        totalSlides: 0,
+        slide: {} as SlideData,
+        theme: {} as SlideTheme
+      })
+    },
+    [sendSlideData]
+  )
+
+  // Send clear effects command to receiver
+  const sendClearEffects = useCallback(
+    (command: EffectClearCommand) => {
+      sendSlideData({
+        type: 'clear-effects',
+        clearCommand: command,
+        slideIndex: 0,
+        totalSlides: 0,
+        slide: {} as SlideData,
+        theme: {} as SlideTheme
+      })
+    },
+    [sendSlideData]
+  )
+
+  // Send video control command to receiver
+  const sendVideoControl = useCallback(
+    (elementId: string, action: 'play' | 'pause' | 'restart') => {
+      sendSlideData({
+        type: 'video-control',
+        videoControl: { elementId, action },
+        slideIndex: 0,
+        totalSlides: 0,
+        slide: {} as SlideData,
+        theme: {} as SlideTheme
+      })
+    },
+    [sendSlideData]
+  )
 
   return {
     isSupported,
@@ -595,6 +679,9 @@ export function usePresentationCast(options: UsePresentationCastOptions = {}): U
     connectionState,
     startCasting,
     stopCasting,
-    sendSlideData
+    sendSlideData,
+    sendEffects,
+    sendClearEffects,
+    sendVideoControl
   }
 }
