@@ -4,12 +4,14 @@
  * Connects to the document-service backend API for email management.
  */
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
-import { normalizeLabels } from '../utils/labelUtils'
+import { normalizeLabels, normalizeLabelObjects, normalizeAddLabelInputs } from '../utils/labelUtils'
 import type {
   EmailAccount,
   EmailFolder,
   EmailMessage,
   EmailMessageSummary,
+  EmailLabel,
+  AddLabelInput,
   EmailLabelSuggestion,
   PaginatedResponse,
   CreateEmailAccountRequest,
@@ -21,6 +23,14 @@ import type {
 const API_URL = getDocumentServiceApiUrl()
 
 let currentAccessToken: string | null = null
+
+function normalizeMessageSummary(message: EmailMessageSummary): EmailMessageSummary {
+  return { ...message, labels: normalizeLabelObjects((message as unknown as Record<string, unknown>).labels) }
+}
+
+function normalizeMessage(message: EmailMessage): EmailMessage {
+  return { ...message, labels: normalizeLabelObjects((message as unknown as Record<string, unknown>).labels) }
+}
 
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = currentAccessToken
@@ -113,15 +123,21 @@ export const EmailApiService = {
       }
       params.set(key, String(value))
     })
-    return apiRequest(`/emails/messages?${params.toString()}`)
+    const response = await apiRequest<PaginatedResponse<EmailMessageSummary>>(`/emails/messages?${params.toString()}`)
+    return {
+      ...response,
+      items: response.items.map(normalizeMessageSummary)
+    }
   },
 
   async getMessage(id: string): Promise<EmailMessage> {
-    return apiRequest<EmailMessage>(`/emails/messages/${id}`)
+    const response = await apiRequest<EmailMessage>(`/emails/messages/${id}`)
+    return normalizeMessage(response)
   },
 
   async getThread(threadId: string): Promise<EmailMessage[]> {
-    return apiRequest<EmailMessage[]>(`/emails/threads/${threadId}`)
+    const response = await apiRequest<EmailMessage[]>(`/emails/threads/${threadId}`)
+    return response.map(normalizeMessage)
   },
 
   async summarizeThread(threadId: string): Promise<ThreadSummaryResult> {
@@ -190,24 +206,26 @@ export const EmailApiService = {
     return apiRequest<EmailMessage>(`/emails/messages/${messageId}/shared`)
   },
 
-  async addMessageLabels(messageId: string, labels: string[]): Promise<{ labels: string[] }> {
-    const normalized = normalizeLabels(labels)
+  async addMessageLabels(messageId: string, labels: AddLabelInput[]): Promise<{ labels: EmailLabel[] }> {
+    const normalized = normalizeAddLabelInputs(labels)
     if (normalized.length === 0) return { labels: [] }
 
-    return apiRequest<{ labels: string[] }>(`/emails/messages/${messageId}/labels/add`, {
+    const response = await apiRequest<{ labels: unknown[] }>(`/emails/messages/${messageId}/labels/add`, {
       method: 'PATCH',
       body: JSON.stringify({ labels: normalized })
     })
+    return { labels: normalizeLabelObjects(response.labels) }
   },
 
-  async removeMessageLabels(messageId: string, labels: string[]): Promise<{ labels: string[] }> {
+  async removeMessageLabels(messageId: string, labels: string[]): Promise<{ labels: EmailLabel[] }> {
     const normalized = normalizeLabels(labels)
     if (normalized.length === 0) return { labels: [] }
 
-    return apiRequest<{ labels: string[] }>(`/emails/messages/${messageId}/labels/remove`, {
+    const response = await apiRequest<{ labels: unknown[] }>(`/emails/messages/${messageId}/labels/remove`, {
       method: 'PATCH',
       body: JSON.stringify({ labels: normalized })
     })
+    return { labels: normalizeLabelObjects(response.labels) }
   },
 
   async searchLabelSuggestions(query: string, limit = 10): Promise<EmailLabelSuggestion[]> {
