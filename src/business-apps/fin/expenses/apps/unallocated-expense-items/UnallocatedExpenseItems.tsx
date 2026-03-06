@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
 import { PageLayout, Button, Spinner } from '@newwork/nw-design-system'
-import { PiArrowLeft } from 'react-icons/pi'
+import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { WalletIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -87,7 +87,7 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
           className="gba:flex gba:items-center gba:gap-2"
           data-testid="unallocated-expense-items-back-button"
         >
-          <PiArrowLeft size={16} />
+          <ArrowLeftIcon size={16} />
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_management_hub_backoffice.dashboard_btn',
             'Back to Dashboard'

@@ -1,6 +1,6 @@
 import { Card, Spin, Alert } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { RiBarChartLine } from '@remixicon/react'
+import { ChartBarIcon } from '@phosphor-icons/react'
 import { useState, useEffect } from 'react'
 import { env } from '@/common/env/EnvUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -71,7 +71,7 @@ const transformMenuItemsToReports = (menuItems: MenuItem[], currentLocale: strin
               item.description || 'No description available',
               currentLocale
             ),
-            icon: <RiBarChartLine className="h-5 w-5" />,
+            icon: <ChartBarIcon size={20} className="h-5 w-5" />,
             category: getTranslatedValue(item.resourceUrl.name_i18n, item.resourceUrl.name || 'Report', currentLocale),
             favorite: false,
             url: `${env('NEXT_PUBLIC_BASE_URL') || ''}${item.resourceUrl.url}`
@@ -195,7 +195,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
               <div className="gba:p-4">
                 <div className="gba:flex gba:items-center gba:gap-4">
                   <div className="gba:bg-muted gba:p-3 gba:rounded-lg">
-                    <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
+                    <ChartBarIcon size={24} className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
                   </div>
                   <div>
                     <h3 className="gba:text-base gba:font-medium gba:text-foreground">{absenceReport.title}</h3>

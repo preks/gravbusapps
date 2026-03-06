@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { ChartBarIcon, DropIcon, HouseIcon, SquaresFourIcon } from '@phosphor-icons/react'
+import { ChartBarIcon, DropIcon, HouseIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -115,7 +115,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
           <TabsList className="gba:grid gba:w-full gba:grid-cols-4 gba:p-1">
             <TabsTrigger
               value="overview"
-              startIcon={<SquaresFourIcon />}
+              startIcon={<GaugeIcon />}
               data-testid={formatDataTestId('AnalyticsView', 'OverviewTab')}
             >
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.overview', 'Overview')}

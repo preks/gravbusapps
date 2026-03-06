@@ -73,7 +73,10 @@ export const useAssetsCatalog = (context: BusinessAppContextProps) => {
       setOptions(assetOptions)
     } catch (err) {
       console.error('Error fetching asset categories:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch asset categories')
+      const raw = err instanceof Error ? err.message : 'Failed to fetch asset categories'
+      const message =
+        raw === 'Failed to fetch' ? 'Network error. Check your connection and that the service is available.' : raw
+      setError(message)
       setOptions([])
     } finally {
       setIsLoading(false)

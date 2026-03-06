@@ -23,8 +23,6 @@ import {
   Search,
   List,
   Star,
-  PanelLeftClose,
-  PanelLeft,
   FolderClosed,
   Users,
   Clock,
@@ -41,7 +39,6 @@ import { useBoardApps } from './hooks/useBoardApps'
 import { CreateBoardDialog } from './components/CreateBoardDialog'
 import { CreateBoardAIDialog } from './components/CreateBoardAIDialog'
 import { BoardListItem, formatRelativeTime } from './components/BoardListItem'
-import { useMobileDetect } from './hooks/useMobileDetect'
 import { setBoardApiAuthTokenProvider } from './services/BoardApiService'
 import { setFlowEngineTokenProvider } from './services/flowEngine'
 import { BoardViewer } from './BoardViewer'
@@ -55,6 +52,8 @@ import { BoardsHomeDashboard } from './components/home/BoardsHomeDashboard'
 import { useBoardAppsHubFavorites } from './hooks/useBoardAppsHubFavorites'
 import { useBoardAppsHubFiltering } from './hooks/useBoardAppsHubFiltering'
 import type { BoardHubSidebarSection } from './hooks/useBoardAppsHubFiltering'
+import { useBoardHomeData } from './hooks/useBoardHomeData'
+import { BoardsHubHero } from './components/hero'
 
 export interface BoardsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -77,8 +76,6 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   const [newBoardName, setNewBoardName] = useState('')
   const urlState = useBoardUrlState()
   const selectedBoardId = urlState.urlBoardId
-  const { isMobile } = useMobileDetect()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const [highlightTarget, setHighlightTarget] = useState<{
     boardId: string
@@ -87,9 +84,11 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     position?: number
   } | null>(null)
   const viewerRef = useRef<BoardViewerHandle>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const { favorites, setFavorites } = useBoardAppsHubFavorites()
   const [shareBoardId, setShareBoardId] = useState<string | null>(null)
   const [manageBoardId, setManageBoardId] = useState<string | null>(null)
+  const { stats: heroStats, myWork: heroMyWork, isLoading: heroLoading } = useBoardHomeData(activeSection === 'home')
 
   // Set token synchronously during render so child effects already have it
   // (useEffect would run after children, causing 401 races)
@@ -195,10 +194,11 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     if (board) {
       setNewBoardName('')
       setIsCreateDialogOpen(false)
+      await loadBoard(board.id)
       urlState.setBoardId(board.id)
       toast.success('Board created')
     }
-  }, [newBoardName, createBoard])
+  }, [newBoardName, createBoard, loadBoard])
 
   const handleOpenBoard = useCallback(
     async (id: string) => {
@@ -232,6 +232,12 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   const isViewing = Boolean(selectedBoardId && currentBoard)
 
   useEffect(() => {
+    if (isViewing && rootRef.current) {
+      rootRef.current.scrollTop = 0
+    }
+  }, [isViewing])
+
+  useEffect(() => {
     if (!isViewing || !highlightTarget || !viewerRef.current) return
     if (highlightTarget.boardId !== selectedBoardId) return
     const timer = setTimeout(() => {
@@ -252,7 +258,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
 
   const isViewerOwner = currentBoard && !currentBoard.isShared
 
-  const heroActions = isViewing ? (
+  const viewerActions = (
     <>
       <Button
         variant="outline"
@@ -305,37 +311,6 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         Settings
       </Button>
     </>
-  ) : (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        className={HERO_BTN}
-        onClick={() => setIsGlobalSearchOpen(true)}
-        data-testid={`${testId}-global-search-btn`}
-      >
-        <Search className="gba:h-4 gba:w-4 gba:mr-1.5" />
-        Search
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className={HERO_BTN} data-testid={`${testId}-new-board`}>
-            <Plus className="gba:h-4 gba:w-4 gba:mr-1.5" />
-            New Board
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setIsCreateDialogOpen(true)} data-testid={`${testId}-new-board-manual`}>
-            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
-            Create manually
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setIsAIDialogOpen(true)} data-testid={`${testId}-new-board-ai`}>
-            <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
-            Create with AI
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
   )
 
   const { filteredBoards } = useBoardAppsHubFiltering({
@@ -368,70 +343,46 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   const shareBoardInfo = shareBoardId ? boards.find(b => b.id === shareBoardId) : null
   const manageBoardInfo = manageBoardId ? boards.find(b => b.id === manageBoardId) : null
 
-  const sidebarItems: Array<{ key: SidebarSection; label: string; icon: React.ReactNode }> = [
+  const heroTabs: Array<{ key: string; label: string; icon: React.ReactNode }> = [
     { key: 'home', label: 'Home', icon: <Home className="gba:w-4 gba:h-4" /> },
     { key: 'my-boards', label: 'My Boards', icon: <FolderClosed className="gba:w-4 gba:h-4" /> },
-    { key: 'shared', label: 'Shared with me', icon: <Users className="gba:w-4 gba:h-4" /> },
+    { key: 'shared', label: 'Shared', icon: <Users className="gba:w-4 gba:h-4" /> },
     { key: 'favorites', label: 'Favorites', icon: <Star className="gba:w-4 gba:h-4" /> },
     { key: 'recent', label: 'Recent', icon: <Clock className="gba:w-4 gba:h-4" /> }
   ]
 
   return (
     <div
-      className="gba:h-full gba:w-full gba:max-w-full gba:flex gba:flex-col gba:overflow-hidden"
+      ref={rootRef}
+      className={`gba:h-full gba:w-full gba:max-w-full gba:relative gba:flex gba:flex-col ${isViewing ? 'gba:overflow-hidden' : 'gba:overflow-y-auto'}`}
       data-testid={testId}
     >
-      <CreateHeroHeader
-        icon={LayoutGrid}
-        appLabel="Boards"
-        title={currentBoard ? currentBoard.name : 'Boards'}
-        description={currentBoard ? undefined : 'Build anything. Track everything.'}
-        onBack={isViewing ? handleBack : undefined}
-        actions={heroActions}
-        data-testid={`${testId}-hero`}
-      />
-
-      {isViewing ? (
-        <BoardViewer
-          ref={viewerRef}
-          board={currentBoard!}
-          accessToken={accessToken}
-          userId={currentUserId}
-          initialSheetId={urlState.urlSheetId}
-          initialViewId={urlState.urlViewId}
-          initialPage={urlState.urlPage}
-          onSheetIdChange={urlState.setSheetId}
-          onViewIdChange={urlState.setViewId}
-          onPageChange={urlState.setPage}
-          onReloadBoard={async id => {
-            await loadBoard(id)
-          }}
-          onBoardUpdate={async (id, updates) => {
-            await updateBoard(id, updates as Partial<Board>)
-          }}
-          onSheetUpdate={updateSheet}
-          rows={rows}
-          rowsLoading={rowsLoading}
-          rowsTotal={rowsTotal}
-          rowsError={error}
-          onLoadRows={loadRows}
-          onCreateRow={createRow}
-          onUpdateRow={updateRow}
-          onDeleteRow={deleteRow}
-          data-testid={`${testId}-viewer`}
+      {/* Hub view — always mounted, crossfade out when viewing a board */}
+      <div
+        className={`gba:flex gba:flex-col gba:w-full ${isViewing ? 'gba:absolute gba:inset-0 gba:opacity-0 gba:pointer-events-none gba:z-0' : 'gba:relative gba:opacity-100 gba:z-10 gba:flex-1'}`}
+        style={{ transition: 'opacity 300ms ease' }}
+      >
+        <BoardsHubHero
+          stats={heroStats}
+          boards={boards}
+          myWork={heroMyWork}
+          isLoading={heroLoading}
+          onOpenBoard={handleOpenBoard}
+          onNavigateToItem={handleNavigateToItem}
+          tabs={heroTabs}
+          activeTab={activeSection}
+          onTabChange={setActiveSection}
+          onCreateOpen={() => setIsCreateDialogOpen(true)}
+          onAIOpen={() => setIsAIDialogOpen(true)}
+          onSearchOpen={() => setIsGlobalSearchOpen(true)}
+          data-testid={`${testId}-hero`}
         />
-      ) : (
         <HubContent
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           viewLayout={viewLayout}
           setViewLayout={setViewLayout}
           activeSection={activeSection}
-          setActiveSection={setActiveSection}
-          sidebarCollapsed={sidebarCollapsed}
-          setSidebarCollapsed={setSidebarCollapsed}
-          isMobile={isMobile}
-          sidebarItems={sidebarItems}
           isLoading={isLoading}
           error={error}
           filteredBoards={filteredBoards}
@@ -455,6 +406,52 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
           userInfo={userInfo}
           testId={testId}
         />
+      </div>
+
+      {/* Board viewer — always mounted when board is loaded, crossfade in */}
+      {selectedBoardId && currentBoard && (
+        <div
+          className={`gba:flex gba:flex-col gba:w-full ${isViewing ? 'gba:relative gba:opacity-100 gba:z-10 gba:flex-1' : 'gba:absolute gba:inset-0 gba:opacity-0 gba:pointer-events-none gba:z-0'}`}
+          style={{ transition: 'opacity 300ms ease' }}
+        >
+          <CreateHeroHeader
+            icon={LayoutGrid}
+            appLabel="Boards"
+            title={currentBoard.name}
+            size="default"
+            onBack={handleBack}
+            actions={viewerActions}
+            data-testid={`${testId}-viewer-hero`}
+          />
+          <BoardViewer
+            ref={viewerRef}
+            board={currentBoard}
+            accessToken={accessToken}
+            userId={currentUserId}
+            initialSheetId={urlState.urlSheetId}
+            initialViewId={urlState.urlViewId}
+            initialPage={urlState.urlPage}
+            onSheetIdChange={urlState.setSheetId}
+            onViewIdChange={urlState.setViewId}
+            onPageChange={urlState.setPage}
+            onReloadBoard={async id => {
+              await loadBoard(id)
+            }}
+            onBoardUpdate={async (id, updates) => {
+              await updateBoard(id, updates as Partial<Board>)
+            }}
+            onSheetUpdate={updateSheet}
+            rows={rows}
+            rowsLoading={rowsLoading}
+            rowsTotal={rowsTotal}
+            rowsError={error}
+            onLoadRows={loadRows}
+            onCreateRow={createRow}
+            onUpdateRow={updateRow}
+            onDeleteRow={deleteRow}
+            data-testid={`${testId}-viewer`}
+          />
+        </div>
       )}
 
       <GlobalSearchDialog
@@ -545,11 +542,6 @@ interface HubContentProps {
   viewLayout: 'list' | 'grid'
   setViewLayout: (l: 'list' | 'grid') => void
   activeSection: SidebarSection
-  setActiveSection: (s: SidebarSection) => void
-  sidebarCollapsed: boolean
-  setSidebarCollapsed: (c: boolean) => void
-  isMobile: boolean
-  sidebarItems: Array<{ key: SidebarSection; label: string; icon: React.ReactNode }>
   isLoading: boolean
   error: string | null
   filteredBoards: import('./types').BoardSummary[]
@@ -588,11 +580,6 @@ const HubContent: React.FC<HubContentProps> = ({
   viewLayout,
   setViewLayout,
   activeSection,
-  setActiveSection,
-  sidebarCollapsed,
-  setSidebarCollapsed,
-  isMobile,
-  sidebarItems,
   isLoading,
   error,
   filteredBoards,
@@ -616,57 +603,28 @@ const HubContent: React.FC<HubContentProps> = ({
   userInfo,
   testId
 }) => (
-  <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
-    <aside
-      className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-200 ${isMobile ? 'gba:hidden' : sidebarCollapsed ? 'gba:w-12' : 'gba:w-52'}`}
-    >
-      <div
-        className={`gba:flex gba:items-center gba:border-b gba:border-border ${sidebarCollapsed ? 'gba:justify-center gba:p-2' : 'gba:justify-between gba:px-3 gba:py-2'}`}
-      >
-        {!sidebarCollapsed && (
-          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
-            Navigate
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="gba:h-7 gba:w-7"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          data-testid={`${testId}-toggle-sidebar`}
-        >
-          {sidebarCollapsed ? (
-            <PanelLeft className="gba:w-3.5 gba:h-3.5" />
-          ) : (
-            <PanelLeftClose className="gba:w-3.5 gba:h-3.5" />
-          )}
-        </Button>
-      </div>
-      <nav className="gba:flex-1 gba:overflow-y-auto gba:p-1.5">
-        {sidebarItems.map(item => (
-          <button
-            key={item.key}
-            onClick={() => setActiveSection(item.key)}
-            className={`gba:w-full gba:flex gba:items-center gba:px-2.5 gba:py-1.5 gba:rounded-md gba:text-xs gba:transition-colors gba:mb-0.5 ${sidebarCollapsed ? 'gba:justify-center' : 'gba:gap-2.5'} ${
-              activeSection === item.key
-                ? 'gba:bg-accent gba:text-accent-foreground gba:font-medium'
-                : 'gba:text-muted-foreground gba:hover:bg-muted/50'
-            }`}
-            data-testid={`${testId}-nav-${item.key}`}
-          >
-            {item.icon}
-            {!sidebarCollapsed && item.label}
-          </button>
-        ))}
-      </nav>
-    </aside>
-
-    <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:overflow-hidden">
-      {activeSection !== 'home' && (
-        <div className="gba:shrink-0 gba:border-b gba:border-border gba:bg-background gba:px-5 gba:py-2 gba:flex gba:items-center gba:justify-between">
-          <span className="gba:text-xs gba:font-medium gba:text-foreground">
-            {sidebarItems.find(i => i.key === activeSection)?.label || 'Boards'}
-          </span>
+  <div className="gba:flex gba:flex-col gba:flex-1">
+    {activeSection === 'home' ? (
+      <BoardsHomeDashboard
+        accessToken={accessToken}
+        userInfo={userInfo as any}
+        boards={allBoards}
+        onOpenBoard={onOpenBoard}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        onCreateOpen={onCreateOpen}
+        onCreateAI={onAIOpen}
+        onSearchOpen={onSearchOpen}
+        onNavigateToItem={onNavigateToItem}
+        onCreateBoard={onCreateBoard}
+        onBoardCreated={onBoardCreated}
+        createRow={createRow}
+        updateSheet={updateSheet}
+        data-testid={`${testId}-home`}
+      />
+    ) : (
+      <>
+        <div className="gba:shrink-0 gba:border-b gba:border-border gba:bg-background gba:px-5 gba:py-2 gba:flex gba:items-center gba:justify-end">
           <div className="gba:flex gba:items-center gba:gap-2">
             <div className="gba:relative">
               <Search className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
@@ -700,27 +658,7 @@ const HubContent: React.FC<HubContentProps> = ({
             </div>
           </div>
         </div>
-      )}
 
-      {activeSection === 'home' ? (
-        <BoardsHomeDashboard
-          accessToken={accessToken}
-          userInfo={userInfo as any}
-          boards={allBoards}
-          onOpenBoard={onOpenBoard}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-          onCreateOpen={onCreateOpen}
-          onCreateAI={onAIOpen}
-          onSearchOpen={onSearchOpen}
-          onNavigateToItem={onNavigateToItem}
-          onCreateBoard={onCreateBoard}
-          onBoardCreated={onBoardCreated}
-          createRow={createRow}
-          updateSheet={updateSheet}
-          data-testid={`${testId}-home`}
-        />
-      ) : (
         <div className="gba:flex-1 gba:overflow-auto">
           {isLoading && (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
@@ -791,7 +729,7 @@ const HubContent: React.FC<HubContentProps> = ({
                     <h3 className="gba:font-medium gba:text-foreground gba:text-sm gba:truncate">{board.name}</h3>
                     <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground gba:mt-0.5">
                       <span>{formatRelativeTime(board.updatedAt)}</span>
-                      <span>{board.rowCount} rows</span>
+                      {board.rowCount > 0 && <span>{board.rowCount.toLocaleString()} rows</span>}
                     </div>
                   </div>
                 </Card>
@@ -799,8 +737,8 @@ const HubContent: React.FC<HubContentProps> = ({
             </div>
           )}
         </div>
-      )}
-    </main>
+      </>
+    )}
   </div>
 )
 

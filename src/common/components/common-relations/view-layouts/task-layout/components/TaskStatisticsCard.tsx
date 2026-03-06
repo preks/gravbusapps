@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { UserOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { UserIcon, ClockIcon, CheckCircleIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 
 export interface TaskStatisticItem {
@@ -46,7 +46,7 @@ export const TaskStatisticsCard: React.FC<TaskStatisticsCardProps> = ({
         key: 'total-tasks',
         title: 'Total Tasks',
         value: statistics.totalTasks.value,
-        prefix: <UserOutlined />,
+        prefix: <UserIcon size={16} />,
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
         description: 'All assigned tasks',
@@ -60,7 +60,7 @@ export const TaskStatisticsCard: React.FC<TaskStatisticsCardProps> = ({
         key: 'in-progress',
         title: 'In Progress',
         value: statistics.inProgress.value,
-        prefix: <ClockCircleOutlined />,
+        prefix: <ClockIcon />,
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
         description: 'Currently active tasks',
@@ -74,7 +74,7 @@ export const TaskStatisticsCard: React.FC<TaskStatisticsCardProps> = ({
         key: 'completed',
         title: 'Completed',
         value: statistics.completed.value,
-        prefix: <CheckCircleOutlined />,
+        prefix: <CheckCircleIcon size={16} />,
         color: '#52c41a',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
         description: 'Successfully finished',
@@ -88,7 +88,7 @@ export const TaskStatisticsCard: React.FC<TaskStatisticsCardProps> = ({
         key: 'overdue',
         title: 'Overdue',
         value: statistics.overdue.value,
-        prefix: <ExclamationCircleOutlined />,
+        prefix: <WarningCircleIcon size={16} />,
         color: '#ff4d4f',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
         description: 'Past due date',

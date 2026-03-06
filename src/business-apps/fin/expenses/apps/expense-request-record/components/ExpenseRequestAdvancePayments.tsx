@@ -6,7 +6,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { AdvancePayment } from '../types/expenseRequestRecord.types'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import ExpenseRequestAdvancePaymentsSummary from './ExpenseRequestAdvancePaymentsSummary'
-import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
 
 interface ExpenseRequestAdvancePaymentsProps {
   advancePayments: AdvancePayment[]
@@ -141,9 +141,9 @@ const ExpenseRequestAdvancePayments: React.FC<ExpenseRequestAdvancePaymentsProps
       align: 'center',
       render: (confirmed: boolean) =>
         confirmed ? (
-          <CheckCircleOutlined className="gba:text-green-500" />
+          <CheckCircleIcon size={16} className="gba:text-green-500" />
         ) : (
-          <CloseCircleOutlined className="gba:text-red-500" />
+          <XCircleIcon size={16} className="gba:text-red-500" />
         )
     }
   ]

@@ -13,12 +13,12 @@ import { serviceCategories } from '../../../packages/services-plus-seed/src'
 // UI Components - TODO: Replace with @newwork/nw-design-system when migrated
 import { Card, Button, Badge, Alert, Input, Tabs } from 'antd'
 import {
-  UserOutlined,
-  LaptopOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  RightOutlined
-} from '@ant-design/icons'
+  UserIcon,
+  LaptopIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  CaretRightIcon
+} from '@phosphor-icons/react'
 
 const { Search } = Input
 const { TabPane } = Tabs
@@ -169,7 +169,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
           <div className="gba:flex gba:gap-3">
             <Button
               type="default"
-              icon={<ClockCircleOutlined />}
+              icon={<ClockIcon size={16} />}
               onClick={onMyRequestsClick}
               data-testid="my-requests-button"
             >
@@ -211,7 +211,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
           <div className="gba:flex gba:items-start gba:justify-between">
             <div className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
-                <UserOutlined className="gba:text-2xl gba:text-blue-600" />
+                <UserIcon size={24} className="gba:text-2xl gba:text-blue-600" />
                 <div>
                   <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
                     {employeeOnboardingServiceTemplate.title}
@@ -224,19 +224,19 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
 
               <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mb-4">
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <ClockCircleOutlined className="gba:text-blue-600" />
+                  <ClockIcon size={16} className="gba:text-blue-600" />
                   <span className="gba:text-sm gba:text-gray-600">
                     {employeeOnboardingTemplateMetadata.estimatedDuration}
                   </span>
                 </div>
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <CheckCircleOutlined className="gba:text-green-600" />
+                  <CheckCircleIcon size={16} className="gba:text-green-600" />
                   <span className="gba:text-sm gba:text-gray-600">
                     {employeeOnboardingServiceTemplate.steps.length} automated steps
                   </span>
                 </div>
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <LaptopOutlined className="gba:text-purple-600" />
+                  <LaptopIcon size={16} className="gba:text-purple-600" />
                   <span className="gba:text-sm gba:text-gray-600">Multi-department coordination</span>
                 </div>
               </div>
@@ -330,7 +330,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
 
                   {category.id === 'hr' && <Badge status="processing" text="Employee Onboarding Available" />}
                 </div>
-                <RightOutlined className="gba:text-gray-400 gba:ml-2" />
+                <CaretRightIcon size={16} className="gba:text-gray-400 gba:ml-2" />
               </div>
             </Card>
           ))}
@@ -340,7 +340,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
       {/* Integration Status */}
       <div className="gba:mt-8 gba:p-4 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-          <CheckCircleOutlined className="gba:text-green-600" />
+          <CheckCircleIcon size={16} className="gba:text-green-600" />
           <h4 className="gba:font-medium gba:text-green-900">Integration Status</h4>
         </div>
         <div className="gba:text-sm gba:text-green-700 gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">

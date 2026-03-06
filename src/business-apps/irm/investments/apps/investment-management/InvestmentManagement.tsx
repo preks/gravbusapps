@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, SquaresFourIcon } from '@phosphor-icons/react'
+import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -18,12 +18,12 @@ const moduleColor = MODULE_COLORS.IRM
 
 export const InvestmentManagement: React.FC<InvestmentManagementProps> = context => {
   // Load investment groups from catalog for dynamic tab validation
-  const investmentGroups = useInvestmentGroups(context)
+  const investmentGroups = useInvestmentGroups(context.accessToken)
 
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <SquaresFourIcon />,
+      icon: <GaugeIcon />,
       label: getTranslationFromI18nKeyAndLabel('portfolio', 'Portfolio')
     },
     {
@@ -145,8 +145,8 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
 
   // Validate and update sub-tab once investment groups are loaded
   useEffect(() => {
-    if (investmentGroups.length > 0 && activeView === 'investments') {
-      const validatedSubTab = getInitialInvestmentsSubView(investmentGroups)
+    if (investmentGroups?.investmentGroups.length > 0 && activeView === 'investments') {
+      const validatedSubTab = getInitialInvestmentsSubView(investmentGroups?.investmentGroups || [])
       if (validatedSubTab !== investmentsSubTab) {
         setInvestmentsSubTab(validatedSubTab)
         updateUrl('investments', validatedSubTab)
@@ -160,7 +160,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
       const newView = getInitialView()
       setActiveView(newView)
       if (newView === 'investments') {
-        const newInvestmentsSubView = getInitialInvestmentsSubView(investmentGroups)
+        const newInvestmentsSubView = getInitialInvestmentsSubView(investmentGroups?.investmentGroups || [])
         setInvestmentsSubTab(newInvestmentsSubView)
       }
     }

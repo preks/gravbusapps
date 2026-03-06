@@ -1,10 +1,12 @@
-import { RemixiconComponentType } from '@remixicon/react'
+import type React from 'react'
+
+export type FlowAreaIconType = React.ComponentType<{ size?: number; className?: string; weight?: string }>
 
 export interface FlowArea {
   id: string
   title: string
   description: string
-  icon: RemixiconComponentType
+  icon: FlowAreaIconType
   category: 'core' | 'management' | 'analytics' | 'admin'
   // Manager-specific features
   links?: Array<{
@@ -19,7 +21,7 @@ export interface FlowArea {
 export interface FlowQuickAction {
   id: string
   label: string
-  icon: RemixiconComponentType
+  icon: FlowAreaIconType
   action: string
 }
 

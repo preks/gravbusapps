@@ -13,7 +13,7 @@ import {
   CardTitle,
   CardContent
 } from '@newwork/nw-design-system'
-import { PiPlus, PiTrash, PiCertificate } from 'react-icons/pi'
+import { PlusIcon, TrashIcon, CertificateIcon } from '@phosphor-icons/react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -29,7 +29,7 @@ const CertificateItem: React.FC<{
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
-            <PiCertificate className="gba:w-5 gba:h-5" />
+            <CertificateIcon className="gba:w-5 gba:h-5" />
             Certificate {certificateIndex + 1}
           </CardTitle>
           <Button
@@ -41,7 +41,7 @@ const CertificateItem: React.FC<{
             data-testid={formatDataTestId('job-candidate-form', `certificate-remove-${certificateIndex}`)}
             aria-label="Remove certificate"
           >
-            <PiTrash className="gba:w-4 gba:h-4" />
+            <TrashIcon className="gba:w-4 gba:h-4" />
           </Button>
         </div>
       </CardHeader>
@@ -166,7 +166,7 @@ export const CertificatesArrayField: React.FC = () => {
     <div className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
         <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-          <PiCertificate className="gba:w-5 gba:h-5" />
+          <CertificateIcon className="gba:w-5 gba:h-5" />
           Certificates & Certifications
         </h3>
       </div>
@@ -193,7 +193,7 @@ export const CertificatesArrayField: React.FC = () => {
         className="gba:w-full gba:mt-2"
         data-testid={formatDataTestId('job-candidate-form', 'certificate-add')}
       >
-        <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+        <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
         Add Certificate
       </Button>
     </div>

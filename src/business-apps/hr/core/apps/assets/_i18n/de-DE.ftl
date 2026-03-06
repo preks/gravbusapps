@@ -13,6 +13,7 @@ issue-date-not-before-purchase = Die Zuweisung kann nicht vor dem Erwerbsdatum e
 # Actions
 generate_document = Dokument erstellen
 export_pdf = Als PDF exportieren
+export_certificate = Zertifikat exportieren
 actions = Aktionen
 update_asset = Gerät aktualisieren
 allocate_asset = Gerät zuweisen

@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next'
 import {
-  RiUserSettingsLine,
-  RiMoneyDollarCircleLine,
-  RiOrganizationChart,
-  RiBuilding2Line,
-  RiDeleteBin6Line
-} from '@remixicon/react'
-import { ClockIcon } from '@phosphor-icons/react'
+  UserGearIcon,
+  CurrencyCircleDollarIcon,
+  TreeStructureIcon,
+  BuildingsIcon,
+  TrashIcon,
+  ClockIcon
+} from '@phosphor-icons/react'
 import { HrSettingsCardProps } from '../components/HrSettingsCard'
 
 export function useHrSettingsCards(): HrSettingsCardProps[] {
@@ -16,7 +16,7 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
     {
       title: t('hr.employment_data', 'Employment Data'),
       description: t('hr.employment_data_description', 'Manage employment types and contract types master data'),
-      icon: <RiUserSettingsLine />,
+      icon: <UserGearIcon size={24} />,
       entries: [
         {
           label: t('hr.employment_types', 'Employment Types'),
@@ -31,7 +31,7 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
     {
       title: t('hr.compensation_data', 'Compensation Data'),
       description: t('hr.compensation_data_description', 'Manage compensation bands and salary structures'),
-      icon: <RiMoneyDollarCircleLine />,
+      icon: <CurrencyCircleDollarIcon size={24} />,
       entries: [
         {
           label: t('hr.pay_grades', 'Pay Grades'),
@@ -50,7 +50,7 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
     {
       title: t('hr.job_structure_data', 'Job Structure Data'),
       description: t('hr.job_structure_data_description', 'Manage job families, level groups, functions, and profiles'),
-      icon: <RiOrganizationChart />,
+      icon: <TreeStructureIcon size={24} />,
       entries: [
         {
           label: t('hr.job_families', 'Job Families'),
@@ -76,7 +76,7 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
         'hr.organizational_data_description',
         'Manage company information, projects, site locations, capabilities, cost centers, departments, and teams'
       ),
-      icon: <RiBuilding2Line />,
+      icon: <BuildingsIcon size={24} />,
       entries: [
         {
           label: t('hr.companies', 'Companies'),
@@ -111,7 +111,7 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
     {
       title: t('hr.position_management', 'Position Management'),
       description: t('hr.position_management_description', 'Manage job position lifecycle and terminations'),
-      icon: <RiDeleteBin6Line />,
+      icon: <TrashIcon size={24} />,
       entries: [
         {
           label: t('hr.position_termination', 'Position Termination'),
@@ -122,7 +122,7 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
     {
       title: t('hr.time_attendance', 'Time Attendance'),
       description: t('hr.time_attendance_description', 'Manage time attendance and tracking'),
-      icon: <ClockIcon />,
+      icon: <ClockIcon size={24} />,
       entries: [
         {
           label: t('hr.time_types', 'Time Types'),

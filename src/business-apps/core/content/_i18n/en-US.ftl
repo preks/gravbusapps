@@ -36,6 +36,15 @@ content_link_copied = Content link copied to clipboard
 no_image = No Image
 content_image = Content Image
 
+# AI Translation button (shared by portal and content record)
+ai-translation-language = Language
+ai-translation-detecting = Detecting...
+ai-translation-translating = Translating...
+ai-translation-select-target = Select Target Language
+ai-translation-search-placeholder = Search languages...
+ai-translation-no-languages-found = No languages found
+ai-translation-no-languages-available = No languages available
+
 # Comments & Interactions
 comment = comment
 comments = comments

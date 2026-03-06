@@ -426,7 +426,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       )
     }
     if (message.type === 'system' && message.metadata?.type === 'meeting_minutes_ready') {
-      return <MeetingMinutesReadyBlock message={message} formattedTime={formattedTime} navigateTo={navigateTo} />
+      return <MeetingMinutesReadyBlock message={message} formattedTime={formattedTime} navigateTo={navigateTo} t={t} />
     }
     if (message.type === 'system') {
       return <SystemMessageBlock message={message} formattedTime={formattedTime} />

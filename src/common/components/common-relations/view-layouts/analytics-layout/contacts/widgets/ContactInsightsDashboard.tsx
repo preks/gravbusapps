@@ -12,9 +12,8 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
-import { ContactsOutlined, TeamOutlined, BankOutlined } from '@ant-design/icons'
+import { AddressBookIcon, UsersIcon, BankIcon } from '@phosphor-icons/react'
 import { BarChart, Bar, XAxis, YAxis } from 'recharts'
-import { UsersIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface ContactsByTypeItem {
@@ -94,21 +93,21 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4 gba:mb-6">
           <div className="gba:p-4 gba:bg-blue-50 gba:rounded-lg gba:border gba:border-blue-200">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <ContactsOutlined className="gba:text-blue-600" />
+              <AddressBookIcon size={16} className="gba:text-blue-600" />
               <span className="gba:text-sm gba:font-medium gba:text-blue-600">Total Contacts</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-blue-900">{data.totalContacts}</div>
           </div>
           <div className="gba:p-4 gba:bg-purple-50 gba:rounded-lg gba:border gba:border-purple-200">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <TeamOutlined className="gba:text-purple-600" />
+              <UsersIcon className="gba:text-purple-600" />
               <span className="gba:text-sm gba:font-medium gba:text-purple-600">Contact Types</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-purple-900">{data.contactsByType.length}</div>
           </div>
           <div className="gba:p-4 gba:bg-orange-50 gba:rounded-lg gba:border gba:border-orange-200">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <BankOutlined className="gba:text-orange-600" />
+              <BankIcon size={16} className="gba:text-orange-600" />
               <span className="gba:text-sm gba:font-medium gba:text-orange-600">Linked Accounts</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-orange-900">

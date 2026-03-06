@@ -1,4 +1,9 @@
-// Speech-to-Text hook using Web Speech API for voice input in office applications.
+/**
+ * useVoiceInput - Speech-to-Text hook using Web Speech API
+ *
+ * Provides real-time voice transcription with visual feedback
+ * for office applications (documents, slides, EveryAI).
+ */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 
@@ -8,18 +13,21 @@ export interface VoiceInputState {
   transcript: string
   interimTranscript: string
   error: string | null
-  volume: number
+  volume: number // 0-1 for visualizations
 }
 
 export interface UseVoiceInputOptions {
   language?: string
   continuous?: boolean
   interimResults?: boolean
-  silenceDelay?: number
+  silenceDelay?: number // ms to wait after speech ends before triggering onEnd
+  /** If false, do not auto-stop after silence; only stop on explicit Stop (Word-like). Default true. */
+  autoStopOnSilence?: boolean
   onTranscript?: (transcript: string) => void
   onEnd?: (finalTranscript: string) => void
 }
 
+// Extend Window interface for SpeechRecognition
 interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList
   resultIndex: number
@@ -50,14 +58,16 @@ interface SpeechRecognition extends EventTarget {
   onaudioend: ((this: SpeechRecognition, ev: Event) => void) | null
 }
 
+interface NWMobileSpeechAPI {
+  start: (options?: { language?: string; continuous?: boolean; interimResults?: boolean }) => boolean | void
+  stop: () => boolean | void
+}
+
 declare global {
   interface Window {
     SpeechRecognition: new () => SpeechRecognition
     webkitSpeechRecognition: new () => SpeechRecognition
-    NWMobileSpeech?: {
-      start: (options?: { language?: string; continuous?: boolean; interimResults?: boolean }) => boolean | void
-      stop: () => boolean | void
-    }
+    NWMobileSpeech?: NWMobileSpeechAPI
     webkit?: {
       messageHandlers?: {
         'com.newwork.NWMobileSpeechStart'?: { postMessage: (payload: unknown) => void }
@@ -72,10 +82,13 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     language = 'en-US',
     continuous = true,
     interimResults = true,
-    silenceDelay = 1500,
+    silenceDelay = 1500, // Default 1.5 seconds to wait before sending
+    autoStopOnSilence = true,
     onTranscript,
     onEnd
   } = options
+
+  const g = globalThis as typeof globalThis & Window
 
   const [state, setState] = useState<VoiceInputState>({
     isListening: false,
@@ -98,17 +111,17 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
   const getNativeBridgeMode = useCallback((): 'none' | 'nwMobileSpeech' | 'webkitMessageHandlers' => {
     if (
-      window.NWMobileSpeech &&
-      typeof window.NWMobileSpeech.start === 'function' &&
-      typeof window.NWMobileSpeech.stop === 'function'
+      g.NWMobileSpeech &&
+      typeof g.NWMobileSpeech.start === 'function' &&
+      typeof g.NWMobileSpeech.stop === 'function'
     ) {
       return 'nwMobileSpeech'
     }
     if (
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart'] &&
-      typeof window.webkit.messageHandlers['com.newwork.NWMobileSpeechStart'].postMessage === 'function' &&
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop'] &&
-      typeof window.webkit.messageHandlers['com.newwork.NWMobileSpeechStop'].postMessage === 'function'
+      g.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart'] &&
+      typeof g.webkit.messageHandlers['com.newwork.NWMobileSpeechStart'].postMessage === 'function' &&
+      g.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop'] &&
+      typeof g.webkit.messageHandlers['com.newwork.NWMobileSpeechStop'].postMessage === 'function'
     ) {
       return 'webkitMessageHandlers'
     }
@@ -118,21 +131,23 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   const stopNativeBridge = useCallback(() => {
     const mode = nativeBridgeModeRef.current
     if (mode === 'nwMobileSpeech') {
-      window.NWMobileSpeech?.stop()
+      g.NWMobileSpeech?.stop()
       return
     }
     if (mode === 'webkitMessageHandlers') {
-      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop']?.postMessage({})
+      g.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop']?.postMessage({})
     }
   }, [])
 
+  // Check for browser support
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = g.SpeechRecognition || g.webkitSpeechRecognition
     const nativeMode = getNativeBridgeMode()
     nativeBridgeModeRef.current = nativeMode
     setState(prev => ({ ...prev, isSupported: nativeMode !== 'none' || !!SpeechRecognition }))
   }, [getNativeBridgeMode])
 
+  // Volume analysis for visualizations
   const startVolumeAnalysis = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -185,7 +200,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [])
 
   const startListening = useCallback(async () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = g.SpeechRecognition || g.webkitSpeechRecognition
     const nativeMode = getNativeBridgeMode()
     nativeBridgeModeRef.current = nativeMode
 
@@ -194,11 +209,13 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       return
     }
 
+    // Clear any pending send timeout (user started speaking again)
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current)
       silenceTimeoutRef.current = null
     }
 
+    // Reset state
     finalTranscriptRef.current = ''
     setState(prev => ({
       ...prev,
@@ -208,18 +225,19 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       isListening: true
     }))
 
+    // Start volume analysis for visualizations
     await startVolumeAnalysis()
 
     if (nativeMode !== 'none') {
       let started: boolean | void = false
       if (nativeMode === 'nwMobileSpeech') {
-        started = window.NWMobileSpeech?.start({
+        started = g.NWMobileSpeech?.start({
           language,
           continuous,
           interimResults
         })
       } else if (nativeMode === 'webkitMessageHandlers') {
-        window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart']?.postMessage({
+        g.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart']?.postMessage({
           language,
           continuous,
           interimResults
@@ -233,6 +251,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       return
     }
 
+    // Create new recognition instance
     const recognition = new SpeechRecognition()
     recognition.continuous = continuous
     recognition.interimResults = interimResults
@@ -262,11 +281,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
         if (!previousFinal) {
           final = lastTrimmed
-        } else if (normalizedLast && normalizedLast.includes(normalizedPrev)) {
+        } else if (normalizedLast?.includes(normalizedPrev)) {
+          // Some WebViews return cumulative results; replace instead of append.
           final = lastTrimmed
-        } else if (normalizedPrev && normalizedPrev.includes(normalizedLast)) {
-          final = previousFinal
         } else {
+          // Append new final segment (preserves repeated phrases, e.g. "one two three ... one two three").
           final = `${previousFinal} ${lastTrimmed}`.trim()
         }
         cleanedInterim = ''
@@ -275,17 +294,22 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       }
 
       finalTranscriptRef.current = final
+
+      // Track when we last received speech
       lastSpeechTimeRef.current = Date.now()
 
+      // Clear any existing silence timeout
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current)
         silenceTimeoutRef.current = null
       }
 
-      if (final && onEnd) {
+      // Set up new silence timeout only when enabled (Word-like dictate uses autoStopOnSilence: false)
+      if (autoStopOnSilence && silenceDelay > 0 && final && onEnd) {
         silenceTimeoutRef.current = setTimeout(() => {
           const textToSend = finalTranscriptRef.current.trim()
           if (textToSend) {
+            // Stop recognition and send
             if (recognitionRef.current) {
               recognitionRef.current.stop()
             }
@@ -306,6 +330,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('[VoiceInput] onerror', { error: event.error, message: event.message })
+      // Don't treat 'no-speech' as an error - just means silence
       if (event.error === 'no-speech') return
 
       const errorMessages: Record<string, string> = {
@@ -324,6 +349,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       setState(prev => ({ ...prev, isListening: false }))
       stopVolumeAnalysis()
 
+      // Clear any pending silence timeout
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current)
         silenceTimeoutRef.current = null
@@ -342,6 +368,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     continuous,
     interimResults,
     silenceDelay,
+    autoStopOnSilence,
     onTranscript,
     onEnd,
     startVolumeAnalysis,
@@ -360,6 +387,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [stopVolumeAnalysis, stopNativeBridge])
 
   const cancelListening = useCallback(() => {
+    // Clear any pending send timeout
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current)
       silenceTimeoutRef.current = null
@@ -388,6 +416,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     }))
   }, [])
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (silenceTimeoutRef.current) {
@@ -410,11 +439,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       stopVolumeAnalysis()
       setState(prev => ({ ...prev, isListening: false }))
     }
-    window.addEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
-    window.addEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
+    globalThis.addEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
+    globalThis.addEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
     return () => {
-      window.removeEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
-      window.removeEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
+      globalThis.removeEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
+      globalThis.removeEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
     }
   }, [startVolumeAnalysis, stopVolumeAnalysis])
 
@@ -452,9 +481,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       }
     }
 
-    window.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    globalThis.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     return () => {
-      window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+      globalThis.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     }
   }, [onTranscript])
 

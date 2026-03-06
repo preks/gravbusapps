@@ -56,7 +56,6 @@ export const useOrganizationalUnits = ({
   useEffect(() => {
     if (currentSearch !== search) {
       setCurrentSearch(search)
-      setOrganizationalUnits([])
       setOffset(0)
       setHasMore(true)
       setTotal(0)
@@ -112,7 +111,6 @@ export const useOrganizationalUnits = ({
   // Search organizational units
   const searchUnits = useCallback((searchTerm?: string) => {
     setCurrentSearch(searchTerm)
-    setOrganizationalUnits([])
     setOffset(0)
     setHasMore(true)
     setTotal(0)

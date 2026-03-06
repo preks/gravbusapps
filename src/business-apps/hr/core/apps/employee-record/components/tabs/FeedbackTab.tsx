@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { Sparkle } from '@phosphor-icons/react'
+import { SparkleIcon } from '@phosphor-icons/react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import translations from '../../_i18n'
 import FeedbackToolbar from './feedback-hub/FeedbackToolbar'
 import FeedbackHubHeader from './feedback-hub/FeedbackHubHeader'
@@ -39,12 +40,22 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   const {
     results: analysisResults,
-    isAnalyzing,
     error: analysisError,
     analyze,
-    clear: clearAnalysis
+    cancelAnalyzingForDirection
   } = useFeedbackAnalysis({ accessToken })
-  const [showAnalysis, setShowAnalysis] = useState(false)
+  const [openInsights, setOpenInsights] = useState<{ received: boolean; given: boolean }>({
+    received: false,
+    given: false
+  })
+  const [analyzingInsights, setAnalyzingInsights] = useState<{ received: boolean; given: boolean }>({
+    received: false,
+    given: false
+  })
+  const lastAnalyzedSignatureRef = useRef<{ received: string | null; given: string | null }>({
+    received: null,
+    given: null
+  })
 
   const {
     searchTerm,
@@ -75,28 +86,99 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     setPendingRequestsPage,
     showPendingPanel,
     setShowPendingPanel,
-    typeOptions
+    typeOptions,
+    reloadAllData
   } = useFeedbackHubData({
     employee,
     currentUserEmployeeId,
     isSelfView,
+    accessToken,
+    userInfo,
     graphQLClient,
     t
   })
 
-  const handleAnalyzeFeedback = async () => {
-    const employeeName = `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || 'Employee'
-    if (receivedList.length === 0 && givenList.length === 0) return
-    setShowAnalysis(true)
-    await analyze({
-      employeeName,
-      received: receivedList,
-      given: givenList
-    })
+  useProcessCompletion({
+    onSuccess: () => {
+      setShowPendingPanel(false)
+      reloadAllData()
+    }
+  })
+
+  const employeeName = `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || 'Employee'
+
+  const buildFeedbackSignature = (entries: typeof receivedList) =>
+    JSON.stringify(
+      entries.map(entry => ({
+        id: entry.id ?? `${entry.senderId ?? ''}:${entry.rawDate ?? entry.date}`,
+        date: entry.rawDate ?? entry.date,
+        content: entry.content,
+        type: entry.type,
+        rating: entry.rating,
+        visibility: entry.feedbackPublic
+      }))
+    )
+
+  const handleOpenReceivedInsights = async () => {
+    setOpenInsights(prev => ({ ...prev, received: true }))
+    if (receivedList.length === 0) return
+
+    const signature = buildFeedbackSignature(receivedList)
+    const hasCachedResult = !!analysisResults.received
+    const isSamePayload = lastAnalyzedSignatureRef.current.received === signature
+    if (hasCachedResult && isSamePayload) return
+    if (analyzingInsights.received) return
+
+    setAnalyzingInsights(prev => ({ ...prev, received: true }))
+    try {
+      const result = await analyze({ employeeName, received: receivedList, given: [] })
+      if (result?.received) {
+        lastAnalyzedSignatureRef.current.received = signature
+      }
+    } finally {
+      setAnalyzingInsights(prev => ({ ...prev, received: false }))
+    }
+  }
+
+  const handleOpenGivenInsights = async () => {
+    setOpenInsights(prev => ({ ...prev, given: true }))
+    if (givenList.length === 0) return
+
+    const signature = buildFeedbackSignature(givenList)
+    const hasCachedResult = !!analysisResults.given
+    const isSamePayload = lastAnalyzedSignatureRef.current.given === signature
+    if (hasCachedResult && isSamePayload) return
+    if (analyzingInsights.given) return
+
+    setAnalyzingInsights(prev => ({ ...prev, given: true }))
+    try {
+      const result = await analyze({ employeeName, received: [], given: givenList })
+      if (result?.given) {
+        lastAnalyzedSignatureRef.current.given = signature
+      }
+    } finally {
+      setAnalyzingInsights(prev => ({ ...prev, given: false }))
+    }
+  }
+
+  const handleCloseReceivedInsights = () => {
+    if (analyzingInsights.received) {
+      cancelAnalyzingForDirection('received')
+      setAnalyzingInsights(prev => ({ ...prev, received: false }))
+    }
+    setOpenInsights(prev => ({ ...prev, received: false }))
+  }
+
+  const handleCloseGivenInsights = () => {
+    if (analyzingInsights.given) {
+      cancelAnalyzingForDirection('given')
+      setAnalyzingInsights(prev => ({ ...prev, given: false }))
+    }
+    setOpenInsights(prev => ({ ...prev, given: false }))
   }
 
   return (
-    <div className="gba:space-y-6 " data-testid="feedback-tab">
+    <div className="gba:space-y-6" data-testid="feedback-tab">
       <FeedbackHubHeader t={t} employee={employee} accessToken={accessToken} />
 
       <FeedbackHubKpiGrid
@@ -132,40 +214,18 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         publicLabel={t('feedback-hub-filter-public')}
         dateFromLabel={t('feedback-hub-filter-date-from')}
         dateToLabel={t('feedback-hub-filter-date-to')}
+        allDatesLabel={t('feedback-hub-filter-all-dates')}
         senderLabel={t('feedback-hub-filter-sender')}
         typeLabel={t('feedback-hub-filter-type')}
+        clearLabel={t('feedback-hub-filters-clear')}
+        onClearFilters={() => {
+          setSearchTerm('')
+          setFilterType('all')
+          setDateFrom('')
+          setDateTo('')
+          setTypeFilter('all')
+        }}
       />
-
-      {/* AI Analysis button */}
-      <div className="gba:flex gba:justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          className="gba:flex gba:items-center gba:gap-2"
-          data-testid="analyze-feedback-button"
-          disabled={isAnalyzing || (receivedList.length === 0 && givenList.length === 0)}
-          onClick={handleAnalyzeFeedback}
-        >
-          {isAnalyzing ? <Spinner size="sm" /> : <Sparkle className="gba:h-4 gba:w-4" weight="fill" />}
-          {isAnalyzing ? 'Analyzing…' : 'AI Analysis'}
-        </Button>
-      </div>
-
-      {/* AI Analysis Results */}
-      {showAnalysis && (
-        <FeedbackAnalysisPanel
-          receivedResult={analysisResults.received}
-          givenResult={analysisResults.given}
-          isAnalyzing={isAnalyzing}
-          error={analysisError}
-          receivedCount={receivedList.length}
-          givenCount={givenList.length}
-          onClose={() => {
-            setShowAnalysis(false)
-            clearAnalysis()
-          }}
-        />
-      )}
 
       {kpiLoading && !showPendingPanel && (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-20">
@@ -187,6 +247,37 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           publicBadgeLabel={t('feedback-hub-badge-public')}
           showMoreLabel={t('feedback-hub-show-more')}
           showLessLabel={t('feedback-hub-show-less')}
+          headerAction={
+            <Button
+              variant="outline"
+              size="sm"
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="analyze-received-insights-button"
+              disabled={receivedList.length === 0 || analyzingInsights.received}
+              onClick={handleOpenReceivedInsights}
+            >
+              {analyzingInsights.received ? (
+                <Spinner size="sm" />
+              ) : (
+                <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
+              )}
+              {analyzingInsights.received
+                ? t('feedback-hub-ai-insights-analyzing')
+                : t('feedback-hub-ai-insights-button')}
+            </Button>
+          }
+          showBackContent={openInsights.received}
+          footerContent={
+            openInsights.received ? (
+              <FeedbackAnalysisPanel
+                result={analysisResults.received}
+                isAnalyzing={analyzingInsights.received}
+                error={analyzingInsights.received ? analysisError : null}
+                entryCount={receivedList.length}
+                onClose={handleCloseReceivedInsights}
+              />
+            ) : undefined
+          }
         />
 
         <FeedbackListSection
@@ -202,6 +293,35 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           publicBadgeLabel={t('feedback-hub-badge-public')}
           showMoreLabel={t('feedback-hub-show-more')}
           showLessLabel={t('feedback-hub-show-less')}
+          headerAction={
+            <Button
+              variant="outline"
+              size="sm"
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="analyze-given-insights-button"
+              disabled={givenList.length === 0 || analyzingInsights.given}
+              onClick={handleOpenGivenInsights}
+            >
+              {analyzingInsights.given ? (
+                <Spinner size="sm" />
+              ) : (
+                <SparkleIcon className="gba:h-4 gba:w-4" weight="fill" />
+              )}
+              {analyzingInsights.given ? t('feedback-hub-ai-insights-analyzing') : t('feedback-hub-ai-insights-button')}
+            </Button>
+          }
+          showBackContent={openInsights.given}
+          footerContent={
+            openInsights.given ? (
+              <FeedbackAnalysisPanel
+                result={analysisResults.given}
+                isAnalyzing={analyzingInsights.given}
+                error={analyzingInsights.given ? analysisError : null}
+                entryCount={givenList.length}
+                onClose={handleCloseGivenInsights}
+              />
+            ) : undefined
+          }
         />
       </div>
 

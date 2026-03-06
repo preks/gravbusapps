@@ -89,3 +89,29 @@ export const fetchOrganizationalUnitData = async (
 
   return await client.request(query)
 }
+
+export interface FetchOrgUnitByIdVariables {
+  id: string
+  structureId?: string
+}
+
+export type OrgUnitByIdData = {
+  OrganizationalUnit: OrganizationalUnitItem[]
+}
+
+/** Fetch a single organizational unit by id (optionally scoped by structureId) */
+export const fetchOrgUnitById = async (client: any, variables: FetchOrgUnitByIdVariables): Promise<OrgUnitByIdData> => {
+  const { id, structureId } = variables
+  const conditions = [`id: { _eq: "${id}" }`, `isDeleted: { _eq: false }`]
+  if (structureId) {
+    conditions.push(`structureId: { _eq: "${structureId}" }`)
+  }
+  const whereClause = conditions.join(', ')
+  const query = `query OrgUnitById {
+    OrganizationalUnit(where: { ${whereClause} }, limit: 1) {
+      id
+      name
+    }
+  }`
+  return await client.request(query)
+}

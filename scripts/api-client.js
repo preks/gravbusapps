@@ -1,5 +1,18 @@
 import axios from 'axios'
 import { v4 as uuidv4 } from 'uuid'
+import { logAxiosError } from './utils/errorLogger.js'
+
+// Use a module-local client so interceptors never leak globally.
+const http = axios.create()
+
+// Centralize HTTP error diagnostics for requests made through this client.
+http.interceptors.response.use(
+  response => response,
+  error => {
+    logAxiosError('api-client.http', error)
+    return Promise.reject(error)
+  }
+)
 
 /**
  * OAuth Client for handling authentication and token management
@@ -37,7 +50,7 @@ class OAuthClient {
       params.append('client_id', this.clientId)
       params.append('client_secret', this.clientSecret)
 
-      const response = await axios.post(this.tokenUrl, params.toString(), {
+      const response = await http.post(this.tokenUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
@@ -48,7 +61,7 @@ class OAuthClient {
       this.expiresAt = now + response.data.expires_in
       return this.accessToken
     } catch (error) {
-      console.error('Error fetching OAuth token:', error)
+      logAxiosError('oauth.getAccessToken', error, { tokenUrl: this.tokenUrl })
       throw new Error('Failed to obtain OAuth access token')
     }
   }
@@ -111,68 +124,6 @@ function generateScreenKeyFromPath(path) {
 }
 
 /**
- * Get resource URLs from Navigation service
- * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
- * @param {Object} oauthConfig - OAuth configuration for production (optional)
- * @param {Object} searchParams - Search parameters (optional)
- * @param {string} searchParams.search - Search term to filter by URL or title
- * @param {string} searchParams.sort - Comma-separated list of fields to define the sort order
- * @returns {Promise<Array>} Array of resource URL objects
- */
-async function getResourceUrls(apiEndpoint = null, oauthConfig = {}, searchParams = {}) {
-  try {
-    const oauthClient = new OAuthClient(oauthConfig)
-    const accessToken = await oauthClient.getAccessToken()
-    const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API
-
-    // Use search endpoint if search parameters are provided
-    const endpoint =
-      searchParams.search || searchParams.sort
-        ? `${navigationServiceApi}/resource-url/search`
-        : `${navigationServiceApi}/resource-url`
-
-    // Build query parameters
-    const params = {}
-    if (searchParams.search) {
-      params.search = searchParams.search
-    }
-    if (searchParams.sort) {
-      params.sort = searchParams.sort
-    }
-
-    // Build the full URL with parameters for logging
-    const urlParams = new URLSearchParams(params).toString()
-    const fullUrl = urlParams ? `${endpoint}?${urlParams}` : endpoint
-    console.log('🔍 Full resource request URL:', fullUrl)
-
-    const response = await axios.get(endpoint, {
-      headers: {
-        accept: 'application/json',
-        authorization: `Bearer ${accessToken}`
-      },
-      params: params
-    })
-
-    // Handle different response structures
-    let results = []
-    if (Array.isArray(response.data)) {
-      results = response.data
-    } else if (response.data && Array.isArray(response.data.data)) {
-      results = response.data.data
-    } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
-      results = response.data.content
-    }
-
-    console.log('🔍 Results count:', results.length)
-
-    return results
-  } catch (error) {
-    console.error('❌ Failed to get resource URLs:', error.message)
-    throw error
-  }
-}
-
-/**
  * Check if a resource URL exists for a given URL path
  * @param {string} urlPath - The URL path to check (e.g., "/platform/apps/hr/core/apps/employee-record")
  * @param {string} apiEndpoint - The API endpoint to use (optional, defaults to dev endpoint)
@@ -181,27 +132,52 @@ async function getResourceUrls(apiEndpoint = null, oauthConfig = {}, searchParam
  */
 async function getResourceUrlByPath(urlPath, apiEndpoint = null, oauthConfig = {}) {
   try {
-    // Extract just the path part for searching (remove /platform/ prefix)
-    const searchTerm = urlPath.replace(/^\/platform\//, '')
+    const oauthClient = new OAuthClient(oauthConfig)
+    const accessToken = await oauthClient.getAccessToken()
+    const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API
+    const endpoint = `${navigationServiceApi}/resource-url`
 
-    // Use search to find the specific resource URL
-    const resourceUrls = await getResourceUrls(apiEndpoint, oauthConfig, {
-      search: searchTerm,
-      sort: '-updatedAt'
+    const params = {
+      search: urlPath,
+      limit: 20,
+      offset: 0
+    }
+
+    const urlParams = new URLSearchParams(params).toString()
+    console.log(`Resource URL request: ${endpoint}?${urlParams}`)
+
+    const response = await http.get(endpoint, {
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${accessToken}`
+      },
+      params
     })
+
+    let resourceUrls = []
+    if (Array.isArray(response.data)) {
+      resourceUrls = response.data
+    } else if (response.data && Array.isArray(response.data.data)) {
+      resourceUrls = response.data.data
+    } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
+      resourceUrls = response.data.content
+    }
+
+    console.log(`Resource URL results: ${resourceUrls.length}`)
 
     // Look for exact URL match
     const foundResource = resourceUrls.find(resource => resource.url === urlPath)
 
     if (foundResource) {
-      console.log(`🔍 Found existing resource URL: ${urlPath}`)
+      console.log(`Found existing resource URL: ${urlPath}`)
       return foundResource
     } else {
-      console.log(`🔍 Resource URL not found: ${urlPath} (searched for: ${searchTerm})`)
+      console.log(`Resource URL not found: ${urlPath}`)
       return null
     }
   } catch (error) {
-    console.error('❌ Failed to check resource URL:', error.message)
+    logAxiosError('navigation.getResourceUrlByPath', error, { urlPath, apiEndpoint })
+    console.error('Failed to check resource URL:', error.message)
     throw error
   }
 }
@@ -227,7 +203,7 @@ async function deleteScreenInScreenManagement(screenId, apiEndpoint = null, oaut
   const accessToken = await oauthClient.getAccessToken()
   const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
 
-  await axios.delete(`${screenManagementApi}/screen/${screenId}`, {
+  await http.delete(`${screenManagementApi}/screen/${screenId}`, {
     headers: {
       accept: 'application/json',
       authorization: `Bearer ${accessToken}`
@@ -268,21 +244,22 @@ async function addAppResourceUrl(
     }
 
     try {
-      await axios.post(`${navigationServiceApi}/resource-url`, payload, {
+      await http.post(`${navigationServiceApi}/resource-url`, payload, {
         headers: {
           accept: 'application/json',
           authorization: `Bearer ${accessToken}`,
           'content-type': 'application/json'
         }
       })
-      console.log(`✅ Resource URL added successfully: ${payload.url}`)
+      console.log(`Resource URL added successfully: ${payload.url}`)
     } catch {
       if (addIfExistsResponse) {
-        console.log(`ℹ️ Possible Error. Or Resource URL already exists for: ${payload.url}`)
+        console.log(`Possible error, or resource URL already exists for: ${payload.url}`)
       }
     }
   } catch (error) {
-    console.error('❌ Failed to add resource URL:', error.message)
+    logAxiosError('navigation.addAppResourceUrl', error, { azureDestinationPath, apiEndpoint })
+    console.error('Failed to add resource URL:', error.message)
     throw error
   }
 }
@@ -314,21 +291,22 @@ async function addCustomResourceUrl(customUrlPath, apiEndpoint = null, oauthConf
     }
 
     try {
-      await axios.post(`${navigationServiceApi}/resource-url`, payload, {
+      await http.post(`${navigationServiceApi}/resource-url`, payload, {
         headers: {
           accept: 'application/json',
           authorization: `Bearer ${accessToken}`,
           'content-type': 'application/json'
         }
       })
-      console.log(`✅ Custom resource URL added successfully: ${payload.url}`)
+      console.log(`Custom resource URL added successfully: ${payload.url}`)
       return true
     } catch {
-      console.log(`ℹ️ Possible Error. Or Custom resource URL migth already exist for: ${payload.url}`)
+      console.log(`Possible error, or custom resource URL might already exist for: ${payload.url}`)
       return true
     }
   } catch (error) {
-    console.error('❌ Failed to add custom resource URL:', error.message)
+    logAxiosError('navigation.addCustomResourceUrl', error, { customUrlPath, apiEndpoint })
+    console.error('Failed to add custom resource URL:', error.message)
     throw error
   }
 }
@@ -384,21 +362,26 @@ async function addScreenConfigToScreenManagement(
     }
 
     try {
-      await axios.post(`${screenManagementApi}/screen`, payload, {
+      await http.post(`${screenManagementApi}/screen`, payload, {
         headers: {
           accept: 'application/json',
           authorization: `Bearer ${accessToken}`,
           'content-type': 'application/json'
         }
       })
-      console.log(`✅ Screen config added successfully for ${customUrlPath}`)
+      console.log(`Screen config added successfully for ${customUrlPath}`)
       return { success: true, id: generatedId }
     } catch {
-      console.log(`ℹ️ Possible Error. Or Screen config already exists for ${customUrlPath}`)
+      console.log(`Possible error, or screen config already exists for ${customUrlPath}`)
       return { success: false, id: generatedId }
     }
   } catch (error) {
-    console.error('❌ Failed to add screen config:', error.message)
+    logAxiosError('screenManagement.addScreenConfigToScreenManagement', error, {
+      azureDestinationPath,
+      customUrlPath,
+      apiEndpoint
+    })
+    console.error('Failed to add screen config:', error.message)
     throw error
   }
 }
@@ -416,44 +399,39 @@ async function getScreenByKey(screenKey, apiEndpoint = null, oauthConfig = {}) {
     const accessToken = await oauthClient.getAccessToken()
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
 
-    try {
-      const response = await axios.get(`${screenManagementApi}/screen`, {
-        headers: {
-          accept: 'application/json',
-          authorization: `Bearer ${accessToken}`
-        },
-        params: {
-          screenKey: screenKey,
-          sort: 'updatedAt',
-          order: 'DESC',
-          limit: 10,
-          offset: 0
-        }
-      })
-
-      if (response.data && response.data.data && response.data.data.length > 0) {
-        const screen = response.data.data.find(s => s.screenKey === screenKey)
-        if (screen) {
-          if (screen.screenComponents?.builderType === 'NATIVE_SCREEN') {
-            console.log(`🔍 Found existing native screen with key: ${screenKey}, ID: ${screen.id}`)
-            return screen
-          } else {
-            console.log(
-              `🔍 Found existing non-native screen with key: ${screenKey}, ID: ${screen.id}, returning to process an update`
-            )
-            return screen
-          }
-        }
+    const response = await http.get(`${screenManagementApi}/screen`, {
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${accessToken}`
+      },
+      params: {
+        screenKey: screenKey,
+        sort: 'updatedAt',
+        order: 'DESC',
+        limit: 10,
+        offset: 0
       }
+    })
 
-      console.log(`🔍 Screen not found for key: ${screenKey}`)
-      return null
-    } catch (error) {
-      console.error(`❌ Failed to get screen by key: ${screenKey}`, error.message)
-      throw error
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      const screen = response.data.data.find(s => s.screenKey === screenKey)
+      if (screen) {
+        if (screen.screenComponents?.builderType === 'NATIVE_SCREEN') {
+          console.log(`Found existing native screen with key: ${screenKey}, ID: ${screen.id}`)
+          return screen
+        }
+        console.log(
+          `Found existing non-native screen with key: ${screenKey}, ID: ${screen.id}, returning to process update`
+        )
+        return screen
+      }
     }
+
+    console.log(`Screen not found for key: ${screenKey}`)
+    return null
   } catch (error) {
-    console.error('❌ Failed to get screen by key:', error.message)
+    logAxiosError('screenManagement.getScreenByKey', error, { screenKey, apiEndpoint })
+    console.error('Failed to get screen by key:', error.message)
     throw error
   }
 }
@@ -499,25 +477,26 @@ async function updateScreenConfigInScreenManagement(screenId, updateData, apiEnd
     }
 
     try {
-      await axios.put(`${screenManagementApi}/screen/${screenId}`, payload, {
+      await http.put(`${screenManagementApi}/screen/${screenId}`, payload, {
         headers: {
           accept: 'application/json',
           authorization: `Bearer ${accessToken}`,
           'content-type': 'application/json'
         }
       })
-      console.log(`✅ Screen config updated successfully for ID: ${screenId}`)
+      console.log(`Screen config updated successfully for ID: ${screenId}`)
       return true
     } catch (error) {
       if (error.response && error.response.status === 404) {
-        console.log(`❌ Screen config not found for ID: ${screenId}`)
+        console.log(`Screen config not found for ID: ${screenId}`)
       } else {
-        console.log(`❌ Error updating screen config for ID: ${screenId}`, error.message)
+        console.log(`Error updating screen config for ID: ${screenId}`, error.message)
       }
       return false
     }
   } catch (error) {
-    console.error('❌ Failed to update screen config:', error.message)
+    logAxiosError('screenManagement.updateScreenConfigInScreenManagement', error, { screenId, apiEndpoint })
+    console.error('Failed to update screen config:', error.message)
     throw error
   }
 }
@@ -563,27 +542,28 @@ async function updateScreenConfigInScreenManagementDetailed(
     }
 
     try {
-      await axios.put(`${screenManagementApi}/screen/${screenId}`, payload, {
+      await http.put(`${screenManagementApi}/screen/${screenId}`, payload, {
         headers: {
           accept: 'application/json',
           authorization: `Bearer ${accessToken}`,
           'content-type': 'application/json'
         }
       })
-      console.log(`✅ Screen config updated successfully for ID: ${screenId}`)
+      console.log(`Screen config updated successfully for ID: ${screenId}`)
       return { success: true }
     } catch (error) {
       const status = error?.response?.status
       const message = error?.response?.data?.message || error.message
       if (status === 404) {
-        console.log(`❌ Screen config not found for ID: ${screenId}`)
+        console.log(`Screen config not found for ID: ${screenId}`)
       } else {
-        console.log(`❌ Error updating screen config for ID: ${screenId}`, message)
+        console.log(`Error updating screen config for ID: ${screenId}`, message)
       }
       return { success: false, status, message }
     }
   } catch (error) {
-    console.error('❌ Failed to update screen config (detailed):', error.message)
+    logAxiosError('screenManagement.updateScreenConfigInScreenManagementDetailed', error, { screenId, apiEndpoint })
+    console.error('Failed to update screen config (detailed):', error.message)
     return { success: false, message: error.message }
   }
 }
@@ -650,11 +630,11 @@ async function addFormAsLandingScreen(
       }
     }
 
-    console.log('📤 Posting form as landing screen to screen management API...')
+    console.log('Posting form as landing screen to screen management API...')
 
     try {
       // Similar pattern to existing API calls
-      await axios.post(`${screenManagementApi}/screen`, payload, {
+      await http.post(`${screenManagementApi}/screen`, payload, {
         headers: {
           accept: 'application/json',
           'Content-Type': 'application/json',
@@ -662,17 +642,18 @@ async function addFormAsLandingScreen(
         }
       })
 
-      console.log(`✅ Successfully added landing screen with ID: ${generatedId}`)
+      console.log(`Successfully added landing screen with ID: ${generatedId}`)
       return { success: true, id: generatedId }
     } catch (apiError) {
       if (apiError.response && apiError.response.status === 409) {
-        console.log('⚠️ Screen config already exists. Continuing...')
+        console.log('Screen config already exists. Continuing...')
         return { success: false, id: generatedId }
       }
       throw apiError // Re-throw to be caught by outer try-catch
     }
   } catch (error) {
-    console.error('❌ Failed to add landing screen to screen management:', error.message)
+    logAxiosError('screenManagement.addFormAsLandingScreen', error, { processName, azureDestinationPath, apiEndpoint })
+    console.error('Failed to add landing screen to screen management:', error.message)
     if (error.response) {
       console.error('Response status:', error.response.status)
       console.error('Response data:', error.response.data)
@@ -724,11 +705,11 @@ async function addFormAsUserTaskScreen(processName, taskName, azureDestinationPa
       }
     }
 
-    console.log('📤 Posting form as user task screen to screen management API...')
+    console.log('Posting form as user task screen to screen management API...')
 
     try {
       // Similar pattern to existing API calls
-      await axios.post(`${apiEndpoint}/screen`, payload, {
+      await http.post(`${apiEndpoint}/screen`, payload, {
         headers: {
           accept: 'application/json',
           'Content-Type': 'application/json',
@@ -736,17 +717,18 @@ async function addFormAsUserTaskScreen(processName, taskName, azureDestinationPa
         }
       })
 
-      console.log(`✅ Successfully added user task screen with ID: ${generatedId}`)
+      console.log(`Successfully added user task screen with ID: ${generatedId}`)
       return generatedId
     } catch (apiError) {
       if (apiError.response && apiError.response.status === 409) {
-        console.log('⚠️ Screen config already exists. Continuing...')
+        console.log('Screen config already exists. Continuing...')
         return null
       }
       throw apiError // Re-throw to be caught by outer try-catch
     }
   } catch (error) {
-    console.error('❌ Failed to add user task screen to screen management:', error.message)
+    logAxiosError('screenManagement.addFormAsUserTaskScreen', error, { processName, taskName, azureDestinationPath })
+    console.error('Failed to add user task screen to screen management:', error.message)
     if (error.response) {
       console.error('Response status:', error.response.status)
       console.error('Response data:', error.response.data)
@@ -772,13 +754,11 @@ async function getAllNativeScreens(apiEndpoint = null, oauthConfig = {}) {
     const limit = 100
     let hasMore = true
 
-    console.log('🔍 Fetching all NATIVE_SCREEN screens with pagination...')
+    console.log('Fetching all NATIVE_SCREEN screens...')
 
     while (hasMore) {
-      console.log(`   Fetching screens: offset=${offset}, limit=${limit}`)
-
       try {
-        const response = await axios.get(`${screenManagementApi}/screen`, {
+        const response = await http.get(`${screenManagementApi}/screen`, {
           headers: {
             accept: 'application/json',
             authorization: `Bearer ${accessToken}`
@@ -795,33 +775,27 @@ async function getAllNativeScreens(apiEndpoint = null, oauthConfig = {}) {
           const screens = response.data.data
           allScreens = allScreens.concat(screens)
 
-          console.log(`   Found ${screens.length} screens in this batch`)
-
           // Check if we have more data
           if (screens.length < limit) {
             hasMore = false
           } else {
             offset += limit
           }
-
-          // Log total on first request
-          if (offset === limit && response.data.paging && response.data.paging.totalRecords) {
-            console.log(`   Total NATIVE_SCREEN screens available: ${response.data.paging.totalRecords}`)
-          }
         } else {
-          console.log('   No screens data in response')
           hasMore = false
         }
       } catch (error) {
-        console.error(`❌ Failed to fetch screens at offset ${offset}:`, error.message)
+        logAxiosError('screenManagement.getAllNativeScreens.batch', error, { offset, limit, screenManagementApi })
+        console.error(`Failed to fetch screens at offset ${offset}:`, error.message)
         throw error
       }
     }
 
-    console.log(`✅ Successfully fetched ${allScreens.length} total NATIVE_SCREEN screens`)
+    console.log(`Successfully fetched ${allScreens.length} total NATIVE_SCREEN screens`)
     return allScreens
   } catch (error) {
-    console.error('❌ Failed to get all native screens:', error.message)
+    logAxiosError('screenManagement.getAllNativeScreens', error, { apiEndpoint })
+    console.error('Failed to get all native screens:', error.message)
     throw error
   }
 }
@@ -867,7 +841,7 @@ async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prod
     const existingProdResourceUrl = await getResourceUrlByPath(devResourceUrl.url, prodNavigationApi, prodOauthConfig)
 
     if (existingProdResourceUrl) {
-      console.log(`   ✅ Resource URL already exists in prod (ID: ${existingProdResourceUrl.id})`)
+      console.log(`   Resource URL already exists in prod (ID: ${existingProdResourceUrl.id})`)
       return { success: true, operation: 'exists', resourceUrl: devResourceUrl }
     }
 
@@ -885,7 +859,7 @@ async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prod
     }
 
     console.log(`   Creating resource URL in prod with same ID: ${devResourceUrl.id}`)
-    await axios.post(`${prodNavigationApi}/resource-url`, payload, {
+    await http.post(`${prodNavigationApi}/resource-url`, payload, {
       headers: {
         accept: 'application/json',
         authorization: `Bearer ${accessToken}`,
@@ -893,10 +867,14 @@ async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prod
       }
     })
 
-    console.log(`   ✅ Resource URL synced to prod with same ID: ${devResourceUrl.url}`)
+    console.log(`   Resource URL synced to prod with same ID: ${devResourceUrl.url}`)
     return { success: true, operation: 'created', resourceUrl: devResourceUrl }
   } catch (error) {
-    console.error(`   ❌ Failed to sync resource URL to prod: ${error.message}`)
+    logAxiosError('navigation.syncResourceUrlWithSameId', error, {
+      prodNavigationApi,
+      resourceUrl: devResourceUrl?.url
+    })
+    console.error(`   Failed to sync resource URL to prod: ${error.message}`)
     return { success: false, operation: 'error', error: error.message, resourceUrl: devResourceUrl }
   }
 }
@@ -921,7 +899,7 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
     if (existingProdScreen) {
       // Strict LOWCODER detection and deletion
       if (isLowcoderScreen(existingProdScreen)) {
-        console.log('   🔎 LOWCODER screen detected - deleting before recreation')
+        console.log('   LOWCODER screen detected - deleting before recreation')
         await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
 
         // Build minimal creation payload without reusing dev ID to avoid server-side conflicts
@@ -949,22 +927,26 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
         try {
           // short delay to let deletion complete server-side
           await new Promise(r => setTimeout(r, 300))
-          await axios.post(`${prodScreenManagementApi}/screen`, recreatePayload, {
+          await http.post(`${prodScreenManagementApi}/screen`, recreatePayload, {
             headers: {
               accept: 'application/json',
               authorization: `Bearer ${accessToken}`,
               'content-type': 'application/json'
             }
           })
-          console.log(`   ✅ Screen recreated in prod as NATIVE_SCREEN: ${devScreen.screenKey}`)
+          console.log(`   Screen recreated in prod as NATIVE_SCREEN: ${devScreen.screenKey}`)
           return { success: true, operation: 'create', screenId: devScreen.id }
         } catch (error) {
-          console.error(`   ❌ Failed to recreate screen in prod: ${error.message}`)
+          logAxiosError('screenManagement.syncScreenFromDevToProd.recreateLowcoder', error, {
+            screenKey: devScreen.screenKey,
+            prodScreenManagementApi
+          })
+          console.error(`   Failed to recreate screen in prod: ${error.message}`)
           return { success: false, operation: 'create', error: error.message }
         }
       }
 
-      console.log(`   📝 Screen exists in prod (ID: ${existingProdScreen.id}), updating version to ${buildVersion}`)
+      console.log(`   Screen exists in prod (ID: ${existingProdScreen.id}), updating version to ${buildVersion}`)
 
       const updateData = {
         ...devScreen,
@@ -991,13 +973,13 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
       )
 
       if (updateResult.success) {
-        console.log(`   ✅ Screen updated in prod: ${devScreen.screenKey}`)
+        console.log(`   Screen updated in prod: ${devScreen.screenKey}`)
         return { success: true, operation: 'update', screenId: existingProdScreen.id }
       }
 
       const message = (updateResult.message || '').toLowerCase()
       if ([400, 409, 422].includes(updateResult.status) || message.includes('namespace')) {
-        console.log('   🔁 Update failed due to namespace mismatch → deleting and recreating')
+        console.log('   Update failed due to namespace mismatch -> deleting and recreating')
         try {
           await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
           // Create without reusing dev ID or extra metadata
@@ -1018,27 +1000,31 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
               release: 'true'
             }
           }
-          await axios.post(`${prodScreenManagementApi}/screen`, createPayload, {
+          await http.post(`${prodScreenManagementApi}/screen`, createPayload, {
             headers: {
               accept: 'application/json',
               authorization: `Bearer ${accessToken}`,
               'content-type': 'application/json'
             }
           })
-          console.log(`   ✅ Screen recreated with source namespace in prod: ${devScreen.screenKey}`)
+          console.log(`   Screen recreated with source namespace in prod: ${devScreen.screenKey}`)
           return { success: true, operation: 'recreate', screenId: devScreen.id }
         } catch (error) {
-          console.error(`   ❌ Failed to recreate screen in prod after namespace mismatch: ${error.message}`)
+          logAxiosError('screenManagement.syncScreenFromDevToProd.recreateNamespaceMismatch', error, {
+            screenKey: devScreen.screenKey,
+            prodScreenManagementApi
+          })
+          console.error(`   Failed to recreate screen in prod after namespace mismatch: ${error.message}`)
           return { success: false, operation: 'recreate', error: error.message }
         }
       }
 
-      console.error(`   ❌ Failed to update screen in prod: ${updateResult.message || 'Unknown error'}`)
+      console.error(`   Failed to update screen in prod: ${updateResult.message || 'Unknown error'}`)
       return { success: false, operation: 'update', error: updateResult.message }
     }
 
     // Create new screen in prod with same ID as dev
-    console.log(`   🆕 Screen doesn't exist in prod, creating: ${devScreen.screenKey}`)
+    console.log(`   Screen does not exist in prod, creating: ${devScreen.screenKey}`)
 
     const payload = {
       ...devScreen,
@@ -1055,7 +1041,7 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
     }
 
     try {
-      await axios.post(`${prodScreenManagementApi}/screen`, payload, {
+      await http.post(`${prodScreenManagementApi}/screen`, payload, {
         headers: {
           accept: 'application/json',
           authorization: `Bearer ${accessToken}`,
@@ -1063,21 +1049,28 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
         }
       })
 
-      console.log(`   ✅ Screen created in prod: ${devScreen.screenKey}`)
+      console.log(`   Screen created in prod: ${devScreen.screenKey}`)
       return { success: true, operation: 'create', screenId: devScreen.id }
     } catch (error) {
-      console.error(`   ❌ Failed to create screen in prod: ${error.message}`)
+      logAxiosError('screenManagement.syncScreenFromDevToProd.create', error, {
+        screenKey: devScreen.screenKey,
+        prodScreenManagementApi
+      })
+      console.error(`   Failed to create screen in prod: ${error.message}`)
       return { success: false, operation: 'create', error: error.message }
     }
   } catch (error) {
-    console.error(`   ❌ Error syncing screen to prod: ${error.message}`)
+    logAxiosError('screenManagement.syncScreenFromDevToProd', error, {
+      screenKey: devScreen?.screenKey,
+      prodScreenManagementApi
+    })
+    console.error(`   Error syncing screen to prod: ${error.message}`)
     return { success: false, operation: 'error', error: error.message }
   }
 }
 
 export {
   OAuthClient,
-  getResourceUrls,
   getResourceUrlByPath,
   addAppResourceUrl,
   addCustomResourceUrl,

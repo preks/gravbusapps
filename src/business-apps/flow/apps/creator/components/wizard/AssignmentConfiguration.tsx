@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Form, Select, Switch, Typography, Alert, Tooltip, Tag, List, Radio, Space } from 'antd'
-import { UserOutlined, TeamOutlined, InfoCircleOutlined, CheckCircleOutlined, SettingOutlined } from '@ant-design/icons'
+import { UserIcon, UsersIcon, InfoIcon, CheckCircleIcon, GearIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useWizardStore } from '../../hooks/useWizardStore'
 
@@ -91,25 +91,25 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
       value: 'single',
       label: 'Single Person',
       description: 'One person must complete this task',
-      icon: <UserOutlined />
+      icon: <UserIcon />
     },
     {
       value: 'multiple',
       label: 'Multiple People',
       description: 'Multiple people can work on this task',
-      icon: <TeamOutlined />
+      icon: <UsersIcon size={16} />
     },
     {
       value: 'any',
       label: 'Any One Person',
       description: 'Any one person from the assigned group',
-      icon: <UserOutlined />
+      icon: <UserIcon />
     },
     {
       value: 'all',
       label: 'All People',
       description: 'All assigned people must complete',
-      icon: <TeamOutlined />
+      icon: <UsersIcon size={16} />
     }
   ]
 
@@ -118,31 +118,31 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
       value: 'manual',
       label: 'Manual Assignment',
       description: 'Assignments will be made manually at execution time',
-      icon: <UserOutlined />
+      icon: <UserIcon />
     },
     {
       value: 'role-based',
       label: 'Role-Based Assignment',
       description: 'Assign based on user roles (e.g., Manager, Analyst)',
-      icon: <TeamOutlined />
+      icon: <UsersIcon size={16} />
     },
     {
       value: 'department-based',
       label: 'Department-Based Assignment',
       description: 'Assign based on department structure',
-      icon: <TeamOutlined />
+      icon: <UsersIcon size={16} />
     },
     {
       value: 'manager-based',
       label: 'Manager-Based Assignment',
       description: "Assign to the requester's manager or hierarchy",
-      icon: <UserOutlined />
+      icon: <UserIcon />
     },
     {
       value: 'requester-based',
       label: 'Requester-Based Assignment',
       description: 'Assign back to the workflow requester',
-      icon: <UserOutlined />
+      icon: <UserIcon />
     }
   ]
 
@@ -169,7 +169,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
         <Card data-testid={`${testId}-steps-overview`}>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:space-x-2">
-              <CheckCircleOutlined className="gba:text-green-500" />
+              <CheckCircleIcon className="gba:text-green-500" />
               <span>Configured Workflow Steps ({configuration.steps.length})</span>
             </CardTitle>
           </CardHeader>
@@ -201,7 +201,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
           <CardTitle className="gba:flex gba:items-center gba:space-x-2">
             <span>👥 Assignment Type</span>
             <Tooltip title="How tasks should be assigned when workflow executes">
-              <InfoCircleOutlined className="gba:text-gray-400" />
+              <InfoIcon size={16} className="gba:text-gray-400" />
             </Tooltip>
           </CardTitle>
         </CardHeader>
@@ -243,7 +243,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
           <CardTitle className="gba:flex gba:items-center gba:space-x-2">
             <span>🎯 Assignment Strategy</span>
             <Tooltip title="How the system should determine who gets assigned">
-              <InfoCircleOutlined className="gba:text-gray-400" />
+              <InfoIcon size={16} className="gba:text-gray-400" />
             </Tooltip>
           </CardTitle>
         </CardHeader>
@@ -287,7 +287,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
           <CardTitle className="gba:flex gba:items-center gba:space-x-2">
             <span>⚙️ Assignment Options</span>
             <Tooltip title="Additional assignment behavior settings">
-              <InfoCircleOutlined className="gba:text-gray-400" />
+              <InfoIcon size={16} className="gba:text-gray-400" />
             </Tooltip>
           </CardTitle>
         </CardHeader>
@@ -332,7 +332,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
           <CardTitle className="gba:flex gba:items-center gba:space-x-2">
             <span>⏰ Escalation Rules</span>
             <Tooltip title="What happens if tasks are not completed in time">
-              <InfoCircleOutlined className="gba:text-gray-400" />
+              <InfoIcon size={16} className="gba:text-gray-400" />
             </Tooltip>
           </CardTitle>
         </CardHeader>
@@ -390,7 +390,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
           <CardTitle className="gba:flex gba:items-center gba:space-x-2">
             <span>🔒 Assignment Constraints</span>
             <Tooltip title="Rules that limit or control assignments">
-              <InfoCircleOutlined className="gba:text-gray-400" />
+              <InfoIcon size={16} className="gba:text-gray-400" />
             </Tooltip>
           </CardTitle>
         </CardHeader>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Spinner, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
-import { PiArrowClockwise } from 'react-icons/pi'
+import { ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDemographicsDataIntegration } from '../../../hooks/useDemographicsDataIntegration'
 import DemographicsChartsView from './components/DemographicsChartsView'
@@ -33,7 +33,7 @@ const Demographics: React.FC<BusinessAppContextProps> = context => {
                 <p className="gba:text-destructive-secondary-foreground">{error}</p>
               </div>
               <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-                <PiArrowClockwise />
+                <ArrowClockwiseIcon />
                 {t('common-retry')}
               </Button>
             </div>
@@ -77,7 +77,7 @@ const Demographics: React.FC<BusinessAppContextProps> = context => {
           data-testid={`${prefixDataTestId}-refresh-button`}
           className="gba:flex gba:items-center gba:gap-2"
         >
-          <PiArrowClockwise />
+          <ArrowClockwiseIcon />
           {t('common-refresh-data')}
         </Button>
       </div>

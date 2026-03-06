@@ -47,6 +47,7 @@ interface PreCallSetupDialogProps {
   userName?: string
   userAvatarUrl?: string
   otherParticipantName?: string
+  transcriptionEnabled?: boolean
   onStart: (preferences: {
     micEnabled: boolean
     cameraEnabled: boolean
@@ -91,6 +92,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     userName,
     userAvatarUrl,
     otherParticipantName,
+    transcriptionEnabled = false,
     onStart,
     onCancel,
     prefixDataTestId = 'pre-call-setup-dialog',
@@ -305,6 +307,20 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                 {participantCount === 1
                   ? t('chat-participant') || 'participant'
                   : t('groupCall-participants') || 'participants'}
+              </p>
+            )}
+            {transcriptionEnabled && (
+              <p
+                className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:text-xs gba:text-muted-foreground gba:italic gba:mt-2 gba:text-center"
+                data-testid={`${prefixDataTestId}-transcription-message`}
+                title={t('chat-call-transcriptRecordingHeader') || 'Call transcript is being recorded'}
+              >
+                <span
+                  className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:flex-shrink-0"
+                  aria-hidden
+                  data-testid={`${prefixDataTestId}-transcription-indicator`}
+                />
+                {t('chat-call-recordingTranscriptNotice')}
               </p>
             )}
           </div>

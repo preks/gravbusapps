@@ -39,7 +39,10 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
     }
   }
 
-  const iconSize = size === 'sm' ? 'gba:w-4 gba:h-4' : size === 'lg' ? 'gba:w-6 gba:h-6' : 'gba:w-5 gba:h-5'
+  let iconSize: string
+  if (size === 'sm') iconSize = 'gba:w-4 gba:h-4'
+  else if (size === 'lg') iconSize = 'gba:w-6 gba:h-6'
+  else iconSize = 'gba:w-5 gba:h-5'
 
   if (!isSupported) {
     return (
@@ -81,11 +84,11 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
           >
             <Mic className={iconSize} />
             {variant === 'prominent' && <span>Voice Input</span>}
-            <span className="gba:absolute gba:-top-1 gba:-right-1 gba:w-3 gba:h-3 gba:bg-amber-500 gba:rounded-full gba:border-2 gba:border-background" />
+            <span className="gba:absolute gba:-top-1 gba:-right-1 gba:w-3 gba:h-3 gba:bg-warning gba:rounded-full gba:border-2 gba:border-background" />
           </Button>
         </TooltipTrigger>
         <TooltipContent className="gba:max-w-xs">
-          <p className="gba:text-amber-600 gba:font-medium">Voice input unavailable</p>
+          <p className="gba:text-warning-foreground gba:font-medium">Voice input unavailable</p>
           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{error}</p>
           <p className="gba:text-xs gba:text-muted-foreground">Click to try again</p>
         </TooltipContent>
@@ -100,11 +103,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
         size={size}
         onClick={handleClick}
         disabled={disabled}
-        className={cn(
-          'gba:gap-2 gba:relative gba:overflow-hidden gba:min-w-[100px]',
-          'gba:bg-red-500 hover:gba:bg-red-600 gba:shadow-lg gba:shadow-red-500/25',
-          className
-        )}
+        className={cn('gba:gap-2 gba:relative gba:overflow-hidden gba:min-w-[100px]', className)}
         data-testid={testId}
       >
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -154,23 +153,25 @@ interface LiveWaveformProps {
   volume: number
 }
 
+const BAR_COUNT = 4
+const LIVE_WAVEFORM_BAR_IDS = Array.from({ length: BAR_COUNT }, (_, i) => `voice-waveform-bar-${i}`)
+
 const LiveWaveform: React.FC<LiveWaveformProps> = ({ volume }) => {
-  const bars = 4
   const minHeight = 3
   const maxHeight = 16
 
   return (
     <div className="gba:flex gba:items-center gba:gap-[2px] gba:h-4">
-      {Array.from({ length: bars }).map((_, i) => {
-        const phase = (i / bars) * Math.PI
+      {LIVE_WAVEFORM_BAR_IDS.map((barId, i) => {
+        const phase = (i / BAR_COUNT) * Math.PI
         const wave = Math.sin(Date.now() / 150 + phase) * 0.3 + 0.7
         const heightMultiplier = Math.max(0.2, Math.min(1, volume * 1.5 + 0.2)) * wave
         const barHeight = minHeight + (maxHeight - minHeight) * heightMultiplier
 
         return (
           <div
-            key={i}
-            className="gba:w-[3px] gba:bg-white gba:rounded-full gba:transition-all gba:duration-75"
+            key={barId}
+            className="gba:w-[3px] gba:bg-destructive-foreground gba:rounded-full gba:transition-all gba:duration-75"
             style={{ height: `${barHeight}px` }}
           />
         )

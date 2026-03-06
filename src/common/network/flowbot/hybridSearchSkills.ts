@@ -85,7 +85,7 @@ export async function hybridSearchSkills(
   if (!trimmed || trimmed.length < 2) return []
 
   const baseUrl = resolveFlowbotBaseUrl()
-  const url = `${baseUrl}/flowbot/hybrid-search/${ENTITY_TYPE}?${new URLSearchParams({
+  const url = `${baseUrl}/hybrid-search/${ENTITY_TYPE}?${new URLSearchParams({
     q: trimmed,
     limit: String(limit)
   })}`

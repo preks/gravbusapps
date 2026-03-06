@@ -36,6 +36,14 @@ export { HubPaginationFooter, type HubPaginationFooterProps } from './components
 export { CollaboratorCursor, type CollaboratorCursorProps } from './components/CollaboratorCursor'
 export { CellCollaboratorIndicator, type CellCollaboratorIndicatorProps } from './components/CellCollaboratorIndicator'
 export { DimensionPicker, type DimensionPickerProps } from './components/DimensionPicker'
+export {
+  EmbeddedFlowbotChatPanel,
+  type EmbeddedFlowbotChatPanelProps,
+  type EmbeddedFlowbotChatState
+} from './components/EmbeddedFlowbotChatPanel'
+export { VoiceInputButton, type VoiceInputButtonProps } from './components/voice-input/VoiceInputButton'
+export { VoiceVisualizer, type VoiceVisualizerProps } from './components/voice-input/VoiceVisualizer'
+export { normalizeDictationTranscript } from './utils/normalizeDictationTranscript'
 
 // Voice Input Components
 export { VoiceInputButton, type VoiceInputButtonProps } from './components/voice-input/VoiceInputButton'

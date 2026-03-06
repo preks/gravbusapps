@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react'
 import { SectionKpiCards, KpiCardData, Button, Icon } from '@newwork/nw-design-system'
-import { PiWarning, PiArrowClockwise } from 'react-icons/pi'
+import { WarningIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UsersIcon, CalendarIcon, EnvelopeIcon, PhoneIcon } from '@phosphor-icons/react'
 
@@ -309,7 +309,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg"
         data-testid={`${dataTestId}-error-container`}
       >
-        <PiWarning className="gba:text-red-500 gba:text-4xl gba:mb-4" data-testid={`${dataTestId}-error-icon`} />
+        <WarningIcon className="gba:text-red-500 gba:text-4xl gba:mb-4" data-testid={`${dataTestId}-error-icon`} />
         <h3 className="gba:text-lg gba:font-medium gba:text-red-900 gba:mb-2" data-testid={`${dataTestId}-error-title`}>
           Error Loading Data
         </h3>
@@ -323,7 +323,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             className="gba:flex gba:items-center gba:gap-2"
             data-testid={`${dataTestId}-error-retry-button`}
           >
-            <PiArrowClockwise />
+            <ArrowClockwiseIcon />
             Retry
           </Button>
         )}
@@ -342,7 +342,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             className="gba:flex gba:items-center gba:gap-2 gba:mx-auto"
             data-testid={`${dataTestId}-empty-load-button`}
           >
-            <PiArrowClockwise />
+            <ArrowClockwiseIcon />
             Load Data
           </Button>
         )}

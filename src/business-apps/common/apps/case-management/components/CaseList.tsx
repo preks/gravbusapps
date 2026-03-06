@@ -24,7 +24,7 @@ import {
   SectionKpiCards,
   type KpiCardData
 } from '@newwork/nw-design-system'
-import { IconBriefcase, IconAlertCircle, IconCalendarDue, IconCircleCheck } from '@tabler/icons-react'
+import { BriefcaseIcon, WarningCircleIcon, CalendarBlankIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import {
   MoreVertical,
   Eye,
@@ -153,14 +153,14 @@ export const CaseList: React.FC<CaseListProps> = ({
         id: 'active',
         title: 'Active Cases',
         value: kpiData.active,
-        icon: <IconBriefcase className="nw:size-4" />,
+        icon: <BriefcaseIcon className="nw:size-4" />,
         footer: 'Cases in progress'
       },
       {
         id: 'overdue',
         title: 'Overdue',
         value: kpiData.overdue,
-        icon: <IconAlertCircle className="nw:size-4" />,
+        icon: <WarningCircleIcon className="nw:size-4" />,
         trend:
           kpiData.overdue > 0
             ? {
@@ -176,7 +176,7 @@ export const CaseList: React.FC<CaseListProps> = ({
         id: 'dueSoon',
         title: 'Due Soon',
         value: kpiData.dueSoon,
-        icon: <IconCalendarDue className="nw:size-4" />,
+        icon: <CalendarBlankIcon className="nw:size-4" />,
         trend:
           kpiData.dueSoon > 0
             ? {
@@ -193,7 +193,7 @@ export const CaseList: React.FC<CaseListProps> = ({
         id: 'completedThisWeek',
         title: 'Done This Week',
         value: kpiData.completedThisWeek,
-        icon: <IconCircleCheck className="nw:size-4" />,
+        icon: <CheckCircleIcon className="nw:size-4" />,
         trend:
           kpiData.completedThisWeek > 0
             ? {

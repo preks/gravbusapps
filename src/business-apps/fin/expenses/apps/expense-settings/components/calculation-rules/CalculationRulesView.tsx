@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { PiFileText, PiUsers } from 'react-icons/pi'
+import { FileTextIcon, UsersIcon } from '@phosphor-icons/react'
 import ExpenseCalculationRules from './rules-list/ExpenseCalculationRules'
 import CalculationRuleAssignmentList from './CalculationRuleAssignmentList'
 import CalculationRuleRecord from '../calculation-rule-record/CalculationRuleRecord'
@@ -123,10 +123,10 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = context => {
     <div data-testid={`${prefixDataTestId}-calculation-rules-view`} className="gba:p-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-2 gba:max-w-md">
-          <TabsTrigger value="rules" startIcon={<PiFileText />} data-testid="calculation-rules-rules-tab">
+          <TabsTrigger value="rules" startIcon={<FileTextIcon />} data-testid="calculation-rules-rules-tab">
             {getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.rules.title', 'Rules')}
           </TabsTrigger>
-          <TabsTrigger value="assignments" startIcon={<PiUsers />} data-testid="calculation-rules-assignments-tab">
+          <TabsTrigger value="assignments" startIcon={<UsersIcon />} data-testid="calculation-rules-assignments-tab">
             {getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.assignments.title', 'Assignments')}
           </TabsTrigger>
         </TabsList>

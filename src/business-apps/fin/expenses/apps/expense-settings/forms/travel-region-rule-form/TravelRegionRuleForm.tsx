@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
-import { PiWarning } from 'react-icons/pi'
+import { WarningIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -377,21 +377,21 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
       {error && showValidation && (
         <Alert variant="destructive">
-          <PiWarning className="gba:h-4 gba:w-4" />
+          <WarningIcon className="gba:h-4 gba:w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {catalogError && (
         <Alert variant="destructive">
-          <PiWarning className="gba:h-4 gba:w-4" />
+          <WarningIcon className="gba:h-4 gba:w-4" />
           <AlertDescription>{catalogError}</AlertDescription>
         </Alert>
       )}
 
       {isUsedInTransactions && (
         <Alert>
-          <PiWarning className="gba:h-4 gba:w-4" />
+          <WarningIcon className="gba:h-4 gba:w-4" />
           <AlertDescription>
             {usageMessage ||
               'This rule is used in expense transactions. Only the "Valid To" date can be modified. To make other changes, create a new rule.'}
