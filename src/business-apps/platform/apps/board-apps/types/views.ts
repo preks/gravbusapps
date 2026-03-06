@@ -51,6 +51,12 @@ export interface CalendarViewConfig {
   colorColumn?: string
 }
 
+export type DependencyType = 'FS' | 'SS' | 'FF' | 'SF'
+
+export interface DependencyMeta {
+  [predecessorRowId: string]: DependencyType
+}
+
 export interface TimelineViewConfig {
   type: 'timeline'
   startDateColumn: string
