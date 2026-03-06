@@ -271,6 +271,7 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
     ytdTotalWorkingDays,
     getAbsenceGroupDisplayValue,
     handleCreateAbsence,
-    pageSize: PAGE_SIZE
+    pageSize: PAGE_SIZE,
+    refetchEntitlements: refetchSnapshot
   }
 }
