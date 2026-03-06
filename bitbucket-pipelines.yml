@@ -41,11 +41,6 @@
 image: node:20.19.6
 definitions:
   services:
-    docker:
-      memory: 3072
-    docker-medium:
-      memory: 7168
-      type: docker
     docker-large:
       memory: 15360
       type: docker
@@ -121,8 +116,6 @@ definitions:
         clone:
           enabled: true
           depth: full
-        services:
-          - docker
         script:
           - bash scripts/detect-changed-screens.sh
           - |
@@ -142,8 +135,6 @@ definitions:
           depth: full
         caches:
           - nodecustom
-        services:
-          - docker
         script:
           - export RC_UPLOAD="true"
           - bash scripts/build-hash-detect-and-publish-screens.sh
@@ -154,15 +145,13 @@ definitions:
         name: Build Screens
         runs-on:
           - 'self.hosted'
-          - 'do.global.runner.size2'
-        size: 2x
+          - 'do.global.runner.size4'
+        size: 4x
         clone:
           enabled: true
           depth: full
         caches:
           - nodecustom
-        services:
-          - docker
         script:
           - |
             if [ -n "$SCREENS_TO_PUBLISH" ]; then
@@ -177,6 +166,20 @@ definitions:
           - changed-tsx.txt
           - manual-screens.txt
 
+    - step: &type-check
+        name: Type Check
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size2'
+        size: 2x
+        clone:
+          enabled: true
+          depth: full
+        caches:
+          - nodecustom
+        script:
+          - npm run typecheck
+
     - step: &publish-changed-prod-screens
         name: Publish Changed Production Screens
         runs-on:
@@ -188,8 +191,6 @@ definitions:
           depth: full
         caches:
           - nodecustom
-        services:
-          - docker
         script:
           - node scripts/publish-prod-screens.js
         artifacts:
@@ -207,8 +208,6 @@ definitions:
           depth: full
         caches:
           - nodecustom
-        services:
-          - docker
         script:
           - export RC_UPLOAD="true"
           - |
@@ -239,8 +238,6 @@ definitions:
           depth: full
         caches:
           - nodecustom
-        services:
-          - docker
         script:
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
@@ -271,8 +268,6 @@ definitions:
           depth: full
         caches:
           - nodecustom
-        services:
-          - docker
         script:
           - node scripts/sync-resource-urls.js
     - step: &sonar_scan
@@ -291,8 +286,8 @@ definitions:
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx10240m
-              EXTRA_ARGS: ["-Dsonar.javascript.node.maxspace=9216"]
+              SONAR_SCANNER_OPTS: -Xmx14336m
+              EXTRA_ARGS: ["-Dsonar.javascript.node.maxspace=13312"]
 
     - step: &sonar_scan_main
         name: Sonar scan (main)
@@ -319,6 +314,7 @@ pipelines:
       - step: *check-hash-file-change
       - step: *install_dependencies
       - parallel:
+          - step: *type-check
           - step: *build-screens
           - step: *sonar_scan
 
