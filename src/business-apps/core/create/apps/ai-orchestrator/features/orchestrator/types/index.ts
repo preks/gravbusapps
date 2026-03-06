@@ -61,4 +61,4 @@ export type {
   CanvasTab,
   CanvasTabInfo
 } from './chat'
-export { CANVAS_TABS } from './chat'
+export { CANVAS_TABS, getVisibleCanvasTabs } from './chat'

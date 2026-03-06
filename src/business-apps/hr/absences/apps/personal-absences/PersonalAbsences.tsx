@@ -70,7 +70,8 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
     paginatedAbsences,
     totalPages,
     getAbsenceGroupDisplayValue,
-    handleCreateAbsence
+    handleCreateAbsence,
+    refetchEntitlements
   } = data
   const { effectiveDates, allowWeekendPaintingInFallback } = useAbsenceEffectiveDates(
     client,
@@ -145,7 +146,10 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
               accessToken={accessToken}
               additionalData={{ employeeId: employee?.id }}
               onCancel={() => setIsEntitlementsModalOpen(false)}
-              onSubmit={() => setIsEntitlementsModalOpen(false)}
+              onSubmit={() => {
+                setIsEntitlementsModalOpen(false)
+                refetchEntitlements?.()
+              }}
             />
           </DialogContent>
         </Dialog>
@@ -200,7 +204,10 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
             accessToken={accessToken}
             additionalData={{ employeeId: employee?.id }}
             onCancel={() => setIsEntitlementsModalOpen(false)}
-            onSubmit={() => setIsEntitlementsModalOpen(false)}
+            onSubmit={() => {
+              setIsEntitlementsModalOpen(false)
+              refetchEntitlements?.()
+            }}
           />
         </DialogContent>
       </Dialog>

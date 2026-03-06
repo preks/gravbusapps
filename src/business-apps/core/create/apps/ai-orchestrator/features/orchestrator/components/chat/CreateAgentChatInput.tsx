@@ -4,12 +4,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import {
-  InputGroup,
-  InputGroupTextarea,
-  InputGroupAddon,
-  InputGroupButton
-} from '@newwork/nw-design-system'
+import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupButton } from '@newwork/nw-design-system'
 import { SendHorizontal, Loader2 } from 'lucide-react'
 
 interface CreateAgentChatInputProps {
@@ -96,7 +91,7 @@ export const CreateAgentChatInput = ({
 
   return (
     <div className="gba:px-3 gba:pb-3 gba:pt-2" data-testid={testId}>
-      <InputGroup className="gba:min-h-[84px]">
+      <InputGroup className="gba:min-h-[56px] gba:rounded-xl">
         <InputGroupTextarea
           ref={textareaRef}
           value={value}
@@ -104,8 +99,8 @@ export const CreateAgentChatInput = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className="gba:min-h-[84px] gba:max-h-[160px] gba:resize-none"
-          rows={3}
+          className="gba:min-h-[56px] gba:max-h-[160px] gba:resize-none gba:rounded-xl"
+          rows={2}
           data-testid={`${testId}-textarea`}
         />
         <InputGroupAddon align="block-end" className="gba:justify-end">
@@ -118,7 +113,11 @@ export const CreateAgentChatInput = ({
             data-testid={`${testId}-send`}
             title={isProcessing ? 'Processing...' : 'Send message'}
           >
-            {isProcessing ? <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" /> : <SendHorizontal className="gba:h-4 gba:w-4" />}
+            {isProcessing ? (
+              <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
+            ) : (
+              <SendHorizontal className="gba:h-4 gba:w-4" />
+            )}
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
