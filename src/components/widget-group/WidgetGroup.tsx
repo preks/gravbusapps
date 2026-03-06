@@ -265,6 +265,30 @@ const transformWidgetToKpiCard = (widget: WidgetItem): KpiCardData => {
 }
 
 /**
+ * Applies data-widget-key and clickable class to card DOM elements (used when onWidgetClick is provided).
+ * Extracted to module level to avoid deep function nesting in the component.
+ */
+function applyWidgetKeysToCards(container: HTMLDivElement, widgets: WidgetItem[]): void {
+  const cards = container.querySelectorAll('div[class*="card"], div[class*="Card"]')
+  const count = widgets.length
+  const cardsPerWidget = count > 0 ? Math.ceil(cards.length / count) : 0
+  for (let widgetIndex = 0; widgetIndex < count; widgetIndex++) {
+    const widget = widgets[widgetIndex]
+    const startIndex = widgetIndex * cardsPerWidget
+    const endIndex = Math.min(startIndex + cardsPerWidget, cards.length)
+    for (let i = startIndex; i < endIndex; i++) {
+      const card = cards[i] as HTMLElement
+      card.dataset.widgetKey = widget.key
+      if (widget.onClick) {
+        card.classList.add('clickable')
+      } else {
+        card.classList.remove('clickable')
+      }
+    }
+  }
+}
+
+/**
  * A component that displays a group of widgets with consistent height
  */
 export const WidgetGroup: React.FC<WidgetGroupProps> = ({
@@ -285,26 +309,11 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   // When onWidgetClick is used, apply data-widget-key and clickable class to card DOM (design system does not expose these)
   useEffect(() => {
     if (!onWidgetClick || !cardsRef.current) return
-    const applyCursorStyling = () => {
-      if (!cardsRef.current) return
-      const cards = cardsRef.current.querySelectorAll('div[class*="card"], div[class*="Card"]')
-      widgets.forEach((widget, widgetIndex) => {
-        const cardsPerWidget = Math.ceil(cards.length / Math.max(widgets.length, 1))
-        const startIndex = widgetIndex * cardsPerWidget
-        const endIndex = Math.min(startIndex + cardsPerWidget, cards.length)
-        const widgetCards = Array.from(cards).slice(startIndex, endIndex)
-        widgetCards.forEach(card => {
-          card.setAttribute('data-widget-key', widget.key)
-          if (widget.onClick) {
-            card.classList.add('clickable')
-          } else {
-            card.classList.remove('clickable')
-          }
-        })
-      })
+    const run = () => {
+      if (cardsRef.current) applyWidgetKeysToCards(cardsRef.current, widgets)
     }
-    applyCursorStyling()
-    const timeoutId = setTimeout(applyCursorStyling, 100)
+    run()
+    const timeoutId = setTimeout(run, 100)
     return () => clearTimeout(timeoutId)
   }, [onWidgetClick, widgets])
 
@@ -386,7 +395,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
           const target = e.target as HTMLElement
           const cardElement = target.closest('[data-widget-key]')
           if (cardElement) {
-            const widgetKey = cardElement.getAttribute('data-widget-key')
+            const widgetKey = cardElement.dataset.widgetKey
             if (widgetKey) {
               const widgetIndex = widgets.findIndex(w => w.key === widgetKey)
               if (widgetIndex >= 0 && widgetIndex < widgets.length) {
