@@ -1,26 +1,12 @@
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Card,
-  CardContent,
-  Button,
-  Alert,
-  Checkbox,
-  Sheet,
-  SheetContent,
-  Badge
-} from '@newwork/nw-design-system'
-import { TablePagination } from '../../../../../components'
-import { FileTextIcon, ImageIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
+import { DataTable } from '@newwork/nw-design-system'
+import type { ColumnDef } from '@tanstack/react-table'
+import { Button, Alert, Checkbox, Sheet, SheetContent, Badge } from '@newwork/nw-design-system'
+import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems'
+import { useGetExpenseItems, ExpenseFilter, type ExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
@@ -83,10 +69,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  // Preserve the page index before user starts searching, so we can restore it after clearing search
   const savedPageBeforeSearchRef = useRef<number | null>(null)
-  // Deterministic scroll target for pagination (top of table)
-  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false })
 
@@ -368,55 +351,174 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     [selectedRowKeys, items, contextProps.userInfo]
   )
 
-  // Enhanced server-side sorting handler
-  const handleSort = useCallback(
-    (field: string) => {
-      if (sortField === field) {
-        // Cycle through: ascend -> descend -> clear
-        if (sortOrder === 'ascend') {
-          setSortOrder('descend')
-        } else if (sortOrder === 'descend') {
-          setSortField('')
-          setSortOrder(undefined)
-        } else {
-          setSortOrder('ascend')
+  const sorting = useMemo(
+    () => (sortOrder ? [{ id: sortField || 'expenseDate', desc: sortOrder === 'descend' }] : []),
+    [sortField, sortOrder]
+  )
+  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
+    const entry = newSorting[0]
+    const field = entry?.id || 'expenseDate'
+    const order = entry ? (entry.desc ? 'descend' : 'ascend') : undefined
+    if (entry) {
+      setSortField(field)
+      setSortOrder(order)
+    } else {
+      setSortField('expenseDate')
+      setSortOrder('descend')
+    }
+    setCurrentPage(1)
+  }, [])
+  const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
+  const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
+    setCurrentPage(newPagination.pageIndex + 1)
+    setPageSize(newPagination.pageSize)
+  }, [])
+  const emptyMessage = hasActiveFilters
+    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
+    : getTranslationFromI18nKeyAndLabel(
+        'lowcoder:personal_expenses.no_expense_items_found',
+        'No expense items found. Create your first expense item to get started.'
+      )
+
+  const columns = useMemo<ColumnDef<ExpenseItem>[]>(
+    () => [
+      {
+        id: 'selection',
+        size: 40,
+        header: () => (
+          <Checkbox
+            checked={(items?.length ?? 0) > 0 && (items ?? []).every(item => selectedRowKeys.includes(item.id))}
+            onCheckedChange={handleSelectAll}
+            data-testid={`${DATA_TEST_ID_PREFIX}-select-all-checkbox`}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={selectedRowKeys.includes(row.original.id)}
+            onCheckedChange={checked => handleRowSelectionChange(row.original.id, checked as boolean)}
+            onClick={e => e.stopPropagation()}
+            data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${row.original.id}`}
+          />
+        )
+      },
+      {
+        id: 'title',
+        accessorKey: 'title',
+        header: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.expense_request_container.current_title_label',
+          'Title'
+        ),
+        size: 200,
+        cell: ({ row }) => (
+          <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-title-cell">
+            {row.original.title}
+          </div>
+        )
+      },
+      {
+        id: 'expenseDate',
+        accessorKey: 'expenseDate',
+        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date'),
+        size: 120,
+        cell: ({ row }) =>
+          row.original.expenseDate ? (
+            <div className="gba:text-sm gba:truncate" data-testid="expense-expense-date-cell">
+              {(() => {
+                try {
+                  return formatDate(row.original.expenseDate!, 'date.long') || 'N/A'
+                } catch {
+                  return 'N/A'
+                }
+              })()}
+            </div>
+          ) : (
+            <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
+          )
+      },
+      {
+        id: 'status',
+        accessorKey: 'status',
+        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        size: 100,
+        cell: ({ row }) => {
+          const statusConf = getExpenseItemStatusDisplay(row.original.status)
+          return (
+            <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
+              {statusConf.label}
+            </Badge>
+          )
         }
-      } else {
-        setSortField(field)
-        setSortOrder('ascend')
+      },
+      {
+        id: 'attachment',
+        accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
+        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment'),
+        size: 80,
+        cell: ({ row }) => (
+          <div className="gba:flex gba:items-center gba:justify-center">
+            {row.original.expenseItemFile && row.original.expenseItemFile.length > 0 ? (
+              <FileTextIcon size={24} className="gba:text-blue-500" />
+            ) : (
+              <ImageIcon size={24} className="gba:text-gray-300" />
+            )}
+          </div>
+        )
+      },
+      {
+        id: 'reimbursableAmount',
+        accessorKey: 'reimbursableAmount',
+        header: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:approve_expense_request.reimbursable',
+          'Reimbursable Amount'
+        ),
+        size: 140,
+        meta: { align: 'right' as const },
+        cell: ({ row }) => (
+          <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="expense-amount-cell">
+            {formatCurrencyDisplay(row.original.reimbursableAmount ?? 0, row.original.currency?.code)}
+          </div>
+        )
       }
-      setCurrentPage(1)
-    },
-    [sortField, sortOrder]
+    ],
+    [selectedRowKeys, items?.length, handleSelectAll, handleRowSelectionChange]
   )
 
-  // Helper function to render sort icon
-  const renderSortIcon = useCallback(
-    (field: string) => {
-      if (sortField !== field) return null
-      if (sortOrder === 'ascend') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
-      if (sortOrder === 'descend') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
-      return null
+  const rowActions = useCallback(
+    (row: { original: ExpenseItem }) => {
+      const record = row.original
+      return (
+        <div className="gba:flex gba:justify-end gba:gap-2" onClick={e => e.stopPropagation()}>
+          <AppActionButton
+            data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
+            size="icon"
+            staticFlowData={generateExpenseItemActions(
+              record,
+              {
+                employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+                accessToken: contextProps.accessToken || ''
+              },
+              { includeDetails: true, includeAssignToRequest: true }
+            ).map(action => {
+              if (action.key === 'view-expense-item-details') {
+                return {
+                  ...action,
+                  onClick: (e?: React.MouseEvent) => {
+                    e?.stopPropagation()
+                    handleSelectItem(record)
+                  }
+                }
+              }
+              return action
+            })}
+            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
+            accessToken={contextProps.accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
+          />
+        </div>
+      )
     },
-    [sortField, sortOrder]
-  )
-
-  // Handle pagination
-  const handlePaginationChange = useCallback(
-    (page: number, newPageSize?: number) => {
-      const targetPageSize = newPageSize || pageSize
-      setCurrentPage(page)
-      setPageSize(targetPageSize)
-    },
-    [pageSize]
-  )
-
-  // Adapter for TablePagination component
-  const handleTablePaginationChange = useCallback(
-    (pagination: { current: number; pageSize: number }) => {
-      handlePaginationChange(pagination.current, pagination.pageSize)
-    },
-    [handlePaginationChange]
+    [contextProps.userInfo?.employeeDetails?.employeeId, contextProps.accessToken, handleSelectItem]
   )
 
   // Show error state
@@ -543,257 +645,30 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         }}
         contentBackground="white"
         dataBody={
-          <div className="" ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
-            <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-              <CardContent className="gba:p-0">
-                <div className="gba:overflow-x-auto">
-                  <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-                    <TableHeader>
-                      <TableRow className="gba:border-b gba:bg-gray-50">
-                        <TableHead
-                          className="gba:w-[40px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
-                          data-testid={`${DATA_TEST_ID_PREFIX}-selection-header`}
-                        >
-                          <Checkbox
-                            checked={selectedRowKeys.length === items?.length && items?.length > 0}
-                            onCheckedChange={handleSelectAll}
-                            data-testid={`${DATA_TEST_ID_PREFIX}-select-all-checkbox`}
-                          />
-                        </TableHead>
-                        <TableHead
-                          className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
-                          data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
-                        >
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_plan_list.expense_plan_flows.actions',
-                            'Actions'
-                          )}
-                        </TableHead>
-                        <TableHead
-                          className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                          onClick={() => handleSort('title')}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
-                        >
-                          <div className="gba:flex gba:items-center">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:create_expense_request.expense_request_container.current_title_label',
-                              'Title'
-                            )}
-                            {renderSortIcon('title')}
-                          </div>
-                        </TableHead>
-                        <TableHead
-                          className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                          onClick={() => handleSort('expenseDate')}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-header`}
-                        >
-                          <div className="gba:flex gba:items-center">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_item_list.expense_table.date',
-                              'Expense Date'
-                            )}
-                            {renderSortIcon('expenseDate')}
-                          </div>
-                        </TableHead>
-                        <TableHead
-                          className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                          onClick={() => handleSort('status')}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
-                        >
-                          <div className="gba:flex gba:items-center">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_request_list.expense_plan_table.status',
-                              'Status'
-                            )}
-                            {renderSortIcon('status')}
-                          </div>
-                        </TableHead>
-                        <TableHead
-                          className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                          data-testid={`${DATA_TEST_ID_PREFIX}-attachment-header`}
-                        >
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_item_list.expense_table.attachment',
-                            'Attachment'
-                          )}
-                        </TableHead>
-                        <TableHead
-                          className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
-                          onClick={() => handleSort('reimbursableAmount')}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
-                        >
-                          <div className="gba:flex gba:items-center">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:approve_expense_request.reimbursable',
-                              'Reimbursable Amount'
-                            )}
-                            {renderSortIcon('reimbursableAmount')}
-                          </div>
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {!isLoading && (!items || items.length === 0) ? (
-                        <TableRow>
-                          <TableCell colSpan={7} className="gba:py-8 gba:text-center">
-                            <div className="gba:text-gray-500">
-                              {hasActiveFilters
-                                ? getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-                                    'No data available'
-                                  )
-                                : getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:personal_expenses.no_expense_items_found',
-                                    'No expense items found. Create your first expense item to get started.'
-                                  )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        items?.map(record => (
-                          <TableRow
-                            key={record.id}
-                            className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
-                            onClick={() => handleSelectItem(record)}
-                            data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
-                          >
-                            <TableCell
-                              className="gba:py-4 gba:px-3"
-                              data-testid={`${DATA_TEST_ID_PREFIX}-selection-cell-${record.id}`}
-                            >
-                              <Checkbox
-                                checked={selectedRowKeys.includes(record.id)}
-                                onCheckedChange={checked => handleRowSelectionChange(record.id, checked as boolean)}
-                                onClick={e => e.stopPropagation()}
-                                data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${record.id}`}
-                              />
-                            </TableCell>
-                            <TableCell
-                              className="gba:py-4 gba:px-3"
-                              data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
-                            >
-                              <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
-                                <AppActionButton
-                                  data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
-                                  size="icon"
-                                  staticFlowData={generateExpenseItemActions(
-                                    record,
-                                    {
-                                      employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
-                                      accessToken: contextProps.accessToken || ''
-                                    },
-                                    {
-                                      includeDetails: true,
-                                      includeAssignToRequest: true
-                                    }
-                                  ).map(action => {
-                                    // Override the details action onClick to use the table's handleSelectItem
-                                    if (action.key === 'view-expense-item-details') {
-                                      return {
-                                        ...action,
-                                        onClick: (e?: React.MouseEvent) => {
-                                          e?.stopPropagation()
-                                          handleSelectItem(record)
-                                        }
-                                      }
-                                    }
-                                    return action
-                                  })}
-                                  prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
-                                  accessToken={contextProps.accessToken}
-                                  emptyStateBehavior="enable"
-                                  deferMainContextRequestsUntilClick={true}
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className="gba:py-4 gba:px-6"
-                              data-testid={`${DATA_TEST_ID_PREFIX}-title-cell-${record.id}`}
-                            >
-                              <div className="gba:font-medium gba:text-sm" data-testid="expense-title-cell">
-                                {record.title}
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className="gba:py-4 gba:px-6"
-                              data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-cell-${record.id}`}
-                            >
-                              {record.expenseDate ? (
-                                <div className="gba:text-sm" data-testid="expense-expense-date-cell">
-                                  {(() => {
-                                    try {
-                                      return formatDate(record.expenseDate, 'date.long') || 'N/A'
-                                    } catch {
-                                      return 'N/A'
-                                    }
-                                  })()}
-                                </div>
-                              ) : (
-                                <span className="gba:text-sm gba:text-gray-500" data-testid="expense-expense-date-cell">
-                                  N/A
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell
-                              className="gba:py-4 gba:px-6"
-                              data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
-                            >
-                              {(() => {
-                                const statusConf = getExpenseItemStatusDisplay(record.status)
-                                return (
-                                  <Badge
-                                    variant={statusConf.badgeVariant || 'outline'}
-                                    data-testid="expense-status-cell"
-                                  >
-                                    {statusConf.label}
-                                  </Badge>
-                                )
-                              })()}
-                            </TableCell>
-                            <TableCell
-                              className="gba:py-4 gba:px-6"
-                              data-testid={`${DATA_TEST_ID_PREFIX}-attachment-cell-${record.id}`}
-                            >
-                              <div className="gba:flex gba:items-center gba:justify-center">
-                                {record.expenseItemFile && record.expenseItemFile.length > 0 ? (
-                                  <FileTextIcon size={24} className="gba:text-blue-500" />
-                                ) : (
-                                  <ImageIcon size={24} className="gba:text-gray-300" />
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className="gba:py-4 gba:px-6 gba:text-right"
-                              data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}
-                            >
-                              <span data-testid="expense-amount-cell">
-                                {formatCurrencyDisplay(record.reimbursableAmount ?? '0', record.currency?.code)}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Pagination */}
-                <TablePagination
-                  currentPage={currentPage}
-                  pageSize={pageSize}
-                  totalItems={totalCount}
-                  onPageChange={handleTablePaginationChange}
-                  scrollTargetRef={tableTopRef}
-                  entityNamePlural={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:personal_expenses.expense_items_count',
-                    'Expense Items'
-                  )}
-                  dataTestIdPrefix={DATA_TEST_ID_PREFIX}
-                  showBorder={false}
-                />
-              </CardContent>
-            </Card>
-          </div>
+          <DataTable<ExpenseItem>
+            data={items || []}
+            columns={columns}
+            loading={isLoading}
+            error={error || undefined}
+            totalCount={totalCount}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            enablePagination
+            enableSorting
+            enableSelection={false}
+            enableColumnPinning
+            enableResizing={false}
+            tableLayout="fixed"
+            rowsPerPageOptions={[10, 20, 50, 100]}
+            showPageNumbers
+            maxVisiblePages={7}
+            emptyMessage={emptyMessage}
+            actions={rowActions}
+            onRowClick={handleSelectItem}
+            data-testid={DATA_TEST_ID_PREFIX}
+          />
         }
         addLeftPaddingWhenNoFilter={true}
       />
