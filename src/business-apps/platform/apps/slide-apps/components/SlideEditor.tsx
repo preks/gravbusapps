@@ -73,7 +73,8 @@ import {
   Target,
   ExternalLink,
   X,
-  PanelRight
+  PanelRight,
+  SpellCheck
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -117,7 +118,10 @@ import { FloatingTextActions } from './FloatingTextActions'
 import { PdfExportDialog } from './PdfExportDialog'
 import { SpeakerNotesPanel } from './SpeakerNotesPanel'
 import { PresenterView } from './PresenterView'
+import { SpellCheckPanel } from './SpellCheckPanel'
 import { VoiceInputButton, VoiceVisualizer, useVoiceInput } from '../../shared'
+import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
+import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
 import translations from '../_i18n'
 import type { TextElement } from './slideElements'
@@ -339,6 +343,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [slideSelectionAnchor, setSlideSelectionAnchor] = useState<number | null>(null)
   const [selectedElementIds, setSelectedElementIds] = useState<Set<string>>(new Set())
   const [showPropertyPanel, setShowPropertyPanel] = useState(true)
+  const [showSpellCheckPanel, setShowSpellCheckPanel] = useState(false)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isPresentMode, setIsPresentMode] = useState(false)
@@ -658,6 +663,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const canEdit = isSynced && isInitialized
+
+  // Spell check hook for presentation-wide grammar/spelling checks
+  const spellCheck = useSlideSpellCheck(slides, {
+    accessToken,
+    onCheckComplete: totalIssues => {
+      if (totalIssues > 0) {
+        toast.info(t('spell-check-issues-found', { count: totalIssues }))
+      } else {
+        toast.success(t('spell-check-no-issues'))
+      }
+    },
+    onError: error => {
+      toast.error(t('spell-check-error') || error)
+    }
+  })
 
   // Voice input hook - updates text in real-time as speech is recognized
   const voiceInput = useVoiceInput({
@@ -2191,6 +2211,32 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           data-testid={`${testId}-template-browser-button`}
         />
 
+        <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
+
+        {/* Spell Check */}
+        <Button
+          variant={showSpellCheckPanel ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => {
+            if (!showSpellCheckPanel) {
+              setShowSpellCheckPanel(true)
+              spellCheck.checkAllSlides()
+            } else {
+              setShowSpellCheckPanel(false)
+            }
+          }}
+          disabled={spellCheck.isChecking}
+          data-testid={`${testId}-spell-check-btn`}
+        >
+          <SpellCheck className="gba:w-4 gba:h-4 gba:mr-1" />
+          {t('spell-check-button')}
+          {spellCheck.totalIssues > 0 && (
+            <Badge variant="destructive" className="gba:ml-1 gba:text-xs gba:px-1.5 gba:min-w-[18px]">
+              {spellCheck.totalIssues}
+            </Badge>
+          )}
+        </Button>
+
         {/* Property Panel Toggle */}
         {!showPropertyPanel && (
           <>
@@ -2555,6 +2601,37 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               onDuplicate={duplicateElement}
               onBringForward={bringForward}
               onSendBackward={sendBackward}
+            />
+          </div>
+        )}
+
+        {/* Spell Check Panel */}
+        {showSpellCheckPanel && (
+          <div className="gba:w-80 gba:flex-shrink-0 gba:h-full">
+            <SpellCheckPanel
+              annotations={spellCheck.annotations}
+              annotationsBySlide={spellCheck.annotationsBySlide}
+              isChecking={spellCheck.isChecking}
+              totalIssues={spellCheck.totalIssues}
+              selectedAnnotationId={spellCheck.selectedAnnotation?.id || null}
+              onCheck={() => spellCheck.checkAllSlides()}
+              onSelectAnnotation={spellCheck.selectAnnotation}
+              onAcceptSuggestion={(annotation: SlideAnnotation) => {
+                const newContent = spellCheck.acceptSuggestion(annotation)
+                if (newContent !== null) {
+                  updateElement(annotation.elementId, { content: newContent })
+                }
+              }}
+              onIgnoreAnnotation={spellCheck.ignoreAnnotation}
+              onIgnoreWord={spellCheck.ignoreWord}
+              onNavigateToSlide={slideId => {
+                const idx = slides.findIndex(s => s.id === slideId)
+                if (idx >= 0) {
+                  setCurrentSlideIndex(idx)
+                }
+              }}
+              onClose={() => setShowSpellCheckPanel(false)}
+              data-testid={`${testId}-spell-check-panel`}
             />
           </div>
         )}

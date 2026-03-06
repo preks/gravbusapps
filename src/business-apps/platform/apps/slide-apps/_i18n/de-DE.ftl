@@ -579,3 +579,25 @@ editor-image-background = Bild-Hintergrund
 editor-upload-background-image = Bild hochladen
 editor-background-image-url = Oder Bild-URL einfügen
 editor-image-load-error = Bild konnte nicht geladen werden
+
+# Spell Check
+spell-check-button = Rechtschreibprüfung
+spell-check-panel-title = Rechtschreib- und Grammatikprüfung
+spell-check-checking = Prüfung läuft...
+spell-check-recheck = Erneut prüfen
+spell-check-no-issues = Keine Probleme gefunden
+spell-check-all-good = Aller Text ist korrekt!
+spell-check-not-checked = Klicken Sie, um Ihre Präsentation zu überprüfen
+spell-check-click-to-start = Klicken Sie auf die Schaltfläche oben, um die Prüfung zu starten
+spell-check-issues-found = { $count ->
+    [one] { $count } Problem gefunden
+   *[other] { $count } Probleme gefunden
+}
+spell-check-slide = Folie { $number }
+spell-check-accept = Übernehmen
+spell-check-ignore = Ignorieren
+spell-check-ignore-all = Alle ignorieren
+spell-check-suggestion = Vorschlag:
+spell-check-add-to-dictionary = Zum Wörterbuch hinzufügen
+spell-check-error = Rechtschreibprüfung fehlgeschlagen. Bitte stellen Sie sicher, dass der Document Reviewer konfiguriert ist.
+spell-check-browser-mode = Verwende einfache Rechtschreibprüfung (wörterbuchbasiert)

@@ -23,3 +23,4 @@ export {
   type UseSpeechMatcherOptions,
   type UseSpeechMatcherReturn
 } from './useSpeechMatcher'
+export { useSlideSpellCheck } from './useSlideSpellCheck'

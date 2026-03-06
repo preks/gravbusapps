@@ -662,3 +662,25 @@ ai-assist-show-transcript = Show live transcript
 ai-assist-show-feedback = Show match feedback
 ai-assist-test-mode = Test Mode
 ai-assist-test-mode-hint = Practice with current slide before presenting
+
+# Spell Check
+spell-check-button = Spell Check
+spell-check-panel-title = Spell & Grammar Check
+spell-check-checking = Checking...
+spell-check-recheck = Re-check
+spell-check-no-issues = No issues found
+spell-check-all-good = All text is correct!
+spell-check-not-checked = Click to check your presentation
+spell-check-click-to-start = Click the button above to start checking
+spell-check-issues-found = { $count ->
+    [one] { $count } issue found
+   *[other] { $count } issues found
+}
+spell-check-slide = Slide { $number }
+spell-check-accept = Accept
+spell-check-ignore = Ignore
+spell-check-ignore-all = Ignore All
+spell-check-suggestion = Suggestion:
+spell-check-add-to-dictionary = Add to dictionary
+spell-check-error = Spell check failed. Please ensure the Document Reviewer is configured.
+spell-check-browser-mode = Using basic spell check (dictionary-based)

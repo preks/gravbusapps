@@ -533,3 +533,26 @@ editor-voice-recognizing = Se recunoaște
 editor-voice-recording = Înregistrare...
 editor-voice-hint = Sfat: Apăsați "Introducere vocală" pentru a dicta
 editor-text-placeholder = Introduceți textul aici...
+
+# Spell Check
+spell-check-button = Verificare ortografică
+spell-check-panel-title = Verificare ortografică și gramaticală
+spell-check-checking = Se verifică...
+spell-check-recheck = Verifică din nou
+spell-check-no-issues = Nicio problemă găsită
+spell-check-all-good = Tot textul este corect!
+spell-check-not-checked = Apăsați pentru a verifica prezentarea
+spell-check-click-to-start = Apăsați butonul de mai sus pentru a începe verificarea
+spell-check-issues-found = { $count ->
+    [one] { $count } problemă găsită
+    [few] { $count } probleme găsite
+   *[other] { $count } de probleme găsite
+}
+spell-check-slide = Slide { $number }
+spell-check-accept = Acceptă
+spell-check-ignore = Ignoră
+spell-check-ignore-all = Ignoră toate
+spell-check-suggestion = Sugestie:
+spell-check-add-to-dictionary = Adaugă în dicționar
+spell-check-error = Verificarea ortografică a eșuat. Asigurați-vă că Document Reviewer este configurat.
+spell-check-browser-mode = Folosind verificare de bază (bazată pe dicționar)
