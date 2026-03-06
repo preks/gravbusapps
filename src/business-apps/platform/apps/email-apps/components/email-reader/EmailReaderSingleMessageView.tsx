@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
-import { Paperclip, Download, Loader2 } from 'lucide-react'
-import { getInitials, formatFullDate, formatFileSize } from '../../utils/emailDisplayUtils'
+import { getInitials, formatFullDate } from '../../utils/emailDisplayUtils'
+import { EmailMessageBody } from '../message/EmailMessageBody'
+import { EmailAttachmentsSection } from '../message/EmailAttachmentsSection'
 import type { EmailMessage } from '../../types'
 
 interface EmailReaderSingleMessageViewProps {
@@ -21,18 +22,9 @@ export const EmailReaderSingleMessageView: React.FC<EmailReaderSingleMessageView
   t,
   testId
 }) => {
-  const bodyRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (bodyRef.current && message.htmlBody) {
-      bodyRef.current.innerHTML = message.htmlBody
-    }
-  }, [message.htmlBody])
-
   const from = message.fromAddress
   const toNames = message.toAddresses.map(a => a.name || a.address).join(', ')
   const hasAnyAttachments = (message.attachments?.length ?? 0) > 0 || message.hasAttachments
-  const nonInlineAttachments = (message.attachments || []).filter(a => !a.isInline)
 
   return (
     <>
@@ -55,55 +47,27 @@ export const EmailReaderSingleMessageView: React.FC<EmailReaderSingleMessageView
         </div>
       </div>
 
-      {message.htmlBody ? (
-        <div
-          key={message.id}
-          ref={bodyRef}
-          className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground"
-          data-testid={`${testId}-body`}
-        />
-      ) : (
-        <div className="gba:whitespace-pre-wrap gba:text-sm gba:text-foreground" data-testid={`${testId}-body`}>
-          {message.textBody || t('reader-empty-body')}
-        </div>
-      )}
+      <EmailMessageBody
+        messageId={message.id}
+        htmlBody={message.htmlBody}
+        textBody={message.textBody}
+        emptyBodyText={t('reader-empty-body')}
+        testId={testId}
+      />
 
-      {hasAnyAttachments && (
-        <div className="gba:mt-6 gba:pt-4 gba:border-t">
-          <h3 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3 gba:flex gba:items-center gba:gap-2">
-            <Paperclip className="gba:w-4 gba:h-4" />
-            {nonInlineAttachments.length > 0
-              ? t('reader-attachments-count', { count: nonInlineAttachments.length })
-              : t('reader-attachments')}
-          </h3>
-          {nonInlineAttachments.length > 0 ? (
-            <div className="gba:flex gba:flex-wrap gba:gap-2">
-              {nonInlineAttachments.map(att => (
-                <button
-                  key={att.id}
-                  onClick={() => void onDownloadAttachment(message.id, att.id)}
-                  disabled={downloadingAttId === att.id}
-                  className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 gba:hover:bg-muted/50 gba:cursor-pointer gba:transition-colors gba:disabled:opacity-50"
-                  data-testid={`${testId}-attachment-${att.id}`}
-                >
-                  <Paperclip className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                  <div className="gba:text-left">
-                    <p className="gba:text-xs gba:font-medium gba:text-foreground">{att.filename}</p>
-                    <p className="gba:text-[10px] gba:text-muted-foreground">{formatFileSize(att.size)}</p>
-                  </div>
-                  {downloadingAttId === att.id ? (
-                    <Loader2 className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:animate-spin" />
-                  ) : (
-                    <Download className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
-                  )}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('reader-attachments-syncing')}</p>
-          )}
-        </div>
-      )}
+      <EmailAttachmentsSection
+        attachments={message.attachments}
+        hasAttachments={hasAnyAttachments}
+        downloadingAttachmentId={downloadingAttId}
+        onDownload={attachmentId => void onDownloadAttachment(message.id, attachmentId)}
+        countLabel={t('reader-attachments-count', {
+          count: (message.attachments || []).filter(a => !a.isInline).length
+        })}
+        fallbackLabel={t('reader-attachments')}
+        syncingLabel={t('reader-attachments-syncing')}
+        variant="detailed"
+        testIdPrefix={`${testId}-attachment`}
+      />
     </>
   )
 }

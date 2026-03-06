@@ -1,8 +1,7 @@
 import React from 'react'
-import { Input, Button } from '@newwork/nw-design-system'
-import { Plus, Check } from 'lucide-react'
 import { EditableLabelList } from './labels/EditableLabelList'
 import { LabelColorPickerGrid } from './labels/LabelColorPickerGrid'
+import { LabelEditorPanel } from './labels/LabelEditorPanel'
 import type { EmailLabel } from '../types'
 
 interface EmailListItemLabelsMenuSectionProps {
@@ -50,53 +49,22 @@ export const EmailListItemLabelsMenuSection: React.FC<EmailListItemLabelsMenuSec
 }) => {
   return (
     <div className="gba:px-1.5 gba:py-1.5 gba:space-y-1.5">
-      <div className="gba:flex gba:w-full gba:items-center gba:gap-1">
-        <Input
-          value={labelInput}
-          onChange={event => setLabelInput(event.target.value)}
-          readOnly={!!editingLabelOriginalName}
-          onKeyDown={event => {
-            if (event.key === 'ArrowDown' && shouldShowLabelSuggestions && labelSuggestions.length > 0) {
-              event.preventDefault()
-              setActiveLabelSuggestionIndex(prev => Math.min(prev + 1, labelSuggestions.length - 1))
-              return
-            }
-            if (event.key === 'ArrowUp' && shouldShowLabelSuggestions && labelSuggestions.length > 0) {
-              event.preventDefault()
-              setActiveLabelSuggestionIndex(prev => Math.max(prev - 1, -1))
-              return
-            }
-            if (event.key === 'Enter') {
-              event.preventDefault()
-              if (activeLabelSuggestionIndex >= 0 && labelSuggestions[activeLabelSuggestionIndex]) {
-                void onAddSuggestionFromMenu(labelSuggestions[activeLabelSuggestionIndex].name)
-                return
-              }
-              void onAddFromMenu()
-            }
-          }}
-          placeholder={t('list-context-labels-placeholder')}
-          className="gba:h-6 gba:min-w-0 gba:flex-1 gba:text-xs"
-          data-testid={`${testId}-context-labels-input`}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          className="gba:h-6 gba:w-6 gba:px-0"
-          onClick={() => void onAddFromMenu()}
-          disabled={isMutatingLabels}
-          data-testid={`${testId}-context-labels-add`}
-        >
-          {editingLabelOriginalName ? (
-            <Check className="gba:w-3.5 gba:h-3.5" />
-          ) : (
-            <Plus className="gba:w-3.5 gba:h-3.5" />
-          )}
-        </Button>
-      </div>
-      {shouldShowLabelSuggestions && (
-        <div className="gba:border gba:rounded-md gba:p-1.5 gba:space-y-1">{labelSuggestionsContent}</div>
-      )}
+      <LabelEditorPanel
+        labelInput={labelInput}
+        setLabelInput={setLabelInput}
+        editingLabelOriginalName={editingLabelOriginalName}
+        isMutatingLabels={isMutatingLabels}
+        shouldShowLabelSuggestions={shouldShowLabelSuggestions}
+        labelSuggestions={labelSuggestions}
+        activeLabelSuggestionIndex={activeLabelSuggestionIndex}
+        setActiveLabelSuggestionIndex={setActiveLabelSuggestionIndex}
+        onAddSuggestion={onAddSuggestionFromMenu}
+        onSubmit={onAddFromMenu}
+        placeholder={t('list-context-labels-placeholder')}
+        inputTestId={`${testId}-context-labels-input`}
+        addButtonTestId={`${testId}-context-labels-add`}
+        labelSuggestionsContent={labelSuggestionsContent}
+      />
       {localLabels.length === 0 ? (
         <p className="gba:text-xs gba:text-muted-foreground gba:px-1">{t('list-context-labels-empty')}</p>
       ) : (

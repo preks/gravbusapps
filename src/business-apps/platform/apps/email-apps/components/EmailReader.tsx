@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useMemo } from 'react'
+import React, { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge, useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
@@ -6,13 +6,12 @@ import { Mail, Loader2 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailThreadView } from './EmailThreadView'
 import { EmailCrmBooking } from './EmailCrmBooking'
-import { useLabelSuggestions } from '../hooks/useLabelSuggestions'
 import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { useAttachmentDownload } from '../hooks/useAttachmentDownload'
 import { useEmailThreadMessages } from '../hooks/useEmailThreadMessages'
-import { normalizeLabelName, normalizeLabelObjects } from '../utils/labelUtils'
-import { runOptimisticLabelMutation } from '../utils/runOptimisticLabelMutation'
-import type { EmailMessage, EmailAccount, ComposeMode, AddLabelInput, EmailLabel } from '../types'
+import { useMessageLabels } from '../hooks/useMessageLabels'
+import { normalizeLabelName } from '../utils/labelUtils'
+import type { EmailMessage, EmailAccount, ComposeMode, EmailLabel } from '../types'
 import { EmailReaderToolbar } from './email-reader/EmailReaderToolbar'
 import { EmailReaderLabelsPanel } from './email-reader/EmailReaderLabelsPanel'
 import { EmailReaderSingleMessageView } from './email-reader/EmailReaderSingleMessageView'
@@ -53,151 +52,84 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const { t } = useTranslation(translations)
   const { downloadingAttId, handleDownloadAttachment } = useAttachmentDownload(t)
   const { threadMessages, isLoadingThread, showThread } = useEmailThreadMessages({ message, threadEnabled })
-  const [labelsInput, setLabelsInput] = useState('')
-  const [selectedLabelColor, setSelectedLabelColor] = useState<string | null>(null)
-  const [editingLabelOriginalName, setEditingLabelOriginalName] = useState<string | null>(null)
-  const [localLabels, setLocalLabels] = useState<EmailLabel[]>([])
   const [isAddLabelMenuOpen, setIsAddLabelMenuOpen] = useState(false)
-  const [isMutatingLabels, setIsMutatingLabels] = useState(false)
-  const [suggestionRefreshTick, setSuggestionRefreshTick] = useState(0)
-  const [activeLabelSuggestionIndex, setActiveLabelSuggestionIndex] = useState(-1)
 
   const senderAvatar = useSenderAvatar(message?.fromAddress?.address, accessToken)
 
-  useEffect(() => {
-    setLocalLabels(normalizeLabelObjects(message?.labels || []))
-    setLabelsInput('')
-    setSelectedLabelColor(null)
-    setEditingLabelOriginalName(null)
-    setIsAddLabelMenuOpen(false)
-    setActiveLabelSuggestionIndex(-1)
-  }, [message?.id, message?.labels])
-
-  useEffect(() => {
-    setActiveLabelSuggestionIndex(-1)
-  }, [labelsInput, isAddLabelMenuOpen])
-
-  const existingLabelNames = useMemo(() => localLabels.map(label => label.name), [localLabels])
-
-  const { suggestions: labelSuggestions, isLoading: isLoadingSuggestions } = useLabelSuggestions({
-    query: labelsInput,
-    existingLabels: existingLabelNames,
-    refreshKey: suggestionRefreshTick
-  })
-
-  const submitLabelDraft = useCallback(
-    async (rawName: string) => {
-      if (!message || isMutatingLabels) return
-
-      const previousName = editingLabelOriginalName ? normalizeLabelName(editingLabelOriginalName) : null
-      // Existing labels are color-edit only for now; name changes are disabled.
-      const nextName = previousName ?? normalizeLabelName(rawName)
-      if (!nextName) return
-      const color =
-        typeof selectedLabelColor === 'string' && selectedLabelColor.trim() ? selectedLabelColor.trim() : undefined
-      const payload: AddLabelInput = color ? { name: nextName, color } : { name: nextName }
-
-      const previous = localLabels
-      setLabelsInput('')
-      await runOptimisticLabelMutation({
-        previousLabels: previous,
-        setLocalLabels,
-        setIsMutating: setIsMutatingLabels,
-        getOptimisticLabels: labels => {
-          const merged = previousName ? labels.filter(existing => existing.name !== previousName) : [...labels]
-          const existingIdx = merged.findIndex(existing => existing.name === nextName)
-          const nextLabel: EmailLabel = {
-            id: existingIdx >= 0 ? merged[existingIdx].id : '',
-            name: nextName,
-            color: payload.color || null
-          }
-          if (existingIdx >= 0) {
-            merged[existingIdx] = nextLabel
-          } else {
-            merged.push(nextLabel)
-          }
-          return normalizeLabelObjects(merged)
-        },
-        mutate: async () => {
-          if (previousName && previousName !== nextName) {
-            await EmailApiService.removeMessageLabels(message.id, [previousName])
-          }
-          const result = await EmailApiService.addMessageLabels(message.id, [payload])
-          return normalizeLabelObjects(result.labels || [])
-        },
-        onSuccess: async updatedLabels => {
-          setIsAddLabelMenuOpen(false)
-          setSelectedLabelColor(null)
-          setEditingLabelOriginalName(null)
-          toast.success(t('reader-labels-add-success'))
-          await onMessageLabelsUpdated?.(message.id, updatedLabels)
-          setSuggestionRefreshTick(prevTick => prevTick + 1)
-        },
-        onError: () => {
-          toast.error(t('reader-labels-add-failed'))
-          onRefreshMessages?.()
-        }
-      })
+  const handleAddLabels = useCallback(
+    async (labelsToAdd: { name: string; color?: string }[]) => {
+      if (!message) return null
+      const normalized = labelsToAdd
+        .map(label => {
+          const name = normalizeLabelName(label.name)
+          if (!name) return null
+          const color = typeof label.color === 'string' && label.color.trim() ? label.color.trim() : undefined
+          return color ? { name, color } : { name }
+        })
+        .filter((label): label is { name: string; color?: string } => Boolean(label))
+      if (normalized.length === 0) return null
+      const result = await EmailApiService.addMessageLabels(message.id, normalized)
+      return result.labels || null
     },
-    [
-      message,
-      localLabels,
-      isMutatingLabels,
-      editingLabelOriginalName,
-      selectedLabelColor,
-      t,
-      onMessageLabelsUpdated,
-      onRefreshMessages
-    ]
+    [message]
   )
 
-  const handleAddLabel = useCallback(async () => {
-    await submitLabelDraft(labelsInput)
-  }, [submitLabelDraft, labelsInput])
-
-  const handleAddSuggestion = useCallback(
-    async (suggestionName: string) => {
-      await submitLabelDraft(suggestionName)
-    },
-    [submitLabelDraft]
-  )
-
-  const handleStartEditLabel = useCallback((label: EmailLabel) => {
-    setEditingLabelOriginalName(label.name)
-    setLabelsInput(label.name)
-    setSelectedLabelColor(label.color)
-    setIsAddLabelMenuOpen(true)
-  }, [])
-
-  const handleRemoveLabel = useCallback(
+  const handleRemoveLabels = useCallback(
     async (label: string) => {
-      if (!message || isMutatingLabels) return
-
-      const normalized = normalizeLabelName(label)
-      if (!normalized) return
-
-      await runOptimisticLabelMutation({
-        previousLabels: localLabels,
-        setLocalLabels,
-        setIsMutating: setIsMutatingLabels,
-        getOptimisticLabels: labels => labels.filter(existing => existing.name !== normalized),
-        mutate: async () => {
-          const result = await EmailApiService.removeMessageLabels(message.id, [normalized])
-          return normalizeLabelObjects(result.labels || [])
-        },
-        onSuccess: async updatedLabels => {
-          toast.success(t('reader-labels-remove-success'))
-          await onMessageLabelsUpdated?.(message.id, updatedLabels)
-          setSuggestionRefreshTick(prev => prev + 1)
-        },
-        onError: () => {
-          toast.error(t('reader-labels-remove-failed'))
-          onRefreshMessages?.()
-        }
-      })
+      if (!message) return null
+      const normalizedName = normalizeLabelName(label)
+      if (!normalizedName) return null
+      const result = await EmailApiService.removeMessageLabels(message.id, [normalizedName])
+      return result.labels || null
     },
-    [message, localLabels, isMutatingLabels, t, onMessageLabelsUpdated, onRefreshMessages]
+    [message]
   )
+
+  const {
+    labelInput: labelsInput,
+    setLabelInput: setLabelsInput,
+    selectedLabelColor,
+    setSelectedLabelColor,
+    editingLabelOriginalName,
+    setEditingLabelOriginalName,
+    isMutatingLabels,
+    localLabels,
+    labelSuggestions,
+    isLoadingSuggestions,
+    activeLabelSuggestionIndex,
+    setActiveLabelSuggestionIndex,
+    shouldShowLabelSuggestions,
+    handleAddFromMenu: handleAddLabel,
+    handleAddSuggestionFromMenu: handleAddSuggestion,
+    handleStartEditFromMenu: handleStartEditLabel,
+    handleRemoveFromMenu: handleRemoveLabel
+  } = useMessageLabels({
+    messageId: message?.id,
+    labels: message?.labels,
+    isEditorOpen: isAddLabelMenuOpen,
+    setIsEditorOpen: setIsAddLabelMenuOpen,
+    onAddLabels: handleAddLabels,
+    onRemoveLabel: handleRemoveLabels,
+    closeEditorOnSuccess: true,
+    onAddSuccess: async updatedLabels => {
+      if (!message) return
+      toast.success(t('reader-labels-add-success'))
+      await onMessageLabelsUpdated?.(message.id, updatedLabels)
+    },
+    onAddError: () => {
+      toast.error(t('reader-labels-add-failed'))
+      onRefreshMessages?.()
+    },
+    onRemoveSuccess: async updatedLabels => {
+      if (!message) return
+      toast.success(t('reader-labels-remove-success'))
+      await onMessageLabelsUpdated?.(message.id, updatedLabels)
+    },
+    onRemoveError: () => {
+      toast.error(t('reader-labels-remove-failed'))
+      onRefreshMessages?.()
+    }
+  })
 
   if (!message) {
     return (
@@ -211,8 +143,6 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
       </div>
     )
   }
-
-  const shouldShowLabelSuggestions = !editingLabelOriginalName && normalizeLabelName(labelsInput).length > 0
 
   const labelSuggestionsContent = (
     <LabelSuggestionsList

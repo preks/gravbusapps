@@ -71,11 +71,15 @@ function normalizeLabelToken(value: string): string {
 function getOptionalTrimmedColor(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
-  return trimmed ? trimmed : null
+  return trimmed || null
 }
 
 function normalizeHexToken(value: string): string {
   return value.trim().toUpperCase()
+}
+
+function getNormalizedName(value: unknown): string {
+  return normalizeLabelName(typeof value === 'string' ? value : '')
 }
 
 export function normalizeLabelName(name: string): string {
@@ -99,7 +103,7 @@ export function normalizeLabelObjects(input: unknown): EmailLabel[] {
   const byName = new Map<string, EmailLabel>()
   input.forEach(raw => {
     if (typeof raw === 'string') {
-      const name = normalizeLabelName(raw)
+      const name = getNormalizedName(raw)
       if (!name) return
       byName.set(name, { id: '', name, color: null })
       return
@@ -108,7 +112,7 @@ export function normalizeLabelObjects(input: unknown): EmailLabel[] {
     if (typeof raw !== 'object' || raw === null) return
 
     const source = raw as Record<string, unknown>
-    const name = normalizeLabelName(typeof source.name === 'string' ? source.name : '')
+    const name = getNormalizedName(source.name)
     if (!name) return
 
     const id = typeof source.id === 'string' ? source.id : ''
@@ -122,7 +126,7 @@ export function normalizeLabelObjects(input: unknown): EmailLabel[] {
 export function normalizeAddLabelInputs(labels: AddLabelInput[]): AddLabelInput[] {
   return labels
     .map(label => {
-      const name = normalizeLabelName(label.name)
+      const name = getNormalizedName(label.name)
       if (!name) return null
       const color = getOptionalTrimmedColor(label.color) || undefined
       return color ? { name, color } : { name }

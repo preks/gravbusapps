@@ -115,28 +115,18 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
       <ContextMenuTrigger asChild>
         <div
           onClick={onSelect}
-          onKeyDown={event => {
-            if (event.target !== event.currentTarget) return
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              onSelect()
-            }
-          }}
-          role="button"
-          tabIndex={0}
           className={`gba:flex gba:gap-3 gba:px-4 gba:py-3 gba:cursor-pointer gba:border-b gba:transition-colors ${
             isSelected ? 'gba:bg-primary/5 gba:border-l-2 gba:border-l-primary' : 'hover:gba:bg-muted/30'
           } ${isUnread ? 'gba:bg-accent/5' : ''}`}
           data-testid={testId}
         >
-          <button
-            type="button"
+          <Checkbox
+            checked={isChecked}
             onClick={onToggleCheck}
             className="gba:mt-1 gba:flex-shrink-0 gba:cursor-pointer"
             aria-label={t('list-select-all')}
-          >
-            <Checkbox checked={isChecked} data-testid={`${testId}-checkbox`} />
-          </button>
+            data-testid={`${testId}-checkbox`}
+          />
 
           <button
             type="button"

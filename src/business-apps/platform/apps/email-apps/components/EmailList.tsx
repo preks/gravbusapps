@@ -67,10 +67,7 @@ export const EmailList: React.FC<EmailListProps> = ({
   const [labelSearchQuery, setLabelSearchQuery] = useState('')
   const [isLabelSearchOpen, setIsLabelSearchOpen] = useState(false)
   const labelSearchInputRef = useRef<HTMLInputElement>(null)
-  const labelFilterRowRef = useRef<HTMLDivElement>(null)
-  const isLabelRowDraggingRef = useRef(false)
-  const labelRowStartXRef = useRef(0)
-  const labelRowStartScrollLeftRef = useRef(0)
+  const labelFilterRowRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     if (!isLabelSearchOpen) return
@@ -233,24 +230,6 @@ export const EmailList: React.FC<EmailListProps> = ({
     onLabelsChange?.([])
   }, [onLabelsChange])
 
-  const handleLabelRowMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !labelFilterRowRef.current) return
-    isLabelRowDraggingRef.current = true
-    labelRowStartXRef.current = event.clientX
-    labelRowStartScrollLeftRef.current = labelFilterRowRef.current.scrollLeft
-  }, [])
-
-  const handleLabelRowMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isLabelRowDraggingRef.current || !labelFilterRowRef.current) return
-    const deltaX = event.clientX - labelRowStartXRef.current
-    labelFilterRowRef.current.scrollLeft = labelRowStartScrollLeftRef.current - deltaX
-    event.preventDefault()
-  }, [])
-
-  const stopLabelRowDragging = useCallback(() => {
-    isLabelRowDraggingRef.current = false
-  }, [])
-
   const syncAfterLabelMutation = useCallback(
     async (messageId: string, labels?: EmailLabel[]) => {
       if (onMessageLabelsUpdated) {
@@ -310,9 +289,6 @@ export const EmailList: React.FC<EmailListProps> = ({
         toggleFilterLabel={toggleFilterLabel}
         hasActiveLabelFilter={hasActiveLabelFilter}
         clearFilterLabels={clearFilterLabels}
-        handleLabelRowMouseDown={handleLabelRowMouseDown}
-        handleLabelRowMouseMove={handleLabelRowMouseMove}
-        stopLabelRowDragging={stopLabelRowDragging}
         t={t}
         testId={testId}
       />
