@@ -458,10 +458,15 @@ export const useCatalogSelect = (
   }, [configs, stateById, externalValues])
 
   /**
-   * Fetches a single missing option and updates state
+   * Fetches a single missing option and updates state.
+   * Checks fetchedEntryIdsRef before fetching to avoid duplicating a fetch already
+   * started by handleInitialLoad in useCatalogDependencies for the same entryId.
    */
   const fetchSingleMissingOption = useCallback(
     async (cfg: CatalogSelectConfig, value: string): Promise<void> => {
+      const fetchKey = `${cfg.id}:${value}`
+      if (fetchedEntryIdsRef.current.has(fetchKey)) return
+      fetchedEntryIdsRef.current.add(fetchKey)
       try {
         const res = await fetchCatalogEntriesByIdentifier(cfg.id, {
           limit: 1,
@@ -486,7 +491,8 @@ export const useCatalogSelect = (
           }
         })
       } catch {
-        // Ignore fetch errors
+        // Allow retry on next interaction
+        fetchedEntryIdsRef.current.delete(fetchKey)
       }
     },
     [fetchCatalogEntriesByIdentifier, locale, setFor]
@@ -509,6 +515,11 @@ export const useCatalogSelect = (
     // Fetch all missing options in parallel
     await Promise.all(missing.map(({ cfg, value }) => fetchSingleMissingOption(cfg, value)))
   }, [configs, areAllConfigsReady, collectMissingOptions, fetchSingleMissingOption])
+
+  // Tracks "{configId}:{entryId}" pairs that have been fetched or are in-flight.
+  // Shared with useCatalogDependencies so that handleInitialLoad and fetchSingleMissingOption
+  // never issue the same GetCatalogEntries(entryId) call for the same entry.
+  const fetchedEntryIdsRef = useRef<Set<string>>(new Set())
 
   // Fetch missing options for initial values after preload (run once)
   const missingOptionsFetchedRef = useRef(false)
@@ -691,7 +702,8 @@ export const useCatalogSelect = (
     fetchCatalogEntriesByIdentifier,
     defaultPageSize,
     externalValues,
-    locale
+    locale,
+    fetchedEntryIdsRef
   })
 
   return { controllers, preload: initOnce }

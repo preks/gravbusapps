@@ -51,6 +51,13 @@ export interface UseCatalogDependenciesParams {
   defaultPageSize: number
   externalValues?: Record<string, string | null>
   locale?: string
+  /**
+   * Shared set tracking "{configId}:{entryId}" pairs that have been fetched or are
+   * in-flight via fetchSingleMissingOption in useCatalogSelect. handleInitialLoad
+   * checks this before performing its own parent-option entryId fetch so that both
+   * paths never fire GetCatalogEntries for the same entry twice.
+   */
+  fetchedEntryIdsRef?: React.MutableRefObject<Set<string>>
 }
 
 // Helper: Get parent value from externalValues (form) or stateById (internal)
@@ -234,6 +241,7 @@ type CaseHandlerParams = {
     stateById?: Record<string, State>
   ) => string
   configs: CatalogSelectConfig[]
+  fetchedEntryIdsRef?: React.MutableRefObject<Set<string>>
 }
 
 // Handle initial load case
@@ -250,10 +258,10 @@ const handleInitialLoad = async ({
   locale,
   lastParentValuesRef,
   lastChildValuesRef,
-  stateById
+  stateById,
+  fetchedEntryIdsRef
 }: CaseHandlerParams) => {
-  // FIX: Set parent value in state if it exists but is not yet set, OR if it differs from current state
-  // This ensures the parent value is properly set even if it was set earlier
+  // Set parent value in state if it exists but is not yet set, OR if it differs from current state
   if (parentValue) {
     const currentParentValue = stateById[parentField]?.value
     if (!currentParentValue || currentParentValue !== parentValue) {
@@ -274,50 +282,65 @@ const handleInitialLoad = async ({
       })
     }
 
-    // FIX: Ensure parent option is in the options list, even if value is already set
-    // This ensures the value is displayed in the UI
+    // Ensure parent option is visible in the UI — but only if fetchSingleMissingOption
+    // (in useCatalogSelect) has not already fetched or started fetching this entry.
+    // The shared fetchedEntryIdsRef prevents both paths from issuing the same
+    // GetCatalogEntries(entryId) call for the same parent entry.
     const parentState = stateById[parentField]
     const parentHasOption = parentState?.options?.some(opt => opt.value === parentValue)
     if (!parentHasOption && Boolean(parentValue)) {
-      try {
-        const res = await fetchCatalogEntriesByIdentifier(parentField, {
-          limit: 1,
-          offset: 0,
-          entryId: parentValue
-        })
-        if (res.entries.length > 0) {
-          const parentOption = {
-            value: res.entries[0].id,
-            label: getLocalizedValue(res.entries[0], locale)
-          }
-          setFor(parentField, prev => {
-            if (!prev) return prev
-            const optionExists = prev.options.some(opt => opt.value === parentOption.value)
-            return {
-              ...prev,
-              options: optionExists ? prev.options : [parentOption, ...prev.options]
-            }
+      const fetchKey = `${parentField}:${parentValue}`
+      if (!fetchedEntryIdsRef?.current.has(fetchKey)) {
+        fetchedEntryIdsRef?.current.add(fetchKey)
+        try {
+          const res = await fetchCatalogEntriesByIdentifier(parentField, {
+            limit: 1,
+            offset: 0,
+            entryId: parentValue
           })
+          if (res.entries.length > 0) {
+            const parentOption = {
+              value: res.entries[0].id,
+              label: getLocalizedValue(res.entries[0], locale)
+            }
+            setFor(parentField, prev => {
+              if (!prev) return prev
+              const optionExists = prev.options.some(opt => opt.value === parentOption.value)
+              return {
+                ...prev,
+                options: optionExists ? prev.options : [parentOption, ...prev.options]
+              }
+            })
+          }
+        } catch {
+          // Allow retry on next interaction
+          fetchedEntryIdsRef?.current.delete(fetchKey)
         }
-      } catch {
-        // Silently fail - option will be available when user searches
       }
     }
   }
 
+  // Fetch child options filtered by parent — but only if triggerChildFetchIfNeeded
+  // (from the updateParentStateFromForm effect) has not already started this fetch.
+  // Checking loading and lastFiltersSig mirrors the shouldFetchChild guard used there.
   if (parentValue) {
-    fetchFilteredOptionsWithParent({
-      id,
-      parentValue,
-      config,
-      defaultPageSize,
-      setFor,
-      fetchCatalogEntriesByIdentifier,
-      locale
-    })
+    const childState = stateById[id]
+    const expectedFiltersSig = buildFiltersSignature({ parentEntryId: parentValue })
+    const alreadyFetchingChild = childState?.loading || childState?.lastFiltersSig === expectedFiltersSig
+    if (!alreadyFetchingChild) {
+      fetchFilteredOptionsWithParent({
+        id,
+        parentValue,
+        config,
+        defaultPageSize,
+        setFor,
+        fetchCatalogEntriesByIdentifier,
+        locale
+      })
+    }
   }
 
-  // FIX: Use parentField instead of id for tracking parent value
+  // Use parentField instead of id for tracking parent value
   if (parentValue) {
     lastParentValuesRef.current.set(parentField, parentValue)
   }
@@ -754,7 +777,8 @@ export const useCatalogDependencies = ({
   fetchCatalogEntriesByIdentifier,
   defaultPageSize,
   externalValues,
-  locale
+  locale,
+  fetchedEntryIdsRef
 }: UseCatalogDependenciesParams) => {
   // Track last parent values to detect changes
   const lastParentValuesRef = useRef<Map<string, string>>(new Map())
@@ -887,7 +911,7 @@ export const useCatalogDependencies = ({
     const isBiDirectional = parentConfig?.childField === id
     const parentValue = getParentValue(parentField, externalValues, stateById)
     const childValue = stateById[id]?.value || ''
-    // FIX: Use parentField instead of id for tracking parent value
+    // Use parentField instead of id for tracking parent value
     const lastParentValue = lastParentValuesRef.current.get(parentField)
     const lastChildValue = lastChildValuesRef.current.get(id)
     const parentState = stateById[parentField]
@@ -921,7 +945,8 @@ export const useCatalogDependencies = ({
       autoSelectedParentsRef,
       externalValues,
       getParentValue,
-      configs
+      configs,
+      fetchedEntryIdsRef
     }
 
     switch (currentCase) {
