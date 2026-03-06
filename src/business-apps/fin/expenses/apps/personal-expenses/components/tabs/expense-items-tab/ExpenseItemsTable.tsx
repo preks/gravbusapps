@@ -1,14 +1,26 @@
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { DataTable } from '@newwork/nw-design-system'
+import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button, Alert, Checkbox, Sheet, SheetContent, Badge } from '@newwork/nw-design-system'
+import {
+  Button,
+  Alert,
+  Checkbox,
+  Sheet,
+  SheetContent,
+  Badge,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { useGetExpenseItems, ExpenseFilter, type ExpenseItem } from '../../../hooks/useGetExpenseItems'
-import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { useExpenseCurrencies, type CurrencyStat } from '../../../hooks/useExpenseCurrencies'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getExpenseItemStatusDisplay } from '../../../utils'
@@ -18,6 +30,7 @@ import { notification } from 'antd'
 import { formatCurrencyDisplay } from '../../../utils'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
@@ -33,21 +46,26 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   setFilters: (filters: string[]) => void
   availableStatuses: string[]
   amountRange?: { min?: number; max?: number } | null
+  setAmountRange: (range: { min?: number; max?: number } | null) => void
+  expenseDateRange?: [Date | null, Date | null] | null
+  setExpenseDateRange: (range: [Date | null, Date | null] | null) => void
   tableRefreshTrigger?: number
   activeWidgetKey?: string
+  currencyStats?: CurrencyStat[]
+  currenciesInitialized?: boolean
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => {
   const {
     onAddExpenseItem,
     selectedFilters,
-    addFilter,
-    removeFilter,
-    clearFilters,
-    filterGroups,
     filterLabelMap,
     getFilters,
     setFilters,
+    amountRange,
+    setAmountRange,
+    expenseDateRange,
+    setExpenseDateRange,
     ...contextProps
   } = props
 
@@ -63,6 +81,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     return debouncedSearch || allSelectedFilters.length > 0
   }, [debouncedSearch, allSelectedFilters])
 
+  // Stable signature for "effective filters" (selectedFilters + active widget) – used to reset pagination when filters change (opportunity-style; keeps card link)
+  const filterSignature = useMemo(
+    () => [...allSelectedFilters].sort().join('\0') + '\0' + (props.activeWidgetKey ?? ''),
+    [allSelectedFilters, props.activeWidgetKey]
+  )
+
+  // Reset to page 1 when filters or active card change (same as opportunities: handleFilterUpdate resets page)
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filterSignature])
+
   // Server-side sorting state - properly managed for server-side sorting
   const [sortField, setSortField] = useState<string>('expenseDate')
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
@@ -71,31 +100,248 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   const [pageSize, setPageSize] = useState(20)
   const savedPageBeforeSearchRef = useRef<number | null>(null)
 
+  const baseVisibleColumnIds = useMemo(
+    () => ['selection', 'title', 'expenseDate', 'status', 'attachment', 'reimbursableAmount'],
+    []
+  )
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
+
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false })
 
-  const { currencyStats, selectedCurrencyRef, initialized } = useExpenseCurrencies(
+  const hookCurrencies = useExpenseCurrencies(
     contextProps,
     allSelectedFilters,
-    setFilters
+    props.currencyStats == null ? setFilters : undefined
+  )
+  const currencyStats = props.currencyStats ?? hookCurrencies.currencyStats
+  const initialized = props.currenciesInitialized ?? hookCurrencies.initialized
+  const selectedCurrencyRef = useMemo(() => {
+    if (props.currencyStats != null) {
+      const token = allSelectedFilters.find(f => f.startsWith('currency:'))
+      return token ? token.substring('currency:'.length) : undefined
+    }
+    return hookCurrencies.selectedCurrencyRef
+  }, [props.currencyStats, allSelectedFilters, hookCurrencies.selectedCurrencyRef])
+
+  // Opportunity-style: FilterConfiguration for DataDisplay filter sheet (currency moved to toolbar)
+  const expenseItemsFilterConfig: FilterConfiguration = useMemo(() => {
+    const statusOptions = (props.availableStatuses || []).map(s => ({
+      id: s.toLowerCase(),
+      label: filterLabelMap[s.toLowerCase()] || s
+    }))
+    const groups: FilterConfiguration['groups'] = []
+
+    groups.push(
+      {
+        id: 'status-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'statusIds',
+            field: 'statusIds',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status'),
+            type: 'multi-select',
+            config: { options: statusOptions }
+          }
+        ]
+      },
+      {
+        id: 'expenseDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_range', 'Expense Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'expenseDateRange',
+            field: 'expenseDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_range', 'Expense Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_plan_list.expense_plan_table.start_date',
+                'Start date'
+              ),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_plan_list.expense_plan_table.end_date',
+                'End date'
+              ),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'amount-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'amount',
+            field: 'amount',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
+            type: 'number',
+            config: {
+              mode: 'range',
+              min: 0,
+              max: 1000000,
+              step: 100,
+              placeholderMin: 'Min Amount',
+              placeholderMax: 'Max Amount'
+            }
+          }
+        ]
+      }
+    )
+
+    return { id: 'expense-items-filters', name: 'Expense Items Filters', groups }
+  }, [filterLabelMap, props.availableStatuses])
+
+  // Opportunity-style: filters object for DataDisplay (from current state; keeps card link)
+  // Use a display string for expenseDateRange so the filter chip shows "Jan 1, 2024 – Jan 31, 2024" instead of [object Object]
+  const filtersObject = useMemo((): Record<string, unknown> => {
+    const statusIds = allSelectedFilters.filter(f =>
+      (props.availableStatuses || []).map(s => s.toLowerCase()).includes(f)
+    )
+    const obj: Record<string, unknown> = {}
+    if (statusIds.length > 0) obj.statusIds = statusIds
+    if (expenseDateRange?.[0] || expenseDateRange?.[1]) {
+      const from = expenseDateRange[0]
+      const to = expenseDateRange[1]
+      const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
+      const fmt = (d: Date | null | undefined) => (d ? d.toLocaleDateString('en-GB', opts) : '')
+      obj.expenseDateRange = from && to ? `${fmt(from)} – ${fmt(to)}` : fmt(from) || fmt(to)
+    }
+    if (amountRange && (amountRange.min !== undefined || amountRange.max !== undefined)) {
+      obj.amount = { ...amountRange }
+    }
+    return obj
+  }, [allSelectedFilters, expenseDateRange, amountRange, props.availableStatuses])
+
+  // Currency: derived from filters for toolbar dropdown (currency moved out of sidebar)
+  const selectedCurrencyCode = useMemo(() => {
+    const currencyFilter = allSelectedFilters.find(f => f.startsWith('currency:'))
+    if (!currencyFilter) return 'ALL'
+    const ref = currencyFilter.replace('currency:', '')
+    return currencyStats.find(cs => cs.ref === ref)?.code ?? 'ALL'
+  }, [allSelectedFilters, currencyStats])
+
+  const handleCurrencyChange = useCallback(
+    (code: string) => {
+      if (code === 'ALL') {
+        setFilters(allSelectedFilters.filter(f => !f.startsWith('currency:')))
+      } else {
+        const cs = currencyStats.find(c => c.code === code)
+        if (cs) {
+          setFilters([...allSelectedFilters.filter(f => !f.startsWith('currency:')), `currency:${cs.ref}`])
+        }
+      }
+      setCurrentPage(1)
+    },
+    [allSelectedFilters, currencyStats, setFilters]
   )
 
-  const currencyLabelMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    currencyStats.forEach(cs => {
-      map[`currency:${cs.ref}`] = cs.code
-    })
-    return map
-  }, [currencyStats])
-
-  const combinedFilterLabelMap = useMemo(
-    () => ({
-      ...filterLabelMap,
-      ...currencyLabelMap
-    }),
-    [filterLabelMap, currencyLabelMap]
+  const availableColumnsForDisplay = useMemo(
+    () => [
+      {
+        id: 'selection',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.column_selection', 'Selection')
+      },
+      {
+        id: 'title',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.expense_request_container.current_title_label',
+          'Title'
+        )
+      },
+      {
+        id: 'expenseDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date')
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      },
+      {
+        id: 'attachment',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment')
+      },
+      {
+        id: 'reimbursableAmount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      }
+    ],
+    []
   )
 
-  // currency fetching now handled by useExpenseCurrencies
+  // When DataDisplay filter sheet applies changes, sync back to hook state (keeps card link)
+  const handleFilterChangeFromDisplay = useCallback(
+    (filters: Record<string, any>) => {
+      const statusIds = (filters.statusIds as string[] | undefined) || []
+      setFilters(statusIds)
+      // Support multiple formats: { from, to }, string "from,to", or array [from, to]. Ignore display-only strings (e.g. "Jan 1, 2024 – Jan 31, 2024") so we don't clear the range.
+      const rawDateRange = filters.expenseDateRange
+      const isDisplayString =
+        typeof rawDateRange === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(rawDateRange) && !rawDateRange.includes(',')
+      if (!isDisplayString) {
+        const normalized = normalizeDateRange(
+          rawDateRange == null
+            ? undefined
+            : typeof rawDateRange === 'object' &&
+                !Array.isArray(rawDateRange) &&
+                ('from' in rawDateRange || 'to' in rawDateRange)
+              ? [rawDateRange.from, rawDateRange.to].filter(Boolean).join(',')
+              : rawDateRange
+        )
+        if (normalized && (normalized.from || normalized.to)) {
+          setExpenseDateRange([
+            normalized.from ? new Date(normalized.from) : null,
+            normalized.to ? new Date(normalized.to) : null
+          ])
+        } else {
+          setExpenseDateRange(null)
+        }
+      }
+      const amt = filters.amount as { min?: number; max?: number } | undefined
+      if (amt && (amt.min !== undefined || amt.max !== undefined)) {
+        setAmountRange({ min: amt.min, max: amt.max })
+      } else {
+        setAmountRange(null)
+      }
+      setCurrentPage(1)
+    },
+    [setFilters, setExpenseDateRange, setAmountRange]
+  )
+
+  // Sortable columns for DataDisplay (opportunity-style)
+  const sortableColumns = useMemo(
+    () => [
+      {
+        id: 'title',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.expense_request_container.current_title_label',
+          'Title'
+        )
+      },
+      {
+        id: 'expenseDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date')
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      },
+      {
+        id: 'reimbursableAmount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      }
+    ],
+    []
+  )
 
   const buildApiFilters = useCallback(() => {
     const apiFilters = { ...getFilters(debouncedSelectedFilters) } as ExpenseFilter
@@ -186,28 +432,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       }
     },
     [search, currentPage]
-  )
-
-  const handleFilterChange = useCallback(
-    (filterId: string, selected: boolean) => {
-      if (filterId.startsWith('currency:')) {
-        if (selected) {
-          // Allow only a single currency at a time
-          const nonCurrency = allSelectedFilters.filter(f => !f.startsWith('currency:'))
-          setFilters([...nonCurrency, filterId])
-        } else {
-          removeFilter(filterId)
-        }
-      } else {
-        if (selected) {
-          addFilter(filterId)
-        } else {
-          removeFilter(filterId)
-        }
-      }
-      setCurrentPage(1)
-    },
-    [addFilter, removeFilter, setFilters, allSelectedFilters]
   )
 
   const handleAddExpenseItem = useCallback(() => {
@@ -552,126 +776,161 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     )
   }
 
+  const primaryAction = useMemo(
+    () => (
+      <Button
+        onClick={handleAddExpenseItem}
+        size="sm"
+        variant="default"
+        data-testid="add-expense-item-button"
+        type="button"
+      >
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule_details.calculation_allowance_setup_list.calculation_allowance_setup_modal.btn_add',
+          'Add'
+        )}
+      </Button>
+    ),
+    [handleAddExpenseItem]
+  )
+
+  const secondaryActions = useMemo(
+    () => (
+      <>
+        {currencyStats.length > 0 && (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Label className="gba:font-medium gba:shrink-0">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                'Currency'
+              )}
+              :
+            </Label>
+            <Select value={selectedCurrencyCode} onValueChange={handleCurrencyChange}>
+              <SelectTrigger className="gba:w-[140px]" data-testid="expense-items-currency-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
+                </SelectItem>
+                {currencyStats.map(cs => (
+                  <SelectItem key={cs.ref} value={cs.code}>
+                    {cs.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {selectedRowKeys.length > 0 && (
+          <>
+            <Button
+              variant="default"
+              data-testid="create-expense-request-btn"
+              onClick={() => handleCreateExpenseRequest()}
+              className="gba:inline-flex gba:items-center gba:gap-2"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_list.flows_button.create_expense_request',
+                'Create Expense Request'
+              )}{' '}
+              ({selectedRowKeys.length})
+            </Button>
+            <Button
+              variant="destructive"
+              data-testid="delete-selection-btn"
+              onClick={() => handleDeleteSelection()}
+              className="gba:inline-flex gba:items-center gba:gap-2"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.delete_selection', 'Delete Selection')} (
+              {selectedRowKeys.length})
+            </Button>
+          </>
+        )}
+      </>
+    ),
+    [
+      currencyStats,
+      selectedCurrencyCode,
+      handleCurrencyChange,
+      selectedRowKeys.length,
+      handleCreateExpenseRequest,
+      handleDeleteSelection
+    ]
+  )
+
   return (
     <>
-      <DataContainer
-        dataControllerProps={{
-          listTitle: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.flows_button.expense_items',
-            'Expense Items'
-          ),
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          search: search,
-          setSearch: handleSearchChange,
-          placeholder:
-            getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
-            '...',
-          filter: allSelectedFilters,
-          setFilter: (filters: string[]) => {
-            // This is called by DataController's "Clear all filters" button or individual filter removal
-            if (filters.length === 0) {
-              // Clear all filters including amount range
-              clearFilters()
-              // Also clear the search state when clearing all filters
-              handleSearchChange('')
-            } else {
-              // Handle individual filter removal - find which filters were removed and remove them
-              const removedFilters = allSelectedFilters.filter(f => !filters.includes(f))
-              removedFilters.forEach(filterId => removeFilter(filterId))
-            }
-          },
-          filterLabelMap: combinedFilterLabelMap,
-          addButton: {
-            onClick: handleAddExpenseItem,
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'list',
             label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule_details.calculation_allowance_setup_list.calculation_allowance_setup_modal.btn_add',
-              'Add'
+              'lowcoder:employee_list.flows_button.expense_items',
+              'Expense Items'
             ),
-            'data-testid': 'add-expense-item-button'
-          },
-          actions: [
-            ...(selectedRowKeys.length > 0
-              ? [
-                  <Button
-                    key={`create-expense-request-${selectedRowKeys.join('|')}`}
-                    variant="default"
-                    data-testid="create-expense-request-btn"
-                    onClick={() => handleCreateExpenseRequest()}
-                    className="gba:inline-flex gba:items-center gba:gap-2"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_list.flows_button.create_expense_request',
-                      'Create Expense Request'
-                    )}{' '}
-                    ({selectedRowKeys.length})
-                  </Button>,
-                  <Button
-                    key={`delete-selection-${selectedRowKeys.join('|')}`}
-                    variant="destructive"
-                    data-testid="delete-selection-btn"
-                    onClick={() => handleDeleteSelection()}
-                    className="gba:inline-flex gba:items-center gba:gap-2"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_item_list.delete_selection',
-                      'Delete Selection'
-                    )}{' '}
-                    ({selectedRowKeys.length})
-                  </Button>
-                ]
-              : [])
-          ]
-        }}
-        dataFilterProps={{
-          filterGroups: useMemo(() => {
-            const currencyGroup: DataFilterGroup | null =
-              currencyStats.length > 0
-                ? {
-                    id: 'currency',
-                    title: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                      'Currency'
-                    ),
-                    filters: currencyStats.map(cs => ({
-                      id: `currency:${cs.ref}`,
-                      label: cs.code,
-                      selected: allSelectedFilters.includes(`currency:${cs.ref}`)
-                    }))
-                  }
-                : null
-            return currencyGroup ? [currencyGroup, ...filterGroups] : filterGroups
-          }, [currencyStats, filterGroups, allSelectedFilters]),
-          onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
-        }}
-        contentBackground="white"
-        dataBody={
-          <DataTable<ExpenseItem>
-            data={items || []}
-            columns={columns}
-            loading={isLoading}
-            error={error || undefined}
-            totalCount={totalCount}
-            sorting={sorting}
-            onSortingChange={handleSortingChange}
-            pagination={pagination}
-            onPaginationChange={handlePaginationChange}
-            enablePagination
-            enableSorting
-            enableSelection={false}
-            enableColumnPinning
-            enableResizing={false}
-            tableLayout="fixed"
-            rowsPerPageOptions={[10, 20, 50, 100]}
-            showPageNumbers
-            maxVisiblePages={7}
-            emptyMessage={emptyMessage}
-            actions={rowActions}
-            onRowClick={handleSelectItem}
-            data-testid={DATA_TEST_ID_PREFIX}
-          />
+            metadata: {
+              count: totalCount,
+              isLoading: isLoading
+            }
+          }
+        ]}
+        currentSection="list"
+        searchValue={search}
+        searchPlaceholder={
+          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
+          '...'
         }
-        addLeftPaddingWhenNoFilter={true}
-      />
+        onSearchChange={handleSearchChange}
+        filters={filtersObject}
+        filterConfiguration={expenseItemsFilterConfig}
+        onFilterChange={handleFilterChangeFromDisplay}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={handleSortingChange}
+        primaryAction={primaryAction}
+        secondaryActions={secondaryActions}
+        availableColumns={availableColumnsForDisplay}
+        visibleColumns={visibleColumns}
+        onVisibleColumnsChange={setVisibleColumns}
+        toolbarDensity="default"
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_list.flows_button.expense_items',
+          'Filter Expense Items'
+        )}
+        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.filter_expense_items_description',
+          'Apply filters to narrow down the expense items list.'
+        )}
+      >
+        <DataTable<ExpenseItem>
+          data={items || []}
+          columns={columns.filter(col =>
+            visibleColumns.includes((col as ColumnDef<ExpenseItem> & { id?: string }).id ?? '')
+          )}
+          loading={isLoading}
+          error={error || undefined}
+          totalCount={totalCount}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          tableLayout="fixed"
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage={emptyMessage}
+          actions={rowActions}
+          onRowClick={handleSelectItem}
+          data-testid={DATA_TEST_ID_PREFIX}
+        />
+      </DataDisplay>
 
       {/* Sheet for details */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
