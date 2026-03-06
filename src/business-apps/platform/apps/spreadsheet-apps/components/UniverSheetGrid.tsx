@@ -324,7 +324,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const [cursorRects, setCursorRects] = useState<
       Record<string, { top: number; left: number; width: number; height: number }>
     >({})
-    const [commentRects, setCommentRects] = useState<Record<string, { top: number; left: number; width: number }>>({})
+    const [commentRects, setCommentRects] = useState<
+      Record<string, { top: number; left: number; width: number; height: number }>
+    >({})
     const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null)
     const remoteCursorOverlays = useMemo(
       () =>
@@ -533,10 +535,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         return
       }
       const refresh = () => {
-        const next: Record<string, { top: number; left: number; width: number }> = {}
+        const next: Record<string, { top: number; left: number; width: number; height: number }> = {}
         for (const marker of commentOverlays) {
           const rect = resolveCellRect(marker.row, marker.col)
-          if (rect) next[marker.id] = { top: rect.top, left: rect.left, width: rect.width }
+          if (rect) next[marker.id] = { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
         }
         setCommentRects(prev => {
           const prevKeys = Object.keys(prev)
@@ -546,7 +548,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             const p = prev[key]
             const n = next[key]
             if (!p) return next
-            if (Math.abs(p.top - n.top) > 0.5 || Math.abs(p.left - n.left) > 0.5 || Math.abs(p.width - n.width) > 0.5) {
+            if (
+              Math.abs(p.top - n.top) > 0.5 ||
+              Math.abs(p.left - n.left) > 0.5 ||
+              Math.abs(p.width - n.width) > 0.5 ||
+              Math.abs((p.height ?? 0) - (n.height ?? 0)) > 0.5
+            ) {
               return next
             }
           }
@@ -555,11 +562,16 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
       refreshCommentRectsRef.current = refresh
       refresh()
+      // Retry when Univer canvas isn't ready yet — resolveCellRect can return null initially
+      const retryId = window.setTimeout(() => {
+        refresh()
+      }, 300)
       const onResize = () => refresh()
       const onScroll = () => refresh()
       window.addEventListener('resize', onResize)
       window.addEventListener('scroll', onScroll, true)
       return () => {
+        window.clearTimeout(retryId)
         refreshCommentRectsRef.current = null
         window.removeEventListener('resize', onResize)
         window.removeEventListener('scroll', onScroll, true)
@@ -725,80 +737,232 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const container = containerRef.current
       if (!container || props.isReadOnly) return
 
-      const labelCandidates = ['Cut', 'Paste', 'Delete', 'Insert', 'Freeze']
       const customLabel = 'Add comment'
       const customMarkerAttr = 'data-univer-custom-comment-item'
+      const customClassName = 'univer-custom-comment-item'
+      const verticalListAnchorLabels = [
+        'Copy Special',
+        'Paste Special',
+        'Clear',
+        'Insert',
+        'Delete',
+        'Freeze',
+        'Protect'
+      ]
+      let contextMenuObserver: MutationObserver | null = null
 
-      const tryInjectMenuItem = (anchorX: number, anchorY: number): boolean => {
-        const allElements = Array.from(document.querySelectorAll<HTMLElement>('body *'))
-        const visible = allElements.filter(el => {
-          const rect = el.getBoundingClientRect()
-          if (rect.width < 80 || rect.height < 40) return false
-          const style = window.getComputedStyle(el)
-          return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
-        })
-        const candidates = visible.filter(el => {
-          const text = (el.textContent || '').trim()
-          if (!text) return false
-          const hits = labelCandidates.filter(label => text.includes(label)).length
-          return hits >= 2
-        })
-        if (candidates.length === 0) return false
+      const distanceToRect = (x: number, y: number, rect: DOMRect): number => {
+        const dx = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0
+        const dy = y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
+        return Math.hypot(dx, dy)
+      }
 
-        const closest = candidates
-          .map(el => {
-            const rect = el.getBoundingClientRect()
-            const cx = rect.left + rect.width / 2
-            const cy = rect.top + rect.height / 2
-            const dist = Math.hypot(cx - anchorX, cy - anchorY)
-            return { el, dist }
-          })
-          .sort((a, b) => a.dist - b.dist)[0]?.el
-        if (!closest) return false
-        if (closest.querySelector(`[${customMarkerAttr}]`)) return true
+      const commentIconSvg = (): string =>
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
 
-        const templateItem = (closest.querySelector<HTMLElement>('[role="menuitem"]') ??
-          closest.querySelector<HTMLElement>('li') ??
-          closest.firstElementChild) as HTMLElement | null
-        if (!templateItem) return false
-
-        const item = templateItem.cloneNode(true) as HTMLElement
+      const createAddCommentItem = (template: HTMLElement): HTMLElement => {
+        const item = template.cloneNode(true) as HTMLElement
         item.setAttribute(customMarkerAttr, 'true')
+        item.classList.add(customClassName)
         item.querySelectorAll('[aria-haspopup="true"]').forEach(node => node.removeAttribute('aria-haspopup'))
-        item.querySelectorAll<HTMLElement>('span,div,p').forEach(node => {
-          const text = (node.textContent || '').trim()
-          if (labelCandidates.includes(text)) {
-            node.textContent = customLabel
-          }
-        })
-        if (!(item.textContent || '').includes(customLabel)) {
-          item.textContent = customLabel
-        }
+        item.innerHTML = ''
+        // Match Univer menu item layout: remove justify-between (pushes label right when no arrow), use gap-3
+        item.classList.remove('univer-justify-between')
+        item.classList.add(
+          'univer-flex',
+          'univer-items-center',
+          'univer-gap-3',
+          'univer-justify-start',
+          'univer-text-sm'
+        )
+        item.style.justifyContent = 'flex-start'
+        const iconWrap = document.createElement('span')
+        iconWrap.className =
+          'univer-text-base univer-flex univer-flex-shrink-0 univer-items-center univer-justify-center univer-h-6 univer-min-w-6'
+        iconWrap.style.color = 'var(--univer-primary-600, #2563eb)'
+        iconWrap.innerHTML = commentIconSvg()
+        const label = document.createElement('span')
+        label.className =
+          'univer-flex-1 univer-min-w-0 univer-max-w-full univer-break-words univer-text-left univer-text-sm univer-leading-4'
+        label.textContent = customLabel
+        label.style.whiteSpace = 'nowrap'
+        label.style.wordBreak = 'normal'
+        label.style.overflowWrap = 'normal'
+        label.style.fontFamily = 'inherit'
+        label.style.fontSize = 'inherit'
+        label.style.fontWeight = 'inherit'
+        item.appendChild(iconWrap)
+        item.appendChild(label)
+        item.style.whiteSpace = 'nowrap'
+        item.style.wordBreak = 'normal'
+        item.style.overflowWrap = 'normal'
         item.addEventListener('click', () => {
           callbacksRef.current.onOpenCommentRequest?.()
         })
-        closest.prepend(item)
+        return item
+      }
+
+      const tryInjectMenuItem = (anchorX: number, anchorY: number): boolean => {
+        // Prevent double injection: if we already injected, the MutationObserver would fire and
+        // inject into a second vertical group. Return success without injecting again.
+        if (document.querySelector(`[${customMarkerAttr}]`)) return true
+
+        // Strategy 1: Use Univer/rc-menu class structure (try multiple selectors for different versions)
+        const listSelectors = '.univer-menu-item-group-list, .rc-menu-item-group-list, [class*="menu-item-group-list"]'
+        const univerLists = Array.from(document.querySelectorAll<HTMLElement>(listSelectors)).filter(
+          list => !list.querySelector(`[${customMarkerAttr}]`)
+        )
+
+        for (const list of univerLists) {
+          const items = list.querySelectorAll<HTMLElement>('.univer-menu-item, li, [role="menuitem"]')
+          const firstItem = items[0]
+          if (!firstItem) continue
+          const listText = (list.textContent || '').toLowerCase()
+          const hasVerticalLabels = verticalListAnchorLabels.some(lbl => listText.includes(lbl.toLowerCase()))
+          if (!hasVerticalLabels) continue
+
+          const item = createAddCommentItem(firstItem)
+          if (document.querySelector(`[${customMarkerAttr}]`)) return true
+          list.insertBefore(item, list.firstChild)
+          return true
+        }
+
+        // Strategy 2: Univer preset uses custom grid layout (univer-grid univer-gap-1), not rc-menu
+        const gridContainers = Array.from(
+          document.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')
+        ).filter(el => {
+          if (el.querySelector(`[${customMarkerAttr}]`)) return false
+          const gridText = (el.textContent || '').toLowerCase()
+          const hasVerticalLabels = verticalListAnchorLabels.some(lbl => gridText.includes(lbl.toLowerCase()))
+          if (!hasVerticalLabels) return false
+          // Exclude the icon row (Copy, Cut, Paste only - no "insert" or "copy special")
+          if (gridText.includes('copy') && !gridText.includes('copy special') && !gridText.includes('insert'))
+            return false
+          // Exclude parent grids: we want the innermost grid that contains the vertical list.
+          // A parent grid wraps both the icon row and the vertical list; inserting there puts
+          // "Add comment" before the icon row, causing a truncated/malformed display.
+          const childGrids = el.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')
+          for (const child of childGrids) {
+            if (child === el) continue
+            const childText = (child.textContent || '').toLowerCase()
+            if (verticalListAnchorLabels.some(lbl => childText.includes(lbl.toLowerCase()))) return false
+          }
+          return true
+        })
+        for (const grid of gridContainers) {
+          // If the first child is the icon row (Copy, Cut, Paste), insert into the next sibling
+          // that contains the vertical list. Otherwise we'd put "Add comment" before the icons,
+          // causing a truncated "Pld comment" at the top.
+          let insertParent: HTMLElement = grid
+          const firstChild = grid.firstElementChild as HTMLElement | null
+          if (firstChild) {
+            const firstText = (firstChild.textContent || '').toLowerCase()
+            const firstIsIconRow =
+              firstText.includes('copy') && !firstText.includes('copy special') && !firstText.includes('insert')
+            if (firstIsIconRow) {
+              for (let sib = firstChild.nextElementSibling; sib; sib = sib.nextElementSibling) {
+                const sibText = ((sib as HTMLElement).textContent || '').toLowerCase()
+                if (verticalListAnchorLabels.some(lbl => sibText.includes(lbl.toLowerCase()))) {
+                  insertParent = sib as HTMLElement
+                  break
+                }
+              }
+            }
+          }
+          const template = insertParent.querySelector<HTMLElement>(
+            'button, [role="button"], .univer-menu-item, [class*="menu-item"]'
+          )
+          if (!template) continue
+          if (document.querySelector(`[${customMarkerAttr}]`)) return true
+          const item = createAddCommentItem(template)
+          insertParent.insertBefore(item, insertParent.firstChild)
+          return true
+        }
+
+        // Strategy 3: Find by text (relaxed: includes, not exact) for different Univer versions
+        const allElements = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+        const anchorCandidates: HTMLElement[] = []
+        for (const el of allElements) {
+          const text = (el.textContent || '').trim()
+          if (!text) continue
+          // Skip visibility check - menu may still be animating when we run
+          if (el.closest('[style*="display: none"]') || el.closest('.rc-menu-hidden')) continue
+          const match = verticalListAnchorLabels.find(lbl => text.includes(lbl))
+          if (!match) continue
+          let current: HTMLElement | null = el
+          for (let d = 0; d < 6 && current; d++) {
+            const cls = `${current.className || ''}`.toLowerCase()
+            const role = current.getAttribute('role')
+            const tag = current.tagName.toLowerCase()
+            if (role === 'menuitem' || cls.includes('menu-item') || tag === 'li' || tag === 'button') {
+              anchorCandidates.push(current)
+              break
+            }
+            current = current.parentElement
+          }
+        }
+
+        if (anchorCandidates.length === 0) return false
+        const closest = anchorCandidates
+          .map(el => ({ el, dist: distanceToRect(anchorX, anchorY, el.getBoundingClientRect()) }))
+          .sort((a, b) => a.dist - b.dist)[0]?.el
+        if (!closest) return false
+
+        const parent = closest.parentElement
+        if (!parent || parent.querySelector(`[${customMarkerAttr}]`)) return true
+
+        const item = createAddCommentItem(closest)
+        if (document.querySelector(`[${customMarkerAttr}]`)) return true
+        parent.insertBefore(item, closest)
         return true
+      }
+
+      const stopContextMenuObserver = () => {
+        if (contextMenuObserver) {
+          contextMenuObserver.disconnect()
+          contextMenuObserver = null
+        }
       }
 
       const onNativeContextMenu = (e: MouseEvent) => {
         const x = e.clientX
         const y = e.clientY
         let attempts = 0
-        const maxAttempts = 6
+        const maxAttempts = 40
+        stopContextMenuObserver()
+        contextMenuObserver = new MutationObserver(() => {
+          if (tryInjectMenuItem(x, y)) {
+            stopContextMenuObserver()
+          }
+        })
+        contextMenuObserver.observe(document.body, { childList: true, subtree: true })
         const run = () => {
           attempts += 1
           const ok = tryInjectMenuItem(x, y)
-          if (!ok && attempts < maxAttempts) {
-            window.setTimeout(run, 40)
+          if (ok) {
+            stopContextMenuObserver()
+            return
+          }
+          if (attempts < maxAttempts) {
+            window.setTimeout(run, 50)
+          } else {
+            stopContextMenuObserver()
           }
         }
-        window.setTimeout(run, 0)
+        // Wait for next paint so Univer's context menu DOM is ready
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.setTimeout(run, 0)
+          })
+        })
       }
 
       // Capture-phase lets us react to native Univer menu opening without replacing it.
       container.addEventListener('contextmenu', onNativeContextMenu, true)
-      return () => container.removeEventListener('contextmenu', onNativeContextMenu, true)
+      return () => {
+        stopContextMenuObserver()
+        container.removeEventListener('contextmenu', onNativeContextMenu, true)
+      }
     }, [props.isReadOnly])
 
     useImperativeHandle(
@@ -1439,7 +1603,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         style={{ height: props.height ?? '100%', width: props.width ?? '100%' }}
         onKeyDown={handleKeyDown}
       >
-        <div ref={containerRef} className="gba:w-full gba:h-full" />
+        <div ref={containerRef} className="gba:w-full gba:h-full" data-testid="univer-sheet-grid-container" />
         {props.isReadOnly && (
           <div
             data-testid="univer-readonly-overlay"
@@ -1495,18 +1659,18 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                   className="gba:absolute gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-blue-500 gba:border gba:border-white gba:shadow-sm"
                   style={{
                     top: Math.max(0, top + 2),
-                    left: Math.max(0, leftBase + Math.max(0, width - 10))
+                    left: Math.max(0, leftBase + width - 12)
                   }}
                   title={`Comment: ${marker.ref}`}
                   data-testid="univer-cell-comment-badge"
                 />
                 <div
-                  className="gba:absolute gba:pointer-events-auto"
+                  className="gba:absolute gba:pointer-events-auto gba:cursor-pointer"
                   style={{
                     top: Math.max(0, top),
-                    left: Math.max(0, leftBase),
-                    width: Math.max(12, width),
-                    height: CURSOR_OVERLAY_ROW_HEIGHT_PX
+                    left: Math.max(0, leftBase + width - 24),
+                    width: 24,
+                    height: 24
                   }}
                   onMouseEnter={() => setHoveredCommentId(marker.id)}
                   onMouseLeave={() => setHoveredCommentId(prev => (prev === marker.id ? null : prev))}
@@ -1519,8 +1683,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             const marker = commentOverlays.find(entry => entry.id === hoveredCommentId)
             if (!marker) return null
             const rect = commentRects[marker.id]
-            const top = rect ? rect.top : CURSOR_OVERLAY_HEADER_HEIGHT_PX + marker.row * CURSOR_OVERLAY_ROW_HEIGHT_PX
-            const left = rect ? rect.left : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + marker.col * CURSOR_OVERLAY_COL_WIDTH_PX
+            if (!rect) return null
+            const top = rect.top
+            const left = rect.left
             const author = marker.createdByName || 'User'
             const avatar = marker.createdByAvatar
             const time = formatCommentTime(marker.createdAt)
