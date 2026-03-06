@@ -15,7 +15,7 @@ export const useAttachmentDownload = (t: (key: string) => string) => {
         link.download = filename
         document.body.appendChild(link)
         link.click()
-        document.body.removeChild(link)
+        link.remove()
         setTimeout(() => URL.revokeObjectURL(url), 30000)
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t('reader-toast-download-failed'))

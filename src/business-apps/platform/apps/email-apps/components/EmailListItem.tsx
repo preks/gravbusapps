@@ -109,21 +109,37 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   const handleContextMenuOpenChange = useCallback((open: boolean) => {
     if (!open) setIsLabelsExpanded(false)
   }, [])
+  const isUnread = message.isRead === false
   return (
     <ContextMenu onOpenChange={handleContextMenuOpenChange}>
       <ContextMenuTrigger asChild>
         <div
           onClick={onSelect}
+          onKeyDown={event => {
+            if (event.target !== event.currentTarget) return
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              onSelect()
+            }
+          }}
+          role="button"
+          tabIndex={0}
           className={`gba:flex gba:gap-3 gba:px-4 gba:py-3 gba:cursor-pointer gba:border-b gba:transition-colors ${
             isSelected ? 'gba:bg-primary/5 gba:border-l-2 gba:border-l-primary' : 'hover:gba:bg-muted/30'
-          } ${!message.isRead ? 'gba:bg-accent/5' : ''}`}
+          } ${isUnread ? 'gba:bg-accent/5' : ''}`}
           data-testid={testId}
         >
-          <div onClick={onToggleCheck} className="gba:mt-1 gba:flex-shrink-0 gba:cursor-pointer">
+          <button
+            type="button"
+            onClick={onToggleCheck}
+            className="gba:mt-1 gba:flex-shrink-0 gba:cursor-pointer"
+            aria-label={t('list-select-all')}
+          >
             <Checkbox checked={isChecked} data-testid={`${testId}-checkbox`} />
-          </div>
+          </button>
 
           <button
+            type="button"
             onClick={e => {
               e.stopPropagation()
               onToggleStar()
@@ -139,7 +155,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-0.5">
               <span
                 className={`gba:text-sm gba:truncate ${
-                  !message.isRead ? 'gba:font-semibold gba:text-foreground' : 'gba:text-foreground'
+                  isUnread ? 'gba:font-semibold gba:text-foreground' : 'gba:text-foreground'
                 }`}
               >
                 {getDisplayName(message.fromAddress)}
@@ -152,7 +168,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
             <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-0.5">
               <p
                 className={`gba:text-sm gba:truncate gba:flex-1 ${
-                  !message.isRead ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
+                  isUnread ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
                 }`}
               >
                 {message.subject || t('list-no-subject')}
@@ -200,9 +216,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
             )}
           </div>
 
-          {!message.isRead && (
-            <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:flex-shrink-0 gba:mt-2" />
-          )}
+          {isUnread && <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:flex-shrink-0 gba:mt-2" />}
         </div>
       </ContextMenuTrigger>
 

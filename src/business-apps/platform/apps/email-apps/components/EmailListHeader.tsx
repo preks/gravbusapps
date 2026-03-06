@@ -91,11 +91,8 @@ export const EmailListHeader: React.FC<EmailListHeaderProps> = ({
               }
             }}
             onKeyDown={event => {
-              if (event.key === 'Escape') {
-                if (!labelSearchQuery.trim()) {
-                  setIsLabelSearchOpen(false)
-                }
-                return
+              if (event.key === 'Escape' && !labelSearchQuery.trim()) {
+                setIsLabelSearchOpen(false)
               }
             }}
             placeholder={t('list-label-filter-search-placeholder')}
@@ -106,10 +103,25 @@ export const EmailListHeader: React.FC<EmailListHeaderProps> = ({
         <div
           ref={labelFilterRowRef}
           className="gba:flex-1 gba:min-w-0 gba:overflow-x-auto gba:scrollbar-hide gba:py-1"
+          role="region"
+          aria-label={t('list-label-filter-search-placeholder')}
+          tabIndex={0}
           onMouseDown={handleLabelRowMouseDown}
           onMouseMove={handleLabelRowMouseMove}
           onMouseUp={stopLabelRowDragging}
           onMouseLeave={stopLabelRowDragging}
+          onKeyDown={event => {
+            if (!labelFilterRowRef.current) return
+            if (event.key === 'ArrowRight') {
+              event.preventDefault()
+              labelFilterRowRef.current.scrollLeft += 48
+              return
+            }
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault()
+              labelFilterRowRef.current.scrollLeft -= 48
+            }
+          }}
           data-testid={`${testId}-label-filter-row`}
         >
           <div className="gba:flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap gba:px-1 gba:pr-1">
