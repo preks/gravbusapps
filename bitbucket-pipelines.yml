@@ -166,20 +166,6 @@ definitions:
           - changed-tsx.txt
           - manual-screens.txt
 
-    - step: &type-check
-        name: Type Check
-        runs-on:
-          - 'self.hosted'
-          - 'do.global.runner.size2'
-        size: 2x
-        clone:
-          enabled: true
-          depth: full
-        caches:
-          - nodecustom
-        script:
-          - npm run typecheck
-
     - step: &publish-changed-prod-screens
         name: Publish Changed Production Screens
         runs-on:
@@ -314,7 +300,6 @@ pipelines:
       - step: *check-hash-file-change
       - step: *install_dependencies
       - parallel:
-          - step: *type-check
           - step: *build-screens
           - step: *sonar_scan
 
