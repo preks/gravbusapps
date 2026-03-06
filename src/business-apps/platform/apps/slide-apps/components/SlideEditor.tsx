@@ -18,11 +18,9 @@ import {
   DialogTitle,
   Separator,
   Input,
-  Textarea,
   Badge,
   Label,
-  useTranslation,
-  cn
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
@@ -119,7 +117,7 @@ import { PdfExportDialog } from './PdfExportDialog'
 import { SpeakerNotesPanel } from './SpeakerNotesPanel'
 import { PresenterView } from './PresenterView'
 import { SpellCheckPanel } from './SpellCheckPanel'
-import { VoiceInputButton, VoiceVisualizer, useVoiceInput } from '../../shared'
+import { useVoiceInput } from '../../shared'
 import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
 import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
@@ -372,7 +370,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const canvasContainerRef = useRef<HTMLDivElement>(null)
 
   // Voice input state
-  const [voiceEditMode, setVoiceEditMode] = useState(false)
   const voiceBaseContentRef = useRef<string>('')
   const editingTextIdRef = useRef<string | null>(null)
   const lastProcessedTranscriptRef = useRef<string>('')
@@ -1337,9 +1334,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   }, [])
 
   const handleTextChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    (valueOrEvent: string | React.ChangeEvent<HTMLTextAreaElement>) => {
       if (!editingTextId) return
-      const newValue = e.target.value
+      const newValue = typeof valueOrEvent === 'string' ? valueOrEvent : valueOrEvent.target.value
       currentEditingContentRef.current = newValue
       updateElement(editingTextId, { content: newValue })
     },
@@ -2531,10 +2528,40 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 }}
                 onUpdateElement={updateElement}
                 onUpdateMultipleElements={updateMultipleElements}
-                onEditText={handleEditText}
+                onEditText={id => {
+                  const element = currentSlide.elements.find(e => e.id === id) as TextElement | undefined
+                  if (element) {
+                    voiceBaseContentRef.current = element.content
+                    currentEditingContentRef.current = element.content
+                    lastProcessedTranscriptRef.current = ''
+                    editingTextIdRef.current = id
+                  }
+                  handleEditText(id)
+                }}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 scale={canvasScale}
+                inlineEditing={{
+                  editingTextId,
+                  onTextChange: handleTextChange,
+                  onFinishEditing: () => {
+                    if (voiceInput.isListening) {
+                      voiceInput.stopListening()
+                    }
+                    finishTextEditing()
+                  },
+                  voiceInput: {
+                    isListening: voiceInput.isListening,
+                    isSupported: voiceInput.isSupported,
+                    volume: voiceInput.volume,
+                    error: voiceInput.error,
+                    interimTranscript: voiceInput.interimTranscript,
+                    startListening: () => {
+                      voiceInput.startListening()
+                    },
+                    stopListening: voiceInput.stopListening
+                  }
+                }}
               />
 
               {/* Collaborator cursors overlay */}
@@ -2562,7 +2589,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   currentEditingContentRef.current = currentContent
                   lastProcessedTranscriptRef.current = ''
                   editingTextIdRef.current = selectedElement.id
-                  setVoiceEditMode(true)
                   setEditingTextId(selectedElement.id)
                   voiceInput.startListening()
                 }}
@@ -2570,7 +2596,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   const currentContent = (selectedElement as TextElement)?.content || ''
                   currentEditingContentRef.current = currentContent
                   editingTextIdRef.current = selectedElement.id
-                  setVoiceEditMode(false)
                   setEditingTextId(selectedElement.id)
                 }}
                 data-testid={`${testId}-floating-text-actions`}
@@ -2636,116 +2661,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           </div>
         )}
       </div>
-
-      {/* Text Editing Dialog - Enterprise-grade with voice input */}
-      <Dialog
-        open={editingTextId !== null}
-        onOpenChange={open => {
-          if (!open) {
-            if (voiceInput.isListening) {
-              voiceInput.stopListening()
-            }
-            setVoiceEditMode(false)
-            finishTextEditing()
-          }
-        }}
-      >
-        <DialogContent className="gba:max-w-2xl gba:p-0 gba:gap-0 gba:overflow-hidden">
-          {/* Header with voice toggle */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:pl-6 gba:pr-14 gba:py-4 gba:border-b gba:bg-muted/30">
-            <DialogTitle className="gba:text-lg gba:font-semibold">{t('editor-edit-text')}</DialogTitle>
-            {voiceInput.isSupported && (
-              <VoiceInputButton
-                isListening={voiceInput.isListening}
-                isSupported={voiceInput.isSupported}
-                volume={voiceInput.volume}
-                error={voiceInput.error}
-                onStartListening={() => {
-                  const currentContent =
-                    (currentSlide.elements.find(e => e.id === editingTextId) as TextElement)?.content || ''
-                  voiceBaseContentRef.current = currentContent
-                  currentEditingContentRef.current = currentContent
-                  lastProcessedTranscriptRef.current = ''
-                  voiceInput.startListening()
-                }}
-                onStopListening={voiceInput.stopListening}
-                variant="prominent"
-                data-testid={`${testId}-voice-input-btn`}
-              />
-            )}
-          </div>
-
-          {/* Voice feedback area */}
-          {voiceInput.isListening && (
-            <div className="gba:px-6 gba:py-3">
-              <VoiceVisualizer
-                volume={voiceInput.volume}
-                isListening={voiceInput.isListening}
-                interimText={voiceInput.interimTranscript}
-                data-testid={`${testId}-voice-visualizer`}
-              />
-            </div>
-          )}
-
-          {/* Text input area */}
-          <div className="gba:p-6 gba:space-y-3">
-            <Textarea
-              value={(currentSlide.elements.find(e => e.id === editingTextId) as TextElement)?.content || ''}
-              onChange={handleTextChange}
-              className={cn(
-                'gba:min-h-[200px] gba:text-lg gba:resize-none gba:transition-all gba:duration-200',
-                voiceInput.isListening && 'gba:border-primary gba:ring-2 gba:ring-primary/20',
-                voiceInput.error && !voiceInput.isListening && 'gba:border-amber-400'
-              )}
-              autoFocus={!voiceEditMode}
-              placeholder={
-                voiceInput.isListening
-                  ? t('editor-voice-listening') || 'Listening... Speak now'
-                  : t('editor-text-placeholder') || 'Enter your text here...'
-              }
-            />
-
-            {/* Subtle error hint - only when not listening */}
-            {voiceInput.error && !voiceInput.isListening && (
-              <p className="gba:text-xs gba:text-amber-600 gba:flex gba:items-center gba:gap-1.5">
-                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-amber-500" />
-                Voice input unavailable. Type manually or click Voice Input to retry.
-              </p>
-            )}
-          </div>
-
-          {/* Footer with actions */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t gba:bg-muted/30">
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {voiceInput.isListening ? (
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-red-500 gba:animate-pulse" />
-                  {t('editor-voice-recording') || 'Recording...'}
-                </span>
-              ) : voiceInput.isSupported && !voiceInput.error ? (
-                t('editor-voice-hint') || 'Tip: Click "Voice Input" to dictate'
-              ) : null}
-            </div>
-            <div className="gba:flex gba:gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (voiceInput.isListening) {
-                    voiceInput.stopListening()
-                  }
-                  setVoiceEditMode(false)
-                  finishTextEditing()
-                }}
-              >
-                {t('editor-cancel')}
-              </Button>
-              <Button variant="default" onClick={finishTextEditing}>
-                {t('editor-done')}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Image Dialog */}
       <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>

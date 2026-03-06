@@ -4,7 +4,7 @@
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react'
-import { ImageOff } from 'lucide-react'
+import { ImageOff, Mic, MicOff, Check } from 'lucide-react'
 import type {
   AnySlideElement,
   TextElement,
@@ -18,6 +18,21 @@ import type {
 } from './slideElements'
 import { gradientToCss } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
+
+interface InlineEditingProps {
+  editingTextId: string | null
+  onTextChange: (value: string) => void
+  onFinishEditing: () => void
+  voiceInput?: {
+    isListening: boolean
+    isSupported: boolean
+    volume: number
+    error: string | null
+    interimTranscript: string
+    startListening: () => void
+    stopListening: () => void
+  }
+}
 
 interface SlideCanvasProps {
   elements: AnySlideElement[]
@@ -39,6 +54,7 @@ interface SlideCanvasProps {
   onDragEnd?: () => void
   onElementClick?: (elementId: string) => void
   scale?: number
+  inlineEditing?: InlineEditingProps
 }
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -56,7 +72,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     onDragStart,
     onDragEnd,
     onElementClick,
-    scale = 1
+    scale = 1,
+    inlineEditing
   }) => {
     const canvasRef = useRef<HTMLDivElement>(null)
     const [isDragging, setIsDragging] = useState(false)
@@ -216,6 +233,16 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
       const target = e.target as HTMLElement
       const isClickOnElement = target.closest('[data-slide-element]')
+
+      // Finish inline editing if clicking outside the editing element
+      if (inlineEditing?.editingTextId) {
+        const editingElement = target.closest(`[data-element-id="${inlineEditing.editingTextId}"]`)
+        if (!editingElement) {
+          inlineEditing.onFinishEditing()
+          return
+        }
+      }
+
       if (!isClickOnElement && !isMarquee) {
         onSelectElements(new Set())
       }
@@ -774,27 +801,185 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     : (element as TextElement).verticalAlign === 'bottom'
                       ? 'flex-end'
                       : 'center',
-                overflow: 'hidden'
+                overflow: inlineEditing?.editingTextId === element.id ? 'visible' : 'hidden',
+                position: 'relative'
               }}
             >
-              <div
-                style={{
-                  width: '100%',
-                  fontFamily: (element as TextElement).fontFamily,
-                  fontSize: (element as TextElement).fontSize,
-                  fontWeight: (element as TextElement).fontWeight,
-                  fontStyle: (element as TextElement).fontStyle,
-                  textDecoration: (element as TextElement).textDecoration,
-                  textAlign: (element as TextElement).textAlign,
-                  color: (element as TextElement).color,
-                  lineHeight: (element as TextElement).lineHeight,
-                  letterSpacing: (element as TextElement).letterSpacing,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
-                }}
-              >
-                {(element as TextElement).content}
-              </div>
+              {inlineEditing?.editingTextId === element.id ? (
+                <>
+                  <textarea
+                    autoFocus
+                    value={(element as TextElement).content}
+                    onChange={e => inlineEditing.onTextChange(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        inlineEditing.onFinishEditing()
+                      }
+                    }}
+                    onClick={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      fontFamily: (element as TextElement).fontFamily,
+                      fontSize: (element as TextElement).fontSize,
+                      fontWeight: (element as TextElement).fontWeight,
+                      fontStyle: (element as TextElement).fontStyle,
+                      textDecoration: (element as TextElement).textDecoration,
+                      textAlign: (element as TextElement).textAlign,
+                      color: (element as TextElement).color,
+                      lineHeight: (element as TextElement).lineHeight,
+                      letterSpacing: (element as TextElement).letterSpacing,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      resize: 'none',
+                      padding: 0,
+                      margin: 0
+                    }}
+                  />
+                  {/* Inline editing toolbar */}
+                  <div
+                    className="gba:bg-background gba:rounded-lg gba:shadow-lg gba:border gba:border-border"
+                    style={{
+                      position: 'absolute',
+                      bottom: -50 / scale,
+                      left: '50%',
+                      transform: `translateX(-50%) scale(${1 / scale})`,
+                      transformOrigin: 'top center',
+                      display: 'flex',
+                      gap: 4,
+                      padding: '6px 8px',
+                      zIndex: 10000
+                    }}
+                    onClick={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
+                  >
+                    {inlineEditing.voiceInput?.isSupported && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          if (inlineEditing.voiceInput?.isListening) {
+                            inlineEditing.voiceInput.stopListening()
+                          } else {
+                            inlineEditing.voiceInput?.startListening()
+                          }
+                        }}
+                        className={`gba:flex gba:items-center gba:justify-center gba:gap-1 gba:h-8 gba:rounded-md gba:border-0 gba:cursor-pointer gba:transition-all gba:text-xs gba:font-medium ${
+                          inlineEditing.voiceInput?.isListening
+                            ? 'gba:bg-destructive gba:text-destructive-foreground gba:px-3 gba:animate-pulse'
+                            : 'gba:bg-muted gba:text-foreground gba:w-8'
+                        }`}
+                        title={inlineEditing.voiceInput?.isListening ? 'Stop voice input' : 'Start voice input'}
+                      >
+                        {inlineEditing.voiceInput?.isListening ? (
+                          <>
+                            <MicOff className="gba:w-3.5 gba:h-3.5" />
+                            <span>Stop</span>
+                          </>
+                        ) : (
+                          <Mic className="gba:w-4 gba:h-4" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (inlineEditing.voiceInput?.isListening) {
+                          inlineEditing.voiceInput.stopListening()
+                        }
+                        inlineEditing.onFinishEditing()
+                      }}
+                      className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-md gba:border-0 gba:cursor-pointer gba:bg-primary gba:text-primary-foreground gba:transition-all"
+                      title="Done editing"
+                    >
+                      <Check className="gba:w-4 gba:h-4" />
+                    </button>
+                  </div>
+                  {/* Voice feedback panel */}
+                  {inlineEditing.voiceInput?.isListening && (
+                    <div
+                      className="gba:bg-background gba:rounded-xl gba:shadow-xl gba:border gba:border-border"
+                      style={{
+                        position: 'absolute',
+                        top: -120 / scale,
+                        left: '50%',
+                        transform: `translateX(-50%) scale(${1 / scale})`,
+                        transformOrigin: 'bottom center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '12px 16px',
+                        minWidth: 200,
+                        maxWidth: 400,
+                        zIndex: 10000
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      onMouseDown={e => e.stopPropagation()}
+                    >
+                      {/* Recording status with volume bars */}
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:w-full">
+                        <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:bg-destructive/10 gba:rounded-md">
+                          <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse" />
+                          <span className="gba:text-xs gba:font-semibold gba:text-destructive">REC</span>
+                        </div>
+
+                        {/* Volume indicator bars */}
+                        <div className="gba:flex gba:items-end gba:gap-0.5 gba:h-5">
+                          {[0.15, 0.3, 0.5, 0.7, 0.85].map((threshold, i) => {
+                            const volume = inlineEditing.voiceInput?.volume || 0
+                            const isActive = volume > threshold
+                            return (
+                              <div
+                                key={i}
+                                className={`gba:w-1 gba:rounded-sm gba:transition-colors ${isActive ? 'gba:bg-green-500' : 'gba:bg-border'}`}
+                                style={{ height: 6 + i * 3 }}
+                              />
+                            )
+                          })}
+                        </div>
+
+                        <span className="gba:text-[11px] gba:text-muted-foreground gba:ml-auto">Speak now...</span>
+                      </div>
+
+                      {/* Interim transcript */}
+                      {inlineEditing.voiceInput?.interimTranscript && (
+                        <div className="gba:w-full gba:px-2.5 gba:py-2 gba:bg-muted gba:rounded-md gba:text-sm gba:text-foreground gba:italic gba:leading-relaxed gba:max-h-[60px] gba:overflow-hidden">
+                          "{inlineEditing.voiceInput.interimTranscript}"
+                        </div>
+                      )}
+
+                      {/* Hint */}
+                      <div className="gba:text-[11px] gba:text-muted-foreground">
+                        Click mic button or outside to stop
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    fontFamily: (element as TextElement).fontFamily,
+                    fontSize: (element as TextElement).fontSize,
+                    fontWeight: (element as TextElement).fontWeight,
+                    fontStyle: (element as TextElement).fontStyle,
+                    textDecoration: (element as TextElement).textDecoration,
+                    textAlign: (element as TextElement).textAlign,
+                    color: (element as TextElement).color,
+                    lineHeight: (element as TextElement).lineHeight,
+                    letterSpacing: (element as TextElement).letterSpacing,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {(element as TextElement).content}
+                </div>
+              )}
             </div>
           )}
 
