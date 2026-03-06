@@ -2,6 +2,7 @@ import React, { memo, useEffect, useMemo, useRef, useState, useCallback } from '
 import { createPortal } from 'react-dom'
 import { Button, Checkbox, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { BarChart3, X, Sparkles, Copy, RefreshCw, Download, Presentation } from 'lucide-react'
+import { toPng } from 'html-to-image'
 import {
   Area,
   AreaChart,
@@ -40,16 +41,6 @@ const CHART_COLORS = [
   'var(--nw-chart-4)',
   'var(--nw-chart-5)'
 ]
-
-/** Resolve CSS variable to hex/rgb for PNG export (canvas can't use CSS vars) */
-function resolveChartColor(index: number): string {
-  if (typeof document === 'undefined') return `hsl(${(index * 72) % 360}, 70%, 50%)`
-  const varName = `--nw-chart-${(index % 5) + 1}`
-  const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
-  if (value) return value
-  const fallbacks = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6']
-  return fallbacks[index % fallbacks.length]
-}
 
 export interface AnalyticsPanelProps {
   isOpen: boolean
@@ -383,49 +374,21 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   const getChartAsPngDataUrl = useCallback(async (): Promise<string | null> => {
     const container = chartContainerRef.current
     if (!container) return null
-    const chartEl = container.querySelector('[data-chart-export-target]') ?? container
-    const allSvg = Array.from(chartEl.querySelectorAll('svg')).filter(
-      (el): el is SVGElement => el instanceof SVGElement
-    )
-    let svg = allSvg.reduce<SVGElement | null>((best, el) => {
-      const n = el.querySelectorAll('path, line, rect, circle, text').length
-      const r = el.getBoundingClientRect()
-      if (r.width < 50 || r.height < 50) return best
-      if (!best) return el
-      const bestN = best.querySelectorAll('path, line, rect, circle, text').length
-      return n >= bestN ? el : best
-    }, null)
-    if (!svg && allSvg.length > 0) svg = allSvg[0]
-    if (!svg) return null
+    const chartEl = container
     try {
-      const clonedSvg = svg.cloneNode(true) as SVGElement
-      const rect = svg.getBoundingClientRect()
-      const w = Math.max(800, Math.round(rect.width))
-      const h = Math.max(400, Math.round(rect.height))
-      const viewBox = clonedSvg.getAttribute('viewBox')
-      clonedSvg.setAttribute('width', String(w))
-      clonedSvg.setAttribute('height', String(h))
-      if (!viewBox) clonedSvg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`)
-      if (!clonedSvg.getAttribute('xmlns')) clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-      let svgData = new XMLSerializer().serializeToString(clonedSvg)
-      svgData = svgData.replace(/var\(--nw-chart-(\d+)\)/g, (_, n) => resolveChartColor(Number(n) - 1))
-      svgData = svgData.replace(/var\(--[^)]+\)/g, '#333333')
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return null
-      canvas.width = w
-      canvas.height = h
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, w, h)
-      const img = new Image()
-      const svgDataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgData)}`
-      return await new Promise<string | null>((resolve, reject) => {
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, w, h)
-          resolve(canvas.toDataURL('image/png'))
+      const rect = chartEl.getBoundingClientRect()
+      const exportWidth = Math.max(1, Math.ceil(rect.width))
+      const exportHeight = Math.max(1, Math.ceil(rect.height))
+
+      return await toPng(chartEl, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        width: exportWidth,
+        height: exportHeight,
+        filter: node => {
+          if (!(node instanceof HTMLElement)) return true
+          return !node.classList.contains('recharts-tooltip-wrapper')
         }
-        img.onerror = () => reject(new Error('Failed to load SVG'))
-        img.src = svgDataUri
       })
     } catch (err) {
       console.error('[AnalyticsPanel] PNG export failed:', err)
