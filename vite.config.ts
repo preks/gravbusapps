@@ -1019,14 +1019,8 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
     ].filter(Boolean),
 
     define: {
-      // Expose NEXT_PUBLIC_* env vars to browser code so the env() utility can
-      // read them via dynamic process.env[key] access. Vite replaces the entire
-      // `process.env` reference with a literal object at compile time, which is
-      // the only way dynamic key lookups (process.env[key]) work in the browser.
-      'process.env': {
-        NODE_ENV: mode,
-        ...Object.fromEntries(Object.entries(env).filter(([k]) => k.startsWith('NEXT_PUBLIC_')))
-      }
+      // This replaces process.env.NODE_ENV with the current mode in the build output.
+      'process.env.NODE_ENV': JSON.stringify(mode)
       // globalThis.__APP_BUILD_INFO__ is handled by the prependBannerPlugin, so no need to define it here.
     },
     resolve: {
@@ -1089,10 +1083,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
           '@phosphor-icons/react',
           '@newwork/gravity-ui-catalog',
           'class-variance-authority',
-          '@univerjs/preset-sheets-core',
-          '@univerjs/preset-sheets-core/locales/en-US',
-          '@univerjs/core',
-          '@univerjs/presets',
           'lucide-react',
           'react',
           'react-dom',
@@ -1114,10 +1104,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
             zustand: 'zustand',
             '@newwork/gravity-ui-catalog': 'GravityUICatalog',
             'class-variance-authority': 'classVarianceAuthority',
-            '@univerjs/preset-sheets-core': 'UniverSheetsCorePreset',
-            '@univerjs/preset-sheets-core/locales/en-US': 'UniverPresetSheetsCoreEnUS',
-            '@univerjs/core': 'UniverCore',
-            '@univerjs/presets': 'UniverPresets',
             'lucide-react': 'lucideReact',
             'react-router-dom': 'reactRouterDom'
           },

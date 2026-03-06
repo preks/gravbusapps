@@ -9,17 +9,12 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import { execSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import { getScreenDirectories } from './utils/screenDiscovery.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 async function findAllScreenDirectories() {
   const uniqueDirs = new Set()
 
-  const projectRootDir = path.resolve(__dirname, '..')
-  const screenDirs = await getScreenDirectories({ cwd: projectRootDir })
+  const screenDirs = await getScreenDirectories({ cwd: process.cwd() })
 
   for (const dir of screenDirs) {
     // strip prefix 'src/business-apps/' to get publish path

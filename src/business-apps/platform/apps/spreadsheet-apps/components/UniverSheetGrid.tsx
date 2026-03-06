@@ -8,7 +8,6 @@
 import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo, useState } from 'react'
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
-import { CommandType } from '@univerjs/core'
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
 import type { DocumentParticipant, DocumentOperation } from '../../shared/services/CollaborationClient'
@@ -24,6 +23,7 @@ const CURSOR_OVERLAY_ROW_HEIGHT_PX = 23
 const CURSOR_OVERLAY_COL_WIDTH_PX = 73
 const CURSOR_OVERLAY_HEADER_HEIGHT_PX = 28
 const CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX = 48
+const UNIVER_COMMAND_TYPE_MUTATION = 2
 
 function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   if (!path || path.length === 0) return null
@@ -1063,7 +1063,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const t = event?.type
         // Only MUTATION (type 2) represents an actual data change. COMMAND (type 0)
         // includes selection/navigation commands which must not trigger snapshots.
-        if (t === CommandType.MUTATION) {
+        if (t === UNIVER_COMMAND_TYPE_MUTATION) {
           isDirtyRef.current = true
           hasEditedRef.current = true
           scheduleSnapshotCheckpoint()
