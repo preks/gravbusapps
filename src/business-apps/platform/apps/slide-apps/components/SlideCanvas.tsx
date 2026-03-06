@@ -843,13 +843,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                   />
                   {/* Inline editing toolbar */}
                   <div
-                    className="gba:bg-background gba:rounded-lg gba:shadow-lg gba:border gba:border-border"
+                    className="gba:bg-background/95 gba:backdrop-blur-sm gba:rounded-lg gba:shadow-lg gba:border gba:border-border"
                     style={{
                       position: 'absolute',
-                      bottom: -50 / scale,
-                      left: '50%',
-                      transform: `translateX(-50%) scale(${1 / scale})`,
-                      transformOrigin: 'top center',
+                      bottom: 8 / scale,
+                      right: 8 / scale,
+                      transform: `scale(${1 / scale})`,
+                      transformOrigin: 'bottom right',
                       display: 'flex',
                       gap: 4,
                       padding: '6px 8px',

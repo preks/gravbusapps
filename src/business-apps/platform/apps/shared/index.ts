@@ -45,10 +45,6 @@ export { VoiceInputButton, type VoiceInputButtonProps } from './components/voice
 export { VoiceVisualizer, type VoiceVisualizerProps } from './components/voice-input/VoiceVisualizer'
 export { normalizeDictationTranscript } from './utils/normalizeDictationTranscript'
 
-// Voice Input Components
-export { VoiceInputButton, type VoiceInputButtonProps } from './components/voice-input/VoiceInputButton'
-export { VoiceVisualizer, type VoiceVisualizerProps } from './components/voice-input/VoiceVisualizer'
-
 // Types
 export {
   type DimensionType,

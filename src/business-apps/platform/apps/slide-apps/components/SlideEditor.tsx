@@ -124,6 +124,45 @@ import { exportToPptx } from '../utils/exportUtils'
 import translations from '../_i18n'
 import type { TextElement } from './slideElements'
 
+/**
+ * Sanitizes a URL to prevent XSS attacks in media src attributes.
+ * Only allows safe protocols: https, http, data:image or data:video, blob, and relative paths.
+ */
+function sanitizeMediaUrl(url: string | undefined, allowedDataTypes: string[] = ['image/', 'video/']): string {
+  if (!url) return ''
+
+  const trimmedUrl = url.trim()
+  if (!trimmedUrl) return ''
+
+  // Allow relative paths
+  if (trimmedUrl.startsWith('/') || trimmedUrl.startsWith('./') || trimmedUrl.startsWith('../')) {
+    return trimmedUrl
+  }
+
+  // Allow blob URLs (from file uploads)
+  if (trimmedUrl.startsWith('blob:')) {
+    return trimmedUrl
+  }
+
+  // Allow data URLs but only for specified types
+  if (trimmedUrl.startsWith('data:')) {
+    const isAllowed = allowedDataTypes.some(type => trimmedUrl.startsWith(`data:${type}`))
+    return isAllowed ? trimmedUrl : ''
+  }
+
+  // Allow http/https URLs
+  try {
+    const parsedUrl = new URL(trimmedUrl)
+    if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+      return trimmedUrl
+    }
+  } catch {
+    return ''
+  }
+
+  return ''
+}
+
 export interface SlideEditorProps extends BusinessAppContextProps {
   slideId: string
   slide: SlideType
@@ -374,6 +413,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const editingTextIdRef = useRef<string | null>(null)
   const lastProcessedTranscriptRef = useRef<string>('')
   const currentEditingContentRef = useRef<string>('')
+  const updateElementRef = useRef<((id: string, updates: Partial<AnySlideElement>) => void) | null>(null)
 
   // Slide drag and drop state
   const [draggedSlideIndex, setDraggedSlideIndex] = useState<number | null>(null)
@@ -676,34 +716,58 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   })
 
-  // Voice input hook - updates text in real-time as speech is recognized
+  // Voice input hook - real-time speech recognition
   const voiceInput = useVoiceInput({
     language: 'en-US',
     continuous: true,
     interimResults: true,
-    onTranscript: (transcript: string) => {
-      const currentEditingId = editingTextIdRef.current
-      if (currentEditingId && transcript) {
-        const lastProcessed = lastProcessedTranscriptRef.current
-        let newPortion = transcript
-
-        // Extract only the new portion of the transcript (delta)
-        if (lastProcessed && transcript.toLowerCase().startsWith(lastProcessed.toLowerCase())) {
-          newPortion = transcript.slice(lastProcessed.length).trim()
-        }
-
-        if (newPortion) {
-          // Get current content (includes any manual keyboard edits)
-          const currentContent = currentEditingContentRef.current
-          const newContent = currentContent ? `${currentContent} ${newPortion}` : newPortion
-          updateElement(currentEditingId, { content: newContent })
-          currentEditingContentRef.current = newContent
-        }
-
-        lastProcessedTranscriptRef.current = transcript
-      }
-    }
+    autoStopOnSilence: false
   })
+
+  // Track previous listening state to detect when voice input stops
+  const wasListeningRef = useRef(false)
+
+  // Update text in real-time based on voice input transcript
+  useEffect(() => {
+    const currentEditingId = editingTextIdRef.current
+    if (!currentEditingId) return
+
+    const isListening = voiceInput.isListening
+    const wasListening = wasListeningRef.current
+
+    // When voice input just stopped, commit the final transcript
+    if (wasListening && !isListening) {
+      wasListeningRef.current = false
+      const finalTranscript = voiceInput.transcript
+      if (finalTranscript) {
+        const baseContent = voiceBaseContentRef.current
+        const newContent = baseContent ? `${baseContent} ${finalTranscript}` : finalTranscript
+        updateElementRef.current?.(currentEditingId, { content: newContent })
+        currentEditingContentRef.current = newContent
+      }
+      return
+    }
+
+    // While listening, show live preview with interim transcript
+    if (isListening) {
+      wasListeningRef.current = true
+
+      // Combine finalized transcript with current interim for live preview
+      const combinedTranscript = voiceInput.transcript
+        ? voiceInput.interimTranscript
+          ? `${voiceInput.transcript} ${voiceInput.interimTranscript}`
+          : voiceInput.transcript
+        : voiceInput.interimTranscript || ''
+
+      if (!combinedTranscript) return
+
+      const baseContent = voiceBaseContentRef.current
+      const newContent = baseContent ? `${baseContent} ${combinedTranscript}` : combinedTranscript
+
+      updateElementRef.current?.(currentEditingId, { content: newContent })
+      // Don't update currentEditingContentRef here - keep it as the base for consistency
+    }
+  }, [voiceInput.transcript, voiceInput.interimTranscript, voiceInput.isListening])
 
   // Stop voice input when dialog closes
   useEffect(() => {
@@ -757,6 +821,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     },
     [canEdit, currentSlideIndex, updateCollaborativeElement]
   )
+
+  // Keep ref up-to-date so voice input callback always has the latest updateElement
+  useEffect(() => {
+    updateElementRef.current = updateElement
+  }, [updateElement])
 
   const updateMultipleElements = useCallback(
     (updates: { id: string; updates: Partial<AnySlideElement> }[]) => {
@@ -2410,7 +2479,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                               </div>
                             )}
                             {el.type === 'image' && (
-                              <img src={(el as any).src} alt="" className="gba:w-full gba:h-full gba:object-cover" />
+                              <img
+                                src={sanitizeMediaUrl((el as any).src, ['image/'])}
+                                alt=""
+                                className="gba:w-full gba:h-full gba:object-cover"
+                              />
                             )}
                             {el.type === 'chart' && (
                               <SlideChartRenderer
@@ -2557,6 +2630,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     error: voiceInput.error,
                     interimTranscript: voiceInput.interimTranscript,
                     startListening: () => {
+                      // Capture current content as base for voice input
+                      voiceBaseContentRef.current = currentEditingContentRef.current
+                      lastProcessedTranscriptRef.current = ''
                       voiceInput.startListening()
                     },
                     stopListening: voiceInput.stopListening
@@ -2790,7 +2866,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               >
                 {currentSlide.background.type === 'video' && (
                   <video
-                    src={currentSlide.background.videoUrl}
+                    src={sanitizeMediaUrl(currentSlide.background.videoUrl, ['video/'])}
                     autoPlay
                     loop
                     muted

@@ -53,6 +53,48 @@ import { FONT_FAMILIES, FONT_SIZES, COLOR_PRESETS, PRESET_GRADIENTS, CHART_TYPES
 import { GradientBuilder } from './GradientBuilder'
 import translations from '../_i18n'
 
+/**
+ * Sanitizes a URL to prevent XSS attacks in img src attributes.
+ * Only allows safe protocols: https, http, data:image, blob, and relative paths.
+ */
+function sanitizeImageUrl(url: string | undefined): string {
+  if (!url) return ''
+
+  const trimmedUrl = url.trim()
+  if (!trimmedUrl) return ''
+
+  // Allow relative paths
+  if (trimmedUrl.startsWith('/') || trimmedUrl.startsWith('./') || trimmedUrl.startsWith('../')) {
+    return trimmedUrl
+  }
+
+  // Allow blob URLs (from file uploads)
+  if (trimmedUrl.startsWith('blob:')) {
+    return trimmedUrl
+  }
+
+  // Allow data URLs but only for images
+  if (trimmedUrl.startsWith('data:')) {
+    if (trimmedUrl.startsWith('data:image/')) {
+      return trimmedUrl
+    }
+    return ''
+  }
+
+  // Allow http/https URLs
+  try {
+    const parsedUrl = new URL(trimmedUrl)
+    if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+      return trimmedUrl
+    }
+  } catch {
+    // Invalid URL format
+    return ''
+  }
+
+  return ''
+}
+
 interface PropertyPanelProps {
   element: AnySlideElement | null
   onUpdate: (updates: Partial<AnySlideElement>) => void
@@ -555,7 +597,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             {/* Current image preview */}
             <div className="gba:w-full gba:h-20 gba:rounded gba:overflow-hidden gba:bg-muted gba:border">
-              <img src={imageElement.src} alt="" className="gba:w-full gba:h-full gba:object-contain" />
+              <img
+                src={sanitizeImageUrl(imageElement.src)}
+                alt=""
+                className="gba:w-full gba:h-full gba:object-contain"
+              />
             </div>
 
             {/* Replace image button */}
