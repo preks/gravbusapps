@@ -1,5 +1,4 @@
 import html2canvas from 'html2canvas-pro'
-import { grabHdFrame, initHdCapture, isHdCaptureActive } from './hdCapture'
 
 export type DevReportScreenshot = {
   dataUrl: string
@@ -11,14 +10,6 @@ export type DevReportScreenshot = {
 function safeMessage(e: unknown): string {
   if (e instanceof Error) return `${e.name}: ${e.message}`.slice(0, 500)
   return String(e).slice(0, 500)
-}
-
-async function captureViaHd(): Promise<{ screenshot: DevReportScreenshot | null; error?: string }> {
-  if (!isHdCaptureActive()) {
-    const ok = await initHdCapture()
-    if (!ok) return { screenshot: null, error: 'hd_init_failed' }
-  }
-  return grabHdFrame()
 }
 
 function captureVideoFrames(): Map<number, string> {
@@ -83,106 +74,99 @@ function boostAlpha(rgba: string, minAlpha = 0.85): string {
   return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${boosted})`
 }
 
-async function captureViaHtml2Canvas(): Promise<{ screenshot: DevReportScreenshot | null; error?: string }> {
-  const width = Math.max(1, window.innerWidth || 0)
-  const height = Math.max(1, window.innerHeight || 0)
-  const videoFrames = captureVideoFrames()
-  const posterUrls = getVideoPosterUrls()
-  const backdropEls = collectBackdropElements()
-
-  const canvas = await html2canvas(document.body, {
-    width,
-    height,
-    windowWidth: width,
-    windowHeight: height,
-    x: window.scrollX,
-    y: window.scrollY,
-    scale: 1,
-    useCORS: true,
-    allowTaint: false,
-    logging: false,
-    imageTimeout: 3000,
-    removeContainer: true,
-    backgroundColor: null,
-    ignoreElements: (el: Element) => {
-      try {
-        if (el.getAttribute?.('data-radix-portal') != null) return true
-        const testId = el.getAttribute?.('data-testid')
-        if (typeof testId === 'string' && testId.startsWith('dev-report')) return true
-      } catch {
-        // ignore
-      }
-      return false
-    },
-    onclone: (clonedDoc: Document) => {
-      try {
-        const patchCss = clonedDoc.createElement('style')
-        patchCss.textContent = '* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }'
-        clonedDoc.head.appendChild(patchCss)
-
-        const allCloned = clonedDoc.querySelectorAll('*')
-        backdropEls.forEach((bg, idx) => {
-          const el = allCloned[idx] as HTMLElement | undefined
-          if (el?.style && bg) el.style.backgroundColor = boostAlpha(bg)
-        })
-
-        clonedDoc.querySelectorAll('video').forEach((clonedVideo, idx) => {
-          const frameUrl = videoFrames.get(idx)
-          const posterUrl = posterUrls.get(idx)
-          const parent = clonedVideo.parentElement
-          if (parent) {
-            if (frameUrl) {
-              parent.style.backgroundImage = `url(${frameUrl})`
-              parent.style.backgroundSize = 'cover'
-              parent.style.backgroundPosition = 'center'
-            } else if (posterUrl) {
-              parent.style.backgroundImage = `url(${posterUrl})`
-              parent.style.backgroundSize = 'cover'
-              parent.style.backgroundPosition = 'center'
-            } else {
-              parent.style.backgroundColor = '#1a1a2e'
-            }
-          }
-          clonedVideo.style.display = 'none'
-        })
-
-        clonedDoc.querySelectorAll('img').forEach(img => {
-          const src = img.getAttribute('src') || ''
-          if (!src || src.startsWith('data:') || src.startsWith('blob:')) return
-          try {
-            const u = new URL(src, window.location.origin)
-            if (u.origin !== window.location.origin) {
-              img.removeAttribute('src')
-              img.style.visibility = 'hidden'
-            }
-          } catch {
-            img.removeAttribute('src')
-          }
-        })
-      } catch {
-        // ignore
-      }
-    }
-  })
-
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.75)
-  if (!dataUrl || dataUrl === 'data:,' || dataUrl.length > 4_000_000) {
-    return { screenshot: null, error: 'screenshot_too_large' }
-  }
-  return { screenshot: { dataUrl, mimeType: 'image/jpeg', width, height } }
-}
-
-export async function captureDevReportScreenshot(
-  useHd = false
-): Promise<{ screenshot: DevReportScreenshot | null; error?: string }> {
+export async function captureDevReportScreenshot(): Promise<{
+  screenshot: DevReportScreenshot | null
+  error?: string
+}> {
   if (typeof window === 'undefined' || typeof document === 'undefined') return { screenshot: null, error: 'no_dom' }
 
   try {
-    if (useHd) {
-      const hd = await captureViaHd()
-      if (hd.screenshot) return hd
+    const width = Math.max(1, window.innerWidth || 0)
+    const height = Math.max(1, window.innerHeight || 0)
+    const videoFrames = captureVideoFrames()
+    const posterUrls = getVideoPosterUrls()
+    const backdropEls = collectBackdropElements()
+
+    const canvas = await html2canvas(document.body, {
+      width,
+      height,
+      windowWidth: width,
+      windowHeight: height,
+      x: window.scrollX,
+      y: window.scrollY,
+      scale: 1,
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      imageTimeout: 3000,
+      removeContainer: true,
+      backgroundColor: null,
+      ignoreElements: (el: Element) => {
+        try {
+          if (el.getAttribute?.('data-radix-portal') != null) return true
+          const testId = el.getAttribute?.('data-testid')
+          if (typeof testId === 'string' && testId.startsWith('dev-report')) return true
+        } catch {
+          // ignore
+        }
+        return false
+      },
+      onclone: (clonedDoc: Document) => {
+        try {
+          const patchCss = clonedDoc.createElement('style')
+          patchCss.textContent = '* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }'
+          clonedDoc.head.appendChild(patchCss)
+
+          const allCloned = clonedDoc.querySelectorAll('*')
+          backdropEls.forEach((bg, idx) => {
+            const el = allCloned[idx] as HTMLElement | undefined
+            if (el?.style && bg) el.style.backgroundColor = boostAlpha(bg)
+          })
+
+          clonedDoc.querySelectorAll('video').forEach((clonedVideo, idx) => {
+            const frameUrl = videoFrames.get(idx)
+            const posterUrl = posterUrls.get(idx)
+            const parent = clonedVideo.parentElement
+            if (parent) {
+              if (frameUrl) {
+                parent.style.backgroundImage = `url(${frameUrl})`
+                parent.style.backgroundSize = 'cover'
+                parent.style.backgroundPosition = 'center'
+              } else if (posterUrl) {
+                parent.style.backgroundImage = `url(${posterUrl})`
+                parent.style.backgroundSize = 'cover'
+                parent.style.backgroundPosition = 'center'
+              } else {
+                parent.style.backgroundColor = '#1a1a2e'
+              }
+            }
+            clonedVideo.style.display = 'none'
+          })
+
+          clonedDoc.querySelectorAll('img').forEach(img => {
+            const src = img.getAttribute('src') || ''
+            if (!src || src.startsWith('data:') || src.startsWith('blob:')) return
+            try {
+              const u = new URL(src, window.location.origin)
+              if (u.origin !== window.location.origin) {
+                img.removeAttribute('src')
+                img.style.visibility = 'hidden'
+              }
+            } catch {
+              img.removeAttribute('src')
+            }
+          })
+        } catch {
+          // ignore
+        }
+      }
+    })
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.75)
+    if (!dataUrl || dataUrl === 'data:,' || dataUrl.length > 4_000_000) {
+      return { screenshot: null, error: 'screenshot_too_large' }
     }
-    return captureViaHtml2Canvas()
+    return { screenshot: { dataUrl, mimeType: 'image/jpeg', width, height } }
   } catch (e) {
     return { screenshot: null, error: safeMessage(e) }
   }

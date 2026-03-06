@@ -36,6 +36,15 @@ content_link_copied = Link copiat în clipboard
 no_image = Fără imagine
 content_image = Imagine conținut
 
+# AI Translation button (shared by portal and content record)
+ai-translation-language = Limbă
+ai-translation-detecting = Se detectează...
+ai-translation-translating = Se traduce...
+ai-translation-select-target = Selectează limba țintă
+ai-translation-search-placeholder = Caută limbi...
+ai-translation-no-languages-found = Nu s-au găsit limbi
+ai-translation-no-languages-available = Nu există limbi disponibile
+
 # Comments & Interactions
 comment = comentariu
 comments = comentarii

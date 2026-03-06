@@ -103,8 +103,8 @@ intranet_image = Imagine intranet
 document_image = Imagine document
 
 # Engagement
-engagement = Engagement
-engagement-dashboard-title = Dashboard Engagement
+engagement = Interacțiuni
+engagement-dashboard-title = Dashboard Interacțiuni
 engagement-dashboard-subtitle = Urmărește activitatea și contribuțiile tale
 current-level = Nivel Curent
 progress-to-next-level = Progres către următorul nivel
