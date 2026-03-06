@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react'
 import { Button, message } from 'antd'
-import { SaveOutlined, SendOutlined } from '@ant-design/icons'
+import { FloppyDiskIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFlowTemplateStore } from '../hooks/useFlowTemplateStore'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
@@ -128,13 +128,13 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
         className="gba:flex gba:justify-end gba:gap-4 gba:mt-8 gba:pt-6 gba:border-t gba:border-gray-200"
         data-testid="form-actions"
       >
-        <Button icon={<SaveOutlined />} onClick={handleSaveDraft} loading={isSaving} data-testid="save-draft-button">
+        <Button icon={<FloppyDiskIcon size={16} />} onClick={handleSaveDraft} loading={isSaving} data-testid="save-draft-button">
           {getTranslationFromI18nKeyAndLabel('flow.creator.saveDraft', 'Save Draft')}
         </Button>
 
         <Button
           type="primary"
-          icon={<SendOutlined />}
+          icon={<PaperPlaneTiltIcon size={16} />}
           onClick={handlePublish}
           loading={isSaving}
           disabled={!isValid}

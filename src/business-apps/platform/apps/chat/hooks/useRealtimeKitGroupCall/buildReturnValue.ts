@@ -32,6 +32,8 @@ export function buildReturnValue(params: {
     inviteToCall: (participants: any[], conversationName?: string) => void
     reconnectParticipant: (participantId: string) => Promise<void>
   }
+  /** When in setup/joining, use this so PreCall dialog shows meeting participants; otherwise use participantsHook.participants */
+  participantsForDisplay?: any[]
   screenShare: { toggleScreenShare: () => Promise<boolean> }
   websocket: { sendReaction: (emoji: string) => Promise<void> }
   activeSpeaker: { activeSpeakerId: string | null; activeSpeakerHistory: string[] }
@@ -75,6 +77,7 @@ export function buildReturnValue(params: {
     isHost,
     media,
     participantsHook,
+    participantsForDisplay,
     screenShare,
     websocket,
     activeSpeaker,
@@ -106,7 +109,7 @@ export function buildReturnValue(params: {
     isHost,
     localStream: media.localStream,
     remoteStreams: participantsHook.remoteStreams,
-    participants: participantsHook.participants,
+    participants: participantsForDisplay ?? participantsHook.participants,
     pendingInvites: participantsHook.pendingInvites,
     incomingInvite,
     isRingingLeader,

@@ -36,7 +36,6 @@
     "postinstall": "cursor-rules sync --silent && node ./scripts/setup-custom-git-hooks.js"
   },
   "dependencies": {
-    "@ant-design/icons": "^5.0.0",
     "@cloudflare/realtimekit": "^1.0.0",
     "@cloudflare/realtimekit-react": "^1.0.0",
     "@cloudflare/realtimekit-virtual-background": "^0.0.2",
@@ -55,7 +54,6 @@
     "@newwork/gravity-ui-catalog": "^7.10.29",
     "@newwork/nw-design-system": "^0.84.0-564",
     "@newwork/remote-component-loader": "^0.1.4",
-    "@remixicon/react": "^4.6.0",
     "@tiptap/extension-bubble-menu": "^3.15.3",
     "@tiptap/extension-character-count": "^3.15.3",
     "@tiptap/extension-collaboration": "^3.15.3",
@@ -98,7 +96,8 @@
     "emoji-picker-react": "^4.16.1",
     "exceljs": "^4.4.0",
     "featurehub-javascript-client-sdk": "^1.4.0",
-    "html-to-image": "1.11.11",
+    "html-to-image": "^1.11.13",
+    "html2canvas-pro": "^2.0.2",
     "i18next": "^25.2.1",
     "i18next-browser-languagedetector": "^8.1.0",
     "jszip": "^3.10.1",

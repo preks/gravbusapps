@@ -1,7 +1,6 @@
 import React from 'react'
 import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
-import { ArrowUpOutlined, GlobalOutlined } from '@ant-design/icons'
-import { CurrencyCircleDollarIcon } from '@phosphor-icons/react'
+import { ArrowUpIcon, GlobeIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { calculatePercentChange } from '../utils/formatters'
 import { DashboardStats } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -115,7 +114,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       key: 'upcoming-trips',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips', 'Upcoming Trips'),
       value: stats.upcomingTrips || 0,
-      prefix: <GlobalOutlined />,
+      prefix: <GlobeIcon size={16} />,
       color: '#722ed1',
       footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.planned_business_trips',
@@ -130,7 +129,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
         'Unallocated Expenses'
       ),
       value: stats.pendingItems || 0,
-      prefix: <ArrowUpOutlined />,
+      prefix: <ArrowUpIcon size={16} />,
       color: '#8c8c8c',
       valueIsString: true,
       footer: getTranslationFromI18nKeyAndLabel(

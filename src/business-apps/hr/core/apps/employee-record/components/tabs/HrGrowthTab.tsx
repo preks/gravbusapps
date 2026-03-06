@@ -103,7 +103,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    if (!devFeatureFlag && (activeSubView === 'feedback' || activeSubView === 'performanceEvaluation')) {
+    if (!devFeatureFlag && activeSubView === 'performanceEvaluation') {
       const newSubView = 'skills'
       setActiveSubView(newSubView)
       updateUrl(newSubView)
@@ -165,14 +165,12 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               <span>{t('hr-growth-skills')}</span>
             </div>
           </TabsTrigger>
-          {devFeatureFlag && (
-            <TabsTrigger value="feedback" data-testid="hr-growth-feedback-subtab" className="gba:flex-1">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <ChatCircleIcon />
-                <span>{t('hr-growth-feedback')}</span>
-              </div>
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="feedback" data-testid="hr-growth-feedback-subtab" className="gba:flex-1">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <ChatCircleIcon />
+              <span>{t('hr-growth-feedback')}</span>
+            </div>
+          </TabsTrigger>
           {(permissionsLoading ||
             employeeRecordAllHrBackoffice.loading ||
             employeeGrowthPermission.loading ||
@@ -211,18 +209,16 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
           )}
         </TabsContent>
 
-        {devFeatureFlag && (
-          <TabsContent value="feedback" data-testid="hr-growth-feedback-content" className="gba:mt-4">
-            <FeedbackTab
-              employee={employee}
-              accessToken={accessToken}
-              employeeId={employeeId}
-              userInfo={userInfo}
-              employeeFeedback={feedback}
-              isSelfView={isSelfView}
-            />
-          </TabsContent>
-        )}
+        <TabsContent value="feedback" data-testid="hr-growth-feedback-content" className="gba:mt-4">
+          <FeedbackTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeId}
+            userInfo={userInfo}
+            employeeFeedback={feedback}
+            isSelfView={isSelfView}
+          />
+        </TabsContent>
 
         {hasPerformancePermission && (
           <TabsContent value="performance" data-testid="hr-growth-performance-content" className="gba:mt-4">

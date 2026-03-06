@@ -61,6 +61,21 @@ export type {
 } from './views'
 
 export type {
+  ConnectorSummary,
+  ConnectorAction,
+  ConnectorInvokePayload,
+  ConnectorField,
+  ConnectorSchemaResult,
+  ConnectorPageResult,
+  ExternalDataSourceConfig,
+  SyncRunStatus,
+  SyncRun,
+  ExternalPreviewRequest,
+  ExternalPreviewResponse,
+  ExternalStartSyncRequest
+} from './externalConnector'
+
+export type {
   AggregationFn,
   TimeBucket,
   MetricDef,

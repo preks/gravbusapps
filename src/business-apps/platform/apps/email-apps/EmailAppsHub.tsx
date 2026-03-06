@@ -110,6 +110,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [starredOnly, setStarredOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([])
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
   const [threadViewEnabled, setThreadViewEnabled] = useState(() => {
@@ -148,6 +149,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     toggleStar,
     deleteMessage,
     moveToFolder,
+    updateMessageLabels,
     loadMore,
     refreshMessages
   } = useEmails({
@@ -155,6 +157,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     folderId: selectedFolderId || undefined,
     accountId: defaultAccount?.id,
     search: searchQuery || undefined,
+    labels: selectedLabels.length ? selectedLabels : undefined,
     starredOnly,
     threadView: threadViewEnabled
   })
@@ -240,6 +243,67 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       addRecentRecipients(recipients)
     },
     [addRecentRecipients]
+  )
+
+  const handleReplyFromList = useCallback(
+    async (messageId: string) => {
+      try {
+        const message = await EmailApiService.getMessage(messageId)
+        handleCompose('reply', message)
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [handleCompose, t]
+  )
+
+  const handleReplyAllFromList = useCallback(
+    async (messageId: string) => {
+      try {
+        const message = await EmailApiService.getMessage(messageId)
+        handleCompose('reply-all', message)
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [handleCompose, t]
+  )
+
+  const handleForwardFromList = useCallback(
+    async (messageId: string) => {
+      try {
+        const message = await EmailApiService.getMessage(messageId)
+        handleCompose('forward', message)
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [handleCompose, t]
+  )
+
+  const handleToggleReadFromList = useCallback(
+    async (messageId: string, isRead: boolean) => {
+      try {
+        await EmailApiService.markRead(messageId, isRead)
+        await refreshMessages()
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [refreshMessages, t]
+  )
+
+  const handleMessageLabelsUpdatedFromList = useCallback(
+    (messageId: string, labels?: string[]) => {
+      if (labels) {
+        updateMessageLabels(messageId, labels)
+        return
+      }
+      if (selectedMessage?.id === messageId) {
+        void selectMessage(messageId)
+      }
+    },
+    [updateMessageLabels, selectedMessage?.id, selectMessage]
   )
 
   // Auto-select inbox when folders load
@@ -334,9 +398,18 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         total={total}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        selectedLabels={selectedLabels}
+        onLabelsChange={setSelectedLabels}
         onSelectMessage={selectMessage}
         onToggleStar={toggleStar}
+        onReply={handleReplyFromList}
+        onReplyAll={handleReplyAllFromList}
+        onForward={handleForwardFromList}
+        onToggleRead={handleToggleReadFromList}
+        onArchive={handleArchive}
+        onDelete={deleteMessage}
         onRefresh={refreshMessages}
+        onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
         onLoadMore={loadMore}
         folderName={currentFolderName}
       />
@@ -348,6 +421,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onDelete={deleteMessage}
         onToggleStar={toggleStar}
         onArchive={handleArchive}
+        onRefreshMessages={refreshMessages}
+        onMessageLabelsUpdated={handleMessageLabelsUpdatedFromList}
         accessToken={accessToken}
         activeAccount={defaultAccount}
         employeeId={userInfo?.employeeDetails?.employeeId}

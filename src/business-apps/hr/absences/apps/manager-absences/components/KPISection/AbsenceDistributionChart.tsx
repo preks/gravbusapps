@@ -1,5 +1,5 @@
 import React from 'react'
-import { RiPieChart2Line } from '@remixicon/react'
+import { ChartPieIcon } from '@phosphor-icons/react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -74,7 +74,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
             )}
           </div>
         </div>
-        <RiPieChart2Line className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
+        <ChartPieIcon size={24} className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
       </div>
       <div className="gba:h-[415px] gba:w-full gba:px-6 gba:pb-6">
         <ResponsiveContainer width="100%" height="100%">

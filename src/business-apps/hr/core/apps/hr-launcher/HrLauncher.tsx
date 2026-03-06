@@ -15,9 +15,7 @@ import { HrArea, HrQuickAction } from './types'
 import { useHrStats } from './hooks/useHrStats'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { startProcess } from '@/common/utils/start-process'
-import * as RemixIcons from '@remixicon/react'
-// Import PhosphorIcons for LauncherLayout
-import { UsersIcon } from '@phosphor-icons/react'
+import { UsersIcon, WarningIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 
 const moduleColor = MODULE_COLORS.HR
@@ -233,13 +231,13 @@ const HrLauncher: React.FC<BusinessAppContextProps> = context => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-decorative-1">
         <div className="max-w-md mx-auto p-6">
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
-            <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
+            <WarningIcon size={16} className="h-4 w-4" />
             <AlertTitle>Error Loading Data</AlertTitle>
             <AlertDescription>
               {error}
               <div className="mt-2">
                 <Button size="sm" variant="outline" onClick={refetch}>
-                  <RemixIcons.RiRefreshLine className="h-4 w-4 mr-1" />
+                  <ArrowsClockwiseIcon size={16} className="h-4 w-4 mr-1" />
                   Retry
                 </Button>
               </div>

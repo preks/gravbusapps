@@ -1,24 +1,21 @@
 /**
- * Icon-based reactions picker. Reusable in call controls and chat (message reactions).
+ * Emoji-based reactions picker. Reusable in call controls and chat (message reactions).
  */
 
 import React from 'react'
-import { ThumbsUpIcon, HeartIcon, SmileyIcon, HandsClappingIcon, StarIcon } from '@phosphor-icons/react'
 
 export interface ReactionOption {
   id: string
   label: string
-  Icon: React.ElementType
-  /** Design token text color class (e.g. gba:text-success) */
-  colorClass: string
+  emoji: string
 }
 
 export const REACTIONS: ReactionOption[] = [
-  { id: 'thumbs-up', label: 'Thumbs up', Icon: ThumbsUpIcon, colorClass: 'gba:text-success' },
-  { id: 'heart', label: 'Heart', Icon: HeartIcon, colorClass: 'gba:text-destructive' },
-  { id: 'laugh', label: 'Laugh', Icon: SmileyIcon, colorClass: 'gba:text-warning' },
-  { id: 'clap', label: 'Clap', Icon: HandsClappingIcon, colorClass: 'gba:text-primary' },
-  { id: 'party', label: 'Party', Icon: StarIcon, colorClass: 'gba:text-info' }
+  { id: 'thumbs-up', label: 'Thumbs up', emoji: '👍' },
+  { id: 'heart', label: 'Heart', emoji: '❤️' },
+  { id: 'laugh', label: 'Laugh', emoji: '😄' },
+  { id: 'clap', label: 'Clap', emoji: '👏' },
+  { id: 'party', label: 'Party', emoji: '⭐' }
 ]
 
 export type ReactionsPickerLayout = 'inline' | 'grid'
@@ -32,8 +29,6 @@ export interface ReactionsPickerProps {
   sectionLabel?: string
 }
 
-const iconSize = 28
-
 export const ReactionsPicker: React.FC<ReactionsPickerProps> = ({
   onSelect,
   layout = 'inline',
@@ -45,21 +40,23 @@ export const ReactionsPicker: React.FC<ReactionsPickerProps> = ({
 
   const buttons = (
     <>
-      {REACTIONS.map(({ id, label, Icon, colorClass }) => (
+      {REACTIONS.map(({ id, label, emoji }) => (
         <button
           key={id}
           type="button"
           onClick={() => onSelect(id)}
           className={
             layout === 'inline'
-              ? `gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-all gba:flex gba:items-center gba:justify-center ${colorClass}`
-              : `gba:aspect-square gba:p-3 gba:rounded-xl hover:gba:bg-accent gba:transition-all gba:flex gba:items-center gba:justify-center hover:gba:scale-110 active:gba:scale-95 ${colorClass}`
+              ? 'gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-all gba:flex gba:items-center gba:justify-center'
+              : 'gba:aspect-square gba:p-3 gba:rounded-xl hover:gba:bg-accent gba:transition-all gba:flex gba:items-center gba:justify-center hover:gba:scale-110 active:gba:scale-95'
           }
           title={`Send ${label}`}
           data-testid={`${prefixDataTestId}-reaction-${id}${suffix}`}
           aria-label={`Send ${label} reaction`}
         >
-          <Icon size={iconSize} weight="fill" className="gba:shrink-0" />
+          <span className="gba:text-2xl gba:shrink-0 gba:leading-none" aria-hidden>
+            {emoji}
+          </span>
         </button>
       ))}
     </>

@@ -218,7 +218,7 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
                 <Card
                   key={item.key}
                   variant="outlined"
-                  className={`gba:relative gba:cursor-pointer gba:transition-colors gba:duration-200 gba:ease-out gba:flex-shrink-0 ${isHovered ? 'gba:bg-card-decorative gba:border-decorative-foreground/30' : 'gba:bg-background hover:gba:bg-primary/5 hover:gba:border-primary/20'}`}
+                  className={`gba:relative gba:cursor-default gba:transition-colors gba:duration-200 gba:ease-out gba:flex-shrink-0 ${isHovered ? 'gba:bg-card-decorative gba:border-decorative-foreground/30' : 'gba:bg-background'}`}
                   onMouseEnter={() => setHoveredType(item.key)}
                   onMouseLeave={() => setHoveredType(null)}
                   data-testid={`${testId}-stat-${item.key}`}

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { getAndClearPendingStartCall } from '../pendingStartCallFromPlatform'
+import { setPendingJoinMeeting } from '../pendingJoinMeetingFromPlatform'
 
 type CallType = 'audio' | 'video'
 
@@ -178,6 +179,9 @@ export const useStartCallFromPlatform = ({
 
       // Use conversationId if available, otherwise use meetingId as the room identifier
       const roomId = conversationId || meetingId
+
+      // Store so rejoin modal can show transcription message when conversation lacks metadata.meetingId
+      if (meetingId && roomId) setPendingJoinMeeting(meetingId, roomId)
 
       // Join the calendar meeting with video by default
       // Pass the meetingId as calendarMeetingId so the call is linked to the calendar event

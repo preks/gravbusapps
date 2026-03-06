@@ -158,12 +158,12 @@ export const WidgetCardWrapper: React.FC<WidgetCardWrapperProps> = ({
         </div>
       )}
 
-      <CardHeader className="gba:pb-1">
-        <CardTitle className="gba:text-xs gba:font-normal gba:text-muted-foreground gba:pr-16">
+      <CardHeader className="gba:pb-1 gba:pt-3.5">
+        <CardTitle className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:pr-16 gba:tracking-wide">
           {widget.title}
         </CardTitle>
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="gba:pb-4">{children}</CardContent>
     </Card>
   )
 }
