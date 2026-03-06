@@ -143,6 +143,15 @@ export const useOrchestratorHandlers = ({
           case 'plan_ready':
             stepIndex = 3
             break
+          case 'session_created':
+            // Extract session info immediately so chat can be saved
+            if (event.metadata && typeof event.metadata === 'object') {
+              const meta = event.metadata as { sessionId?: string; repoId?: string }
+              if (meta.sessionId && meta.repoId) {
+                orchestratorClient.setSessionFromBuild(meta.sessionId, meta.repoId)
+              }
+            }
+            return
           case 'error':
             if (detail) {
               state.setCapturedBuildError(detail)

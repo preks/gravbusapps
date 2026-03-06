@@ -112,6 +112,7 @@ import {
 } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
 
+/** Must stay in sync with ai-builder-service APP_ICON_NAMES (app-icons.ts). */
 const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   Users,
   UserPlus,
@@ -238,6 +239,6 @@ function normalizeIconName(name: string | undefined): string | undefined {
 
 export function AppIcon({ name, ...props }: AppIconProps) {
   const key = normalizeIconName(name)
-  const Icon = (key && ICON_MAP[key]) || Sparkles
+  const Icon = (key && ICON_MAP[key]) || Layers
   return <Icon {...props} />
 }
