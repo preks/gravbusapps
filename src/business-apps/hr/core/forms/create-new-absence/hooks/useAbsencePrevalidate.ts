@@ -1,0 +1,154 @@
+import { useEffect, useState } from 'react'
+import { env } from '@/common/env/EnvUtils'
+
+export interface PrevalidateResult {
+  effectiveDays: number | null
+  workingDays: number | null
+  errorCode: string | null
+  isLoading: boolean
+}
+
+const IDLE_RESULT: PrevalidateResult = {
+  effectiveDays: null,
+  workingDays: null,
+  errorCode: null,
+  isLoading: false
+}
+
+const REQUEST_DEBOUNCE_MS = 400
+const PREVALIDATE_PATHS = [
+  '/employee-time/api/v1/absences/prevalidate',
+  '/processes/employee-time/api/v1/absences/prevalidate',
+  '/api/v1/absences/prevalidate'
+]
+
+const STATUS_TO_ERROR_CODE: Record<number, string> = {
+  400: 'INVALID_REQUEST',
+  401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
+  404: 'INTERNAL_ERROR',
+  500: 'INTERNAL_ERROR'
+}
+
+const extractErrorCode = (errorData: any, status: number): string => {
+  const nestedCode =
+    errorData?.errors?.[0]?.code ??
+    errorData?.error?.code ??
+    errorData?.code ??
+    errorData?.details?.code ??
+    errorData?.messageCode
+
+  if (typeof nestedCode === 'string' && nestedCode.trim() !== '') {
+    return nestedCode
+  }
+
+  return STATUS_TO_ERROR_CODE[status] ?? 'UNKNOWN_ERROR'
+}
+
+export const useAbsencePrevalidate = (
+  accessToken: string | undefined,
+  employeeId: string | undefined,
+  typeRef: string | undefined,
+  startDate: string | null,
+  endDate: string | null
+): PrevalidateResult => {
+  const [result, setResult] = useState<PrevalidateResult>(IDLE_RESULT)
+
+  useEffect(() => {
+    if (!accessToken || !employeeId || !startDate || !endDate || !typeRef) {
+      setResult(IDLE_RESULT)
+      return
+    }
+
+    setResult(prev => ({ ...prev, isLoading: true, errorCode: null }))
+    const controller = new AbortController()
+
+    const timer = setTimeout(async () => {
+      try {
+        const baseUrl = (env('NEXT_PUBLIC_BASE_URL') ?? '').replace(/\/+$/, '')
+        const requestBody = JSON.stringify({
+          employeeId,
+          typeRef,
+          startDate,
+          endDate
+        })
+
+        let response: Response | null = null
+        for (const path of PREVALIDATE_PATHS) {
+          const candidate = await fetch(`${baseUrl}${path}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`
+            },
+            body: requestBody,
+            signal: controller.signal
+          })
+
+          response = candidate
+          if (candidate.status !== 404) break
+        }
+
+        if (controller.signal.aborted) return
+        if (!response) {
+          setResult({
+            effectiveDays: null,
+            workingDays: null,
+            errorCode: 'INTERNAL_ERROR',
+            isLoading: false
+          })
+          return
+        }
+
+        if (response.ok) {
+          const data = await response.json()
+          setResult({
+            effectiveDays: Number.isFinite(Number(data?.effectiveDays)) ? Number(data.effectiveDays) : null,
+            workingDays: Number.isFinite(Number(data?.workingDays)) ? Number(data.workingDays) : null,
+            errorCode: null,
+            isLoading: false
+          })
+          return
+        }
+
+        let errorCode = STATUS_TO_ERROR_CODE[response.status] ?? 'UNKNOWN_ERROR'
+        try {
+          const errorData = await response.json()
+          errorCode = extractErrorCode(errorData, response.status)
+        } catch {
+          try {
+            const errorText = await response.text()
+            if (typeof errorText === 'string' && errorText.trim() !== '') {
+              const parsed = JSON.parse(errorText)
+              errorCode = extractErrorCode(parsed, response.status)
+            }
+          } catch {
+            // Keep status-mapped fallback.
+          }
+        }
+
+        setResult({
+          effectiveDays: null,
+          workingDays: null,
+          errorCode,
+          isLoading: false
+        })
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') return
+        setResult({
+          effectiveDays: null,
+          workingDays: null,
+          errorCode: 'INTERNAL_ERROR',
+          isLoading: false
+        })
+      }
+    }, REQUEST_DEBOUNCE_MS)
+
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [accessToken, employeeId, typeRef, startDate, endDate])
+
+  return result
+}

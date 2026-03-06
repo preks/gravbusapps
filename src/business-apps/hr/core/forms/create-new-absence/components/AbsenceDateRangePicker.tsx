@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react'
 import type { DateRange } from 'react-day-picker'
-import { Calendar, Popover, PopoverContent, PopoverTrigger, Button } from '@newwork/nw-design-system'
+import { Badge, Button, Calendar, Popover, PopoverContent, PopoverTrigger, Spinner } from '@newwork/nw-design-system'
 import { CalendarIcon, XIcon } from 'lucide-react'
 import { useAbsenceCalendarData } from '../hooks/useAbsenceCalendarData'
+import { useAbsencePrevalidate } from '../hooks/useAbsencePrevalidate'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AbsenceDateRangePickerProps {
@@ -21,6 +22,15 @@ const formatDate = (d: Date): string =>
 
 const toLocalDateStr = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const PREVALIDATE_ERROR_LABELS: Record<string, string> = {
+  INSUFFICIENT_BALANCE: 'Insufficient balance for this period',
+  INVALID_DATE_RANGE: 'Invalid date range (overlap or out-of-window)',
+  INVALID_REQUEST: 'Invalid request',
+  UNAUTHORIZED: 'Authentication required',
+  FORBIDDEN: 'You do not have permission to validate this absence',
+  INTERNAL_ERROR: 'Could not validate — please try again'
+}
 
 /**
  * Absence date range picker built on Calendar + Popover.
@@ -47,6 +57,9 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
     visibleMonth,
     selectedTypeRef
   )
+  const startDateStr = startDate ? toLocalDateStr(startDate) : null
+  const endDateStr = endDate ? toLocalDateStr(endDate) : null
+  const prevalidate = useAbsencePrevalidate(accessToken, employeeId, selectedTypeRef, startDateStr, endDateStr)
 
   const blockedDateSet = new Set([...requestDates, ...bankHolidayDates].map(toLocalDateStr))
 
@@ -183,6 +196,40 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
               {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.balance_snapshot_at', 'Snapshot at')}:{' '}
               {new Date(entitlementSnapshot.snapshotAt).toLocaleString()}
             </div>
+          </div>
+        )}
+        {startDate && endDate && selectedTypeRef && (
+          <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border gba:bg-muted/20">
+            {prevalidate.isLoading ? (
+              <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+                <Spinner size="sm" />
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:absence_form.validation_checking',
+                    'Checking availability...'
+                  )}
+                </span>
+              </div>
+            ) : prevalidate.errorCode ? (
+              <Badge variant="destructive" data-testid="prevalidate-error">
+                {PREVALIDATE_ERROR_LABELS[prevalidate.errorCode] ?? prevalidate.errorCode}
+              </Badge>
+            ) : (
+              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2" data-testid="prevalidate-success">
+                {prevalidate.effectiveDays !== null && (
+                  <Badge variant="info">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.effective_days', 'Effective days')}:{' '}
+                    {prevalidate.effectiveDays}
+                  </Badge>
+                )}
+                {prevalidate.workingDays !== null && (
+                  <Badge variant="secondary">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.working_days', 'Working days')}:{' '}
+                    {prevalidate.workingDays}
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
         )}
         <div className="gba:flex gba:gap-4 gba:px-4 gba:py-2 gba:border-t gba:border-border gba:text-xs gba:text-muted-foreground">
