@@ -556,3 +556,17 @@ spell-check-suggestion = Sugestie:
 spell-check-add-to-dictionary = Adaugă în dicționar
 spell-check-error = Verificarea ortografică a eșuat. Asigurați-vă că Document Reviewer este configurat.
 spell-check-browser-mode = Folosind verificare de bază (bazată pe dicționar)
+
+# Hyperlinks
+link-add = Adaugă link
+link-edit = Editează link
+link-remove = Elimină link
+link-url-label = URL
+link-url-placeholder = https://exemplu.ro
+link-url-required = URL este obligatoriu
+link-url-invalid = URL invalid
+link-click-to-open = Click pentru a deschide
+link-selected-text = Text selectat
+link-cancel = Anulează
+link-update = Actualizează
+link-add-btn = Adaugă link

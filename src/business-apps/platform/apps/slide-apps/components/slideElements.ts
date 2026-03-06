@@ -52,9 +52,18 @@ export interface SlideElement {
   zIndex: number
 }
 
+export interface TextLink {
+  id: string
+  start: number
+  end: number
+  url: string
+  isAutoDetected?: boolean
+}
+
 export interface TextElement extends SlideElement {
   type: 'text'
   content: string
+  links?: TextLink[]
   fontFamily: string
   fontSize: number
   fontWeight: 'normal' | 'bold' | 'light'

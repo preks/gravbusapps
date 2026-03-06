@@ -601,6 +601,7 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
           onUpdateMultipleElements={() => {}}
           onEditText={() => {}}
           scale={scale}
+          isPresenting={true}
         />
       </div>
 

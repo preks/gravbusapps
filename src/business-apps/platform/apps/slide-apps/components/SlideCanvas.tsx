@@ -18,6 +18,7 @@ import type {
 } from './slideElements'
 import { gradientToCss } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
+import { TextWithLinks } from './TextWithLinks'
 
 interface InlineEditingProps {
   editingTextId: string | null
@@ -55,6 +56,8 @@ interface SlideCanvasProps {
   onElementClick?: (elementId: string) => void
   scale?: number
   inlineEditing?: InlineEditingProps
+  isPresenting?: boolean
+  onLinkClick?: (url: string, linkId: string, e: React.MouseEvent) => void
 }
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -73,7 +76,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     onDragEnd,
     onElementClick,
     scale = 1,
-    inlineEditing
+    inlineEditing,
+    isPresenting = false,
+    onLinkClick
   }) => {
     const canvasRef = useRef<HTMLDivElement>(null)
     const [isDragging, setIsDragging] = useState(false)
@@ -977,7 +982,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     wordBreak: 'break-word'
                   }}
                 >
-                  {(element as TextElement).content}
+                  <TextWithLinks
+                    content={(element as TextElement).content}
+                    links={(element as TextElement).links}
+                    isPresenting={isPresenting}
+                    onLinkClick={onLinkClick}
+                  />
                 </div>
               )}
             </div>

@@ -72,7 +72,8 @@ import {
   ExternalLink,
   X,
   PanelRight,
-  SpellCheck
+  SpellCheck,
+  Link
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -113,6 +114,7 @@ import { RefineSlideButton } from './RefineSlideButton'
 import { SaveTemplateButton } from './SaveTemplateButton'
 import { TemplateBrowserButton } from './TemplateBrowserButton'
 import { FloatingTextActions } from './FloatingTextActions'
+import { LinkDialog } from './LinkDialog'
 import { PdfExportDialog } from './PdfExportDialog'
 import { SpeakerNotesPanel } from './SpeakerNotesPanel'
 import { PresenterView } from './PresenterView'
@@ -121,8 +123,9 @@ import { useVoiceInput } from '../../shared'
 import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
 import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
+import { adjustLinksAfterEdit, detectUrls, mergeLinks, findEditPosition, createLink } from '../utils/linkUtils'
 import translations from '../_i18n'
-import type { TextElement } from './slideElements'
+import type { TextElement, TextLink } from './slideElements'
 
 /**
  * Sanitizes a URL to prevent XSS attacks in media src attributes.
@@ -392,6 +395,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [videoUrl, setVideoUrl] = useState('')
   const [showBackgroundDialog, setShowBackgroundDialog] = useState(false)
   const [showRenameDialog, setShowRenameDialog] = useState(false)
+  const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [showPdfExportDialog, setShowPdfExportDialog] = useState(false)
   const [showNotesPanel, setShowNotesPanel] = useState(false)
   const [presenterMode, setPresenterMode] = useState(false)
@@ -1406,10 +1410,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     (valueOrEvent: string | React.ChangeEvent<HTMLTextAreaElement>) => {
       if (!editingTextId) return
       const newValue = typeof valueOrEvent === 'string' ? valueOrEvent : valueOrEvent.target.value
+
+      const currentElement = currentSlide?.elements.find(e => e.id === editingTextId) as TextElement | undefined
+      const oldValue = currentEditingContentRef.current
       currentEditingContentRef.current = newValue
-      updateElement(editingTextId, { content: newValue })
+
+      let updatedLinks: TextLink[] | undefined
+      if (currentElement?.links && currentElement.links.length > 0) {
+        const editStart = findEditPosition(oldValue, newValue)
+        const deletedLength = Math.max(
+          0,
+          oldValue.length - newValue.length + (newValue.length - editStart) - (oldValue.length - editStart)
+        )
+        const insertedLength = Math.max(0, newValue.length - oldValue.length + deletedLength)
+
+        const manualLinks = currentElement.links.filter(l => !l.isAutoDetected)
+        const adjustedManualLinks = adjustLinksAfterEdit(manualLinks, editStart, deletedLength, insertedLength)
+        const autoLinks = detectUrls(newValue)
+        updatedLinks = mergeLinks(autoLinks, adjustedManualLinks)
+      }
+
+      updateElement(editingTextId, { content: newValue, ...(updatedLinks !== undefined && { links: updatedLinks }) })
     },
-    [editingTextId, updateElement]
+    [editingTextId, updateElement, currentSlide]
   )
 
   const finishTextEditing = useCallback(() => {
@@ -1441,6 +1464,34 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     setNewTitle(presentationTitle)
     setShowRenameDialog(true)
   }, [presentationTitle])
+
+  const getExistingLinkUrl = useCallback((): string | undefined => {
+    if (!selectedElement || selectedElement.type !== 'text') return undefined
+    const textElement = selectedElement as TextElement
+    const links = textElement.links || []
+    if (links.length > 0) {
+      return links[0].url
+    }
+    return undefined
+  }, [selectedElement])
+
+  const handleSaveLink = useCallback(
+    (url: string) => {
+      if (!selectedElement || selectedElement.type !== 'text') return
+
+      const textElement = selectedElement as TextElement
+      const content = textElement.content
+
+      const newLink = createLink(0, content.length, url)
+      updateElement(selectedElement.id, { links: [newLink] })
+    },
+    [selectedElement, updateElement]
+  )
+
+  const handleRemoveLink = useCallback(() => {
+    if (!selectedElement || selectedElement.type !== 'text') return
+    updateElement(selectedElement.id, { links: [] })
+  }, [selectedElement, updateElement])
 
   // Export to PowerPoint
   const handleExportToPptx = useCallback(async () => {
@@ -2229,6 +2280,18 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Add/Edit Link - enabled only when text element is selected */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowLinkDialog(true)}
+          disabled={!selectedElement || selectedElement.type !== 'text'}
+          title={getExistingLinkUrl() ? t('link-edit') : t('link-add')}
+        >
+          <Link className="gba:w-4 gba:h-4 gba:mr-1" />
+          {getExistingLinkUrl() ? t('link-edit') : t('link-add')}
+        </Button>
 
         <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
 
@@ -3040,6 +3103,16 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         config={aiAssistConfig}
         onChange={handleAIAssistConfigChange}
         t={t}
+      />
+
+      {/* Link Dialog */}
+      <LinkDialog
+        open={showLinkDialog}
+        onOpenChange={setShowLinkDialog}
+        selectedText={selectedElement?.type === 'text' ? (selectedElement as TextElement).content : ''}
+        initialUrl={getExistingLinkUrl()}
+        onSave={handleSaveLink}
+        onRemove={getExistingLinkUrl() ? handleRemoveLink : undefined}
       />
     </div>
   )

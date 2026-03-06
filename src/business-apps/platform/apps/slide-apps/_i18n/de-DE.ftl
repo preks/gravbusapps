@@ -601,3 +601,17 @@ spell-check-suggestion = Vorschlag:
 spell-check-add-to-dictionary = Zum Wörterbuch hinzufügen
 spell-check-error = Rechtschreibprüfung fehlgeschlagen. Bitte stellen Sie sicher, dass der Document Reviewer konfiguriert ist.
 spell-check-browser-mode = Verwende einfache Rechtschreibprüfung (wörterbuchbasiert)
+
+# Hyperlinks
+link-add = Link hinzufügen
+link-edit = Link bearbeiten
+link-remove = Link entfernen
+link-url-label = URL
+link-url-placeholder = https://beispiel.de
+link-url-required = URL ist erforderlich
+link-url-invalid = Ungültige URL
+link-click-to-open = Klicken zum Öffnen
+link-selected-text = Ausgewählter Text
+link-cancel = Abbrechen
+link-update = Aktualisieren
+link-add-btn = Link hinzufügen

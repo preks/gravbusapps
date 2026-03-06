@@ -380,6 +380,7 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                 onEditText={() => {}}
                 onElementClick={onElementClick}
                 scale={mainSlideScale}
+                isPresenting={true}
               />
             </div>
           </div>
@@ -514,6 +515,7 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                       onUpdateMultipleElements={() => {}}
                       onEditText={() => {}}
                       scale={previewScale}
+                      isPresenting={true}
                     />
                   </div>
                 ) : (

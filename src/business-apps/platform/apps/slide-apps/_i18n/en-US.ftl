@@ -684,3 +684,17 @@ spell-check-suggestion = Suggestion:
 spell-check-add-to-dictionary = Add to dictionary
 spell-check-error = Spell check failed. Please ensure the Document Reviewer is configured.
 spell-check-browser-mode = Using basic spell check (dictionary-based)
+
+# Hyperlinks
+link-add = Add Link
+link-edit = Edit Link
+link-remove = Remove Link
+link-url-label = URL
+link-url-placeholder = https://example.com
+link-url-required = URL is required
+link-url-invalid = Invalid URL
+link-click-to-open = Click to open
+link-selected-text = Selected text
+link-cancel = Cancel
+link-update = Update
+link-add-btn = Add Link
