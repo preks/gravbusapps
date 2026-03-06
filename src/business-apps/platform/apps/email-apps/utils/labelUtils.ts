@@ -11,6 +11,8 @@ export interface LabelColorOption {
   chipClassName: string
 }
 
+const DEFAULT_LABEL_CHIP_CLASS = 'gba:bg-muted gba:text-muted-foreground'
+
 export const LABEL_COLOR_PALETTE: LabelColorOption[] = [
   {
     id: 'neutral',
@@ -62,6 +64,20 @@ export const LABEL_COLOR_PALETTE: LabelColorOption[] = [
   }
 ]
 
+function normalizeLabelToken(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function getOptionalTrimmedColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function normalizeHexToken(value: string): string {
+  return value.trim().toUpperCase()
+}
+
 export function normalizeLabelName(name: string): string {
   return normalizeLabels([name])[0] || ''
 }
@@ -74,7 +90,7 @@ export function normalizeLabelName(name: string): string {
  * - remove empty values
  */
 export function normalizeLabels(labels: string[] = []): string[] {
-  return Array.from(new Set(labels.map(label => label.trim().toLowerCase()).filter(Boolean)))
+  return Array.from(new Set(labels.map(normalizeLabelToken).filter(Boolean)))
 }
 
 export function normalizeLabelObjects(input: unknown): EmailLabel[] {
@@ -96,7 +112,7 @@ export function normalizeLabelObjects(input: unknown): EmailLabel[] {
     if (!name) return
 
     const id = typeof source.id === 'string' ? source.id : ''
-    const color = typeof source.color === 'string' && source.color.trim() ? source.color.trim() : null
+    const color = getOptionalTrimmedColor(source.color)
     byName.set(name, { id, name, color })
   })
 
@@ -108,7 +124,7 @@ export function normalizeAddLabelInputs(labels: AddLabelInput[]): AddLabelInput[
     .map(label => {
       const name = normalizeLabelName(label.name)
       if (!name) return null
-      const color = typeof label.color === 'string' && label.color.trim() ? label.color.trim() : undefined
+      const color = getOptionalTrimmedColor(label.color) || undefined
       return color ? { name, color } : { name }
     })
     .filter((label): label is AddLabelInput => Boolean(label))
@@ -116,10 +132,10 @@ export function normalizeAddLabelInputs(labels: AddLabelInput[]): AddLabelInput[
 
 export function getLabelColorOptionByHex(hex?: string | null): LabelColorOption | undefined {
   if (!hex) return undefined
-  const normalizedHex = hex.trim().toUpperCase()
-  return LABEL_COLOR_PALETTE.find(option => option.hex.toUpperCase() === normalizedHex)
+  const normalizedHex = normalizeHexToken(hex)
+  return LABEL_COLOR_PALETTE.find(option => normalizeHexToken(option.hex) === normalizedHex)
 }
 
 export function getLabelChipClassName(hex?: string | null): string {
-  return getLabelColorOptionByHex(hex)?.chipClassName || 'gba:bg-muted gba:text-muted-foreground'
+  return getLabelColorOptionByHex(hex)?.chipClassName || DEFAULT_LABEL_CHIP_CLASS
 }

@@ -1,7 +1,8 @@
 import React from 'react'
-import { Input, Button, Badge } from '@newwork/nw-design-system'
-import { Plus, Check, X } from 'lucide-react'
-import { LABEL_COLOR_PALETTE, getLabelChipClassName } from '../utils/labelUtils'
+import { Input, Button } from '@newwork/nw-design-system'
+import { Plus, Check } from 'lucide-react'
+import { EditableLabelList } from './labels/EditableLabelList'
+import { LabelColorPickerGrid } from './labels/LabelColorPickerGrid'
 import type { EmailLabel } from '../types'
 
 interface EmailListItemLabelsMenuSectionProps {
@@ -100,56 +101,28 @@ export const EmailListItemLabelsMenuSection: React.FC<EmailListItemLabelsMenuSec
         <p className="gba:text-xs gba:text-muted-foreground gba:px-1">{t('list-context-labels-empty')}</p>
       ) : (
         <div className="gba:max-h-40 gba:overflow-auto gba:space-y-1">
-          {localLabels.map(label => (
-            <div
-              key={`${messageId}-menu-label-${label.id || label.name}`}
-              className="gba:flex gba:w-full gba:items-center gba:gap-1"
-            >
-              <button
-                type="button"
-                className="gba:flex-1 gba:inline-flex"
-                onClick={() => onStartEditFromMenu(label)}
-                disabled={isMutatingLabels}
-                data-testid={`${testId}-context-label-edit-${label.name}`}
-              >
-                <Badge
-                  variant="secondary"
-                  className={`gba:text-[10px] gba:h-6 gba:w-full gba:justify-start ${getLabelChipClassName(label.color)}`}
-                >
-                  {label.name}
-                </Badge>
-              </button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="gba:h-6 gba:w-6"
-                onClick={() => void onRemoveFromMenu(label.name)}
-                disabled={isMutatingLabels}
-                data-testid={`${testId}-context-label-remove-${label.name}`}
-              >
-                <X className="gba:w-3 gba:h-3" />
-              </Button>
-            </div>
-          ))}
+          <EditableLabelList
+            labels={localLabels}
+            messageId={messageId}
+            isMutating={isMutatingLabels}
+            variant="menu"
+            keyPrefix="menu-label"
+            editTestIdPrefix={`${testId}-context-label-edit`}
+            removeTestIdPrefix={`${testId}-context-label-remove`}
+            onStartEdit={onStartEditFromMenu}
+            onRemove={labelName => void onRemoveFromMenu(labelName)}
+          />
         </div>
       )}
       <div className="gba:space-y-0.5">
         <p className="gba:m-0 gba:text-xs gba:leading-none gba:text-muted-foreground">
           {t('list-context-labels-color-title')}
         </p>
-        <div className="gba:grid gba:w-fit gba:grid-cols-4 gba:gap-x-5 gba:gap-y-1">
-          {LABEL_COLOR_PALETTE.map(option => (
-            <button
-              key={option.id}
-              type="button"
-              className={`gba:h-5 gba:w-5 gba:rounded-sm gba:border ${option.swatchClassName} ${
-                selectedLabelColor === option.hex ? 'gba:ring-2 gba:ring-primary-ring gba:ring-offset-1' : ''
-              }`}
-              onClick={() => setSelectedLabelColor(prev => (prev === option.hex ? null : option.hex))}
-              data-testid={`${testId}-context-label-color-${option.id}`}
-            />
-          ))}
-        </div>
+        <LabelColorPickerGrid
+          selectedColor={selectedLabelColor}
+          onToggleColor={hex => setSelectedLabelColor(prev => (prev === hex ? null : hex))}
+          testIdPrefix={`${testId}-context-label-color`}
+        />
       </div>
     </div>
   )

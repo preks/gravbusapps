@@ -1,7 +1,8 @@
 import React from 'react'
-import { Badge, Button, Input, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, X, Check } from 'lucide-react'
-import { LABEL_COLOR_PALETTE, getLabelChipClassName } from '../../utils/labelUtils'
+import { Button, Input, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Plus, Check } from 'lucide-react'
+import { EditableLabelList } from '../labels/EditableLabelList'
+import { LabelColorPickerGrid } from '../labels/LabelColorPickerGrid'
 import type { EmailLabel } from '../../types'
 
 interface EmailReaderLabelsPanelProps {
@@ -60,34 +61,17 @@ export const EmailReaderLabelsPanel: React.FC<EmailReaderLabelsPanelProps> = ({
         {localLabels.length === 0 && (
           <span className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-empty')}</span>
         )}
-        {localLabels.map(label => (
-          <span
-            key={`${messageId}-label-${label.id || label.name}`}
-            className="gba:inline-flex gba:items-center gba:gap-1"
-          >
-            <button
-              type="button"
-              className="gba:inline-flex"
-              onClick={() => onStartEditLabel(label)}
-              disabled={isMutatingLabels}
-              data-testid={`${testId}-edit-label-${label.name}`}
-            >
-              <Badge variant="secondary" className={`gba:h-5 gba:text-[10px] ${getLabelChipClassName(label.color)}`}>
-                {label.name}
-              </Badge>
-            </button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="gba:h-5 gba:w-5"
-              onClick={() => void onRemoveLabel(label.name)}
-              disabled={isMutatingLabels}
-              data-testid={`${testId}-remove-label-${label.name}`}
-            >
-              <X className="gba:w-3 gba:h-3" />
-            </Button>
-          </span>
-        ))}
+        <EditableLabelList
+          labels={localLabels}
+          messageId={messageId}
+          isMutating={isMutatingLabels}
+          variant="inline"
+          keyPrefix="label"
+          editTestIdPrefix={`${testId}-edit-label`}
+          removeTestIdPrefix={`${testId}-remove-label`}
+          onStartEdit={onStartEditLabel}
+          onRemove={labelName => void onRemoveLabel(labelName)}
+        />
         <div className="gba:inline-flex gba:items-center">
           <Popover
             open={isAddLabelMenuOpen}
@@ -172,19 +156,11 @@ export const EmailReaderLabelsPanel: React.FC<EmailReaderLabelsPanelProps> = ({
                 <p className="gba:m-0 gba:text-xs gba:leading-none gba:text-muted-foreground">
                   {t('reader-labels-color-title')}
                 </p>
-                <div className="gba:grid gba:w-fit gba:grid-cols-4 gba:gap-x-5 gba:gap-y-1">
-                  {LABEL_COLOR_PALETTE.map(option => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`gba:h-5 gba:w-5 gba:rounded-sm gba:border ${option.swatchClassName} ${
-                        selectedLabelColor === option.hex ? 'gba:ring-2 gba:ring-primary-ring gba:ring-offset-1' : ''
-                      }`}
-                      onClick={() => setSelectedLabelColor(prev => (prev === option.hex ? null : option.hex))}
-                      data-testid={`${testId}-label-color-${option.id}`}
-                    />
-                  ))}
-                </div>
+                <LabelColorPickerGrid
+                  selectedColor={selectedLabelColor}
+                  onToggleColor={hex => setSelectedLabelColor(prev => (prev === hex ? null : hex))}
+                  testIdPrefix={`${testId}-label-color`}
+                />
               </div>
             </PopoverContent>
           </Popover>

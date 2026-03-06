@@ -17,6 +17,7 @@ import type { EmailMessage, EmailAccount, ComposeMode, AddLabelInput, EmailLabel
 import { EmailReaderToolbar } from './email-reader/EmailReaderToolbar'
 import { EmailReaderLabelsPanel } from './email-reader/EmailReaderLabelsPanel'
 import { EmailReaderSingleMessageView } from './email-reader/EmailReaderSingleMessageView'
+import { LabelSuggestionsList } from './labels/LabelSuggestionsList'
 
 interface EmailReaderProps {
   message: EmailMessage | null
@@ -214,35 +215,19 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
 
   const shouldShowLabelSuggestions = !editingLabelOriginalName && normalizeLabelName(labelsInput).length > 0
 
-  let labelSuggestionsContent: React.ReactNode = null
-  if (isLoadingSuggestions) {
-    labelSuggestionsContent = (
-      <p className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-suggestions-loading')}</p>
-    )
-  } else if (labelSuggestions.length === 0) {
-    labelSuggestionsContent = (
-      <p className="gba:text-xs gba:text-muted-foreground">{t('reader-labels-suggestions-empty')}</p>
-    )
-  } else {
-    labelSuggestionsContent = (
-      <>
-        {labelSuggestions.map((suggestion, index) => (
-          <button
-            key={`${message.id}-label-suggestion-${suggestion.id}`}
-            type="button"
-            className={`gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded gba:text-sm ${
-              activeLabelSuggestionIndex === index ? 'gba:bg-muted/60' : 'hover:gba:bg-muted/50'
-            }`}
-            onClick={() => void handleAddSuggestion(suggestion.name)}
-            onMouseEnter={() => setActiveLabelSuggestionIndex(index)}
-            data-testid={`${testId}-label-suggestion-${suggestion.id}`}
-          >
-            {suggestion.name}
-          </button>
-        ))}
-      </>
-    )
-  }
+  const labelSuggestionsContent = (
+    <LabelSuggestionsList
+      suggestions={labelSuggestions}
+      isLoading={isLoadingSuggestions}
+      activeIndex={activeLabelSuggestionIndex}
+      onSelect={suggestionName => void handleAddSuggestion(suggestionName)}
+      onHover={setActiveLabelSuggestionIndex}
+      loadingText={t('reader-labels-suggestions-loading')}
+      emptyText={t('reader-labels-suggestions-empty')}
+      itemTextClassName="gba:text-sm"
+      testIdPrefix={`${testId}-label-suggestion`}
+    />
+  )
 
   return (
     <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>

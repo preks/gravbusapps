@@ -27,6 +27,7 @@ import { getLabelChipClassName } from '../utils/labelUtils'
 import { getDisplayName } from '../utils/emailListFormatting'
 import { useEmailListItemLabels } from '../hooks/useEmailListItemLabels'
 import { EmailListItemLabelsMenuSection } from './EmailListItemLabelsMenuSection'
+import { LabelSuggestionsList } from './labels/LabelSuggestionsList'
 import type { EmailMessageSummary, AddLabelInput, EmailLabel } from '../types'
 
 interface EmailListItemProps {
@@ -92,35 +93,19 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
     onAddLabels,
     onRemoveLabel
   })
-  let labelSuggestionsContent: React.ReactNode = null
-  if (isLoadingSuggestions) {
-    labelSuggestionsContent = (
-      <p className="gba:text-xs gba:text-muted-foreground">{t('list-context-labels-suggestions-loading')}</p>
-    )
-  } else if (labelSuggestions.length === 0) {
-    labelSuggestionsContent = (
-      <p className="gba:text-xs gba:text-muted-foreground">{t('list-context-labels-suggestions-empty')}</p>
-    )
-  } else {
-    labelSuggestionsContent = (
-      <>
-        {labelSuggestions.map((suggestion, index) => (
-          <button
-            key={`${message.id}-menu-suggestion-${suggestion.id}`}
-            type="button"
-            className={`gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded gba:text-xs ${
-              activeLabelSuggestionIndex === index ? 'gba:bg-muted/60' : 'hover:gba:bg-muted/50'
-            }`}
-            onClick={() => void handleAddSuggestionFromMenu(suggestion.name)}
-            onMouseEnter={() => setActiveLabelSuggestionIndex(index)}
-            data-testid={`${testId}-context-label-suggestion-${suggestion.id}`}
-          >
-            {suggestion.name}
-          </button>
-        ))}
-      </>
-    )
-  }
+  const labelSuggestionsContent = (
+    <LabelSuggestionsList
+      suggestions={labelSuggestions}
+      isLoading={isLoadingSuggestions}
+      activeIndex={activeLabelSuggestionIndex}
+      onSelect={suggestionName => void handleAddSuggestionFromMenu(suggestionName)}
+      onHover={setActiveLabelSuggestionIndex}
+      loadingText={t('list-context-labels-suggestions-loading')}
+      emptyText={t('list-context-labels-suggestions-empty')}
+      itemTextClassName="gba:text-xs"
+      testIdPrefix={`${testId}-context-label-suggestion`}
+    />
+  )
   const handleContextMenuOpenChange = useCallback((open: boolean) => {
     if (!open) setIsLabelsExpanded(false)
   }, [])
