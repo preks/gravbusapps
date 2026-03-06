@@ -558,7 +558,11 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             accessToken={accessToken}
             additionalData={{ employeeId: employee?.id }}
             onCancel={() => setIsEntitlementsModalOpen(false)}
-            onSubmit={() => setIsEntitlementsModalOpen(false)}
+            onSubmit={() => {
+              setIsEntitlementsModalOpen(false)
+              refetch?.()
+              setRefreshTick(t => t + 1)
+            }}
           />
         </DialogContent>
       </Dialog>

@@ -1,17 +1,16 @@
-import { normalizeLabels } from './labelUtils'
 import type { Dispatch, SetStateAction } from 'react'
 
-interface RunOptimisticLabelMutationOptions {
-  previousLabels: string[]
-  setLocalLabels: Dispatch<SetStateAction<string[]>>
+interface RunOptimisticLabelMutationOptions<T> {
+  previousLabels: T[]
+  setLocalLabels: Dispatch<SetStateAction<T[]>>
   setIsMutating: Dispatch<SetStateAction<boolean>>
-  getOptimisticLabels: (previous: string[]) => string[]
-  mutate: () => Promise<string[]>
-  onSuccess?: (labels: string[]) => void | Promise<void>
+  getOptimisticLabels: (previous: T[]) => T[]
+  mutate: () => Promise<T[]>
+  onSuccess?: (labels: T[]) => void | Promise<void>
   onError?: () => void | Promise<void>
 }
 
-export async function runOptimisticLabelMutation({
+export async function runOptimisticLabelMutation<T>({
   previousLabels,
   setLocalLabels,
   setIsMutating,
@@ -19,13 +18,13 @@ export async function runOptimisticLabelMutation({
   mutate,
   onSuccess,
   onError
-}: RunOptimisticLabelMutationOptions): Promise<boolean> {
-  const optimistic = normalizeLabels(getOptimisticLabels(previousLabels))
+}: RunOptimisticLabelMutationOptions<T>): Promise<boolean> {
+  const optimistic = getOptimisticLabels(previousLabels)
   setLocalLabels(optimistic)
   setIsMutating(true)
 
   try {
-    const updatedLabels = normalizeLabels(await mutate())
+    const updatedLabels = await mutate()
     setLocalLabels(updatedLabels)
     await onSuccess?.(updatedLabels)
     return true
