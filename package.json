@@ -26,7 +26,7 @@
     "test:changed": "jest --onlyChanged --maxWorkers=50%",
     "test:hr": "jest src/business-apps/hr --maxWorkers=50%",
     "lint": "eslint .",
-    "typecheck": "cross-env NODE_OPTIONS=\"--max-old-space-size=7168\" && tsc --noEmit --pretty false",
+    "typecheck": "cross-env NODE_OPTIONS=--max-old-space-size=7168 tsc --noEmit --pretty false",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "prepare": "newwork-git-hooks && node ./scripts/setup-custom-git-hooks.js",
