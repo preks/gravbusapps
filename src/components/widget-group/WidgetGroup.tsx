@@ -265,10 +265,18 @@ const transformWidgetToKpiCard = (widget: WidgetItem): KpiCardData => {
 }
 
 /**
- * Applies data-widget-key and clickable class to card DOM elements (used when onWidgetClick is provided).
- * Extracted to module level to avoid deep function nesting in the component.
+ * Applies widget metadata and interactivity to card DOM elements (used when onWidgetClick is provided).
+ * Makes each card a proper interactive element (role, tabIndex, click, keyboard) for accessibility.
+ * Returns a cleanup function to remove event listeners.
  */
-function applyWidgetKeysToCards(container: HTMLDivElement, widgets: WidgetItem[]): void {
+function applyWidgetInteractivityToCards(
+  container: HTMLDivElement,
+  widgets: WidgetItem[],
+  onWidgetClick: (widgetKey: string) => void
+): () => void {
+  const controller = new AbortController()
+  const { signal } = controller
+
   const cards = container.querySelectorAll('div[class*="card"], div[class*="Card"]')
   const count = widgets.length
   const cardsPerWidget = count > 0 ? Math.ceil(cards.length / count) : 0
@@ -284,8 +292,33 @@ function applyWidgetKeysToCards(container: HTMLDivElement, widgets: WidgetItem[]
       } else {
         card.classList.remove('clickable')
       }
+
+      card.setAttribute('role', 'button')
+      card.tabIndex = 0
+      if (widget.title) {
+        card.setAttribute('aria-label', widget.title)
+      }
+
+      const activate = (): void => {
+        onWidgetClick(widget.key)
+        widget.onClick?.()
+      }
+
+      card.addEventListener('click', activate, { signal })
+      card.addEventListener(
+        'keydown',
+        (e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            activate()
+          }
+        },
+        { signal }
+      )
     }
   }
+
+  return () => controller.abort()
 }
 
 /**
@@ -306,15 +339,20 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
 }) => {
   const cardsRef = useRef<HTMLDivElement>(null)
 
-  // When onWidgetClick is used, apply data-widget-key and clickable class to card DOM (design system does not expose these)
+  // When onWidgetClick is used, make each card an accessible interactive element (role, tabIndex, click, keyboard)
   useEffect(() => {
     if (!onWidgetClick || !cardsRef.current) return
-    const run = () => {
-      if (cardsRef.current) applyWidgetKeysToCards(cardsRef.current, widgets)
+    let cleanup: () => void = () => {}
+    const run = (): void => {
+      cleanup()
+      if (cardsRef.current) cleanup = applyWidgetInteractivityToCards(cardsRef.current, widgets, onWidgetClick)
     }
     run()
     const timeoutId = setTimeout(run, 100)
-    return () => clearTimeout(timeoutId)
+    return () => {
+      clearTimeout(timeoutId)
+      cleanup()
+    }
   }, [onWidgetClick, widgets])
 
   // Transform widgets to KPI cards (declare before content usage)
@@ -388,27 +426,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
     )
   } else if (onWidgetClick) {
     content = (
-      <div
-        className="gba:relative"
-        style={{ cursor: 'default' }}
-        onClick={e => {
-          const target = e.target as HTMLElement
-          const cardElement = target.closest('[data-widget-key]')
-          if (cardElement) {
-            const widgetKey = cardElement.dataset.widgetKey
-            if (widgetKey) {
-              const widgetIndex = widgets.findIndex(w => w.key === widgetKey)
-              if (widgetIndex >= 0 && widgetIndex < widgets.length) {
-                onWidgetClick(widgetKey)
-                if (widgets[widgetIndex]?.onClick) {
-                  widgets[widgetIndex].onClick!()
-                }
-              }
-            }
-          }
-        }}
-        data-testid={`${dataTestId}-clickable-container`}
-      >
+      <div className="gba:relative" style={{ cursor: 'default' }} data-testid={`${dataTestId}-clickable-container`}>
         <div ref={cardsRef} className="widget-group-cards">
           <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
         </div>
