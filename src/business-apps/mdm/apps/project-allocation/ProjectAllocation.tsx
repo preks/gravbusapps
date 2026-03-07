@@ -31,6 +31,7 @@ import {
   ScrollArea,
   Progress,
   CardHeader,
+  Badge,
   Toaster,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -43,8 +44,6 @@ import {
   ArrowsDownUpIcon,
   WarningIcon,
   InfoIcon,
-  CheckCircleIcon,
-  ClockIcon,
   WallIcon,
   UsersIcon,
   MagnifyingGlassIcon
@@ -60,6 +59,8 @@ import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { showProjectManager } from '../project-setup/ProjectSetup'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import translations from './_i18n'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 export interface ProjectAllocationProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -72,16 +73,6 @@ const getProjectTypeDisplayName = (projectType: string | undefined, t: (key: str
   if (projectType === 'INTERNAL') return t('project_type_internal')
   if (projectType === 'EXTERNAL') return t('project_type_external')
   return t('project_type_na')
-}
-
-// Helper to get translated project status label (Planned / In Progress / On Hold / Canceled / Completed)
-const getProjectStatusDisplayName = (status: ProjectStatusUI | undefined, t: (key: string) => string): string => {
-  if (status === ProjectStatusUI.Planned) return t('status_planned')
-  if (status === ProjectStatusUI.InProgress) return t('status_in_progress')
-  if (status === ProjectStatusUI.OnHold) return t('status_on_hold')
-  if (status === ProjectStatusUI.Canceled) return t('status_canceled')
-  if (status === ProjectStatusUI.Completed) return t('status_completed')
-  return status ?? t('status_planned')
 }
 
 // Helper function to get time status information for a project
@@ -342,6 +333,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
+  const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
   const { projects, accounts, isLoading, error, refetch, structureId } = useProjects(context, true, dateLocale)
   const { teams, refetch: refretchTeams } = useTeams(context)
   const { getTeamEmployees, removeEmployeeFromTeam } = useTeamAssignments(context.accessToken)
@@ -399,9 +391,11 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         (project.description && project.description.toLowerCase().includes(searchLower)) ||
         (project.status && project.status.toLowerCase().includes(searchLower)) ||
         (project.projectType && project.projectType.toLowerCase().includes(searchLower)) ||
-        (accounts.find(acc => acc.id === project.customerId)?.name || '').toLowerCase().includes(searchLower)
+        (customerRelationsEnabled
+          ? (accounts.find(acc => acc.id === project.customerId)?.name || '').toLowerCase().includes(searchLower)
+          : false)
     )
-  }, [projects, searchTerm, accounts])
+  }, [projects, searchTerm, accounts, customerRelationsEnabled])
 
   useEffect(() => {
     if (selectedProject) {
@@ -606,19 +600,22 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     setSelectedProjectForAssign(null)
   }, [selectedProjectForAssign, refreshAllExpandedProjects])
 
-  const inactiveStatusIcon = useCallback((status: ProjectStatusUI) => {
-    if (status === ProjectStatusUI.OnHold) return <WarningIcon />
-    if (status === ProjectStatusUI.Planned) return <ClockIcon />
-    if (status === ProjectStatusUI.Completed || status === ProjectStatusUI.Canceled) return <XCircleIcon />
-    return <ClockIcon />
-  }, [])
-
-  const inactiveStatusColor = useCallback((status: ProjectStatusUI) => {
-    if (status === ProjectStatusUI.OnHold) return 'gba:text-[#f5222d]'
-    if (status === ProjectStatusUI.Planned) return 'gba:text-[#1890ff]'
-    if (status === ProjectStatusUI.Completed || status === ProjectStatusUI.Canceled) return 'gba:text-muted-foreground'
-    return 'gba:text-[#fa8c16]'
-  }, [])
+  const getStatusColor = (status: ProjectStatusUI) => {
+    switch (status) {
+      case ProjectStatusUI.InProgress:
+        return 'success'
+      case ProjectStatusUI.Planned:
+        return 'info'
+      case ProjectStatusUI.Canceled:
+        return 'destructive'
+      case ProjectStatusUI.Completed:
+        return 'secondary'
+      case ProjectStatusUI.OnHold:
+        return 'warning'
+      default:
+        return 'secondary'
+    }
+  }
 
   const groupItems = useMemo(
     () =>
@@ -742,7 +739,9 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
 
   const drawerItems = useMemo(() => {
     if (!selectedProject) return []
-    const account = accounts.find(account => account.id === selectedProject.customerId)
+    const account = customerRelationsEnabled
+      ? accounts.find(account => account.id === selectedProject.customerId)
+      : undefined
     const items: VerticalTableProps[] = [
       {
         icon: <InfoIcon />,
@@ -757,7 +756,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
       }
     ]
 
-    if (account) {
+    if (customerRelationsEnabled && account) {
       items[0].items.push({
         label: getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.label.account', 'Account'),
         value: account.name
@@ -803,7 +802,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     }
 
     return items
-  }, [selectedProject, accounts, t])
+  }, [selectedProject, accounts, customerRelationsEnabled, t])
 
   if (isLoading && projects.length === 0) {
     return (
@@ -926,15 +925,10 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                       <CardHeader className="gba:text-gray-400 gba:text-sm">
                         {getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.status', 'Status')}
                       </CardHeader>
-                      <CardContent
-                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:items-center gba:justify-center gba:!pt-0 gba:flex gba:gap-2`}
-                      >
-                        {selectedProject.status === ProjectStatusUI.InProgress ? (
-                          <CheckCircleIcon />
-                        ) : (
-                          inactiveStatusIcon(selectedProject.status)
-                        )}
-                        {getProjectStatusDisplayName(selectedProject.status, t)}
+                      <CardContent className="gba:!pt-0">
+                        <Badge variant={getStatusColor(selectedProject.status)}>
+                          {selectedProject.status ?? 'N/A'}
+                        </Badge>
                       </CardContent>
                     </Card>
                   </div>

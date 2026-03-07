@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import '@newwork/nw-design-system/style'
-import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
-import { Bot } from 'lucide-react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger, useTranslation } from '@newwork/nw-design-system'
+import { Bot, ListPlus } from 'lucide-react'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { KnowledgeSource } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { CreateHeroHeader } from '../../components/CreateHeroHeader'
 import { TaskExpertsSpace } from './components/TaskExpertsSpace'
 import { TaskExpertEditor } from './components/TaskExpertEditor'
 import { TaskExpertView } from './components/TaskExpertView'
-import { ToolsSpace } from './components/ToolsSpace'
 import MonitoringTab from './components/monitoring/MonitoringTab'
+import { ToolsSpace } from './components/ToolsSpace'
 import translations from './_i18n'
-import type { KnowledgeSource } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { AgentBuilderInitialState } from './hooks/useAgentBuilderState'
 
 /** Build the initial state for a policy-based expert from URL params. */
@@ -118,7 +119,7 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
         setActiveTab(action.tab)
         break
     }
-  }, [])
+  }, [editingPromptId, viewingPromptId, isCreateOpen])
 
   const updateUrl = useCallback((expertId: string | null, mode?: 'view' | 'edit') => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -133,6 +134,17 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
       urlParams.delete('expertId')
       urlParams.delete('expertMode')
     }
+    const newUrl = urlParams.toString()
+      ? `${window.location.pathname}?${urlParams.toString()}`
+      : window.location.pathname
+    window.history.pushState({}, '', newUrl)
+  }, [])
+
+  const setTabAndUrl = useCallback((tab: 'task-experts' | 'tools' | 'monitoring') => {
+    setActiveTab(tab)
+    const urlParams = new URLSearchParams(window.location.search)
+    if (tab === 'monitoring') urlParams.set('pmTab', 'monitoring')
+    else urlParams.delete('pmTab')
     const newUrl = urlParams.toString()
       ? `${window.location.pathname}?${urlParams.toString()}`
       : window.location.pathname
@@ -191,29 +203,32 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
   const renderToolsTab = () => <ToolsSpace {...context} />
   const renderMonitoringTab = () => <MonitoringTab {...context} />
 
-  // Create mode (keep editor mounted; allow switching to Tools tab)
+  // Create mode
   if (isCreateOpen) {
     return (
-      <div data-testid="prompt-manager-app" className="gba:w-full gba:bg-muted/50">
-        <PageLayout
-          headerIcon={Bot}
-          headerTitle={t('create-task-expert')}
-          headerDescription={t('page-description')}
-          onBack={onEditorClosed}
-          variant="default"
-          className="gba:min-h-screen gba:bg-muted/50"
-        >
-          <TaskExpertEditor
-            {...context}
-            mode="create"
-            promptId={null}
-            initialState={createInitialState}
-            onSaved={() => {
-              onEditorClosed()
-              onEditorSaved()
-            }}
-          />
-        </PageLayout>
+      <div data-testid="prompt-manager-app" className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background">
+        <CreateHeroHeader
+          icon={Bot}
+          appLabel="Create"
+          title={t('create-task-expert')}
+          description={t('page-description')}
+          data-testid="prompt-manager-hero"
+        />
+        <div className="gba:flex gba:flex-1 gba:overflow-hidden">
+          <div className="gba:flex-1 gba:overflow-auto gba:p-6 gba:bg-muted/50">
+            <TaskExpertEditor
+              {...context}
+              mode="create"
+              promptId={null}
+              initialState={createInitialState}
+              onSaved={() => {
+                onEditorClosed()
+                onEditorSaved()
+              }}
+              onBack={onEditorClosed}
+            />
+          </div>
+        </div>
       </div>
     )
   }
@@ -221,105 +236,124 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
   // Edit mode
   if (editingPromptId) {
     return (
-      <div data-testid="prompt-manager-app" className="gba:w-full gba:bg-muted/50">
-        <PageLayout
-          headerIcon={Bot}
-          headerTitle={editingPromptName || t('edit-task-expert')}
-          headerDescription={t('page-description')}
-          onBack={onEditorClosed}
-          variant="default"
-          className="gba:min-h-screen gba:bg-muted/50"
-        >
-          <TaskExpertEditor
-            {...context}
-            mode="edit"
-            promptId={editingPromptId}
-            onSaved={() => {
-              onEditorSaved()
-              onEditorClosed()
-            }}
-            onNameLoaded={setEditingPromptName}
-            onGoToDashboard={() => {
-              // Navigate to the View screen (Dashboard tab) for this expert
-              setEditingPromptId(null)
-              setEditingPromptName('')
-              setViewingPromptId(editingPromptId)
-              setViewingPromptName(editingPromptName)
-              updateUrl(editingPromptId, 'view')
-            }}
-          />
-        </PageLayout>
+      <div data-testid="prompt-manager-app" className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background">
+        <CreateHeroHeader
+          icon={Bot}
+          appLabel="Create"
+          title={editingPromptName || t('edit-task-expert')}
+          description={t('page-description')}
+          data-testid="prompt-manager-hero"
+        />
+        <div className="gba:flex gba:flex-1 gba:overflow-hidden">
+          <div className="gba:flex-1 gba:overflow-auto gba:p-6 gba:bg-muted/50">
+            <TaskExpertEditor
+              {...context}
+              mode="edit"
+              promptId={editingPromptId}
+              onSaved={() => {
+                onEditorSaved()
+                onEditorClosed()
+              }}
+              onNameLoaded={setEditingPromptName}
+              onGoToDashboard={() => {
+                setEditingPromptId(null)
+                setEditingPromptName('')
+                setViewingPromptId(editingPromptId)
+                setViewingPromptName(editingPromptName)
+                updateUrl(editingPromptId, 'view')
+              }}
+              onBack={onEditorClosed}
+            />
+          </div>
+        </div>
       </div>
     )
   }
 
-  // View mode (read-only: dashboard, test, monitoring)
+  // View mode
   if (viewingPromptId) {
     return (
-      <div data-testid="prompt-manager-app" className="gba:w-full gba:bg-muted/50">
-        <PageLayout
-          headerIcon={Bot}
-          headerTitle={viewingPromptName || t('view-task-expert')}
-          headerDescription={t('page-description')}
-          onBack={onViewClosed}
-          variant="default"
-          className="gba:min-h-screen gba:bg-muted/50"
-        >
-          <TaskExpertView
-            {...context}
-            promptId={viewingPromptId}
-            onBack={onViewClosed}
-            onEdit={() => onEditPrompt(viewingPromptId, viewingPromptName)}
-            onNameLoaded={setViewingPromptName}
-          />
-        </PageLayout>
+      <div data-testid="prompt-manager-app" className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background">
+        <CreateHeroHeader
+          icon={Bot}
+          appLabel="Create"
+          title={viewingPromptName || t('view-task-expert')}
+          description={t('page-description')}
+          data-testid="prompt-manager-hero"
+        />
+        <div className="gba:flex gba:flex-1 gba:overflow-hidden">
+          <div className="gba:flex-1 gba:overflow-auto gba:p-6 gba:bg-muted/50">
+            <TaskExpertView
+              {...context}
+              promptId={viewingPromptId}
+              onBack={onViewClosed}
+              onEdit={() => onEditPrompt(viewingPromptId, viewingPromptName)}
+              onNameLoaded={setViewingPromptName}
+            />
+          </div>
+        </div>
       </div>
     )
   }
 
   // List mode
   return (
-    <div data-testid="prompt-manager-app" className="gba:w-full gba:bg-muted/50">
-      <PageLayout
-        headerIcon={Bot}
-        headerTitle={t('page-title')}
-        headerDescription={t('page-description')}
-        variant="default"
-        className="gba:min-h-screen gba:bg-muted/50"
-      >
-        <Tabs value={activeTab} onValueChange={v => setActiveTab(v as any)} className="gba:w-full">
-          <TabsList className="gba:mb-4" data-testid="prompt-manager-tabs">
-            <TabsTrigger value="task-experts" data-testid="prompt-manager-tab-task-experts">
-              {t('tab-task-experts')}
-            </TabsTrigger>
-            <TabsTrigger value="monitoring" data-testid="prompt-manager-tab-monitoring">
-              {t('tab-monitoring')}
-            </TabsTrigger>
-            <TabsTrigger value="tools" data-testid="prompt-manager-tab-tools">
-              {t('tab-tools')}
-            </TabsTrigger>
-          </TabsList>
+    <div data-testid="prompt-manager-app" className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background">
+      <CreateHeroHeader
+        icon={Bot}
+        appLabel="Create"
+        title={t('page-title')}
+        description={t('page-description')}
+        actions={
+          <Button
+            variant="secondary"
+            tone="inverse"
+            size="sm"
+            onClick={onCreateTaskExpert}
+            data-testid="prompt-manager-create-button"
+            type="button"
+          >
+            <ListPlus className="gba:h-4 gba:w-4 gba:mr-1" />
+            {t('new-task-expert')}
+          </Button>
+        }
+        data-testid="prompt-manager-hero"
+      />
+      <div className="gba:flex gba:flex-1 gba:overflow-hidden">
+        <div className="gba:flex-1 gba:overflow-auto gba:p-6 gba:bg-muted/50">
+          <Tabs value={activeTab} onValueChange={v => setTabAndUrl(v as any)} className="gba:w-full">
+            <TabsList className="gba:mb-4" data-testid="prompt-manager-tabs">
+              <TabsTrigger value="task-experts" data-testid="prompt-manager-tab-task-experts">
+                {t('tab-task-experts')}
+              </TabsTrigger>
+              <TabsTrigger value="monitoring" data-testid="prompt-manager-tab-monitoring">
+                {t('tab-monitoring')}
+              </TabsTrigger>
+              <TabsTrigger value="tools" data-testid="prompt-manager-tab-tools">
+                {t('tab-tools')}
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="task-experts" data-testid="prompt-manager-tab-content-task-experts">
-            <TaskExpertsSpace
-              {...context}
-              translations={translations}
-              onCreateTaskExpert={onCreateTaskExpert}
-              onViewPrompt={onViewPrompt}
-              onEditPrompt={onEditPrompt}
-              refreshKey={shouldRefresh}
-            />
-          </TabsContent>
+            <TabsContent value="task-experts" data-testid="prompt-manager-tab-content-task-experts">
+              <TaskExpertsSpace
+                {...context}
+                translations={translations}
+                onViewPrompt={onViewPrompt}
+                onEditPrompt={onEditPrompt}
+                refreshKey={shouldRefresh}
+              />
+            </TabsContent>
 
-          <TabsContent value="monitoring" data-testid="prompt-manager-tab-content-monitoring">
-            {renderMonitoringTab()}
-          </TabsContent>
+            <TabsContent value="monitoring" data-testid="prompt-manager-tab-content-monitoring">
+              {renderMonitoringTab()}
+            </TabsContent>
 
-          <TabsContent value="tools" data-testid="prompt-manager-tab-content-tools">
-            {renderToolsTab()}
-          </TabsContent>
-        </Tabs>
-      </PageLayout>
+            <TabsContent value="tools" data-testid="prompt-manager-tab-content-tools">
+              {renderToolsTab()}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   )
 }

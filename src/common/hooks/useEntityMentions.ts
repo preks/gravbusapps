@@ -375,6 +375,7 @@ export type EntityType =
   | 'knowledge_article'
   | 'intranet_article'
   | 'document_article'
+  | 'document'
 
 export interface EntityReference {
   id: string
@@ -406,10 +407,14 @@ export interface UseEntityMentionsOptions {
     expertName: string
     specialty: string
   }>
+  /** Controls how selected mentions are inserted into text */
+  insertionMode?: 'at_mention' | 'markdown_link'
+  /** Optional async function to search documents (Every Office). Results are merged with GraphQL entities. */
+  searchDocuments?: (query: string) => Promise<EntityReference[]>
 }
 
 export function useEntityMentions(accessToken: string, options: UseEntityMentionsOptions = {}) {
-  const { activeExperts = [] } = options
+  const { activeExperts = [], insertionMode = 'at_mention', searchDocuments } = options
   const graphqlClient = useGraphQLClient(accessToken)
   const [entities, setEntities] = useState<EntityReference[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -718,8 +723,8 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
       try {
         const searchPattern = query ? `%${query}%` : '%%'
 
-        // Search GraphQL entities in parallel with expert filtering
-        const [graphqlResult, expertResults] = await Promise.all([
+        // Search GraphQL entities, experts, and documents in parallel
+        const [graphqlResult, expertResults, documentResults] = await Promise.all([
           graphqlClient.request<SearchResponse>(SEARCH_ENTITIES_QUERY, {
             searchPattern,
             limit: 5 // Limit per entity type
@@ -743,13 +748,19 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
                   subtitle: `Expert • ${expert.specialty}`
                 })
               )
-          )
+          ),
+          searchDocuments
+            ? searchDocuments(query).catch(err => {
+                console.error('Error searching documents:', err)
+                return [] as EntityReference[]
+              })
+            : Promise.resolve([] as EntityReference[])
         ])
 
         const graphqlEntities = transformResponse(graphqlResult, query)
 
-        // Combine experts (at the top) with other entities
-        const allEntities = [...expertResults, ...graphqlEntities]
+        // Combine experts (at the top), then GraphQL entities, then documents
+        const allEntities = [...expertResults, ...graphqlEntities, ...documentResults]
 
         // Limit total results to 15 for better UX
         setEntities(allEntities.slice(0, 15))
@@ -761,7 +772,7 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
         setIsLoading(false)
       }
     },
-    [graphqlClient, activeExperts]
+    [graphqlClient, activeExperts, searchDocuments]
   )
 
   // Handle text change and detect mentions
@@ -791,7 +802,8 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
 
       const before = currentText.slice(0, mentionState.startIndex)
       const after = currentText.slice(mentionState.caretPosition)
-      const displayText = `@${entity.name}`
+      const displayText =
+        insertionMode === 'markdown_link' ? `[${entity.name}](${entity.type}://${entity.id})` : `@${entity.name}`
       const newText = `${before}${displayText} ${after}`
       const newCaretPosition = before.length + displayText.length + 1
 
@@ -816,7 +828,7 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
 
       return { newText, newCaretPosition, entityRef }
     },
-    [mentionState]
+    [mentionState, insertionMode]
   )
 
   // Clear all mention state

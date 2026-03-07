@@ -5,7 +5,7 @@ import { Employee } from '../../hooks/useEmployeeData'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { getUserRequests } from '../../services/service-requests/serviceRequestsService'
 import type { SubmittedRequest } from '../../services/service-requests/serviceRequestsTypes'
-import { Card, Badge, Spinner, Alert, Button, useTranslation, IconAvatar } from '@newwork/nw-design-system'
+import { Card, CardContent, Badge, Spinner, Alert, Button, useTranslation, IconAvatar } from '@newwork/nw-design-system'
 import { ReceiptIcon, CheckCircleIcon, ClockIcon, PlusIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -197,8 +197,8 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-start">
         <div>
-          <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900">{t('service-requests-title')}</h3>
-          <p className="gba:text-gray-600 gba:mt-1">
+          <h3 className="gba:text-2xl gba:font-bold gba:text-foreground">{t('service-requests-title')}</h3>
+          <p className="gba:text-muted-foreground gba:mt-1">
             {isSelfView
               ? t('service-requests-desc-self')
               : t('service-requests-desc-other', { name: employee.displayName })}
@@ -220,132 +220,146 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
 
       {/* Statistics Badges */}
       <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
-        <Card className="gba:p-4 gba:border gba:border-gray-200">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar icon={ReceiptIcon} variant="decorative" size="md" />
-            <div>
-              <p className="gba:text-sm gba:text-gray-600">{t('service-requests-total')}</p>
-              <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.total}</p>
+        <Card variant="outlined">
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <IconAvatar icon={ReceiptIcon} variant="decorative" size="md" />
+              <div>
+                <p className="gba:text-sm gba:text-muted-foreground">{t('service-requests-total')}</p>
+                <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.total}</p>
+              </div>
             </div>
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="gba:p-4 gba:border gba:border-gray-200">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar icon={ClockIcon} variant="decorative" size="md" />
-            <div>
-              <p className="gba:text-sm gba:text-gray-600">{t('service-requests-active')}</p>
-              <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.active}</p>
+        <Card variant="outlined">
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <IconAvatar icon={ClockIcon} variant="decorative" size="md" />
+              <div>
+                <p className="gba:text-sm gba:text-muted-foreground">{t('service-requests-active')}</p>
+                <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.active}</p>
+              </div>
             </div>
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="gba:p-4 gba:border gba:border-gray-200">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar icon={CheckCircleIcon} variant="decorative" size="md" />
-            <div>
-              <p className="gba:text-sm gba:text-gray-600">{t('service-requests-completed')}</p>
-              <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.completed}</p>
+        <Card variant="outlined">
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <IconAvatar icon={CheckCircleIcon} variant="decorative" size="md" />
+              <div>
+                <p className="gba:text-sm gba:text-muted-foreground">{t('service-requests-completed')}</p>
+                <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.completed}</p>
+              </div>
             </div>
-          </div>
+          </CardContent>
         </Card>
 
-        <Card className="gba:p-4 gba:border gba:border-gray-200">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar icon={CheckCircleIcon} variant="decorative" size="md" />
-            <div>
-              <p className="gba:text-sm gba:text-gray-600">{t('service-requests-completion-rate')}</p>
-              <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.completionRate}%</p>
+        <Card variant="outlined">
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <IconAvatar icon={CheckCircleIcon} variant="decorative" size="md" />
+              <div>
+                <p className="gba:text-sm gba:text-muted-foreground">{t('service-requests-completion-rate')}</p>
+                <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.completionRate}%</p>
+              </div>
             </div>
-          </div>
+          </CardContent>
         </Card>
       </div>
 
       {/* Requests List */}
       {requests.length === 0 ? (
-        <Card className="gba:p-12 gba:text-center gba:border gba:border-gray-200">
-          <ReceiptIcon className="gba:w-16 gba:h-16 gba:mx-auto gba:mb-4 gba:text-gray-400" />
-          <h4 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
-            {t('service-requests-no-service-requests')}
-          </h4>
-          <p className="gba:text-gray-600">
-            {isSelfView
-              ? t('service-requests-no-service-requests-desc-self')
-              : t('service-requests-no-service-requests-desc-other')}
-          </p>
+        <Card variant="outlined">
+          <CardContent className="gba:p-12 gba:text-center">
+            <ReceiptIcon className="gba:w-16 gba:h-16 gba:mx-auto gba:mb-4 gba:text-muted-foreground" />
+            <h4 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
+              {t('service-requests-no-service-requests')}
+            </h4>
+            <p className="gba:text-muted-foreground">
+              {isSelfView
+                ? t('service-requests-no-service-requests-desc-self')
+                : t('service-requests-no-service-requests-desc-other')}
+            </p>
+          </CardContent>
         </Card>
       ) : (
-        <Card className="gba:border gba:border-gray-200">
-          <div className="gba:overflow-x-auto">
-            <table className="gba:w-full">
-              <thead className="gba:bg-gray-50 gba:border-b gba:border-gray-200">
-                <tr>
-                  <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('service-requests-column-request')}
-                  </th>
-                  <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('service-requests-column-status')}
-                  </th>
-                  <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('service-requests-column-progress')}
-                  </th>
-                  <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('service-requests-column-created')}
-                  </th>
-                  <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {t('service-requests-column-steps')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="gba:bg-white gba:divide-y gba:divide-gray-200">
-                {requests.map(request => {
-                  const progress = calculateProgress(request)
-                  return (
-                    <tr
-                      key={request.id}
-                      className="gba:hover:bg-gray-50 gba:transition-colors"
-                      data-testid={`request-row-${request.id}`}
-                    >
-                      <td className="gba:px-6 gba:py-4">
-                        <div className="gba:flex gba:flex-col">
-                          <button
-                            onClick={() => handleRequestClick(request.id)}
-                            className="gba:text-sm gba:font-medium gba:text-blue-600 hover:gba:text-blue-800 hover:gba:underline gba:text-left gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0"
-                          >
-                            {request.titleSnapshot}
-                          </button>
-                          <span className="gba:text-xs gba:text-gray-500 gba:mt-1">{getCurrentStepName(request)}</span>
-                        </div>
-                      </td>
-                      <td className="gba:px-6 gba:py-4">
-                        <Badge variant={getStatusBadgeVariant(request.status)}>
-                          {formatStatusText(request.status)}
-                        </Badge>
-                      </td>
-                      <td className="gba:px-6 gba:py-4">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <div className="gba:flex-1 gba:bg-gray-200 gba:rounded-full gba:h-2 gba:max-w-[100px]">
-                            <div
-                              className="gba:bg-blue-600 gba:h-2 gba:rounded-full gba:transition-all"
-                              style={{ width: `${progress}%` }}
-                            />
+        <Card variant="outlined">
+          <CardContent className="gba:p-0">
+            <div className="gba:overflow-x-auto">
+              <table className="gba:w-full">
+                <thead className="gba:bg-muted gba:border-b">
+                  <tr>
+                    <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
+                      {t('service-requests-column-request')}
+                    </th>
+                    <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
+                      {t('service-requests-column-status')}
+                    </th>
+                    <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
+                      {t('service-requests-column-progress')}
+                    </th>
+                    <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
+                      {t('service-requests-column-created')}
+                    </th>
+                    <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
+                      {t('service-requests-column-steps')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="gba:divide-y gba:divide-border">
+                  {requests.map(request => {
+                    const progress = calculateProgress(request)
+                    return (
+                      <tr
+                        key={request.id}
+                        className="gba:hover:bg-muted/50 gba:transition-colors"
+                        data-testid={`request-row-${request.id}`}
+                      >
+                        <td className="gba:px-6 gba:py-4">
+                          <div className="gba:flex gba:flex-col">
+                            <button
+                              onClick={() => handleRequestClick(request.id)}
+                              className="gba:text-sm gba:font-medium gba:text-primary gba:hover:text-primary/80 gba:hover:underline gba:text-left gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0"
+                            >
+                              {request.titleSnapshot}
+                            </button>
+                            <span className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                              {getCurrentStepName(request)}
+                            </span>
                           </div>
-                          <span className="gba:text-xs gba:text-gray-600 gba:font-medium">{progress}%</span>
-                        </div>
-                      </td>
-                      <td className="gba:px-6 gba:py-4 gba:text-sm gba:text-gray-600">
-                        {formatRequestDate(request.createdAt)}
-                      </td>
-                      <td className="gba:px-6 gba:py-4 gba:text-sm gba:text-gray-600">
-                        {request.steps.filter(s => s.status === 'COMPLETED' || s.status === 'DONE').length} /{' '}
-                        {request.steps.length}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="gba:px-6 gba:py-4">
+                          <Badge variant={getStatusBadgeVariant(request.status)}>
+                            {formatStatusText(request.status)}
+                          </Badge>
+                        </td>
+                        <td className="gba:px-6 gba:py-4">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div className="gba:flex-1 gba:bg-muted gba:rounded-full gba:h-2 gba:max-w-[100px]">
+                              <div
+                                className="gba:bg-primary gba:h-2 gba:rounded-full gba:transition-all"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">{progress}%</span>
+                          </div>
+                        </td>
+                        <td className="gba:px-6 gba:py-4 gba:text-sm gba:text-muted-foreground">
+                          {formatRequestDate(request.createdAt)}
+                        </td>
+                        <td className="gba:px-6 gba:py-4 gba:text-sm gba:text-muted-foreground">
+                          {request.steps.filter(s => s.status === 'COMPLETED' || s.status === 'DONE').length} /{' '}
+                          {request.steps.length}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
         </Card>
       )}
     </div>

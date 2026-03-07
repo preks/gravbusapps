@@ -27,7 +27,8 @@ import {
   TooltipTrigger,
   Checkbox,
   Dialog,
-  DialogContent
+  DialogContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Presentation,
@@ -71,8 +72,11 @@ import {
   type SlideHubSortOrder
 } from './hooks'
 import { SlideEditor, ShareSlideDialog, ManageSharesDialog, PowerPointUploader } from './components'
+import { useHubPagination } from '../shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
 import type { ParsedPowerPointDocument } from './hooks/usePowerPointParser'
+import translations from './_i18n'
 
 export interface SlidesAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -91,39 +95,43 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-/** Format date for display */
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+/** Format date for display - uses t for relative time strings */
+function createFormatDate(t: (key: string, vars?: Record<string, unknown>) => string) {
+  return (dateString: string): string => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-  if (diffDays === 0) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    if (diffDays === 0) {
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    }
+    if (diffDays === 1) return t('time-yesterday')
+    if (diffDays < 7) return t('time-days-ago', { count: diffDays })
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    })
   }
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-  })
 }
 
-/** Format relative time */
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
+/** Format relative time - uses t for labels */
+function createFormatRelativeTime(t: (key: string, vars?: Record<string, unknown>) => string) {
+  return (dateString: string): string => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+    if (diffMins < 1) return t('time-just-now')
+    if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+    if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+    if (diffDays < 7) return t('time-days-short-ago', { count: diffDays })
+    return date.toLocaleDateString()
+  }
 }
 
 export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
@@ -131,6 +139,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   userInfo,
   'data-testid': testId = 'slide-apps-hub'
 }) => {
+  const { t } = useTranslation(translations)
+  const formatDate = createFormatDate(t)
+  const formatRelativeTime = createFormatRelativeTime(t)
+
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<ViewMode>('list')
@@ -198,6 +210,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     sortOrder
   })
 
+  const {
+    paginatedItems: paginatedSlides,
+    currentPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    pageSize
+  } = useHubPagination({ items: filteredSlides, pageSize: 20 })
+
   const { updateUrl, resetLoadAttempt } = useSlidesHubUrlState({
     currentView,
     currentSlideId: selectedSlideId,
@@ -221,27 +242,16 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     localStorage.setItem('slides-hub-sidebar-collapsed', String(isSidebarCollapsed))
   }, [isSidebarCollapsed])
 
-  // Store access token for API service
-  useEffect(() => {
-    if (accessToken) {
-      try {
-        localStorage.setItem('business-app-ide-access-token', accessToken)
-      } catch {
-        // ignore
-      }
-    }
-  }, [accessToken])
-
   /** Create new blank slide */
   const handleCreateNew = useCallback(async () => {
-    const created = await createSlide({ title: 'Untitled Slide' })
+    const created = await createSlide({ title: t('title-untitled-slide') })
     if (created) {
       setSelectedSlideId(created.id)
       setCurrentView('editor')
       updateUrl(created.id, 'editor')
       loadSlide(created.id)
     }
-  }, [createSlide, loadSlide, updateUrl])
+  }, [createSlide, loadSlide, updateUrl, t])
 
   /** Open a slide */
   const handleOpenSlide = useCallback(
@@ -291,7 +301,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   /** Delete slide */
   const handleDeleteSlide = useCallback(
     async (id: string) => {
-      if (confirm('Are you sure you want to delete this slide?')) {
+      if (confirm(t('confirm-delete'))) {
         const success = await deleteSlide(id)
         if (success && selectedSlideId === id) {
           setSelectedSlideId(null)
@@ -305,7 +315,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         })
       }
     },
-    [deleteSlide, selectedSlideId, updateUrl]
+    [deleteSlide, selectedSlideId, updateUrl, t]
   )
 
   /** Duplicate slide */
@@ -313,10 +323,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     async (id: string) => {
       const duplicated = await duplicateSlide(id)
       if (duplicated) {
-        toast.success('Slide duplicated')
+        toast.success(t('toast-slide-duplicated'))
       }
     },
-    [duplicateSlide]
+    [duplicateSlide, t]
   )
 
   /** Share slide click */
@@ -339,15 +349,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         const next = new Set(prev)
         if (next.has(id)) {
           next.delete(id)
-          toast.success('Removed from favorites')
+          toast.success(t('toast-favorite-removed'))
         } else {
           next.add(id)
-          toast.success('Added to favorites')
+          toast.success(t('toast-favorite-added'))
         }
         return next
       })
     },
-    [setFavorites]
+    [setFavorites, t]
   )
 
   /** Toggle select slide */
@@ -374,13 +384,16 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   }, [selectedSlides.size, filteredSlides])
 
   /** Copy link */
-  const copyLink = useCallback((slide: SlideSummary) => {
-    const url = new URL(window.location.href)
-    url.searchParams.set('slideId', slide.id)
-    url.searchParams.set('view', 'editor')
-    navigator.clipboard.writeText(url.toString())
-    toast.success('Link copied to clipboard')
-  }, [])
+  const copyLink = useCallback(
+    (slide: SlideSummary) => {
+      const url = new URL(window.location.href)
+      url.searchParams.set('slideId', slide.id)
+      url.searchParams.set('view', 'editor')
+      navigator.clipboard.writeText(url.toString())
+      toast.success(t('toast-link-copied'))
+    },
+    [t]
+  )
 
   /** Handle PowerPoint import */
   const handlePowerPointImport = useCallback(
@@ -401,33 +414,33 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           setCurrentView('editor')
           updateUrl(created.id, 'editor')
           loadSlide(created.id)
-          toast.success(`Imported ${parsedDoc.slideCount} slides`)
+          toast.success(t('toast-imported-slides', { count: parsedDoc.slideCount }))
         }
       } catch (err) {
         console.error('[SlidesAppsHub] Import error:', err)
-        toast.error('Failed to import PowerPoint')
+        toast.error(t('toast-import-failed'))
       }
     },
-    [createSlide, loadSlide, updateUrl]
+    [createSlide, loadSlide, updateUrl, t]
   )
 
   // Get section title
   const getSectionTitle = () => {
     switch (activeSection) {
       case 'home':
-        return 'Home'
+        return t('sidebar-home')
       case 'my-slides':
-        return 'My Slides'
+        return t('sidebar-my-items')
       case 'shared':
-        return 'Shared with me'
+        return t('sidebar-shared')
       case 'favorites':
-        return 'Favorites'
+        return t('sidebar-favorites')
       case 'recent':
-        return 'Recent'
+        return t('sidebar-recent')
       case 'archived':
-        return 'Archived'
+        return t('sidebar-archived')
       default:
-        return 'Slides'
+        return t('sidebar-brand-title')
     }
   }
 
@@ -470,7 +483,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       <ChevronLeft className="gba:w-4 gba:h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Back to Desk</TooltipContent>
+                  <TooltipContent>{t('sidebar-back-to-desk')}</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
@@ -488,7 +501,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+                <TooltipContent>{isSidebarCollapsed ? t('sidebar-expand') : t('sidebar-collapse')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -500,8 +513,8 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 <Presentation className="gba:w-5 gba:h-5 gba:text-white" />
               </div>
               <div>
-                <h1 className="gba:font-semibold gba:text-foreground">Slides</h1>
-                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+                <h1 className="gba:font-semibold gba:text-foreground">{t('sidebar-brand-title')}</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('sidebar-brand-subtitle')}</p>
               </div>
             </div>
           )}
@@ -522,30 +535,30 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-orange-500 gba:to-pink-600 gba:text-white hover:gba:from-orange-600 hover:gba:to-pink-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
               >
                 <Plus className="gba:w-4 gba:h-4" />
-                {!isSidebarCollapsed && 'New'}
+                {!isSidebarCollapsed && t('sidebar-new')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
               <DropdownMenuItem onClick={handleCreateNew}>
                 <Presentation className="gba:w-4 gba:h-4 gba:mr-2 gba:text-orange-500" />
                 <div>
-                  <div className="gba:font-medium">Blank Slide</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Start from scratch</div>
+                  <div className="gba:font-medium">{t('menu-new-blank-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleCreateNew}>
                 <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
-                  <div className="gba:font-medium">From Template</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Choose a template</div>
+                  <div className="gba:font-medium">{t('menu-new-template-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-template-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
                 <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
                 <div>
-                  <div className="gba:font-medium">Import PowerPoint</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Upload .pptx file</div>
+                  <div className="gba:font-medium">{t('menu-new-import-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-import-description')}</div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -567,10 +580,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     }`}
                   >
                     <Home className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Home'}
+                    {!isSidebarCollapsed && t('sidebar-home')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-home')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -584,10 +597,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     }`}
                   >
                     <FolderClosed className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'My Slides'}
+                    {!isSidebarCollapsed && t('sidebar-my-items')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">My Slides</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-my-items')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -603,7 +616,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     <Users className="gba:w-4 gba:h-4" />
                     {!isSidebarCollapsed && (
                       <>
-                        Shared with me
+                        {t('sidebar-shared')}
                         {sharedSlides.length > 0 && (
                           <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
                             {sharedSlides.length}
@@ -615,7 +628,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 </TooltipTrigger>
                 {isSidebarCollapsed && (
                   <TooltipContent side="right">
-                    Shared with me {sharedSlides.length > 0 && `(${sharedSlides.length})`}
+                    {t('sidebar-shared')} {sharedSlides.length > 0 && `(${sharedSlides.length})`}
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -631,10 +644,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     }`}
                   >
                     <Star className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Favorites'}
+                    {!isSidebarCollapsed && t('sidebar-favorites')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Favorites</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-favorites')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -648,10 +661,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     }`}
                   >
                     <Clock className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Recent'}
+                    {!isSidebarCollapsed && t('sidebar-recent')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-recent')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -665,21 +678,23 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     }`}
                   >
                     <Archive className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Archived'}
+                    {!isSidebarCollapsed && t('sidebar-archived')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Archived</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-archived')}</TooltipContent>}
               </Tooltip>
             </TooltipProvider>
           </div>
 
           {!isSidebarCollapsed && (
             <div className="gba:mt-6 gba:pt-4 gba:border-t">
-              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('sidebar-storage')}
+              </p>
               <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                   <Database className="gba:w-4 gba:h-4 gba:text-orange-500" />
-                  <span className="gba:text-xs gba:text-muted-foreground">Cloud storage</span>
+                  <span className="gba:text-xs gba:text-muted-foreground">{t('sidebar-storage-cloud')}</span>
                 </div>
                 <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
                   <div
@@ -687,7 +702,9 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     style={{ width: `${Math.min((slides.length / 50) * 100, 100)}%` }}
                   />
                 </div>
-                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{slides.length} slides</p>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
+                  {t('sidebar-storage-slides', { count: slides.length })}
+                </p>
               </div>
             </div>
           )}
@@ -702,8 +719,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                   </TooltipTrigger>
                   <TooltipContent side="right">
                     <div>
-                      <p className="gba:font-medium">Cloud storage</p>
-                      <p className="gba:text-xs gba:text-muted-foreground">{slides.length} slides</p>
+                      <p className="gba:font-medium">{t('sidebar-storage-cloud')}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {t('sidebar-storage-slides', { count: slides.length })}
+                      </p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -727,7 +746,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="gba:gap-1">
                           <ArrowUpDown className="gba:w-4 gba:h-4" />
-                          Sort
+                          {t('header-sort')}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
@@ -738,7 +757,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                           }}
                         >
                           {sortBy === 'name' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          Name
+                          {t('sort-name')}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
@@ -747,7 +766,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                           }}
                         >
                           {sortBy === 'modified' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          Modified
+                          {t('sort-modified')}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
@@ -756,7 +775,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                           }}
                         >
                           {sortBy === 'created' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          Created
+                          {t('sort-created')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -771,7 +790,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 <div className="gba:relative">
                   <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                   <Input
-                    placeholder="Search..."
+                    placeholder={t('header-search-placeholder')}
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className="gba:pl-9 gba:w-64 gba:h-9"
@@ -827,26 +846,26 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
               </div>
               <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
                 {activeSection === 'favorites'
-                  ? 'No favorites yet'
+                  ? t('empty-favorites-title')
                   : activeSection === 'shared'
-                    ? 'Nothing shared with you'
+                    ? t('empty-shared-title')
                     : activeSection === 'archived'
-                      ? 'No archived slides'
-                      : 'No slides yet'}
+                      ? t('empty-archived-title')
+                      : t('empty-default-title')}
               </h3>
               <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                 {activeSection === 'favorites'
-                  ? 'Star your frequently used slides to see them here.'
+                  ? t('empty-favorites-description')
                   : activeSection === 'shared'
-                    ? 'When someone shares a slide with you, it will appear here.'
+                    ? t('empty-shared-description')
                     : activeSection === 'archived'
-                      ? 'Archived slides will appear here.'
-                      : 'Create your first slide to get started.'}
+                      ? t('empty-archived-description')
+                      : t('empty-default-description')}
               </p>
               {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
                 <Button onClick={handleCreateNew}>
                   <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Create Slide
+                  {t('empty-create-slide')}
                 </Button>
               )}
             </div>
@@ -860,7 +879,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
                   <div className="gba:w-8 gba:flex-shrink-0">
                     <Checkbox
-                      checked={selectedSlides.size === filteredSlides.length && filteredSlides.length > 0}
+                      checked={selectedSlides.size === paginatedSlides.length && paginatedSlides.length > 0}
                       onCheckedChange={selectAllSlides}
                     />
                   </div>
@@ -872,7 +891,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
                     }}
                   >
-                    Name {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                    {t('sort-name')} {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                   </div>
                   <div
                     className="gba:w-36 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
@@ -881,9 +900,9 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
                     }}
                   >
-                    Modified {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                    {t('sort-modified')} {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                   </div>
-                  <div className="gba:w-40 gba:flex-shrink-0">Owner</div>
+                  <div className="gba:w-40 gba:flex-shrink-0">{t('table-owner')}</div>
                   <div
                     className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
                     onClick={() => {
@@ -891,7 +910,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
                     }}
                   >
-                    Created {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                    {t('sort-created')} {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                   </div>
                   <div className="gba:w-10 gba:flex-shrink-0" />
                 </div>
@@ -899,7 +918,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
 
               {/* Table Body */}
               <div className="gba:divide-y gba:divide-border">
-                {filteredSlides.map(slide => {
+                {paginatedSlides.map(slide => {
                   const isOwner = slide.isOwner || slide.permission === 'owner' || slide.createdBy === currentUserId
                   const isSelected = selectedSlides.has(slide.id)
                   const isFavorite = favorites.has(slide.id)
@@ -937,11 +956,11 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                         <div className="gba:min-w-0">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <span className="gba:font-medium gba:text-foreground gba:truncate">
-                              {slide.title || 'Untitled'}
+                              {slide.title || t('title-untitled')}
                             </span>
                             {slide.isShared && !isOwner && (
                               <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                Shared
+                                {t('label-shared')}
                               </Badge>
                             )}
                             {isOwner && sharedWith.length > 0 && (
@@ -974,10 +993,8 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>
-                                      Shared with {sharedWith.length} {sharedWith.length === 1 ? 'person' : 'people'}
-                                    </p>
-                                    <p className="gba:text-xs gba:text-muted-foreground">Click to manage</p>
+                                    <p>{t('shared-with-count', { count: sharedWith.length })}</p>
+                                    <p className="gba:text-xs gba:text-muted-foreground">{t('shared-click-manage')}</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
@@ -1004,7 +1021,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                             </AvatarFallback>
                           </Avatar>
                           <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                            {isOwner ? 'You' : ownerInfo?.name || 'Unknown'}
+                            {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
                           </span>
                         </div>
                       </div>
@@ -1028,34 +1045,34 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleOpenSlide(slide.id)}>
                               <Presentation className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Open
+                              {t('menu-open')}
                             </DropdownMenuItem>
                             {isOwner && (
                               <DropdownMenuItem onClick={() => handleShareClick(slide.id)}>
                                 <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Share
+                                {t('menu-share')}
                               </DropdownMenuItem>
                             )}
                             {isOwner && sharedWith.length > 0 && (
                               <DropdownMenuItem onClick={() => handleManageSharesClick(slide.id)}>
                                 <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Manage sharing
+                                {t('menu-manage-sharing')}
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem onClick={() => copyLink(slide)}>
                               <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Copy link
+                              {t('menu-copy-link')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleDuplicateSlide(slide.id)}>
                               <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Duplicate
+                              {t('menu-duplicate')}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => toggleFavorite(slide.id)}>
                               <Star
                                 className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
                               />
-                              {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                              {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {isOwner && (
@@ -1064,7 +1081,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                                 onClick={() => handleDeleteSlide(slide.id)}
                               >
                                 <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Delete
+                                {t('menu-delete')}
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
@@ -1080,7 +1097,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           {/* Grid View */}
           {!isLoading && filteredSlides.length > 0 && viewLayout === 'grid' && (
             <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-              {filteredSlides.map(slide => {
+              {paginatedSlides.map(slide => {
                 const isOwner = slide.isOwner || slide.permission === 'owner' || slide.createdBy === currentUserId
                 const isSelected = selectedSlides.has(slide.id)
                 const isFavorite = favorites.has(slide.id)
@@ -1124,7 +1141,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       {slide.isShared && !isOwner && (
                         <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                           <Users className="gba:w-3 gba:h-3 gba:mr-1" />
-                          Shared
+                          {t('label-shared')}
                         </Badge>
                       )}
                     </div>
@@ -1132,7 +1149,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                     {/* Info */}
                     <div className="gba:p-3">
                       <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
-                        {slide.title || 'Untitled'}
+                        {slide.title || t('title-untitled')}
                       </h3>
                       <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
                         <span>{formatRelativeTime(slide.updatedAt)}</span>
@@ -1144,6 +1161,18 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {!isLoading && filteredSlides.length > 0 && (
+          <HubPaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={goToPage}
+            data-testid={`${testId}-pagination`}
+          />
+        )}
       </main>
 
       {/* Share Slide Dialog */}
@@ -1155,7 +1184,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             if (!open) setSlideForShare(null)
           }}
           slideId={slideForShare}
-          slideTitle={slides.find(s => s.id === slideForShare)?.title || 'Untitled Slide'}
+          slideTitle={slides.find(s => s.id === slideForShare)?.title || t('title-untitled-slide')}
           currentUserId={currentUserId}
           currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
           accessToken={accessToken}
@@ -1177,7 +1206,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             if (!open) setSlideForManageShares(null)
           }}
           slideId={slideForManageShares}
-          slideTitle={slides.find(s => s.id === slideForManageShares)?.title || 'Untitled Slide'}
+          slideTitle={slides.find(s => s.id === slideForManageShares)?.title || t('title-untitled-slide')}
           accessToken={accessToken}
           onSharesChanged={async () => {
             refreshSlides()
@@ -1200,7 +1229,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             onCancel={() => setShowImportDialog(false)}
             onError={err => {
               console.error('[SlidesAppsHub] Import error:', err)
-              toast.error(err)
+              toast.error(t('toast-import-failed'))
             }}
             data-testid={`${testId}-import-uploader`}
           />

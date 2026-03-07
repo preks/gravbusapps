@@ -25,7 +25,8 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-  Checkbox
+  Checkbox,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   StickyNote,
@@ -70,6 +71,8 @@ import type { PaperStyle, StrokeData } from './components/handwriting'
 // Hooks
 import { useNotes } from './hooks/useNotes'
 import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
+import { useHubPagination } from '../shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // GraphQL
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -80,6 +83,7 @@ import { NoteApiService } from './services/NoteApiService'
 
 // Types
 import type { NoteSummary, CreateNoteInput, NoteColor } from './types'
+import translations from './_i18n'
 
 export interface NoteAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -101,7 +105,7 @@ function getInitials(name: string): string {
 /**
  * Format date for table display
  */
-function formatDate(dateString: string): string {
+function formatDate(dateString: string, t: (key: string, vars?: Record<string, unknown>) => string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -110,8 +114,8 @@ function formatDate(dateString: string): string {
   if (diffDays === 0) {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   }
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
+  if (diffDays === 1) return t('time-yesterday')
+  if (diffDays < 7) return t('time-days-ago-plural', { count: diffDays })
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -122,7 +126,7 @@ function formatDate(dateString: string): string {
 /**
  * Format relative time
  */
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(dateString: string, t: (key: string, vars?: Record<string, unknown>) => string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -130,10 +134,10 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
   return date.toLocaleDateString()
 }
 
@@ -145,6 +149,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   userInfo,
   'data-testid': testId = 'note-apps-hub'
 }) => {
+  const { t } = useTranslation(translations)
+
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
@@ -193,18 +199,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
-  // Store access token for NoteApiService to use (iPad Safari doesn't have it in localStorage)
-  useEffect(() => {
-    if (accessToken) {
-      try {
-        localStorage.setItem('business-app-ide-access-token', accessToken)
-        console.log('[NoteAppsHub] Stored access token in localStorage, length:', accessToken.length)
-      } catch (e) {
-        console.warn('[NoteAppsHub] Failed to store access token in localStorage:', e)
-      }
-    }
-  }, [accessToken])
-
   // Hooks
   const {
     notes,
@@ -223,7 +217,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     refreshNotes,
     shareNote,
     getSharedUsers
-  } = useNotes({ accessToken, userId: currentUserId })
+  } = useNotes({ accessToken, userId: currentUserId, translate: t })
 
   const { updateUrl, resetLoadAttempt } = useNoteAppsHubUrlState({
     currentView,
@@ -388,6 +382,15 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     return baseNotes
   }, [myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes, activeSection, searchQuery, sortBy, sortOrder])
 
+  const {
+    paginatedItems: paginatedNotes,
+    currentPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    pageSize
+  } = useHubPagination({ items: filteredNotes, pageSize: 20 })
+
   /**
    * Create new note
    */
@@ -439,7 +442,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
    */
   const handleDeleteNote = useCallback(
     async (id: string) => {
-      if (confirm('Are you sure you want to delete this note?')) {
+      if (confirm(t('confirm-delete'))) {
         const success = await deleteNote(id)
         if (success && selectedNoteId === id) {
           setSelectedNoteId(null)
@@ -448,7 +451,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         }
       }
     },
-    [deleteNote, selectedNoteId, updateUrl]
+    [deleteNote, selectedNoteId, updateUrl, t]
   )
 
   /**
@@ -457,9 +460,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const handleDuplicateNote = useCallback(
     async (id: string) => {
       await duplicateNote(id)
-      toast.success('Note duplicated')
+      toast.success(t('toast-note-duplicated'))
     },
-    [duplicateNote]
+    [duplicateNote, t]
   )
 
   /**
@@ -470,10 +473,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       const success = await togglePin(id)
       if (success) {
         const note = notes.find(n => n.id === id)
-        toast.success(note?.isPinned ? 'Note unpinned' : 'Note pinned')
+        toast.success(note?.isPinned ? t('toast-note-unpinned') : t('toast-note-pinned'))
       }
     },
-    [togglePin, notes]
+    [togglePin, notes, t]
   )
 
   /**
@@ -483,14 +486,14 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     async (id: string) => {
       const success = await archiveNote(id)
       if (success) {
-        toast.success('Note archived')
+        toast.success(t('toast-note-archived'))
         if (selectedNoteId === id) {
           setSelectedNoteId(null)
           setCurrentView('list')
         }
       }
     },
-    [archiveNote, selectedNoteId]
+    [archiveNote, selectedNoteId, t]
   )
 
   /**
@@ -530,20 +533,23 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   /**
    * Toggle favorite
    */
-  const toggleFavorite = useCallback((id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    setFavorites(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        toast.success('Removed from favorites')
-      } else {
-        next.add(id)
-        toast.success('Added to favorites')
-      }
-      return next
-    })
-  }, [])
+  const toggleFavorite = useCallback(
+    (id: string, e?: React.MouseEvent) => {
+      e?.stopPropagation()
+      setFavorites(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) {
+          next.delete(id)
+          toast.success(t('toast-favorite-removed'))
+        } else {
+          next.add(id)
+          toast.success(t('toast-favorite-added'))
+        }
+        return next
+      })
+    },
+    [t]
+  )
 
   /**
    * Toggle select note
@@ -575,13 +581,16 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   /**
    * Copy link
    */
-  const copyLink = useCallback((note: NoteSummary) => {
-    const url = new URL(window.location.href)
-    url.searchParams.set('noteId', note.id)
-    url.searchParams.set('view', 'editor')
-    navigator.clipboard.writeText(url.toString())
-    toast.success('Link copied to clipboard')
-  }, [])
+  const copyLink = useCallback(
+    (note: NoteSummary) => {
+      const url = new URL(window.location.href)
+      url.searchParams.set('noteId', note.id)
+      url.searchParams.set('view', 'editor')
+      navigator.clipboard.writeText(url.toString())
+      toast.success(t('toast-link-copied'))
+    },
+    [t]
+  )
 
   /**
    * Handle share note - open dialog
@@ -669,19 +678,19 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const getSectionTitle = () => {
     switch (activeSection) {
       case 'home':
-        return 'Home'
+        return t('sidebar-home')
       case 'my-notes':
-        return 'My Notes'
+        return t('sidebar-my-items')
       case 'shared':
-        return 'Shared with me'
+        return t('sidebar-shared')
       case 'pinned':
-        return 'Pinned'
+        return t('sidebar-pinned')
       case 'recent':
-        return 'Recent'
+        return t('sidebar-recent')
       case 'archived':
-        return 'Archived'
+        return t('sidebar-archived')
       default:
-        return 'Notes'
+        return t('sidebar-brand-title')
     }
   }
 
@@ -759,7 +768,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               }
               const newNote = await createNote(input)
               if (newNote) {
-                toast.success('Text note created')
+                toast.success(t('toast-text-note-created'))
               }
             }}
             accessToken={accessToken}
@@ -773,7 +782,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               open={shareDialogOpen}
               onOpenChange={setShareDialogOpen}
               noteId={noteToShare.id}
-              noteTitle={noteToShare.title || 'Untitled Note'}
+              noteTitle={noteToShare.title || t('title-untitled-note')}
               accessToken={accessToken}
               currentUserId={currentUserId}
               currentUserName={userInfo?.employeeDetails?.displayName}
@@ -814,7 +823,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             open={shareDialogOpen}
             onOpenChange={setShareDialogOpen}
             noteId={noteToShare.id}
-            noteTitle={noteToShare.title || 'Untitled Note'}
+            noteTitle={noteToShare.title || t('title-untitled-note')}
             accessToken={accessToken}
             currentUserId={currentUserId}
             currentUserName={userInfo?.employeeDetails?.displayName}
@@ -854,7 +863,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       <ChevronLeft className="gba:w-4 gba:h-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Back to Desk</TooltipContent>
+                  <TooltipContent>{t('sidebar-back-to-desk')}</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
@@ -872,7 +881,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+                <TooltipContent>{isSidebarCollapsed ? t('sidebar-expand') : t('sidebar-collapse')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -884,8 +893,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                 <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
               </div>
               <div>
-                <h1 className="gba:font-semibold gba:text-foreground">Notes</h1>
-                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+                <h1 className="gba:font-semibold gba:text-foreground">{t('sidebar-brand-title')}</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('sidebar-brand-subtitle')}</p>
               </div>
             </div>
           )}
@@ -906,30 +915,30 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                 className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-600 gba:text-white hover:gba:from-amber-600 hover:gba:to-orange-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
               >
                 <Plus className="gba:w-4 gba:h-4" />
-                {!isSidebarCollapsed && 'New'}
+                {!isSidebarCollapsed && t('sidebar-new')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
               <DropdownMenuItem onClick={() => handleCreateNew()}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-amber-500" />
                 <div>
-                  <div className="gba:font-medium">Text Note</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Type with keyboard</div>
+                  <div className="gba:font-medium">{t('menu-new-text-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-text-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleCreateNew({ noteType: 'handwriting', paperStyle: 'lined' })}>
                 <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
                 <div>
-                  <div className="gba:font-medium">Handwriting Note</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Write with Apple Pencil</div>
+                  <div className="gba:font-medium">{t('menu-new-handwriting-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleCreateNew({ color: 'yellow' })}>
                 <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
-                  <div className="gba:font-medium">From Template</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Choose a template</div>
+                  <div className="gba:font-medium">{t('menu-new-template-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-template-description')}</div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -951,10 +960,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     }`}
                   >
                     <Home className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Home'}
+                    {!isSidebarCollapsed && t('sidebar-home')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-home')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -968,10 +977,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     }`}
                   >
                     <FolderClosed className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'My Notes'}
+                    {!isSidebarCollapsed && t('sidebar-my-items')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">My Notes</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-my-items')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -987,7 +996,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     <Users className="gba:w-4 gba:h-4" />
                     {!isSidebarCollapsed && (
                       <>
-                        Shared with me
+                        {t('sidebar-shared')}
                         {sharedNotes.length > 0 && (
                           <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
                             {sharedNotes.length}
@@ -999,7 +1008,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                 </TooltipTrigger>
                 {isSidebarCollapsed && (
                   <TooltipContent side="right">
-                    Shared with me {sharedNotes.length > 0 && `(${sharedNotes.length})`}
+                    {t('sidebar-shared')} {sharedNotes.length > 0 && `(${sharedNotes.length})`}
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -1017,7 +1026,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     <Pin className="gba:w-4 gba:h-4" />
                     {!isSidebarCollapsed && (
                       <>
-                        Pinned
+                        {t('sidebar-pinned')}
                         {pinnedNotes.length > 0 && (
                           <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
                             {pinnedNotes.length}
@@ -1029,7 +1038,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                 </TooltipTrigger>
                 {isSidebarCollapsed && (
                   <TooltipContent side="right">
-                    Pinned {pinnedNotes.length > 0 && `(${pinnedNotes.length})`}
+                    {t('sidebar-pinned')} {pinnedNotes.length > 0 && `(${pinnedNotes.length})`}
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -1045,10 +1054,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     }`}
                   >
                     <Clock className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Recent'}
+                    {!isSidebarCollapsed && t('sidebar-recent')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-recent')}</TooltipContent>}
               </Tooltip>
 
               <Tooltip>
@@ -1062,21 +1071,23 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     }`}
                   >
                     <Archive className="gba:w-4 gba:h-4" />
-                    {!isSidebarCollapsed && 'Archived'}
+                    {!isSidebarCollapsed && t('sidebar-archived')}
                   </button>
                 </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Archived</TooltipContent>}
+                {isSidebarCollapsed && <TooltipContent side="right">{t('sidebar-archived')}</TooltipContent>}
               </Tooltip>
             </TooltipProvider>
           </div>
 
           {!isSidebarCollapsed && (
             <div className="gba:mt-6 gba:pt-4 gba:border-t">
-              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('sidebar-storage')}
+              </p>
               <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                   <Database className="gba:w-4 gba:h-4 gba:text-amber-500" />
-                  <span className="gba:text-xs gba:text-muted-foreground">Cloud storage</span>
+                  <span className="gba:text-xs gba:text-muted-foreground">{t('sidebar-storage-cloud')}</span>
                 </div>
                 <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
                   <div
@@ -1084,7 +1095,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     style={{ width: `${Math.min((notes.length / 50) * 100, 100)}%` }}
                   />
                 </div>
-                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{notes.length} notes</p>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
+                  {t('sidebar-storage-notes', { count: notes.length })}
+                </p>
               </div>
             </div>
           )}
@@ -1099,8 +1112,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                   </TooltipTrigger>
                   <TooltipContent side="right">
                     <div>
-                      <p className="gba:font-medium">Cloud storage</p>
-                      <p className="gba:text-xs gba:text-muted-foreground">{notes.length} notes</p>
+                      <p className="gba:font-medium">{t('sidebar-storage-cloud')}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {t('sidebar-storage-notes', { count: notes.length })}
+                      </p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -1124,7 +1139,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="gba:gap-1">
                           <ArrowUpDown className="gba:w-4 gba:h-4" />
-                          Sort
+                          {t('header-sort')}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
@@ -1135,7 +1150,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                           }}
                         >
                           {sortBy === 'name' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          Name
+                          {t('sort-name')}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
@@ -1144,7 +1159,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                           }}
                         >
                           {sortBy === 'modified' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          Modified
+                          {t('sort-modified')}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
@@ -1153,7 +1168,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                           }}
                         >
                           {sortBy === 'created' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                          Created
+                          {t('sort-created')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1168,7 +1183,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                 <div className="gba:relative">
                   <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                   <Input
-                    placeholder="Search..."
+                    placeholder={t('header-search-placeholder')}
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className="gba:pl-9 gba:w-64 gba:h-9"
@@ -1223,26 +1238,26 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               </div>
               <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
                 {activeSection === 'pinned'
-                  ? 'No pinned notes'
+                  ? t('empty-pinned-title')
                   : activeSection === 'shared'
-                    ? 'Nothing shared with you'
+                    ? t('empty-shared-title')
                     : activeSection === 'archived'
-                      ? 'No archived notes'
-                      : 'No notes yet'}
+                      ? t('empty-archived-title')
+                      : t('empty-default-title')}
               </h3>
               <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                 {activeSection === 'pinned'
-                  ? 'Pin your important notes to access them quickly.'
+                  ? t('empty-pinned-description')
                   : activeSection === 'shared'
-                    ? 'When someone shares a note with you, it will appear here.'
+                    ? t('empty-shared-description')
                     : activeSection === 'archived'
-                      ? 'Archived notes will appear here.'
-                      : 'Create your first note to get started.'}
+                      ? t('empty-archived-description')
+                      : t('empty-default-description')}
               </p>
               {activeSection !== 'pinned' && activeSection !== 'shared' && activeSection !== 'archived' && (
                 <Button onClick={() => handleCreateNew()}>
                   <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Create Note
+                  {t('empty-create-note')}
                 </Button>
               )}
             </div>
@@ -1256,7 +1271,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                 <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
                   <div className="gba:w-8 gba:flex-shrink-0">
                     <Checkbox
-                      checked={selectedNotes.size === filteredNotes.length && filteredNotes.length > 0}
+                      checked={selectedNotes.size === paginatedNotes.length && paginatedNotes.length > 0}
                       onCheckedChange={selectAllNotes}
                     />
                   </div>
@@ -1268,7 +1283,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
                     }}
                   >
-                    Name
+                    {t('sort-name')}
                     {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                   </div>
                   <div
@@ -1278,10 +1293,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
                     }}
                   >
-                    Modified
+                    {t('sort-modified')}
                     {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                   </div>
-                  <div className="gba:w-40 gba:flex-shrink-0">Owner</div>
+                  <div className="gba:w-40 gba:flex-shrink-0">{t('table-owner')}</div>
                   <div
                     className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
                     onClick={() => {
@@ -1289,7 +1304,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
                     }}
                   >
-                    Created
+                    {t('sort-created')}
                     {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                   </div>
                   <div className="gba:w-10 gba:flex-shrink-0" />
@@ -1298,7 +1313,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
               {/* Table Body */}
               <div className="gba:divide-y gba:divide-border">
-                {filteredNotes.map(note => {
+                {paginatedNotes.map(note => {
                   const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
                   const isSelected = selectedNotes.has(note.id)
                   const isFavorite = favorites.has(note.id)
@@ -1341,12 +1356,12 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                         <div className="gba:min-w-0">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <span className="gba:font-medium gba:text-foreground gba:truncate">
-                              {note.title || 'Untitled'}
+                              {note.title || t('title-untitled')}
                             </span>
                             {note.isPinned && <Pin className="gba:w-3 gba:h-3 gba:text-amber-500" />}
                             {note.isShared && !isOwner && (
                               <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                Shared
+                                {t('label-shared')}
                               </Badge>
                             )}
                             {isOwner && sharedWith.length > 0 && (
@@ -1379,10 +1394,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                                     </button>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>
-                                      Shared with {sharedWith.length} {sharedWith.length === 1 ? 'person' : 'people'}
-                                    </p>
-                                    <p className="gba:text-xs gba:text-muted-foreground">Click to manage</p>
+                                    <p>{t('shared-with-count', { count: sharedWith.length })}</p>
+                                    <p className="gba:text-xs gba:text-muted-foreground">{t('shared-click-manage')}</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
@@ -1396,7 +1409,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
                       {/* Modified */}
                       <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                        {formatDate(note.updatedAt)}
+                        {formatDate(note.updatedAt, t)}
                       </div>
 
                       {/* Owner */}
@@ -1409,14 +1422,14 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                             </AvatarFallback>
                           </Avatar>
                           <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                            {isOwner ? 'You' : ownerInfo?.name || 'Unknown'}
+                            {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
                           </span>
                         </div>
                       </div>
 
                       {/* Created */}
                       <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                        {formatDate(note.createdAt)}
+                        {formatDate(note.createdAt, t)}
                       </div>
 
                       {/* Actions */}
@@ -1433,38 +1446,38 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleOpenNote(note.id)}>
                               <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Open
+                              {t('menu-open')}
                             </DropdownMenuItem>
                             {isOwner && (
                               <DropdownMenuItem onClick={() => handleShareNote(note.id)}>
                                 <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                Share
+                                {t('menu-share')}
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem onClick={() => copyLink(note)}>
                               <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Copy link
+                              {t('menu-copy-link')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleDuplicateNote(note.id)}>
                               <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Duplicate
+                              {t('menu-duplicate')}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleTogglePin(note.id)}>
                               <Pin
                                 className={`gba:w-4 gba:h-4 gba:mr-2 ${note.isPinned ? 'gba:fill-current gba:text-amber-500' : ''}`}
                               />
-                              {note.isPinned ? 'Unpin' : 'Pin'}
+                              {note.isPinned ? t('menu-unpin') : t('menu-pin')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toggleFavorite(note.id)}>
                               <Star
                                 className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
                               />
-                              {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                              {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleArchiveNote(note.id)}>
                               <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Archive
+                              {t('menu-archive')}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -1472,7 +1485,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                               onClick={() => handleDeleteNote(note.id)}
                             >
                               <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Delete
+                              {t('menu-delete')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1487,7 +1500,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           {/* Grid View */}
           {!isLoadingNotes && filteredNotes.length > 0 && viewLayout === 'grid' && (
             <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-              {filteredNotes.map(note => {
+              {paginatedNotes.map(note => {
                 const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
                 const isSelected = selectedNotes.has(note.id)
                 const isFavorite = favorites.has(note.id)
@@ -1536,7 +1549,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       {note.isPinned && (
                         <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                           <Pin className="gba:w-3 gba:h-3 gba:mr-1" />
-                          Pinned
+                          {t('sidebar-pinned')}
                         </Badge>
                       )}
 
@@ -1544,7 +1557,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       {note.isShared && !isOwner && (
                         <Badge variant="secondary" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                           <Users className="gba:w-3 gba:h-3 gba:mr-1" />
-                          Shared
+                          {t('label-shared')}
                         </Badge>
                       )}
                     </div>
@@ -1552,10 +1565,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                     {/* Info */}
                     <div className="gba:p-3">
                       <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
-                        {note.title || 'Untitled'}
+                        {note.title || t('title-untitled')}
                       </h3>
                       <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                        <span>{formatRelativeTime(note.updatedAt)}</span>
+                        <span>{formatRelativeTime(note.updatedAt, t)}</span>
                       </div>
                     </div>
                   </Card>
@@ -1564,6 +1577,18 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {!isLoadingNotes && filteredNotes.length > 0 && (
+          <HubPaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={goToPage}
+            data-testid={`${testId}-pagination`}
+          />
+        )}
       </main>
 
       {/* Share Dialog */}
@@ -1572,7 +1597,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           open={shareDialogOpen}
           onOpenChange={setShareDialogOpen}
           noteId={noteToShare.id}
-          noteTitle={noteToShare.title || 'Untitled Note'}
+          noteTitle={noteToShare.title || t('title-untitled-note')}
           accessToken={accessToken}
           currentUserId={currentUserId}
           currentUserName={userInfo?.employeeDetails?.displayName}

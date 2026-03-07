@@ -12,12 +12,13 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
+import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
 
 export interface RatingScaleValues {
   id?: string
+  version?: number
   name: string
   values: string[]
-  // Optional metadata for future use/backward compatibility
   numValues?: number
   displayMode?: 'value' | 'letters' | 'stars' | 'custom'
 }
@@ -53,7 +54,9 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
   const [name, setName] = useState(initialValues?.name || '')
   const defaultCount = initialValues?.values?.length ? Math.min(Math.max(initialValues.values.length, 2), 10) : 5
   const [count, setCount] = useState<number>(defaultCount)
-  const [displayMode, setDisplayMode] = useState<DisplayMode>(initialValues ? 'custom' : 'value')
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(
+    initialValues?.displayMode ?? (initialValues?.values?.length ? inferDisplayMode(initialValues.values) : 'value')
+  )
   const [customLabels, setCustomLabels] = useState<string[]>(
     initialValues?.values?.length
       ? [...initialValues.values]
@@ -128,6 +131,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
     if (!name.trim() || generatedValues.length === 0) return
     onSave({
       id: initialValues?.id,
+      version: initialValues?.version,
       name: name.trim(),
       values: generatedValues,
       numValues: count,
@@ -138,7 +142,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="rating-scale-editor-modal">
+      <DialogContent data-testid="rating-scale-editor-modal" onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{initialValues ? t('scale-title-edit') : t('scale-title-add')}</DialogTitle>
           <DialogDescription>{t('scale-description')}</DialogDescription>
@@ -152,6 +156,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder={t('scale-placeholder-name')}
+              maxLength={PERFORMANCE_VALIDATION.SCALE_NAME_MAX_LENGTH}
             />
           </div>
 
@@ -188,6 +193,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
                         })
                       }}
                       placeholder={`${t('scale-custom-label-placeholder-prefix')} ${i + 1}`}
+                      maxLength={PERFORMANCE_VALIDATION.SCALE_VALUE_MAX_LENGTH}
                     />
                   </div>
                 ))}

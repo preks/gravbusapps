@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   Button,
@@ -18,7 +19,6 @@ import {
   Spinner,
   IconAvatar
 } from '@newwork/nw-design-system'
-import { rtkDebug } from '../../utils/rtkDebug'
 import {
   Calendar,
   Clock,
@@ -204,13 +204,6 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   // Initialize form when editMeeting changes
   useEffect(() => {
     if (editMeeting && isOpen) {
-      rtkDebug.log('[CreateMeetingModal] Initializing from editMeeting:', {
-        meetingId: editMeeting.id,
-        hasMetadata: !!editMeeting.metadata,
-        metadata: editMeeting.metadata,
-        aiTranscriptionEnabled: editMeeting.metadata?.aiTranscriptionEnabled
-      })
-
       setTitle(editMeeting.title || '')
       setDescription(editMeeting.description || '')
       setDate(formatDateForInput(editMeeting.startTime))
@@ -225,7 +218,6 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setReminderMinutes(editMeeting.reminderMinutes || [15])
 
       const transcriptionValue = editMeeting.metadata?.aiTranscriptionEnabled === true
-      rtkDebug.log('[CreateMeetingModal] Setting AI Transcription to:', transcriptionValue)
       setEnableAITranscription(transcriptionValue)
 
       // Initialize agenda from metadata
@@ -436,6 +428,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="gba:max-w-lg gba:w-[95vw] gba:sm:w-full gba:max-h-[90vh] gba:overflow-y-auto">
+        <DialogDescription className="gba:sr-only">
+          {isEditMode ? t('calendar-editMeeting') : t('calendar-scheduleMeeting')}
+        </DialogDescription>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-5 gba:w-5 gba:text-primary" />
@@ -846,6 +841,17 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               />
             </div>
           </div>
+          {enableAITranscription && (
+            <div className="gba:flex gba:items-center gba:gap-2" data-testid="create-meeting-recording-notice">
+              <span
+                className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                aria-hidden
+              />
+              <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                {t('chat-call-recordingTranscriptActive')}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

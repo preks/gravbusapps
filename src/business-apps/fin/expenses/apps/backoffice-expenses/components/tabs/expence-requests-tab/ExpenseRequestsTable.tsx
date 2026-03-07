@@ -33,14 +33,14 @@ import {
   Sheet,
   SheetContent
 } from '@newwork/nw-design-system'
-import { PiArrowUp, PiArrowDown, PiDownload, PiFileXls } from 'react-icons/pi'
+import { ArrowUpIcon, ArrowDownIcon, DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
 import { formatDateLocalized } from '../../../utils/dateUtils'
 import { formatCurrency } from '../../../utils/currencyUtils'
 import { DatePicker, Tooltip } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
+import { InfoIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../../hooks/useFilterData'
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils/utils'
@@ -198,11 +198,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const { handleDownloadAccountingNote, handleTriggerCSV } = useExpenseRequestActions(props)
 
-  const { handleTransferPayment, handleBulkTransferPayment } = useExpenseRequestTransfer(
-    props,
-    () => fetchData(true), // Force refresh after transfer
-    clearSelection
-  )
+  const { handleTransferPayment, handleBulkTransferPayment, isTransferInProgress, isBulkTransferInProgress } =
+    useExpenseRequestTransfer(
+      props,
+      () => fetchData(true), // Force refresh after transfer
+      clearSelection
+    )
 
   const {
     employeeFilter,
@@ -643,7 +644,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 )}
                 placement="right"
               >
-                <InfoCircleOutlined data-testid="effective-date-info" />
+                <InfoIcon size={16} data-testid="effective-date-info" />
               </Tooltip>
             </div>
           </div>
@@ -882,7 +883,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const renderSortIcon = useCallback(
     (field: string) => {
       if (isActiveSort(field)) {
-        return isAsc ? <PiArrowUp size={12} className="gba:ml-1" /> : <PiArrowDown size={12} className="gba:ml-1" />
+        return isAsc ? <ArrowUpIcon size={12} className="gba:ml-1" /> : <ArrowDownIcon size={12} className="gba:ml-1" />
       }
       return <span className="gba:ml-1 gba:inline-block gba:w-[12px] gba:h-[12px]" />
     },
@@ -1139,6 +1140,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                         onTransferPayment={handleTransferPayment}
                         isSelected={selectedRowKeys.includes(record.id)}
                         onSelectRecord={handleSelectRecord}
+                        transferInProgress={isTransferInProgress(record.id)}
                       />
                     ))
                   )}
@@ -1176,6 +1178,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     handleTriggerCSV,
     handlePrintExpenseRequest,
     handleTransferPayment,
+    isTransferInProgress,
     selectedRowKeys,
     handleSelectRecord,
     currentPage,
@@ -1310,14 +1313,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             data-testid="bulk-transfer-payment-button"
             variant="outline"
             size="sm"
+            disabled={isBulkTransferInProgress}
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} (
-            {selectedBookableCount}{' '}
+            {isBulkTransferInProgress
+              ? getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment_in_progress', 'Transfer in Progress')
+              : getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')}{' '}
+            ({selectedBookableCount}{' '}
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
           </Button>
         ]
       : []
-  }, [hasBookableSelected, selectedBookableCount])
+  }, [hasBookableSelected, selectedBookableCount, handleBulkTransfer, isBulkTransferInProgress])
 
   // Helper to build search condition (reduces cognitive complexity of buildQueryConditions)
   const buildSearchCondition = useCallback((searchValue: string): any => {
@@ -1702,7 +1708,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             data-testid="expense-requests-export-csv-button"
             title={getExportCsvTitle()}
           >
-            <PiDownload className="gba:mr-2" />
+            <DownloadIcon className="gba:mr-2" />
             {isExporting ? 'Exporting...' : getTranslationFromI18nKeyAndLabel('lowcoder:export_csv', 'CSV')}
           </Button>
           <Button
@@ -1713,7 +1719,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             data-testid="expense-requests-export-excel-button"
             title={getExportExcelTitle()}
           >
-            <PiFileXls className="gba:mr-2" />
+            <FileXlsIcon className="gba:mr-2" />
             {isExporting ? 'Exporting...' : getTranslationFromI18nKeyAndLabel('lowcoder:export_excel', 'Excel')}
           </Button>
         </div>

@@ -1,14 +1,14 @@
-/**
- * EmailList - Displays a list of email messages with bulk operations.
- * Supports selection, star toggle, read/unread indicators, and multi-select.
- */
-
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
-import { Input, Spinner, Button, Checkbox } from '@newwork/nw-design-system'
-import { Search, Star, Paperclip, AlertCircle, Trash2, MailOpen, Mail, MessageSquare } from 'lucide-react'
+import { Spinner, Button, useTranslation } from '@newwork/nw-design-system'
+import { AlertCircle, Trash2, MailOpen, Mail } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
-import type { EmailMessageSummary } from '../types'
+import { normalizeLabelName, normalizeLabelObjects } from '../utils/labelUtils'
+import { formatEmailDate } from '../utils/emailListFormatting'
+import { EmailListHeader } from './EmailListHeader'
+import { EmailListItem } from './EmailListItem'
+import type { EmailMessageSummary, AddLabelInput, EmailLabel } from '../types'
+import translations from '../_i18n'
 
 interface EmailListProps {
   messages: EmailMessageSummary[]
@@ -19,32 +19,21 @@ interface EmailListProps {
   total?: number
   searchQuery: string
   onSearchChange: (query: string) => void
+  selectedLabels?: string[]
+  onLabelsChange?: (labels: string[]) => void
   onSelectMessage: (id: string) => void
   onToggleStar: (id: string) => void
+  onReply?: (messageId: string) => void
+  onReplyAll?: (messageId: string) => void
+  onForward?: (messageId: string) => void
+  onToggleRead?: (messageId: string, isRead: boolean) => void
+  onArchive?: (messageId: string) => void
+  onDelete?: (messageId: string) => void
   onRefresh: () => void
+  onMessageLabelsUpdated?: (messageId: string, labels?: EmailLabel[]) => Promise<void> | void
   onLoadMore?: () => void
   folderName: string
   'data-testid'?: string
-}
-
-function formatEmailDate(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  }
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) {
-    return date.toLocaleDateString('en-US', { weekday: 'short' })
-  }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function getDisplayName(from: { name?: string; address: string }): string {
-  return from.name || from.address.split('@')[0]
 }
 
 export const EmailList: React.FC<EmailListProps> = ({
@@ -56,15 +45,34 @@ export const EmailList: React.FC<EmailListProps> = ({
   total = 0,
   searchQuery,
   onSearchChange,
+  selectedLabels = [],
+  onLabelsChange,
   onSelectMessage,
   onToggleStar,
+  onReply,
+  onReplyAll,
+  onForward,
+  onToggleRead,
+  onArchive,
+  onDelete,
   onRefresh,
+  onMessageLabelsUpdated,
   onLoadMore,
   folderName,
   'data-testid': testId = 'email-list'
 }) => {
+  const { t } = useTranslation(translations)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkAction, setIsBulkAction] = useState(false)
+  const [labelSearchQuery, setLabelSearchQuery] = useState('')
+  const [isLabelSearchOpen, setIsLabelSearchOpen] = useState(false)
+  const labelSearchInputRef = useRef<HTMLInputElement>(null)
+  const labelFilterRowRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (!isLabelSearchOpen) return
+    labelSearchInputRef.current?.focus()
+  }, [isLabelSearchOpen])
 
   const toggleSelect = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -93,16 +101,21 @@ export const EmailList: React.FC<EmailListProps> = ({
       setIsBulkAction(true)
       try {
         await EmailApiService.batchMarkRead(Array.from(selectedIds), isRead)
-        toast.success(`Marked ${selectedIds.size} emails as ${isRead ? 'read' : 'unread'}`)
+        toast.success(
+          t('list-toast-marked', {
+            count: selectedIds.size,
+            state: isRead ? t('list-state-read') : t('list-state-unread')
+          })
+        )
         setSelectedIds(new Set())
         onRefresh()
       } catch {
-        toast.error('Failed to update emails')
+        toast.error(t('list-toast-update-failed'))
       } finally {
         setIsBulkAction(false)
       }
     },
-    [selectedIds, onRefresh]
+    [selectedIds, onRefresh, t]
   )
 
   const handleBulkDelete = useCallback(async () => {
@@ -112,18 +125,78 @@ export const EmailList: React.FC<EmailListProps> = ({
       for (const id of selectedIds) {
         await EmailApiService.deleteMessage(id)
       }
-      toast.success(`Deleted ${selectedIds.size} emails`)
+      toast.success(t('list-toast-deleted', { count: selectedIds.size }))
       setSelectedIds(new Set())
       onRefresh()
     } catch {
-      toast.error('Failed to delete emails')
+      toast.error(t('list-toast-delete-failed'))
     } finally {
       setIsBulkAction(false)
     }
-  }, [selectedIds, onRefresh])
+  }, [selectedIds, onRefresh, t])
 
   const hasBulkSelection = selectedIds.size > 0
   const remaining = Math.max(total - messages.length, 0)
+  const hasActiveLabelFilter = selectedLabels.length > 0
+  const availableLabels = useMemo(() => {
+    const seen = new Set<string>()
+    const ordered: string[] = []
+
+    messages.forEach(message => {
+      ;(message.labels || []).forEach(label => {
+        const normalizedName = normalizeLabelName(label.name)
+        if (!normalizedName || seen.has(normalizedName)) return
+        seen.add(normalizedName)
+        ordered.push(normalizedName)
+      })
+    })
+
+    return ordered
+  }, [messages])
+  const labelColorByName = useMemo(() => {
+    const map = new Map<string, string | null>()
+    messages.forEach(message => {
+      ;(message.labels || []).forEach(label => {
+        const normalizedName = normalizeLabelName(label.name)
+        if (!normalizedName) return
+        map.set(normalizedName, label.color || null)
+      })
+    })
+
+    // Prefer the currently selected message labels so inline edits
+    // are reflected immediately in the filter chip colors.
+    const selectedMessage = messages.find(message => message.id === selectedMessageId)
+    ;(selectedMessage?.labels || []).forEach(label => {
+      const normalizedName = normalizeLabelName(label.name)
+      if (!normalizedName) return
+      map.set(normalizedName, label.color || null)
+    })
+    return map
+  }, [messages, selectedMessageId])
+  const visibleFilterLabels = useMemo(() => {
+    const merged = new Set<string>()
+    const labels: string[] = []
+
+    selectedLabels.forEach(label => {
+      const normalized = normalizeLabelName(label)
+      if (!normalized || merged.has(normalized)) return
+      merged.add(normalized)
+      labels.push(normalized)
+    })
+
+    availableLabels.forEach(label => {
+      if (merged.has(label)) return
+      merged.add(label)
+      labels.push(label)
+    })
+
+    return labels
+  }, [selectedLabels, availableLabels])
+  const filteredVisibleLabels = useMemo(() => {
+    const query = normalizeLabelName(labelSearchQuery)
+    if (!query) return visibleFilterLabels
+    return visibleFilterLabels.filter(label => label.includes(query))
+  }, [labelSearchQuery, visibleFilterLabels])
 
   const handleLoadMore = useCallback(() => {
     if (onLoadMore && hasMore && !isLoadingMore) {
@@ -142,30 +215,93 @@ export const EmailList: React.FC<EmailListProps> = ({
     [onLoadMore, hasMore, isLoadingMore, isLoading]
   )
 
+  const toggleFilterLabel = useCallback(
+    (label: string) => {
+      if (!onLabelsChange) return
+      if (selectedLabels.includes(label)) {
+        onLabelsChange(selectedLabels.filter(selected => selected !== label))
+        return
+      }
+      onLabelsChange([...selectedLabels, label])
+    },
+    [onLabelsChange, selectedLabels]
+  )
+  const clearFilterLabels = useCallback(() => {
+    onLabelsChange?.([])
+  }, [onLabelsChange])
+
+  const syncAfterLabelMutation = useCallback(
+    async (messageId: string, labels?: EmailLabel[]) => {
+      if (onMessageLabelsUpdated) {
+        await onMessageLabelsUpdated(messageId, labels)
+      } else {
+        onRefresh()
+      }
+    },
+    [onMessageLabelsUpdated, onRefresh]
+  )
+
+  const handleAddLabelsFromContextMenu = useCallback(
+    async (messageId: string, labels: AddLabelInput[]): Promise<EmailLabel[] | null> => {
+      try {
+        const result = await EmailApiService.addMessageLabels(messageId, labels)
+        toast.success(t('list-context-labels-add-success'))
+        await syncAfterLabelMutation(messageId, result.labels || [])
+        return normalizeLabelObjects(result.labels || [])
+      } catch {
+        toast.error(t('list-context-labels-add-failed'))
+        return null
+      }
+    },
+    [syncAfterLabelMutation, t]
+  )
+
+  const handleRemoveLabelFromContextMenu = useCallback(
+    async (messageId: string, label: string): Promise<EmailLabel[] | null> => {
+      try {
+        const result = await EmailApiService.removeMessageLabels(messageId, [label])
+        toast.success(t('list-context-labels-remove-success'))
+        await syncAfterLabelMutation(messageId, result.labels || [])
+        return normalizeLabelObjects(result.labels || [])
+      } catch {
+        toast.error(t('list-context-labels-remove-failed'))
+        return null
+      }
+    },
+    [syncAfterLabelMutation, t]
+  )
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:border-r gba:w-96 gba:flex-shrink-0" data-testid={testId}>
-      {/* Header */}
-      <div className="gba:border-b gba:p-4">
-        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-3">{folderName}</h2>
-        <div className="gba:relative">
-          <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
-          <Input
-            placeholder="Search emails..."
-            value={searchQuery}
-            onChange={e => onSearchChange(e.target.value)}
-            className="gba:pl-9 gba:h-9"
-            data-testid={`${testId}-search`}
-          />
-        </div>
-      </div>
+      <EmailListHeader
+        folderName={folderName}
+        searchQuery={searchQuery}
+        onSearchChange={onSearchChange}
+        isLabelSearchOpen={isLabelSearchOpen}
+        setIsLabelSearchOpen={setIsLabelSearchOpen}
+        labelSearchQuery={labelSearchQuery}
+        setLabelSearchQuery={setLabelSearchQuery}
+        labelSearchInputRef={labelSearchInputRef}
+        labelFilterRowRef={labelFilterRowRef}
+        filteredVisibleLabels={filteredVisibleLabels}
+        selectedLabels={selectedLabels}
+        labelColorByName={labelColorByName}
+        toggleFilterLabel={toggleFilterLabel}
+        hasActiveLabelFilter={hasActiveLabelFilter}
+        clearFilterLabels={clearFilterLabels}
+        t={t}
+        testId={testId}
+      />
 
       {/* Bulk Actions Bar */}
       {hasBulkSelection && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:border-b gba:bg-accent/10">
           <button onClick={selectAll} className="gba:text-xs gba:text-primary gba:font-medium hover:gba:underline">
-            {selectedIds.size === messages.length ? 'Deselect all' : 'Select all'}
+            {selectedIds.size === messages.length ? t('list-deselect-all') : t('list-select-all')}
           </button>
-          <span className="gba:text-xs gba:text-muted-foreground">{selectedIds.size} selected</span>
+          <span className="gba:text-xs gba:text-muted-foreground">
+            {t('list-selected-count', { count: selectedIds.size })}
+          </span>
           <div className="gba:flex-1" />
           <Button
             variant="ghost"
@@ -176,7 +312,7 @@ export const EmailList: React.FC<EmailListProps> = ({
             data-testid={`${testId}-bulk-read`}
           >
             <MailOpen className="gba:w-3 gba:h-3 gba:mr-1" />
-            Read
+            {t('list-read')}
           </Button>
           <Button
             variant="ghost"
@@ -187,7 +323,7 @@ export const EmailList: React.FC<EmailListProps> = ({
             data-testid={`${testId}-bulk-unread`}
           >
             <Mail className="gba:w-3 gba:h-3 gba:mr-1" />
-            Unread
+            {t('list-unread')}
           </Button>
           <Button
             variant="ghost"
@@ -198,7 +334,7 @@ export const EmailList: React.FC<EmailListProps> = ({
             data-testid={`${testId}-bulk-delete`}
           >
             <Trash2 className="gba:w-3 gba:h-3 gba:mr-1" />
-            Delete
+            {t('menu-delete')}
           </Button>
         </div>
       )}
@@ -214,7 +350,7 @@ export const EmailList: React.FC<EmailListProps> = ({
         {!isLoading && messages.length === 0 && (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:px-4">
             <AlertCircle className="gba:w-10 gba:h-10 gba:text-muted-foreground gba:mb-3" />
-            <p className="gba:text-muted-foreground gba:text-sm">No emails found</p>
+            <p className="gba:text-muted-foreground gba:text-sm">{t('list-no-emails')}</p>
           </div>
         )}
 
@@ -228,7 +364,17 @@ export const EmailList: React.FC<EmailListProps> = ({
               onSelect={() => onSelectMessage(msg.id)}
               onToggleStar={() => onToggleStar(msg.id)}
               onToggleCheck={e => toggleSelect(msg.id, e)}
+              onReply={() => onReply?.(msg.id)}
+              onReplyAll={() => onReplyAll?.(msg.id)}
+              onForward={() => onForward?.(msg.id)}
+              onToggleRead={() => onToggleRead?.(msg.id, !msg.isRead)}
+              onArchive={() => onArchive?.(msg.id)}
+              onDelete={() => onDelete?.(msg.id)}
+              onAddLabels={labels => handleAddLabelsFromContextMenu(msg.id, labels)}
+              onRemoveLabel={label => handleRemoveLabelFromContextMenu(msg.id, label)}
               testId={`${testId}-item-${msg.id}`}
+              t={t}
+              formatDate={date => formatEmailDate(date, t)}
             />
           ))}
 
@@ -238,7 +384,7 @@ export const EmailList: React.FC<EmailListProps> = ({
             {isLoadingMore ? (
               <div className="gba:flex gba:items-center gba:gap-2 gba:py-1">
                 <Spinner size="sm" />
-                <span className="gba:text-xs gba:text-muted-foreground">Loading more emails...</span>
+                <span className="gba:text-xs gba:text-muted-foreground">{t('list-loading-more')}</span>
               </div>
             ) : (
               <Button
@@ -248,7 +394,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                 onClick={handleLoadMore}
                 data-testid={`${testId}-load-more`}
               >
-                {remaining > 0 ? `Load more emails (${remaining} remaining)` : 'Load more emails'}
+                {remaining > 0 ? t('list-load-more-with-remaining', { remaining }) : t('list-load-more')}
               </Button>
             )}
           </div>
@@ -257,107 +403,10 @@ export const EmailList: React.FC<EmailListProps> = ({
         {/* End of list indicator */}
         {!isLoading && messages.length > 0 && !hasMore && total > 50 && (
           <div className="gba:py-3 gba:text-center">
-            <span className="gba:text-xs gba:text-muted-foreground">All available emails loaded</span>
+            <span className="gba:text-xs gba:text-muted-foreground">{t('list-all-loaded')}</span>
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-/** Single email list item */
-function EmailListItem({
-  message,
-  isSelected,
-  isChecked,
-  onSelect,
-  onToggleStar,
-  onToggleCheck,
-  testId
-}: {
-  message: EmailMessageSummary
-  isSelected: boolean
-  isChecked: boolean
-  onSelect: () => void
-  onToggleStar: () => void
-  onToggleCheck: (e: React.MouseEvent) => void
-  testId: string
-}) {
-  return (
-    <div
-      onClick={onSelect}
-      className={`gba:flex gba:gap-3 gba:px-4 gba:py-3 gba:cursor-pointer gba:border-b gba:transition-colors ${
-        isSelected ? 'gba:bg-primary/5 gba:border-l-2 gba:border-l-primary' : 'hover:gba:bg-muted/30'
-      } ${!message.isRead ? 'gba:bg-accent/5' : ''}`}
-      data-testid={testId}
-    >
-      {/* Checkbox for bulk select */}
-      <div onClick={onToggleCheck} className="gba:mt-1 gba:flex-shrink-0 gba:cursor-pointer">
-        <Checkbox checked={isChecked} data-testid={`${testId}-checkbox`} />
-      </div>
-
-      {/* Star */}
-      <button
-        onClick={e => {
-          e.stopPropagation()
-          onToggleStar()
-        }}
-        className={`gba:mt-1 gba:flex-shrink-0 ${
-          message.isStarred ? 'gba:text-warning' : 'gba:text-muted-foreground hover:gba:text-foreground'
-        }`}
-      >
-        <Star className={`gba:w-4 gba:h-4 ${message.isStarred ? 'gba:fill-current' : ''}`} />
-      </button>
-
-      {/* Content */}
-      <div className="gba:flex-1 gba:min-w-0">
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-0.5">
-          <span
-            className={`gba:text-sm gba:truncate ${
-              !message.isRead ? 'gba:font-semibold gba:text-foreground' : 'gba:text-foreground'
-            }`}
-          >
-            {getDisplayName(message.fromAddress)}
-          </span>
-          <span className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0 gba:ml-2">
-            {formatEmailDate(message.date)}
-          </span>
-        </div>
-
-        <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-0.5">
-          <p
-            className={`gba:text-sm gba:truncate gba:flex-1 ${
-              !message.isRead ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
-            }`}
-          >
-            {message.subject || '(no subject)'}
-          </p>
-          {(message.threadMessageCount ?? 0) > 1 && (
-            <span
-              className="gba:inline-flex gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:flex-shrink-0"
-              title={`${message.threadMessageCount} messages in thread`}
-            >
-              <MessageSquare className="gba:w-3 gba:h-3" />
-              <span className="gba:text-[10px] gba:font-semibold gba:leading-none">{message.threadMessageCount}</span>
-            </span>
-          )}
-        </div>
-
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:flex-1">{message.snippet}</p>
-          {message.hasAttachments && (
-            <Paperclip className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:flex-shrink-0" />
-          )}
-          {message.importance === 'high' && (
-            <AlertCircle className="gba:w-3 gba:h-3 gba:text-destructive gba:flex-shrink-0" />
-          )}
-        </div>
-      </div>
-
-      {/* Unread indicator */}
-      {!message.isRead && (
-        <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:flex-shrink-0 gba:mt-2" />
-      )}
     </div>
   )
 }

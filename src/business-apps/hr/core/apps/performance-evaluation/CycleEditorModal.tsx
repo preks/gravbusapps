@@ -30,6 +30,8 @@ export interface CycleEditorValues {
   name: string
   startDate: string
   endDate: string
+  evaluationPeriodStartDate?: string
+  evaluationPeriodEndDate?: string
   frequency: FrequencyType
   participants: ParticipantType[]
   stages: EvaluationStage[]
@@ -53,6 +55,9 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 
 // (no-op helper previously used for stages removed)
 import translations from './_i18n'
+import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
+
+type DateInputValue = string | [string | null, string | null] | null
 
 /** Value option for the cycle editor (from API; id, title, recordState). */
 export interface CycleEditorValueOption {
@@ -69,11 +74,15 @@ export interface CycleEditorRatingScaleOption {
   values: string[]
 }
 
-interface CycleEditorModalProps {
+export interface CycleEditorModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (values: CycleEditorValues) => void
+  onSave: (values: CycleEditorValues) => void | Promise<void>
   initialValues?: CycleEditorValues
+  /** Shown under date fields when cycle dates overlap with an existing cycle. */
+  dateOverlapError?: string | null
+  /** Called when start or end date changes to clear the overlap error. */
+  onClearDateError?: () => void
   /** Values for the Valori dropdown (from DB). When provided, localStorage is not used. */
   availableValues?: CycleEditorValueOption[]
   /** Rating scales from the database (not localStorage). */
@@ -93,14 +102,19 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   onOpenChange,
   onSave,
   initialValues,
+  dateOverlapError = null,
+  onClearDateError,
   availableValues: availableValuesProp = [],
   availableRatingScales: availableRatingScalesProp = []
 }) => {
   const { t } = useTranslation(translations)
+  const [isSaving, setIsSaving] = useState(false)
   const [name, setName] = useState(initialValues?.name || '')
   const [startDate, setStartDate] = useState(initialValues?.startDate || '')
   const [endDate, setEndDate] = useState(initialValues?.endDate || '')
   const [frequency, setFrequency] = useState<FrequencyType>(initialValues?.frequency || 'Annual')
+  const [evalPeriodStart, setEvalPeriodStart] = useState(initialValues?.evaluationPeriodStartDate || '')
+  const [evalPeriodEnd, setEvalPeriodEnd] = useState(initialValues?.evaluationPeriodEndDate || '')
   const [participantsState, setParticipantsState] = useState<Record<ParticipantType, boolean>>(() =>
     defaultParticipantsState(initialValues)
   )
@@ -121,6 +135,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       setName(initialValues.name || '')
       setStartDate(initialValues.startDate || '')
       setEndDate(initialValues.endDate || '')
+      setEvalPeriodStart(initialValues.evaluationPeriodStartDate || '')
+      setEvalPeriodEnd(initialValues.evaluationPeriodEndDate || '')
       setFrequency(initialValues.frequency || 'Annual')
       setParticipantsState(defaultParticipantsState(initialValues))
       setSelectedScaleId(initialValues.ratingScaleId)
@@ -129,7 +145,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       setName('')
       setStartDate('')
       setEndDate('')
-      setFrequency('Annual')
+      setEvalPeriodStart('')
+      setEvalPeriodEnd('')
+      setFrequency('Custom')
       setParticipantsState(defaultParticipantsState())
       setSelectedScaleId(undefined)
       setSelectedValueIds([])
@@ -182,33 +200,47 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   // Auto-calc end date when start date or frequency changes (e.g. from useEffect or when user changes frequency).
   useEffect(() => {
     const parsed = parseStartDate(startDate)
-    if (!parsed) return
+    if (!parsed) {
+      // If no start date is selected, set frequency to Custom
+      if (frequency !== 'Custom') {
+        setFrequency('Custom')
+      }
+      return
+    }
     const computed = computeEndDateFromStart(parsed, frequency)
     if (computed) setEndDate(computed)
   }, [startDate, frequency])
 
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
-  const handleSave = () => {
-    if (!name.trim() || !startDate || !endDate) return
-    // Send only the currently selected value IDs (deduped) so backend receives exact selection
+  const handleSave = async () => {
+    if (!name.trim() || !startDate || !endDate || !evalPeriodStart || !evalPeriodEnd) return
     const valueIdsToSave = [...new Set(selectedValueIds)]
-    onSave({
+    const values: CycleEditorValues = {
       id: initialValues?.id,
       version: initialValues?.version,
       name: name.trim(),
       startDate,
       endDate,
+      evaluationPeriodStartDate: evalPeriodStart,
+      evaluationPeriodEndDate: evalPeriodEnd,
       frequency,
       participants: selectedParticipants,
       stages: initialStages,
       ratingScaleId: selectedScaleId,
       valueIds: valueIdsToSave,
-      // Preserve API metadata for optimistic locking
       _apiParticipants: initialValues?._apiParticipants,
       _apiCompanyValues: initialValues?._apiCompanyValues
-    })
-    onOpenChange(false)
+    }
+    try {
+      setIsSaving(true)
+      await onSave(values)
+      onOpenChange(false)
+    } catch {
+      // Overlap or other error: parent sets dateOverlapError; keep modal open
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleCancel = () => onOpenChange(false)
@@ -239,9 +271,16 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     }
   }
 
+  const formatRatingScaleOptionLabel = (scale: CycleEditorRatingScaleOption): string => {
+    const full = `${scale.name} (${scale.values.join(', ')})`
+    const maxLen = PERFORMANCE_VALIDATION.RATING_SCALE_OPTION_LABEL_MAX_LENGTH
+    if (full.length <= maxLen) return full
+    return `${full.slice(0, maxLen - 3)}...`
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="performance-cycle-editor-modal">
+      <DialogContent data-testid="performance-cycle-editor-modal" onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{initialValues ? t('modal-edit-title') : t('modal-create-title')}</DialogTitle>
           <DialogDescription>{t('modal-description')}</DialogDescription>
@@ -256,6 +295,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder={t('placeholder-name')}
+                maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH}
               />
             </div>
             <div className="gba:space-y-2">
@@ -263,7 +303,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={startDate}
-                onChange={(value: string | [string | null, string | null] | null) => {
+                onChange={(value: DateInputValue) => {
+                  onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   const parsed = parseStartDate(raw)
                   if (parsed) {
@@ -280,7 +321,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               />
             </div>
             <div className="gba:space-y-2">
-              <Label>{t('field-frequency')} *</Label>
+              <Label>{t('field-frequency')}</Label>
               <Combobox
                 value={frequency}
                 onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
@@ -293,11 +334,51 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={endDate}
-                onChange={(value: string | [string | null, string | null] | null) => {
+                onChange={(value: DateInputValue) => {
+                  onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEndDate(raw)
+                  if (frequency !== 'Custom') {
+                    setFrequency('Custom')
+                  }
                 }}
                 outputFormat="iso"
+              />
+            </div>
+          </div>
+          {dateOverlapError && (
+            <p className="gba:text-sm gba:text-destructive gba:col-span-full" role="alert">
+              {dateOverlapError}
+            </p>
+          )}
+
+          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+            <div className="gba:space-y-2">
+              <Label>{t('field-evaluation-period-start')} *</Label>
+              <DateInput
+                type="date"
+                value={evalPeriodStart}
+                onChange={(value: DateInputValue) => {
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  setEvalPeriodStart(raw)
+                }}
+                outputFormat="iso"
+                captionLayout="dropdown"
+                data-testid="performance-cycle-evaluation-period-start"
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label>{t('field-evaluation-period-end')} *</Label>
+              <DateInput
+                type="date"
+                value={evalPeriodEnd}
+                onChange={(value: DateInputValue) => {
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  setEvalPeriodEnd(raw)
+                }}
+                outputFormat="iso"
+                captionLayout="dropdown"
+                data-testid="performance-cycle-evaluation-period-end"
               />
             </div>
           </div>
@@ -309,7 +390,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
             <Combobox
               value={selectedScaleId}
               onValueChange={v => setSelectedScaleId((v as string) || undefined)}
-              options={availableScales.map(s => ({ label: `${s.name} (${s.values.join(', ')})`, value: s.id }))}
+              options={availableScales.map(s => ({ label: formatRatingScaleOptionLabel(s), value: s.id }))}
               placeholder={availableScales.length ? t('placeholder-select-scale') : t('placeholder-no-scales')}
             />
           </div>
@@ -337,13 +418,14 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                   placeholder="Select values"
                   searchPlaceholder="Type to search values..."
                   emptyText="No results"
+                  className="gba:flex-wrap"
                 />
               )
             })()}
           </div>
 
           <div className="gba:space-y-3">
-            <div className="gba:text-sm gba:text-muted-foreground">{t('label-evaluation-participants')} *</div>
+            <Label>{t('label-evaluation-participants')} *</Label>
             <div className="gba:flex gba:flex-wrap gba:gap-6">
               {participantOptions.map(p => (
                 <label key={p} className="gba:flex gba:items-center gba:gap-2">
@@ -367,7 +449,16 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               type="button"
               variant="default"
               onClick={handleSave}
-              disabled={!name.trim() || !startDate || !endDate || !selectedScaleId || selectedParticipants.length === 0}
+              disabled={
+                !name.trim() ||
+                !startDate ||
+                !endDate ||
+                !evalPeriodStart ||
+                !evalPeriodEnd ||
+                !selectedScaleId ||
+                selectedParticipants.length === 0 ||
+                isSaving
+              }
             >
               {t('button-save')}
             </Button>

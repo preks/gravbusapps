@@ -42,6 +42,8 @@ export interface UseFileLockOptions {
   onLockReleased?: () => void
   onLockExpired?: () => void
   onError?: (error: Error) => void
+  /** Translation function for user-facing error messages */
+  t?: (key: string, vars?: Record<string, string | number>) => string
 }
 
 export interface UseFileLockState {
@@ -78,7 +80,8 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     onLockAcquired,
     onLockReleased,
     onLockExpired,
-    onError
+    onError,
+    t
   } = options
 
   // State
@@ -129,7 +132,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
         isChecking: false
       }))
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to check lock status'
+      const errorMessage = t ? t('shared-error-check-lock') : error instanceof Error ? error.message : String(error)
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -140,7 +143,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
         onError(error instanceof Error ? error : new Error(errorMessage))
       }
     }
-  }, [entityId, currentUserId, apiService, onLockExpired, onError])
+  }, [entityId, currentUserId, apiService, onLockExpired, onError, t])
 
   /**
    * Acquire a lock on the file
@@ -179,7 +182,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
         setState(prev => ({ ...prev, isLocking: false }))
         return false
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to acquire lock'
+        const errorMessage = t ? t('shared-error-acquire-lock') : error instanceof Error ? error.message : String(error)
         setState(prev => ({
           ...prev,
           error: errorMessage,
@@ -193,7 +196,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
         return false
       }
     },
-    [entityId, apiService, onLockAcquired, onError]
+    [entityId, apiService, onLockAcquired, onError, t]
   )
 
   /**
@@ -228,7 +231,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
 
       return success
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to release lock'
+      const errorMessage = t ? t('shared-error-release-lock') : error instanceof Error ? error.message : String(error)
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -241,7 +244,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
 
       return false
     }
-  }, [entityId, apiService, onLockReleased, onError])
+  }, [entityId, apiService, onLockReleased, onError, t])
 
   /**
    * Force unlock (admin only)
@@ -275,7 +278,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
 
       return success
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to force unlock'
+      const errorMessage = t ? t('shared-error-force-unlock') : error instanceof Error ? error.message : String(error)
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -288,7 +291,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
 
       return false
     }
-  }, [entityId, apiService, onLockReleased, onError])
+  }, [entityId, apiService, onLockReleased, onError, t])
 
   /**
    * Clear error

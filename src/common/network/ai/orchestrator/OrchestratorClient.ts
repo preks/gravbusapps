@@ -1,25 +1,131 @@
 /**
  * Orchestrator API Client
  *
- * Client for interacting with the AI Orchestrator endpoints in prompt-manager.
+ * Client for the AI Orchestrator endpoints on the ai-builder service.
+ * Base path: /api/orchestration (plans/:jobId for plan resources).
  * Handles build plan analysis and execution with SSE progress streaming.
+ * API and frontend use camelCase (NEWWORK API Guidelines).
  */
 
-import { env } from '@/common/env/EnvUtils'
+import { AI_BUILDER_API_URL } from '@/common/utils/serviceResolver'
 import type {
   AnalyzeRequest,
   AnalyzeResponse,
+  AnalyzeStreamEvent,
   ExecuteRequest,
-  BuildPlan,
+  UpdatePlanRequest,
+  RefinePlanRequest,
+  ListPlansParams,
+  ListPlansResponse,
+  DraftCheckpoint,
+  CreateDraftCheckpointRequest,
+  RestoreDraftCheckpointRequest,
+  RestoreDraftCheckpointResponse
+} from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/types/api'
+import type { BuildPlan } from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/types/build'
+import type {
   BuildJobStatus,
   BuildProgressEvent
-} from '@/business-apps/core/create/apps/create-workspace/types/orchestrator'
+} from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/types/progress'
+
+/** Normalize SSE event from API (may send snake_case) to camelCase */
+function normalizeProgressEvent(raw: Record<string, unknown>): BuildProgressEvent {
+  // Normalize metadata keys (session_id -> sessionId, repo_id -> repoId)
+  let normalizedMetadata: Record<string, unknown> | undefined
+  if (raw.metadata && typeof raw.metadata === 'object') {
+    const meta = raw.metadata as Record<string, unknown>
+    normalizedMetadata = {
+      ...meta,
+      sessionId: meta.sessionId ?? meta.session_id,
+      repoId: meta.repoId ?? meta.repo_id
+    }
+    // Remove snake_case versions if they exist
+    if (normalizedMetadata.session_id) delete normalizedMetadata.session_id
+    if (normalizedMetadata.repo_id) delete normalizedMetadata.repo_id
+  }
+
+  return {
+    eventType: ((raw.eventType ?? raw.event_type) as BuildProgressEvent['eventType']) ?? 'heartbeat',
+    jobId: (raw.jobId ?? raw.job_id) as string,
+    timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
+    componentType: (raw.componentType ?? raw.component_type) as BuildProgressEvent['componentType'],
+    componentId: (raw.componentId ?? raw.component_id) as string | undefined,
+    componentName: (raw.componentName ?? raw.component_name) as string | undefined,
+    status: (raw.status as BuildProgressEvent['status']) ?? 'pending',
+    message: (raw.message as string) ?? '',
+    progressPercent: (raw.progressPercent ?? raw.progress_percent) as number | undefined,
+    createdId: (raw.createdId ?? raw.created_id) as string | undefined,
+    errorDetails: (raw.errorDetails ?? raw.error_details) as string | undefined,
+    metadata: normalizedMetadata,
+    totalComponents: (raw.totalComponents ?? raw.total_components) as number | undefined,
+    completedComponents: (raw.completedComponents ?? raw.completed_components) as number | undefined,
+    failedComponents: (raw.failedComponents ?? raw.failed_components) as number | undefined,
+    skippedComponents: (raw.skippedComponents ?? raw.skipped_components) as number | undefined
+  }
+}
+
+/** Extract message from API error detail (string or object) */
+function getMessageFromDetail(detail: unknown): string | null {
+  if (typeof detail === 'string') return detail
+  if (typeof detail !== 'object' || detail == null) return null
+  const obj = detail as Record<string, unknown>
+  if (typeof obj.message === 'string' && Array.isArray(obj.errors)) {
+    const errorList = obj.errors.join('\n• ')
+    return `${obj.message}:\n• ${errorList}`
+  }
+  if (Array.isArray(obj.errors)) return obj.errors.join('\n• ')
+  if (typeof obj.message === 'string') return obj.message
+  return null
+}
 
 /**
- * Get the base URL for prompt-manager service
+ * Parse error response from the API
+ * Handles both simple string errors and complex validation error structures
  */
-function getBaseUrl(): string {
-  return env('NEXT_PUBLIC_PROMPT_MANAGER_API_URL') || 'https://newwork-dev.newwork.com/prompt-manager'
+function parseErrorResponse(errorData: unknown, fallbackMessage: string): string {
+  const data = errorData as Record<string, unknown> | null | undefined
+  if (data?.message && typeof data.message === 'string') return data.message
+  if (!data?.detail) return fallbackMessage
+  const extracted = getMessageFromDetail(data.detail)
+  return extracted ?? fallbackMessage
+}
+
+type PublishSSEEvent = {
+  type: string
+  message?: string
+  result?: { success: boolean; message?: string }
+}
+
+type PublishResult = { success: boolean; message?: string }
+
+function handlePublishSSEEvent(
+  data: string,
+  onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+): PublishResult | null {
+  const evt = JSON.parse(data) as PublishSSEEvent
+  onEvent?.(evt)
+  if (evt.type === 'done' && evt.result) {
+    return evt.result
+  }
+  if (evt.type === 'error') {
+    throw new Error(evt.message || 'Publish failed')
+  }
+  return null
+}
+
+function processPublishSSELine(
+  line: string,
+  onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+): PublishResult | null {
+  if (!line.startsWith('data:')) return null
+  const data = line.slice(5).trim()
+  if (!data) return null
+  try {
+    return handlePublishSSEEvent(data, onEvent)
+  } catch (e) {
+    if (!(e instanceof SyntaxError)) throw e
+    return null
+  }
 }
 
 /**
@@ -30,7 +136,7 @@ export class OrchestratorClient {
   private accessToken: string
 
   constructor(accessToken: string) {
-    this.baseUrl = getBaseUrl()
+    this.baseUrl = AI_BUILDER_API_URL
     this.accessToken = accessToken
   }
 
@@ -38,7 +144,7 @@ export class OrchestratorClient {
    * Analyze a prompt and generate a build plan
    */
   async analyze(request: AnalyzeRequest): Promise<AnalyzeResponse> {
-    const response = await fetch(`${this.baseUrl}/api/v1/orchestrate/analyze`, {
+    const response = await fetch(`${this.baseUrl}/orchestration/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -49,10 +155,98 @@ export class OrchestratorClient {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.detail || `Analysis failed: ${response.statusText}`)
+      const errorMessage = parseErrorResponse(errorData, `Analysis failed: ${response.statusText}`)
+      throw new Error(errorMessage)
     }
 
-    return response.json()
+    return response.json() as Promise<AnalyzeResponse>
+  }
+
+  /**
+   * Analyze prompt and stream progress milestones via SSE.
+   */
+  async analyzeStream(
+    request: AnalyzeRequest,
+    onEvent?: (event: AnalyzeStreamEvent) => void
+  ): Promise<AnalyzeResponse> {
+    const response = await fetch(`${this.baseUrl}/orchestration/analyze/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`,
+        Accept: 'text/event-stream'
+      },
+      body: JSON.stringify(request)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Analysis failed: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('No response body for analyze stream')
+    }
+
+    const finalResult = await this.processAnalyzeStream(reader, onEvent)
+    if (finalResult) return finalResult
+    return {
+      success: false,
+      error: 'Analysis stream ended without a final result'
+    }
+  }
+
+  private async processAnalyzeStream(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    onEvent?: (event: AnalyzeStreamEvent) => void
+  ): Promise<AnalyzeResponse | null> {
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let finalResult: AnalyzeResponse | null = null
+
+    const handleEvent = (event: AnalyzeStreamEvent) => {
+      onEvent?.(event)
+      if (event.type === 'done' && event.result) {
+        finalResult = event.result
+      } else if (event.type === 'error') {
+        finalResult ??= event.result ?? {
+          success: false,
+          error: event.content || 'Analysis failed'
+        }
+      }
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        this.tryParseAnalyzeEvent(line, handleEvent)
+      }
+    }
+
+    const remaining = buffer.trim()
+    if (remaining.startsWith('data:')) {
+      this.tryParseAnalyzeEvent(remaining, handleEvent)
+    }
+
+    return finalResult
+  }
+
+  private tryParseAnalyzeEvent(line: string, handleEvent: (event: AnalyzeStreamEvent) => void): void {
+    const trimmed = line.trim()
+    if (!trimmed.startsWith('data:')) return
+    const payload = trimmed.slice(5).trim()
+    if (!payload || payload === '[DONE]' || payload.startsWith(':')) return
+    try {
+      handleEvent(JSON.parse(payload) as AnalyzeStreamEvent)
+    } catch {
+      // Ignore malformed SSE line and continue.
+    }
   }
 
   /**
@@ -61,7 +255,7 @@ export class OrchestratorClient {
    * via cookies or session. For custom headers, use executeWithProgress instead.
    */
   createExecutionStream(jobId: string): EventSource {
-    const url = new URL(`${this.baseUrl}/api/v1/orchestrate/execute/${jobId}`)
+    const url = new URL(`${this.baseUrl}/orchestration/plans/${jobId}/execute`)
     const eventSource = new EventSource(url.toString())
     return eventSource
   }
@@ -69,27 +263,71 @@ export class OrchestratorClient {
   /**
    * Execute a build plan using fetch-based SSE (supports authorization)
    */
+  private parseSseLine(line: string, onEvent: (event: BuildProgressEvent) => void) {
+    if (!line.startsWith('data:')) return
+    const data = line.slice(5).trim()
+    // Skip empty data and SSE comment content that infrastructure (nginx/ingress) may
+    // send as "data: :ping" instead of a proper SSE comment line ":ping".
+    if (!data || data.startsWith(':')) return
+    try {
+      const raw = JSON.parse(data) as Record<string, unknown>
+      const eventType = (raw.eventType ?? raw.event_type) as string | undefined
+      if (eventType === 'heartbeat') {
+        return
+      }
+      const event = normalizeProgressEvent(raw)
+      onEvent(event)
+    } catch (e) {
+      console.error('[OrchestratorClient] Failed to parse SSE event:', e, data)
+    }
+  }
+
+  private async readSseStream(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    onEvent: (event: BuildProgressEvent) => void,
+    onComplete?: () => void
+  ) {
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        onComplete?.()
+        break
+      }
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        this.parseSseLine(line, onEvent)
+      }
+    }
+  }
+
   async executeWithProgress(
     jobId: string,
     request: ExecuteRequest,
     onEvent: (event: BuildProgressEvent) => void,
     onError?: (error: Error) => void,
-    onComplete?: () => void
+    onComplete?: () => void,
+    signal?: AbortSignal
   ): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/orchestrate/execute/${jobId}`, {
+      const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.accessToken}`,
           Accept: 'text/event-stream'
         },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
+        signal
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || `Execution failed: ${response.statusText}`)
+        const errorMessage = parseErrorResponse(errorData, `Execution failed: ${response.statusText}`)
+        throw new Error(errorMessage)
       }
 
       const reader = response.body?.getReader()
@@ -97,38 +335,11 @@ export class OrchestratorClient {
         throw new Error('No response body')
       }
 
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          onComplete?.()
-          break
-        }
-
-        buffer += decoder.decode(value, { stream: true })
-
-        // Process SSE events
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            const data = line.slice(5).trim()
-            if (data) {
-              try {
-                const event = JSON.parse(data) as BuildProgressEvent
-                onEvent(event)
-              } catch (e) {
-                console.error('Failed to parse SSE event:', e, data)
-              }
-            }
-          }
-        }
-      }
+      await this.readSseStream(reader, onEvent, onComplete)
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
       onError?.(error instanceof Error ? error : new Error(String(error)))
     }
   }
@@ -137,7 +348,7 @@ export class OrchestratorClient {
    * Get the status of a build job
    */
   async getJobStatus(jobId: string): Promise<BuildJobStatus> {
-    const response = await fetch(`${this.baseUrl}/api/v1/orchestrate/status/${jobId}`, {
+    const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}/status`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.accessToken}`
@@ -146,17 +357,51 @@ export class OrchestratorClient {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.detail || `Failed to get status: ${response.statusText}`)
+      const errorMessage = parseErrorResponse(errorData, `Failed to get status: ${response.statusText}`)
+      throw new Error(errorMessage)
     }
 
-    return response.json()
+    return response.json() as Promise<BuildJobStatus>
+  }
+
+  /**
+   * List orchestration plans with optional paging and sort.
+   */
+  async listPlans(params?: ListPlansParams): Promise<ListPlansResponse> {
+    const searchParams = new URLSearchParams()
+    if (params?.limit != null) searchParams.set('limit', String(params.limit))
+    if (params?.offset != null) searchParams.set('offset', String(params.offset))
+    if (params?.sort != null) searchParams.set('sort', params.sort)
+    const query = searchParams.toString()
+    const url = query ? `${this.baseUrl}/orchestration/plans?${query}` : `${this.baseUrl}/orchestration/plans`
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to list plans: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    const json = (await response.json()) as ListPlansResponse
+    // Normalize snake_case from API if present
+    const rawPaging = json.paging as unknown as Record<string, unknown>
+    if (json.paging && rawPaging && 'total_records' in rawPaging) {
+      const p = json.paging as ListPlansResponse['paging'] & { total_records?: number }
+      json.paging = { limit: p.limit, offset: p.offset, totalRecords: p.totalRecords ?? p.total_records ?? 0 }
+    }
+    return json
   }
 
   /**
    * Get the full build plan
    */
   async getPlan(jobId: string): Promise<BuildPlan> {
-    const response = await fetch(`${this.baseUrl}/api/v1/orchestrate/plan/${jobId}`, {
+    const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.accessToken}`
@@ -165,17 +410,203 @@ export class OrchestratorClient {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.detail || `Failed to get plan: ${response.statusText}`)
+      const errorMessage = parseErrorResponse(errorData, `Failed to get plan: ${response.statusText}`)
+      throw new Error(errorMessage)
     }
 
-    return response.json()
+    return response.json() as Promise<BuildPlan>
+  }
+
+  async createDraftCheckpoint(request: CreateDraftCheckpointRequest): Promise<DraftCheckpoint> {
+    const response = await fetch(`${this.baseUrl}/orchestration/drafts/checkpoints`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`
+      },
+      body: JSON.stringify(request)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to create checkpoint: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    return response.json() as Promise<DraftCheckpoint>
+  }
+
+  async listDraftCheckpoints(params: {
+    jobId?: string
+    sessionId?: string
+    limit?: number
+  }): Promise<DraftCheckpoint[]> {
+    const searchParams = new URLSearchParams()
+    if (params.jobId) searchParams.set('jobId', params.jobId)
+    if (params.sessionId) searchParams.set('sessionId', params.sessionId)
+    if (params.limit != null) searchParams.set('limit', String(params.limit))
+    const query = searchParams.toString()
+    const url = query
+      ? `${this.baseUrl}/orchestration/drafts/checkpoints?${query}`
+      : `${this.baseUrl}/orchestration/drafts/checkpoints`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to list checkpoints: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    return response.json() as Promise<DraftCheckpoint[]>
+  }
+
+  async restoreDraftCheckpoint(request: RestoreDraftCheckpointRequest): Promise<RestoreDraftCheckpointResponse> {
+    const response = await fetch(`${this.baseUrl}/orchestration/drafts/restore`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`
+      },
+      body: JSON.stringify(request)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to restore checkpoint: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    return response.json() as Promise<RestoreDraftCheckpointResponse>
+  }
+
+  /**
+   * Update a build plan before execution
+   */
+  async updatePlan(jobId: string, request: UpdatePlanRequest): Promise<BuildPlan> {
+    const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`
+      },
+      body: JSON.stringify(request)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to update plan: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    return response.json() as Promise<BuildPlan>
+  }
+
+  /**
+   * Refine a build plan with natural language feedback
+   */
+  async refinePlan(jobId: string, request: RefinePlanRequest): Promise<AnalyzeResponse> {
+    const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}/refine`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`
+      },
+      body: JSON.stringify(request)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to refine plan: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    return response.json() as Promise<AnalyzeResponse>
+  }
+
+  /**
+   * Refine a build plan with natural language feedback via SSE stream.
+   */
+  async refinePlanStream(jobId: string, request: RefinePlanRequest): Promise<ReadableStream<Uint8Array>> {
+    const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}/refine/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`,
+        Accept: 'text/event-stream'
+      },
+      body: JSON.stringify(request)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to refine plan with stream: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    if (!response.body) {
+      throw new Error('No response body for refine stream')
+    }
+
+    return response.body
+  }
+
+  /**
+   * Publish the built screens for a job (calls /publish/stream, returns when done)
+   */
+  async publishApp(
+    repoId: string,
+    sessionId: string,
+    onEvent?: (event: { type: string; message?: string; result?: unknown }) => void
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await fetch(`${this.baseUrl}/publish/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`,
+        Accept: 'text/event-stream'
+      },
+      body: JSON.stringify({ repoId, sessionId })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Publish failed: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('No response body')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let lastResult: PublishResult = { success: false }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        const result = processPublishSSELine(line, onEvent)
+        if (result) lastResult = result
+      }
+    }
+
+    return lastResult
   }
 
   /**
    * Cancel and delete a build plan
    */
   async cancelBuild(jobId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/v1/orchestrate/plan/${jobId}`, {
+    const response = await fetch(`${this.baseUrl}/orchestration/plans/${jobId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${this.accessToken}`
@@ -184,7 +615,8 @@ export class OrchestratorClient {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.detail || `Failed to cancel: ${response.statusText}`)
+      const errorMessage = parseErrorResponse(errorData, `Failed to cancel: ${response.statusText}`)
+      throw new Error(errorMessage)
     }
   }
 }

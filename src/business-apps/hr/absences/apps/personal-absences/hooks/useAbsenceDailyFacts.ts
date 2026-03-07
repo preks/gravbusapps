@@ -39,13 +39,14 @@ export function useDailyFactsByType(
         statuses: statuses?.length ? statuses : undefined
       })
       .then(res => {
-        const rows: Array<{ typeRef: string; dayFraction: number }> =
+        const rows: Array<{ typeRef: string; dayFraction?: number; signedDayFraction?: number }> =
           res?.DailyAbsenceFactView || res?.daily_absence_fact_view || []
 
         const grouped: Record<string, number> = {}
         rows.forEach(r => {
           const key = r.typeRef || 'UNKNOWN'
-          grouped[key] = (grouped[key] || 0) + (Number(r.dayFraction) || 0)
+          const v = Number((r as any).signedDayFraction ?? r.dayFraction) || 0
+          grouped[key] = (grouped[key] || 0) + v
         })
 
         const mapped: GroupDatum[] = Object.entries(grouped).map(([code, value]) => {
@@ -87,13 +88,14 @@ export function useDailyFactsByStatus(accessToken?: string, employeeId?: string,
         to: toDate
       })
       .then(res => {
-        const rows: Array<{ status: string; dayFraction: number }> =
+        const rows: Array<{ status: string; dayFraction?: number; signedDayFraction?: number }> =
           res?.DailyAbsenceFactView || res?.daily_absence_fact_view || []
 
         const grouped: Record<string, number> = {}
         rows.forEach(r => {
           const key = r.status || 'UNKNOWN'
-          grouped[key] = (grouped[key] || 0) + (Number(r.dayFraction) || 0)
+          const v = Number((r as any).signedDayFraction ?? r.dayFraction) || 0
+          grouped[key] = (grouped[key] || 0) + v
         })
 
         const mapped: GroupDatum[] = Object.entries(grouped).map(([code, value]) => ({

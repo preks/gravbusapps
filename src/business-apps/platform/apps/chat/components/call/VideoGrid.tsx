@@ -2,7 +2,7 @@
  * VideoGrid Component
  *
  * Renders the participant grid with two modes:
- * - auto-fit: CSS Grid automatically calculates columns (industry standard)
+ * - auto-fit: Columns and rows are computed from container size so 16:9 tiles fill the space.
  * - fixed-grid: Manual cols/rows specification (legacy support)
  *
  * Features:
@@ -10,9 +10,11 @@
  * - Empty state
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useRef, useLayoutEffect, useState } from 'react'
 import { Users, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
+
+const GRID_GAP_PX = 12
 
 export interface GridLayout {
   cols: number
@@ -39,8 +41,10 @@ export interface VideoGridProps {
   t?: (key: string, params?: Record<string, unknown>) => string
   /** Grid mode: auto-fit uses CSS auto-fit, fixed-grid uses manual cols/rows */
   mode?: 'auto-fit' | 'fixed-grid'
-  /** Minimum tile size for auto-fit mode (in pixels) */
+  /** Minimum tile size for auto-fit mode (in pixels). Columns grow with 1fr to fill width (no max). */
   minTileSize?: number
+  /** @deprecated No longer used in auto-fit; columns use 1fr to fill space. Kept for API compatibility. */
+  maxTileSize?: number
   /** Grid layout configuration (only used in fixed-grid mode) */
   gridLayout?: GridLayout
 }
@@ -57,18 +61,6 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   minTileSize = 250,
   gridLayout
 }) => {
-  // Track window size for responsive grid
-  const [, setWindowWidth] = useState(window.innerWidth)
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth)
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
   // Calculate if pagination buttons should be shown
   const showPagination = totalPages > 1 && onPageChange
   const canGoPrevious = currentPage > 0
@@ -86,6 +78,70 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     }
   }
 
+  const gridContainerRef = useRef<HTMLDivElement>(null)
+  const [computedLayout, setComputedLayout] = useState<{
+    gridTemplateColumns: string
+    gridAutoRows: string
+  } | null>(null)
+
+  useLayoutEffect(() => {
+    if (mode !== 'auto-fit' || isEmpty || gridItems.length === 0) {
+      setComputedLayout(null)
+      return
+    }
+    const el = gridContainerRef.current
+    if (!el) return
+
+    const update = () => {
+      const w = el.clientWidth
+      const h = el.clientHeight
+      const count = gridItems.length
+      const gap = GRID_GAP_PX
+      const maxCols = Math.min(count, Math.max(1, Math.floor((w + gap) / (minTileSize + gap))))
+
+      let bestCols = 1
+      let bestTileWidth = 0
+      let bestRowHeight = 0
+
+      for (let numCols = 1; numCols <= maxCols; numCols++) {
+        const numRows = Math.ceil(count / numCols)
+        const availableWidth = w - (numCols - 1) * gap
+        const availableHeight = h - (numRows - 1) * gap
+        const tileWidthIfFillWidth = availableWidth / numCols
+        const rowHeightIfFillWidth = tileWidthIfFillWidth * (9 / 16)
+        const fitsHeight = numRows * rowHeightIfFillWidth <= availableHeight
+
+        let tileWidth: number
+        let rowHeight: number
+        if (fitsHeight) {
+          tileWidth = tileWidthIfFillWidth
+          rowHeight = rowHeightIfFillWidth
+        } else {
+          rowHeight = availableHeight / numRows
+          const tileWidthFromHeight = rowHeight * (16 / 9)
+          tileWidth = Math.min(tileWidthFromHeight, availableWidth / numCols)
+          rowHeight = tileWidth * (9 / 16)
+        }
+
+        if (tileWidth > bestTileWidth) {
+          bestTileWidth = tileWidth
+          bestRowHeight = rowHeight
+          bestCols = numCols
+        }
+      }
+
+      setComputedLayout({
+        gridTemplateColumns: `repeat(${bestCols}, ${bestTileWidth}px)`,
+        gridAutoRows: `${bestRowHeight}px`
+      })
+    }
+
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [mode, isEmpty, gridItems.length, minTileSize])
+
   // Empty state
   if (isEmpty) {
     return (
@@ -98,70 +154,12 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     )
   }
 
-  // Calculate optimal number of columns based on screen size and item count
-  // This prevents creating too many thin columns on small screens
-  // Prioritizes 2-column layouts for better aspect ratios (wider videos)
-  const calculateOptimalColumns = (itemCount: number): number => {
-    const screenWidth = window.innerWidth
-
-    // Mobile screens (< 768px)
-    if (screenWidth < 768) {
-      // On very narrow screens (< 500px), prefer 1 column for better aspect ratio
-      if (screenWidth < 500) {
-        if (itemCount <= 4) return 1 // Single column for 1-4 participants
-        return 2 // 2 columns only for 5+ participants
-      }
-      // On wider mobile screens (500-767px), allow 2 columns earlier
-      if (itemCount <= 2) return 1
-      if (itemCount <= 4) return 2
-      return 2 // Max 2 columns on mobile
-    }
-
-    // Tablet screens (768px - 1023px)
-    if (screenWidth < 1024) {
-      if (itemCount <= 1) return 1
-      if (itemCount <= 2) return 2
-      if (itemCount <= 4) return 2
-      if (itemCount <= 6) return 2 // 2×3 for better aspect ratio
-      if (itemCount <= 9) return 3
-      return 3 // Max 3 columns on tablet
-    }
-
-    // Desktop screens (>= 1024px)
-    if (itemCount <= 1) return 1
-    if (itemCount <= 2) return 2
-    if (itemCount <= 4) return 2
-    if (itemCount <= 6) return 2 // 2×3 for better aspect ratio instead of 3×2
-    if (itemCount <= 9) return 3 // 3×3 for 7-9 participants
-    if (itemCount <= 12) return 3 // 3×4 for 10-12 participants
-    if (itemCount <= 16) return 4
-    if (itemCount <= 25) return 5
-    // For larger counts, use square root rounded up, but cap at 6 columns max
-    return Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
-  }
-
-  // Calculate optimal row height based on screen size
-  const calculateRowHeight = (): string => {
-    const screenWidth = window.innerWidth
-
-    // On mobile, make tiles taller to fill vertical space better
-    if (screenWidth < 768) {
-      // For 2 columns, calculate height to fill available space
-      // Account for gap and padding
-      return `minmax(${minTileSize * 0.8}px, 1fr)`
-    }
-
-    // On larger screens, maintain aspect ratio
-    return 'minmax(200px, 1fr)'
-  }
-
-  // Determine grid style based on mode
   const gridStyle =
     mode === 'auto-fit'
-      ? {
-          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, 1fr))`,
-          gridAutoRows: calculateRowHeight()
-        }
+      ? (computedLayout ?? {
+          gridTemplateColumns: `repeat(auto-fit, minmax(${minTileSize}px, 1fr))`,
+          gridAutoRows: 'auto' as const
+        })
       : {
           gridTemplateColumns: `repeat(${gridLayout?.cols || 1}, 1fr)`,
           gridTemplateRows: `repeat(${gridLayout?.rows || 1}, 1fr)`
@@ -170,7 +168,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   return (
     <div className="gba:flex gba:flex-col gba:flex-1 gba:w-full gba:gap-2 gba:min-h-0">
       {/* Participant Grid with Navigation Buttons */}
-      <div className="gba:relative gba:flex-1 gba:w-full gba:min-h-0">
+      <div ref={gridContainerRef} className="gba:relative gba:flex-1 gba:w-full gba:min-h-0">
         {/* Left Navigation Button */}
         {showPagination && canGoPrevious && (
           <div className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:z-10">
@@ -188,7 +186,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
 
         {/* Grid Container */}
         <div
-          className="gba:w-full gba:h-full gba:grid gba:gap-3 gba:content-start gba:overflow-hidden"
+          className={`gba:w-full gba:h-full gba:grid gba:gap-3 ${mode === 'auto-fit' ? 'gba:overflow-hidden gba:items-stretch gba:content-stretch gba:justify-center' : 'gba:overflow-hidden gba:items-stretch'}`}
           style={gridStyle}
           data-testid={`${prefixDataTestId}-video-grid`}
         >

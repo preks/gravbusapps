@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Input, Select, Checkbox, Card, Tag, Typography } from 'antd'
-import { PlusOutlined, DeleteOutlined, FormOutlined } from '@ant-design/icons'
+import { PlusIcon, TrashIcon, NotePencilIcon } from '@phosphor-icons/react'
 import { Type, MessageSquare, Hash, List, Radio, CheckSquare, Calendar, Upload, PenTool } from 'lucide-react'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 
@@ -107,7 +107,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
       <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
         <div className="gba:flex gba:items-center gba:space-x-3">
           <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:bg-green-100">
-            <FormOutlined className="gba:text-green-600" />
+            <NotePencilIcon className="gba:text-green-600" />
           </div>
           <div>
             <Text strong className="gba:text-base gba:text-gray-800">
@@ -122,7 +122,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
           </div>
         </div>
         <Button
-          icon={<PlusOutlined />}
+          icon={<PlusIcon size={16} />}
           onClick={handleAddBlock}
           size="small"
           type="primary"
@@ -137,7 +137,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
         {inputs.length === 0 ? (
           <div className="gba:text-center gba:py-8 gba:border-2 gba:border-dashed gba:border-gray-200 gba:rounded-lg gba:bg-gray-50">
             <div className="gba:space-y-2">
-              <FormOutlined className="gba:text-2xl gba:text-gray-400" />
+              <NotePencilIcon className="gba:text-2xl gba:text-gray-400" />
               <Text className="gba:text-gray-500 gba:text-sm gba:block">No input blocks</Text>
               <Text className="gba:text-gray-400 gba:text-xs">Add inputs to collect data</Text>
             </div>
@@ -168,7 +168,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
                         Required
                       </Checkbox>
                       <Button
-                        icon={<DeleteOutlined />}
+                        icon={<TrashIcon size={16} />}
                         onClick={() => handleDeleteBlock(index)}
                         size="small"
                         type="text"

@@ -1,9 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
-import { Spin } from 'antd'
-import { PiIdentificationCard, PiBriefcase, PiFiles, PiClockCounterClockwise, PiNotebook } from 'react-icons/pi'
+import { Tabs, TabsList, TabsTrigger, TabsContent, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { IdentificationCardIcon, BriefcaseIcon, FilesIcon, ClockCounterClockwiseIcon, NotebookIcon } from '@phosphor-icons/react'
 import DetailsTab from './DetailsTab'
 import EmploymentTab from './EmploymentTab'
 import ChangeLogTab from './ChangeLogTab'
@@ -189,14 +188,14 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
   return (
     <div data-testid="hr-admin-tab-container" className="gba:w-full">
       <Tabs value={activeSubView} onValueChange={handleSubViewChange} className="gba:w-full">
-        <TabsList className="gba:mb-4 gba:w-full" data-testid="hr-admin-tabs-list">
+        <TabsList className="gba:mb-4 gba:w-full gba:justify-start" data-testid="hr-admin-tabs-list">
           {(permissionsLoading ||
             employeeGrowthPermission.loading ||
             employeeRecordAllHrBackoffice.loading ||
             hasDetailsPermission) && (
             <TabsTrigger value="details" data-testid="hr-admin-details-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiIdentificationCard />
+                <IdentificationCardIcon />
                 <span>{t('hr-admin-subtab-details')}</span>
               </div>
             </TabsTrigger>
@@ -207,7 +206,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             hasEmploymentPermission) && (
             <TabsTrigger value="employment" data-testid="hr-admin-employment-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiBriefcase />
+                <BriefcaseIcon />
                 <span>{t('hr-admin-subtab-employment')}</span>
               </div>
             </TabsTrigger>
@@ -218,7 +217,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             hasDocumentsPermission) && (
             <TabsTrigger value="documents" data-testid="hr-admin-documents-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiFiles />
+                <FilesIcon />
                 <span>{t('hr-admin-subtab-documents')}</span>
               </div>
             </TabsTrigger>
@@ -230,7 +229,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               hasChangeLogPermission)) && (
             <TabsTrigger value="changeLog" data-testid="hr-admin-changelog-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiClockCounterClockwise />
+                <ClockCounterClockwiseIcon />
                 <span>{t('hr-admin-subtab-change-log')}</span>
               </div>
             </TabsTrigger>
@@ -238,7 +237,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           {shouldShowHrNotes && (
             <TabsTrigger value="hrNotes" data-testid="hr-admin-hrnotes-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                <PiNotebook />
+                <NotebookIcon />
                 <span>{t('hr-admin-subtab-hr-notes')}</span>
               </div>
             </TabsTrigger>
@@ -252,7 +251,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           <TabsContent value="details" data-testid="hr-admin-details-content" className="gba:mt-4">
             {permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading ? (
               <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-                <Spin size="large" />
+                <Spinner size="lg" />
               </div>
             ) : (
               <DetailsTab
@@ -273,7 +272,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           <TabsContent value="employment" data-testid="hr-admin-employment-content" className="gba:mt-4">
             {permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading ? (
               <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-                <Spin size="large" />
+                <Spinner size="lg" />
               </div>
             ) : (
               <EmploymentTab
@@ -293,7 +292,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           <TabsContent value="documents" data-testid="hr-admin-documents-content" className="gba:mt-4">
             {permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading ? (
               <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-                <Spin size="large" />
+                <Spinner size="lg" />
               </div>
             ) : (
               <DocumentsTab

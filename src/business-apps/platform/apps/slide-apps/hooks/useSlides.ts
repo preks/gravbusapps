@@ -7,8 +7,10 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
 import { SlidesApiService } from '../services/SlidesApiService'
 import type { Slide, SlideSummary } from '../types'
+import translations from '../_i18n'
 
 interface UseSlidesState {
   slides: SlideSummary[]
@@ -33,6 +35,7 @@ interface UseSlidesResult extends UseSlidesState {
 }
 
 export function useSlides(accessToken: string | undefined): UseSlidesResult {
+  const { t } = useTranslation(translations)
   const [state, setState] = useState<UseSlidesState>({
     slides: [],
     currentSlide: null,
@@ -40,25 +43,42 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
     error: null
   })
 
+  // Keep the API service's in-memory token in sync with the prop
+  useEffect(() => {
+    SlidesApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
+
   const refreshSlides = useCallback(async () => {
     if (!accessToken) {
-      setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
+      setState(prev => ({ ...prev, isLoading: false, error: t('slides-error-not-authenticated') }))
       return
     }
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
-      const items = await SlidesApiService.listSlides({ includeShared: true })
-      setState(prev => ({ ...prev, slides: items, isLoading: false }))
+
+      const PAGE_SIZE = 100
+      let allSlides: Awaited<ReturnType<typeof SlidesApiService.listSlides>> = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore) {
+        const pageItems = await SlidesApiService.listSlides({ includeShared: true, limit: PAGE_SIZE, page })
+        allSlides = [...allSlides, ...pageItems]
+        hasMore = pageItems.length === PAGE_SIZE
+        page++
+      }
+
+      setState(prev => ({ ...prev, slides: allSlides, isLoading: false }))
     } catch (err) {
       console.error('[useSlides] Failed to load slides:', err)
       setState(prev => ({
         ...prev,
         slides: [],
         isLoading: false,
-        error: err instanceof Error ? err.message : 'Failed to load slides'
+        error: err instanceof Error ? err.message : t('slides-error-load-failed')
       }))
     }
-  }, [accessToken])
+  }, [accessToken, t])
 
   useEffect(() => {
     refreshSlides()
@@ -73,11 +93,11 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
         return slide
       } catch (err) {
         console.error('[useSlides] loadSlide:', err)
-        toast.error('Failed to load presentation')
+        toast.error(t('slides-toast-load-failed'))
         return null
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   const createSlide = useCallback(
@@ -85,19 +105,19 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
       if (!accessToken) return null
       try {
         const created = await SlidesApiService.createSlide({
-          title: payload.title || 'Untitled presentation',
+          title: payload.title || t('slides-default-title'),
           description: payload.description
         })
         await refreshSlides()
-        toast.success('Presentation created')
+        toast.success(t('slides-toast-created'))
         return created
       } catch (err) {
         console.error('[useSlides] createSlide:', err)
-        toast.error('Failed to create presentation')
+        toast.error(t('slides-toast-create-failed'))
         return null
       }
     },
-    [accessToken, refreshSlides]
+    [accessToken, refreshSlides, t]
   )
 
   const updateSlide = useCallback(
@@ -114,11 +134,11 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
         return updated
       } catch (err) {
         console.error('[useSlides] updateSlide:', err)
-        toast.error('Failed to save')
+        toast.error(t('slides-toast-save-failed'))
         return null
       }
     },
-    [accessToken, refreshSlides]
+    [accessToken, refreshSlides, t]
   )
 
   const deleteSlide = useCallback(
@@ -132,16 +152,16 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
             slides: prev.slides.filter(s => s.id !== id),
             currentSlide: prev.currentSlide?.id === id ? null : prev.currentSlide
           }))
-          toast.success('Presentation deleted')
+          toast.success(t('slides-toast-deleted'))
         }
         return ok
       } catch (err) {
         console.error('[useSlides] deleteSlide:', err)
-        toast.error('Failed to delete')
+        toast.error(t('slides-toast-delete-failed'))
         return false
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   const duplicateSlide = useCallback(
@@ -150,15 +170,15 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
       try {
         const duplicated = await SlidesApiService.duplicateSlide(id)
         if (duplicated) await refreshSlides()
-        toast.success('Presentation duplicated')
+        toast.success(t('slides-toast-duplicated'))
         return duplicated
       } catch (err) {
         console.error('[useSlides] duplicateSlide:', err)
-        toast.error('Failed to duplicate')
+        toast.error(t('slides-toast-duplicate-failed'))
         return null
       }
     },
-    [accessToken, refreshSlides]
+    [accessToken, refreshSlides, t]
   )
 
   const clearCurrentSlide = useCallback(() => {

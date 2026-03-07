@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { Row, Col, Card, Table, Statistic, Tag, Space, Typography, Alert, Select, Button, Tooltip, Modal } from 'antd'
-import { PiPackage, PiShoppingCart, PiTag, PiCurrencyEur, PiArrowUp, PiArrowDown, PiMinus } from 'react-icons/pi'
-import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { PackageIcon, ShoppingCartIcon, TagIcon, CurrencyEurIcon, ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@phosphor-icons/react'
+import { PencilIcon, TrashIcon, PlusIcon } from '@phosphor-icons/react'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import dayjs from 'dayjs'
@@ -169,9 +169,9 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = prop
 
   // Get trend icon
   const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />
-    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />
-    return <PiMinus className="gba:text-gray-400" />
+    if (trend > 0) return <ArrowUpIcon className="gba:text-green-500" />
+    if (trend < 0) return <ArrowDownIcon className="gba:text-red-500" />
+    return <MinusIcon className="gba:text-gray-400" />
   }
 
   // Get status color
@@ -203,7 +203,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = prop
             <Button
               type="text"
               size="small"
-              icon={<EditOutlined />}
+              icon={<PencilIcon size={16} />}
               onClick={e => {
                 e.stopPropagation()
                 handleOpenEditProductModal(record)
@@ -216,7 +216,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = prop
               type="text"
               size="small"
               danger
-              icon={<DeleteOutlined />}
+              icon={<TrashIcon size={16} />}
               onClick={e => {
                 e.stopPropagation()
                 handleDeleteProduct(record)
@@ -306,12 +306,12 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = prop
 
   return (
     <PageLayout
-      headerIcon={<PiPackage color="#c92559" />}
+      headerIcon={<PackageIcon color="#c92559" />}
       headerLabel="Product Management"
       pageHeaderRight={
         <Button
           type="primary"
-          icon={<PlusOutlined />}
+          icon={<PlusIcon size={16} />}
           onClick={handleOpenCreateProductModal}
           data-testid="create-product-button"
         >
@@ -327,7 +327,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = prop
                 <Statistic
                   title="Total Products"
                   value={kpiData?.totalProducts.value || 0}
-                  prefix={<PiPackage />}
+                  prefix={<PackageIcon />}
                   suffix={
                     <Space>
                       {getTrendIcon(kpiData?.totalProducts.trend || 0)}
@@ -344,7 +344,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = prop
                 <Statistic
                   title="Active Products"
                   value={kpiData?.activeProducts.value || 0}
-                  prefix={<PiShoppingCart />}
+                  prefix={<ShoppingCartIcon />}
                   suffix={
                     <Space>
                       {getTrendIcon(kpiData?.activeProducts.trend || 0)}
@@ -361,7 +361,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = prop
                 <Statistic
                   title="Categories"
                   value={kpiData?.productCategories.value || 0}
-                  prefix={<PiTag />}
+                  prefix={<TagIcon />}
                   suffix={
                     <Space>
                       {getTrendIcon(kpiData?.productCategories.trend || 0)}
@@ -378,7 +378,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = prop
                 <Statistic
                   title="Average Price"
                   value={kpiData?.averagePrice.value || 0}
-                  prefix={<PiCurrencyEur />}
+                  prefix={<CurrencyEurIcon />}
                   precision={2}
                   suffix={
                     <Space>

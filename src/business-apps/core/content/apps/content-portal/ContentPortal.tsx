@@ -8,11 +8,12 @@ import {
   useTranslation,
   Badge
 } from '@newwork/nw-design-system'
-import { Home, Newspaper, BookOpen, MessageCircleQuestion, TrendingUp } from 'lucide-react'
+import { Home, Newspaper, BookOpen, MessageCircleQuestion, TrendingUp, Shield } from 'lucide-react'
 import translations from './_i18n'
 import NewsView from './views/news-view'
 import HomeView from './views/home-view'
 import KnowledgeView from './views/knowledge-view'
+import PoliciesView from './views/policies-view'
 import QuestionView from './views/question-view'
 import EngagementView from './views/engagement-view'
 import { EveryPagesHero } from './components/shared/EveryPagesHero'
@@ -160,6 +161,13 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                 >
                   {t('knowledge')}
                 </TabSwitchTrigger>
+                <TabSwitchTrigger
+                  value="policies"
+                  startIcon={<Shield className="gba:w-4 gba:h-4" />}
+                  data-testid="intranet-tab-policies"
+                >
+                  {t('policies')}
+                </TabSwitchTrigger>
                 {/* Documents tab hidden - code preserved for future use */}
                 <TabSwitchTrigger
                   value="questions"
@@ -192,6 +200,15 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                     isTranslating={isTranslating}
                     accessToken={accessToken}
                     onLanguageSelect={handleLanguageSelect}
+                    labels={{
+                      language: t('ai-translation-language'),
+                      detecting: t('ai-translation-detecting'),
+                      translating: t('ai-translation-translating'),
+                      selectTarget: t('ai-translation-select-target'),
+                      searchPlaceholder: t('ai-translation-search-placeholder'),
+                      noLanguagesFound: t('ai-translation-no-languages-found'),
+                      noLanguagesAvailable: t('ai-translation-no-languages-available')
+                    }}
                     data-testid="portal-translation-button"
                   />
                 </div>
@@ -238,6 +255,15 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             targetLanguage={targetLanguage}
             translatedItems={stableTranslatedItems}
             onTranslate={translateAllContent}
+          />
+        </TabSwitchContent>
+
+        <TabSwitchContent value="policies" data-testid="intranet-content-policies">
+          <PoliciesView
+            accessToken={context.accessToken}
+            userInfo={context.userInfo}
+            hideBanner
+            currentTab="policies"
           />
         </TabSwitchContent>
 

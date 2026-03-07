@@ -18,53 +18,112 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  useTranslation
+  useTranslation,
+  Combobox
 } from '@newwork/nw-design-system'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import type { Company } from '../../apps/organizational-data/types'
+import type { Company, CompanyAddress, Director } from '../../apps/organizational-data/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AddressSegment } from '@/common/components/common-relations/form-segments/address-segment'
 import { EmployeeSelect } from '@/components/employee-select'
 import { CatalogSelect } from '@/components/catalog-select'
 import { DynamicForm } from '@/components/dynamic-form'
 import { useCompanyAdditionalProperties } from '../../hooks/useCompanyAdditionalProperties'
-import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
+import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import translations from './_i18n'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
-// Address schema for validation (no translations needed)
-const addressSchema = z.object({
-  addressType: z.string().optional(),
-  addressLine: z
-    .object({
-      lines: z.array(z.string()).optional()
-    })
-    .optional(),
-  postalCode: z.string().optional(),
-  locality: z.string().optional(),
-  regionRef: z.string().optional(),
-  countryRef: z.string().optional()
-})
+// Helper to validate no leading whitespace (trailing will be trimmed on submit)
+const noLeadingWhitespace = (value: string) => value === value.trimStart()
+
+/** Build EmployeeLiteOption from company.director so useEmployeeSearch can show director in the list when not in first 20 results */
+function directorToEmployeeLiteOption(director: Director): EmployeeLiteOption {
+  const displayName =
+    director.displayName || `${director.firstName || ''} ${director.lastName || ''}`.trim() || 'Unknown'
+  return {
+    id: director.id,
+    displayName,
+    firstName: director.firstName,
+    lastName: director.lastName,
+    pictureThumbnail: director.pictureThumbnail
+  }
+}
+
+// Address schema for validation (id and companyId preserved for existing addresses)
+const createAddressSchema = (t: (key: string) => string) =>
+  z.object({
+    id: z.string().optional(),
+    companyId: z.string().optional(),
+    addressType: z.string().optional(),
+    addressLine: z
+      .object({
+        lines: z.array(z.string().max(20, t('validation-address-line-max'))).optional()
+      })
+      .optional(),
+    postalCode: z
+      .string()
+      .max(20, t('validation-postal-code-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
+    locality: z
+      .string()
+      .max(20, t('validation-locality-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
+    regionRef: z.string().optional(),
+    countryRef: z.string().optional()
+  })
 
 /**
  * Create validation schema with translations
  */
 const createCompanySchema = (t: (key: string) => string) =>
   z.object({
-    name: z.string().min(1, t('validation-name-required')),
-    code: z.string().min(1, t('validation-code-required')),
-    description: z.string().optional(),
+    name: z
+      .string()
+      .min(1, t('validation-name-required'))
+      .max(64, t('validation-company-name-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace')),
+    code: z
+      .string()
+      .min(1, t('validation-code-required'))
+      .max(20, t('validation-company-code-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace')),
+    description: z
+      .string()
+      .max(100, t('validation-description-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
     director: z.string().optional(),
     percentage: z.number().min(0, t('validation-percentage-min')).max(100, t('validation-percentage-max')).optional(),
-    commercial_registration_number: z.string().optional(),
+    commercial_registration_number: z
+      .string()
+      .max(20, t('validation-commercial-registration-number-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
     currency: z.string().optional(),
-    tax_identification_number: z.string().optional(),
-    tax_number: z.string().optional(),
-    value_added_tax_number: z.string().optional(),
+    tax_identification_number: z
+      .string()
+      .max(20, t('validation-tax-identification-number-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
+    tax_number: z
+      .string()
+      .max(20, t('validation-tax-number-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
+    value_added_tax_number: z
+      .string()
+      .max(20, t('validation-value-added-tax-number-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
     // Addresses array for AddressSegment
-    addresses: z.array(addressSchema).optional(),
+    addresses: z.array(createAddressSchema(t)).optional(),
     // Dynamic additional properties from catalog
-    additionalProperties: z.record(z.string(), z.unknown()).optional()
+    additionalProperties: z.record(z.string(), z.unknown()).optional(),
+    // Hidden field for dirty tracking when user uploads/removes picture (not stored in backend)
+    pictureModified: z.boolean().optional()
   })
 
 export type CompanyFormData = z.infer<ReturnType<typeof createCompanySchema>>
@@ -117,16 +176,74 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   const [picturePreview, setPicturePreview] = useState<string | null>(company?.pictureThumbnail || null)
   // Key to force CatalogSelect.Provider remount when modal closes (resets internal state)
   const [providerKey, setProviderKey] = useState(0)
+  // Key to force FileUpload remount when logo is removed (clears its internal file list)
+  const [logoFileUploadKey, setLogoFileUploadKey] = useState(0)
+
+  // Director from company (tree enriches with director) – we prepend them at top of list so they’re always visible
+  const directorFromCompany = useMemo(
+    () => (company?.director ? directorToEmployeeLiteOption(company.director) : undefined),
+    [company?.director]
+  )
 
   // Fetch dynamic fields configuration from catalog
   const { configuration: additionalPropertiesConfig, isLoading: additionalPropertiesLoading } =
     useCompanyAdditionalProperties(accessToken)
   const { employees, loading: searchLoading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
+  const catalogClient = useCatalogManagerClient(accessToken)
+
+  // When we have a director: if hook list is still empty, pass it through so select triggers initial search (no race with user search).
+  // Once hook has results, prepend director and drop duplicate from results.
+  const employeesForSelect = useMemo(() => {
+    if (!directorFromCompany || !company?.directorId) return employees
+    if (employees.length === 0) return employees
+    return [directorFromCompany, ...employees.filter(e => e.id !== company.directorId)]
+  }, [directorFromCompany, company?.directorId, employees])
 
   const companyData = company as (Company & Partial<CompanyFormData>) | undefined
 
   // Create validation schema with translations
   const companySchema = useMemo(() => createCompanySchema(t), [t])
+  // Fetch currency catalog entries to display codes instead of values
+  const [currencyOptions, setCurrencyOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [currencyLoading, setCurrencyLoading] = useState(false)
+  const [currencySearchQuery, setCurrencySearchQuery] = useState('')
+
+  useEffect(() => {
+    const loadCurrencyOptions = async () => {
+      if (!accessToken) return
+      setCurrencyLoading(true)
+      try {
+        const response = await catalogClient.getCatalogEntriesList(
+          {
+            catalogIdentifier: 'Currency',
+            version: 'v1'
+          },
+          {
+            limit: 200,
+            offset: 0,
+            returnTotalRecords: true,
+            includeChildCatalogEntries: false
+          }
+        )
+
+        const catalogEntries = response?.data || []
+        const options = catalogEntries.map(entry => ({
+          value: entry.id,
+          label: entry.code || entry.value || entry.id // Use code if available, fallback to value
+        }))
+
+        // Sort by code for better UX
+        options.sort((a, b) => a.label.localeCompare(b.label))
+        setCurrencyOptions(options)
+      } catch (error) {
+        console.error('Failed to load currency options:', error)
+        setCurrencyOptions([])
+      } finally {
+        setCurrencyLoading(false)
+      }
+    }
+    loadCurrencyOptions()
+  }, [accessToken, catalogClient])
 
   const transformBackendAddressLineToForm = (addressLine?: {
     streetAddress?: string
@@ -149,6 +266,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     if (!addresses || addresses.length === 0) return []
 
     return addresses.map(addr => ({
+      id: addr.id,
+      companyId: addr.companyId,
       addressType: addr.addressType,
       addressLine: transformBackendAddressLineToForm(addr.addressLine),
       postalCode: addr.postalCode,
@@ -247,6 +366,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     if (files.length === 0) {
       setPictureFile(null)
       setPicturePreview(null)
+      form.setValue('pictureModified', true, { shouldDirty: true })
       return
     }
 
@@ -259,6 +379,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     }
 
     setPictureFile(file)
+    form.setValue('pictureModified', true, { shouldDirty: true })
 
     // Create preview
     const reader = new FileReader()
@@ -280,8 +401,13 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       tax_identification_number: companyData?.taxIdentificationNumber || '',
       tax_number: companyData?.taxNumber || '',
       value_added_tax_number: companyData?.valueAddedTaxNumber || '',
-      addresses: transformBackendAddressesToForm(companyData?.addresses),
-      additionalProperties: (companyData?.additionalProperties as Record<string, unknown>) || {}
+      addresses:
+        transformBackendAddressesToForm(companyData?.addresses)?.map(addr => ({
+          ...addr,
+          companyId: addr.companyId ?? companyData?.id
+        })) ?? [],
+      additionalProperties: (companyData?.additionalProperties as Record<string, unknown>) || {},
+      pictureModified: false
     }),
     [companyData]
   )
@@ -301,7 +427,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     if (company?.pictureThumbnail) {
       setPicturePreview(`data:image/jpeg;base64,${company.pictureThumbnail}`)
     } else if (company?.picture) {
-      setPicturePreview(`data:image/jpeg;base64,${company.picture}`)
+      setPicturePreview(`data:image/jpeg;base64,${company.picture.additionalProp1}`)
     } else {
       setPicturePreview(null)
     }
@@ -336,11 +462,14 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   }
 
   /**
-   * Transform addresses array to backend format
+   * Transform addresses array to backend shape (no changeMode).
+   * Preserves id for existing addresses.
    */
   const transformAddresses = (
     addresses?: CompanyFormData['addresses']
   ): Array<{
+    id?: string
+    companyId?: string
     addressType?: string
     addressLine?: Record<string, string>
     postalCode?: string
@@ -354,6 +483,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       .map(addr => {
         const transformed: Record<string, unknown> = {}
 
+        if (addr.id) transformed.id = addr.id
+        if (addr.companyId) transformed.companyId = addr.companyId
         if (addr.addressType) transformed.addressType = addr.addressType
         const addressLine = transformAddressLine(addr.addressLine)
         if (addressLine) transformed.addressLine = addressLine
@@ -362,11 +493,12 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
         if (addr.regionRef) transformed.regionRef = addr.regionRef
         if (addr.countryRef) transformed.countryRef = addr.countryRef
 
-        // Only include address if it has meaningful data (not just addressType)
-        const hasData = Object.keys(transformed).some(key => key !== 'addressType')
+        const hasData = Object.keys(transformed).some(key => !['id', 'companyId', 'addressType'].includes(key))
         return hasData ? transformed : null
       })
       .filter(Boolean) as Array<{
+      id?: string
+      companyId?: string
       addressType?: string
       addressLine?: Record<string, string>
       postalCode?: string
@@ -374,6 +506,62 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       regionRef?: string
       countryRef?: string
     }>
+  }
+
+  type AddressPayloadFields = {
+    id?: string
+    companyId?: string
+    addressType?: string
+    addressLine?: Record<string, string>
+    postalCode?: string
+    locality?: string
+    regionRef?: string
+    countryRef?: string
+  }
+
+  type AddressChangePayload =
+    | ({ changeMode: 'UPSERT' } & AddressPayloadFields)
+    | ({ changeMode: 'DELETE' } & AddressPayloadFields)
+
+  /**
+   * Build addresses payload as delta only: UPSERT for create/update, DELETE for removed.
+   * Empty array means "delete all" when in edit mode and company had addresses.
+   * Each address includes companyId when available (from form or companyId param for new addresses).
+   */
+  const buildAddressesDelta = (
+    formAddresses: CompanyFormData['addresses'],
+    originalAddresses: Company['addresses'] | undefined,
+    isEditMode: boolean,
+    companyId?: string
+  ): AddressChangePayload[] => {
+    const transformed = transformAddresses(formAddresses)
+
+    if (isEditMode && originalAddresses && originalAddresses.length > 0 && transformed.length === 0) {
+      return []
+    }
+
+    const originalIds = (originalAddresses?.map(a => a.id).filter(Boolean) ?? []) as string[]
+    const currentIds = transformed.map(a => a.id).filter(Boolean) as string[]
+    const deletedIds = originalIds.filter(id => !currentIds.includes(id))
+
+    const upserts: AddressChangePayload[] = transformed.map(addr => ({
+      changeMode: 'UPSERT' as const,
+      ...addr,
+      ...(companyId && !addr.companyId && { companyId })
+    }))
+
+    const originalById = new Map<string, CompanyAddress>(
+      (originalAddresses ?? []).filter((a): a is CompanyAddress & { id: string } => Boolean(a.id)).map(a => [a.id, a])
+    )
+    const deletes: AddressChangePayload[] = deletedIds
+      .map(id => {
+        const addr = originalById.get(id)
+        if (!addr) return null
+        return { changeMode: 'DELETE' as const, ...addr }
+      })
+      .filter(Boolean) as AddressChangePayload[]
+
+    return [...upserts, ...deletes]
   }
 
   /**
@@ -398,8 +586,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
    */
   const buildBasePayload = (formValues: CompanyFormData): Record<string, unknown> => {
     return {
-      code: formValues.code,
-      name: formValues.name,
+      code: formValues.code.trim(),
+      name: formValues.name.trim(),
       structureId: structureId
     }
   }
@@ -461,19 +649,22 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   }
 
   /**
-   * Add addresses to payload
+   * Add addresses to payload as delta only (UPSERT for create/update, DELETE for removed).
+   * Empty array = delete all when in edit and company had addresses.
    */
   const addAddressesToPayload = (
     payload: Record<string, unknown>,
     formValues: CompanyFormData,
     isEditMode: boolean
   ): void => {
-    const transformedAddresses = transformAddresses(formValues.addresses)
-    if (transformedAddresses.length > 0) {
-      payload.addresses = transformedAddresses
-    } else if (isEditMode && companyData?.addresses && companyData.addresses.length > 0) {
-      // In edit mode, send empty array to clear addresses if they were removed
-      payload.addresses = []
+    const addressesDelta = buildAddressesDelta(
+      formValues.addresses,
+      companyData?.addresses,
+      isEditMode,
+      companyData?.id
+    )
+    if (addressesDelta.length > 0 || (isEditMode && companyData?.addresses && companyData.addresses.length > 0)) {
+      payload.addresses = addressesDelta
     }
   }
 
@@ -505,14 +696,14 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
           fileToBase64(pictureFile),
           createThumbnail(pictureFile, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT)
         ])
-        payload.picture = pictureBase64
+        payload.picture = { additionalProp1: pictureBase64 }
         payload.pictureThumbnail = thumbnailBase64
       } catch {
         // Continue without picture if there's an error
       }
     } else if (isEditMode && companyData?.picture && !picturePreview) {
       // Clear picture if it was removed in edit mode
-      payload.picture = ''
+      payload.picture = {}
       payload.pictureThumbnail = ''
     }
   }
@@ -554,6 +745,18 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     const formValues = values as CompanyFormData
     const isEditMode = Boolean(companyData?.id)
 
+    // Trim all string values before processing
+    const trimmedData = {
+      ...formValues,
+      name: formValues.name?.trim() || '',
+      code: formValues.code?.trim() || '',
+      description: formValues.description?.trim() || '',
+      commercial_registration_number: formValues.commercial_registration_number?.trim() || '',
+      tax_identification_number: formValues.tax_identification_number?.trim() || '',
+      tax_number: formValues.tax_number?.trim() || '',
+      value_added_tax_number: formValues.value_added_tax_number?.trim() || ''
+    }
+
     try {
       setLoading(true)
 
@@ -563,6 +766,65 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       addAddressesToPayload(payload, formValues, isEditMode)
       addAdditionalPropertiesToPayload(payload, formValues, isEditMode)
       await addPictureToPayload(payload, isEditMode)
+
+      // Optional string fields - include empty string in edit mode if field was cleared
+      const description = getStringFieldValue(trimmedData.description, companyData?.description, isEditMode)
+      if (description !== undefined) payload.description = description
+
+      // Director ID - special handling (UUID, not string)
+      if (selectedUserId) {
+        payload.directorId = selectedUserId
+      } else if (isEditMode && companyData?.directorId) {
+        payload.directorId = '' // Send empty string to clear director
+      }
+
+      const commercialRegNum = getStringFieldValue(
+        trimmedData.commercial_registration_number,
+        companyData?.commercialRegistrationNumber,
+        isEditMode
+      )
+      if (commercialRegNum !== undefined) payload.commercialRegistrationNumber = commercialRegNum
+
+      const taxIdNum = getStringFieldValue(
+        trimmedData.tax_identification_number,
+        companyData?.taxIdentificationNumber,
+        isEditMode
+      )
+      if (taxIdNum !== undefined) payload.taxIdentificationNumber = taxIdNum
+
+      const taxNum = getStringFieldValue(trimmedData.tax_number, companyData?.taxNumber, isEditMode)
+      if (taxNum !== undefined) payload.taxNumber = taxNum
+
+      const vatNum = getStringFieldValue(
+        trimmedData.value_added_tax_number,
+        companyData?.valueAddedTaxNumber,
+        isEditMode
+      )
+      if (vatNum !== undefined) payload.valueAddedTaxNumber = vatNum
+
+      const currency = getStringFieldValue(trimmedData.currency, companyData?.currencyRef, isEditMode)
+      if (currency !== undefined) payload.currencyRef = currency
+
+      // Include addresses as delta (UPSERT/DELETE only)
+      const addressesDelta = buildAddressesDelta(
+        formValues.addresses,
+        companyData?.addresses,
+        isEditMode,
+        companyData?.id
+      )
+      if (addressesDelta.length > 0 || (isEditMode && companyData?.addresses && companyData.addresses.length > 0)) {
+        payload.addresses = addressesDelta
+      }
+
+      // Transform and include additionalProperties
+      const transformedAdditionalProps = transformAdditionalProperties(formValues.additionalProperties)
+      if (isEditMode) {
+        // Always include additionalProperties in edit mode - BE will replace entire JSONB
+        payload.additionalProperties = transformedAdditionalProps || {}
+      } else if (transformedAdditionalProps) {
+        // In create mode, only include if there are values
+        payload.additionalProperties = transformedAdditionalProps
+      }
 
       // Include id for update
       if (companyData?.id) {
@@ -607,6 +869,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     setSelectedUserId(null)
     setPictureFile(null)
     setPicturePreview(null)
+    setLogoFileUploadKey(prev => prev + 1)
     onCancel?.()
   }, [onCancel])
 
@@ -678,7 +941,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                 <FormControl>
                   <Input
                     placeholder={t('placeholder-percentage')}
-                    value={field.value ? `${field.value}%` : '0%'}
+                    value={field.value ? `${field.value}%` : t('percentage-default-value')}
                     onChange={e => {
                       const value = e.target.value.replace('%', '')
                       const numericValue = parseFloat(value) || 0
@@ -734,6 +997,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                     onClick={() => {
                       setPictureFile(null)
                       setPicturePreview(null)
+                      setLogoFileUploadKey(prev => prev + 1)
+                      form.setValue('pictureModified', true, { shouldDirty: true })
                     }}
                     className="gba:text-sm gba:text-destructive hover:gba:underline"
                     data-testid={`${dataTestId}-picture-remove-button`}
@@ -742,12 +1007,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                   </button>
                 </div>
               )}
-              <FileUpload
-                multiple={false}
-                accept="image/*"
-                onChange={handlePictureUpload}
-                dataTestId={`${dataTestId}-picture-upload`}
-              />
+              <FileUpload key={logoFileUploadKey} multiple={false} accept="image/*" onChange={handlePictureUpload} />
               <p className="gba:text-sm gba:text-muted-foreground">{t('message-logo-upload-info')}</p>
             </div>
           </FormControl>
@@ -762,8 +1022,11 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
               <FormControl>
                 <EmployeeSelect
                   value={selectedUserId}
-                  employees={employees}
-                  onValueChange={setSelectedUserId}
+                  employees={employeesForSelect}
+                  onValueChange={value => {
+                    setSelectedUserId(value)
+                    form.setValue('director', value ?? '', { shouldDirty: true })
+                  }}
                   onSearch={search}
                   loading={searchLoading}
                   hasMore={hasMore}
@@ -797,14 +1060,36 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
           <FormField
             name="currency"
-            render={({ field }) => (
-              <FormItem className="gba:flex-1">
-                <FormLabel>{t('label-currency')}</FormLabel>
-                <FormControl>
-                  <CatalogSelect catalogIdentifier="Currency:v1" value={field.value} onValueChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
+            render={({ field }) => {
+              // Filter options based on search query
+              const filteredOptions = currencySearchQuery
+                ? currencyOptions.filter(option =>
+                    option.label.toLowerCase().includes(currencySearchQuery.toLowerCase())
+                  )
+                : currencyOptions
+
+              return (
+                <FormItem className="gba:flex-1">
+                  <FormLabel>{t('label-currency')}</FormLabel>
+                  <FormControl>
+                    <Combobox
+                      value={field.value || ''}
+                      onValueChange={field.onChange}
+                      options={filteredOptions}
+                      placeholder={t('placeholder-currency')}
+                      searchPlaceholder={t('placeholder-currency-search')}
+                      emptyText={currencyLoading ? t('message-currency-loading') : t('message-currency-no-results')}
+                      onSearch={setCurrencySearchQuery}
+                      searchDebounce={300}
+                      loading={currencyLoading}
+                      disabled={currencyLoading}
+                      data-testid={`${dataTestId}-currency-select`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )
+            }}
           />
         </FormFieldGroup>
 

@@ -594,6 +594,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         onOpenChange={setAddContentDialogOpen}
         onAddContent={handleAddContent}
         spaceId={spaceId}
+        accessToken={accessToken}
         data-testid={`${testId}-add-content-dialog`}
       />
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import { TabNav, TabNavLink } from '@newwork/nw-design-system'
-import { ListBulletsIcon, TableIcon, SquaresFourIcon } from '@phosphor-icons/react'
+import { ListBulletsIcon, TableIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ConfigurationNavProps extends BusinessAppContextProps {
@@ -59,7 +59,7 @@ export const ConfigurationNav: React.FC<ConfigurationNavProps> = ({
       <TabNavLink
         href="#tile"
         active={configSection === 'tile'}
-        startIcon={<SquaresFourIcon className="gba:w-4 gba:h-4" />}
+        startIcon={<GaugeIcon className="gba:w-4 gba:h-4" />}
         onClick={e => {
           e.preventDefault()
           onSectionChange('tile')

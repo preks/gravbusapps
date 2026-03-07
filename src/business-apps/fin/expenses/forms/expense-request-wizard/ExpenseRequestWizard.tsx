@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Typography, Input } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
+import { Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -55,6 +56,15 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   const [titleError, setTitleError] = useState<string>('')
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false)
   const [itemsCount, setItemsCount] = useState<number>(0)
+  const [isNextLoading, setIsNextLoading] = useState<boolean>(false)
+  const previousScreenRef = React.useRef<string>(currentScreen)
+
+  /**
+   * Sync header title from server only when the loaded request changes (by id).
+   * This prevents refetches or context updates for the same request from overwriting
+   * a title the user has already edited and confirmed (checkmark) before Save.
+   */
+  const lastTitleSyncRequestIdRef = React.useRef<string | null>(null)
 
   const isTrip = expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes(REQUEST_TYPES.TRIP)
 
@@ -83,10 +93,15 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
       })
     }
   }, [expenseRequestData?.ExpenseRequestByPk])
+
+  // Single source of truth for "when to overwrite title from server": only when request id changes
   useEffect(() => {
-    if (expenseRequestData?.ExpenseRequestByPk) {
-      setCurrentTitle(expenseRequestData.ExpenseRequestByPk.title || '')
-      setTitleValue(expenseRequestData.ExpenseRequestByPk.title || '')
+    const requestId = expenseRequestData?.ExpenseRequestByPk?.id ?? null
+    if (requestId && requestId !== lastTitleSyncRequestIdRef.current) {
+      lastTitleSyncRequestIdRef.current = requestId
+      const initialTitle = expenseRequestData.ExpenseRequestByPk.title || ''
+      setCurrentTitle(initialTitle)
+      setTitleValue(initialTitle)
     }
   }, [expenseRequestData, setCurrentTitle, additionalData])
 
@@ -169,16 +184,8 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
     setTitleError('')
   }
 
-  useEffect(() => {
-    if (expenseRequestData?.ExpenseRequestByPk) {
-      const initialTitle = expenseRequestData.ExpenseRequestByPk.title || ''
-      setCurrentTitle(initialTitle)
-      setTitleValue(initialTitle)
-    }
-  }, [expenseRequestData, setCurrentTitle, additionalData])
-
   const saveTitle = () => {
-    setCurrentTitle(titleValue)
+    setCurrentTitle(titleValue.trim())
     setIsEditingTitle(false)
   }
 
@@ -190,6 +197,21 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
       hasInitializedRef.current = true
     }
   }, [loading, expenseRequestData])
+
+  // Clear next-button loading when screen actually changes (data loaded and navigated)
+  useEffect(() => {
+    if (previousScreenRef.current !== currentScreen && isNextLoading) {
+      setIsNextLoading(false)
+    }
+    previousScreenRef.current = currentScreen
+  }, [currentScreen, isNextLoading])
+
+  // Safety: clear next loading after 30s in case the action fails and screen never changes
+  useEffect(() => {
+    if (!isNextLoading) return
+    const timeoutId = globalThis.setTimeout(() => setIsNextLoading(false), 30000)
+    return () => globalThis.clearTimeout(timeoutId)
+  }, [isNextLoading])
 
   // Listen for process events (Next/Back button clicks) to navigate
   useEffect(() => {
@@ -670,20 +692,25 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                   data-testid="expense-request-wizard-save-button"
                   disabled={currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0}
                   onClick={() => {
-                    if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
-                      const saveEvent = new CustomEvent('expense-request-save-trip')
-                      document.dispatchEvent(saveEvent)
-                    } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
-                      const saveEvent = new CustomEvent('expense-request-save-items')
-                      document.dispatchEvent(saveEvent)
-                    } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
-                      const saveEvent = new CustomEvent('expense-request-save-allowance')
-                      document.dispatchEvent(saveEvent)
-                    } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
-                      const saveEvent = new CustomEvent('expense-request-save-summary')
-                      document.dispatchEvent(saveEvent)
+                    if (titleValue.trim()) {
+                      setCurrentTitle(titleValue.trim())
+                      setIsEditingTitle(false)
+                    }
+                    const dispatchSave = () => {
+                      if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
+                        document.dispatchEvent(new CustomEvent('expense-request-save-trip'))
+                      } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
+                        document.dispatchEvent(new CustomEvent('expense-request-save-items'))
+                      } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
+                        document.dispatchEvent(new CustomEvent('expense-request-save-allowance'))
+                      } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
+                        document.dispatchEvent(new CustomEvent('expense-request-save-summary'))
+                      }
+                    }
+                    if (titleValue.trim()) {
+                      setTimeout(dispatchSave, 0)
                     } else {
-                      // Default save action for other screens
+                      dispatchSave()
                     }
                   }}
                 >
@@ -703,35 +730,58 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                   }}
                   data-testid="expense-request-wizard-next-button"
                   disabled={
+                    isNextLoading ||
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
                     (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && hasFutureDates)
                   }
                   onClick={() => {
+                    const isNextScreen =
+                      currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB ||
+                      currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB ||
+                      currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB
+                    const isSubmitScreen = currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
+                    if (isNextScreen || isSubmitScreen) {
+                      setIsNextLoading(true)
+                    }
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-trip')
                       document.dispatchEvent(nextEvent)
-                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-items')
                       document.dispatchEvent(nextEvent)
-                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-allowance')
                       document.dispatchEvent(nextEvent)
-                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
                       const submitEvent = new CustomEvent('expense-request-submit-summary')
                       document.dispatchEvent(submitEvent)
-                    } else {
-                      // navigateToNextScreen()
                     }
                   }}
                 >
-                  {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
-                    ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
-                    : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
+                  {(() => {
+                    if (isNextLoading) {
+                      const submitLabel = getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:modify_expense_request.btn_submit',
+                        'Submit'
+                      )
+                      const nextLabel = getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:add_items_to_plan.submit_button',
+                        'Next'
+                      )
+                      return (
+                        <span className="gba:inline-flex gba:items-center gba:gap-2">
+                          <Spinner size="sm" />
+                          {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB ? submitLabel : nextLabel}
+                        </span>
+                      )
+                    }
+                    if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
+                      return getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
+                    }
+                    return getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
+                  })()}
                 </Button>
               </div>
             </>

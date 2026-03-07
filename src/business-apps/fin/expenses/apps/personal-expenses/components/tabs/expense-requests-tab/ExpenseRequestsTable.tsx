@@ -17,7 +17,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  useTranslation
 } from '@newwork/nw-design-system'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
@@ -28,10 +29,11 @@ import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/wi
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { startProcess } from '@/common/utils/start-process'
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import { TablePagination } from '../../../../../components'
+import translations from '../../../_i18n'
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[]
@@ -59,6 +61,8 @@ const DEFAULT_PAGE_SIZE = 20
 const DATA_TEST_ID_PREFIX = 'expense-requests'
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(props => {
+  const { t: tPersonal } = useTranslation(translations)
+
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
@@ -234,8 +238,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   const renderSortIcon = useCallback(
     (field: string) => {
       if (sortField !== field) return null
-      if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-      if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'ascend') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'descend') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
       return null
     },
     [sortField, sortOrder]
@@ -491,10 +495,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                                           'Actions'
                                         ),
                                         key: 'edit-expense-request',
-                                        label: getTranslationFromI18nKeyAndLabel(
-                                          'lowcoder:expense_request_list.modal_list_or_flow_button.update_request_btn',
-                                          'Update Request'
-                                        ),
+                                        label: tPersonal('personal-expenses-update-request-action'),
                                         onClick: (e?: React.MouseEvent) => {
                                           e?.stopPropagation()
                                           handleEditExpenseRequest(record)

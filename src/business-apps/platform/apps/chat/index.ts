@@ -1,3 +1,5 @@
+import './pendingStartCallFromPlatform'
+
 export { Chat } from './Chat'
 export { ChatWithCalendar } from './ChatWithCalendar'
 export { ChatWithCalendar as default } from './ChatWithCalendar'

@@ -34,6 +34,7 @@ adjust-salary-frequency-monthly = Monthly
 adjust-salary-frequency-hourly = Hourly
 adjust-salary-current-salary = Current Salary
 adjust-salary-calculation-breakdown = Salary Adjustment Summary
+adjust-salary-duplicate-month-warning = A salary adjustment already exists for this month on { $date }. Please choose another effective date.
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Assign Employee Salary
@@ -237,6 +238,9 @@ request-benefit-review-additional-info = Additional Information
 request-benefit-review-justification = Justification
 request-benefit-review-financial-details = Financial Details
 request-benefit-review-employee-contributions = Employee Contributions
+request-benefit-review-comments = Comment
+request-benefit-review-comments-placeholder = Please Enter
+request-benefit-review-comments-required = Comments are required
 request-benefit-review-approve = Approve
 request-benefit-review-reject = Reject
 request-benefit-review-loading = Loading benefit review data...
@@ -283,6 +287,7 @@ adjust-salary-pending-status = Pending
 
 # Update Working Conditions Form
 working-conditions-probation-period = Probation Period
+working-conditions-probation-end-before-start = Probation end date must be on or after the start date.
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
 working-conditions-unit-day = { $count ->
     [one] Day
@@ -356,3 +361,18 @@ create-job-position-name = Name
 create-job-position-total-open = Total open
 create-job-position-organizational-unit = Organizational Unit
 create-job-position-error = Failed to create job position. Please try again.
+
+# Create New Absence – validation messages
+create-absence-unable-to-verify-balance = Unable to verify absence balance. Please check manually.
+create-absence-insufficient-balance = Insufficient balance
+create-absence-requested = Requested
+create-absence-available = Available
+create-absence-days = days
+create-absence-end-date-after-start = End date must be after start date
+create-absence-single-day-bank-holiday-blocked = The selected day is a bank holiday. You cannot submit a single-day absence for this date.
+create-absence-validation-failed = Validation failed. Please try again.
+create-absence-bank-holidays-not-counted = { $count } days are bank holidays, so they are not taken into consideration.
+create-absence-overlap-prefix = There is already a
+create-absence-overlap-scheduled = absence scheduled
+create-absence-from = from
+create-absence-to = to

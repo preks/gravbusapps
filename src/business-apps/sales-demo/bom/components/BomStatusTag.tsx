@@ -1,6 +1,6 @@
 import React from 'react'
 import { Tag } from 'antd'
-import { PiCheckCircle, PiXCircle, PiClock, PiArchive, PiWarning } from 'react-icons/pi'
+import { CheckCircleIcon, XCircleIcon, ClockIcon, ArchiveIcon, WarningIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 
 interface BomStatusTagProps {
@@ -41,35 +41,35 @@ const BomStatusTag: React.FC<BomStatusTagProps> = ({
       case 'ACTIVE':
         return {
           color: currentlyActive ? 'green' : 'orange',
-          icon: currentlyActive ? <PiCheckCircle /> : <PiWarning />,
+          icon: currentlyActive ? <CheckCircleIcon /> : <WarningIcon />,
           text: currentlyActive ? 'Active' : 'Active (Not Current)',
           description: currentlyActive ? 'Currently active and valid' : 'Active but outside validity period'
         }
       case 'INACTIVE':
         return {
           color: 'red',
-          icon: <PiXCircle />,
+          icon: <XCircleIcon />,
           text: 'Inactive',
           description: 'Not currently active'
         }
       case 'PENDING':
         return {
           color: 'blue',
-          icon: <PiClock />,
+          icon: <ClockIcon />,
           text: 'Pending',
           description: 'Awaiting activation'
         }
       case 'OBSOLETE':
         return {
           color: 'gray',
-          icon: <PiArchive />,
+          icon: <ArchiveIcon />,
           text: 'Obsolete',
           description: 'No longer in use'
         }
       default:
         return {
           color: 'default',
-          icon: <PiWarning />,
+          icon: <WarningIcon />,
           text: status,
           description: 'Unknown status'
         }

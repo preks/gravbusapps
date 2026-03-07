@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { PiStack, PiUsers } from 'react-icons/pi'
+import { StackIcon, UsersIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -114,7 +114,7 @@ const JobFamilyDrawerContent: React.FC<JobFamilyDrawerContentProps> = ({
           size="lg"
         >
           <span>View All Assigned Employees</span>
-          <PiUsers className="gba:ml-2" size={18} />
+          <UsersIcon className="gba:ml-2" size={18} />
         </Button>
       </div>
     </div>
@@ -122,7 +122,7 @@ const JobFamilyDrawerContent: React.FC<JobFamilyDrawerContentProps> = ({
 }
 
 // Helper function to get the icon for this drawer
-export const getJobFamilyIcon = () => <PiStack className="gba:h-5 gba:w-5" />
+export const getJobFamilyIcon = () => <StackIcon className="gba:h-5 gba:w-5" />
 
 // Export the component and its title generator
 export const getJobFamilyTitle = (employee: Employee) => {

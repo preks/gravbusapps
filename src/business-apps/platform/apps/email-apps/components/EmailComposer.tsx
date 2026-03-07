@@ -8,7 +8,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { Send, X, Minus, Trash2, Paperclip } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailRecipientInput } from './EmailRecipientInput'
@@ -16,6 +16,7 @@ import { ComposerAttachments } from './ComposerAttachments'
 import { useFileAttachments } from '../hooks/useFileAttachments'
 import { buildReplySubject, buildReplyBody, buildHtmlBody, buildTextBody } from '../utils/composerUtils'
 import type { EmailMessage, EmailAccount, ComposeMode, SendEmailRequest, EmailAddress, EmailContact } from '../types'
+import translations from '../_i18n'
 
 interface EmailComposerProps {
   isOpen: boolean
@@ -53,6 +54,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
   const [isMinimized, setIsMinimized] = useState(false)
   const hasStartedComposingRef = useRef(false)
   const sigPreviewRef = useRef<HTMLDivElement>(null)
+  const { t } = useTranslation(translations)
 
   const {
     attachments,
@@ -64,7 +66,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     openFilePicker,
     handleFileInputChange,
     dragHandlers
-  } = useFileAttachments()
+  } = useFileAttachments({ t })
 
   // Update accountId when accounts load or defaultAccountId changes
   useEffect(() => {
@@ -84,8 +86,13 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     }
   }, [signatureHtml])
 
-  // Populate fields based on mode and replyToMessage
+  // Populate fields based on mode and replyToMessage.
+  // `isOpen` is included so the reset re-runs every time the composer opens,
+  // even when mode/replyToMessage haven't changed (e.g. composing two new
+  // emails in a row).
   useEffect(() => {
+    if (!isOpen) return
+
     hasStartedComposingRef.current = false
 
     if (!replyToMessage) {
@@ -94,6 +101,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       setBccRecipients([])
       setSubject('')
       setBody('')
+      setShowCcBcc(false)
       clearAttachments()
       return
     }
@@ -117,15 +125,15 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       setToRecipients([])
       setBody(quoted)
     }
-  }, [replyToMessage, mode, clearAttachments])
+  }, [isOpen, replyToMessage, mode, clearAttachments])
 
   const handleSend = useCallback(async () => {
     if (toRecipients.length === 0) {
-      toast.error('Please add at least one recipient')
+      toast.error(t('composer-toast-no-recipient'))
       return
     }
     if (!accountId) {
-      toast.error('Please select an account')
+      toast.error(t('composer-toast-no-account'))
       return
     }
 
@@ -153,11 +161,11 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       ]
       onRecipientsUsed?.(allRecipients)
 
-      toast.success('Email sent')
+      toast.success(t('composer-toast-sent'))
       onSent()
       onClose()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to send email')
+      toast.error(err instanceof Error ? err.message : t('composer-toast-send-failed'))
     } finally {
       setIsSending(false)
     }
@@ -173,7 +181,8 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     replyToMessage,
     onSent,
     onClose,
-    onRecipientsUsed
+    onRecipientsUsed,
+    t
   ])
 
   const handleSaveDraft = useCallback(async () => {
@@ -186,14 +195,19 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
         textBody: body,
         isDraft: true
       })
-      toast.success('Draft saved')
+      toast.success(t('composer-toast-draft-saved'))
       onClose()
     } catch {
-      toast.error('Failed to save draft')
+      toast.error(t('composer-toast-draft-failed'))
     }
-  }, [accountId, toRecipients, subject, body, onClose])
+  }, [accountId, toRecipients, subject, body, onClose, t])
 
-  const modeTitle = { new: 'New message', reply: 'Reply', 'reply-all': 'Reply all', forward: 'Forward' }[mode]
+  const modeTitle = {
+    new: t('composer-mode-new'),
+    reply: t('composer-mode-reply'),
+    'reply-all': t('composer-mode-reply-all'),
+    forward: t('composer-mode-forward')
+  }[mode]
 
   if (!isOpen) return null
 
@@ -238,7 +252,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
           <div className="gba:px-4 gba:py-2 gba:space-y-2 gba:border-b">
             {/* From account selector */}
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-xs gba:text-muted-foreground gba:w-8">From</span>
+              <span className="gba:text-xs gba:text-muted-foreground gba:w-8">{t('composer-from')}</span>
               {accounts.length === 1 ? (
                 <span className="gba:text-sm gba:text-foreground">{accounts[0]?.emailAddress}</span>
               ) : (
@@ -259,12 +273,12 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
 
             {/* To field with auto-suggest */}
             <div className="gba:flex gba:items-start gba:gap-2">
-              <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">To</span>
+              <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">{t('composer-to')}</span>
               <EmailRecipientInput
                 recipients={toRecipients}
                 onChange={setToRecipients}
                 searchContacts={searchContacts}
-                placeholder="Recipients"
+                placeholder={t('composer-recipients-placeholder')}
                 data-testid={`${testId}-to`}
               />
               {!showCcBcc && (
@@ -272,7 +286,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
                   onClick={() => setShowCcBcc(true)}
                   className="gba:text-xs gba:text-primary hover:gba:underline gba:flex-shrink-0 gba:mt-2"
                 >
-                  Cc/Bcc
+                  {t('composer-cc-bcc')}
                 </button>
               )}
             </div>
@@ -280,20 +294,22 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
             {showCcBcc && (
               <>
                 <div className="gba:flex gba:items-start gba:gap-2">
-                  <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">Cc</span>
+                  <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">{t('composer-cc')}</span>
                   <EmailRecipientInput
                     recipients={ccRecipients}
                     onChange={setCcRecipients}
                     searchContacts={searchContacts}
+                    placeholder={t('composer-recipient-input-placeholder')}
                     data-testid={`${testId}-cc`}
                   />
                 </div>
                 <div className="gba:flex gba:items-start gba:gap-2">
-                  <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">Bcc</span>
+                  <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">{t('composer-bcc')}</span>
                   <EmailRecipientInput
                     recipients={bccRecipients}
                     onChange={setBccRecipients}
                     searchContacts={searchContacts}
+                    placeholder={t('composer-recipient-input-placeholder')}
                     data-testid={`${testId}-bcc`}
                   />
                 </div>
@@ -301,11 +317,11 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
             )}
 
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-xs gba:text-muted-foreground gba:w-8">Subj</span>
+              <span className="gba:text-xs gba:text-muted-foreground gba:w-8">{t('composer-subj')}</span>
               <input
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
-                placeholder="Subject"
+                placeholder={t('composer-subject-placeholder')}
                 className="gba:flex-1 gba:h-8 gba:text-sm gba:bg-background gba:border gba:rounded gba:px-2 gba:outline-none"
                 data-testid={`${testId}-subject`}
               />
@@ -317,7 +333,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
             <Textarea
               value={body}
               onChange={e => setBody(e.target.value)}
-              placeholder="Write your message..."
+              placeholder={t('composer-body-placeholder')}
               className="gba:min-h-32 gba:resize-none gba:text-sm gba:border-0 gba:p-0 gba:focus:ring-0"
               data-testid={`${testId}-body`}
             />
@@ -339,7 +355,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
               <div className="gba:absolute gba:inset-0 gba:z-10 gba:flex gba:items-center gba:justify-center gba:bg-primary/5 gba:border-2 gba:border-dashed gba:border-primary gba:rounded-lg">
                 <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:text-primary">
                   <Paperclip className="gba:w-8 gba:h-8" />
-                  <span className="gba:text-sm gba:font-medium">Drop files to attach</span>
+                  <span className="gba:text-sm gba:font-medium">{t('composer-drop-files')}</span>
                 </div>
               </div>
             )}
@@ -360,6 +376,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
             attachments={attachments}
             onRemove={removeAttachment}
             totalSize={totalSize}
+            formatSummary={(count, size) => t('composer-attachments-summary', { count, size })}
             data-testid={`${testId}-attachments`}
           />
 
@@ -368,10 +385,10 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
             <div className="gba:flex gba:items-center gba:gap-1">
               <Button onClick={handleSend} disabled={isSending} size="sm" data-testid={`${testId}-send`}>
                 <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                {isSending ? 'Sending...' : 'Send'}
+                {isSending ? t('composer-sending') : t('composer-send')}
               </Button>
               <Button variant="ghost" size="sm" onClick={handleSaveDraft}>
-                Save draft
+                {t('composer-save-draft')}
               </Button>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">

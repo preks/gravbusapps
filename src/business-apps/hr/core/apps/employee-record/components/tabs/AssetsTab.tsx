@@ -22,7 +22,7 @@ import {
   AssetConditionOption
 } from '../../../../forms/equipment-registration/hooks/useAssetConditionCatalog'
 import { AssetStatus } from '../../../../apps/assets/types'
-import { PiPackage, PiCalendar, PiWarning } from 'react-icons/pi'
+import { PackageIcon, CalendarIcon, WarningIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { SortableTableHead } from '../../../../apps/assets/components/SortableTableHead'
@@ -114,8 +114,15 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
     const today = dayjs().startOf('day')
     const startDate = dayjs(asset.startDate).startOf('day')
     const endDate = asset.endDate ? dayjs(asset.endDate).startOf('day') : null
+    const assignmentEnded = !!endDate?.isSameOrBefore(today)
 
-    if (endDate?.isSameOrBefore(today)) {
+    if (assignmentEnded) {
+      if (asset.asset.assetStatus === AssetStatus.UNDER_REPAIR) {
+        return {
+          status: t('assets-status-in-repair-label'),
+          variant: 'warning' as const
+        }
+      }
       return {
         status: t('assets-status-handed-over'),
         variant: 'success' as const
@@ -125,6 +132,12 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       return {
         status: t('assets-status-in-use'),
         variant: 'info' as const
+      }
+    }
+    if (asset.asset.assetStatus === AssetStatus.UNDER_REPAIR && startDate.isSameOrBefore(today)) {
+      return {
+        status: t('assets-status-in-repair-label'),
+        variant: 'warning' as const
       }
     }
     return {
@@ -151,7 +164,11 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   }
 
   const isCurrentlyInUse = (asset: EmployeeAsset) => isAssetActive(asset, AssetStatus.ALLOCATED)
-  const isInRepair = (asset: EmployeeAsset) => isAssetActive(asset, AssetStatus.UNDER_REPAIR)
+  const isInRepair = (asset: EmployeeAsset) => {
+    const today = dayjs().startOf('day')
+    const startDate = dayjs(asset.startDate).startOf('day')
+    return asset.asset.assetStatus === AssetStatus.UNDER_REPAIR && startDate.isSameOrBefore(today)
+  }
 
   const handleSortChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
     setSortField(order === '' ? '' : field)
@@ -256,7 +273,8 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       handedOver: assets.filter(a => {
         const today = dayjs().startOf('day')
         const endDate = a.endDate ? dayjs(a.endDate).startOf('day') : null
-        return endDate?.isSameOrBefore(today)
+        const assignmentEnded = !!endDate?.isSameOrBefore(today)
+        return assignmentEnded && a.asset.assetStatus !== AssetStatus.UNDER_REPAIR
       }).length
     }),
     [assets]
@@ -274,7 +292,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       <Card data-testid="assets-error">
         <CardContent className="gba:p-6">
           <div className="gba:flex gba:items-start gba:gap-3 gba:text-destructive">
-            <PiWarning className="gba:h-5 gba:w-5 gba:mt-0.5" />
+            <WarningIcon className="gba:h-5 gba:w-5 gba:mt-0.5" />
             <div>
               <div className="gba:font-semibold gba:mb-1">{t('assets-error-loading-assets')}</div>
               <div className="gba:text-sm">{error}</div>
@@ -292,7 +310,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
             <div className="gba:text-center gba:space-y-4">
               <div className="gba:flex gba:justify-center">
                 <div className="gba:rounded-full gba:bg-muted gba:p-4">
-                  <PiPackage className="gba:h-8 gba:w-8 gba:text-muted-foreground" />
+                  <PackageIcon className="gba:h-8 gba:w-8 gba:text-muted-foreground" />
                 </div>
               </div>
               <div>
@@ -323,7 +341,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiPackage className="gba:h-5 gba:w-5" />
+              <PackageIcon className="gba:h-5 gba:w-5" />
               {t('assets-assigned-equipment')}
             </CardTitle>
             <Button
@@ -402,7 +420,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                       <TableCell>
                         <div className="gba:space-y-1">
                           <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm">
-                            <PiCalendar className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                            <CalendarIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
                             <span className="gba:text-foreground">
                               {formatDate(asset.startDate) || asset.startDate}
                             </span>

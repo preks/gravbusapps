@@ -5,6 +5,7 @@ import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestme
 import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action/AppAction'
+import { getInvestmentUiSubtypeFromData } from '@/common/data/investment/utils/investmentGroupRouting'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -43,16 +44,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     if (investmentData.investmentType?.code) {
       return investmentData.investmentType.code
     }
-
-    // Fallback to group-based detection
-    const group = investmentData.investmentGroup?.code || ''
-    // Only return specific types for specialized groups with custom handling
-    if (group.includes('EQUITY')) return 'equity'
-    if (group.includes('LIQUID_FUND')) return 'liquid_fund'
-    if (group.includes('REAL_ESTATE')) return 'real_estate'
-
-    // All other groups (including PRIVATE_EQUITY, TEST, etc.) are generic
-    return 'generic'
+    return getInvestmentUiSubtypeFromData(investmentData)
   }, [])
 
   // Extract type-specific data arrays
@@ -95,24 +87,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     const config = getRecordGroupConfiguration(group)
     // Use configured category label or fallback to generic 'INVESTMENT'
     return config.categoryLabel || getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
-  }, [])
-
-  // Helper function to get the correct FlowContextName based on investment type
-  const getInvestmentFlowContext = useCallback((type: string): FlowContextName => {
-    switch (type?.toLowerCase()) {
-      case 'equity':
-        return FlowContextName.equityInvestmentEntity
-      case 'liquid_fund':
-      case 'liquidfund':
-        return FlowContextName.liquidFundInvestmentEntity
-      case 'real_estate':
-      case 'realestate':
-        return FlowContextName.realEstateInvestmentEntity
-      default:
-        // All other investment types (PRIVATE_EQUITY, TEST, and future groups)
-        // use the generic investment entity context
-        return FlowContextName.investmentEntity
-    }
   }, [])
 
   // Central hooks for data fetching
@@ -269,8 +243,8 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         variant="header"
         contexts={[
           {
-            context: getInvestmentFlowContext(investmentType),
-            contextData: { investmentId }
+            context: FlowContextName.investmentEntity,
+            contextData: { investmentId, dealType: 'DIVESTMENT_DEAL' }
           }
         ]}
         shareContext={{
@@ -283,7 +257,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         accessToken={props.accessToken}
       />
     ),
-    [investmentId, investmentType, investmentData?.name, props.accessToken]
+    [investmentId, investmentData, investmentType, investmentData?.name, props.accessToken]
   )
 
   // Loading state

@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles } from 'lucide-react'
+import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles, BarChart3 } from 'lucide-react'
 import { Button, cn } from '@newwork/nw-design-system'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
@@ -11,15 +11,12 @@ import {
   AIQuickStart,
   NeuralBackground,
   ConnectionsVisualization,
-  ToolCardProps,
-  OrchestratorView
-} from './components'
+  ToolCardProps
+} from './features/landing'
 
 export interface NewworkCreateProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
-
-type ViewMode = 'landing' | 'orchestrator'
 
 /**
  * NEWWORK CREATE - Premium landing page for the creation suite
@@ -34,16 +31,11 @@ type ViewMode = 'landing' | 'orchestrator'
  *
  * Also includes AI Orchestrator for unified component building.
  */
-export const NewworkCreate: React.FC<NewworkCreateProps> = ({
-  accessToken,
-  'data-testid': testId = 'create-workspace'
-}) => {
+const AI_ORCHESTRATOR_URL = '/platform/create/ai-builder'
+
+export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': testId = 'create-workspace' }) => {
   // Feature flag for AI features
   const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
-
-  // View mode state - landing page or orchestrator
-  const [viewMode, setViewMode] = useState<ViewMode>('landing')
-  const [orchestratorPrompt, setOrchestratorPrompt] = useState('')
 
   // Tool definitions
   const tools: Array<Omit<ToolCardProps, 'data-testid'> & { id: string }> = [
@@ -53,10 +45,21 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
       description:
         'Design and build UI screens with AI assistance. Create forms, dashboards, lists, and custom layouts.',
       icon: Monitor,
-      href: buildPlatformUrl('/platform/ai-builder'),
+      href: buildPlatformUrl('/platform/create/screen-builder'),
       badge: 'AI-Powered',
       badgeVariant: 'info',
       accentColor: 'ai'
+    },
+    {
+      id: 'ai-builder-metrics',
+      title: 'AI Builder Metrics',
+      description:
+        'Track LLM token usage, model distribution, and session-level consumption for AI Builder.',
+      icon: BarChart3,
+      href: buildPlatformUrl('/platform/create/ai-builder-metrics'),
+      badge: 'Ops',
+      badgeVariant: 'warning',
+      accentColor: 'info'
     },
     {
       id: 'flow',
@@ -112,23 +115,11 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
     }
   ]
 
-  // Handle AI quick start submission - now launches orchestrator
+  // Handle AI quick start submission - open AI Orchestrator app with prompt
   const handleAIQuickStart = useCallback((prompt: string) => {
-    // Launch the AI Orchestrator with the prompt
-    setOrchestratorPrompt(prompt)
-    setViewMode('orchestrator')
-  }, [])
-
-  // Handle orchestrator back button
-  const handleOrchestratorBack = useCallback(() => {
-    setViewMode('landing')
-    setOrchestratorPrompt('')
-  }, [])
-
-  // Handle orchestrator completion
-  const handleOrchestratorComplete = useCallback((success: boolean) => {
-    console.log('Orchestrator completed:', success ? 'success' : 'with errors')
-    // Could show a toast or notification here
+    const params = new URLSearchParams({ plan: 'new' })
+    if (prompt.trim()) params.set('prompt', prompt.trim())
+    navigateTo(buildPlatformUrl(`${AI_ORCHESTRATOR_URL}?${params.toString()}`))
   }, [])
 
   // Handle tool card click
@@ -136,22 +127,11 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
     navigateTo(href)
   }, [])
 
-  // Render Orchestrator View
-  if (viewMode === 'orchestrator') {
-    return (
-      <div className="gba:min-h-screen gba:bg-background" data-testid={`${testId}-orchestrator`}>
-        <OrchestratorView
-          accessToken={accessToken}
-          initialPrompt={orchestratorPrompt}
-          onBack={handleOrchestratorBack}
-          onComplete={handleOrchestratorComplete}
-          data-testid={`${testId}-orchestrator-view`}
-        />
-      </div>
-    )
-  }
+  // Open AI Orchestrator app (standalone)
+  const handleOpenOrchestrator = useCallback(() => {
+    navigateTo(buildPlatformUrl(`${AI_ORCHESTRATOR_URL}?plan=new`))
+  }, [])
 
-  // Render Landing Page
   return (
     <div className="gba:min-h-screen gba:bg-background gba:relative" data-testid={testId}>
       {/* Neural Network Background - Subtle AI atmosphere */}
@@ -176,7 +156,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
           <div className="gba:flex gba:justify-center gba:py-4">
             <Button
               variant="outline"
-              onClick={() => setViewMode('orchestrator')}
+              onClick={handleOpenOrchestrator}
               className="gba:flex gba:items-center gba:gap-2"
               disabled={!isDevEnabled}
               data-testid={`${testId}-orchestrator-button`}

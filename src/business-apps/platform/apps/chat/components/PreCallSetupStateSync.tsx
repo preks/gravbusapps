@@ -8,10 +8,22 @@
 import { useEffect, useState } from 'react'
 import { globalPreCallSetupManager } from '../services/globalPreCallSetupManager'
 import { globalCallManager } from '../services/globalCallManager'
-import type { GroupCallUIState } from '../hooks/useGroupCall'
-import type { UseGroupCallReturn } from '../hooks/useGroupCall'
+import type { GroupCallUIState, UseGroupCallReturn } from '../services/callTypes'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { Conversation } from '../types'
+
+function getOtherParticipantDisplayName(
+  conversation: Conversation | null,
+  currentUserId: string | undefined
+): string | undefined {
+  if (!conversation?.participants?.length || !currentUserId) return undefined
+  const other = conversation.participants.find(p => (p.user?.id ?? p.userId) !== currentUserId)
+  const user = other?.user
+  if (!user) return undefined
+  return (
+    user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username || undefined
+  )
+}
 
 interface PreCallSetupStateSyncProps {
   groupCallState: GroupCallUIState
@@ -51,11 +63,19 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         ? globalCallData.callState.isMinimized
         : groupCallState.isMinimized
     const hasIncomingInvite = !!incomingGroupCallInvite
+    // CallDialog (GroupCallModalRtk) only renders when globalCallManager has realtimeKitMeeting.
+    // Keep PreCallSetup visible until then so there is no frame with neither UI.
+    const isCallUiReady = !!globalCallData.realtimeKitMeeting
+    // When user ends call, globalCallManager is set to 'ended' before local state updates.
+    // Only hide for "connected but UI not ready" when global is ended/idle (teardown).
+    // Do NOT block setup/joining: when starting a new call, global may still be ended from previous.
+    const globalStatus = globalCallData.callState?.status
+    const isEndedOrIdle = globalStatus === 'ended' || globalStatus === 'idle'
+    const connectedButNotReady = groupCallState.status === 'connected' && !isCallUiReady && !isEndedOrIdle
 
-    // Show ONLY during setup/joining for outbound calls. Avoid using "connected but not joined" here:
-    // during teardown/unmount `meeting` can be undefined while status is still 'connected', which can
-    // incorrectly re-open the dialog after ending a call.
-    const shouldShow = isOutboundHost && (isSetup || isJoining) && !isMinimized && !hasIncomingInvite
+    // Show during setup/joining, or when connected but call UI not yet ready (avoids blank frame).
+    const shouldShow =
+      isOutboundHost && (isSetup || isJoining || connectedButNotReady) && !isMinimized && !hasIncomingInvite
 
     const currentSourceOwner = globalPreCallSetupManager.getSourceOwnerId()
     const isSourceOwner = currentSourceOwner === instanceId
@@ -69,7 +89,9 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         }
       }
 
-      // Update callbacks FIRST so the subsequent state notify causes UI to read latest callbacks
+      // Update callbacks FIRST so the subsequent state notify causes UI to read latest callbacks.
+      // On cancel: close and release in the manager first so the dialog stays closed even if
+      // the sync effect runs again before React has applied the idle state (avoids modal reopening).
       globalPreCallSetupManager.setCallbacksFrom(
         instanceId,
         preferences => {
@@ -78,46 +100,54 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
           }
         },
         () => {
+          if (globalPreCallSetupManager.getSourceOwnerId() === instanceId) {
+            globalPreCallSetupManager.setCallbacksFrom(instanceId, null, null)
+            globalPreCallSetupManager.setStateFrom(instanceId, { isOpen: false })
+            globalPreCallSetupManager.releaseSourceOwner(instanceId)
+          }
           if (realtimeKitGroupCall.cancelSetup) {
             realtimeKitGroupCall.cancelSetup()
           }
         }
       )
 
-      // Determine user name based on conversation type (EXACT ORIGINAL LOGIC)
-      const userName =
-        activeConversation?.type === 'direct'
-          ? // For direct calls, show the OTHER participant's name
-            activeConversation.participants?.find(
-              (p: any) => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-            )?.user?.displayName ||
-            activeConversation.participants?.find(
-              (p: any) => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-            )?.user?.username ||
-            'Unknown'
-          : currentUserAsParticipant?.odName // For group calls, show your name
+      // Current user's name and avatar for the preview section (camera-off placeholder)
+      const userName = currentUserAsParticipant?.odName
+      const userAvatarUrl = currentUserAsParticipant?.avatarUrl
 
-      // Determine user avatar based on conversation type (EXACT ORIGINAL LOGIC)
-      const userAvatarUrl =
-        activeConversation?.type === 'direct'
-          ? // For direct calls, show the OTHER participant's avatar
-            activeConversation.participants?.find(
-              (p: any) => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-            )?.user?.avatarUrl
-          : currentUserAsParticipant?.avatarUrl // For group calls, show your avatar
+      // For direct (1-on-1) calls, "Call with ..." must show the OTHER participant's name
+      const isMeetingConversation =
+        activeConversation?.metadata?.type === 'meeting' || Boolean(activeConversation?.metadata?.meetingId)
+      const conversationType: 'direct' | 'group' | 'meeting' = isMeetingConversation
+        ? 'meeting'
+        : ((activeConversation?.type as 'direct' | 'group' | 'meeting') ?? 'group')
+      const otherParticipant =
+        conversationType === 'direct' && currentUser?.id
+          ? groupParticipants.find((p: { id?: string }) => p.id !== currentUser.id)
+          : undefined
+      const otherParticipantName =
+        conversationType === 'direct'
+          ? ((otherParticipant as { odName?: string } | undefined)?.odName ??
+            activeConversation?.name ??
+            getOtherParticipantDisplayName(activeConversation, currentUser?.id))
+          : undefined
 
-      // Update global state (EXACT ORIGINAL LOGIC)
+      // Use call state value only (initiateCall already awaits getMeeting, so we have the final value)
+      const transcriptionEnabled = groupCallState.transcriptionEnabled === true
+
+      // For meetings started from dashboard/calendar, call state has meeting title; use it instead of activeConversation name
+      const displayName = groupCallState.conversationName ?? activeConversation?.name
+
       globalPreCallSetupManager.setStateFrom(instanceId, {
         isOpen: true,
         callType: groupCallState.callType,
-        conversationName:
-          activeConversation?.type === 'direct'
-            ? undefined // For direct calls, don't pass conversation name (will show "Call")
-            : activeConversation?.name, // For group/meeting, use conversation name
+        conversationName: displayName,
         participantCount: groupParticipants.length,
         userName,
         userAvatarUrl,
-        conversationType: activeConversation?.type as 'direct' | 'group' | 'meeting'
+        conversationType,
+        transcriptionEnabled,
+        otherParticipantName
       })
 
       return
@@ -134,8 +164,12 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     instanceId,
     groupCallState.status,
     groupCallState.callType,
+    groupCallState.conversationName,
+    groupCallState.hostId,
     groupCallState.hasBeenMinimized,
     groupCallState.isMinimized,
+    groupCallState.transcriptionEnabled,
+    realtimeKitGroupCall.meeting,
     realtimeKitGroupCall.meeting?.self?.roomState,
     realtimeKitGroupCall.confirmStartCall,
     realtimeKitGroupCall.cancelSetup,
@@ -145,6 +179,16 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     groupParticipants.length,
     incomingGroupCallInvite
   ])
+
+  // When call state gets transcriptionEnabled true (e.g. from initiateCall getMeeting callback or runConfirmStartCall), push to manager. Do not push false so we don't overwrite a direct setState from initiateCall.
+  useEffect(() => {
+    const isSetupOrJoining = groupCallState.status === 'setup' || groupCallState.status === 'joining'
+    if (!isSetupOrJoining) return
+    if (globalPreCallSetupManager.getSourceOwnerId() !== instanceId) return
+    if (!globalPreCallSetupManager.isDialogOpen()) return
+    if (groupCallState.transcriptionEnabled !== true) return
+    globalPreCallSetupManager.setStateFrom(instanceId, { transcriptionEnabled: true })
+  }, [instanceId, groupCallState.status, groupCallState.transcriptionEnabled])
 
   // Cleanup: if this instance owns SOURCE ownership, close and release to avoid stale callbacks
   useEffect(() => {

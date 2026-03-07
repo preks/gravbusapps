@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Label } from '@newwork/nw-design-system'
-import { PiCurrencyCircleDollar, PiCalendarDuotone, PiMapPin } from 'react-icons/pi'
+import { CurrencyCircleDollarIcon, CalendarIcon, MapPinIcon } from '@phosphor-icons/react'
 import { formatDateTime } from '@/common/utils/dateFormatter'
 import { ExpenseRequestAllowance } from '../types/expenseRequestV2Types'
 import { getCatalogValue } from '../utils/formatters'
@@ -28,7 +28,7 @@ const DetailedAllowancesSection: React.FC<DetailedAllowancesSectionProps> = ({
     <Card data-testid={`${prefixDataTestId}-allowances`}>
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <PiCurrencyCircleDollar className="gba:h-5 gba:w-5" />
+          <CurrencyCircleDollarIcon className="gba:h-5 gba:w-5" />
           {t('section-daily-allowances')} ({allowances.length} {t('label-days')})
         </CardTitle>
       </CardHeader>
@@ -42,7 +42,7 @@ const DetailedAllowancesSection: React.FC<DetailedAllowancesSectionProps> = ({
             {/* Date and Day Rate */}
             <div className="gba:flex gba:justify-between gba:items-center">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <PiCalendarDuotone className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                <CalendarIcon weight="duotone" className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                 <span className="gba:text-sm gba:font-medium">{formatDateTime(allowance.allowanceDate)}</span>
               </div>
               <div className="gba:text-right">
@@ -56,7 +56,7 @@ const DetailedAllowancesSection: React.FC<DetailedAllowancesSectionProps> = ({
             {/* Travel Region */}
             {allowance.travelRegion?.value && (
               <div className="gba:flex gba:items-start gba:gap-2">
-                <PiMapPin className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:mt-0.5" />
+                <MapPinIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:mt-0.5" />
                 <div>
                   <Label className="gba:text-xs gba:text-muted-foreground">{t('label-region')}</Label>
                   <p className="gba:text-sm">

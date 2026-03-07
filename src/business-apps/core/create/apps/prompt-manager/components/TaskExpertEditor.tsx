@@ -10,6 +10,7 @@ export interface TaskExpertEditorProps extends BusinessAppContextProps {
   onNameLoaded?: (name: string) => void
   initialState?: AgentBuilderInitialState
   onGoToDashboard?: () => void
+  onBack?: () => void
 }
 
 /**

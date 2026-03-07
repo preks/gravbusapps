@@ -1,0 +1,266 @@
+# Flow Studio Translations (English)
+
+# App
+app-title = Flow Studio
+app-description = Design and configure workflows visually
+app-eyebrow = Create
+
+# Studio navigation
+studio-back-to-list = Back to list
+studio-discard-title = Discard changes?
+studio-discard-desc = You have unsaved changes. Leave the studio without saving and discard them.
+studio-discard-cancel = Keep editing
+studio-discard-confirm = Discard and close
+
+# Labels / Tags
+labels-title = Labels
+labels-tab-categories = Categories
+labels-tab-custom = Custom labels
+labels-app = Application
+labels-app-placeholder = Select an application
+labels-service-category = Service category
+labels-service-category-placeholder = Select a service category
+labels-dwp-category = Digital Workplace category
+labels-dwp-category-placeholder = Select a Digital Workplace category
+labels-none = None selected
+labels-preview = Preview
+labels-custom-title = Custom labels
+labels-custom-description = Add arbitrary key/value labels for filtering and organization.
+labels-custom-add = Add label
+labels-key = Key
+labels-key-placeholder = e.g. solution
+labels-value = Value
+labels-value-placeholder = e.g. compliance
+labels-cancel = Cancel
+labels-save = Save
+labels-error-duplicate = Duplicate key: {$key}
+
+# List
+list-title = Flows
+list-subtitle = Browse and open existing flow templates
+list-search = Search
+list-search-placeholder = Search flows...
+list-sort = Sort
+list-sort-name-asc = Name (A–Z)
+list-sort-name-desc = Name (Z–A)
+list-sort-version-desc = Version (high → low)
+list-sort-steps-desc = Steps (high → low)
+list-create = Create flow
+list-empty-title = No flows found
+list-empty-subtitle = Try adjusting your search or create a new flow.
+list-col-name = Name
+list-col-app = Category
+list-col-created-by = Creator
+list-col-updated = Last updated
+list-col-type = Type
+list-col-version = Version
+list-col-steps = Steps
+list-col-labels = Labels
+list-untitled = Untitled
+list-no-id = No ID
+list-error-title = Could not load flows
+list-retry = Retry
+list-pager-summary = {$from}–{$to} of {$total}
+list-pager-empty = No results
+list-prev = Previous
+list-next = Next
+
+# Mode Toggle
+mode-simple = Simple
+mode-advanced = Advanced
+mode-toggle-label = Designer Mode
+mode-simple-description = Simplified workflow design for business users
+mode-advanced-description = Full-featured workflow design for expert users
+
+# Canvas
+canvas-empty-title = Start building your flow
+canvas-empty-description = Drag nodes from the palette or click to add
+canvas-zoom-in = Zoom in
+canvas-zoom-out = Zoom out
+canvas-fit-view = Fit to view
+canvas-auto-layout = Auto layout
+
+# Node Palette
+palette-title = Nodes
+palette-start = Start
+palette-task = Task
+palette-approval = Approval
+palette-decision = Decision
+palette-fork = Parallel Split
+palette-join = Parallel Merge
+palette-end = End
+
+# Toolbar
+toolbar-save = Save
+toolbar-publish = Publish
+toolbar-simulate = Simulate
+toolbar-undo = Undo
+toolbar-redo = Redo
+toolbar-delete = Delete
+toolbar-duplicate = Duplicate
+
+# Config Panels
+config-panel-title = Configuration
+config-general = General
+config-form = Form
+config-assignment = Assignment
+config-conditions = Conditions
+config-branches = Branches
+config-events = Automation
+config-parameters = Parameters
+config-rework = Rework Actions
+
+# Start Node Config
+start-trigger-type = Trigger Type
+start-trigger-manual = Manual Form
+start-trigger-webhook = Webhook
+start-trigger-event = Event
+start-trigger-schedule = Schedule
+
+# Task Node Config
+task-title = Task Title
+task-message = Task Message
+task-instruction = AI Instruction
+task-switch-type = Switch step type
+task-type = Task Type
+task-type-task = Task
+task-type-approval = Approval
+task-type-information = Information
+task-type-acknowledge = Acknowledge
+task-type-function = Function
+task-type-ai_agent = EveryAI Agent
+task-type-ai_task_expert = AI Task Expert
+task-kind = Step Kind
+task-kind-user = User Step
+task-kind-system = System Step
+
+# AI Task Expert parameter mapping
+task-input-params = Input parameters
+task-input-params-loading = Loading parameters...
+task-input-params-empty = No parameters found.
+task-input-params-system = System parameters
+task-input-params-user = User parameters
+task-input-params-pick = Select value
+
+# EveryAI Agent output schema
+task-output-schema-title = Output schema
+task-output-schema-desc = Define the structured output this agent produces for downstream steps.
+
+# Task step type selector (signature)
+task-type-group-human = Human steps
+task-type-group-ai = AI & Automations
+
+# Assignment
+assignment-due-label = Due time
+assignment-due-description = Set how long assignees have to complete this task.
+assignment-due-placeholder = e.g. 2
+assignment-due-unit-minutes = Minutes
+assignment-due-unit-hours = Hours
+assignment-due-unit-days = Days
+assignment-mode-label = Assignment Mode
+assignment-mode-claim = Claim
+assignment-mode-assign = Assign
+assignment-mode-deferred = Deferred
+assignment-mode-desc-claim = Anyone in the selected audience can claim this task.
+assignment-mode-desc-assign = An individual task is created for everyone in the selected audience.
+assignment-mode-desc-deferred = Targets are resolved at runtime (advanced).
+assignment-audience-label = Audience
+
+# Logic decisions
+logic-description-simple = Pick a step value and compare it. First matching condition wins.
+logic-description-advanced = Define conditions with expressions. First matching condition wins.
+logic-field-label = Value
+logic-field-placeholder = Select value
+logic-field-search = Search step data...
+logic-field-empty = No matching values
+logic-field-group-steps = Step data
+logic-operator-label = Operator
+logic-value-label = Compare to
+logic-value-placeholder = e.g. 1000 or 'approved'
+logic-preview = Expression:
+
+# Decision Node Config
+decision-mode = Decision Mode
+decision-mode-user = User Decision
+decision-mode-ai = AI Decision
+decision-mode-logic = Logic Decision
+decision-branch-add = Add Branch
+decision-default-branch = Default Branch
+decision-confidence = Confidence Threshold
+decision-escalation = Escalation
+decision-policy = Decision Policy
+decision-policy-optional-placeholder = Optional: select a policy...
+decision-ai-executor-label = AI executor
+decision-ai-executor-everyai = EveryAI
+decision-ai-executor-everyai-desc = Use a decision instruction (with expressions) and let EveryAI pick the best branch.
+decision-ai-executor-taskexpert = AI Task Expert
+decision-ai-executor-taskexpert-desc = Run the task expert and route via mapping rules. If no rule matches, a human picks the branch.
+decision-ai-type-label = Decision setup
+decision-ai-type-policy = Policy-guided
+decision-ai-type-policy-desc = Use a policy document as guidance for the decision.
+decision-ai-type-expert = AI Expert
+decision-ai-type-expert-desc = Select an AI expert from Prompt Manager to make the decision.
+decision-ai-instructions-label = Decision instructions
+decision-ai-instructions-desc = Add context or rules for the AI. Use the expression picker to insert data from earlier steps.
+decision-ai-instructions-placeholder = e.g. Prefer branch A if the risk score is above the value from a previous step.
+decision-escalation-instructions-label = Escalation instructions
+decision-escalation-instructions-desc = Optional. Tell the AI when it should escalate to a human decision.
+decision-escalation-instructions-placeholder = e.g. Escalate if the policy is ambiguous or key information is missing.
+decision-escalation-how-title = How escalation works
+decision-escalation-how-desc = If the AI requests escalation, returns invalid output, or the result cannot be mapped to a branch, a user decision task is created and the user selects the next branch.
+decision-escalation-due-label = Escalated decision due in
+decision-human-fallback-title = Human fallback
+decision-human-fallback-desc = Configure who gets the fallback decision task and what the user sees when the AI cannot decide.
+decision-human-instructions-label = Fallback task message
+decision-human-instructions-desc = Required. This is shown to the user when a human needs to pick the branch. You can use expressions.
+decision-human-instructions-placeholder = e.g. The AI could not decide. Please choose the best branch based on the available information.
+decision-ai-taskexpert-mapping-label = Mapping rules
+decision-ai-taskexpert-mapping-desc = Define rules that map the task expert output to a branch.
+decision-ai-taskexpert-picker-desc = Select which task expert should execute for this decision.
+decision-ai-taskexpert-picker-placeholder = Select a task expert...
+decision-ai-taskexpert-picker-search = Search task experts...
+decision-ai-taskexpert-picker-empty = No task experts found.
+decision-ai-taskexpert-reasoning-label = Reasoning output mapping
+decision-ai-taskexpert-reasoning-desc = Optional. Select which output field should be used as reasoning for the human fallback.
+decision-ai-taskexpert-reasoning-placeholder = Select output field (optional)
+decision-ai-taskexpert-reasoning-none = None
+decision-due-label = Decision due in
+decision-due-placeholder = e.g. 2
+decision-due-unit-minutes = Minutes
+decision-due-unit-hours = Hours
+decision-due-unit-days = Days
+
+# Fork/Join Config
+fork-branches = Parallel Branches
+fork-add-branch = Add Branch
+join-condition = Join Condition
+join-wait-all = Wait for All
+join-wait-any = Wait for Any
+
+# Rework / Go-Back
+rework-title = Rework Actions
+rework-on-reject = On Reject
+rework-send-back-to = Send back to
+rework-reason-required = Require reason
+rework-preserve-data = Preserve form data
+rework-max-iterations = Max iterations
+
+# Simulation
+sim-title = Simulation
+sim-start = Start Simulation
+sim-stop = Stop
+sim-pause = Pause
+sim-resume = Resume
+sim-provide-input = Provide Input
+sim-completed = Simulation completed
+sim-step-log = Step Log
+sim-mock-data = Mock Data
+
+# Validation
+validation-title = Validation
+validation-no-start = Flow must have a start node
+validation-no-end = Flow must have an end node
+validation-orphan-nodes = Orphan nodes detected
+validation-fork-no-join = Fork node has no matching join
+validation-decision-branches = Decision must have at least 2 branches
+validation-disconnected = Some nodes are not connected

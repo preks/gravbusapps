@@ -14,7 +14,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
-import { parseDurationToMinutes } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import { parseDurationToMinutes, minutesToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 export type TimeEntry = {
   id: string
@@ -73,7 +73,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [pageSize, setPageSize] = useState(10)
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [allEntries, setAllEntries] = useState<TimeEntry[]>([])
+  const [allMonthEntries, setAllMonthEntries] = useState<TimeEntry[]>([])
   const [totalCount, setTotalCount] = useState(0)
+  const [holidayDates, setHolidayDates] = useState<string[]>([])
   // monthly totals (minutes)
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
@@ -104,16 +106,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))
   }, [])
 
-  // parseDurationToMinutes moved to shared My Time utils
-
-  const formatMinutes = (minutes: number): string => {
-    const sign = minutes < 0 ? '-' : ''
-    const abs = Math.abs(minutes)
-    const h = Math.floor(abs / 60)
-    const m = abs % 60
-    if (m === 0) return `${sign}${h}h`
-    return `${sign}${h}h ${m}m`
-  }
+  // parseDurationToMinutes / minutesToHHMM from shared My Time utils
 
   const getPlannedMinutesForDate = (dateIso: string): number => {
     if (!workingHours) return 0
@@ -317,6 +310,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       // ignore holiday fetch errors for now
       console.error(e)
     }
+    setHolidayDates(Array.from(holidayDateSet))
 
     // Compute monthly required totals based on working hours pattern, excluding holidays
     const computeRequiredMinutesForRange = (from: Date, to: Date) => {
@@ -351,6 +345,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       dateTo: toDateString(monthEnd)
     })
     const allRows: any[] = allRes?.EmployeeAttendance ?? []
+    setAllMonthEntries(allRows.map(mapAttendanceToEntry))
     // Use today's local date as the upper bound and exclude it (strictly <)
     const todayLocal = new Date()
     const untilDay = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(
@@ -452,11 +447,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           employeeAttendanceTypeRef: 'EmployeeAttendanceType:v1:WORKING_DAY',
           attendanceDate: today,
           startTime: isoNow,
-          recordedTime: '0h',
-          breakTime: '1h',
-          effectiveTime: '0h',
-          plannedTime: formatMinutes(getPlannedMinutesForDate(isoNow)),
-          differenceTime: '0h',
+          recordedTime: minutesToHHMM(0),
+          breakTime: '01:00',
+          effectiveTime: minutesToHHMM(0),
+          plannedTime: minutesToHHMM(getPlannedMinutesForDate(isoNow)),
+          differenceTime: minutesToHHMM(0),
           manualOverride: false,
           notes: 'Clock-in',
           attendanceLocation,
@@ -519,11 +514,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           id: mostRecent.id,
           version: typeof mostRecent.version === 'number' ? mostRecent.version : 0,
           endTime: isoNow,
-          recordedTime: formatMinutes(recordedMinutes),
-          effectiveTime: formatMinutes(effectiveMinutes),
-          breakTime: formatMinutes(breakMinutes),
-          plannedTime: formatMinutes(plannedMinutes),
-          differenceTime: formatMinutes(diffMinutes),
+          recordedTime: minutesToHHMM(recordedMinutes),
+          effectiveTime: minutesToHHMM(effectiveMinutes),
+          breakTime: minutesToHHMM(breakMinutes),
+          plannedTime: minutesToHHMM(plannedMinutes),
+          differenceTime: minutesToHHMM(diffMinutes),
           notes: 'Clock-out'
         }
       })
@@ -617,6 +612,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     isNearOffice,
     hasTodayAttendanceRecord,
     entries,
+    allMonthEntries,
+    holidayDates,
     totalCount,
     page,
     pageSize,

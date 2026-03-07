@@ -22,8 +22,10 @@ export interface NotClockedInViewProps {
   availableEmployeeIds: string[]
   notClockedInCount: number
   loadingAttendance: boolean
+  nudgeLoading: boolean
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
+  onNudgeNotClockedIn: () => void
 }
 
 export const NotClockedInView: React.FC<NotClockedInViewProps> = ({
@@ -31,8 +33,10 @@ export const NotClockedInView: React.FC<NotClockedInViewProps> = ({
   availableEmployeeIds,
   notClockedInCount,
   loadingAttendance,
+  nudgeLoading,
   onNavigateBack,
-  onNavigateToEmployee
+  onNavigateToEmployee,
+  onNudgeNotClockedIn
 }) => {
   // Filter to only show available employees who are not clocked in
   const notClockedInMembers = teamAttendance.filter(
@@ -67,6 +71,17 @@ export const NotClockedInView: React.FC<NotClockedInViewProps> = ({
             {`${notClockedInCount} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.available_not_clocked_in', 'available but not clocked in')}`}
           </Badge>
         </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onNudgeNotClockedIn}
+          disabled={loadingAttendance || notClockedInMembers.length === 0 || nudgeLoading}
+          data-testid="manager-dashboard-not-clocked-in-nudge-button"
+        >
+          {nudgeLoading
+            ? getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.nudging', 'Sending...')
+            : getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.nudge_team', 'Nudge Team')}
+        </Button>
       </div>
 
       {/* Loading State */}
@@ -98,9 +113,7 @@ export const NotClockedInView: React.FC<NotClockedInViewProps> = ({
                 <TableHead>
                   {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.position', 'Position')}
                 </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.status', 'Status')}
-                </TableHead>
+                <TableHead>{getTranslationFromI18nKeyAndLabel('master-data:forms.status.label', 'Status')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

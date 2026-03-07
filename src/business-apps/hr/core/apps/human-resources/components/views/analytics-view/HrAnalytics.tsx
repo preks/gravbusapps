@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { Alert, Button } from 'antd'
 import { PageLayout } from '@newwork/nw-design-system'
 import {
-  DashboardOutlined,
-  UserOutlined,
-  TeamOutlined,
-  ApartmentOutlined,
-  DollarOutlined,
-  LineChartOutlined
-} from '@ant-design/icons'
-import { ChartPie } from '@phosphor-icons/react'
+  GaugeIcon,
+  UserIcon,
+  UsersIcon,
+  BuildingsIcon,
+  CurrencyDollarIcon,
+  ChartLineIcon,
+  ChartPieIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import Dashboard from './components/views/dashboard/Dashboard'
 import Demographics from './components/views/demographics'
@@ -22,32 +22,32 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <DashboardOutlined />,
+      icon: <GaugeIcon size={16} />,
       label: 'Dashboard'
     },
     {
       key: 'demographics',
-      icon: <UserOutlined />,
+      icon: <UserIcon />,
       label: 'Demographics'
     },
     {
       key: 'workforce',
-      icon: <TeamOutlined />,
+      icon: <UsersIcon size={16} />,
       label: 'Workforce'
     },
     {
       key: 'compensation',
-      icon: <DollarOutlined />,
+      icon: <CurrencyDollarIcon size={16} />,
       label: 'Compensation'
     },
     {
       key: 'forecasting',
-      icon: <LineChartOutlined />,
+      icon: <ChartLineIcon size={16} />,
       label: 'Forecasting'
     },
     {
       key: 'structural-analysis',
-      icon: <ApartmentOutlined />,
+      icon: <BuildingsIcon size={16} />,
       label: 'Structural Analysis'
     }
   ]
@@ -208,8 +208,8 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
     <div data-testid="hr-analytics-app">
       <PageLayout
         headerPhosphorIcon={{
-          icon: ChartPie,
-          variant: 'premium',
+          icon: ChartPieIcon,
+          variant: 'default',
           size: 'lg',
           label: 'HR Analytics'
         }}

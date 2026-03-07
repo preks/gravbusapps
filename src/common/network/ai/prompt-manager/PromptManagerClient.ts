@@ -29,7 +29,7 @@ export type ToolPolicies = Record<string, ToolPolicy>
 
 export interface KnowledgeSource {
   id?: string // Assigned by backend on save; optional for creation
-  type: 'document' | 'url' | 'content_entry' | 'catalog' // content_entry = internal knowledge base, catalog = catalog entries
+  type: 'document' | 'url' | 'content_entry' | 'catalog' | 'note' | 'spreadsheet' | 'slide' // content_entry = internal knowledge base, catalog = catalog entries, note/spreadsheet/slide = workspace content
   name: string
   description?: string
   url?: string
@@ -44,6 +44,15 @@ export interface KnowledgeSource {
   extractedContent?: string // Extracted text from documents (parsed by FlowBot)
   lastUpdated: string
   createdAt: string
+}
+
+export interface PromptAgentCard {
+  division?: string
+  data_domains?: string[]
+  capabilities?: string[]
+  access_policy?: string
+  allowed_callers?: string[]
+  version?: string
 }
 
 export interface PromptODM {
@@ -73,6 +82,8 @@ export interface PromptODM {
   is_public?: boolean
   created_by?: string
   tags?: string[]
+  // Agent Mesh fields
+  agent_card?: PromptAgentCard | null
 }
 
 export interface PromptPage {
@@ -175,6 +186,34 @@ export interface PromptPatchDetails {
 
 export interface PromptExecuteResponse<T = unknown> {
   content: T | string | null
+}
+
+/** Knowledge source entry for execute-json (e.g. catalog reference). */
+export interface ExecutePromptJsonKnowledgeSource {
+  type: string
+  name?: string
+  catalogIdentifier?: string
+  catalogVersion?: string
+  [key: string]: unknown
+}
+
+/** Request body for POST /api/v1/prompts/execute-json (execute prompt with JSON + document links) */
+export interface ExecutePromptJsonBody {
+  model_id?: string
+  model_service?: string
+  model_name?: string
+  system_content?: string
+  user_content?: string
+  tools?: string[]
+  model_settings?: Record<string, unknown>
+  response_schema?: Record<string, unknown>
+  system_params?: Record<string, unknown>
+  user_params?: Record<string, unknown>
+  document_links?: string[]
+  knowledge_sources?: ExecutePromptJsonKnowledgeSource[]
+  citation_mode?: string
+  response_style?: string
+  context?: Record<string, unknown>
 }
 
 // --- Telemetry / Executions ---
@@ -516,6 +555,14 @@ export class PromptManagerClient extends RestClient {
 
   async executePromptById(id: string, formData: FormData): Promise<PromptExecuteResponse> {
     return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+  }
+
+  /**
+   * Execute prompt with JSON body and optional document links.
+   * POST /api/v1/prompts/execute-json
+   */
+  async executePromptByJson(body: ExecutePromptJsonBody): Promise<PromptExecuteResponse> {
+    return this.post<PromptExecuteResponse>('/api/v1/prompts/execute-json', body)
   }
 
   // --- Execution telemetry (runs + traces) ---

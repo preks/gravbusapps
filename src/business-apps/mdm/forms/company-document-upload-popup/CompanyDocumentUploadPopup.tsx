@@ -34,6 +34,8 @@ export interface CompanyDocumentUploadPopupProps {
   accessToken: string
   onClose: () => void
   onSuccess: () => void
+  mode?: 'create' | 'update' // Default to 'create'
+  document?: any // Existing document for update mode
 }
 
 interface FormState {
@@ -50,7 +52,9 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
   company,
   accessToken,
   onClose,
-  onSuccess
+  onSuccess,
+  mode = 'create',
+  document
 }) => {
   const { t } = useTranslation(translations)
   const companyId = company.id
@@ -72,6 +76,20 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
   const restClient = useRestClient(env('NEXT_PUBLIC_ORGCHART_API_URL'))
   const fileClient = useFileClient({ accessToken } as any)
   const graphqlClient = useGraphQLClient(accessToken)
+
+  // Pre-fill form in update mode
+  useEffect(() => {
+    if (mode === 'update' && document && open) {
+      setFormState({
+        name: document.name || '',
+        description: document.description || '',
+        documentGroupRef: document.documentGroup?.id || '',
+        documentTypeRef: document.documentType?.id || '',
+        parentDocumentId: document.parentDocument || '',
+        expirationDate: document.expirationDate || ''
+      })
+    }
+  }, [mode, document, open])
 
   // Load existing folders for parent selection
   useEffect(() => {
@@ -128,7 +146,8 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
       return t('error-name-required')
     }
 
-    if (selectedFiles.length === 0) {
+    // File is required only in create mode
+    if (mode === 'create' && selectedFiles.length === 0) {
       return t('error-file-required')
     }
 
@@ -137,16 +156,31 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
 
   /**
    * Build document payload with form data
+   * Only sends fields with actual values (no empty strings for catalog fields)
+   * Update mode: only sends changed fields + required identifiers (matches Scenario 3)
    */
-  const buildDocumentPayload = (fileInfo: any): any => {
+  const buildDocumentPayload = (fileInfo?: any): any => {
     const newDocument: any = {
       companyId: companyId,
       name: formState.name.trim(),
-      folder: false,
-      fileInfo: fileInfo
+      changeMode: 'UPSERT' // Required for updateCompany endpoint
     }
 
-    // Add optional fields only if they have values
+    // In update mode, add document ID (required for updates)
+    // Do NOT include version or folder - backend manages these
+    if (mode === 'update' && document) {
+      newDocument.id = document.id
+    }
+
+    // Include fileInfo if uploading a new file, otherwise preserve existing one
+    // Backend does not preserve fileInfo on UPSERT if not provided in payload
+    if (fileInfo) {
+      newDocument.fileInfo = fileInfo
+    } else if (mode === 'update' && document?.fileInfo) {
+      newDocument.fileInfo = document.fileInfo
+    }
+
+    // Only add optional fields if they have values (backend rejects empty strings)
     if (formState.description.trim()) {
       newDocument.description = formState.description.trim()
     }
@@ -167,36 +201,17 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
   }
 
   /**
-   * Build complete company payload with existing fields and new document
+   * Build minimal company payload with only the new document
+   * Uses changeMode: 'UPSERT' approach - only send the document being created/updated
    */
   const buildCompanyPayloadWithDocument = (newDocument: any): any => {
     const payload: any = {
-      id: company.id,
-      code: company.code, // Required
-      name: company.name, // Required
-      structureId: company.structureId // Required
+      structureId: company.structureId, // Required
+      code: company.code // Required
     }
 
-    // Include all optional fields that exist in the company
-    if (company.description) payload.description = company.description
-    if (company.directorId) payload.directorId = company.directorId
-    if (company.commercialRegistrationNumber)
-      payload.commercialRegistrationNumber = company.commercialRegistrationNumber
-    if (company.taxIdentificationNumber) payload.taxIdentificationNumber = company.taxIdentificationNumber
-    if (company.taxNumber) payload.taxNumber = company.taxNumber
-    if (company.valueAddedTaxNumber) payload.valueAddedTaxNumber = company.valueAddedTaxNumber
-    if (company.currencyRef) payload.currencyRef = company.currencyRef
-    if (company.additionalProperties) payload.additionalProperties = company.additionalProperties
-    if (company.picture) payload.picture = company.picture
-    if (company.pictureThumbnail) payload.pictureThumbnail = company.pictureThumbnail
-
-    // Include addresses if they exist
-    if (company.addresses && company.addresses.length > 0) {
-      payload.addresses = company.addresses
-    }
-
-    // Add new document to existing documents array
-    payload.documents = [...(company.documents || []), newDocument]
+    // Only send the new/updated document in documents array
+    payload.documents = [newDocument]
 
     return payload
   }
@@ -212,21 +227,26 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
     setError(null)
 
     try {
-      // Upload file
-      const file = selectedFiles[0]
-      const uploadResponse = await fileClient.uploadFile(
-        file,
-        { accessScope: 'tenant' },
-        {
-          appName: 'mdm',
-          folderPath: `/companies/${companyId}/documents`,
-          mimeType: file.type || 'application/octet-stream'
-        },
-        'fileContent'
-      )
+      let uploadedFileInfo = null
+
+      // Upload file if selected (required in create, optional in update)
+      if (selectedFiles.length > 0) {
+        const file = selectedFiles[0]
+        const uploadResponse = await fileClient.uploadFile(
+          file,
+          { accessScope: 'tenant' },
+          {
+            appName: 'mdm',
+            folderPath: `/companies/${companyId}/documents`,
+            mimeType: file.type || 'application/octet-stream'
+          },
+          'fileContent'
+        )
+        uploadedFileInfo = uploadResponse.fileInfo
+      }
 
       // Build document and company payloads using helper functions
-      const newDocument = buildDocumentPayload(uploadResponse.fileInfo)
+      const newDocument = buildDocumentPayload(uploadedFileInfo)
       const payload = buildCompanyPayloadWithDocument(newDocument)
 
       // Submit to API - PUT to company endpoint with complete payload
@@ -237,7 +257,12 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
       // Success
       onSuccess()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('error-upload-failed')
+      let errorMessage: string
+      if (err instanceof Error) {
+        errorMessage = err.message
+      } else {
+        errorMessage = mode === 'update' ? t('error-update-failed') : t('error-upload-failed')
+      }
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -258,7 +283,16 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
     onClose()
   }
 
-  const isFormValid = formState.name.trim().length > 0 && selectedFiles.length > 0
+  const isFormValid = formState.name.trim().length > 0 && (mode === 'update' || selectedFiles.length > 0)
+
+  // Extract button text logic to avoid nested ternary
+  const submitButtonText = loading
+    ? mode === 'update'
+      ? t('button-updating')
+      : t('button-uploading')
+    : mode === 'update'
+      ? t('button-update')
+      : t('button-upload')
 
   return (
     <Dialog open={open} onOpenChange={open => !open && handleClose()}>
@@ -267,7 +301,9 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
         data-testid="company-document-upload-popup"
       >
         <DialogHeader>
-          <DialogTitle data-testid="company-document-upload-title">{t('modal-title')}</DialogTitle>
+          <DialogTitle data-testid="company-document-upload-title">
+            {mode === 'update' ? t('modal-title-update') : t('modal-title')}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="gba:space-y-4">
@@ -282,7 +318,10 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
           <div>
             <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
               {t('label-file')}
-              <span className="gba:text-destructive"> {t('message-required-field')}</span>
+              {mode === 'create' && <span className="gba:text-destructive"> {t('message-required-field')}</span>}
+              {mode === 'update' && document?.fileInfo && (
+                <span className="gba:text-sm gba:text-muted-foreground gba:ml-2">(Current: {document.name})</span>
+              )}
             </label>
             <FileUpload
               layout="list"
@@ -411,10 +450,10 @@ const CompanyDocumentUploadPopup: React.FC<CompanyDocumentUploadPopupProps> = ({
             {loading ? (
               <>
                 <Spinner size="sm" className="gba:mr-2" />
-                {t('button-uploading')}
+                {submitButtonText}
               </>
             ) : (
-              t('button-upload')
+              submitButtonText
             )}
           </Button>
         </DialogFooter>

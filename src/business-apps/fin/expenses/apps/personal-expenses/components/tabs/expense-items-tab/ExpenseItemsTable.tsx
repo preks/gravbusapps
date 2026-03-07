@@ -18,7 +18,7 @@ import {
   Badge
 } from '@newwork/nw-design-system'
 import { TablePagination } from '../../../../../components'
-import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { FileTextIcon, ImageIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems'
 import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies'
@@ -394,8 +394,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   const renderSortIcon = useCallback(
     (field: string) => {
       if (sortField !== field) return null
-      if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-      if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'ascend') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'descend') return <ArrowDownIcon className="gba:inline gba:ml-1" size={12} />
       return null
     },
     [sortField, sortOrder]
@@ -756,9 +756,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                             >
                               <div className="gba:flex gba:items-center gba:justify-center">
                                 {record.expenseItemFile && record.expenseItemFile.length > 0 ? (
-                                  <PiFileText size={24} className="gba:text-blue-500" />
+                                  <FileTextIcon size={24} className="gba:text-blue-500" />
                                 ) : (
-                                  <PiImage size={24} className="gba:text-gray-300" />
+                                  <ImageIcon size={24} className="gba:text-gray-300" />
                                 )}
                               </div>
                             </TableCell>

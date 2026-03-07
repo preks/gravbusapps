@@ -31,6 +31,7 @@ adjust-salary-frequency-monthly = Lunar
 adjust-salary-frequency-hourly = Pe oră
 adjust-salary-current-salary = Salariu curent
 adjust-salary-calculation-breakdown = Rezumat ajustare salariu
+adjust-salary-duplicate-month-warning = Există deja o ajustare salarială pentru această lună la data de { $date }. Vă rugăm să alegeți o altă dată efectivă.
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Atribuire salariu angajat
@@ -234,6 +235,9 @@ request-benefit-review-additional-info = Informații suplimentare
 request-benefit-review-justification = Justificare
 request-benefit-review-financial-details = Detalii financiare
 request-benefit-review-employee-contributions = Contribuții angajat
+request-benefit-review-comments = Comentariu
+request-benefit-review-comments-placeholder = Vă rugăm să introduceți
+request-benefit-review-comments-required = Comentariile sunt obligatorii
 request-benefit-review-approve = Aprobă
 request-benefit-review-reject = Respinge
 request-benefit-review-loading = Se încarcă datele despre beneficiu...
@@ -280,6 +284,7 @@ adjust-salary-pending-status = În așteptare
 
 # Update Working Conditions Form
 working-conditions-probation-period = Perioadă de probă
+working-conditions-probation-end-before-start = Data de încheiere a perioadei de probă trebuie să fie la sau după data de începere.
 working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
 working-conditions-unit-day = { $count ->
     [one] Zi
@@ -353,3 +358,18 @@ create-job-position-name = Nume
 create-job-position-total-open = Total poziții deschise
 create-job-position-organizational-unit = Unitate organizațională
 create-job-position-error = Nu s-a putut crea poziția. Vă rugăm să încercați din nou.
+
+# Create New Absence – validation messages
+create-absence-unable-to-verify-balance = Nu s-a putut verifica soldul absențelor. Verificați manual.
+create-absence-insufficient-balance = Sold insuficient
+create-absence-requested = Solicitat
+create-absence-available = Disponibil
+create-absence-days = zile
+create-absence-end-date-after-start = Data de încheiere trebuie să fie după data de început.
+create-absence-single-day-bank-holiday-blocked = Ziua selectată este o sărbătoare legală. Nu puteți trimite o absență de o zi pentru această dată.
+create-absence-validation-failed = Validarea a eșuat. Vă rugăm să încercați din nou.
+create-absence-bank-holidays-not-counted = { $count } zile sunt zile libere legale și nu sunt luate în considerare.
+create-absence-overlap-prefix = Există deja o
+create-absence-overlap-scheduled = absență programată
+create-absence-from = de la
+create-absence-to = până la

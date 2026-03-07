@@ -12,6 +12,8 @@ interface TransformResult {
 
 export interface TransformOptions {
   targetLanguage?: TranslationLanguage
+  /** Optional i18n translator for user-facing error messages */
+  translate?: (key: string, vars?: Record<string, string>) => string
 }
 
 export class TextTransformService {
@@ -48,9 +50,14 @@ export class TextTransformService {
   }
 
   async transform(type: TransformType, text: string, options?: TransformOptions): Promise<TransformResult> {
+    const t = options?.translate
     const input = (text || '').trim()
     if (!input) {
-      return { success: false, transformedContent: '', error: 'No text to transform' }
+      return {
+        success: false,
+        transformedContent: '',
+        error: t ? t('transform-error-no-text') : 'No text to transform'
+      }
     }
 
     // Non-AI transforms
@@ -87,7 +94,9 @@ export class TextTransformService {
           const formatted =
             actionItems.length > 0
               ? actionItems.map((item, idx) => `${idx + 1}. ${item}`).join('\n')
-              : 'No action items found.'
+              : t
+                ? t('transform-error-no-action-items-short')
+                : 'No action items found.'
           return { success: true, transformedContent: formatted, actionItems }
         }
 
@@ -109,8 +118,9 @@ export class TextTransformService {
           return { success: true, transformedContent: input }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'AI transform failed'
-      return { success: false, transformedContent: '', error: msg }
+      const errMsg = e instanceof Error ? e.message : String(e)
+      const fallback = t ? t('transform-error-ai-failed') : errMsg
+      return { success: false, transformedContent: '', error: fallback }
     }
   }
 }

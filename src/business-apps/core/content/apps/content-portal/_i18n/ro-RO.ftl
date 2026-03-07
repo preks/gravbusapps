@@ -5,6 +5,7 @@ news = Știri
 knowledge = Bază de cunoștințe
 documents = Documente
 questions = Întrebări
+policies = Politici
 
 # Greetings
 greeting-morning = Bună dimineața
@@ -19,6 +20,8 @@ news-welcome-title = Știri
 news-welcome-subtitle = Rămâi la curent
 knowledge-welcome-title = Bază de cunoștințe
 knowledge-welcome-subtitle = Partajează și descoperă cunoștințe
+policies-welcome-title = Politici
+policies-welcome-subtitle = Politici operaționale pe care le poți confirma, operaționaliza și monitoriza
 document-welcome-title = Documente
 document-welcome-subtitle = Găsește resurse importante
 question-welcome-title = Forum Q&A
@@ -29,6 +32,7 @@ search_articles = Caută articole...
 search_intranet = Caută în Intranet...
 search_news = Caută știri...
 search_knowledge = Caută în baza de cunoștințe...
+search_policies = Caută politici...
 search_documents = Caută zone...
 search_questions = Caută întrebări...
 
@@ -45,11 +49,26 @@ recent_articles = Articole recente
 more_articles = Mai multe articole
 recent_news_articles = Articole de știri recente
 recent_knowledge_articles = Articole de cunoștințe recente
+pinned_policies = Politici fixate
 recently_uploaded_documents = Documente încărcate recent
 unanswered_questions = Întrebări fără răspuns
 
+# Policy filters
+policies_filter_status = Status
+policies_filter_status_all = Toate
+policies_filter_status_active = Activ
+policies_filter_status_draft = Draft
+policies_filter_category = Domeniu / categorie
+policies_filter_owner = Owner
+policies_filter_last_updated = Actualizat
+policies_filter_any = Oricare
+policies_filter_last_updated_7d = Ultimele 7 zile
+policies_filter_last_updated_30d = Ultimele 30 zile
+policies_filter_last_updated_90d = Ultimele 90 zile
+
 # Buttons
 create_article = Creează articol
+create_policy = Creează politică
 publish_news = Publică știre
 create_document = Creează document
 create_area = Creează zonă
@@ -61,6 +80,13 @@ no_more_articles = Nu mai sunt articole
 no_intranet_found = Nu s-au găsit conținuturi Intranet
 no_news_found = Nu s-au găsit știri
 no_knowledge_found = Nu s-au găsit articole de cunoștințe
+no_policies_found = Nu s-au găsit politici
+
+# Policy table columns
+policies_col_title = Titlu
+policies_col_owner = Proprietar
+policies_col_status = Status
+policies_col_updated = Ultima actualizare
 no_documents_found = Nu s-au găsit documente
 no_questions_found = Încă nu există întrebări. Fii primul!
 
@@ -77,8 +103,8 @@ intranet_image = Imagine intranet
 document_image = Imagine document
 
 # Engagement
-engagement = Engagement
-engagement-dashboard-title = Dashboard Engagement
+engagement = Interacțiuni
+engagement-dashboard-title = Dashboard Interacțiuni
 engagement-dashboard-subtitle = Urmărește activitatea și contribuțiile tale
 current-level = Nivel Curent
 progress-to-next-level = Progres către următorul nivel

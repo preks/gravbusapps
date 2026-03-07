@@ -232,7 +232,9 @@ export const SUPPORTED_PROTOCOLS = [
   'selgros_expense_sheet',
   'service_workflow',
   'workflow_template',
-  'meetings'
+  'meetings',
+  'note',
+  'document'
 ] as const
 
 export type SupportedProtocol = (typeof SUPPORTED_PROTOCOLS)[number]

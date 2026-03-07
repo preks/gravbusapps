@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, IconAvatar } from '@newwork/nw-design-system'
-import { PiListChecks, PiChartLineUp, PiFileText, PiCalendar, PiClockAfternoon } from 'react-icons/pi'
+import { ListChecksIcon, ChartLineUpIcon, FileTextIcon, CalendarIcon, ClockAfternoonIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
@@ -152,7 +152,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           'lowcoder:team_expenses_page.dashboard_tab.review_pending_expense_approvals',
           'Review pending expense approvals.'
         ),
-        icon: PiListChecks,
+        icon: ListChecksIcon,
         onClick: props.onNavigateToApprovals,
         testId: 'review-approvals-action',
         iconColor: 'gba:text-primary'
@@ -167,7 +167,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           'lowcoder:team_expenses_page.dashboard_tab.view_spending_trends_and_reports',
           'View spending trends and reports.'
         ),
-        icon: PiChartLineUp,
+        icon: ChartLineUpIcon,
         onClick: props.onNavigateToAnalytics,
         testId: 'team-spending-analysis-action',
         iconColor: 'gba:text-success'
@@ -182,7 +182,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           'lowcoder:team_expenses_page.dashboard_tab.generate_or_view_team_expense_reports',
           'Generate or view team expense reports.'
         ),
-        icon: PiFileText,
+        icon: FileTextIcon,
         onClick: props.onNavigateToReports,
         testId: 'expense-reports-action',
         iconColor: 'gba:text-accent'
@@ -209,7 +209,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           'Team Members'
         ),
         value: overview.data?.teamMembersCount ?? 0,
-        prefix: <PiListChecks />,
+        prefix: <ListChecksIcon />,
         color: 'var(--nw-primary)',
 
         description: getTranslationFromI18nKeyAndLabel(
@@ -225,7 +225,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
         ),
         // Unfiltered: sum pending across requests, plans, and payments
         value: pendingApprovalsCount,
-        prefix: <PiClockAfternoon />,
+        prefix: <ClockAfternoonIcon />,
         color: 'var(--nw-warning)',
 
         description: getTranslationFromI18nKeyAndLabel(
@@ -263,7 +263,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           'Expense Categories'
         ),
         value: 0,
-        prefix: <PiCalendar />,
+        prefix: <CalendarIcon />,
         color: 'var(--nw-accent)',
         description: getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.categories_used',

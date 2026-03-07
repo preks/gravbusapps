@@ -17,6 +17,8 @@ export interface PerformanceCycle {
   name: string
   startDate: string
   endDate: string
+  evaluationPeriodStartDate?: string
+  evaluationPeriodEndDate?: string
   frequency: FrequencyType
   participants: ParticipantType[]
   stages: EvaluationStage[]
@@ -41,6 +43,8 @@ export interface RatingScale {
   version?: number
   name: string
   values: string[]
+  /** API scale type e.g. STAR_RATING_SCALE_TYPE, NUMERIC_RATING_SCALE_TYPE; used to pre-select Display in edit modal */
+  scaleType?: string | null
 }
 
 export interface ValueItemStored {

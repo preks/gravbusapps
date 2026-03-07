@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { UserStatus, UserStatusChangeEvent } from '../types'
-import { rtkDebug } from '../utils/rtkDebug'
 
 interface UsePresenceOptions {
   wsClient: ChatWebSocketClient | null
@@ -85,8 +84,6 @@ export function usePresence(options: UsePresenceOptions) {
       }
 
       presenceCache.set(userId, presenceData)
-      rtkDebug.log(`[usePresence] ✅ Updated presence cache for user ${userId}:`, presenceData)
-      rtkDebug.log(`[usePresence] Cache size:`, presenceCache.size)
 
       setPresenceVersion(v => v + 1)
 
@@ -170,28 +167,41 @@ export function usePresence(options: UsePresenceOptions) {
           anyData.timestamp instanceof Date ? anyData.timestamp.toISOString() : (anyData.timestamp as string)
 
         updatePresence(anyData.userId, state, timestampString, undefined)
-        rtkDebug.log('[usePresence] ✅ Updated presence cache (OLD FORMAT) for user:', anyData.userId, 'state:', state)
       }
     }
 
     const unsubStatusChange = wsClient.onUserStatusChange(handleUserStatusChange)
 
-    // Request initial status for all online users AFTER listener is ready
-    // This catches any users who connected before our listener was set up
-    if (currentUserId) {
+    // Request initial status for all online users AFTER socket is connected
+    // This prevents "Socket not connected" errors
+    const requestInitialStatuses = () => {
+      if (!currentUserId) return
+
       wsClient
         .requestAllStatuses()
-        .then(response => {
-          rtkDebug.log('[usePresence] ✅ Successfully requested initial status for', response.userCount, 'users')
-        })
-        .catch(error => {
-          rtkDebug.error('[usePresence] ❌ Failed to request initial statuses:', error)
-        })
+        .then(() => {})
+        .catch(() => {})
+    }
+
+    // Check if socket is already connected
+    if (wsClient.isConnected()) {
+      // Socket already connected, request immediately
+      requestInitialStatuses()
+    } else {
+      // Socket not connected yet, wait for connect event
+      const socket = wsClient.getSocket()
+      if (socket) {
+        socket.on('connect', requestInitialStatuses)
+      }
     }
 
     return () => {
       unsubStatusChange()
-      // Cleanup: remove the listener
+      // Cleanup: remove the connect listener
+      const socket = wsClient.getSocket()
+      if (socket) {
+        socket.off('connect', requestInitialStatuses)
+      }
       if (process.env.NODE_ENV === 'development') {
         // Unsubscribed from presence updates
       }

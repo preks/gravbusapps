@@ -23,6 +23,8 @@ export interface UseNotesOptions {
   userId?: string
   initialQuery?: NoteQueryParams
   autoLoad?: boolean
+  /** Optional i18n translator for user-facing error messages */
+  translate?: (key: string) => string
 }
 
 export interface UseNotesReturn {
@@ -61,7 +63,12 @@ export interface UseNotesReturn {
 }
 
 export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
-  const { initialQuery, autoLoad = true } = options
+  const { accessToken, initialQuery, autoLoad = true, translate } = options
+
+  // Keep the API service's in-memory token in sync with the prop
+  useEffect(() => {
+    NoteApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
 
   // State
   const [notes, setNotes] = useState<NoteSummary[]>([])
@@ -75,24 +82,38 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   const lastQueryRef = useRef<NoteQueryParams | undefined>(initialQuery)
 
   /**
-   * Load notes list
+   * Load notes list (paginated fetch, max 100 per request)
    */
-  const loadNotes = useCallback(async (params?: NoteQueryParams): Promise<void> => {
-    setIsLoading(true)
-    setError(null)
-    lastQueryRef.current = params
+  const loadNotes = useCallback(
+    async (params?: NoteQueryParams): Promise<void> => {
+      setIsLoading(true)
+      setError(null)
+      lastQueryRef.current = params
 
-    try {
-      const result = await NoteApiService.listNotes(params)
-      setNotes(result.items)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load notes'
-      setError(message)
-      console.error('[useNotes] Failed to load notes:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      try {
+        const PAGE_SIZE = 100
+        let allNotes: NoteSummary[] = []
+        let page = 1
+        let hasMore = true
+
+        while (hasMore) {
+          const result = await NoteApiService.listNotes({ ...params, limit: PAGE_SIZE, page })
+          allNotes = [...allNotes, ...result.items]
+          hasMore = result.items.length === PAGE_SIZE
+          page++
+        }
+
+        setNotes(allNotes)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : translate ? translate('notes-load-failed') : String(err)
+        setError(message)
+        console.error('[useNotes] Failed to load notes:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [translate]
+  )
 
   /**
    * Load a single note
@@ -107,16 +128,16 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         setCurrentNote(note)
         // Use backend permission, default to 'owner' if not specified (creator case)
         const resolvedPermission = note.permission || 'owner'
-        console.log('[useNotes] loadNote permission:', { 
+        console.log('[useNotes] loadNote permission:', {
           noteId: note.id,
-          backendPermission: note.permission, 
-          resolvedPermission 
+          backendPermission: note.permission,
+          resolvedPermission
         })
         setCurrentNotePermission(resolvedPermission)
       }
       return note
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load note'
+      const message = err instanceof Error ? err.message : translate ? translate('notes-load-note-failed') : String(err)
       setError(message)
       console.error('[useNotes] Failed to load note:', err)
       return null
@@ -164,60 +185,66 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   /**
    * Update a note
    */
-  const updateNote = useCallback(async (id: string, updates: UpdateNoteInput): Promise<Note | null> => {
-    try {
-      const note = await NoteApiService.updateNote(id, updates)
+  const updateNote = useCallback(
+    async (id: string, updates: UpdateNoteInput): Promise<Note | null> => {
+      try {
+        const note = await NoteApiService.updateNote(id, updates)
 
-      // Update in list
-      setNotes(prev =>
-        prev.map(n =>
-          n.id === id
-            ? {
-                ...n,
-                title: note.title,
-                preview: note.content?.replace(/<[^>]*>/g, ' ').slice(0, 150),
-                tags: note.tags,
-                color: note.color,
-                icon: note.icon,
-                isPinned: note.isPinned,
-                isArchived: note.isArchived,
-                updatedAt: note.updatedAt
-              }
-            : n
+        // Update in list
+        setNotes(prev =>
+          prev.map(n =>
+            n.id === id
+              ? {
+                  ...n,
+                  title: note.title,
+                  preview: note.content?.replace(/<[^>]*>/g, ' ').slice(0, 150),
+                  tags: note.tags,
+                  color: note.color,
+                  icon: note.icon,
+                  isPinned: note.isPinned,
+                  isArchived: note.isArchived,
+                  updatedAt: note.updatedAt
+                }
+              : n
+          )
         )
-      )
 
-      // Update current if same
-      if (currentNote?.id === id) {
-        setCurrentNote(note)
+        // Update current if same
+        if (currentNote?.id === id) {
+          setCurrentNote(note)
+        }
+
+        return note
+      } catch (err) {
+        console.error('[useNotes] Failed to update note:', err)
+        return null
       }
-
-      return note
-    } catch (err) {
-      console.error('[useNotes] Failed to update note:', err)
-      return null
-    }
-  }, [currentNote?.id])
+    },
+    [currentNote?.id]
+  )
 
   /**
    * Delete a note
    */
-  const deleteNote = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      const success = await NoteApiService.deleteNote(id)
-      if (success) {
-        setNotes(prev => prev.filter(n => n.id !== id))
-        if (currentNote?.id === id) {
-          setCurrentNote(null)
-          setCurrentNotePermission(null)
+  const deleteNote = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        const success = await NoteApiService.deleteNote(id)
+        if (success) {
+          setNotes(prev => prev.filter(n => n.id !== id))
+          if (currentNote?.id === id) {
+            setCurrentNote(null)
+            setCurrentNotePermission(null)
+          }
         }
+        return success
+      } catch (err) {
+        console.error('[useNotes] Failed to delete note:', err)
+        return false
       }
-      return success
-    } catch (err) {
-      console.error('[useNotes] Failed to delete note:', err)
-      return false
-    }
-  }, [currentNote?.id])
+    },
+    [currentNote?.id]
+  )
 
   /**
    * Duplicate a note
@@ -254,88 +281,100 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
   /**
    * Toggle pin status
    */
-  const togglePin = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      const note = await NoteApiService.togglePin(id)
-      if (note) {
-        setNotes(prev =>
-          prev.map(n => (n.id === id ? { ...n, isPinned: note.isPinned, updatedAt: note.updatedAt } : n))
-        )
-        if (currentNote?.id === id) {
-          setCurrentNote(note)
+  const togglePin = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        const note = await NoteApiService.togglePin(id)
+        if (note) {
+          setNotes(prev =>
+            prev.map(n => (n.id === id ? { ...n, isPinned: note.isPinned, updatedAt: note.updatedAt } : n))
+          )
+          if (currentNote?.id === id) {
+            setCurrentNote(note)
+          }
+          return true
         }
-        return true
+        return false
+      } catch (err) {
+        console.error('[useNotes] Failed to toggle pin:', err)
+        return false
       }
-      return false
-    } catch (err) {
-      console.error('[useNotes] Failed to toggle pin:', err)
-      return false
-    }
-  }, [currentNote?.id])
+    },
+    [currentNote?.id]
+  )
 
   /**
    * Archive a note
    */
-  const archiveNote = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      const note = await NoteApiService.archiveNote(id)
-      if (note) {
-        // Remove from list if not showing archived
-        setNotes(prev => prev.filter(n => n.id !== id))
-        if (currentNote?.id === id) {
-          setCurrentNote(null)
-          setCurrentNotePermission(null)
+  const archiveNote = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        const note = await NoteApiService.archiveNote(id)
+        if (note) {
+          // Remove from list if not showing archived
+          setNotes(prev => prev.filter(n => n.id !== id))
+          if (currentNote?.id === id) {
+            setCurrentNote(null)
+            setCurrentNotePermission(null)
+          }
+          return true
         }
-        return true
+        return false
+      } catch (err) {
+        console.error('[useNotes] Failed to archive note:', err)
+        return false
       }
-      return false
-    } catch (err) {
-      console.error('[useNotes] Failed to archive note:', err)
-      return false
-    }
-  }, [currentNote?.id])
+    },
+    [currentNote?.id]
+  )
 
   /**
    * Unarchive a note
    */
-  const unarchiveNote = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      const note = await NoteApiService.unarchiveNote(id)
-      if (note) {
-        // Refresh to show unarchived note
-        await loadNotes(lastQueryRef.current)
-        return true
+  const unarchiveNote = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        const note = await NoteApiService.unarchiveNote(id)
+        if (note) {
+          // Refresh to show unarchived note
+          await loadNotes(lastQueryRef.current)
+          return true
+        }
+        return false
+      } catch (err) {
+        console.error('[useNotes] Failed to unarchive note:', err)
+        return false
       }
-      return false
-    } catch (err) {
-      console.error('[useNotes] Failed to unarchive note:', err)
-      return false
-    }
-  }, [loadNotes])
+    },
+    [loadNotes]
+  )
 
   /**
    * Move a note
    */
-  const moveNote = useCallback(async (id: string, move: MoveNoteInput): Promise<boolean> => {
-    try {
-      const note = await NoteApiService.moveNote(id, move)
-      if (note) {
-        setNotes(prev =>
-          prev.map(n =>
-            n.id === id ? { ...n, parentId: note.parentId, position: note.position, updatedAt: note.updatedAt } : n
+  const moveNote = useCallback(
+    async (id: string, move: MoveNoteInput): Promise<boolean> => {
+      try {
+        const note = await NoteApiService.moveNote(id, move)
+        if (note) {
+          setNotes(prev =>
+            prev.map(n =>
+              n.id === id ? { ...n, parentId: note.parentId, position: note.position, updatedAt: note.updatedAt } : n
+            )
           )
-        )
-        if (currentNote?.id === id) {
-          setCurrentNote(note)
+          if (currentNote?.id === id) {
+            setCurrentNote(note)
+          }
+          return true
         }
-        return true
+        return false
+      } catch (err) {
+        console.error('[useNotes] Failed to move note:', err)
+        return false
       }
-      return false
-    } catch (err) {
-      console.error('[useNotes] Failed to move note:', err)
-      return false
-    }
-  }, [currentNote?.id])
+    },
+    [currentNote?.id]
+  )
 
   /**
    * Share a note

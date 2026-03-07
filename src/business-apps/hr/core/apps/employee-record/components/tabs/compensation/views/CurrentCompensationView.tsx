@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Card, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Button } from '@newwork/nw-design-system'
 import { CompensationData } from '../types/compensationTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
@@ -62,23 +62,25 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   if (error) {
     return (
       <div className="gba:space-y-6" data-testid="current-compensation-view-error">
-        <Card className="gba:p-8">
-          <div className="gba:text-center gba:space-y-4">
-            <div className="gba:text-destructive gba:text-lg gba:font-semibold">{t('compensation-error-title')}</div>
-            <div className="gba:text-muted-foreground">{error}</div>
-            {onRetry && (
-              <div className="gba:mt-4">
-                <Button
-                  variant="default"
-                  size="default"
-                  onClick={onRetry}
-                  data-testid="current-compensation-retry-button"
-                >
-                  {t('compensation-error-retry')}
-                </Button>
-              </div>
-            )}
-          </div>
+        <Card>
+          <CardContent className="gba:p-8">
+            <div className="gba:text-center gba:space-y-4">
+              <div className="gba:text-destructive gba:text-lg gba:font-semibold">{t('compensation-error-title')}</div>
+              <div className="gba:text-muted-foreground">{error}</div>
+              {onRetry && (
+                <div className="gba:mt-4">
+                  <Button
+                    variant="default"
+                    size="default"
+                    onClick={onRetry}
+                    data-testid="current-compensation-retry-button"
+                  >
+                    {t('compensation-error-retry')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
         </Card>
       </div>
     )

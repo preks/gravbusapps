@@ -19,8 +19,10 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { ChartPieIcon, ChartBarIcon, BuildingsIcon, UsersIcon } from '@phosphor-icons/react'
-import { PiArrowClockwise } from 'react-icons/pi'
+import { ArrowClockwiseIcon } from '@phosphor-icons/react'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { exportTableToExcel, exportTableToPdf } from '../../../utils/exportUtils'
+import AnalyticsDataTable from '../../shared/AnalyticsDataTable'
 
 interface StructuralAnalysisReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -29,6 +31,7 @@ interface StructuralAnalysisReportProps extends BusinessAppContextProps {
 export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> = props => {
   const { prefixDataTestId = 'StructuralAnalysisReport' } = props
   const { t } = useTranslation(hrTranslations)
+  const [exportingTable, setExportingTable] = useState<string | null>(null)
 
   // Define valid tabs
   const validTabs = new Set<AnalysisTab>(['overview', 'span-control', 'depth-analysis', 'reporting-chains'])
@@ -117,7 +120,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
                 <p className="gba:text-destructive-secondary">{error}</p>
               </div>
               <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-                <PiArrowClockwise />
+                <ArrowClockwiseIcon />
                 {t('common-retry')}
               </Button>
             </div>
@@ -232,6 +235,91 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     )
   }
 
+  const flattenSunburst = (
+    node: any,
+    level = 0,
+    parent = '-'
+  ): Array<{ unit: string; value: number; level: number; parent: string }> => {
+    const current = [{ unit: node?.name ?? '-', value: Number(node?.value ?? 0), level, parent }]
+    const children = Array.isArray(node?.children)
+      ? node.children.flatMap((child: any) => flattenSunburst(child, level + 1, String(node?.name ?? '-')))
+      : []
+    return [...current, ...children]
+  }
+
+  let selectedTableConfig: {
+    title: string
+    testId: string
+    rows: Array<Record<string, string | number>>
+    columns: Array<{ key: string; header: string }>
+  } | null = null
+
+  if (activeTab === 'span-control') {
+    selectedTableConfig = {
+      title: t('hr-analytics-span-of-control'),
+      testId: 'span-control',
+      rows: data.spanOfControlData.map(item => ({
+        unit: item.organizationalUnit,
+        reports: item.directReports,
+        efficiency: item.efficiency
+      })),
+      columns: [
+        { key: 'unit', header: t('hr-analytics-entity-organizational-unit') },
+        { key: 'reports', header: t('hr-analytics-value') },
+        { key: 'efficiency', header: t('hr-analytics-status') }
+      ]
+    }
+  } else if (activeTab === 'depth-analysis') {
+    selectedTableConfig = {
+      title: t('hr-analytics-depth-analysis'),
+      testId: 'depth-analysis',
+      rows: flattenSunburst(data.sunburstData),
+      columns: [
+        { key: 'unit', header: t('hr-analytics-entity-organizational-unit') },
+        { key: 'value', header: t('hr-analytics-value') },
+        { key: 'level', header: t('hr-analytics-level') },
+        { key: 'parent', header: t('hr-analytics-parent-organizational-unit') }
+      ]
+    }
+  } else if (activeTab === 'reporting-chains') {
+    selectedTableConfig = {
+      title: t('hr-analytics-reporting-chains'),
+      testId: 'reporting-chains',
+      rows: data.reportingChainData.map(item => ({
+        topManager: item.topManager,
+        levels: item.levels,
+        totalEmployees: item.totalEmployees,
+        averageSpan: item.averageSpanOfControl.toFixed(1)
+      })),
+      columns: [
+        { key: 'topManager', header: t('hr-analytics-top-manager') },
+        { key: 'levels', header: t('hr-analytics-levels') },
+        { key: 'totalEmployees', header: t('hr-analytics-employees') },
+        { key: 'averageSpan', header: t('hr-analytics-avg-span-of-control') }
+      ]
+    }
+  }
+
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    if (!selectedTableConfig) return
+    setExportingTable(`${selectedTableConfig.testId}-${format}`)
+    try {
+      const rows = selectedTableConfig.rows.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (format === 'excel') {
+        await exportTableToExcel(selectedTableConfig.title, selectedTableConfig.columns, rows)
+      } else {
+        await exportTableToPdf(selectedTableConfig.title, selectedTableConfig.columns, rows)
+      }
+    } finally {
+      setExportingTable(null)
+    }
+  }
+  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
+    if (exportingTable === `${tableName}-excel`) return 'excel'
+    if (exportingTable === `${tableName}-pdf`) return 'pdf'
+    return null
+  }
+
   return (
     <div data-testid={prefixDataTestId} className="gba:min-h-full gba:p-6 gba:rounded-lg">
       {/* Header */}
@@ -241,8 +329,8 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             {t('hr-analytics-structural-analysis-reports')}
           </h2>
         </div>
-        <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-          <PiArrowClockwise />
+        <Button onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
+          <ArrowClockwiseIcon />
           {t('common-refresh-data')}
         </Button>
       </div>
@@ -331,6 +419,24 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
           </TabsContent>
         ))}
       </Tabs>
+
+      {selectedTableConfig && (
+        <AnalyticsDataTable
+          dataTestId={`${prefixDataTestId}-${selectedTableConfig.testId}-table`}
+          className="gba:mt-6"
+          title={t('hr-analytics-data-table', { title: selectedTableConfig.title })}
+          entriesText={t('hr-analytics-total-entries', { count: selectedTableConfig.rows.length })}
+          columns={selectedTableConfig.columns}
+          rows={selectedTableConfig.rows}
+          exportingFormat={resolveExportingFormat(selectedTableConfig.testId)}
+          exportExcelTestId={`${prefixDataTestId}-${selectedTableConfig.testId}-export-excel`}
+          exportPdfTestId={`${prefixDataTestId}-${selectedTableConfig.testId}-export-pdf`}
+          exportExcelLabel={t('common-export-excel')}
+          exportPdfLabel={t('common-export-pdf')}
+          onExport={handleExport}
+          getRowKey={(_, index) => `${selectedTableConfig.testId}-${index}`}
+        />
+      )}
     </div>
   )
 }

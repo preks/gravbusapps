@@ -9,7 +9,7 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { useCreateCatalogEntries } from '@/common/data/catalog/hooks/useCreateCatalogEntries'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
@@ -17,6 +17,7 @@ import ArticleSegment from './segments/ArticleSegment'
 import QuestionSegment from './segments/QuestionSegment'
 import DocumentSegment from './segments/DocumentSegment'
 import GlossarySegment from './segments/GlossarySegment'
+import PolicySegment from './segments/PolicySegment'
 import translations from './_i18n'
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
@@ -44,6 +45,15 @@ export interface ContentEntryFormValues {
   schedulePublication: boolean
   categories: string[] | undefined
   tags: string[] | undefined
+}
+
+/** Ensures value is full ISO Instant for backend (java.time.Instant). Passes through if already ISO; converts date-only (YYYY-MM-DD) or Date. */
+function toInstantStartOfDay(value: Date | string | null | undefined): string | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'string' && value.includes('T')) return value
+  const dateOnly = typeof value === 'string' ? value.slice(0, 10) : value.toISOString().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return null
+  return `${dateOnly}T00:00:00.000Z`
 }
 
 const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => {
@@ -226,7 +236,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           allowComment: z.boolean(),
           allowReaction: z.boolean(),
           startDate: z.union([z.date(), z.string()]).nullable(),
-          endDate: z.union([z.date(), z.string()]).nullable(),
+          endDate: z.union([z.date(), z.string()]).nullable().optional(),
           schedulePublication: z.boolean(),
           categories: z.array(z.string()).optional(),
           tags: z.array(z.string()).optional()
@@ -345,6 +355,10 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       additionalData?.contentEntry?.contentTypeName ??
       ''
 
+    const isPolicy =
+      initialContentGroupRef === ContentGroup.POLICY ||
+      (typeof initialContentGroupRef === 'string' && initialContentGroupRef.includes('POLICIES'))
+
     const defaults = {
       id: '',
       version: 0,
@@ -363,7 +377,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       allowReaction: true,
       author: authorName,
       schedulePublication: false,
-      startDate: null,
+      startDate: isPolicy ? new Date().toISOString().replace('Z', '+00:00') : null,
       endDate: null
     }
 
@@ -727,12 +741,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const currentSegment = useMemo(() => {
     if (!watchContentGroupRef) return 'article'
 
-    if (watchContentGroupRef === 'ContentGroup:v1:QUESTION') {
+    if (watchContentGroupRef === ContentGroup.QUESTION) {
       return 'question'
-    } else if (watchContentGroupRef === 'ContentGroup:v1:DOCUMENT') {
+    } else if (watchContentGroupRef === ContentGroup.DOCUMENT) {
       return 'document'
-    } else if (watchContentGroupRef === 'ContentGroup:v1:GLOSSARY') {
+    } else if (watchContentGroupRef === ContentGroup.GLOSSARY) {
       return 'glossary'
+    } else if (watchContentGroupRef === ContentGroup.POLICY) {
+      return 'policy'
     } else {
       // NEWS, KNOWLEDGE, INTRANET use article segment
       return 'article'
@@ -763,6 +779,17 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       }
     }
   }, [extractedContentGroupRef, extractedContentId, form])
+
+  // Policy: default Valid From to today when creating new policy and startDate is empty
+  useEffect(() => {
+    if (
+      currentSegment === 'policy' &&
+      !contentEntryId &&
+      (form.getValues('startDate') == null || form.getValues('startDate') === '')
+    ) {
+      form.setValue('startDate', new Date().toISOString().replace('Z', '+00:00'))
+    }
+  }, [currentSegment, contentEntryId, form])
 
   // Helper: Upload image file
   const uploadImageFile = useCallback(
@@ -973,15 +1000,15 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       // Employee relations
       ...(isUpdate ? { updaterEmployeeId: employeeId } : { creatorEmployeeId: employeeId }),
 
-      // Settings
+      // Settings - Policies: always disable comments and reactions
       displayCreator: data.displayAuthor,
       displayUpdater: false,
-      allowComment: data.allowComment,
-      allowReaction: data.allowReaction,
+      allowComment: data.contentGroupRef === ContentGroup.POLICY ? false : data.allowComment,
+      allowReaction: data.contentGroupRef === ContentGroup.POLICY ? false : data.allowReaction,
 
-      // Optional fields
-      activeFrom: data.startDate || null,
-      activeTo: data.endDate || null,
+      // Optional fields (backend expects java.time.Instant, not date-only string)
+      activeFrom: toInstantStartOfDay(data.startDate) ?? null,
+      activeTo: toInstantStartOfDay(data.endDate) ?? null,
 
       // Bulk Operations: Categories
       ...(data.categories &&
@@ -1099,6 +1126,30 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             onCreateTag={onCreateTag}
             onCategoriesChange={handleCategoriesChange}
             onTagsChange={handleTagsChange}
+          />
+        )}
+
+        {currentSegment === 'policy' && (
+          <PolicySegment
+            control={control}
+            watchTitle={watchTitle}
+            watchPreviewText={watchPreviewText}
+            watchContent={watchContent}
+            watchContentTypeRef={watchContentTypeRef}
+            watchCategories={watchCategories}
+            watchTags={watchTags}
+            setValue={setValue}
+            context={context}
+            extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
+            onContentTypeRefChange={handleContentTypeRefChange}
+            onContentCategoryRefsChange={handleContentCategoryRefsChange}
+            onContentCategoryNamesChange={handleContentCategoryNamesChange}
+            onContentTagRefsChange={handleContentTagRefsChange}
+            onContentTagNamesChange={handleContentTagNamesChange}
           />
         )}
       </div>

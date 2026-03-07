@@ -38,17 +38,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog } from '../shared'
-import {
-  PiPlus,
-  PiPencil,
-  PiCalendar,
-  PiClock,
-  PiCheck,
-  PiX,
-  PiDotsThreeVertical,
-  PiTrash,
-  PiWarning
-} from 'react-icons/pi'
+import { PlusIcon, PencilIcon, CalendarIcon, ClockIcon, CheckIcon, XIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -58,6 +48,7 @@ import localeData from 'dayjs/plugin/localeData'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { formatNumberFunction, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, checkPeriodUniqueness, formatDate, normalizeDateInputValue } from '../../../utils'
 import {
@@ -101,7 +92,7 @@ interface AllowancePeriodFormData {
   name: string
   fromTime?: string
   toTime?: string
-  minHours: number
+  minHours: number | string // Allow string during editing
   midnightRule: boolean
   overnightAccommodation?: boolean
   startAfter?: string
@@ -166,6 +157,56 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<AllowancePeriod | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  const isMidnightRuleEnabled = !!form.watch('midnightRule')
+  const decimalSeparator = useMemo(() => {
+    const localeCandidates = [
+      getCurrentActiveUserLocale(),
+      (globalThis as any)?.window?.lowcoder?.i18n?.selectedLocale,
+      (globalThis as any)?.window?.lowcoder?.i18n?.language,
+      globalThis.navigator?.language
+    ]
+      .filter(Boolean)
+      .map(value => String(value).toLowerCase())
+
+    // Align with expense wizard locale handling: DE/RO use comma decimal separator.
+    const isCommaLocale = localeCandidates.some(locale => /(^|[-_])(de|ro)($|[-_])/.test(locale))
+    if (isCommaLocale) return ','
+
+    // Prefer platform formatter because it reflects the actual active UI locale.
+    const platformFormatted = formatNumberFunction(1.1, '0.00[,]00')
+    if (typeof platformFormatted === 'string') {
+      if (platformFormatted.includes(',')) return ','
+      if (platformFormatted.includes('.')) return '.'
+    }
+
+    const fallbackLocales = [...localeCandidates, 'en-US'] as string[]
+
+    for (const locale of fallbackLocales) {
+      try {
+        const separator =
+          new Intl.NumberFormat(locale).formatToParts(1.1).find(part => part.type === 'decimal')?.value || '.'
+        return separator
+      } catch {
+        // Continue trying fallback locales
+      }
+    }
+
+    try {
+      return new Intl.NumberFormat('en-US').formatToParts(1.1).find(part => part.type === 'decimal')?.value || '.'
+    } catch {
+      return '.'
+    }
+  }, [])
+
+  const formatMinHoursForInput = useCallback(
+    (value: number | string | undefined) => {
+      if (value === undefined || value === null || value === '') return ''
+      const normalized = String(value).replace(',', '.')
+      return decimalSeparator === ',' ? normalized.replace('.', ',') : normalized
+    },
+    [decimalSeparator]
+  )
 
   // Usage check state
   const [, setIsCheckingUsage] = useState(false)
@@ -596,7 +637,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
               </Badge>
             </div>
             <Button onClick={handleAdd} data-testid="create-allowance-period-button">
-              <PiPlus className="gba:mr-2" />
+              <PlusIcon className="gba:mr-2" />
               Create Allowance Period
             </Button>
           </div>
@@ -692,16 +733,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent gba:text-center"
-                      onClick={() => sorting.handleSort('periodOrder')}
-                      data-testid="allowance-periods-table-header-order"
-                    >
-                      <div className="gba:flex gba:items-center gba:justify-center">
-                        ORDER
-                        {sorting.renderSortIcon('periodOrder')}
-                      </div>
-                    </TableHead>
-                    <TableHead
                       className="gba:w-[120px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
                       onClick={() => sorting.handleSort('returnBefore')}
                       data-testid="allowance-periods-table-header-return-before"
@@ -709,6 +740,16 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       <div className="gba:flex gba:items-center gba:justify-center">
                         RETURN BEFORE
                         {sorting.renderSortIcon('returnBefore')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent gba:text-center"
+                      onClick={() => sorting.handleSort('periodOrder')}
+                      data-testid="allowance-periods-table-header-period-order"
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        ORDER
+                        {sorting.renderSortIcon('periodOrder')}
                       </div>
                     </TableHead>
                     <TableHead
@@ -731,12 +772,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         {sorting.renderSortIcon('activeTo')}
                       </div>
                     </TableHead>
-                    <TableHead
-                      className="gba:w-[80px] gba:text-center"
-                      data-testid="allowance-periods-table-header-order"
-                    >
-                      ORDER
-                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody data-testid="allowance-periods-table-body">
@@ -752,7 +787,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                               data-testid={`allowance-period-action-${record.id}`}
                               onClick={e => e.stopPropagation()}
                             >
-                              <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                              <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -760,7 +795,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                               onClick={() => handleEdit(record)}
                               data-testid={`edit-allowance-period-${record.id}`}
                             >
-                              <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                              <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                               Update
                             </DropdownMenuItem>
                             {/* Always show delete option, but disable if period is used */}
@@ -781,7 +816,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                               }
                               data-testid={`delete-allowance-period-${record.id}`}
                             >
-                              <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                              <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -809,12 +844,12 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-overnight-cell-${record.id}`}
                       >
                         {record.overnightAccommodation ? (
-                          <PiCheck
+                          <CheckIcon
                             className="gba:text-success gba:text-lg gba:inline-block"
                             data-testid={`allowance-period-overnight-check-${record.id}`}
                           />
                         ) : (
-                          <PiX
+                          <XIcon
                             className="gba:text-muted-foreground gba:text-lg gba:inline-block"
                             data-testid={`allowance-period-overnight-x-${record.id}`}
                           />
@@ -827,7 +862,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-from-time-cell-${record.id}`}
                       >
                         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-center">
-                          <PiClock
+                          <ClockIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-from-time-icon-${record.id}`}
                           />
@@ -843,7 +878,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       {/* Time To Column */}
                       <TableCell className="gba:text-center" data-testid={`allowance-period-to-time-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-center">
-                          <PiClock
+                          <ClockIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-to-time-icon-${record.id}`}
                           />
@@ -862,7 +897,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-min-hours-cell-${record.id}`}
                       >
                         <Badge variant="default" data-testid={`allowance-period-min-hours-badge-${record.id}`}>
-                          {record.minHours}
+                          {formatMinHoursForInput(record.minHours)}
                         </Badge>
                       </TableCell>
 
@@ -872,12 +907,12 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-midnight-cell-${record.id}`}
                       >
                         {record.midnightRule ? (
-                          <PiCheck
+                          <CheckIcon
                             className="gba:text-success gba:text-lg gba:inline-block"
                             data-testid={`allowance-period-midnight-check-${record.id}`}
                           />
                         ) : (
-                          <PiX
+                          <XIcon
                             className="gba:text-muted-foreground gba:text-lg gba:inline-block"
                             data-testid={`allowance-period-midnight-x-${record.id}`}
                           />
@@ -890,7 +925,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-start-after-cell-${record.id}`}
                       >
                         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-center">
-                          <PiClock
+                          <ClockIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-start-after-icon-${record.id}`}
                           />
@@ -909,7 +944,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-return-before-cell-${record.id}`}
                       >
                         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-center">
-                          <PiClock
+                          <ClockIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-return-before-icon-${record.id}`}
                           />
@@ -922,10 +957,17 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         </div>
                       </TableCell>
 
+                      {/* Order Column */}
+                      <TableCell className="gba:text-center" data-testid={`allowance-period-order-cell-${record.id}`}>
+                        <Badge variant="secondary" data-testid={`allowance-period-order-badge-${record.id}`}>
+                          {record.order}
+                        </Badge>
+                      </TableCell>
+
                       {/* Valid From Column */}
                       <TableCell data-testid={`allowance-period-valid-from-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiCalendar
+                          <CalendarIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-valid-from-icon-${record.id}`}
                           />
@@ -938,7 +980,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       {/* Valid To Column */}
                       <TableCell data-testid={`allowance-period-valid-to-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiCalendar
+                          <CalendarIcon
                             className="gba:text-muted-foreground"
                             data-testid={`allowance-period-valid-to-icon-${record.id}`}
                           />
@@ -946,13 +988,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                             {record.activeTo ? formatDate(record.activeTo) : '∞'}
                           </span>
                         </div>
-                      </TableCell>
-
-                      {/* Order Column */}
-                      <TableCell className="gba:text-center" data-testid={`allowance-period-order-cell-${record.id}`}>
-                        <Badge variant="secondary" data-testid={`allowance-period-order-badge-${record.id}`}>
-                          {record.order}
-                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1009,7 +1044,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     className="gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning"
                     data-testid="allowance-period-restricted-alert"
                   >
-                    <PiWarning className="gba:h-4 gba:w-4" />
+                    <WarningIcon className="gba:h-4 gba:w-4" />
                     <AlertDescription>{currentUsageInfo.message}</AlertDescription>
                   </Alert>
                 )}
@@ -1063,8 +1098,13 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     name="minHours"
                     rules={{
                       required: 'Minimum Hours is required',
-                      min: { value: 0, message: 'Must be at least 0' },
-                      max: { value: 24, message: 'Must be at most 24' }
+                      validate: value => {
+                        const numericValue = Number.parseFloat(String(value ?? '').replace(',', '.'))
+                        if (Number.isNaN(numericValue)) return 'Must be a valid number'
+                        if (numericValue < 0) return 'Must be at least 0'
+                        if (numericValue > 24) return 'Must be at most 24'
+                        return true
+                      }
                     }}
                     render={({ field }) => (
                       <FormItem data-testid="allowance-period-min-hours-field">
@@ -1072,10 +1112,10 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormControl>
                           <Input
                             type="text"
-                            inputMode="numeric"
+                            inputMode="decimal"
                             autoComplete="off"
-                            placeholder="24"
-                            value={field.value ?? ''}
+                            placeholder={decimalSeparator === ',' ? 'e.g., 12 or 12,5' : 'e.g., 12 or 12.5'}
+                            value={formatMinHoursForInput(field.value)}
                             onFocus={e => {
                               // Improve UX: allow overwriting the default "0" without arrow controls
                               if (field.value === 0) e.currentTarget.select()
@@ -1087,12 +1127,22 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                             onChange={e => {
                               const next = e.target.value
                               if (next === '') {
-                                field.onChange(undefined)
+                                field.onChange('')
                                 return
                               }
-                              // Only allow digits; keep editing UX predictable.
-                              if (!/^\d+$/.test(next)) return
-                              field.onChange(Number(next))
+                              // Accept both separators and normalize internally to dot.
+                              const normalized = next.replace(',', '.')
+                              let dotCount = 0
+                              for (const char of normalized) {
+                                if (char === '.') {
+                                  dotCount += 1
+                                  if (dotCount > 1) return
+                                  continue
+                                }
+                                if (char < '0' || char > '9') return
+                              }
+                              // Keep as string during editing to preserve partial decimals like "8." / "8,"
+                              field.onChange(normalized)
                             }}
                             disabled={isRestrictedEdit}
                             data-testid="allowance-period-min-hours-input"
@@ -1168,48 +1218,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     )}
                   />
 
-                  {/* Start After */}
-                  <FormField
-                    control={form.control}
-                    name="startAfter"
-                    render={({ field }) => (
-                      <FormItem data-testid="allowance-period-start-after-field">
-                        <FormLabel data-testid="allowance-period-start-after-label">Start After</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="time"
-                            value={field.value || ''}
-                            onChange={e => field.onChange(e.target.value || undefined)}
-                            disabled={isRestrictedEdit}
-                            data-testid="allowance-period-start-after-input"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Return Before */}
-                  <FormField
-                    control={form.control}
-                    name="returnBefore"
-                    render={({ field }) => (
-                      <FormItem data-testid="allowance-period-return-before-field">
-                        <FormLabel data-testid="allowance-period-return-before-label">Return Before</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="time"
-                            value={field.value || ''}
-                            onChange={e => field.onChange(e.target.value || undefined)}
-                            disabled={isRestrictedEdit}
-                            data-testid="allowance-period-return-before-input"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   {/* Valid From */}
                   <FormField
                     control={form.control}
@@ -1257,35 +1265,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                 <div className="gba:space-y-4">
                   <FormField
                     control={form.control}
-                    name="midnightRule"
-                    render={({ field }) => (
-                      <FormItem
-                        className="gba:flex gba:items-center gba:justify-between"
-                        data-testid="allowance-period-midnight-rule-field"
-                      >
-                        <FormLabel data-testid="allowance-period-midnight-rule-label">Midnight Rule</FormLabel>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <span
-                            className="gba:text-sm gba:text-foreground"
-                            data-testid="allowance-period-midnight-rule-status"
-                          >
-                            {field.value ? 'Yes' : 'No'}
-                          </span>
-                          <FormControl>
-                            <NWSwitch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={isRestrictedEdit}
-                              data-testid="allowance-period-midnight-rule-switch"
-                            />
-                          </FormControl>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
                     name="overnightAccommodation"
                     render={({ field }) => (
                       <FormItem
@@ -1312,6 +1291,87 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="midnightRule"
+                    render={({ field }) => (
+                      <FormItem
+                        className="gba:flex gba:items-center gba:justify-between"
+                        data-testid="allowance-period-midnight-rule-field"
+                      >
+                        <FormLabel data-testid="allowance-period-midnight-rule-label">Midnight Rule</FormLabel>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <span
+                            className="gba:text-sm gba:text-foreground"
+                            data-testid="allowance-period-midnight-rule-status"
+                          >
+                            {field.value ? 'Yes' : 'No'}
+                          </span>
+                          <FormControl>
+                            <NWSwitch
+                              checked={field.value}
+                              onCheckedChange={checked => {
+                                field.onChange(checked)
+                                if (!checked) {
+                                  form.setValue('startAfter', undefined)
+                                  form.setValue('returnBefore', undefined)
+                                }
+                              }}
+                              disabled={isRestrictedEdit}
+                              data-testid="allowance-period-midnight-rule-switch"
+                            />
+                          </FormControl>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {isMidnightRuleEnabled && (
+                    <>
+                      {/* Start After */}
+                      <FormField
+                        control={form.control}
+                        name="startAfter"
+                        render={({ field }) => (
+                          <FormItem data-testid="allowance-period-start-after-field">
+                            <FormLabel data-testid="allowance-period-start-after-label">Start After</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                value={field.value || ''}
+                                onChange={e => field.onChange(e.target.value || undefined)}
+                                disabled={isRestrictedEdit}
+                                data-testid="allowance-period-start-after-input"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Return Before */}
+                      <FormField
+                        control={form.control}
+                        name="returnBefore"
+                        render={({ field }) => (
+                          <FormItem data-testid="allowance-period-return-before-field">
+                            <FormLabel data-testid="allowance-period-return-before-label">Return Before</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                value={field.value || ''}
+                                onChange={e => field.onChange(e.target.value || undefined)}
+                                disabled={isRestrictedEdit}
+                                data-testid="allowance-period-return-before-input"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
                 </div>
               </div>
             </Form>

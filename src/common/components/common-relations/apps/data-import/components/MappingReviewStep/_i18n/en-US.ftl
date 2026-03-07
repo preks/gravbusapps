@@ -1,11 +1,12 @@
 # Mapping Review Step Translations (English - US)
 
 # Step Header
-step-title = Step 2: Review and Edit Field Mappings
+mapping-review-step-title = Step 2: Review and Edit Field Mappings
 
 # Buttons
 start-over-button = Start Over
 convert-button = Convert { $count } { $entityType }
+convert-button-no-count = Convert { $entityType }
 converting-button = Converting...
 
 # Summary Section

@@ -1,7 +1,7 @@
 # Conversion Result Step Translations (Romanian - Romania)
 
 # Step Header
-step-title = Pasul 3: Rezultat conversie
+conversion-result-step-title = Pasul 3: Rezultat conversie
 
 # Action Buttons
 download-json-button = Descarcă JSON
@@ -10,9 +10,13 @@ import-more-button = Importă mai multe
 done-button = Terminat
 
 # Success Messages
-import-success-title = Import reușit!
-import-success-message = Au fost importate cu succes { $count } { $entityType } în CRM
+import-success-title = Import în curs
+import-success-message = Cele { $count } { $entityType } sunt importate în background.
+import-success-email-hint = Veți fi notificat prin e-mail când importul este finalizat.
 conversion-success-message = Au fost convertite cu succes { $count } { $entityType }
+
+# Campaign
+campaign-label = Campanie: { $name }
 
 # Preview Section
 preview-title = Previzualizare (Primele { $count } { $entityType })

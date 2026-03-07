@@ -27,6 +27,7 @@ interface DashboardCardsProps {
   onNavigateToAbsentTeammates: () => void
   onNavigateToUnallocatedTeammates: () => void
   onNavigateToTeamPerformance: () => void
+  onNavigateToAtRiskGoals: () => void
   onNavigateToInsights: (tab: InsightsTab) => void
 }
 
@@ -163,6 +164,7 @@ export const DashboardCards: React.FC<DashboardCardsProps> = ({
   onNavigateToAbsentTeammates,
   onNavigateToUnallocatedTeammates,
   onNavigateToTeamPerformance,
+  onNavigateToAtRiskGoals,
   onNavigateToInsights
 }) => {
   const totalMembers = directReportsCount || 1
@@ -182,7 +184,20 @@ export const DashboardCards: React.FC<DashboardCardsProps> = ({
     if (goalsAtRisk > 0) {
       parts.push(
         <span key="at-risk" className={parts.length > 0 ? 'gba:ml-2' : ''}>
-          <span className="gba:text-warning">{goalsAtRisk} at risk</span>
+          <button
+            type="button"
+            className="gba:text-warning gba:bg-transparent gba:border-0 gba:p-0 gba:cursor-pointer hover:gba:underline"
+            onClick={event => {
+              event.stopPropagation()
+              onNavigateToAtRiskGoals()
+            }}
+            data-testid="manager-dashboard-review-at-risk-goals-button"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.manager_dashboard.review_at_risk_goals',
+              `Review ${goalsAtRisk} at risk goals`
+            )}
+          </button>
         </span>
       )
     }

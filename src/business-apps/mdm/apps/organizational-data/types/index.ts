@@ -38,6 +38,7 @@ export interface CompanyData {
   additionalProperties?: Record<string, unknown>
   addresses?: CompanyAddress[]
   picture?: Record<string, unknown>
+  pictureThumbnail?: string
   documents?: unknown[]
 }
 
@@ -81,6 +82,15 @@ export interface OrgchartApiResponse {
   edges: OrganizationalEdge[]
 }
 
+// Director type for companies (similar to ProjectManager)
+export interface Director {
+  id: string
+  displayName?: string
+  firstName?: string
+  lastName?: string
+  pictureThumbnail?: string
+}
+
 // Enhanced Company interface for UI display
 export interface Company {
   id: string
@@ -96,6 +106,7 @@ export interface Company {
   edgeId?: string // The edge ID for updating companyEdges
   // New fields from API
   directorId?: string
+  director?: Director // Populated director data (similar to Project.manager)
   commercialRegistrationNumber?: string
   taxIdentificationNumber?: string
   taxNumber?: string
@@ -114,6 +125,8 @@ export interface Company {
   level: number // Hierarchy level (0 = root, 1 = child, etc.)
   children: Company[]
   hasChildren: boolean
+  pictureThumbnail?: string
+  picture?: Record<string, unknown>
 }
 
 // Hierarchy state for managing tree view

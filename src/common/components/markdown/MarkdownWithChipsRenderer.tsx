@@ -177,10 +177,10 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
 
       // Lists
       ul: ({ children }: { children?: React.ReactNode }) => (
-        <ul className="gba:list-disc gba:list-inside gba:mb-4 gba:space-y-1 gba:pl-2">{children}</ul>
+        <ul className="gba:list-disc gba:list-outside gba:mb-4 gba:space-y-1 gba:pl-5">{children}</ul>
       ),
       ol: ({ children }: { children?: React.ReactNode }) => (
-        <ol className="gba:list-decimal gba:list-inside gba:mb-4 gba:space-y-1 gba:pl-2">{children}</ol>
+        <ol className="gba:list-decimal gba:list-outside gba:mb-4 gba:space-y-1 gba:pl-5">{children}</ol>
       ),
       li: ({ children }: { children?: React.ReactNode }) => <li className="gba:text-foreground">{children}</li>,
 

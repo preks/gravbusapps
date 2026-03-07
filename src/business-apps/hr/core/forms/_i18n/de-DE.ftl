@@ -31,6 +31,7 @@ adjust-salary-frequency-monthly = Monatlich
 adjust-salary-frequency-hourly = Stündlich
 adjust-salary-current-salary = Aktuelles Gehalt
 adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
+adjust-salary-duplicate-month-warning = Für diesen Monat existiert bereits eine Gehaltsanpassung am { $date }. Bitte wählen Sie ein anderes Wirksamkeitsdatum.
 
 # Assign Salary Mode (new employee without existing salary)
 assign-salary-title = Gehalt zuweisen
@@ -234,6 +235,9 @@ request-benefit-review-additional-info = Zusätzliche Informationen
 request-benefit-review-justification = Begründung
 request-benefit-review-financial-details = Finanzielle Details
 request-benefit-review-employee-contributions = Mitarbeiterbeiträge
+request-benefit-review-comments = Kommentar
+request-benefit-review-comments-placeholder = Bitte eingeben
+request-benefit-review-comments-required = Kommentare sind erforderlich
 request-benefit-review-approve = Genehmigen
 request-benefit-review-reject = Ablehnen
 request-benefit-review-loading = Lade Zusatzleistungsdaten...
@@ -280,6 +284,7 @@ adjust-salary-pending-status = Ausstehend
 
 # Update Working Conditions Form
 working-conditions-probation-period = Probezeit
+working-conditions-probation-end-before-start = Das Ende der Probezeit muss am Startdatum oder danach liegen.
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
 working-conditions-unit-day = { $count ->
     [one] Tag
@@ -353,3 +358,18 @@ create-job-position-name = Name
 create-job-position-total-open = Anzahl offener Stellen
 create-job-position-organizational-unit = Organisationseinheit
 create-job-position-error = Stelle konnte nicht erstellt werden. Bitte versuchen Sie es erneut.
+
+# Create New Absence – validation messages
+create-absence-unable-to-verify-balance = Das Urlaubskonto konnte nicht geprüft werden. Bitte prüfen Sie es manuell.
+create-absence-insufficient-balance = Nicht ausreichendes Guthaben
+create-absence-requested = Angefordert
+create-absence-available = Verfügbar
+create-absence-days = Tage
+create-absence-end-date-after-start = Das Enddatum muss nach dem Startdatum liegen.
+create-absence-single-day-bank-holiday-blocked = Der gewählte Tag ist ein Feiertag. Sie können für dieses Datum keine eintägige Abwesenheit einreichen.
+create-absence-validation-failed = Validierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+create-absence-bank-holidays-not-counted = { $count } Tage sind Feiertage und werden daher nicht berücksichtigt.
+create-absence-overlap-prefix = Es besteht bereits eine
+create-absence-overlap-scheduled = Abwesenheit geplant
+create-absence-from = vom
+create-absence-to = bis

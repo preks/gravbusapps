@@ -13,9 +13,11 @@ import {
   INVESTMENT_REPORT_DESCRIPTORS,
   type InvestmentReport
 } from '@/common/data/investment/types/investmentReportTypes'
+import { getReportGroupConfiguration } from '../../config/reportGroupConfigurations'
 
 export interface UseInvestmentReportDataConfig {
-  investmentGroup: 'EQUITY' | 'REAL_ESTATE' | 'LIQUID_FUND'
+  // Investment group code - any string (dynamically determined from catalog)
+  investmentGroup: string
   filters: Record<string, any>
   investmentType?: string
   accessToken: string
@@ -46,6 +48,69 @@ export interface UseInvestmentReportDataReturn {
   totalPages: number
   setPage: (page: number) => void
   setPageSize: (pageSize: number) => void
+}
+
+/**
+ * Get investment type filter strategy based on configuration
+ * This allows different groups to filter investmentType differently
+ */
+const getInvestmentTypeFilterStrategy = (
+  config: ReturnType<typeof getReportGroupConfiguration>,
+  investmentType: string
+): Record<string, any>[] => {
+  // If group has section-to-type mapping (Liquid Fund), use special strategy
+  if (config.sectionToTypeMapping) {
+    const mappedType = config.sectionToTypeMapping[investmentType] || investmentType
+
+    // Handle "Multiple Types" special case
+    if (mappedType === 'MONEY_MARKET_FUNDS') {
+      return [
+        {
+          _and: [
+            {
+              liquidFundInvestmentReport: {
+                investmentLiquidFundType: {
+                  id: {
+                    _isNull: false
+                  }
+                }
+              }
+            },
+            {
+              liquidFundInvestmentReport: {
+                investmentLiquidFundType: {
+                  id: {
+                    _nin: [
+                      'InvestmentLiquidFundType:v1:BANK_DEPOSITE',
+                      'InvestmentLiquidFundType:v1:FIXED_TERM_DEPOSIT'
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+
+    // Normal liquid fund type filter
+    return [
+      {
+        liquidFundInvestmentReport: {
+          investmentLiquidFundType: { id: { _eq: `InvestmentLiquidFundType:v1:${mappedType}` } }
+        }
+      }
+    ]
+  }
+
+  // Default strategy: filter by investment.investmentType (for EQUITY, REAL_ESTATE, and unknown groups)
+  return [
+    {
+      investment: {
+        investmentType: { id: { _eq: `InvestmentType:v1:${investmentType}` } }
+      }
+    }
+  ]
 }
 
 /**
@@ -127,59 +192,15 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
         }
       })
 
-      // SPECIAL HANDLING FOR LIQUID_FUND GROUP
-      if (investmentGroup === 'LIQUID_FUND') {
-        // For Liquid Fund, filter by liquidFundInvestmentReport.investmentLiquidFundType
-        if (filters.investmentType && typeof filters.investmentType === 'string') {
-          const typeName = filters.investmentType
+      // Get investment type filter strategy from configuration
+      const config = getReportGroupConfiguration(investmentGroup)
 
-          if (typeName === 'Bank Deposit') {
-            customConditions.push({
-              liquidFundInvestmentReport: {
-                investmentLiquidFundType: { id: { _eq: 'InvestmentLiquidFundType:v1:BANK_DEPOSITE' } }
-              }
-            })
-          } else if (typeName === 'Fixed-Term Deposit') {
-            customConditions.push({
-              liquidFundInvestmentReport: {
-                investmentLiquidFundType: { id: { _eq: 'InvestmentLiquidFundType:v1:FIXED_TERM_DEPOSIT' } }
-              }
-            })
-          } else if (typeName === 'Multiple Types') {
-            customConditions.push({
-              _and: [
-                {
-                  liquidFundInvestmentReport: {
-                    investmentLiquidFundType: {
-                      id: {
-                        _isNull: false
-                      }
-                    }
-                  }
-                },
-                {
-                  liquidFundInvestmentReport: {
-                    investmentLiquidFundType: {
-                      id: {
-                        _nin: [
-                          'InvestmentLiquidFundType:v1:BANK_DEPOSITE',
-                          'InvestmentLiquidFundType:v1:FIXED_TERM_DEPOSIT'
-                        ]
-                      }
-                    }
-                  }
-                }
-              ]
-            })
-          }
-        }
-      } else if (investmentType && investmentType !== 'all') {
-        // EQUITY and REAL_ESTATE: Filter by investment.investmentType
-        customConditions.push({
-          investment: {
-            investmentType: { id: { _eq: `InvestmentType:v1:${investmentType}` } }
-          }
-        })
+      // Only add investment type filter if it's different from the group code
+      // When investmentType === investmentGroup, it means we're using 'none' strategy (no types)
+      // In that case, we already filtered by investmentGroup above, no need to filter by type
+      if (filters.investmentType && filters.investmentType !== 'all' && filters.investmentType !== investmentGroup) {
+        const typeFilterStrategy = getInvestmentTypeFilterStrategy(config, filters.investmentType)
+        customConditions.push(...typeFilterStrategy)
       }
 
       // Build where using descriptors (handles date, currency, search, etc.)

@@ -3,7 +3,7 @@ import { Separator, Button, Card, CardContent, CardHeader, CardTitle } from '@ne
 import { Badge } from '@newwork/nw-design-system'
 import { getExpenseRequestStatusDisplay, formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi'
+import { CalendarIcon, ClockIcon, PathIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
@@ -71,7 +71,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
         <CardContent className="gba:p-4 gba:space-y-3">
           {selectedItem.startDate && selectedItem.endDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiCalendarDuotone className="gba:text-gray-500" />
+              <CalendarIcon weight="duotone" className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}:{' '}
                 {formatDate(selectedItem.startDate, 'date.short')} {' → '}
@@ -82,7 +82,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
 
           {selectedItem.requestDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiClock className="gba:text-gray-500" />
+              <ClockIcon className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:confirm_transfer_advance_payment.request_date_label',
@@ -95,7 +95,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
 
           {selectedItem.decisionDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiPath className="gba:text-gray-500" />
+              <PathIcon className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date')}:{' '}
                 {formatDate(selectedItem.decisionDate, 'date.short')}
@@ -264,7 +264,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
           }}
           data-testid="view-expense-request-details-button"
         >
-          <PiArrowRight className="gba:mr-2" />
+          <ArrowRightIcon className="gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.plan_details.view_full_details',
             'View Full Details'

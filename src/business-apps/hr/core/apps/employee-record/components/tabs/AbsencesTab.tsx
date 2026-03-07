@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import '@newwork/nw-design-system/style'
 import dayjs from 'dayjs'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Tabs } from 'antd'
-import { CalendarOutlined, UnorderedListOutlined, PaperClipOutlined } from '@ant-design/icons'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Dialog, DialogContent } from '@newwork/nw-design-system'
+import { CalendarIcon, ListIcon, PaperclipIcon } from 'lucide-react'
 import isBetween from 'dayjs/plugin/isBetween'
 import weekday from 'dayjs/plugin/weekday'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
@@ -25,7 +25,6 @@ import AbsenceCalendar from './components/AbsenceCalendar'
 import AbsenceList from './components/AbsenceList'
 import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
-import { Dialog, DialogContent } from '@newwork/nw-design-system'
 import { PiPlus } from 'react-icons/pi'
 import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
 import { env } from '@/common/env/EnvUtils'
@@ -33,6 +32,9 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useAbsenceEffectiveDates } from '../../hooks/useAbsenceEffectiveDates'
+import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -63,6 +65,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     pending: number
     available: number
   } | null>(null)
+  const [snapshotByType, setSnapshotByType] = useState<
+    Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }>
+  >({})
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
@@ -71,12 +77,21 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     startDateFormatted && endDateFormatted
       ? `${baseRequestText} (${startDateFormatted} - ${endDateFormatted})`
       : baseRequestText
+  const canAddEntitlements = !isFetchingGroups && hasHrBackoffice && !isSelfView
 
   const { absenceList, entitlements, loading, error, refetch } = useAbsenceData(
     employee?.id,
     accessToken,
     employeeAbsenceEntitlement
   )
+
+  // Refresh tab data and snapshot when a related process completes successfully
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch?.()
+      setRefreshTick(t => t + 1)
+    }
+  })
 
   useEffect(() => {
     const checkLocale = () => {
@@ -105,7 +120,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     const fetchAnnualLeaveSnapshot = async () => {
       try {
         if (!graphqlClient || !employee?.id) return
-        const year = dayjs().year()
+        const year = currentDate.year()
         const yearStart = dayjs(`${year}-01-01`).format('YYYY-MM-DD')
         const yearEnd = dayjs(`${year}-12-31`).format('YYYY-MM-DD')
 
@@ -120,28 +135,52 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
         const rows: EntitlementSnapshotRow[] =
           res?.EntitlementUsageSnapshotView || res?.entitlement_usage_snapshot_view || []
-        // Filter to Annual Leave type only if backend returns multiple types in range
-        const a001Rows = rows.filter(r => r?.typeRef === A001_TYPE_REF)
-        if (!a001Rows.length) {
+
+        // Aggregate all rows per typeRef for Entitlements tab and donut use
+        const byType = new Map<
+          string,
+          { total: number; usedApproved: number; usedPending: number; remaining: number }
+        >()
+        rows.forEach(r => {
+          const key = r?.typeRef
+          if (!key) return
+          const acc = byType.get(key) || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
+          acc.total += Number(r?.totalEntitlement) || 0
+          acc.usedApproved += Number(r?.usedApproved) || 0
+          acc.usedPending += Number(r?.usedPending) || 0
+          // remaining is per-window; recompute after summing components to avoid drift
+          byType.set(key, acc)
+        })
+        // Recompute remaining per type after summation
+        byType.forEach(v => {
+          v.remaining = Math.max(0, v.total - v.usedApproved - v.usedPending)
+        })
+        setSnapshotByType(Object.fromEntries(byType))
+
+        // Derive A001 override from aggregated map
+        const a = byType.get(A001_TYPE_REF)
+        if (a) {
+          setAnnualLeaveOverride({
+            total: a.total,
+            used: a.usedApproved,
+            pending: a.usedPending,
+            available: a.remaining
+          })
+        } else {
           setAnnualLeaveOverride(null)
-          return
         }
-        const total = a001Rows.reduce((sum, r) => sum + (Number(r?.totalEntitlement) || 0), 0)
-        const usedApproved = a001Rows.reduce((sum, r) => sum + (Number(r?.usedApproved) || 0), 0)
-        const usedPending = a001Rows.reduce((sum, r) => sum + (Number(r?.usedPending) || 0), 0)
-        const remaining = Math.max(0, total - usedApproved - usedPending)
-        setAnnualLeaveOverride({ total, used: usedApproved, pending: usedPending, available: remaining })
       } catch (err) {
         // Gracefully fall back to existing entitlement values; non-fatal
         if (process?.env?.NODE_ENV !== 'production') {
           console.warn('Annual leave snapshot fetch failed', err)
         }
         setAnnualLeaveOverride(null)
+        setSnapshotByType({})
       }
     }
 
     fetchAnnualLeaveSnapshot()
-  }, [graphqlClient, employee?.id])
+  }, [graphqlClient, employee?.id, currentDate, refreshTick])
 
   useEffect(() => {
     const fetchUserGroups = async () => {
@@ -171,27 +210,33 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
   }, [shownTab])
 
-  useEffect(() => {
-    const lastRefetchAt = { current: 0 } as { current: number }
+  // Debounce timestamp for process completion handling
+  const lastRefetchAt = React.useRef(0)
 
-    const handler = (event: any) => {
+  // Determine if an incoming event represents a successful process completion
+  const isProcessSuccessEvent = (event: any): boolean => {
+    const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
+    const hasAbsencePayload = !!(event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence)
+    return resolution === 'success' || hasAbsencePayload
+  }
+
+  // Stable handler to avoid deep nesting in effects
+  const handleProcessEvent = React.useCallback(
+    (event: any) => {
       try {
-        const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
-        const isSuccess = resolution === 'success'
-        const hasAbsencePayload = !!(
-          event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence
-        )
-        if (isSuccess || hasAbsencePayload) {
-          const now = Date.now()
-          if (now - lastRefetchAt.current < 2000) {
-            return
-          }
-          lastRefetchAt.current = now
-          refetch?.()
-        }
+        if (!isProcessSuccessEvent(event)) return
+        const now = Date.now()
+        if (now - lastRefetchAt.current < 2000) return
+        lastRefetchAt.current = now
+        refetch?.()
+        // Also bump refreshTick so Annual Leave snapshot useEffect re-runs
+        setRefreshTick(t => t + 1)
       } catch {}
-    }
+    },
+    [refetch]
+  )
 
+  useEffect(() => {
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
@@ -205,11 +250,31 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       'process-completion'
     ]
 
-    eventNames.forEach(name => window.addEventListener(name, handler))
-    return () => {
-      eventNames.forEach(name => window.removeEventListener(name, handler))
+    // Resolve targets using globalThis.window to satisfy static analysis
+    const targets: Window[] = []
+    const win = (globalThis as any).window as Window | undefined
+    if (win) {
+      targets.push(win)
+      try {
+        const parent = win.parent && win.parent !== win ? win.parent : undefined
+        const top = win.top && win.top !== win && win.top !== parent ? win.top : undefined
+        if (parent) targets.push(parent)
+        if (top) targets.push(top)
+      } catch {
+        // ignore cross-origin access errors
+      }
     }
-  }, [refetch])
+
+    targets.forEach(t => {
+      eventNames.forEach(name => t.addEventListener(name, handleProcessEvent as EventListener))
+    })
+
+    return () => {
+      targets.forEach(t => {
+        eventNames.forEach(name => t.removeEventListener(name, handleProcessEvent as EventListener))
+      })
+    }
+  }, [handleProcessEvent])
 
   // Merge Annual Leave snapshot override (A001) into entitlements without affecting other types
   const ANNUAL_LABEL_HINTS = ['annual', 'vacation', 'holiday'] as const
@@ -220,7 +285,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       const l = (label || '').toLowerCase()
       return ANNUAL_LABEL_HINTS.some(h => l.includes(h))
     }
-    return entitlements.map(e =>
+    const a001Applied = entitlements.map(e =>
       matchAnnual(e.type)
         ? {
             ...e,
@@ -231,17 +296,44 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           }
         : e
     )
-  }, [entitlements, annualLeaveOverride])
+    const withTypeIdApplied = a001Applied.map(e => {
+      const snap = snapshotByType[e.typeId]
+      return snap
+        ? { ...e, used: snap.usedApproved, total: snap.total, pending: snap.usedPending, available: snap.remaining }
+        : e
+    })
+    const hasAnnual = withTypeIdApplied.some(e => matchAnnual(e.type) || (e.typeId || '').includes('A001'))
+    if (!hasAnnual) {
+      return [
+        ...withTypeIdApplied,
+        {
+          type: 'Annual Leave',
+          used: annualLeaveOverride.used,
+          total: annualLeaveOverride.total,
+          pending: annualLeaveOverride.pending,
+          available: annualLeaveOverride.available,
+          color: '2F80ED',
+          icon: undefined,
+          typeId: A001_TYPE_REF,
+          checkEntitlement: undefined
+        } as any
+      ]
+    }
+    return withTypeIdApplied
+  }, [entitlements, annualLeaveOverride, snapshotByType])
+
+  const { effectiveDates, allowWeekendPaintingInFallback } = useAbsenceEffectiveDates(
+    graphqlClient,
+    employee?.id,
+    currentDate
+  )
+  const nonWorkingDates = useEmployeeWeeklySchedule(accessToken, employee?.id, currentDate)
 
   const tabsItems = [
     {
       key: 'calendar',
-      label: (
-        <span className="gba:tabLabel">
-          <CalendarOutlined className="gba:tabIcon" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar')}
-        </span>
-      ),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar'),
+      icon: <CalendarIcon className="gba:h-4 gba:w-4" />,
       children: (
         <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
           <AbsenceCalendar
@@ -258,18 +350,17 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             employeeAbsenceEntitlement={employeeAbsenceEntitlement}
             employee={employee}
             accessToken={accessToken}
+            effectiveDates={effectiveDates ?? undefined}
+            allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
+            nonWorkingDates={!effectiveDates ? (nonWorkingDates ?? undefined) : undefined}
           />
         </div>
       )
     },
     {
       key: 'absence-list',
-      label: (
-        <span className="gba:tabLabel">
-          <UnorderedListOutlined className="gba:tabIcon" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_list', 'Absence List')}
-        </span>
-      ),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_list', 'Absence List'),
+      icon: <ListIcon className="gba:h-4 gba:w-4" />,
       children: (
         <div className="gba:absenceList" data-testid="absencehub-absence-list">
           <AbsenceList
@@ -286,12 +377,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     },
     {
       key: 'entitlements',
-      label: (
-        <span className="gba:tabLabel">
-          <PaperClipOutlined className="gba:tabIcon" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.entitlements', 'Entitlements')}
-        </span>
-      ),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.entitlements', 'Entitlements'),
+      icon: <PaperclipIcon className="gba:h-4 gba:w-4" />,
       children: (
         <div className="gba:entitlements-content">
           <Entitlements entitlements={mergedEntitlements} loading={loading} error={error} />
@@ -310,6 +397,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
     loadHolidays()
   }, [employee?.id, accessToken, graphqlClient, currentDate])
+
+  // Non-working dates derived from weekly schedule are now provided by useEmployeeWeeklySchedule
 
   return (
     <div className="gba:absences-tab gba:space-y-8">
@@ -357,7 +446,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               )
             })()}
 
-            {!isFetchingGroups && hasHrBackoffice && !isSelfView && (
+            {canAddEntitlements && (
               <div
                 data-testid="employee-entitlements-update-button"
                 className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
@@ -381,7 +470,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
       <AbsenceCharts
         key={`absence-charts-${currentLocale}`}
-        entitlements={entitlements}
+        entitlements={mergedEntitlements}
         absenceList={absenceList}
         loading={loading}
         error={error}
@@ -389,29 +478,49 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
       {(shownTab === 'calendar' || shownTab === 'absence-list' || shownTab === 'entitlements') && (
         <div className="gba:flex gba:justify-end gba:mt-4" data-testid="absencehub-inline-action">
-          <AppAction
-            variant="update-primary"
-            key={`inline-${startDateFormatted}-${endDateFormatted}`}
-            data-testid="employee-absence-request-inline-button"
-            lazyLoad
-            emptyState="enable"
-            contexts={[
-              {
-                context: FlowContextName.employeeAbsenceRecord,
-                contextData: {
-                  employeeId: employee.id,
-                  absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-                  flowType: 'vacation',
-                  startDate: startDateFormatted,
-                  endDate: endDateFormatted
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <AppAction
+              variant="update-primary"
+              key={`inline-${startDateFormatted}-${endDateFormatted}`}
+              data-testid="employee-absence-request-inline-button"
+              lazyLoad
+              emptyState="enable"
+              contexts={[
+                {
+                  context: FlowContextName.employeeAbsenceRecord,
+                  contextData: {
+                    employeeId: employee.id,
+                    absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
+                    flowType: 'vacation',
+                    startDate: startDateFormatted,
+                    endDate: endDateFormatted
+                  }
                 }
-              }
-            ]}
-            prefixDataTestId="employee-absence-request-inline"
-            accessToken={accessToken}
-          >
-            {requestAbsenceLabel}
-          </AppAction>
+              ]}
+              prefixDataTestId="employee-absence-request-inline"
+              accessToken={accessToken}
+            >
+              {requestAbsenceLabel}
+            </AppAction>
+            {shownTab === 'entitlements' && canAddEntitlements && (
+              <div
+                data-testid="employee-entitlements-update-inline-button"
+                className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                onClick={() => setIsEntitlementsModalOpen(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setIsEntitlementsModalOpen(true)
+                  }
+                }}
+              >
+                <PiPlus className="gba:h-5 gba:w-5" />
+                {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -422,14 +531,20 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           </div>
         ) : (
           <div className="gba:tabsContainer" data-testid="absencehub-tabs-container">
-            <Tabs
-              activeKey={activeTab}
-              data-testid="absencehub-tabs"
-              items={tabsItems}
-              onChange={onTabChange}
-              className="gba:tabs"
-              type="card"
-            />
+            <Tabs value={activeTab} onValueChange={onTabChange} className="gba:w-full">
+              <TabsList className="gba:w-full gba:justify-start">
+                {tabsItems.map(item => (
+                  <TabsTrigger key={item.key} value={item.key} startIcon={item.icon} className="gba:text-sm">
+                    {item.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {tabsItems.map(item => (
+                <TabsContent key={item.key} value={item.key}>
+                  {item.children}
+                </TabsContent>
+              ))}
+            </Tabs>
           </div>
         )}
       </div>
@@ -443,7 +558,11 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             accessToken={accessToken}
             additionalData={{ employeeId: employee?.id }}
             onCancel={() => setIsEntitlementsModalOpen(false)}
-            onSubmit={() => setIsEntitlementsModalOpen(false)}
+            onSubmit={() => {
+              setIsEntitlementsModalOpen(false)
+              refetch?.()
+              setRefreshTick(t => t + 1)
+            }}
           />
         </DialogContent>
       </Dialog>

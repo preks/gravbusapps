@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
 import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
+import translations from '../_i18n'
 
 export interface ShareDocumentDialogProps {
   open: boolean
@@ -69,11 +71,14 @@ const createAssignmentTargets = (userIds: string[]) => ({
   matrixTeams: []
 })
 
+type TranslateFn = (key: string, vars?: Record<string, string>) => string
+
 /**
  * Send notification via Blink
  */
 const sendShareNotification = async (
   accessToken: string,
+  t: TranslateFn,
   payload: {
     documentId: string
     documentTitle: string
@@ -121,19 +126,26 @@ const sendShareNotification = async (
       }
 
       // Build the message
-      const baseMessage = `${payload.initiatorName || 'Someone'} shared the document "${payload.documentTitle}" with you. You can ${permissionLabel} this document.`
-      const taskMessage = payload.message ? `${baseMessage}\n\nMessage: ${payload.message}` : baseMessage
+      const initiator = payload.initiatorName || t('share-task-someone')
+      const baseMessage = t('share-task-message', {
+        initiator,
+        title: payload.documentTitle,
+        permission: permissionLabel
+      })
+      const taskMessage = payload.message
+        ? t('share-task-message-with-note', { base: baseMessage, message: payload.message })
+        : baseMessage
 
       const requestPayload = {
         templateDefinition: {
           type: 'TEMPLATE',
-          name: `Document Shared: ${payload.documentTitle}`,
-          description: `Document sharing notification`,
+          name: t('share-task-title', { title: payload.documentTitle }),
+          description: t('share-task-description'),
           version: 1,
           steps: [
             {
               type: 'TASK',
-              title: `Document Shared: ${payload.documentTitle}`,
+              title: t('share-task-title', { title: payload.documentTitle }),
               message: taskMessage,
               form: [],
               links: [entityLink],
@@ -177,7 +189,7 @@ const sendShareNotification = async (
     return { success: true }
   } catch (err) {
     console.error('[ShareDocument] Error sending notifications:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send notifications' }
+    return { success: false, error: err instanceof Error ? err.message : t('share-task-error-send') }
   }
 }
 
@@ -196,6 +208,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
   onShareComplete,
   'data-testid': testId = 'share-document-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   // Form state
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([])
@@ -295,7 +308,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
    */
   const handleSubmit = useCallback(async () => {
     if (selectedUsers.length === 0) {
-      setError('Please select at least one person to share with')
+      setError(t('share-dialog-error-select'))
       return
     }
 
@@ -329,7 +342,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
       }
 
       if (!allSuccess) {
-        setError('Failed to share with some users')
+        setError(t('share-dialog-error-failed'))
         setIsSubmitting(false)
         return
       }
@@ -343,7 +356,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
           permission: u.permission
         }))
 
-      await sendShareNotification(accessToken, {
+      await sendShareNotification(accessToken, t, {
         documentId,
         documentTitle,
         recipients,
@@ -356,7 +369,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
       onShareComplete?.()
 
       const count = selectedUsers.length
-      toast.success(`Document shared with ${count} ${count === 1 ? 'person' : 'people'}!`)
+      toast.success(t('share-dialog-toast', { count }))
 
       // Close dialog after showing success
       setTimeout(() => {
@@ -364,7 +377,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
       }, 1500)
     } catch (err) {
       console.error('[ShareDocument] Submit failed:', err)
-      setError(err instanceof Error ? err.message : 'Failed to share document. Please try again.')
+      setError(err instanceof Error ? err.message : t('share-dialog-error-general'))
       setIsSubmitting(false)
     }
   }, [
@@ -377,7 +390,8 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
     accessToken,
     shareDocument,
     onShareComplete,
-    onOpenChange
+    onOpenChange,
+    t
   ])
 
   return (
@@ -386,9 +400,9 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            Share Document
+            {t('share-dialog-title')}
           </DialogTitle>
-          <DialogDescription>Share "{documentTitle}" with others and set their access level.</DialogDescription>
+          <DialogDescription>{t('share-dialog-description', { title: documentTitle })}</DialogDescription>
         </DialogHeader>
 
         {sentSuccess ? (
@@ -396,18 +410,18 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
             <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
               <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Document Shared!</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('share-dialog-success-title')}</h3>
             <p className="gba:text-muted-foreground">
               {selectedUsers.length === 1
-                ? `${selectedUsers[0].displayName} has been notified and can now access this document.`
-                : `${selectedUsers.length} people have been notified and can now access this document.`}
+                ? t('share-dialog-success-single', { name: selectedUsers[0].displayName })
+                : t('share-dialog-success-multi', { count: selectedUsers.length })}
             </p>
           </div>
         ) : (
           <div className="gba:space-y-6 gba:py-4">
             {/* Default permission selector */}
             <div className="gba:space-y-2">
-              <Label>Default permission for new users</Label>
+              <Label>{t('share-dialog-default-permission')}</Label>
               <Select value={defaultPermission} onValueChange={v => setDefaultPermission(v as Permission)}>
                 <SelectTrigger className="gba:w-full">
                   <SelectValue />
@@ -416,19 +430,19 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
                   <SelectItem value="view">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Eye className="gba:w-4 gba:h-4" />
-                      <span>Can view</span>
+                      <span>{t('share-dialog-can-view')}</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="comment">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <MessageSquare className="gba:w-4 gba:h-4" />
-                      <span>Can comment</span>
+                      <span>{t('share-dialog-can-comment')}</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="edit">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Pencil className="gba:w-4 gba:h-4" />
-                      <span>Can edit</span>
+                      <span>{t('share-dialog-can-edit')}</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -437,11 +451,11 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
 
             {/* Search input */}
             <div className="gba:space-y-2">
-              <Label>Add people</Label>
+              <Label>{t('share-dialog-add-people')}</Label>
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                 <Input
-                  placeholder="Search for people..."
+                  placeholder={t('share-dialog-search-placeholder')}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="gba:pl-10"
@@ -489,7 +503,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
               {/* No results message */}
               {searchQuery.length >= 2 && !isSearching && filteredResults.length === 0 && (
                 <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
-                  No people found matching "{searchQuery}"
+                  {t('share-dialog-no-people', { query: searchQuery })}
                 </p>
               )}
             </div>
@@ -497,7 +511,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
             {/* Selected users list */}
             {selectedUsers.length > 0 && (
               <div className="gba:space-y-2">
-                <Label>People with access ({selectedUsers.length})</Label>
+                <Label>{t('share-dialog-people-access', { count: selectedUsers.length })}</Label>
                 <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-48 gba:overflow-y-auto">
                   {selectedUsers.map(user => (
                     <div key={user.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3">
@@ -526,19 +540,19 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
                           <SelectItem value="view">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <Eye className="gba:w-3 gba:h-3" />
-                              <span>View</span>
+                              <span>{t('share-permission-view')}</span>
                             </div>
                           </SelectItem>
                           <SelectItem value="comment">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <MessageSquare className="gba:w-3 gba:h-3" />
-                              <span>Comment</span>
+                              <span>{t('share-permission-comment')}</span>
                             </div>
                           </SelectItem>
                           <SelectItem value="edit">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <Pencil className="gba:w-3 gba:h-3" />
-                              <span>Edit</span>
+                              <span>{t('share-permission-edit')}</span>
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -560,10 +574,10 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
 
             {/* Message section */}
             <div className="gba:space-y-2">
-              <Label htmlFor="share-message">Message (optional)</Label>
+              <Label htmlFor="share-message">{t('share-dialog-message-label')}</Label>
               <Textarea
                 id="share-message"
-                placeholder="Add a message for the recipients..."
+                placeholder={t('share-dialog-message-placeholder')}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 rows={2}
@@ -583,10 +597,7 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
             <div className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:bg-primary/5 gba:rounded-md gba:text-sm">
               <Share2 className="gba:w-4 gba:h-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
               <div className="gba:text-muted-foreground">
-                <p>
-                  People you share with will receive a notification and can access the document based on their
-                  permission level.
-                </p>
+                <p>{t('share-dialog-info')}</p>
               </div>
             </div>
           </div>
@@ -595,18 +606,18 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
         {!sentSuccess && (
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button onClick={handleSubmit} disabled={isSubmitting || selectedUsers.length === 0}>
               {isSubmitting ? (
                 <>
                   <Spinner size="sm" className="gba:mr-2" />
-                  Sharing...
+                  {t('share-dialog-sharing')}
                 </>
               ) : (
                 <>
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Share
+                  {t('share-dialog-share-button')}
                 </>
               )}
             </Button>

@@ -504,7 +504,18 @@ async function main() {
   const buildEnv = {
     ...process.env,
     PROJECT_ROOT_DIR: projectRootDir,
-    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync('git config user.name').toString().trim(),
+    // Use the author of the last non-merge commit as the "Built by" identity.
+    // In CI this is the person whose code change triggered the publish, which is
+    // more meaningful than the generic CI git-config user.name (often a bot name).
+    VITE_GIT_USER:
+      process.env.VITE_GIT_USER ||
+      (() => {
+        try {
+          return execSync('git log --no-merges -1 --pretty=format:%an', { encoding: 'utf8' }).trim()
+        } catch {
+          return execSync('git config user.name', { encoding: 'utf8' }).trim()
+        }
+      })(),
     VITE_PUBLISH_TIME: new Date().toISOString(),
     TARGET_ENTRY_FILE: sourceEntryFile,
     TARGET_ENTRY_KEY: viteEntryKey,

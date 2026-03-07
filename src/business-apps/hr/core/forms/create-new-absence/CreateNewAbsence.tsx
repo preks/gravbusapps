@@ -14,7 +14,7 @@ import {
 import { AlertCircle } from 'lucide-react'
 import { Upload } from 'antd'
 import type { UploadFile } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+import { UploadIcon } from '@phosphor-icons/react'
 import { useForm } from 'react-hook-form'
 
 import dayjs from 'dayjs'
@@ -102,6 +102,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const {
     isValidating,
+    isCheckingBankHoliday,
     hasValidationErrors,
     overlapErrors,
     balanceErrors,
@@ -292,13 +293,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
           } catch {}
         }
       }
-
       const payload =
         isUpdateMode && existingSickLeave
           ? {
               employeeId: employeeId,
               absenceType: formData.selectedType,
               event: 'pse_submit',
+              shouldBECustomErrorMessage: true,
               employeeAbsence: {
                 ...baseAbsenceData,
                 id: existingSickLeave.id,
@@ -310,6 +311,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               employeeId: employeeId,
               absenceType: formData.selectedType,
               event: 'pse_submit',
+              shouldBECustomErrorMessage: true,
               employeeAbsence: baseAbsenceData,
               ...(employeeDocuments.length > 0 && { employeeDocuments })
             }
@@ -381,7 +383,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               )
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
         }
-        isSubmitDisabled={!isFormValid || isValidating}
+        isSubmitDisabled={!isFormValid || isValidating || isCheckingBankHoliday}
         submitEventType="pse_submit"
         cancelEventType="pse_abort"
         data-testid="create-new-absence-form"
@@ -635,7 +637,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                       className="gba:w-full gba:h-12 gba:border-dashed gba:border-2 gba:border-border hover:gba:border-info"
                       data-testid="upload-button"
                     >
-                      <UploadOutlined className="gba:mr-2" />
+                      <UploadIcon size={16} className="gba:mr-2" />
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_form.upload_button',
                         'Click or drag files to upload'

@@ -7,6 +7,7 @@ export interface RealtimeKitMeeting {
   callType: 'audio' | 'video'
   createdAt: string
   participantCount: number
+  transcriptionEnabled?: boolean
 }
 
 export interface CreateMeetingResponse {
@@ -99,6 +100,23 @@ export class RealtimeKitApiClient {
       lastName
     })
     return response.data
+  }
+
+  /**
+   * Get active call for a conversation (for rejoin from chat). Returns null if no active call or on error.
+   */
+  async getActiveCallByConversationId(
+    conversationId: string
+  ): Promise<{ meetingId: string; sessionId: string } | null> {
+    try {
+      const response = await this.client.get<{ success: boolean; data: { meetingId: string; sessionId: string } }>(
+        `/conversations/${encodeURIComponent(conversationId)}/active-call`
+      )
+      return response.data?.data ?? null
+    } catch (err: any) {
+      if (err.response?.status === 404) return null
+      throw err
+    }
   }
 
   /**

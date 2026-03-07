@@ -2,7 +2,8 @@ import React, { useMemo } from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import { GripVertical, UserCheck, UserPlus, BarChart3, CheckCircle, Cpu } from 'lucide-react'
 
-import ReactFlow, {
+import {
+  ReactFlow,
   Node,
   Edge,
   Controls,
@@ -15,8 +16,8 @@ import ReactFlow, {
   Position,
   OnConnect,
   addEdge
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import { FlowStep } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 
 export interface FlowRendererProps {

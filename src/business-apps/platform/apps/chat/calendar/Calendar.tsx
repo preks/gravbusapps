@@ -1,25 +1,30 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { Alert, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
+import { navigateTo, buildPlatformUrl, getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
+import { useChatTranslation } from '../contexts/TranslationContext'
+import { setPendingJoinMeeting } from '../pendingJoinMeetingFromPlatform'
 import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
-import { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
-import { rtkDebug } from '../utils/rtkDebug'
+import { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus, EventParticipant } from './types'
 
 interface CalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   activeCalls?: Record<string, any> // Active calls passed from Chat
   /** External calendar events from email providers to merge in */
   externalCalendarEvents?: CalendarEvent[]
+  /** When provided, opens chat in-app (same as dashboard). When omitted, navigates to chat URL. */
+  onOpenChat?: (conversationId: string) => void
 }
 
 const CalendarInner: React.FC<CalendarProps> = ({
   accessToken,
   prefixDataTestId = 'calendar',
   activeCalls = {},
-  externalCalendarEvents = []
+  externalCalendarEvents = [],
+  onOpenChat
 }) => {
   // Build API URL for calendar API
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
@@ -60,6 +65,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     selectedEvent,
     isLoading,
     error,
+    apiClient,
     setCurrentDate,
     setView,
     goToToday,
@@ -71,6 +77,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     cancelMeeting,
     respondToInvitation,
     refresh,
+    refreshInvitations,
     dateRange,
     viewTitle
   } = useCalendar({
@@ -87,58 +94,90 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
 
-  // Avatar fetching hook with caching
+  const t = useChatTranslation()
   const { fetchAvatarsSync, requestAvatars } = useEmployeeAvatarsCache(accessToken)
 
-  // Fetch avatars when selected event changes
+  // Ref so timeout callback can read latest events (after date change triggers fetch)
+  const eventsRef = useRef<CalendarEvent[]>(events)
+  eventsRef.current = events
+
+  // Fetch meeting data (participant responses) and avatars when detail modal opens
   useEffect(() => {
-    const enrichEventWithAvatars = async () => {
+    const enrichEventWithMeetingAndAvatars = async () => {
       if (!selectedEvent || !isDetailModalOpen) {
         setEnrichedSelectedEvent(null)
         return
       }
 
+      const isInternalMeeting = selectedEvent.id && (!selectedEvent.source || selectedEvent.source === 'internal')
+
+      let eventToEnrich: CalendarEvent = selectedEvent
+
+      // For internal meetings, fetch full meeting data so we have up-to-date participant responses
+      if (isInternalMeeting && apiClient) {
+        try {
+          const meeting = await apiClient.getMeeting(selectedEvent.id)
+          const participants: EventParticipant[] =
+            meeting.participants?.map(p => ({
+              id: p.userId,
+              firstName: p.user?.firstName,
+              lastName: p.user?.lastName,
+              displayName: p.user?.displayName,
+              email: p.user?.email ?? '',
+              avatarUrl: p.user?.avatarUrl,
+              status: p.status,
+              isOrganizer: p.isOrganizer,
+              comment: p.responseComment
+            })) ?? []
+          const acceptedCount = meeting.participants?.filter(p => p.status === InvitationStatus.ACCEPTED).length ?? 0
+          eventToEnrich = {
+            ...selectedEvent,
+            participants,
+            participantCount: participants.length,
+            acceptedCount,
+            // Use fresh meeting flags so transcript message appears without refresh when another user enables it
+            transcriptionEnabled: meeting.transcriptionEnabled ?? selectedEvent.transcriptionEnabled,
+            metadata: {
+              ...selectedEvent.metadata,
+              ...meeting.metadata,
+              aiTranscriptionEnabled:
+                meeting.metadata?.aiTranscriptionEnabled ??
+                meeting.transcriptionEnabled ??
+                selectedEvent.metadata?.aiTranscriptionEnabled
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching meeting data:', error)
+        }
+      }
+
       // Collect all user IDs that need avatars
       const userIds: string[] = []
-
-      // Add organizer
-      if (selectedEvent.organizer?.id) {
-        userIds.push(selectedEvent.organizer.id)
-      }
-
-      // Add participants
-      if (selectedEvent.participants) {
-        selectedEvent.participants.forEach(p => {
-          if (p.id) userIds.push(p.id)
-        })
-      }
+      if (eventToEnrich.organizer?.id) userIds.push(eventToEnrich.organizer.id)
+      eventToEnrich.participants?.forEach(p => {
+        if (p.id) userIds.push(p.id)
+      })
 
       if (userIds.length === 0) {
-        setEnrichedSelectedEvent(selectedEvent)
+        setEnrichedSelectedEvent(eventToEnrich)
         return
       }
 
       try {
-        // Try to get from cache first (non-blocking)
         let employeeInfoMap = requestAvatars(userIds)
-
-        // If cache doesn't have all users, fetch synchronously
         if (employeeInfoMap.size < userIds.length) {
           employeeInfoMap = await fetchAvatarsSync(userIds)
         }
 
-        // Get organizer info
-        const organizerInfo = employeeInfoMap.get(selectedEvent.organizer.id)
-
-        // Enrich the event with avatar URLs and employee IDs
+        const organizerInfo = employeeInfoMap.get(eventToEnrich.organizer.id)
         const enrichedEvent: CalendarEvent = {
-          ...selectedEvent,
+          ...eventToEnrich,
           organizer: {
-            ...selectedEvent.organizer,
-            avatarUrl: organizerInfo?.avatarUrl || selectedEvent.organizer.avatarUrl,
-            employeeId: organizerInfo?.employeeId || selectedEvent.organizer.employeeId
+            ...eventToEnrich.organizer,
+            avatarUrl: organizerInfo?.avatarUrl || eventToEnrich.organizer.avatarUrl,
+            employeeId: organizerInfo?.employeeId || eventToEnrich.organizer.employeeId
           },
-          participants: selectedEvent.participants?.map(p => {
+          participants: eventToEnrich.participants?.map(p => {
             const participantInfo = employeeInfoMap.get(p.id)
             return {
               ...p,
@@ -151,49 +190,63 @@ const CalendarInner: React.FC<CalendarProps> = ({
         setEnrichedSelectedEvent(enrichedEvent)
       } catch (error) {
         console.error('Error fetching participant avatars:', error)
-        setEnrichedSelectedEvent(selectedEvent)
+        setEnrichedSelectedEvent(eventToEnrich)
       }
     }
 
-    enrichEventWithAvatars()
-  }, [selectedEvent, isDetailModalOpen, fetchAvatarsSync, requestAvatars])
+    enrichEventWithMeetingAndAvatars()
+  }, [selectedEvent, isDetailModalOpen, apiClient, fetchAvatarsSync, requestAvatars])
 
   // Handle URL params to navigate to a specific date/meeting (e.g., from MeetingCard click)
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+
     const handleNavigation = async (event?: Event) => {
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       const dateParam = urlParams.get('date')
       const meetingIdParam = urlParams.get('meetingId')
 
-      // If this is triggered by switchToCalendar event, refresh the calendar first
-      // This ensures we have the latest events (e.g., after AI schedules a meeting)
-      if (event?.type === 'switchToCalendar') {
+      // If this is triggered by switchToCalendar event, refresh only when not navigating with a date param
+      // (avoids duplicate fetch when opening from MeetingCard which sets meetingId in URL)
+      if (event?.type === 'switchToCalendar' && !dateParam) {
         await refresh()
       }
 
       if (dateParam) {
         const targetDate = new Date(dateParam)
-        if (!isNaN(targetDate.getTime())) {
+        if (!Number.isNaN(targetDate.getTime())) {
           setCurrentDate(targetDate)
           setView('day')
 
-          // If we have a meetingId, find and select that meeting after events load
+          // If we have a meetingId, find and select that meeting after events load (URL keeps meetingId for shareable link)
           if (meetingIdParam) {
-            // Wait a bit for events to load, then select the meeting
-            setTimeout(() => {
-              const meetingEvent = events.find(e => e.id === meetingIdParam)
+            timeoutId = setTimeout(() => {
+              timeoutId = null
+              // Only open if URL still has this meetingId (user may have closed modal and cleared URL)
+              const currentParams = new URLSearchParams(globalThis.window.location.search)
+              if (currentParams.get('meetingId') !== meetingIdParam) return
+              // Use ref so we see events after they load for the new date (e.g. "view in calendar" from card)
+              const meetingEvent = eventsRef.current.find(e => e.id === meetingIdParam)
               if (meetingEvent) {
                 selectEvent(meetingEvent)
                 setIsDetailModalOpen(true)
               }
             }, 500)
           }
-
-          // Clear the params after handling to avoid re-triggering
-          const url = new URL(window.location.href)
-          url.searchParams.delete('date')
-          url.searchParams.delete('meetingId')
-          window.history.replaceState({}, '', url.toString())
+          // Keep meetingId in URL so the open meeting dialog is reflected and link is shareable
+        }
+      } else if (meetingIdParam && events.length > 0) {
+        // meetingId without date: find meeting in loaded events, go to its day and select it (URL keeps meetingId for shareable link)
+        const meetingEvent = events.find(e => e.id === meetingIdParam)
+        if (meetingEvent) {
+          const meetingDate = meetingEvent.start
+          if (!Number.isNaN(meetingDate.getTime())) {
+            setCurrentDate(meetingDate)
+            setView('day')
+            selectEvent(meetingEvent)
+            setIsDetailModalOpen(true)
+          }
+          // Keep meetingId in URL so the open meeting dialog is reflected and link is shareable
         }
       }
     }
@@ -203,19 +256,79 @@ const CalendarInner: React.FC<CalendarProps> = ({
 
     // Also listen for switchToCalendar event
     const handleSwitchEvent = (e: Event) => handleNavigation(e)
-    window.addEventListener('switchToCalendar', handleSwitchEvent)
+    globalThis.window.addEventListener('switchToCalendar', handleSwitchEvent)
     return () => {
-      window.removeEventListener('switchToCalendar', handleSwitchEvent)
+      if (timeoutId !== null) clearTimeout(timeoutId)
+      globalThis.window.removeEventListener('switchToCalendar', handleSwitchEvent)
     }
   }, [events, setCurrentDate, setView, selectEvent, refresh])
+
+  // When events load and meetingId is in URL (e.g. opened from task link), open meeting once events are available.
+  // Skip re-opening detail when create/edit modal is open (e.g. user clicked Edit).
+  useEffect(() => {
+    if (events.length === 0) return
+    const meetingIdParam = new URLSearchParams(globalThis.window.location.search).get('meetingId')
+    if (!meetingIdParam || isDetailModalOpen || isCreateModalOpen) return
+    const meetingEvent = events.find(e => e.id === meetingIdParam)
+    if (meetingEvent) {
+      setCurrentDate(meetingEvent.start)
+      setView('day')
+      selectEvent(meetingEvent)
+      setIsDetailModalOpen(true)
+    }
+  }, [events, isDetailModalOpen, isCreateModalOpen, selectEvent, setCurrentDate, setView])
+
+  // Sync modal with browser back/forward: open/close modal when URL meetingId appears/disappears
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
+      const meetingIdParam = urlParams.get('meetingId')
+      if (meetingIdParam && !isDetailModalOpen) {
+        const meetingEvent = events.find(e => e.id === meetingIdParam)
+        if (meetingEvent) {
+          setCurrentDate(meetingEvent.start)
+          setView('day')
+          selectEvent(meetingEvent)
+          setIsDetailModalOpen(true)
+        }
+      } else if (!meetingIdParam && isDetailModalOpen) {
+        setIsDetailModalOpen(false)
+        selectEvent(null)
+      }
+    }
+    globalThis.window.addEventListener('popstate', handlePopState)
+    return () => globalThis.window.removeEventListener('popstate', handlePopState)
+  }, [events, isDetailModalOpen, selectEvent, setCurrentDate, setView])
+
+  // Refresh calendar when backend sends meeting_created (so user sees new meetings without reload)
+  useEffect(() => {
+    const onCalendarRefresh = () => {
+      refresh()
+      refreshInvitations()
+    }
+    globalThis.addEventListener('calendar:refresh', onCalendarRefresh)
+    return () => globalThis.removeEventListener('calendar:refresh', onCalendarRefresh)
+  }, [refresh, refreshInvitations])
+
+  // Sync meeting detail modal state with URL (bookmarkable / shareable). Mutate current URL so it works from menu or sidebar.
+  const setMeetingInUrl = useCallback((meetingId: string, _date?: Date) => {
+    void _date // kept for API compatibility with callers; URL only stores meetingId
+    const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ view: 'calendar', meetingId })
+    globalThis.window.history.replaceState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
+  }, [])
+  const clearMeetingFromUrl = useCallback(() => {
+    const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ meetingId: null, date: null })
+    globalThis.window.history.replaceState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
+  }, [])
 
   // Handle event click
   const handleEventClick = useCallback(
     (event: CalendarEvent) => {
       selectEvent(event)
       setIsDetailModalOpen(true)
+      setMeetingInUrl(event.id, event.start)
     },
-    [selectEvent]
+    [selectEvent, setMeetingInUrl]
   )
 
   // Handle time slot click (for creating meetings)
@@ -252,9 +365,10 @@ const CalendarInner: React.FC<CalendarProps> = ({
       await updateMeeting(meetingId, data)
       setIsCreateModalOpen(false)
       setEditingMeeting(null)
+      clearMeetingFromUrl()
       setIsDetailModalOpen(false)
     },
-    [updateMeeting]
+    [updateMeeting, clearMeetingFromUrl]
   )
 
   // Handle edit button click from detail modal
@@ -326,16 +440,18 @@ const CalendarInner: React.FC<CalendarProps> = ({
       }
       selectEvent(event)
       setIsDetailModalOpen(true)
+      setMeetingInUrl(meeting.id, new Date(meeting.startTime))
     },
-    [selectEvent]
+    [selectEvent, setMeetingInUrl]
   )
 
   // Handle delete meeting
   const handleDeleteMeeting = useCallback(async () => {
     if (!selectedEvent) return
     await cancelMeeting(selectedEvent.id)
+    clearMeetingFromUrl()
     setIsDetailModalOpen(false)
-  }, [selectedEvent, cancelMeeting])
+  }, [selectedEvent, cancelMeeting, clearMeetingFromUrl])
 
   // Handle starting a meeting call
   // Handle starting call from detail modal - dispatch event for Chat to handle
@@ -370,14 +486,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         })
       }
 
-      rtkDebug.log('[Calendar] Dispatching join-meeting event with participants:', {
-        meetingId: enrichedSelectedEvent.id,
-        conversationId,
-        title: enrichedSelectedEvent.title,
-        participantCount: participants.length
-      })
-
-      window.dispatchEvent(
+      globalThis.window.dispatchEvent(
         new CustomEvent('chat:join-meeting', {
           detail: {
             meetingId: enrichedSelectedEvent.id,
@@ -388,23 +497,18 @@ const CalendarInner: React.FC<CalendarProps> = ({
         })
       )
 
+      clearMeetingFromUrl()
       setIsDetailModalOpen(false)
     } catch (error) {
       console.error('[Calendar] Error dispatching join-meeting event:', error)
     }
-  }, [enrichedSelectedEvent])
+  }, [enrichedSelectedEvent, clearMeetingFromUrl])
 
   // Handle quick join from calendar event item - dispatch event for Chat to handle
   const handleQuickJoinCall = useCallback((event: CalendarEvent) => {
     const conversationId = event.conversationId || event.id
 
-    rtkDebug.log('[Calendar] Quick join - dispatching join-meeting event:', {
-      eventId: event.id,
-      conversationId,
-      title: event.title
-    })
-
-    window.dispatchEvent(
+    globalThis.window.dispatchEvent(
       new CustomEvent('chat:join-meeting', {
         detail: {
           meetingId: event.id,
@@ -415,14 +519,23 @@ const CalendarInner: React.FC<CalendarProps> = ({
     )
   }, [])
 
-  // Handle opening chat for conversation - navigate to chat with conversation ID
+  // Handle opening chat for conversation - same pattern as dashboard (in-app) or URL navigation.
+  // Use conversationId when present; otherwise meeting id so chat can resolve (e.g. getConversationById or by meeting).
   const handleOpenChat = useCallback(() => {
-    if (!enrichedSelectedEvent?.conversationId) return
-    // Navigate to chat with the conversation ID
-    const chatUrl = `/platform/apps/chat?conversationId=${enrichedSelectedEvent.conversationId}`
-    window.location.href = chatUrl
+    const id = enrichedSelectedEvent?.conversationId || enrichedSelectedEvent?.id
+    if (!id) return
+    if (enrichedSelectedEvent?.id) setPendingJoinMeeting(enrichedSelectedEvent.id, id)
+    if (onOpenChat) {
+      onOpenChat(id)
+      clearMeetingFromUrl()
+      setIsDetailModalOpen(false)
+      return
+    }
+    const url = buildPlatformUrl('/platform/chat', { conversationId: id })
+    navigateTo(url)
+    clearMeetingFromUrl()
     setIsDetailModalOpen(false)
-  }, [enrichedSelectedEvent])
+  }, [enrichedSelectedEvent, onOpenChat, clearMeetingFromUrl])
 
   // Handle create button click
   const handleCreateButtonClick = useCallback(() => {
@@ -434,19 +547,29 @@ const CalendarInner: React.FC<CalendarProps> = ({
 
   // Close detail modal
   const handleCloseDetailModal = useCallback(() => {
+    clearMeetingFromUrl()
     setIsDetailModalOpen(false)
     selectEvent(null)
-  }, [selectEvent])
+  }, [selectEvent, clearMeetingFromUrl])
 
-  // Error state
+  // Error state (e.g. chat service unreachable) with retry
   if (error) {
     return (
       <div
         className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
         data-testid={`${prefixDataTestId}-error`}
       >
-        <Alert variant="destructive" className="gba:max-w-sm">
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="gba:max-w-sm gba:flex gba:flex-col gba:gap-3">
+          <AlertDescription>{t('calendar-error')}</AlertDescription>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refresh()}
+            data-testid={`${prefixDataTestId}-error-retry`}
+            className="gba:self-start"
+          >
+            {t('calendar-retry')}
+          </Button>
         </Alert>
       </div>
     )
@@ -507,6 +630,10 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onNext={goToNext}
         onToday={goToToday}
         onCreateMeeting={handleCreateButtonClick}
+        onRefresh={() => {
+          refresh()
+          refreshInvitations()
+        }}
         pendingInvitationsCount={pendingInvitations.length}
       />
 
@@ -579,7 +706,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onEdit={enrichedSelectedEvent?.isOrganizer ? handleEditMeeting : undefined}
         onDelete={enrichedSelectedEvent?.isOrganizer ? handleDeleteMeeting : undefined}
         onStartCall={enrichedSelectedEvent?.meetingLink ? handleStartCall : undefined}
-        onOpenChat={enrichedSelectedEvent?.conversationId ? handleOpenChat : undefined}
+        onOpenChat={onOpenChat ? handleOpenChat : undefined}
         activeConversationCalls={activeConversationCalls}
       />
     </div>
