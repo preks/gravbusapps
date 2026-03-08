@@ -4,7 +4,7 @@ import dayjs from 'dayjs'
 /**
  * Constants for expense plan and request statuses
  */
-const EXPENSE_PLAN_EXCLUDED_STATUSES = ['CREATED', 'DISCARDED'] as const
+const EXPENSE_PLAN_EXCLUDED_STATUSES = ['CREATED', 'REJECTED', 'DISCARDED'] as const
 const EXPENSE_ITEM_INCLUDED_STATUSES = ['APPROVED', 'VERIFIED', 'BOOKED', 'PAID'] as const
 
 /**

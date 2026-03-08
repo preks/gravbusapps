@@ -30,16 +30,39 @@ const getAdvancePaymentDeptFilter = (hasDepartment: boolean) =>
     ? ',\n          { expensePlan: { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } } }'
     : ''
 
+const MONTH_TREND_VARS = Array.from(
+  { length: 12 },
+  (_, i) => `$m${i + 1}Start: timestamp!, $m${i + 1}End: timestamp!`
+).join(', ')
+
+const buildMonthlyTrendsSubqueries = (hasDepartment: boolean) =>
+  Array.from({ length: 12 }, (_, i) => {
+    const idx = i + 1
+    return `    m${idx}_item: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $m${idx}Start, _lt: $m${idx}End } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $m${idx}Start, _lt: $m${idx}End } } }
+            ] }
+          ] }${getDeptFilter(hasDepartment)}
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }`
+  }).join('\n\n')
+
 /**
  * Combined dashboard query for MONTHLY period
  * Fetches all dashboard statistics in ONE request INCLUDING bulk monthly trends
  */
 export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => {
-  // Generate variables for 12 months
-  const monthVars = Array.from({ length: 12 }, (_, i) => `$m${i + 1}Start: timestamp!, $m${i + 1}End: timestamp!`).join(
-    ', '
-  )
-
   return `
   query GetCombinedDashboardStatsMonthly(
     $selectedCurrency: String!${hasDepartment ? ',\n    $selectedDepartment: uuid!' : ''},
@@ -47,13 +70,15 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     $currentMonthEnd: timestamp!,
     $previousMonthStart: timestamp!,
     $previousMonthEnd: timestamp!,
+    $sameMonthLastYearStart: timestamp!,
+    $sameMonthLastYearEnd: timestamp!,
     $currentYearStart: timestamp!,
     $currentYTD: timestamp!,
     $previousYearStart: timestamp!,
     $previousYTD: timestamp!,
-    ${monthVars}
+    ${MONTH_TREND_VARS}
   ) {
-    # 1. Current Month Expenses (for monthly spend comparison)
+    # 1. Current Month Expenses (for monthly spend comparison and first card)
     currentMonthExpenses: ExpenseItemAggregate(
       where: {
         _and: [
@@ -94,6 +119,33 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
             ] },
             { _and: [
               { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $previousMonthStart, _lt: $previousMonthEnd } } }
+            ] }
+          ] }${getDeptFilter(hasDepartment)}
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum {
+          reimbursableAmount
+        }
+      }
+    }
+
+    # 2b. Same Month Last Year (for first card YoY comparison)
+    sameMonthLastYearExpenses: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $sameMonthLastYearStart, _lt: $sameMonthLastYearEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $sameMonthLastYearStart, _lt: $sameMonthLastYearEnd } } }
             ] }
           ] }${getDeptFilter(hasDepartment)}
         ]
@@ -192,7 +244,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -296,51 +348,8 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
       }
     }
 
-    # 11. Bulk Monthly Trends (all 12 months in one request)
-${Array.from({ length: 12 }, (_, i) => {
-  const idx = i + 1
-  return `    # Month ${idx}
-    m${idx}_req: ExpenseRequestAggregate(
-      where: {
-        _and: [
-          { currencyRef: { _eq: $selectedCurrency } },
-          { totalAmount: { _isNull: false } },
-          { totalAmount: { _gt: 0 } },
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
-          { _or: [
-            { _and: [
-              { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } },
-              { expenseItem: { expenseDate: { _gte: $m${idx}Start, _lt: $m${idx}End }, isDeleted: { _eq: false } } }
-            ] },
-            { _and: [
-              { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
-              { startDate: { _gte: $m${idx}Start, _lt: $m${idx}End } }
-            ] }
-          ] },
-          { isDeleted: { _eq: false } }${getDeptFilter(hasDepartment)}
-        ]
-      }
-    ) { aggregate { count sum { totalAmount } } }
-    
-    m${idx}_item: ExpenseItemAggregate(
-      where: {
-        _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
-          { currencyRef: { _eq: $selectedCurrency } },
-          { isDeleted: { _eq: false } },
-          { _or: [
-            { _and: [
-              { expenseDate: { _gte: $m${idx}Start, _lt: $m${idx}End } },
-              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
-            ] },
-            { _and: [
-              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $m${idx}Start, _lt: $m${idx}End } } }
-            ] }
-          ] }${getDeptFilter(hasDepartment)}
-        ]
-      }
-    ) { aggregate { count sum { reimbursableAmount } } }`
-}).join('\n\n')}
+    # 11. Bulk Monthly Trends (all 12 months in one request) - uses ExpenseItem only
+${buildMonthlyTrendsSubqueries(hasDepartment)}
   }
   `
 }
@@ -355,11 +364,70 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     $currentQuarterEnd: timestamp!,
     $previousQuarterStart: timestamp!,
     $previousQuarterEnd: timestamp!,
+    $currentQTD: timestamp!,
+    $sameQuarterLastYearStart: timestamp!,
+    $previousQTD: timestamp!,
     $currentYearStart: timestamp!,
     $currentYTD: timestamp!,
     $previousYearStart: timestamp!,
-    $previousYTD: timestamp!
+    $previousYTD: timestamp!,
+    ${MONTH_TREND_VARS}
   ) {
+    # QTD: current quarter start → today (for first card)
+    currentQTDExpenses: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $currentQuarterStart, _lte: $currentQTD } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $currentQuarterStart, _lte: $currentQTD } } }
+            ] }
+          ] }${getDeptFilter(hasDepartment)}
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum {
+          reimbursableAmount
+        }
+      }
+    }
+
+    # Same quarter last year QTD (for first card YoY comparison)
+    previousQTDExpenses: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $sameQuarterLastYearStart, _lte: $previousQTD } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $sameQuarterLastYearStart, _lte: $previousQTD } } }
+            ] }
+          ] }${getDeptFilter(hasDepartment)}
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum {
+          reimbursableAmount
+        }
+      }
+    }
+
+    # Full quarter (for second card - quarter-over-quarter comparison)
     currentQuarterExpenses: ExpenseItemAggregate(
       where: {
         _and: [
@@ -492,7 +560,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -592,6 +660,8 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
         }
       }
     }
+
+${buildMonthlyTrendsSubqueries(hasDepartment)}
   }
 `
 
@@ -606,7 +676,8 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     $previousYearStart: timestamp!,
     $previousYearEnd: timestamp!,
     $currentYTD: timestamp!,
-    $previousYTD: timestamp!
+    $previousYTD: timestamp!,
+    ${MONTH_TREND_VARS}
   ) {
     currentYearExpensesComparison: ExpenseItemAggregate(
       where: {
@@ -740,7 +811,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -840,5 +911,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
         }
       }
     }
+
+${buildMonthlyTrendsSubqueries(hasDepartment)}
   }
 `

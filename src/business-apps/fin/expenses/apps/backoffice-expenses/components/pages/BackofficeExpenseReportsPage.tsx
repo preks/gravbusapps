@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
   DataDisplay,
   type FilterConfiguration,
@@ -21,6 +21,7 @@ import type { ColumnDef as TanstackColumnDef, OnChangeFn, SortingState } from '@
 import { PiDownload, PiFileText, PiInfo } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBackofficeExpenseReportData, ReportType } from '../../hooks/useBackofficeExpenseReportData'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import { useFilterData } from '../../hooks/useFilterData'
 import { getActiveStructureDepartmentNames } from '../../utils/departmentOptions'
 import { ensureShortDateFormat } from '../../../manager-expenses/utils/dateUtils'
@@ -45,6 +46,46 @@ type ReportFilterOptionSnapshot = {
   departments: string[]
 }
 
+type ReportFilters = {
+  status: string[]
+  employeeName: string[]
+  departmentName: string[]
+}
+
+const EMPTY_REPORT_FILTERS: ReportFilters = {
+  status: [],
+  employeeName: [],
+  departmentName: []
+}
+
+const normalizeFilterValues = (values: unknown): string[] => {
+  if (!Array.isArray(values)) return []
+  return Array.from(new Set(values.map(value => String(value ?? '').trim()).filter(Boolean)))
+}
+
+const normalizeReportFilters = (filters: Record<string, any> | undefined | null): ReportFilters => {
+  const raw = filters ?? {}
+  return {
+    status: normalizeFilterValues(raw.status),
+    employeeName: normalizeFilterValues(raw.employeeName),
+    departmentName: normalizeFilterValues(raw.departmentName)
+  }
+}
+
+const areReportFiltersEqual = (left: ReportFilters, right: ReportFilters): boolean => {
+  return (
+    left.status.length === right.status.length &&
+    left.employeeName.length === right.employeeName.length &&
+    left.departmentName.length === right.departmentName.length &&
+    left.status.every((value, index) => value === right.status[index]) &&
+    left.employeeName.every((value, index) => value === right.employeeName[index]) &&
+    left.departmentName.every((value, index) => value === right.departmentName[index])
+  )
+}
+
+const hasAnyReportFilters = (filters: ReportFilters): boolean =>
+  filters.status.length > 0 || filters.employeeName.length > 0 || filters.departmentName.length > 0
+
 const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
   const toFilterText = (value: unknown): string => {
     if (value === null || value === undefined) return ''
@@ -61,6 +102,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   const [fullFilterOptionsByType, setFullFilterOptionsByType] = useState<
     Partial<Record<ReportType, ReportFilterOptionSnapshot>>
   >({})
+  const didHandleInitialFilterSyncRef = useRef<Partial<Record<ReportType, boolean>>>({})
 
   const contextProps = useMemo(
     () => ({
@@ -88,10 +130,10 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     fetchAllForFilterOptions
   } = useBackofficeExpenseReportData(contextProps, filtersByReportType, sorting)
   const { organizationalUnits } = useFilterData({ accessToken })
-  const selectedFilters = useMemo(
-    () => (selectedReportType ? (filtersByReportType[selectedReportType] ?? {}) : {}),
-    [filtersByReportType, selectedReportType]
-  )
+  const selectedFilters = useMemo(() => {
+    if (!selectedReportType) return EMPTY_REPORT_FILTERS
+    return normalizeReportFilters(filtersByReportType[selectedReportType] ?? {})
+  }, [filtersByReportType, selectedReportType])
 
   const reportTypes: Array<{ key: ReportType; name: string; description: string }> = [
     {
@@ -856,12 +898,10 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     const allowedStatusIds = new Set(statusFilterOptions.map(option => String(option.id)))
     const allowedEmployeeIds = new Set(employeeFilterOptions.map(option => String(option.id)))
     const allowedDepartmentIds = new Set(departmentFilterOptions.map(option => String(option.id)))
-    const currentFilters = filtersByReportType[selectedReportType] ?? {}
-    const selectedStatuses = Array.isArray(currentFilters.status) ? currentFilters.status.map(String) : []
-    const selectedEmployees = Array.isArray(currentFilters.employeeName) ? currentFilters.employeeName.map(String) : []
-    const selectedDepartments = Array.isArray(currentFilters.departmentName)
-      ? currentFilters.departmentName.map(String)
-      : []
+    const currentFilters = normalizeReportFilters(filtersByReportType[selectedReportType] ?? {})
+    const selectedStatuses = currentFilters.status
+    const selectedEmployees = currentFilters.employeeName
+    const selectedDepartments = currentFilters.departmentName
 
     const sanitizedStatuses = selectedStatuses.filter(status => allowedStatusIds.has(status))
     const sanitizedEmployees = selectedEmployees.filter(employee => allowedEmployeeIds.has(employee))
@@ -875,7 +915,6 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     setFiltersByReportType(previous => ({
       ...previous,
       [selectedReportType]: {
-        ...currentFilters,
         status: sanitizedStatuses,
         employeeName: sanitizedEmployees,
         departmentName: sanitizedDepartments
@@ -939,15 +978,31 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
         })),
     [columns, backendSortableColumnKeys]
   )
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value)
+  const [localSearchText, setLocalSearchText] = useState(searchTerm)
+  const debouncedLocalSearch = useDebounce(localSearchText, 300)
+
+  useEffect(() => {
+    setSearchTerm(debouncedLocalSearch)
     setCurrentPage(1)
-  }
+  }, [debouncedLocalSearch, setSearchTerm, setCurrentPage])
+
+  const handleSearchChange = useCallback((value: string) => {
+    setLocalSearchText(value)
+  }, [])
   const handleFilterChange = (filters: Record<string, any>) => {
     if (!selectedReportType) return
-    const nextFilters = filters || {}
-    const currentFilters = filtersByReportType[selectedReportType] || {}
-    if (JSON.stringify(currentFilters) === JSON.stringify(nextFilters)) return
+    const nextFilters = normalizeReportFilters(filters)
+    const currentFilters = normalizeReportFilters(filtersByReportType[selectedReportType] ?? {})
+    const didHandleInitialSync = didHandleInitialFilterSyncRef.current[selectedReportType] === true
+    if (!didHandleInitialSync) {
+      didHandleInitialFilterSyncRef.current[selectedReportType] = true
+      if (!hasAnyReportFilters(currentFilters) && hasAnyReportFilters(nextFilters)) {
+        // DataDisplay can emit an initial non-empty hydration event.
+        // Ignore that first automatic event and only persist explicit user changes.
+        return
+      }
+    }
+    if (areReportFiltersEqual(currentFilters, nextFilters)) return
     setFiltersByReportType(previous => ({
       ...previous,
       [selectedReportType]: nextFilters
@@ -956,6 +1011,17 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   }
   const handleSortingChange: OnChangeFn<SortingState> = updater => {
     setSorting(previous => (typeof updater === 'function' ? updater(previous) : updater))
+    setCurrentPage(1)
+  }
+  const handleResetFilters = () => {
+    if (!selectedReportType) return
+    didHandleInitialFilterSyncRef.current[selectedReportType] = true
+    setFiltersByReportType(previous => ({
+      ...previous,
+      [selectedReportType]: { ...EMPTY_REPORT_FILTERS }
+    }))
+    setLocalSearchText('')
+    setSearchTerm('')
     setCurrentPage(1)
   }
   const tablePagination = useMemo(
@@ -973,6 +1039,12 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     setPageSize(pagination.pageSize)
     setCurrentPage(1)
   }
+  const dataDisplayStateKey = useMemo(() => {
+    const statusKey = selectedFilters.status.join('|')
+    const employeeKey = selectedFilters.employeeName.join('|')
+    const departmentKey = selectedFilters.departmentName.join('|')
+    return `${selectedReportType || 'unknown'}::${statusKey}::${employeeKey}::${departmentKey}::${searchTerm || ''}`
+  }, [selectedFilters, selectedReportType, searchTerm])
 
   return (
     <div data-testid="backoffice-expense-reports-page-container">
@@ -1061,7 +1133,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
 
             <div>
               <DataDisplay
-                key={`backoffice-reports-datadisplay-${selectedReportType || 'unknown'}`}
+                key={`backoffice-reports-datadisplay-${dataDisplayStateKey}`}
                 titleSections={[
                   {
                     id: 'results',
@@ -1073,7 +1145,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                   }
                 ]}
                 currentSection="results"
-                searchValue={searchTerm}
+                searchValue={localSearchText}
                 searchPlaceholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
                   'Search report data...'
@@ -1087,6 +1159,17 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
                 onSortingChange={handleSortingChange}
                 primaryAction={
                   <div className="gba:flex gba:items-center gba:gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleResetFilters}
+                      className="gba:flex gba:items-center gba:gap-2"
+                      data-testid="backoffice-expense-reports-reset-filters-button"
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:team_expenses_page.dashboard_tab.reset_filters',
+                        'Reset Filters'
+                      )}
+                    </Button>
                     <Button
                       variant="outline"
                       onClick={handleDownload}

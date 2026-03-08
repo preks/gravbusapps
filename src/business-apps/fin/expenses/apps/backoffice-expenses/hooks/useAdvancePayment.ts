@@ -32,6 +32,9 @@ export interface FetchPaymentsOptions {
   advanceMax?: string
   reporter?: string
   currencyRef?: string
+  departmentId?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
 export interface AdvancePaymentsResult {
@@ -93,7 +96,10 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       { expensePlan: { code: { _ilike: searchValue } } },
       { expensePlan: { title: { _ilike: searchValue } } },
       { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
-      { expensePlan: { employee: { lastName: { _ilike: searchValue } } } }
+      { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
+      { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } } },
+      { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } } },
+      { paymentMethod: { _ilike: searchValue } }
     ])
   }
 
@@ -136,8 +142,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         return {
           _or: [
             { expensePlan: { employee: { firstName: { _ilike: partValue } } } },
-            { expensePlan: { employee: { lastName: { _ilike: partValue } } } },
-            { expensePlan: { employee: { displayName: { _ilike: partValue } } } }
+            { expensePlan: { employee: { lastName: { _ilike: partValue } } } }
           ]
         }
       })
@@ -159,14 +164,21 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
     advanceMin?: string,
     advanceMax?: string,
     reporter?: string,
-    currencyRef?: string
+    currencyRef?: string,
+    departmentId?: string,
+    dateFrom?: string,
+    dateTo?: string
   ) => {
     const offset = (page - 1) * pageSize
 
-    // Build conditions array using extracted helpers
+    const hasExplicitStatusFilter = status && status !== 'all' && status !== ''
+    const defaultStatusExclusion = hasExplicitStatusFilter
+      ? [{ status: { _nin: ['CREATED', 'DISCARDED'] } }]
+      : [{ status: { _nin: ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED'] } }]
+
     const conditions: any[] = [
       { isDeleted: { _eq: false } },
-      { status: { _nin: ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED'] } },
+      ...defaultStatusExclusion,
       ...buildStatusCondition(status),
       ...buildSearchCondition(searchTerm),
       ...buildAmountFilterCondition(amountMin, amountMax),
@@ -174,7 +186,6 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       ...buildReporterFilterCondition(reporter)
     ]
 
-    // Add currency filter if provided
     if (currencyRef && currencyRef.trim() !== '') {
       conditions.push({
         expensePlan: {
@@ -183,7 +194,27 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       })
     }
 
-    // Build the where clause
+    if (departmentId && departmentId.trim() !== '') {
+      conditions.push({
+        expensePlan: {
+          employee: {
+            employeePosition: {
+              organizationalUnitId: { _eq: departmentId }
+            }
+          }
+        }
+      })
+    }
+
+    if (dateFrom || dateTo) {
+      const dateConditions: any = {}
+      if (dateFrom) dateConditions._gte = dateFrom
+      if (dateTo) dateConditions._lte = dateTo
+      conditions.push({
+        expensePlan: { startDate: dateConditions }
+      })
+    }
+
     const whereClause = conditions.length > 0 ? { _and: conditions } : {}
 
     return {
@@ -252,7 +283,10 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         advanceMin,
         advanceMax,
         reporter,
-        currencyRef
+        currencyRef,
+        departmentId,
+        dateFrom,
+        dateTo
       } = options
       if (!accessToken) {
         setError(new Error('Access token not found.'))
@@ -260,7 +294,6 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         return
       }
 
-      // Build request key from all parameters
       const requestKey = JSON.stringify({
         searchTerm,
         page,
@@ -272,7 +305,10 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         advanceMax,
         reporter,
         orderBy,
-        currencyRef
+        currencyRef,
+        departmentId,
+        dateFrom,
+        dateTo
       })
 
       // ⚡ DEDUPLICATION: Only block identical requests, not all requests while loading
@@ -299,7 +335,10 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
           advanceMin,
           advanceMax,
           reporter,
-          currencyRef
+          currencyRef,
+          departmentId,
+          dateFrom,
+          dateTo
         )
 
         const data = await client.request(GET_ADVANCE_PAYMENTS, variables)

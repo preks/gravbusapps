@@ -810,7 +810,10 @@ export const useBackofficeExpenseReportData = (
           _or: [
             { code: { _ilike: searchPattern } },
             { title: { _ilike: searchPattern } },
-            { status: { _ilike: searchPattern } }
+            { status: { _ilike: searchPattern } },
+            { employee: { firstName: { _ilike: searchPattern } } },
+            { employee: { lastName: { _ilike: searchPattern } } },
+            { expensePlan: { code: { _ilike: searchPattern } } }
           ]
         })
       }
@@ -851,7 +854,14 @@ export const useBackofficeExpenseReportData = (
       const searchPattern = `%${search.trim()}%`
       const andConditions = buildAndConditions(
         search,
-        [{ code: { _ilike: searchPattern } }, { title: { _ilike: searchPattern } }],
+        [
+          { code: { _ilike: searchPattern } },
+          { title: { _ilike: searchPattern } },
+          { status: { _ilike: searchPattern } },
+          { employee: { firstName: { _ilike: searchPattern } } },
+          { employee: { lastName: { _ilike: searchPattern } } },
+          { expenseRequest: { code: { _ilike: searchPattern } } }
+        ],
         name => ({ employee: { fullName: { _eq: name } } }),
         name => ({ employee: buildDepartmentPredicate(name) }),
         employeeFilters,
@@ -877,8 +887,13 @@ export const useBackofficeExpenseReportData = (
         [
           { code: { _ilike: searchPattern } },
           { description: { _ilike: searchPattern } },
+          { status: { _ilike: searchPattern } },
           { expensePlan: { code: { _ilike: searchPattern } } },
-          { expensePlan: { title: { _ilike: searchPattern } } }
+          { expensePlan: { title: { _ilike: searchPattern } } },
+          { expensePlan: { employee: { firstName: { _ilike: searchPattern } } } },
+          { expensePlan: { employee: { lastName: { _ilike: searchPattern } } } },
+          { paymentMethod: { _ilike: searchPattern } },
+          { costCenter: { name: { _ilike: searchPattern } } }
         ],
         name => ({ expensePlan: { employee: { fullName: { _eq: name } } } }),
         name => ({ expensePlan: { employee: buildDepartmentPredicate(name) } }),
@@ -1325,12 +1340,20 @@ export const useBackofficeExpenseReportData = (
     []
   )
 
+  type ExportFilterOverrides = {
+    searchTerm?: string
+    statusFilters?: string[]
+    employeeFilters?: string[]
+    departmentFilters?: string[]
+  }
+
   const fetchExpenseItemsForExport = useCallback(
-    async (offset: number, limit: number) => {
+    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
+      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
       const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
         limit,
         offset,
-        searchTerm: searchTerm ? `%${searchTerm}%` : '%%',
+        searchTerm: effectiveSearchTerm ? `%${effectiveSearchTerm}%` : '%%',
         orderBy: reportOrderBy
       })
       const employeeIds = (result?.ExpenseItem || [])
@@ -1338,9 +1361,21 @@ export const useBackofficeExpenseReportData = (
         .filter(Boolean)
       const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
       const rows = processExpenseItemsData(result, employeeNameById)
-      const selectedStatuses = Array.isArray(selectedStatusFilters) ? selectedStatusFilters.map(String) : []
-      const selectedEmployees = Array.isArray(selectedEmployeeFilters) ? selectedEmployeeFilters.map(String) : []
-      const selectedDepartments = Array.isArray(selectedDepartmentFilters) ? selectedDepartmentFilters.map(String) : []
+      const selectedStatuses = Array.isArray(overrides?.statusFilters)
+        ? overrides.statusFilters.map(String)
+        : Array.isArray(selectedStatusFilters)
+          ? selectedStatusFilters.map(String)
+          : []
+      const selectedEmployees = Array.isArray(overrides?.employeeFilters)
+        ? overrides.employeeFilters.map(String)
+        : Array.isArray(selectedEmployeeFilters)
+          ? selectedEmployeeFilters.map(String)
+          : []
+      const selectedDepartments = Array.isArray(overrides?.departmentFilters)
+        ? overrides.departmentFilters.map(String)
+        : Array.isArray(selectedDepartmentFilters)
+          ? selectedDepartmentFilters.map(String)
+          : []
       return rows.filter(row => {
         const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(String(row?.status || ''))
         const employeeMatch =
@@ -1362,8 +1397,19 @@ export const useBackofficeExpenseReportData = (
   )
 
   const fetchExpensePlansForExport = useCallback(
-    async (offset: number, limit: number) => {
-      const where = buildExpensePlanWhereForExport(searchTerm, selectedEmployeeFilters, selectedDepartmentFilters)
+    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
+      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
+      const effectiveEmployeeFilters = Array.isArray(overrides?.employeeFilters)
+        ? overrides.employeeFilters
+        : selectedEmployeeFilters
+      const effectiveDepartmentFilters = Array.isArray(overrides?.departmentFilters)
+        ? overrides.departmentFilters
+        : selectedDepartmentFilters
+      const where = buildExpensePlanWhereForExport(
+        effectiveSearchTerm,
+        effectiveEmployeeFilters,
+        effectiveDepartmentFilters
+      )
       const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
         where,
         limit,
@@ -1388,8 +1434,21 @@ export const useBackofficeExpenseReportData = (
   )
 
   const fetchExpenseRequestsForExport = useCallback(
-    async (offset: number, limit: number) => {
-      const where = buildExpenseRequestWhere(searchTerm, [], selectedEmployeeFilters, selectedDepartmentFilters)
+    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
+      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
+      const effectiveStatusFilters = Array.isArray(overrides?.statusFilters) ? overrides.statusFilters : []
+      const effectiveEmployeeFilters = Array.isArray(overrides?.employeeFilters)
+        ? overrides.employeeFilters
+        : selectedEmployeeFilters
+      const effectiveDepartmentFilters = Array.isArray(overrides?.departmentFilters)
+        ? overrides.departmentFilters
+        : selectedDepartmentFilters
+      const where = buildExpenseRequestWhere(
+        effectiveSearchTerm,
+        effectiveStatusFilters,
+        effectiveEmployeeFilters,
+        effectiveDepartmentFilters
+      )
       const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BACKOFFICE, {
         where,
         limit,
@@ -1414,8 +1473,19 @@ export const useBackofficeExpenseReportData = (
   )
 
   const fetchAdvancePaymentsForExport = useCallback(
-    async (offset: number, limit: number) => {
-      const where = buildAdvancePaymentWhereForExport(searchTerm, selectedEmployeeFilters, selectedDepartmentFilters)
+    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
+      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
+      const effectiveEmployeeFilters = Array.isArray(overrides?.employeeFilters)
+        ? overrides.employeeFilters
+        : selectedEmployeeFilters
+      const effectiveDepartmentFilters = Array.isArray(overrides?.departmentFilters)
+        ? overrides.departmentFilters
+        : selectedDepartmentFilters
+      const where = buildAdvancePaymentWhereForExport(
+        effectiveSearchTerm,
+        effectiveEmployeeFilters,
+        effectiveDepartmentFilters
+      )
       const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
         where,
         limit,
@@ -1445,12 +1515,22 @@ export const useBackofficeExpenseReportData = (
   )
 
   const fetchApprovalPayoutCycleForExport = useCallback(
-    async (offset: number, limit: number) => {
+    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
+      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
+      const effectiveStatusFilters = Array.isArray(overrides?.statusFilters)
+        ? overrides.statusFilters
+        : selectedStatusFilters
+      const effectiveEmployeeFilters = Array.isArray(overrides?.employeeFilters)
+        ? overrides.employeeFilters
+        : selectedEmployeeFilters
+      const effectiveDepartmentFilters = Array.isArray(overrides?.departmentFilters)
+        ? overrides.departmentFilters
+        : selectedDepartmentFilters
       const where = buildExpenseRequestWhere(
-        searchTerm,
-        selectedStatusFilters,
-        selectedEmployeeFilters,
-        selectedDepartmentFilters
+        effectiveSearchTerm,
+        effectiveStatusFilters,
+        effectiveEmployeeFilters,
+        effectiveDepartmentFilters
       )
       const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
         where,
@@ -1560,103 +1640,56 @@ export const useBackofficeExpenseReportData = (
   ])
 
   const fetchRawExpenseItemsForFilterOptions = useCallback(
-    async (offset: number, limit: number) => {
-      const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
-        limit,
-        offset,
-        searchTerm: '%%',
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.ExpenseItem || [])
-        .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      return processExpenseItemsData(result, employeeNameById)
-    },
-    [graphqlClient, reportOrderBy, resolveEmployeeNamesByIds]
+    async (offset: number, limit: number) =>
+      fetchExpenseItemsForExport(offset, limit, {
+        searchTerm: '',
+        statusFilters: [],
+        employeeFilters: [],
+        departmentFilters: []
+      }),
+    [fetchExpenseItemsForExport]
   )
 
   const fetchRawExpensePlansForFilterOptions = useCallback(
-    async (offset: number, limit: number) => {
-      const where = buildExpensePlanWhereForExport('', [], [])
-      const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
-        where,
-        limit,
-        offset,
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.ExpensePlan || [])
-        .flatMap((plan: any) => [String(plan?.employeeId || ''), String(plan?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      return processExpensePlansData(result, employeeNameById)
-    },
-    [graphqlClient, buildExpensePlanWhereForExport, reportOrderBy, resolveEmployeeNamesByIds]
+    async (offset: number, limit: number) =>
+      fetchExpensePlansForExport(offset, limit, {
+        searchTerm: '',
+        employeeFilters: [],
+        departmentFilters: []
+      }),
+    [fetchExpensePlansForExport]
   )
 
   const fetchRawExpenseRequestsForFilterOptions = useCallback(
-    async (offset: number, limit: number) => {
-      const where = buildExpenseRequestWhere('', [], [], [])
-      const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BACKOFFICE, {
-        where,
-        limit,
-        offset,
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.ExpenseRequest || [])
-        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      return processExpenseRequestsData(result, employeeNameById)
-    },
-    [graphqlClient, buildExpenseRequestWhere, reportOrderBy, resolveEmployeeNamesByIds]
+    async (offset: number, limit: number) =>
+      fetchExpenseRequestsForExport(offset, limit, {
+        searchTerm: '',
+        statusFilters: [],
+        employeeFilters: [],
+        departmentFilters: []
+      }),
+    [fetchExpenseRequestsForExport]
   )
 
   const fetchRawAdvancePaymentsForFilterOptions = useCallback(
-    async (offset: number, limit: number) => {
-      const where = buildAdvancePaymentWhereForExport('', [], [])
-      const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
-        where,
-        limit,
-        offset,
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.AdvancePayment || [])
-        .flatMap((payment: any) => [
-          String(payment?.expensePlan?.employeeId || ''),
-          String(payment?.createdBy || ''),
-          String(payment?.expensePlan?.createdBy || '')
-        ])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      return (result?.AdvancePayment || []).map((payment: any) => mapAdvancePaymentToReport(payment, employeeNameById))
-    },
-    [
-      graphqlClient,
-      buildAdvancePaymentWhereForExport,
-      reportOrderBy,
-      resolveEmployeeNamesByIds,
-      mapAdvancePaymentToReport
-    ]
+    async (offset: number, limit: number) =>
+      fetchAdvancePaymentsForExport(offset, limit, {
+        searchTerm: '',
+        employeeFilters: [],
+        departmentFilters: []
+      }),
+    [fetchAdvancePaymentsForExport]
   )
 
   const fetchRawApprovalPayoutCycleForFilterOptions = useCallback(
-    async (offset: number, limit: number) => {
-      const where = buildExpenseRequestWhere('', [], [], [])
-      const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
-        where,
-        limit,
-        offset,
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.ExpenseRequest || [])
-        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      const slaPolicy = await loadExpensesSlaPolicy()
-      return processApprovalPayoutCycleData(result, employeeNameById, slaPolicy)
-    },
-    [graphqlClient, buildExpenseRequestWhere, reportOrderBy, resolveEmployeeNamesByIds, loadExpensesSlaPolicy]
+    async (offset: number, limit: number) =>
+      fetchApprovalPayoutCycleForExport(offset, limit, {
+        searchTerm: '',
+        statusFilters: [],
+        employeeFilters: [],
+        departmentFilters: []
+      }),
+    [fetchApprovalPayoutCycleForExport]
   )
 
   const fetchAllForFilterOptions = useCallback(async (): Promise<ReportItem[]> => {

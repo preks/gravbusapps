@@ -75,7 +75,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
     TotalPaymentsAllCountAggregate: AdvancePaymentAggregate(
       where: {
         isDeleted: { _eq: false },
-        status: { _nin: ["CREATED","REJECTED","DISCARDED"] }
+        status: { _nin: ["CREATED","RETURNED","REJECTED","DISCARDED"] }
       }
     ) { aggregate { count } }
 
@@ -221,7 +221,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } }
+          { title: { _ilike: $searchTerm } },
+          { employee: { firstName: { _ilike: $searchTerm } } },
+          { employee: { lastName: { _ilike: $searchTerm } } }
         ],
         _and: [ $reqCurrencyWhere, $reqStatusWhere, $reqDateWhere ]
       }
@@ -233,7 +235,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } }
+          { title: { _ilike: $searchTerm } },
+          { employee: { firstName: { _ilike: $searchTerm } } },
+          { employee: { lastName: { _ilike: $searchTerm } } }
         ],
         _and: [ $reqCurrencyWhere, $reqStatusWhere, $reqDateWhere ]
       }
@@ -258,7 +262,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } }
+          { title: { _ilike: $searchTerm } },
+          { employee: { firstName: { _ilike: $searchTerm } } },
+          { employee: { lastName: { _ilike: $searchTerm } } }
         ],
         _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
@@ -270,7 +276,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } }
+          { title: { _ilike: $searchTerm } },
+          { employee: { firstName: { _ilike: $searchTerm } } },
+          { employee: { lastName: { _ilike: $searchTerm } } }
         ],
         _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
@@ -295,7 +303,12 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
           { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } }
+          { expensePlan: { title: { _ilike: $searchTerm } } },
+          { expensePlan: { employee: { firstName: { _ilike: $searchTerm } } } },
+          { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } },
+          { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: $searchTerm } } } } } },
+          { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: $searchTerm } } } } } },
+          { paymentMethod: { _ilike: $searchTerm } }
         ],
         _and: [ $payCurrencyWhere, $payStatusWhere ]
       }
@@ -309,7 +322,12 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
           { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } }
+          { expensePlan: { title: { _ilike: $searchTerm } } },
+          { expensePlan: { employee: { firstName: { _ilike: $searchTerm } } } },
+          { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } },
+          { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: $searchTerm } } } } } },
+          { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: $searchTerm } } } } } },
+          { paymentMethod: { _ilike: $searchTerm } }
         ],
         _and: [ $payCurrencyWhere, $payStatusWhere ]
       }
@@ -400,7 +418,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_KPI = `
     TotalPaymentsAllCountAggregate: AdvancePaymentAggregate(
       where: {
         isDeleted: { _eq: false },
-        status: { _nin: ["CREATED","REJECTED","DISCARDED"] }
+        status: { _nin: ["CREATED","RETURNED","REJECTED","DISCARDED"] }
       }
     ) { aggregate { count } }
 
@@ -580,7 +598,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } }
+          { title: { _ilike: $searchTerm } },
+          { employee: { firstName: { _ilike: $searchTerm } } },
+          { employee: { lastName: { _ilike: $searchTerm } } }
         ],
         _and: [ $reqCurrencyWhere, $reqStatusWhere, $reqDateWhere ]
       }
@@ -592,7 +612,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } }
+          { title: { _ilike: $searchTerm } },
+          { employee: { firstName: { _ilike: $searchTerm } } },
+          { employee: { lastName: { _ilike: $searchTerm } } }
         ],
         _and: [ $reqCurrencyWhere, $reqStatusWhere, $reqDateWhere ]
       }
@@ -617,7 +639,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } }
+          { title: { _ilike: $searchTerm } },
+          { employee: { firstName: { _ilike: $searchTerm } } },
+          { employee: { lastName: { _ilike: $searchTerm } } }
         ],
         _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
@@ -629,7 +653,9 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
         isDeleted: { _eq: false },
         _or: [
           { code: { _ilike: $searchTerm } },
-          { title: { _ilike: $searchTerm } }
+          { title: { _ilike: $searchTerm } },
+          { employee: { firstName: { _ilike: $searchTerm } } },
+          { employee: { lastName: { _ilike: $searchTerm } } }
         ],
         _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
@@ -654,7 +680,12 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
           { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } }
+          { expensePlan: { title: { _ilike: $searchTerm } } },
+          { expensePlan: { employee: { firstName: { _ilike: $searchTerm } } } },
+          { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } },
+          { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: $searchTerm } } } } } },
+          { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: $searchTerm } } } } } },
+          { paymentMethod: { _ilike: $searchTerm } }
         ],
         _and: [ $payCurrencyWhere, $payStatusWhere ]
       }
@@ -668,7 +699,12 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
           { code: { _ilike: $searchTerm } },
           { description: { _ilike: $searchTerm } },
           { expensePlan: { code: { _ilike: $searchTerm } } },
-          { expensePlan: { title: { _ilike: $searchTerm } } }
+          { expensePlan: { title: { _ilike: $searchTerm } } },
+          { expensePlan: { employee: { firstName: { _ilike: $searchTerm } } } },
+          { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } },
+          { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: $searchTerm } } } } } },
+          { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: $searchTerm } } } } } },
+          { paymentMethod: { _ilike: $searchTerm } }
         ],
         _and: [ $payCurrencyWhere, $payStatusWhere ]
       }

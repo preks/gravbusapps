@@ -4,10 +4,11 @@
  */
 
 import React from 'react'
-import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system'
+import { type KpiCardData } from '@newwork/nw-design-system'
 import { getExpenseIconColor } from '../../utils/colorConstants'
 import { ActualVsPlannedData } from '../../types'
 import { formatCurrency } from '../../utils/currencyUtils'
+import KpiStateCard from './KpiStateCard'
 
 export interface ActualVsPlannedCardProps {
   loading: boolean
@@ -49,30 +50,6 @@ const ActualVsPlannedCard: React.FC<ActualVsPlannedCardProps> = ({ loading, erro
     return { difference, percentDifference, isOverBudget: difference > 0 }
   }
 
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-32"
-        data-testid="actual-vs-planned-loading"
-      >
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="gba:p-4" data-testid="actual-vs-planned-error">
-        <Alert variant="destructive">
-          <div>
-            <h4 className="gba:font-semibold">Actual vs Planned</h4>
-            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
-          </div>
-        </Alert>
-      </div>
-    )
-  }
-
   const { percentDifference, isOverBudget } = calculateDifference()
   const actualAmount = Number(actualVsPlanned.actualExpenses.totalAmount) || 0
   const plannedAmount = Number(actualVsPlanned.plannedExpenses.totalAmount) || 0
@@ -97,9 +74,16 @@ const ActualVsPlannedCard: React.FC<ActualVsPlannedCardProps> = ({ loading, erro
   }
 
   return (
-    <div data-testid="actual-vs-planned-card">
-      <SectionKpiCards cards={[kpiCardData]} data-testid="actual-vs-planned-kpi-cards" />
-    </div>
+    <KpiStateCard
+      loading={loading}
+      error={error}
+      errorTitle="Actual vs Planned"
+      loadingTestId="actual-vs-planned-loading"
+      errorTestId="actual-vs-planned-error"
+      cardTestId="actual-vs-planned-card"
+      kpiTestId="actual-vs-planned-kpi-cards"
+      kpiCardData={kpiCardData}
+    />
   )
 }
 

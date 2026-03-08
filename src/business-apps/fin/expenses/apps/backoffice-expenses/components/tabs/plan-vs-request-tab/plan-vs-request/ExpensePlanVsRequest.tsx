@@ -183,21 +183,23 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
     return []
   }, [selectedPeriod, periodStats])
 
-  // Generate KPI cards
-  const kpiCards = usePlanVsRequestKpiCards({
+  const kpiCardInputs = {
+    selectedPeriod,
+    currentMonth,
+    currentQuarter,
+    currentYear,
+    selectedCurrencyCode,
     totalExpensePlan,
     totalExpenseRequest,
-    overduePlansCount,
     overBudgetCount,
-    loadingOverduePlans,
+    overduePlansCount,
     loadingCategoryStats,
-    selectedPeriod,
-    currentYear,
-    currentQuarter,
-    currentMonth,
-    selectedCurrencyCode,
+    loadingOverduePlans,
     formatCurrency
-  })
+  }
+
+  // Generate KPI cards
+  const kpiCards = usePlanVsRequestKpiCards(kpiCardInputs)
 
   if (isLoading && !hasLoadedOnce) {
     return (
@@ -230,28 +232,36 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
       </div>
 
       <div
-        className="gba:text-sm gba:text-muted-foreground gba:bg-muted gba:p-3 gba:rounded-md gba:border gba:border-border"
+        className="gba:text-sm gba:text-muted-foreground gba:bg-muted gba:p-3 gba:rounded-md gba:border gba:border-border gba:space-y-1"
         data-testid="plan-vs-request-active-filters"
       >
-        <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:
-        </span>{' '}
-        {selectedPeriod}
-        {' · '}
-        <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')}:
-        </span>{' '}
-        {selectedCurrencyCode}
-        {' · '}
-        <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')}:
-        </span>{' '}
-        {selectedDepartmentName}
-        {' · '}
-        <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.last_updated', 'Last updated')}:
-        </span>{' '}
-        {dayjs().format('YYYY-MM-DD HH:mm')}
+        <div>
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:
+          </span>{' '}
+          {selectedPeriod}
+          {' · '}
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')}:
+          </span>{' '}
+          {selectedCurrencyCode}
+          {' · '}
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')}:
+          </span>{' '}
+          {selectedDepartmentName}
+          {' · '}
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.last_updated', 'Last updated')}:
+          </span>{' '}
+          {dayjs().format('YYYY-MM-DD HH:mm')}
+        </div>
+        <div className="gba:text-xs gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:plan_vs_request.data_scope_note',
+            'Data scope: Planned amounts include all active plans (excludes drafts, rejected, discarded). Actual amounts include approved, verified, booked, and paid expense items.'
+          )}
+        </div>
       </div>
 
       <PlanVsRequestChart chartData={chartData} selectedCurrencyCode={selectedCurrencyCode} />

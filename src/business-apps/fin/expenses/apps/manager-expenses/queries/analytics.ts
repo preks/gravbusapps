@@ -134,6 +134,7 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
         _and: [
           $reqCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { isDeleted: { _eq: false } },
           { _or: [
             { _and: [
@@ -179,6 +180,7 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
         _and: [
           $planCurrencyWhere,
           { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { isDeleted: { _eq: false } },
           { _or: [
             { _and: [
@@ -228,6 +230,7 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
           { expensePlan: {
             employee: { employeePosition: { supervisorEmployeeId: {_eq: $managerId} } }
           }},
+          { status: { _in: ["PAID", "CLOSED"] } },
           { isDeleted: {_eq: false} },
           { _or: [
             { expensePlan: { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" }, expensePlanItem: { expenseDate: { _gte: $startDateTs, _lte: $endDateTs } } } },

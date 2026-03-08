@@ -12,7 +12,7 @@ query GetAdvancePayments($where: AdvancePaymentBoolExp, $limit: Int!, $offset: I
   advancePaymentStats: AdvancePaymentAggregate(
     where: {
       isDeleted: { _eq: false },
-      status: { _nin: ["CREATED", "PREPARED", "RETURNED", "REJECTED", "DISCARDED"] }
+      status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] }
     }
   ) {
     aggregate {
@@ -148,8 +148,7 @@ export const GET_ADVANCE_PAYMENT_REPORTERS = `
           {
             _or: [
               { expensePlan: { employee: { firstName: { _ilike: $searchTerm } } } },
-              { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } },
-              { expensePlan: { employee: { displayName: { _ilike: $searchTerm } } } }
+              { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } }
             ]
           }
         ]

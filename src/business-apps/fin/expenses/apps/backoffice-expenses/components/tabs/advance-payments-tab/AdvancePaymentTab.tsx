@@ -3,22 +3,20 @@
  * Delegates table functionality to AdvancePaymentsTable and manages statistics
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { Alert } from '@newwork/nw-design-system'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import React, { useMemo, useCallback } from 'react'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
+import type { BackofficeTabProps } from '../common/backofficeTabProps'
+import BackofficeTabHeaderAlert from '../common/BackofficeTabHeaderAlert'
+import useBackofficeTabSearch from '../common/useBackofficeTabSearch'
+import useBackofficeContentHeader from '../common/useBackofficeContentHeader'
 
-interface AdvancePaymentTabProps extends BusinessAppContextProps {
-  onContentHeaderChange?: (header: React.ReactNode) => void
-  isActive?: boolean // ⚡ PERFORMANCE: Only fetch data when tab is active
-}
+type AdvancePaymentTabProps = BackofficeTabProps
 
-const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = props => {
-  const { onContentHeaderChange, isActive = true } = props
+function AdvancePaymentTab(props: AdvancePaymentTabProps) {
+  const { isActive = true, onContentHeaderChange } = props
 
-  // Search term state for synchronization with table
-  const [searchTerm, setSearchTerm] = useState<string>('')
+  const { searchTerm, handleSearchChange } = useBackofficeTabSearch()
 
   // Extract only the necessary props for statistics display
   const contextProps = {
@@ -42,27 +40,19 @@ const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = props => {
     return 'Total Amount: $0'
   }, [isLoading, advancePaymentStats?.totalAmount])
 
-  // Create statistics header and pass to parent via onContentHeaderChange
-  useEffect(() => {
-    if (onContentHeaderChange) {
-      const header = (
-        <div className="gba:mb-4" data-testid="advance-payment-stats-header">
-          <Alert variant="default" data-testid="advance-payment-stats-alert">
-            <div>
-              <h4 className="gba:font-semibold">{totalCount || 0} Advance Payments</h4>
-              <p className="gba:text-sm gba:mt-1">{getTotalAmountText()}</p>
-            </div>
-          </Alert>
-        </div>
-      )
-      onContentHeaderChange(header)
-    }
-  }, [onContentHeaderChange, totalCount, getTotalAmountText])
+  const statsHeader = useMemo(
+    () => (
+      <BackofficeTabHeaderAlert
+        wrapperTestId="advance-payment-stats-header"
+        alertTestId="advance-payment-stats-alert"
+        title={`${totalCount || 0} Advance Payments`}
+        description={getTotalAmountText()}
+      />
+    ),
+    [totalCount, getTotalAmountText]
+  )
 
-  // Handle search changes from the table
-  const handleSearchChange = useCallback((search: string) => {
-    setSearchTerm(search)
-  }, [])
+  useBackofficeContentHeader(onContentHeaderChange, statsHeader)
 
   return (
     <AdvancePaymentsTable

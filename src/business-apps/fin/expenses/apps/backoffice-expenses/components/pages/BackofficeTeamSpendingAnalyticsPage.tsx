@@ -37,6 +37,9 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
   const { primaryCurrency } = useCurrencyStore()
   const [activeTab, setActiveTab] = React.useState<string>('expense-items')
   const [currencyFilter, setCurrencyFilter] = useState<string | null>(primaryCurrency || null)
+  const [isChartTabReady, setIsChartTabReady] = useState(false)
+  const analyticsContentRef = React.useRef<HTMLDivElement | null>(null)
+  const [hasAnalyticsContentSpace, setHasAnalyticsContentSpace] = useState(false)
 
   const standardizedCurrencyRef = useMemo(() => {
     return currencyFilter ? standardizeCurrencyRef(currencyFilter) : null
@@ -70,11 +73,22 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
     setDepartmentSearchTerm,
     availableCurrencies
   } = useBackofficeTeamSpendingAnalytics(accessToken, standardizedCurrencyRef, dashboardDepartmentOptions)
+  const normalizedLocationSearchTerm = searchTerm ?? ''
+  const normalizedDepartmentSearchTerm = departmentSearchTerm ?? ''
+
+  const handleLocationSearchChange = (value: string) => {
+    setSearchTerm(value ?? '')
+  }
+
+  const handleDepartmentSearchChange = (value: string) => {
+    setDepartmentSearchTerm(value ?? '')
+  }
 
   // Use the same currency source as dashboard to keep behavior consistent.
   const currencyOptions = React.useMemo(() => {
-    const fromDashboard = dashboardCurrencies.map(currency => currency.code).filter(Boolean)
-    return fromDashboard.length > 0 ? fromDashboard : availableCurrencies
+    const fromDashboard = Array.from(new Set(dashboardCurrencies.map(currency => currency.code).filter(Boolean)))
+    const fallback = Array.from(new Set((availableCurrencies || []).filter(Boolean)))
+    return fromDashboard.length > 0 ? fromDashboard : fallback
   }, [dashboardCurrencies, availableCurrencies])
 
   useEffect(() => {
@@ -84,28 +98,69 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
     }
   }, [currencyOptions, currencyFilter, isLoading])
 
+  useEffect(() => {
+    if (isLoading) {
+      setIsChartTabReady(false)
+      return
+    }
+    setIsChartTabReady(false)
+    let frameB: number | null = null
+    const frameA = globalThis.requestAnimationFrame(() => {
+      frameB = globalThis.requestAnimationFrame(() => setIsChartTabReady(true))
+    })
+    return () => {
+      globalThis.cancelAnimationFrame(frameA)
+      if (frameB !== null) {
+        globalThis.cancelAnimationFrame(frameB)
+      }
+    }
+  }, [activeTab, isLoading, dateRange, currencyFilter, normalizedLocationSearchTerm, normalizedDepartmentSearchTerm])
+
+  useEffect(() => {
+    const contentWrapper = analyticsContentRef.current
+    if (!contentWrapper) return
+
+    const syncContentSpace = () => {
+      setHasAnalyticsContentSpace(contentWrapper.clientWidth > 0 && contentWrapper.clientHeight > 0)
+    }
+
+    syncContentSpace()
+    const observer = new ResizeObserver(syncContentSpace)
+    observer.observe(contentWrapper)
+
+    return () => observer.disconnect()
+  }, [])
+
   const expenseItemsByCategoryWithNames = useMemo(() => {
     if (!data?.expenseItemsByCategory) return []
-    return data.expenseItemsByCategory as any
+    const aggregatedByCategory = new Map<string, number>()
+    ;(data.expenseItemsByCategory as Array<{ name?: string; value?: number }>).forEach(entry => {
+      const key = entry.name || getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+      const amount = Number(entry.value ?? 0)
+      aggregatedByCategory.set(key, (aggregatedByCategory.get(key) || 0) + amount)
+    })
+    return Array.from(aggregatedByCategory.entries()).map(([name, value]) => ({ name, value }))
   }, [data?.expenseItemsByCategory])
 
   const handleDateRangeChange = (value: string) => {
     setDateRange(value as DateRangeOption)
   }
 
-  const travelByDestinationPointChartData = useMemo(
-    () =>
-      (data?.travelByDestinationPoint || []).map(entry => ({
-        name: entry.location,
-        value: entry.amount
-      })),
-    [data?.travelByDestinationPoint]
-  )
+  const travelByDestinationPointChartData = useMemo(() => {
+    const aggregatedByLocation = new Map<string, number>()
+    ;(data?.travelByDestinationPoint || []).forEach(entry => {
+      const key = entry.location || getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+      aggregatedByLocation.set(key, (aggregatedByLocation.get(key) || 0) + Number(entry.amount ?? 0))
+    })
+    return Array.from(aggregatedByLocation.entries()).map(([name, value]) => ({ name, value }))
+  }, [data?.travelByDestinationPoint])
 
   const kpiCurrencyCode = (currencyFilter || primaryCurrency || 'EUR').split(':').pop() || 'EUR'
   const formatKpiAmount = (amount: number | null | undefined): string => {
     return formatCurrency(Number(amount ?? 0), kpiCurrencyCode, 2)
   }
+
+  const hiddenTrendPlaceholder = { hideBadge: true, value: '', description: '\u200B' } as const
 
   const widgets: WidgetItem[] = [
     {
@@ -117,10 +172,11 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
       value: formatKpiAmount(data?.totalExpenseAmount),
       color: 'var(--nw-primary)',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
+      footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions',
         'Individual expense transactions'
-      )
+      ),
+      trend: hiddenTrendPlaceholder
     },
     {
       key: 'total-expense-requests',
@@ -131,10 +187,11 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
       value: formatKpiAmount(data?.totalRequestAmount),
       color: 'var(--nw-success)',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
+      footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.submitted_expense_requests',
         'Submitted expense requests'
-      )
+      ),
+      trend: hiddenTrendPlaceholder
     },
     {
       key: 'total-expense-plans',
@@ -145,10 +202,11 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
       value: formatKpiAmount(data?.totalPlanAmount),
       color: 'var(--nw-accent)',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
+      footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.planned_expense_budgets',
         'Planned expense budgets'
-      )
+      ),
+      trend: hiddenTrendPlaceholder
     },
     {
       key: 'total-advance-payments',
@@ -159,10 +217,11 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
       value: formatKpiAmount(data?.totalAdvanceAmount),
       color: 'var(--nw-warning)',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
+      footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.dashboard_tab.advance_payments_to_employees',
         'Advance payments to employees'
-      )
+      ),
+      trend: hiddenTrendPlaceholder
     }
   ]
 
@@ -223,19 +282,116 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
     </Card>
   )
 
-  const renderExpenseItemsTab = () => (
+  type AnalyticsChartCardConfig = {
+    cardTestId: string
+    titleKey: string
+    titleFallback: string
+    content: React.ReactNode
+    headerClassName?: string
+  }
+
+  const renderAnalyticsChartCard = ({
+    cardTestId,
+    titleKey,
+    titleFallback,
+    content,
+    headerClassName
+  }: AnalyticsChartCardConfig) => (
+    <Card data-testid={cardTestId}>
+      <CardHeader className={headerClassName}>
+        <CardTitle>{getTranslationFromI18nKeyAndLabel(titleKey, titleFallback)}</CardTitle>
+      </CardHeader>
+      <CardContent>{content}</CardContent>
+    </Card>
+  )
+  const pieChartColors = ['var(--nw-chart-1)', 'var(--nw-chart-2)', 'var(--nw-chart-3)', 'var(--nw-chart-4)']
+
+  const buildPieChartCardConfig = (config: {
+    cardTestId: string
+    titleKey: string
+    titleFallback: string
+    data: any[]
+    dataTestId: string
+    headerClassName?: string
+  }): AnalyticsChartCardConfig => ({
+    cardTestId: config.cardTestId,
+    titleKey: config.titleKey,
+    titleFallback: config.titleFallback,
+    headerClassName: config.headerClassName,
+    content: (
+      <PieChartComponent
+        data={config.data}
+        title=""
+        currency={currencyFilter || primaryCurrency}
+        colors={pieChartColors}
+        dataTestId={config.dataTestId}
+      />
+    )
+  })
+
+  type AnalyticsSummaryCardConfig = {
+    cardTestId: string
+    countTestId: string
+    amountTestId: string
+    totalCount: number
+    totalAmount: number
+    countLabelKey: string
+    countLabelFallback: string
+    amountClassName?: string
+  }
+
+  const renderAnalyticsGridTab = (config: {
+    columnsClassName: string
+    chartCards: AnalyticsChartCardConfig[]
+    summaryCard: AnalyticsSummaryCardConfig
+  }) => (
     <div className="gba:flex gba:flex-col gba:gap-6">
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-        <Card data-testid="backoffice-analytics-expense-items-monthly-chart-card">
-          <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_items',
-                'Monthly Expense Items'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      <div className={`gba:grid gba:grid-cols-1 ${config.columnsClassName} gba:gap-6`}>
+        {config.chartCards.map(chartCard => (
+          <React.Fragment key={chartCard.cardTestId}>{renderAnalyticsChartCard(chartCard)}</React.Fragment>
+        ))}
+        {renderSummaryStatisticsCard(config.summaryCard)}
+      </div>
+    </div>
+  )
+
+  const buildStatusSummaryCard = (config: {
+    idPrefix: string
+    statuses: Array<{ count: number }>
+    totalAmount: number
+    countLabelKey: string
+    countLabelFallback: string
+    amountClassName: string
+  }): AnalyticsSummaryCardConfig => ({
+    cardTestId: `backoffice-analytics-${config.idPrefix}-summary-card`,
+    countTestId: `backoffice-analytics-${config.idPrefix}-total-count`,
+    amountTestId: `backoffice-analytics-${config.idPrefix}-total-amount`,
+    totalCount: config.statuses.reduce((sum, item) => sum + item.count, 0),
+    totalAmount: config.totalAmount,
+    countLabelKey: config.countLabelKey,
+    countLabelFallback: config.countLabelFallback,
+    amountClassName: config.amountClassName
+  })
+
+  const renderSingleLineSummaryTab = (config: {
+    chartCard: AnalyticsChartCardConfig
+    summaryCard: AnalyticsSummaryCardConfig
+  }) =>
+    renderAnalyticsGridTab({
+      columnsClassName: 'lg:gba:grid-cols-2',
+      chartCards: [config.chartCard],
+      summaryCard: config.summaryCard
+    })
+
+  const renderExpenseItemsTab = () =>
+    renderAnalyticsGridTab({
+      columnsClassName: 'lg:gba:grid-cols-2',
+      chartCards: [
+        {
+          cardTestId: 'backoffice-analytics-expense-items-monthly-chart-card',
+          titleKey: 'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_items',
+          titleFallback: 'Monthly Expense Items',
+          content: (
             <LineChartComponent
               data={data?.expenseItemsByMonth || []}
               title=""
@@ -243,56 +399,38 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
               currency={currencyFilter || primaryCurrency}
               dataTestId="backoffice-analytics-expense-items-monthly-chart"
             />
-          </CardContent>
-        </Card>
+          )
+        },
+        {
+          ...buildPieChartCardConfig({
+            cardTestId: 'backoffice-analytics-expense-items-category-chart-card',
+            titleKey: 'lowcoder:team_expenses_page.dashboard_tab.expense_items_by_category',
+            titleFallback: 'Expense Items by Category',
+            data: expenseItemsByCategoryWithNames,
+            dataTestId: 'backoffice-analytics-expense-items-category-chart'
+          })
+        }
+      ],
+      summaryCard: buildStatusSummaryCard({
+        idPrefix: 'expense-items',
+        statuses: data?.expenseItemsByStatus || [],
+        totalAmount: data?.totalExpenseAmount,
+        countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
+        countLabelFallback: 'Total Items',
+        amountClassName: 'gba:text-2xl gba:font-bold gba:text-primary'
+      })
+    })
 
-        <Card data-testid="backoffice-analytics-expense-items-category-chart-card">
-          <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_items_by_category',
-                'Expense Items by Category'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PieChartComponent
-              data={expenseItemsByCategoryWithNames}
-              title=""
-              currency={currencyFilter || primaryCurrency}
-              colors={['var(--nw-chart-1)', 'var(--nw-chart-2)', 'var(--nw-chart-3)', 'var(--nw-chart-4)']}
-              dataTestId="backoffice-analytics-expense-items-category-chart"
-            />
-          </CardContent>
-        </Card>
-
-        {renderSummaryStatisticsCard({
-          cardTestId: 'backoffice-analytics-expense-items-summary-card',
-          countTestId: 'backoffice-analytics-expense-items-total-count',
-          amountTestId: 'backoffice-analytics-expense-items-total-amount',
-          totalCount: data?.expenseItemsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
-          totalAmount: data?.totalExpenseAmount,
-          countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
-          countLabelFallback: 'Total Items',
-          amountClassName: 'gba:text-2xl gba:font-bold gba:text-primary'
-        })}
-      </div>
-    </div>
-  )
-
-  const renderExpenseRequestsTab = () => (
-    <div className="gba:flex gba:flex-col gba:gap-6">
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-3 gba:gap-6">
-        <Card data-testid="backoffice-analytics-expense-requests-monthly-chart-card">
-          <CardHeader className="gba:bg-muted">
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_requests',
-                'Monthly Expense Requests'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+  const renderExpenseRequestsTab = () =>
+    renderAnalyticsGridTab({
+      columnsClassName: 'lg:gba:grid-cols-3',
+      chartCards: [
+        {
+          cardTestId: 'backoffice-analytics-expense-requests-monthly-chart-card',
+          titleKey: 'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_requests',
+          titleFallback: 'Monthly Expense Requests',
+          headerClassName: 'gba:bg-muted',
+          content: (
             <LineChartComponent
               data={data?.expenseRequestsByMonth || []}
               title=""
@@ -300,116 +438,80 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
               currency={currencyFilter || primaryCurrency}
               dataTestId="backoffice-analytics-expense-requests-monthly-chart"
             />
-          </CardContent>
-        </Card>
+          )
+        },
+        {
+          ...buildPieChartCardConfig({
+            cardTestId: 'backoffice-analytics-expense-requests-by-destination-point-chart-card',
+            titleKey: 'lowcoder:team_expenses_page.dashboard_tab.destination_spend_distribution',
+            titleFallback: 'Destination Spend Distribution',
+            data: travelByDestinationPointChartData,
+            dataTestId: 'backoffice-analytics-expense-requests-destination-point-chart',
+            headerClassName: 'gba:bg-muted'
+          })
+        }
+      ],
+      summaryCard: buildStatusSummaryCard({
+        idPrefix: 'expense-requests',
+        statuses: data?.expenseRequestsByStatus || [],
+        totalAmount: data?.totalRequestAmount,
+        countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
+        countLabelFallback: 'Total Requests',
+        amountClassName: 'gba:text-2xl gba:font-bold gba:text-success'
+      })
+    })
 
-        <Card data-testid="backoffice-analytics-expense-requests-by-destination-point-chart-card">
-          <CardHeader className="gba:bg-muted">
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.destination_spend_distribution',
-                'Destination Spend Distribution'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PieChartComponent
-              data={travelByDestinationPointChartData}
-              title=""
-              currency={currencyFilter || primaryCurrency}
-              colors={['var(--nw-chart-1)', 'var(--nw-chart-2)', 'var(--nw-chart-3)', 'var(--nw-chart-4)']}
-              dataTestId="backoffice-analytics-expense-requests-destination-point-chart"
-            />
-          </CardContent>
-        </Card>
+  const renderExpensePlansTab = () =>
+    renderSingleLineSummaryTab({
+      chartCard: {
+        cardTestId: 'backoffice-analytics-expense-plans-monthly-chart-card',
+        titleKey: 'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_plans',
+        titleFallback: 'Monthly Expense Plans',
+        content: (
+          <LineChartComponent
+            data={data?.expensePlansByMonth || []}
+            title=""
+            lineColor="var(--nw-chart-3)"
+            currency={currencyFilter || primaryCurrency}
+            dataTestId="backoffice-analytics-expense-plans-monthly-chart"
+          />
+        )
+      },
+      summaryCard: buildStatusSummaryCard({
+        idPrefix: 'expense-plans',
+        statuses: data?.expensePlansByStatus || [],
+        totalAmount: data?.totalPlanAmount,
+        countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
+        countLabelFallback: 'Total Plans',
+        amountClassName: 'gba:text-2xl gba:font-bold gba:text-warning'
+      })
+    })
 
-        {renderSummaryStatisticsCard({
-          cardTestId: 'backoffice-analytics-expense-requests-summary-card',
-          countTestId: 'backoffice-analytics-expense-requests-total-count',
-          amountTestId: 'backoffice-analytics-expense-requests-total-amount',
-          totalCount: data?.expenseRequestsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
-          totalAmount: data?.totalRequestAmount,
-          countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
-          countLabelFallback: 'Total Requests',
-          amountClassName: 'gba:text-2xl gba:font-bold gba:text-success'
-        })}
-      </div>
-    </div>
-  )
-
-  const renderExpensePlansTab = () => (
-    <div className="gba:flex gba:flex-col gba:gap-6">
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-        <Card data-testid="backoffice-analytics-expense-plans-monthly-chart-card">
-          <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_plans',
-                'Monthly Expense Plans'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LineChartComponent
-              data={data?.expensePlansByMonth || []}
-              title=""
-              lineColor="var(--nw-chart-3)"
-              currency={currencyFilter || primaryCurrency}
-              dataTestId="backoffice-analytics-expense-plans-monthly-chart"
-            />
-          </CardContent>
-        </Card>
-
-        {renderSummaryStatisticsCard({
-          cardTestId: 'backoffice-analytics-expense-plans-summary-card',
-          countTestId: 'backoffice-analytics-expense-plans-total-count',
-          amountTestId: 'backoffice-analytics-expense-plans-total-amount',
-          totalCount: data?.expensePlansByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
-          totalAmount: data?.totalPlanAmount,
-          countLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
-          countLabelFallback: 'Total Plans',
-          amountClassName: 'gba:text-2xl gba:font-bold gba:text-warning'
-        })}
-      </div>
-    </div>
-  )
-
-  const renderAdvancePaymentsTab = () => (
-    <div className="gba:flex gba:flex-col gba:gap-6">
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-        <Card data-testid="backoffice-analytics-advance-payments-monthly-chart-card">
-          <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.monthly_advance_payments',
-                'Monthly Advance Payments'
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LineChartComponent
-              data={data?.advancePaymentsByMonth || []}
-              title=""
-              lineColor="var(--nw-chart-5)"
-              currency={currencyFilter || primaryCurrency}
-              dataTestId="backoffice-analytics-advance-payments-monthly-chart"
-            />
-          </CardContent>
-        </Card>
-
-        {renderSummaryStatisticsCard({
-          cardTestId: 'backoffice-analytics-advance-payments-summary-card',
-          countTestId: 'backoffice-analytics-advance-payments-total-count',
-          amountTestId: 'backoffice-analytics-advance-payments-total-amount',
-          totalCount: data?.advancePaymentsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0,
-          totalAmount: data?.totalAdvanceAmount,
-          countLabelKey: 'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
-          countLabelFallback: 'Total Payments',
-          amountClassName: 'gba:text-2xl gba:font-bold gba:text-info'
-        })}
-      </div>
-    </div>
-  )
+  const renderAdvancePaymentsTab = () =>
+    renderSingleLineSummaryTab({
+      chartCard: {
+        cardTestId: 'backoffice-analytics-advance-payments-monthly-chart-card',
+        titleKey: 'lowcoder:team_expenses_page.dashboard_tab.monthly_advance_payments',
+        titleFallback: 'Monthly Advance Payments',
+        content: (
+          <LineChartComponent
+            data={data?.advancePaymentsByMonth || []}
+            title=""
+            lineColor="var(--nw-chart-5)"
+            currency={currencyFilter || primaryCurrency}
+            dataTestId="backoffice-analytics-advance-payments-monthly-chart"
+          />
+        )
+      },
+      summaryCard: buildStatusSummaryCard({
+        idPrefix: 'advance-payments',
+        statuses: data?.advancePaymentsByStatus || [],
+        totalAmount: data?.totalAdvanceAmount,
+        countLabelKey: 'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
+        countLabelFallback: 'Total Payments',
+        amountClassName: 'gba:text-2xl gba:font-bold gba:text-info'
+      })
+    })
 
   type FilterChecklistConfig = {
     label: string
@@ -424,6 +526,11 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
     checkboxTestPrefix: string
     onToggle: (id: string) => void
   }
+  type FilterChecklistSearchFields = Pick<
+    FilterChecklistConfig,
+    'searchValue' | 'onSearchChange' | 'searchInputTestId' | 'listTestId' | 'emptyTestId'
+  >
+  type FilterChecklistRowsConfig = Pick<FilterChecklistConfig, 'rows' | 'checkboxTestPrefix' | 'onToggle'>
 
   const renderFilterChecklist = ({
     label,
@@ -451,22 +558,25 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
         />
       </div>
       <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2" data-testid={listTestId}>
-        {rows.map(row => (
-          <div
-            key={row.id}
-            className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors"
-          >
-            <Checkbox
-              id={row.id}
-              checked={row.selected}
-              onCheckedChange={() => onToggle(row.id)}
-              data-testid={`${checkboxTestPrefix}${row.id}`}
-            />
-            <Label htmlFor={row.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">
-              {row.name}
-            </Label>
-          </div>
-        ))}
+        {rows.map((row, index) => {
+          const rowDomId = `${checkboxTestPrefix}${row.id}-${index}`
+          return (
+            <div
+              key={`${row.id}-${index}`}
+              className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors"
+            >
+              <Checkbox
+                id={rowDomId}
+                checked={row.selected}
+                onCheckedChange={() => onToggle(row.id)}
+                data-testid={`${checkboxTestPrefix}${row.id}`}
+              />
+              <Label htmlFor={rowDomId} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">
+                {row.name}
+              </Label>
+            </div>
+          )
+        })}
         {rows.length === 0 && (
           <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2" data-testid={emptyTestId}>
             {emptyLabel}
@@ -475,6 +585,57 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
       </div>
     </div>
   )
+  const renderTranslatedFilterChecklist = (
+    config: {
+      labelKey: string
+      labelFallback: string
+      searchPlaceholderKey: string
+      searchPlaceholderFallback: string
+      emptyLabelKey: string
+      emptyLabelFallback: string
+    } & FilterChecklistSearchFields &
+      FilterChecklistRowsConfig
+  ) =>
+    renderFilterChecklist({
+      label: getTranslationFromI18nKeyAndLabel(config.labelKey, config.labelFallback),
+      searchPlaceholder: getTranslationFromI18nKeyAndLabel(
+        config.searchPlaceholderKey,
+        config.searchPlaceholderFallback
+      ),
+      searchValue: config.searchValue,
+      onSearchChange: config.onSearchChange,
+      searchInputTestId: config.searchInputTestId,
+      listTestId: config.listTestId,
+      emptyTestId: config.emptyTestId,
+      emptyLabel: getTranslationFromI18nKeyAndLabel(config.emptyLabelKey, config.emptyLabelFallback),
+      rows: config.rows,
+      checkboxTestPrefix: config.checkboxTestPrefix,
+      onToggle: config.onToggle
+    })
+
+  const dateRangeOptions = [
+    {
+      value: DateRangeOption.LAST_30_DAYS,
+      id: 'backoffice-last-30-days',
+      testId: 'backoffice-analytics-date-range-30-days',
+      labelKey: 'lowcoder:team_expenses_page.dashboard_tab.last_30_days',
+      fallback: 'Last 30 Days'
+    },
+    {
+      value: DateRangeOption.LAST_90_DAYS,
+      id: 'backoffice-last-90-days',
+      testId: 'backoffice-analytics-date-range-90-days',
+      labelKey: 'lowcoder:team_expenses_page.dashboard_tab.last_90_days',
+      fallback: 'Last 90 Days'
+    },
+    {
+      value: DateRangeOption.CURRENT_YEAR,
+      id: 'backoffice-current-year',
+      testId: 'backoffice-analytics-date-range-current-year',
+      labelKey: 'lowcoder:team_expenses_page.dashboard_tab.current_year',
+      fallback: 'Current Year'
+    }
+  ]
 
   const renderFilters = () => (
     <Card className="gba:sticky gba:top-6" data-testid="backoffice-analytics-filters-card">
@@ -497,68 +658,31 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
             className="gba:space-y-3"
             data-testid="backoffice-analytics-date-range-filter"
           >
-            <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
-              <RadioGroupItem
-                value={DateRangeOption.LAST_30_DAYS}
-                id="backoffice-last-30-days"
-                data-testid="backoffice-analytics-date-range-30-days"
-              />
-              <Label htmlFor="backoffice-last-30-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.last_30_days',
-                  'Last 30 Days'
-                )}
-              </Label>
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
-              <RadioGroupItem
-                value={DateRangeOption.LAST_90_DAYS}
-                id="backoffice-last-90-days"
-                data-testid="backoffice-analytics-date-range-90-days"
-              />
-              <Label htmlFor="backoffice-last-90-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.last_90_days',
-                  'Last 90 Days'
-                )}
-              </Label>
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
-              <RadioGroupItem
-                value={DateRangeOption.CURRENT_YEAR}
-                id="backoffice-current-year"
-                data-testid="backoffice-analytics-date-range-current-year"
-              />
-              <Label htmlFor="backoffice-current-year" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.current_year',
-                  'Current Year'
-                )}
-              </Label>
-            </div>
+            {dateRangeOptions.map(option => (
+              <div key={option.value} className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
+                <RadioGroupItem value={option.value} id={option.id} data-testid={option.testId} />
+                <Label htmlFor={option.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">
+                  {getTranslationFromI18nKeyAndLabel(option.labelKey, option.fallback)}
+                </Label>
+              </div>
+            ))}
           </RadioGroup>
         </div>
 
         <Separator className="gba:my-6" />
 
-        {renderFilterChecklist({
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.location_filters',
-            'Location Filters'
-          ),
-          searchPlaceholder: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.search_locations',
-            'Search locations...'
-          ),
-          searchValue: searchTerm,
-          onSearchChange: val => setSearchTerm(val),
+        {renderTranslatedFilterChecklist({
+          labelKey: 'lowcoder:team_expenses_page.dashboard_tab.location_filters',
+          labelFallback: 'Location Filters',
+          searchPlaceholderKey: 'lowcoder:team_expenses_page.dashboard_tab.search_locations',
+          searchPlaceholderFallback: 'Search locations...',
+          searchValue: normalizedLocationSearchTerm,
+          onSearchChange: handleLocationSearchChange,
           searchInputTestId: 'backoffice-analytics-location-search-input',
           listTestId: 'backoffice-analytics-location-filters-list',
           emptyTestId: 'backoffice-analytics-location-filters-empty',
-          emptyLabel: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.no_locations_available',
-            'No locations available'
-          ),
+          emptyLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.no_locations_available',
+          emptyLabelFallback: 'No locations available',
           rows: locationFilters,
           checkboxTestPrefix: 'backoffice-analytics-location-checkbox-',
           onToggle: toggleLocationFilter
@@ -586,24 +710,18 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
 
         <Separator className="gba:my-6" />
 
-        {renderFilterChecklist({
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.department_filters',
-            'Department Filters'
-          ),
-          searchPlaceholder: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.search_departments',
-            'Search departments...'
-          ),
-          searchValue: departmentSearchTerm,
-          onSearchChange: val => setDepartmentSearchTerm(val),
+        {renderTranslatedFilterChecklist({
+          labelKey: 'lowcoder:team_expenses_page.dashboard_tab.department_filters',
+          labelFallback: 'Department Filters',
+          searchPlaceholderKey: 'lowcoder:team_expenses_page.dashboard_tab.search_departments',
+          searchPlaceholderFallback: 'Search departments...',
+          searchValue: normalizedDepartmentSearchTerm,
+          onSearchChange: handleDepartmentSearchChange,
           searchInputTestId: 'backoffice-analytics-department-search-input',
           listTestId: 'backoffice-analytics-department-filters-list',
           emptyTestId: 'backoffice-analytics-department-filters-empty',
-          emptyLabel: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.no_departments_found',
-            'No departments found'
-          ),
+          emptyLabelKey: 'lowcoder:team_expenses_page.dashboard_tab.no_departments_found',
+          emptyLabelFallback: 'No departments found',
           rows: departmentFilters,
           checkboxTestPrefix: 'backoffice-analytics-department-checkbox-',
           onToggle: toggleDepartmentFilter
@@ -651,6 +769,26 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
       render: renderAdvancePaymentsTab
     }
   ]
+  const activeTabDefinition = tabDefinitions.find(tab => tab.value === activeTab)
+  const renderTabContent = (tabValue: string, renderTab: () => React.ReactNode) => {
+    if (isLoading) {
+      return (
+        <div className="gba:flex gba:justify-center gba:p-8">
+          <Spinner data-testid="backoffice-loading-spinner" />
+        </div>
+      )
+    }
+    if (activeTab !== tabValue) {
+      return null
+    }
+    if (!hasAnalyticsContentSpace) {
+      return <div className="gba:min-h-[320px]" data-testid="backoffice-analytics-measuring-container" />
+    }
+    if (!isChartTabReady) {
+      return <div className="gba:min-h-[320px]" data-testid="backoffice-analytics-chart-stabilizing" />
+    }
+    return renderTab()
+  }
 
   return (
     <div data-testid="backoffice-team-spending-analytics-page-container">
@@ -668,13 +806,14 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
         <div className="gba:flex gba:gap-6">
           <div className="gba:w-80 gba:flex-shrink-0">{renderFilters()}</div>
 
-          <div className="gba:flex-1 gba:space-y-6">
+          <div ref={analyticsContentRef} className="gba:flex-1 gba:space-y-6">
             <WidgetGroup
               widgets={widgets}
               isLoading={isLoading}
               error={error || null}
               onRetry={() => globalThis.location?.reload?.()}
               skeletonCount={4}
+              useWidgetStructureForLoading
               emptyText={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.no_analytics_data',
                 'No analytics data available.'
@@ -687,7 +826,7 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
             >
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.bucketing_note',
-                'Note: Analytics in this view use only status PAID.'
+                'Data scope: Only finalized expenses (status PAID or CLOSED) are included in analytics calculations.'
               )}
             </div>
 
@@ -711,22 +850,16 @@ const BackofficeTeamSpendingAnalyticsPage: React.FC<BackofficeTeamSpendingAnalyt
                     </TabsTrigger>
                   ))}
                 </TabsList>
-                {tabDefinitions.map(tab => (
+                {activeTabDefinition && (
                   <TabsContent
-                    key={tab.value}
-                    value={tab.value}
+                    key={activeTabDefinition.value}
+                    value={activeTabDefinition.value}
                     className="gba:space-y-6 gba:mt-6"
-                    data-testid={tab.contentTestId}
+                    data-testid={activeTabDefinition.contentTestId}
                   >
-                    {isLoading ? (
-                      <div className="gba:flex gba:justify-center gba:p-8">
-                        <Spinner data-testid="backoffice-loading-spinner" />
-                      </div>
-                    ) : activeTab === tab.value ? (
-                      tab.render()
-                    ) : null}
+                    {renderTabContent(activeTabDefinition.value, activeTabDefinition.render)}
                   </TabsContent>
-                ))}
+                )}
               </Tabs>
             )}
           </div>

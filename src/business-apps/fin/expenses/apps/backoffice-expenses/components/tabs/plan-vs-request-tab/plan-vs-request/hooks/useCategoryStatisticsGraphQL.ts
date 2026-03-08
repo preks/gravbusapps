@@ -156,7 +156,7 @@ export const useCategoryStatisticsGraphQL = ({
       // Calculate period boundaries using extracted utility
       const { currentStartDate, currentEndDate, previousStartDate, previousEndDate } = calculatePeriodBoundaries(period)
 
-      const selectedCurrencyRef = currencyRef || 'Currency:v1:RON'
+      const selectedCurrencyRef = currencyRef || 'Currency:v1:EUR'
 
       // Build query for current and previous periods
       // Match the exact pattern from getStatisticsByPeriod.ts
@@ -174,7 +174,7 @@ export const useCategoryStatisticsGraphQL = ({
               _and: [
                 { isDeleted: { _eq: false } },
                 { expenseItem: {
-                  status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+                  status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID", "CLOSED"] },
                   currencyRef: { _eq: $currency },
                   ${departmentCondition}
                   isDeleted: { _eq: false },
@@ -194,7 +194,7 @@ export const useCategoryStatisticsGraphQL = ({
               _and: [
                 { isDeleted: { _eq: false } },
                 { expenseItem: {
-                  status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+                  status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID", "CLOSED"] },
                   currencyRef: { _eq: $currency },
                   ${departmentCondition}
                   isDeleted: { _eq: false },

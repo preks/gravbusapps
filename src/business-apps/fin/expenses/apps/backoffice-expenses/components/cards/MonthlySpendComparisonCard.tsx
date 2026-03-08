@@ -1,8 +1,9 @@
 import React from 'react'
-import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system'
+import { type KpiCardData } from '@newwork/nw-design-system'
 import { getExpenseIconColor } from '../../utils/colorConstants'
 import { MonthlySpendComparison } from '../../types'
 import { formatCurrency } from '../../utils/currencyUtils'
+import KpiStateCard from './KpiStateCard'
 
 export interface MonthlySpendComparisonCardProps {
   loading: boolean
@@ -29,31 +30,6 @@ const MonthlySpendComparisonCard: React.FC<MonthlySpendComparisonCardProps> = ({
     return date.toLocaleString('default', { month: 'long' })
   }
 
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-32"
-        data-testid="monthly-spend-comparison-loading"
-      >
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="gba:p-4" data-testid="monthly-spend-comparison-error">
-        <Alert variant="destructive">
-          <div>
-            <h4 className="gba:font-semibold">Monthly Spend Comparison</h4>
-            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
-          </div>
-        </Alert>
-      </div>
-    )
-  }
-
-  // Create KPI card data
   const kpiCardData: KpiCardData = {
     id: 'monthly-spend-comparison',
     title: 'Monthly Spend Comparison',
@@ -70,9 +46,16 @@ const MonthlySpendComparisonCard: React.FC<MonthlySpendComparisonCardProps> = ({
   }
 
   return (
-    <div data-testid="monthly-spend-comparison-card">
-      <SectionKpiCards cards={[kpiCardData]} data-testid="monthly-spend-comparison-kpi-cards" />
-    </div>
+    <KpiStateCard
+      loading={loading}
+      error={error}
+      errorTitle="Monthly Spend Comparison"
+      loadingTestId="monthly-spend-comparison-loading"
+      errorTestId="monthly-spend-comparison-error"
+      cardTestId="monthly-spend-comparison-card"
+      kpiTestId="monthly-spend-comparison-kpi-cards"
+      kpiCardData={kpiCardData}
+    />
   )
 }
 

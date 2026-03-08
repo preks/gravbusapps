@@ -130,7 +130,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       expenseId: String(item.id ?? '-'),
       employeeCode: item.employee?.code ?? '-',
       code: item.code ?? '-',
-      sapNumber: item.employee?.additionalProperties?.SAPNumber ?? '-',
+      sapNumber: item.employee?.hrReferenceCode ?? '-',
       employee: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
       title: item.title ?? '-',
       creationDate: formatDateLocalized(item.createdAt),
@@ -225,8 +225,8 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     return buildSearchConditionBase(searchTerm, searchValue => [
       { employee: { firstName: { _ilike: searchValue } } },
       { employee: { lastName: { _ilike: searchValue } } },
-      { employee: { displayName: { _ilike: searchValue } } },
       { employee: { code: { _ilike: searchValue } } },
+      { employee: { hrReferenceCode: { _ilike: searchValue } } },
       { title: { _ilike: searchValue } },
       { code: { _ilike: searchValue } },
       { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } },
@@ -595,8 +595,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
               {
                 _or: [
                   { employee: { firstName: { _ilike: searchValue } } },
-                  { employee: { lastName: { _ilike: searchValue } } },
-                  { employee: { displayName: { _ilike: searchValue } } }
+                  { employee: { lastName: { _ilike: searchValue } } }
                 ]
               }
             ]

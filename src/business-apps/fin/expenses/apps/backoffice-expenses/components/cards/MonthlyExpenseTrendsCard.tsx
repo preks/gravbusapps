@@ -12,17 +12,14 @@ import {
   Spinner,
   Alert,
   IconAvatar,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
+  ChartContainer
 } from '@newwork/nw-design-system'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { BarChart, Bar, CartesianGrid } from 'recharts'
 import { MonthlyExpenseTrend } from '../../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyForChart } from '../../utils/currencyUtils'
 import { ChartBarIcon } from '@phosphor-icons/react'
+import ExpenseBarChartDecorators from '../charts/ExpenseBarChartDecorators'
+import { getChartColor } from '../../utils/chartColorUtils'
 
 export interface MonthlyExpenseTrendsCardProps {
   loading: boolean
@@ -122,6 +119,17 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
     </CardTitle>
   )
 
+  // Keep hook order stable across loading/error/data states.
+  const chartConfig = useMemo(
+    () => ({
+      totalAmount: {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total Amount'),
+        color: getChartColor('chart1')
+      }
+    }),
+    []
+  )
+
   if (loading) {
     return (
       <Card data-testid="monthly-expense-trends-loading">
@@ -150,25 +158,17 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
     )
   }
 
-  // Chart configuration for design system
-  const chartConfig = useMemo(
-    () => ({
-      totalAmount: {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total Amount')
-      }
-    }),
-    []
-  )
-
   return (
     <Card data-testid="monthly-expense-trends-card">
       <CardHeader>{renderCardTitle()}</CardHeader>
       <CardContent>
         {monthlyTrends.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid="monthly-expense-trends-empty-state">
-            <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
-            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">No expense trends data found for {currentYear}.</p>
+            <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
+            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">No data available</h3>
+            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
+              No expense trends data found for {currentYear}.
+            </p>
           </div>
         ) : (
           <ChartContainer
@@ -178,13 +178,12 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
           >
             <BarChart data={monthlyTrends} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="monthName" tick={{ fontSize: 12 }} interval={0} tickFormatter={getTranslatedMonthName} />
-              <YAxis
-                tickFormatter={value => formatCurrencyForChart(value, selectedCurrencyCode)}
-                tick={{ fontSize: 12 }}
+              <ExpenseBarChartDecorators
+                xDataKey="monthName"
+                tooltipLabelKey="monthName"
+                selectedCurrencyCode={selectedCurrencyCode}
+                xTickFormatter={getTranslatedMonthName}
               />
-              <ChartTooltip content={<ChartTooltipContent labelKey="monthName" />} />
-              <ChartLegend content={<ChartLegendContent />} />
               <Bar
                 dataKey="totalAmount"
                 name="totalAmount"

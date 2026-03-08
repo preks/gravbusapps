@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseRequests } from '../../../hooks/useExpenseRequests'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_REQUESTS } from '../../../queries'
 import { ExpenseRequestQueryData, ExpenseData } from '../../../types'
@@ -121,6 +122,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   })
 
   const [searchText, setSearchText] = useState<string>(search ?? initialParams.search)
+  const debouncedSearchText = useDebounce(searchText, 300)
   const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [selectedRecords, setSelectedRecords] = useState<ExpenseData[]>([])
@@ -342,13 +344,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }
   }, [searchText, initialParams.search, updateURLParams])
 
+  useEffect(() => {
+    handleSearch(debouncedSearchText)
+  }, [debouncedSearchText, handleSearch])
+
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchText(value)
-      handleSearch(value)
       onSearchChange?.(value)
     },
-    [handleSearch, onSearchChange]
+    [onSearchChange]
   )
 
   const handleRowClick = useCallback((record: any) => {
@@ -429,13 +434,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   // Count of selected bookable records
   const selectedBookableCount = useMemo(() => {
-    const count = selectedRecords.filter(r => r.status === 'BOOKED').length
-    console.log('[ExpenseRequestsTable] Selected records count:', {
-      totalSelected: selectedRecords.length,
-      bookableCount: count,
-      statuses: selectedRecords.map(r => ({ id: r.id, status: r.status }))
-    })
-    return count
+    return selectedRecords.filter(r => r.status === 'BOOKED').length
   }, [selectedRecords])
 
   // Helper function to format status display name with brackets (matching personal expenses pattern)
@@ -1250,7 +1249,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       id: item.id,
       expenseId: String(item.id ?? '-'),
       code: item.code ?? '-',
-      sapNumber: item.employee?.additionalProperties?.SAPNumber ?? '-',
+      sapNumber: item.employee?.hrReferenceCode ?? '-',
       employee: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
       employeeCode: item.employee?.code ?? '-',
       title: item.title ?? '-',
@@ -1382,8 +1381,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       _or: [
         { employee: { firstName: { _ilike: searchValue } } },
         { employee: { lastName: { _ilike: searchValue } } },
-        { employee: { displayName: { _ilike: searchValue } } },
         { employee: { code: { _ilike: searchValue } } },
+        { employee: { hrReferenceCode: { _ilike: searchValue } } },
         { title: { _ilike: searchValue } },
         { code: { _ilike: searchValue } },
         {
@@ -1503,6 +1502,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
     if (statusFilter?.length > 0) {
       conditions.push({ status: { _in: statusFilter } })
+    } else {
+      conditions.push({ status: { _nin: ['DISCARDED', 'CREATED'] } })
     }
 
     if (employeeFilter) {
@@ -1534,6 +1535,43 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       conditions.push({ endDate: endDateRange })
     }
 
+    if (effectiveDateRange?.[0] || effectiveDateRange?.[1]) {
+      const tripAnd: any[] = []
+      const expenseAnd: any[] = []
+      if (effectiveDateRange?.[0]) {
+        const from = dayjs(effectiveDateRange[0]).format('YYYY-MM-DD')
+        tripAnd.push({ startDate: { _gte: from } })
+        expenseAnd.push({ expenseItem: { expenseDate: { _gte: from } } })
+      }
+      if (effectiveDateRange?.[1]) {
+        const to = dayjs(effectiveDateRange[1]).format('YYYY-MM-DD')
+        tripAnd.push({ startDate: { _lte: to } })
+        expenseAnd.push({ expenseItem: { expenseDate: { _lte: to } } })
+      }
+      conditions.push({
+        _or: [
+          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+        ]
+      })
+    }
+
+    if (requestDateRange?.[0] || requestDateRange?.[1]) {
+      const reqDateCond: any = {}
+      if (requestDateRange?.[0]) reqDateCond._gte = dayjs(requestDateRange[0]).format('YYYY-MM-DD')
+      if (requestDateRange?.[1]) reqDateCond._lte = dayjs(requestDateRange[1]).format('YYYY-MM-DD')
+      conditions.push({ requestDate: reqDateCond })
+    }
+
+    if (requestTypeFilterLocal.length > 0) {
+      const typeOr = requestTypeFilterLocal
+        .filter(f => f.startsWith('ExpenseRequestType:'))
+        .map(t => ({ requestTypeRef: { _eq: t } }))
+      if (typeOr.length > 0) {
+        conditions.push({ _or: typeOr })
+      }
+    }
+
     if (searchText?.trim()) {
       conditions.push(buildSearchCondition(`%${searchText.trim()}%`))
     }
@@ -1549,6 +1587,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     startTo,
     endFrom,
     endTo,
+    effectiveDateRange,
+    requestDateRange,
+    requestTypeFilterLocal,
     searchText,
     buildDateRangeCondition,
     buildSearchCondition

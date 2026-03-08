@@ -48,7 +48,7 @@ export const GET_EXPENSE_REQUESTS = `
         lastName 
         code 
         id
-        additionalProperties 
+        hrReferenceCode
         employeePosition { 
           costCenter { name }
           organizationalUnit { name }

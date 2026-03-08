@@ -19,7 +19,9 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
           {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
           {expenseRequest: {code: {_ilike: $searchTerm}}},
-          {expenseRequest: {status: {_ilike: $searchTerm}}}
+          {expenseRequest: {status: {_ilike: $searchTerm}}},
+          {employee: {firstName: {_ilike: $searchTerm}}},
+          {employee: {lastName: {_ilike: $searchTerm}}}
         ]
       }
     ) {
@@ -37,7 +39,9 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
           {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
           {expenseRequest: {code: {_ilike: $searchTerm}}},
-          {expenseRequest: {status: {_ilike: $searchTerm}}}
+          {expenseRequest: {status: {_ilike: $searchTerm}}},
+          {employee: {firstName: {_ilike: $searchTerm}}},
+          {employee: {lastName: {_ilike: $searchTerm}}}
         ]
       }
     ) {

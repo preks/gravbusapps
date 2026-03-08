@@ -51,7 +51,7 @@ export const useCategoryStatistics = ({
   const { loading, setLoading, error, setError, data, setData } = useLoadingErrorDataState<CategoryStatisticsData[]>([])
 
   // Constant for item status values
-  const ITEM_STATUS = ['PAID', 'CLOSE']
+  const ITEM_STATUS = ['PAID', 'CLOSED']
 
   // Helper: Calculate period boundaries (reduces cognitive complexity)
   const calculatePeriodBoundaries = (
@@ -76,16 +76,9 @@ export const useCategoryStatistics = ({
         }
 
       case 'quarter': {
-        // Initialize with Q1 values (months 0-3), update for Q2 and Q3
-        let startMonth = 0
-        let endMonth = 3
-        if (currentMonth >= 4 && currentMonth <= 7) {
-          startMonth = 4
-          endMonth = 7
-        } else if (currentMonth >= 8 && currentMonth <= 11) {
-          startMonth = 8
-          endMonth = 11
-        }
+        const currentQuarter = Math.floor(currentMonth / 3) + 1
+        const startMonth = (currentQuarter - 1) * 3
+        const endMonth = startMonth + 2
 
         const currentStartDate = dayjs()
           .year(currentYear)
@@ -98,36 +91,21 @@ export const useCategoryStatistics = ({
           .endOf('month')
           .format('YYYY-MM-DDT23:59:59.0000')
 
-        if (startMonth === 0) {
-          return {
-            currentStartDate,
-            currentEndDate,
-            previousStartDate: dayjs()
-              .year(currentYear - 1)
-              .month(8)
-              .startOf('month')
-              .format('YYYY-MM-DDT00:00:00.0000'),
-            previousEndDate: dayjs()
-              .year(currentYear - 1)
-              .month(11)
-              .endOf('month')
-              .format('YYYY-MM-DDT23:59:59.0000')
-          }
-        }
+        const prevQuarter = currentQuarter - 1
+        const prevYear = prevQuarter <= 0 ? currentYear - 1 : currentYear
+        const prevQ = prevQuarter <= 0 ? 4 : prevQuarter
+        const prevStartMonth = (prevQ - 1) * 3
+        const prevEndMonth = prevStartMonth + 2
 
         return {
           currentStartDate,
           currentEndDate,
           previousStartDate: dayjs()
-            .year(currentYear)
-            .month(startMonth - 4)
+            .year(prevYear)
+            .month(prevStartMonth)
             .startOf('month')
             .format('YYYY-MM-DDT00:00:00.0000'),
-          previousEndDate: dayjs()
-            .year(currentYear)
-            .month(endMonth - 4)
-            .endOf('month')
-            .format('YYYY-MM-DDT23:59:59.0000')
+          previousEndDate: dayjs().year(prevYear).month(prevEndMonth).endOf('month').format('YYYY-MM-DDT23:59:59.0000')
         }
       }
 
@@ -197,7 +175,7 @@ export const useCategoryStatistics = ({
         const { currentStartDate, currentEndDate, previousStartDate, previousEndDate } =
           calculatePeriodBoundaries(period)
 
-        const selectedCurrencyRef = currencyRef || 'Currency:v1:RON'
+        const selectedCurrencyRef = currencyRef || 'Currency:v1:EUR'
         const departmentParam = selectedDepartment || ''
 
         // Format request types as ExpenseRequestType references

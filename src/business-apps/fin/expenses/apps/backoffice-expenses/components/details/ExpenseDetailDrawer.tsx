@@ -84,7 +84,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
 
   // ✅ MIGRATED: Custom Description components using nw-design-system
   const DescriptionsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <Card className="gba:mb-6">
+    <Card className="gba:mb-6 gba:bg-card">
       <CardHeader>
         <CardTitle className="gba:text-lg gba:font-semibold gba:text-gray-900">{title}</CardTitle>
       </CardHeader>
@@ -121,6 +121,28 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
     <div className="gba:text-center gba:py-8">
       <p className="gba:text-gray-500 gba:text-sm">{description}</p>
     </div>
+  )
+
+  const renderCollectionCard = (config: {
+    title: string
+    icon: React.ReactNode
+    hasItems: boolean
+    emptyDescription: string
+    content: React.ReactNode
+  }) => (
+    <Card className="gba:mb-6">
+      <CardHeader>
+        <CardTitle className="gba:text-lg gba:font-semibold gba:text-gray-900">
+          <span className="gba:flex gba:items-center gba:gap-2">
+            {config.icon}
+            {config.title}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {config.hasItems ? config.content : <EmptyState description={config.emptyDescription} />}
+      </CardContent>
+    </Card>
   )
 
   // ✅ MIGRATED: Helper function to render the main content using nw-design-system
@@ -216,102 +238,83 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           </DescriptionItem>
         </DescriptionsSection>
 
-        {/* Trip Details */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <GlobeIcon className="gba:h-5 gba:w-5" />
-              Trip Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.trips && data.trips.length > 0 ? (
-              <div className="gba:space-y-4">
-                {data.trips.map((trip: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={trip.description || 'Trip Details'}
-                    description={`Direction: ${trip.tripDirection || 'N/A'}`}
-                  >
-                    <div className="gba:space-y-2 gba:mt-2">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
-                        <CalendarIcon className="gba:h-4 gba:w-4" />
-                        {formatDate(trip.tripDateTime)}
-                      </div>
-                      <div className="gba:text-sm gba:text-gray-600">
-                        <strong>Destination:</strong> {trip.address}
-                        {trip.country && ` (${trip.country.name})`}
-                      </div>
+        {renderCollectionCard({
+          title: 'Trip Details',
+          icon: <GlobeIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.trips && data.trips.length > 0),
+          emptyDescription: 'No trip details available',
+          content: (
+            <div className="gba:space-y-4">
+              {data.trips?.map((trip: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={trip.description || 'Trip Details'}
+                  description={`Direction: ${trip.tripDirection || 'N/A'}`}
+                >
+                  <div className="gba:space-y-2 gba:mt-2">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
+                      <CalendarIcon className="gba:h-4 gba:w-4" />
+                      {formatDate(trip.tripDateTime)}
                     </div>
-                  </ListItem>
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No trip details available" />
-            )}
-          </CardContent>
-        </Card>
+                    <div className="gba:text-sm gba:text-gray-600">
+                      <strong>Destination:</strong> {trip.address}
+                      {trip.country && ` (${trip.country.name})`}
+                    </div>
+                  </div>
+                </ListItem>
+              ))}
+            </div>
+          )
+        })}
 
         {/* Expense Items */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <CurrencyDollarIcon className="gba:h-5 gba:w-5" />
-              Expense Items
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.expenseItems && data.expenseItems.length > 0 ? (
-              <div className="gba:space-y-3">
-                {data.expenseItems.map((item: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={item.description || 'Expense Item'}
-                    description={`Category: ${item.category || 'N/A'} | Type: ${item.itemType || 'N/A'}`}
-                    amount={formatCurrency(item.totalAmount, item.currency?.code)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No expense items available" />
-            )}
-          </CardContent>
-        </Card>
+        {renderCollectionCard({
+          title: 'Expense Items',
+          icon: <CurrencyDollarIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.expenseItems && data.expenseItems.length > 0),
+          emptyDescription: 'No expense items available',
+          content: (
+            <div className="gba:space-y-3">
+              {data.expenseItems?.map((item: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={item.description || 'Expense Item'}
+                  description={`Category: ${item.category || 'N/A'} | Type: ${item.itemType || 'N/A'}`}
+                  amount={formatCurrency(item.totalAmount, item.currency?.code)}
+                />
+              ))}
+            </div>
+          )
+        })}
 
         {/* Approval Metadata */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <UserIcon className="gba:h-5 gba:w-5" />
-              Approval Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.approvalMetadata && data.approvalMetadata.length > 0 ? (
-              <div className="gba:space-y-4">
-                {data.approvalMetadata.map((metadata: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={metadata.author || 'Unknown Approver'}
-                    description={metadata.position || 'N/A'}
-                  >
-                    <div className="gba:space-y-2 gba:mt-2">
-                      <div className="gba:text-sm gba:text-gray-600">
-                        <strong>Date:</strong> {formatDate(metadata.date)}
-                      </div>
-                      <div className="gba:flex gba:items-start gba:gap-2 gba:text-sm gba:text-gray-600">
-                        <ChatCircleIcon className="gba:h-4 gba:w-4 gba:mt-0.5 gba:flex-shrink-0" />
-                        <span>{metadata.comment || 'No comment provided'}</span>
-                      </div>
+        {renderCollectionCard({
+          title: 'Approval Information',
+          icon: <UserIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.approvalMetadata && data.approvalMetadata.length > 0),
+          emptyDescription: 'No approval information available',
+          content: (
+            <div className="gba:space-y-4">
+              {data.approvalMetadata?.map((metadata: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={metadata.author || 'Unknown Approver'}
+                  description={metadata.position || 'N/A'}
+                >
+                  <div className="gba:space-y-2 gba:mt-2">
+                    <div className="gba:text-sm gba:text-gray-600">
+                      <strong>Date:</strong> {formatDate(metadata.date)}
                     </div>
-                  </ListItem>
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No approval information available" />
-            )}
-          </CardContent>
-        </Card>
+                    <div className="gba:flex gba:items-start gba:gap-2 gba:text-sm gba:text-gray-600">
+                      <ChatCircleIcon className="gba:h-4 gba:w-4 gba:mt-0.5 gba:flex-shrink-0" />
+                      <span>{metadata.comment || 'No comment provided'}</span>
+                    </div>
+                  </div>
+                </ListItem>
+              ))}
+            </div>
+          )
+        })}
       </div>
     )
   }

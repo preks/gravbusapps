@@ -105,8 +105,7 @@ export interface UseBackofficeExpensesOverviewReturn {
 
 const DEFAULT_OVERVIEW_ORDER: any[] = [{ createdAt: 'DESC' }]
 
-function buildStatusWhere(statuses?: string[]): GqlBoolExp {
-  const excludedStatuses = ['CREATED', 'DISCARDED']
+function buildStatusWhereWithExclusions(statuses: string[] | undefined, excludedStatuses: string[]): GqlBoolExp {
   if (Array.isArray(statuses) && statuses.length > 0) {
     const allowedStatuses = statuses.filter(status => !excludedStatuses.includes(status))
     if (allowedStatuses.length > 0) {
@@ -115,6 +114,17 @@ function buildStatusWhere(statuses?: string[]): GqlBoolExp {
     return { status: { _nin: excludedStatuses } } as unknown as GqlBoolExp
   }
   return { status: { _nin: excludedStatuses } } as unknown as GqlBoolExp
+}
+
+const REQUEST_EXCLUDED_STATUSES = ['CREATED', 'DISCARDED']
+const PAYMENT_EXCLUDED_STATUSES = ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']
+
+function buildStatusWhere(statuses?: string[]): GqlBoolExp {
+  return buildStatusWhereWithExclusions(statuses, REQUEST_EXCLUDED_STATUSES)
+}
+
+function buildPaymentStatusWhere(statuses?: string[]): GqlBoolExp {
+  return buildStatusWhereWithExclusions(statuses, PAYMENT_EXCLUDED_STATUSES)
 }
 
 const DEFAULT_EXCLUDED_STATUSES = ['CREATED', 'DISCARDED'] as const
@@ -230,7 +240,7 @@ function buildBackofficeOverviewVariables(params: UseBackofficeExpensesOverviewP
     planStatusWhere: buildPlanStatusWhere(params.plansStatus, params.plansStatusExclude),
     payStatusWhere: combineWithAnd(
       combineWithAnd(
-        buildStatusWhere(params.paymentsStatus),
+        buildPaymentStatusWhere(params.paymentsStatus),
         buildEmployeeNameWhere(params.paymentsEmployeeNames, 'expensePlan.employee')
       ),
       buildDepartmentNameWhere(params.paymentsDepartmentNames, 'expensePlan.employee')

@@ -1,36 +1,14 @@
-import React from 'react'
-import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system'
+import * as React from 'react'
+import type { KpiCardBaseProps } from './types'
+import KpiStateCard from './KpiStateCard'
 import { getExpenseIconColor } from '../../utils/colorConstants'
+import { type KpiCardData } from '@newwork/nw-design-system'
 
-export interface PendingRequestsCardProps {
-  loading: boolean
-  error: Error | null
+export interface PendingRequestsCardProps extends KpiCardBaseProps {
   pendingRequestsCount: number
 }
 
 const PendingRequestsCard: React.FC<PendingRequestsCardProps> = ({ loading, error, pendingRequestsCount }) => {
-  if (loading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="pending-requests-loading">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="gba:p-4" data-testid="pending-requests-error">
-        <Alert variant="destructive">
-          <div>
-            <h4 className="gba:font-semibold">Pending Requests</h4>
-            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
-          </div>
-        </Alert>
-      </div>
-    )
-  }
-
-  // Create KPI card data
   const kpiCardData: KpiCardData = {
     id: 'pending-requests',
     title: 'Pending Requests',
@@ -42,9 +20,16 @@ const PendingRequestsCard: React.FC<PendingRequestsCardProps> = ({ loading, erro
   }
 
   return (
-    <div data-testid="pending-requests-card">
-      <SectionKpiCards cards={[kpiCardData]} data-testid="pending-requests-kpi-cards" />
-    </div>
+    <KpiStateCard
+      loading={loading}
+      error={error}
+      errorTitle="Pending Requests"
+      loadingTestId="pending-requests-loading"
+      errorTestId="pending-requests-error"
+      cardTestId="pending-requests-card"
+      kpiTestId="pending-requests-kpi-cards"
+      kpiCardData={kpiCardData}
+    />
   )
 }
 

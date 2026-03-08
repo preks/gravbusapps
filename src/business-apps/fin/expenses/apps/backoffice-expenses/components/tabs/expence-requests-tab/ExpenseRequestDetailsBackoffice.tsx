@@ -38,6 +38,24 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
   }
+  const renderDetailRow = (label: string, value: React.ReactNode, isStrongValue = false) => (
+    <div className="gba:flex gba:justify-between gba:items-center">
+      <span className="gba:text-sm gba:font-medium gba:text-gray-700">{label}</span>
+      <span
+        className={isStrongValue ? 'gba:text-sm gba:font-semibold gba:text-gray-900' : 'gba:text-sm gba:text-gray-900'}
+      >
+        {value}
+      </span>
+    </div>
+  )
+  const renderDateInfoRow = (config: { icon: React.ReactNode; label: string; value: string }) => (
+    <div className="gba:flex gba:items-center gba:space-x-2">
+      {config.icon}
+      <span className="gba:text-sm gba:text-gray-700">
+        {config.label}: {config.value}
+      </span>
+    </div>
+  )
 
   return (
     <div className="gba:p-6 gba:space-y-6" data-testid="expense-request-details-content">
@@ -80,28 +98,22 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
             </div>
           )}
 
-          {selectedItem.requestDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <ClockIcon className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:confirm_transfer_advance_payment.request_date_label',
-                  'Request Date'
-                )}
-                : {formatDate(selectedItem.requestDate, 'date.short')}
-              </span>
-            </div>
-          )}
+          {selectedItem.requestDate &&
+            renderDateInfoRow({
+              icon: <ClockIcon className="gba:text-gray-500" />,
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:confirm_transfer_advance_payment.request_date_label',
+                'Request Date'
+              ),
+              value: formatDate(selectedItem.requestDate, 'date.short')
+            })}
 
-          {selectedItem.decisionDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <PathIcon className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date')}:{' '}
-                {formatDate(selectedItem.decisionDate, 'date.short')}
-              </span>
-            </div>
-          )}
+          {selectedItem.decisionDate &&
+            renderDateInfoRow({
+              icon: <PathIcon className="gba:text-gray-500" />,
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date'),
+              value: formatDate(selectedItem.decisionDate, 'date.short')
+            })}
         </CardContent>
       </Card>
 
@@ -136,84 +148,56 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
         </CardHeader>
         <CardContent className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
-            {(selectedItem.employee || selectedItem.reporter) && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_overview.side_bar.requester',
-                    'Requester'
-                  )}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">
-                  {selectedItem.employee?.fullName || selectedItem.employee || selectedItem.reporter}
-                </span>
-              </div>
+            {(selectedItem.employee || selectedItem.reporter) &&
+              renderDetailRow(
+                getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester'),
+                selectedItem.employee?.fullName || selectedItem.employee || selectedItem.reporter
+              )}
+
+            {selectedItem.employee?.employeePosition?.supervisor &&
+              renderDetailRow(
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.profile_icon_list.manager_title',
+                  'Manager'
+                ),
+                selectedItem.employee.employeePosition.supervisor.fullName
+              )}
+
+            {(selectedItem.costCenter?.name || selectedItem.employee?.employeePosition?.costCenter?.name) &&
+              renderDetailRow(
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
+                  'Cost Center'
+                ),
+                selectedItem.costCenter?.name || selectedItem.employee?.employeePosition?.costCenter?.name
+              )}
+
+            {(selectedItem.project?.name || selectedItem.project) &&
+              renderDetailRow(
+                getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project'),
+                selectedItem.project?.name || selectedItem.project
+              )}
+
+            {renderDetailRow(
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
+                'Request Type'
+              ),
+              formatTypeLabel(requestTypeLabel)
             )}
 
-            {selectedItem.employee?.employeePosition?.supervisor && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.profile_icon_list.manager_title',
-                    'Manager'
-                  )}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">
-                  {selectedItem.employee.employeePosition.supervisor.fullName}
-                </span>
-              </div>
+            {renderDetailRow(
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_list.expense_plan_table.total_amount',
+                'Total Amount'
+              ),
+              typeof selectedItem.totalAmount === 'number'
+                ? formatCurrencyDisplay(selectedItem.totalAmount, selectedItem.currency?.code)
+                : typeof selectedItem.amount === 'number'
+                  ? formatCurrencyDisplay(selectedItem.amount, selectedItem.currency?.code)
+                  : '-',
+              true
             )}
-
-            {(selectedItem.costCenter?.name || selectedItem.employee?.employeePosition?.costCenter?.name) && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                    'Cost Center'
-                  )}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">
-                  {selectedItem.costCenter?.name || selectedItem.employee?.employeePosition?.costCenter?.name}
-                </span>
-              </div>
-            )}
-
-            {(selectedItem.project?.name || selectedItem.project) && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project')}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">
-                  {selectedItem.project?.name || selectedItem.project}
-                </span>
-              </div>
-            )}
-
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
-                  'Request Type'
-                )}
-              </span>
-              <span className="gba:text-sm gba:text-gray-900">{formatTypeLabel(requestTypeLabel)}</span>
-            </div>
-
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                  'Total Amount'
-                )}
-              </span>
-              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {typeof selectedItem.totalAmount === 'number'
-                  ? formatCurrencyDisplay(selectedItem.totalAmount, selectedItem.currency?.code)
-                  : typeof selectedItem.amount === 'number'
-                    ? formatCurrencyDisplay(selectedItem.amount, selectedItem.currency?.code)
-                    : '-'}
-              </span>
-            </div>
 
             {(() => {
               const aggAmount = selectedItem.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount
@@ -225,19 +209,16 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
               const advanceAmount =
                 aggAmount && aggAmount > 0 ? aggAmount : listAmount && listAmount > 0 ? listAmount : null
 
-              return advanceAmount ? (
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                    {getTranslationFromI18nKeyAndLabel(
+              return advanceAmount
+                ? renderDetailRow(
+                    getTranslationFromI18nKeyAndLabel(
                       'lowcoder:approve_expense_request.advance_payment',
                       'Advance Payment'
-                    )}
-                  </span>
-                  <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                    {formatCurrencyDisplay(advanceAmount, selectedItem.currency?.code)}
-                  </span>
-                </div>
-              ) : null
+                    ),
+                    formatCurrencyDisplay(advanceAmount, selectedItem.currency?.code),
+                    true
+                  )
+                : null
             })()}
           </div>
         </CardContent>

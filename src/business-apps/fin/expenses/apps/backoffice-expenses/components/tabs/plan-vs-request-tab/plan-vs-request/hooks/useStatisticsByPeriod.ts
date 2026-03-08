@@ -60,23 +60,13 @@ const calculateDateRange = (period: 'month' | 'quarter' | 'year'): DateRange => 
 
     case 'quarter': {
       const currentMonth = now.month()
-      let currentQuarter: number
-      let startDate: string
-      let endDate: string
-
-      if (currentMonth >= 0 && currentMonth <= 3) {
-        currentQuarter = 1
-        startDate = now.month(0).startOf('month').format('YYYY-MM-DDT00:00:00')
-        endDate = now.month(3).endOf('month').format('YYYY-MM-DDT23:59:59')
-      } else if (currentMonth >= 4 && currentMonth <= 7) {
-        currentQuarter = 2
-        startDate = now.month(4).startOf('month').format('YYYY-MM-DDT00:00:00')
-        endDate = now.month(7).endOf('month').format('YYYY-MM-DDT23:59:59')
-      } else {
-        currentQuarter = 3
-        startDate = now.month(8).startOf('month').format('YYYY-MM-DDT00:00:00')
-        endDate = now.month(11).endOf('month').format('YYYY-MM-DDT23:59:59')
-      }
+      const currentQuarter = Math.floor(currentMonth / 3) + 1
+      const quarterStartMonth = (currentQuarter - 1) * 3
+      const startDate = now.month(quarterStartMonth).startOf('month').format('YYYY-MM-DDT00:00:00')
+      const endDate = now
+        .month(quarterStartMonth + 2)
+        .endOf('month')
+        .format('YYYY-MM-DDT23:59:59')
 
       return { startDate, endDate, currentQuarter }
     }
@@ -119,7 +109,7 @@ export const useStatisticsByPeriod = ({
       const response = await client.request(monthlyQuery, {
         startDate,
         endDate,
-        currency: currencyRef || 'Currency:v1:RON',
+        currency: currencyRef || 'Currency:v1:EUR',
         ...(includeDepartment ? { selectedDepartment } : {})
       })
 
@@ -185,7 +175,7 @@ export const useStatisticsByPeriod = ({
 
         // Execute the consolidated query with date variables
         const response = await client.request(yearlyQuery, {
-          currency: currencyRef ?? 'Currency:v1:RON',
+          currency: currencyRef ?? 'Currency:v1:EUR',
           ...(includeDepartment ? { selectedDepartment } : {}),
           ...dateVariables // ✅ Include computed date range variables
         })
@@ -232,9 +222,8 @@ export const useStatisticsByPeriod = ({
     // Helper function to fetch monthly breakdown data for quarter period
     const fetchMonthlyBreakdownForQuarter = async (quarterNumber: number) => {
       try {
-        // Calculate quarter months (our custom quarters)
-        const startMonth = (quarterNumber - 1) * 4 // 0, 4, or 8
-        const endMonth = startMonth + 3 // 3, 7, or 11
+        const startMonth = (quarterNumber - 1) * 3
+        const endMonth = startMonth + 2
 
         // Get the current year
         const year = dayjs().year()
@@ -246,7 +235,7 @@ export const useStatisticsByPeriod = ({
 
         // Execute the consolidated query with date variables
         const response = await client.request(quarterlyQuery, {
-          currency: currencyRef ?? 'Currency:v1:RON',
+          currency: currencyRef ?? 'Currency:v1:EUR',
           ...(includeDepartment ? { selectedDepartment } : {}),
           ...dateVariables // ✅ Include computed date range variables
         })

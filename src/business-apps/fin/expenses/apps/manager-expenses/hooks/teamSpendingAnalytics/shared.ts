@@ -129,7 +129,7 @@ export type CorePaidClosedData = {
 export const useAnalyticsBaseState = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeEnum.LAST_30_DAYS)
+  const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeEnum.CURRENT_YEAR)
   const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([])
   const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([])
   const [searchTerm, setSearchTerm] = useState<string>('')

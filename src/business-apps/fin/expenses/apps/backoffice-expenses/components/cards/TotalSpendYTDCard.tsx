@@ -1,7 +1,8 @@
 import React from 'react'
-import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system'
+import { type KpiCardData } from '@newwork/nw-design-system'
 import { getExpenseIconColor } from '../../utils/colorConstants'
 import { YTDStats } from '../../types'
+import KpiStateCard from './KpiStateCard'
 
 export interface TotalSpendYTDCardProps {
   loading: boolean
@@ -23,28 +24,8 @@ const TotalSpendYTDCard: React.FC<TotalSpendYTDCardProps> = ({ loading, error, y
     return { percentChange, isIncrease }
   }
 
-  if (loading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="total-spend-ytd-loading">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="gba:p-4" data-testid="total-spend-ytd-error">
-        <Alert variant="destructive">
-          <div>
-            <h4 className="gba:font-semibold">Total Company Spend YTD</h4>
-            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
-          </div>
-        </Alert>
-      </div>
-    )
-  }
-
   const { percentChange, isIncrease } = calculateYTDComparison()
+  const trendValue = Math.abs(percentChange).toFixed(1)
 
   // Create KPI card data
   const kpiCardData: KpiCardData = {
@@ -55,7 +36,7 @@ const TotalSpendYTDCard: React.FC<TotalSpendYTDCardProps> = ({ loading, error, y
     decimalPlaces: 2,
     footer: `Based on ${count} expense requests this year vs ${previousCount} last year`,
     trend: {
-      value: Math.abs(percentChange).toFixed(1),
+      value: trendValue,
       positive: !isIncrease,
       description: 'vs last year'
     },
@@ -64,9 +45,16 @@ const TotalSpendYTDCard: React.FC<TotalSpendYTDCardProps> = ({ loading, error, y
   }
 
   return (
-    <div data-testid="total-spend-ytd-card">
-      <SectionKpiCards cards={[kpiCardData]} data-testid="total-spend-ytd-kpi-cards" />
-    </div>
+    <KpiStateCard
+      loading={loading}
+      error={error}
+      errorTitle="Total Company Spend YTD"
+      loadingTestId="total-spend-ytd-loading"
+      errorTestId="total-spend-ytd-error"
+      cardTestId="total-spend-ytd-card"
+      kpiTestId="total-spend-ytd-kpi-cards"
+      kpiCardData={kpiCardData}
+    />
   )
 }
 

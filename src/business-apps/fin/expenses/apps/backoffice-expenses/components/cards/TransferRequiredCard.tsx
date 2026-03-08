@@ -1,39 +1,14 @@
-import React from 'react'
-import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system'
+import * as React from 'react'
+import { type KpiCardData } from '@newwork/nw-design-system'
 import { getExpenseIconColor } from '../../utils/colorConstants'
+import type { KpiCardBaseProps } from './types'
+import KpiStateCard from './KpiStateCard'
 
-export interface TransferRequiredCardProps {
-  loading: boolean
-  error: Error | null
+export interface TransferRequiredCardProps extends KpiCardBaseProps {
   transferRequired: number
 }
 
 const TransferRequiredCard: React.FC<TransferRequiredCardProps> = ({ loading, error, transferRequired }) => {
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-32"
-        data-testid="transfer-required-loading"
-      >
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="gba:p-4" data-testid="transfer-required-error">
-        <Alert variant="destructive">
-          <div>
-            <h4 className="gba:font-semibold">Transfer Required</h4>
-            <p className="gba:text-sm gba:mt-1">Error: {error.message}</p>
-          </div>
-        </Alert>
-      </div>
-    )
-  }
-
-  // Create KPI card data
   const kpiCardData: KpiCardData = {
     id: 'transfer-required',
     title: 'Transfer Required',
@@ -46,9 +21,16 @@ const TransferRequiredCard: React.FC<TransferRequiredCardProps> = ({ loading, er
   }
 
   return (
-    <div data-testid="transfer-required-card">
-      <SectionKpiCards cards={[kpiCardData]} data-testid="transfer-required-kpi-cards" />
-    </div>
+    <KpiStateCard
+      loading={loading}
+      error={error}
+      errorTitle="Transfer Required"
+      loadingTestId="transfer-required-loading"
+      errorTestId="transfer-required-error"
+      cardTestId="transfer-required-card"
+      kpiTestId="transfer-required-kpi-cards"
+      kpiCardData={kpiCardData}
+    />
   )
 }
 
