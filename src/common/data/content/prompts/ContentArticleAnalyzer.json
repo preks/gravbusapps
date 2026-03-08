@@ -1,0 +1,239 @@
+{
+  "model_service": "openai",
+  "model_name": "gpt-4o",
+  "system_content": "You are a professional content analysis assistant specialized in analyzing content entries, their engagement metrics, and providing actionable insights for content creators.\n\nYour task is to analyze content entries with the following structure:\n- contentEntry: The main content entry with title, preview, content, creatorEmployeeId, and other metadata, including contentEntryReactionCounts array with reaction counts\n- descendants: Array of all descendant entries (child comments, replies) with their content, creatorEmployeeId, and contentEntryReactionCounts array with reaction counts\n- userId: The ID of the current user requesting the analysis\n\nReactions are provided as aggregated counts in the contentEntryReactionCounts array for both the main content entry and each descendant entry. Each reaction count includes the contentReactionRef (catalog entry ID), count (number of reactions), and contentReaction (catalog entry details with id, value, code).\n\nAvailable Operations:\n\n1. ANALYSIS FOR NON-AUTHORS (userId != contentEntry.creatorEmployeeId):\n   - Provide a comprehensive summary of the article\n   - Analyze and summarize all reactions and descendants in a structured way\n   - Provide engagement insights showing how the article is received by readers (\"wie dieser Artikel bei den Lesern ankommt\")\n   - Structure the response with ratings and metrics suitable for frontend visualization\n\n2. ANALYSIS FOR AUTHORS (userId == contentEntry.creatorEmployeeId):\n   - DO NOT provide a summary of the article (author already knows the content)\n   - Provide improvement tips based on reactions and engagement patterns\n   - Suggest what to consider when writing next articles\n   - Focus especially on how to write better content for company intranet context\n   - Analyze and summarize all reactions and descendants in a structured way\n   - Provide engagement insights with ratings and metrics\n\nAnalysis Guidelines:\n\n**Reaction Analysis:**\n- Analyze reaction types and their distribution (positive, negative, neutral)\n- Identify patterns in reaction timing and frequency\n- Calculate engagement metrics (total reactions, reaction diversity, engagement rate)\n- Identify most common reaction types and their meanings\n- Analyze reaction distribution across the content entry and its descendants\n\n**Descendant Analysis:**\n- Count total comments and replies based on the descendants stringified json\n- Analyze comment sentiment and themes\n- Identify most engaging discussion topics\n- Calculate average comment length and depth\n- Identify active discussion periods\n- Analyze comment quality and engagement\n\n**Engagement Insights:**\n- Overall engagement score (0-100)\n- Reaction sentiment score (positive/negative/neutral distribution)\n- Comment engagement score (based on comment count, depth, and quality)\n- Reader reception rating (how well the article is received)\n- Key themes and topics that resonated with readers\n- Areas that generated discussion or controversy\n\n**Improvement Recommendations (for authors only):**\n- Specific writing style improvements based on reaction patterns\n- Content structure suggestions based on engagement data\n- Topic areas that resonated well (to emphasize in future articles)\n- Areas that need clarification or expansion (based on comments)\n- Best practices for company intranet content based on engagement patterns\n- Tone and style recommendations for better reader engagement\n- Formatting and structure suggestions for improved readability\n\n**Company Intranet Context:**\n- Consider the professional, internal communication environment\n- Focus on clarity, relevance, and actionable insights\n- Emphasize internal company culture and communication norms\n- Consider diverse audience within the organization\n- Balance between informative and engaging content\n- Respect for professional boundaries and appropriate tone\n\nResponse Format:\nAlways respond with valid JSON matching the specified output schema.",
+  "user_content": "Analyze the following content entry and provide insights:\n\nContent Entry:\n{contentEntry}\n\nDescendants (Comments and Replies):\n{descendants}\n\nCurrent User ID: {userId}",
+  "system_params": {},
+  "tools": [],
+  "model_settings": {
+    "response_format": { "type": "json_object" }
+  },
+  "response_schema": {
+    "type": "object",
+    "required": ["engagementAnalysis"],
+    "properties": {
+      "summary": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Comprehensive summary of the article content (2-4 paragraphs). Only provided when userId != creatorEmployeeId."
+          },
+          "keyPoints": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Array of key points or takeaways from the article"
+          }
+        },
+        "description": "Article summary. Only included when userId != creatorEmployeeId (non-author view)."
+      },
+      "improvementRecommendations": {
+        "type": "object",
+        "required": ["writingTips", "contentStructure", "futureConsiderations", "intranetBestPractices"],
+        "properties": {
+          "writingTips": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["tip", "reason", "priority"],
+              "properties": {
+                "tip": { "type": "string", "description": "Specific writing improvement tip" },
+                "reason": { "type": "string", "description": "Reason for this tip based on engagement data" },
+                "priority": {
+                  "type": "string",
+                  "enum": ["high", "medium", "low"],
+                  "description": "Priority level of this recommendation"
+                }
+              }
+            },
+            "description": "Specific writing style and content improvements"
+          },
+          "contentStructure": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Suggestions for improving content structure and organization"
+          },
+          "futureConsiderations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["consideration", "rationale"],
+              "properties": {
+                "consideration": { "type": "string", "description": "What to consider when writing next articles" },
+                "rationale": {
+                  "type": "string",
+                  "description": "Why this consideration matters based on current engagement"
+                }
+              }
+            },
+            "description": "Things to consider for future articles"
+          },
+          "intranetBestPractices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["practice", "explanation"],
+              "properties": {
+                "practice": { "type": "string", "description": "Best practice for company intranet content" },
+                "explanation": { "type": "string", "description": "Explanation of why this practice is important" }
+              }
+            },
+            "description": "Best practices specifically for company intranet content writing"
+          },
+          "strengths": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "What worked well in this article (to replicate in future)"
+          },
+          "areasForImprovement": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Areas that need improvement based on reactions and comments"
+          }
+        },
+        "description": "Improvement recommendations. Only included when userId == creatorEmployeeId (author view)."
+      },
+      "engagementAnalysis": {
+        "type": "object",
+        "required": ["overallScore", "reactionAnalysis", "commentAnalysis", "readerReception"],
+        "properties": {
+          "overallScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Overall engagement score (0-100)"
+          },
+          "reactionAnalysis": {
+            "type": "object",
+            "required": ["totalReactions", "reactionBreakdown", "sentimentScore"],
+            "properties": {
+              "totalReactions": { "type": "number", "description": "Total number of reactions" },
+              "reactionBreakdown": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["reactionType", "count", "percentage", "sentiment"],
+                  "properties": {
+                    "reactionType": {
+                      "type": "string",
+                      "description": "Name of the reaction type (e.g., 'Like', 'Love', 'Insightful')"
+                    },
+                    "reactionCode": { "type": "string", "description": "Code of the reaction from catalog" },
+                    "count": { "type": "number", "description": "Number of this reaction type" },
+                    "percentage": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "description": "Percentage of total reactions"
+                    },
+                    "sentiment": {
+                      "type": "string",
+                      "enum": ["positive", "negative", "neutral"],
+                      "description": "Sentiment classification of this reaction"
+                    }
+                  }
+                },
+                "description": "Breakdown of reactions by type"
+              },
+              "sentimentScore": {
+                "type": "object",
+                "required": ["positive", "negative", "neutral"],
+                "properties": {
+                  "positive": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Percentage of positive reactions"
+                  },
+                  "negative": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Percentage of negative reactions"
+                  },
+                  "neutral": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Percentage of neutral reactions"
+                  }
+                }
+              },
+              "engagementRate": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Engagement rate based on reactions per view (estimated)"
+              }
+            }
+          },
+          "commentAnalysis": {
+            "type": "object",
+            "required": ["totalComments", "averageDepth", "commentScore"],
+            "properties": {
+              "totalComments": { "type": "number", "description": "Total number of comments and replies" },
+              "averageDepth": { "type": "number", "description": "Average depth of comment threads" },
+              "commentScore": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Comment engagement score (0-100)"
+              },
+              "topThemes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["theme", "mentionCount"],
+                  "properties": {
+                    "theme": { "type": "string", "description": "Theme or topic mentioned in comments" },
+                    "mentionCount": { "type": "number", "description": "Number of times this theme appears" }
+                  }
+                },
+                "description": "Top themes discussed in comments"
+              },
+              "sentimentDistribution": {
+                "type": "object",
+                "properties": {
+                  "positive": { "type": "number", "minimum": 0, "maximum": 100 },
+                  "negative": { "type": "number", "minimum": 0, "maximum": 100 },
+                  "neutral": { "type": "number", "minimum": 0, "maximum": 100 }
+                }
+              }
+            }
+          },
+          "readerReception": {
+            "type": "object",
+            "required": ["rating", "summary", "keyInsights"],
+            "properties": {
+              "rating": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Overall reader reception rating (0-100)"
+              },
+              "summary": { "type": "string", "description": "Text summary of how the article is received by readers" },
+              "keyInsights": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Key insights about reader reception"
+              },
+              "resonatingTopics": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Topics that resonated well with readers"
+              },
+              "discussionPoints": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Points that generated discussion or debate"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "document_links": [],
+  "knowledge_sources": []
+}

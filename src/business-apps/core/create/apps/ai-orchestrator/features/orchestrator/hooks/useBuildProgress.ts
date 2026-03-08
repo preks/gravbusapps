@@ -64,7 +64,12 @@ export interface UseBuildProgressResult {
   buildLogs: BuildLogEntry[]
   isProgressEstimated: boolean
   eventLedger: BuildProgressEvent[]
-  startBuild: (skipComponents?: string[], sessionId?: string, repoId?: string) => Promise<void>
+  startBuild: (
+    skipComponents?: string[],
+    sessionId?: string,
+    repoId?: string,
+    createdBy?: ExecuteRequest['createdBy']
+  ) => Promise<void>
   cancelBuild: () => void
   resetProgress: () => void
 }
@@ -718,7 +723,7 @@ export function useBuildProgress({
   }, [client, finishBuild, handleProgressEvent, plan])
 
   const startBuild = useCallback(
-    async (skipComponents?: string[], sessionId?: string, repoId?: string) => {
+    async (skipComponents?: string[], sessionId?: string, repoId?: string, createdBy?: ExecuteRequest['createdBy']) => {
       if (!plan) {
         onError?.('No build plan available')
         return
@@ -740,6 +745,7 @@ export function useBuildProgress({
       }
       if (sessionId) request.sessionId = sessionId
       if (repoId) request.repoId = repoId
+      if (createdBy) request.createdBy = createdBy
 
       await client.executeWithProgress(
         plan.jobId,

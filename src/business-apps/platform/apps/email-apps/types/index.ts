@@ -54,6 +54,19 @@ export interface EmailAttachment {
   isInline: boolean
 }
 
+/** Reusable email label assigned to messages */
+export interface EmailLabel {
+  id: string
+  name: string
+  color: string | null
+}
+
+/** Input payload used when creating/upserting labels on a message */
+export interface AddLabelInput {
+  name: string
+  color?: string
+}
+
 /** Email message summary (for list view) */
 export interface EmailMessageSummary {
   id: string
@@ -72,7 +85,7 @@ export interface EmailMessageSummary {
   isRead: boolean
   isStarred: boolean
   hasAttachments: boolean
-  labels?: string[]
+  labels?: EmailLabel[]
   importance: string
   crmEntityType?: string
   crmEntityId?: string

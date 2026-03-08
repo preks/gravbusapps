@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { ArrowLeft } from 'lucide-react'
@@ -146,20 +146,28 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     translateComments
   } = useContentTranslation(context.accessToken)
 
+  // Track which content id we already attempted detection for (avoid retry loop when API fails or returns empty)
+  const detectionAttemptedForContentIdRef = useRef<string | null>(null)
+
   // Initial language detection when content is loaded
-  // Use existing languageRef if available, otherwise detect from content
+  // Use existing languageRef if available, otherwise detect from content (once per item)
   useEffect(() => {
-    if (!item || detectedLanguage || isDetecting) return
+    if (!item || isDetecting) return
 
     // Check if content entry already has a language stored
     if (item.languageRef) {
-      // Use existing language reference - no API detection needed
       setLanguageFromRef(item.languageRef, item.language?.value)
-    } else if (item.language?.id) {
-      // Use language catalog entry if available - no API call needed
+      return
+    }
+    if (item.language?.id) {
       setLanguageFromRef(item.language.id, item.language.value)
-    } else if (item.content) {
-      // No language stored, detect from content via API
+      return
+    }
+    if (item.content) {
+      if (detectedLanguage) return
+      const contentId = item.id ?? null
+      if (detectionAttemptedForContentIdRef.current === contentId) return
+      detectionAttemptedForContentIdRef.current = contentId
       detectLanguage(item.content)
     }
   }, [item, detectedLanguage, isDetecting, detectLanguage, setLanguageFromRef])
@@ -240,6 +248,15 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
             isTranslating={isTranslating}
             accessToken={context.accessToken}
             onLanguageSelect={handleLanguageSelect}
+            labels={{
+              language: t('ai-translation-language'),
+              detecting: t('ai-translation-detecting'),
+              translating: t('ai-translation-translating'),
+              selectTarget: t('ai-translation-select-target'),
+              searchPlaceholder: t('ai-translation-search-placeholder'),
+              noLanguagesFound: t('ai-translation-no-languages-found'),
+              noLanguagesAvailable: t('ai-translation-no-languages-available')
+            }}
             data-testid="content-record-translation-button"
           />
         </div>

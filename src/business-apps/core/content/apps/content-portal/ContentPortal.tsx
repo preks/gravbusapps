@@ -200,6 +200,15 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                     isTranslating={isTranslating}
                     accessToken={accessToken}
                     onLanguageSelect={handleLanguageSelect}
+                    labels={{
+                      language: t('ai-translation-language'),
+                      detecting: t('ai-translation-detecting'),
+                      translating: t('ai-translation-translating'),
+                      selectTarget: t('ai-translation-select-target'),
+                      searchPlaceholder: t('ai-translation-search-placeholder'),
+                      noLanguagesFound: t('ai-translation-no-languages-found'),
+                      noLanguagesAvailable: t('ai-translation-no-languages-available')
+                    }}
                     data-testid="portal-translation-button"
                   />
                 </div>

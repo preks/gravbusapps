@@ -9,11 +9,17 @@ import {
   CardHeader,
   CardTitle,
   Input,
-  Spinner
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
-import type { LatestPublishedResourceVersion } from '@/common/network/ai/builder/BuilderClient'
+import type { LatestPublishedResourceVersion, SessionUsageMetric } from '@/common/network/ai/builder/BuilderClient'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
 
@@ -37,6 +43,8 @@ export const GeneratedResourceUrlsDebug: React.FC<GeneratedResourceUrlsDebugProp
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null)
+  const [sessionUsageById, setSessionUsageById] = useState<Record<string, SessionUsageMetric>>({})
+  const [isLoadingSessionUsage, setIsLoadingSessionUsage] = useState(false)
 
   useEffect(() => {
     const timeout = globalThis.setTimeout(() => {
@@ -85,11 +93,63 @@ export const GeneratedResourceUrlsDebug: React.FC<GeneratedResourceUrlsDebugProp
     void fetchGeneratedUrls()
   }, [fetchGeneratedUrls])
 
+  const visibleSessionIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          generatedUrls
+            .map(item => item.sessionId)
+            .filter((sessionId): sessionId is string => typeof sessionId === 'string' && sessionId.trim().length > 0)
+        )
+      ),
+    [generatedUrls]
+  )
+
+  useEffect(() => {
+    let isCancelled = false
+
+    if (!accessToken || visibleSessionIds.length === 0) {
+      setSessionUsageById({})
+      setIsLoadingSessionUsage(false)
+      return
+    }
+
+    setIsLoadingSessionUsage(true)
+    builderClient
+      .getSessionUsageMetrics({
+        timeframe: 'all',
+        sessionIds: visibleSessionIds,
+        limit: visibleSessionIds.length
+      })
+      .then(result => {
+        if (isCancelled) return
+
+        const mapped = Object.fromEntries(result.sessions.map(metric => [metric.sessionId, metric]))
+        setSessionUsageById(mapped)
+      })
+      .catch(() => {
+        if (isCancelled) return
+        setSessionUsageById({})
+      })
+      .finally(() => {
+        if (!isCancelled) setIsLoadingSessionUsage(false)
+      })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [accessToken, builderClient, visibleSessionIds])
+
   const formatTimestamp = useCallback((value?: string | null) => {
     if (!value) return '--'
     const parsed = new Date(value)
     if (Number.isNaN(parsed.getTime())) return value
     return parsed.toLocaleString()
+  }, [])
+
+  const formatTokens = useCallback((value?: number | null) => {
+    if (value == null) return '--'
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value)
   }, [])
 
   const openResourceUrl = useCallback((resourceUrl: string) => {
@@ -111,10 +171,23 @@ export const GeneratedResourceUrlsDebug: React.FC<GeneratedResourceUrlsDebugProp
           <p className="gba:text-sm gba:text-muted-foreground">
             Data comes from AI Builder latest published versions with prefix <code>{GENERATED_PREFIX}</code>.
           </p>
+          <p className="gba:text-xs gba:text-muted-foreground">
+            Token usage is sourced from AI Builder session metrics.
+          </p>
         </div>
-        <Button onClick={() => void fetchGeneratedUrls()} disabled={isLoading}>
-          {isLoading ? 'Refreshing...' : 'Refresh'}
-        </Button>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              navigateTo('/platform/create/ai-builder-metrics')
+            }}
+          >
+            Open Metrics Dashboard
+          </Button>
+          <Button onClick={() => void fetchGeneratedUrls()} disabled={isLoading}>
+            {isLoading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -148,64 +221,89 @@ export const GeneratedResourceUrlsDebug: React.FC<GeneratedResourceUrlsDebugProp
           </div>
         </CardHeader>
         <CardContent>
-          <div className="gba:overflow-auto gba:border gba:border-border gba:rounded-md">
+          <div className="gba:border gba:border-border gba:rounded-md">
             {isLoading && (
               <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
                 <Spinner size="md" />
               </div>
             )}
-            <table className="gba:w-full gba:text-sm">
-              <thead className="gba:bg-muted/50">
-                <tr>
-                  <th className="gba:text-left gba:px-3 gba:py-2">#</th>
-                  <th className="gba:text-left gba:px-3 gba:py-2">URL</th>
-                  <th className="gba:text-left gba:px-3 gba:py-2">Published Session ID</th>
-                  <th className="gba:text-left gba:px-3 gba:py-2">Resource Created At</th>
-                  <th className="gba:text-left gba:px-3 gba:py-2">Resource Updated At</th>
-                  <th className="gba:text-left gba:px-3 gba:py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {generatedUrls.map((item, index) => (
-                  <tr
-                    key={`${item.resourceUrl}-${index}`}
-                    className="gba:border-t gba:border-border gba:cursor-pointer hover:gba:bg-muted/30"
-                    onClick={() => openResourceUrl(item.resourceUrl)}
-                  >
-                    <td className="gba:px-3 gba:py-2">{(currentPage - 1) * PAGE_SIZE + index + 1}</td>
-                    <td className="gba:px-3 gba:py-2 gba:font-mono">{item.resourceUrl}</td>
-                    <td className="gba:px-3 gba:py-2 gba:font-mono">{item.sessionId || '--'}</td>
-                    <td className="gba:px-3 gba:py-2">{formatTimestamp(item.firstPublishedAt)}</td>
-                    <td className="gba:px-3 gba:py-2">{formatTimestamp(item.publishedAt)}</td>
-                    <td className="gba:px-3 gba:py-2">
-                      <div className="gba:flex gba:flex-wrap gba:gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={event => {
-                            event.stopPropagation()
-                            openResourceUrl(item.resourceUrl)
-                          }}
-                        >
-                          Open Resource
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={!item.sessionId}
-                          onClick={event => {
-                            event.stopPropagation()
-                            openSession(item.sessionId)
-                          }}
-                        >
-                          Open Session
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>URL</TableHead>
+                  <TableHead>Published Session ID</TableHead>
+                  <TableHead>Resource Created At</TableHead>
+                  <TableHead>Resource Updated At</TableHead>
+                  <TableHead>LLM Tokens</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {generatedUrls.map((item, index) => {
+                  const sessionUsage = item.sessionId ? sessionUsageById[item.sessionId] : undefined
+
+                  return (
+                    <TableRow
+                      key={`${item.resourceUrl}-${index}`}
+                      className="gba:cursor-pointer hover:gba:bg-muted/30"
+                      onClick={() => openResourceUrl(item.resourceUrl)}
+                    >
+                      <TableCell>{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
+                      <TableCell className="gba:font-mono">{item.resourceUrl}</TableCell>
+                      <TableCell className="gba:font-mono">{item.sessionId || '--'}</TableCell>
+                      <TableCell>{formatTimestamp(item.firstPublishedAt)}</TableCell>
+                      <TableCell>{formatTimestamp(item.publishedAt)}</TableCell>
+                      <TableCell>
+                        {!item.sessionId && '--'}
+                        {item.sessionId && !sessionUsage && isLoadingSessionUsage && (
+                          <span className="gba:text-xs gba:text-muted-foreground">Loading...</span>
+                        )}
+                        {item.sessionId && !sessionUsage && !isLoadingSessionUsage && (
+                          <span className="gba:text-xs gba:text-muted-foreground">No usage</span>
+                        )}
+                        {sessionUsage && (
+                          <div className="gba:space-y-0.5">
+                            <div className="gba:text-xs gba:font-medium">
+                              {formatTokens(sessionUsage.totalTokens)} tokens
+                            </div>
+                            <div className="gba:text-[11px] gba:text-muted-foreground">
+                              In {formatTokens(sessionUsage.totalInputTokens)} / Out{' '}
+                              {formatTokens(sessionUsage.totalOutputTokens)}
+                            </div>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="gba:flex gba:flex-wrap gba:gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={event => {
+                              event.stopPropagation()
+                              openResourceUrl(item.resourceUrl)
+                            }}
+                          >
+                            Open Resource
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={!item.sessionId}
+                            onClick={event => {
+                              event.stopPropagation()
+                              openSession(item.sessionId)
+                            }}
+                          >
+                            Open Session
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
             {!isLoading && generatedUrls.length === 0 && (
               <div className="gba:px-3 gba:py-6 gba:text-sm gba:text-muted-foreground">
                 No generated resource URLs found for the current filter.
