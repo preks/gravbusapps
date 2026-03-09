@@ -48,31 +48,6 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   getColor,
   dataTestId
 }) => {
-  const [isChartReady, setIsChartReady] = React.useState(false)
-  const chartWrapperRef = React.useRef<HTMLDivElement | null>(null)
-  const [hasChartSpace, setHasChartSpace] = React.useState(false)
-  const [chartWidth, setChartWidth] = React.useState(0)
-  React.useEffect(() => {
-    const rafId = globalThis.requestAnimationFrame(() => setIsChartReady(true))
-    return () => globalThis.cancelAnimationFrame(rafId)
-  }, [])
-  React.useEffect(() => {
-    const wrapper = chartWrapperRef.current
-    if (!wrapper) return
-
-    const syncChartSpace = () => {
-      const width = wrapper.clientWidth
-      const hasSpace = width > 0 && wrapper.clientHeight > 0
-      setChartWidth(width)
-      setHasChartSpace(hasSpace)
-    }
-
-    syncChartSpace()
-    const observer = new ResizeObserver(syncChartSpace)
-    observer.observe(wrapper)
-
-    return () => observer.disconnect()
-  }, [height])
   const resolvedBarColor = React.useMemo(() => resolveCssVar(barColor), [barColor])
 
   const chartConfig = React.useMemo(() => {
@@ -120,59 +95,50 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div ref={chartWrapperRef} className="gba:w-full" style={{ minHeight: height }}>
-          {isChartReady && hasChartSpace ? (
-            <ChartContainer
-              config={chartConfig}
-              className="gba:w-full gba:min-w-0"
-              style={{ height: height, width: `${chartWidth}px`, minWidth: 1 }}
-              data-testid={dataTestId ?? 'bar-chart'}
-            >
-              <BarChart
-                data={data}
-                margin={{
-                  top: 5,
-                  right: 30,
-                  left: 20,
-                  bottom: 5
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey={xAxisDataKey} />
-                <YAxis />
-                <ChartTooltip
-                  cursor={false}
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value: any) => {
-                        if (valueType === 'count') {
-                          const num = typeof value === 'number' ? value : Number(value ?? 0)
-                          const itemsLabel = getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:charts.tooltip.items',
-                            countLabel
-                          )
-                          return `${num} ${itemsLabel}`
-                        }
-                        // For amount type, just return the formatted currency
-                        return formatCurrencyDisplay(value, currency)
-                      }}
-                    />
-                  }
+        <ChartContainer
+          config={chartConfig}
+          className="gba:w-full"
+          style={{ height: height }}
+          data-testid={dataTestId ?? 'bar-chart'}
+        >
+          <BarChart
+            data={data}
+            margin={{
+              top: 5,
+              right: 30,
+              left: 20,
+              bottom: 5
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xAxisDataKey} />
+            <YAxis />
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  formatter={(value: any) => {
+                    if (valueType === 'count') {
+                      const num = typeof value === 'number' ? value : Number(value ?? 0)
+                      const itemsLabel = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.items', countLabel)
+                      return `${num} ${itemsLabel}`
+                    }
+                    // For amount type, just return the formatted currency
+                    return formatCurrencyDisplay(value, currency)
+                  }}
                 />
-                <Bar dataKey={barDataKey} fill={resolvedBarColor}>
-                  {data.map((entry, index) => {
-                    const entryKey = `${index}-${String(entry[xAxisDataKey] ?? '')}-${String(entry[barDataKey] ?? '')}`
-                    const candidate = getColor ? getColor(entry, index) || resolvedBarColor : resolvedBarColor
-                    const fill = resolveCssVar(candidate)
-                    return <Cell key={`cell-${entryKey}`} fill={fill} />
-                  })}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          ) : (
-            <div className="gba:w-full" style={{ minHeight: height }} />
-          )}
-        </div>
+              }
+            />
+            <Bar dataKey={barDataKey} fill={resolvedBarColor}>
+              {data.map((entry, index) => {
+                const entryKey = entry[xAxisDataKey] || entry[barDataKey] || index
+                const candidate = getColor ? getColor(entry, index) || resolvedBarColor : resolvedBarColor
+                const fill = resolveCssVar(candidate)
+                return <Cell key={`cell-${entryKey}`} fill={fill} />
+              })}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   )

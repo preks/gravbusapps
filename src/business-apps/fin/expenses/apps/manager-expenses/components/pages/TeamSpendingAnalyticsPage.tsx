@@ -85,7 +85,11 @@ const resolveStatusColor = (type: string | undefined, fallbackColor: string): st
   return token ? resolveCssVar(token) : fallbackColor
 }
 
-const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ accessToken, userInfo }) => {
+const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
+  onNavigateBack,
+  accessToken,
+  userInfo
+}) => {
   // colors resolved within StatusLegend component
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore()
@@ -826,58 +830,6 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
       </div>
     </div>
   )
-  const teamAnalyticsTabs = [
-    {
-      value: 'expense-items',
-      triggerTestId: 'team-analytics-tab-expense-items',
-      contentTestId: 'team-analytics-tab-content-expense-items',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items'),
-      render: renderExpenseItemsTab
-    },
-    {
-      value: 'expense-requests',
-      triggerTestId: 'team-analytics-tab-expense-requests',
-      contentTestId: 'team-analytics-tab-content-expense-requests',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.flows_button.expense_requests',
-        'Expense Requests'
-      ),
-      render: renderExpenseRequestsTab
-    },
-    {
-      value: 'expense-plans',
-      triggerTestId: 'team-analytics-tab-expense-plans',
-      contentTestId: 'team-analytics-tab-content-expense-plans',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-        'Expense Plans'
-      ),
-      render: renderExpensePlansTab
-    },
-    {
-      value: 'advance-payments',
-      triggerTestId: 'team-analytics-tab-advance-payments',
-      contentTestId: 'team-analytics-tab-content-advance-payments',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:backoffice_expense_landing_page.advance_title',
-        'Advance Payments'
-      ),
-      render: renderAdvancePaymentsTab
-    }
-  ]
-  const renderTabContent = (tabValue: string, renderTab: () => React.ReactNode) => {
-    if (isLoading) {
-      return (
-        <div className="gba:flex gba:justify-center gba:p-8">
-          <Spinner data-testid="loading-spinner" />
-        </div>
-      )
-    }
-    if (activeTab !== tabValue) {
-      return null
-    }
-    return renderTab()
-  }
 
   const renderFilters = () => (
     <Card className="gba:sticky gba:top-6" data-testid="team-analytics-filters-card">
@@ -1103,6 +1055,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
           </span>
         </button>
       </div>
+
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis',
@@ -1125,7 +1078,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             <WidgetGroup
               widgets={widgets}
               isLoading={isLoading}
-              error={error || null}
+              error={error ? error : null}
               onRetry={() => globalThis.location?.reload?.()}
               skeletonCount={4}
               emptyText={getTranslationFromI18nKeyAndLabel(
@@ -1156,22 +1109,84 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 data-testid="team-analytics-tabs"
               >
                 <TabsList className="gba:grid gba:w-full gba:grid-cols-4" data-testid="team-analytics-tabs-list">
-                  {teamAnalyticsTabs.map(tab => (
-                    <TabsTrigger key={tab.value} value={tab.value} data-testid={tab.triggerTestId}>
-                      {tab.label}
-                    </TabsTrigger>
-                  ))}
+                  <TabsTrigger value="expense-items" data-testid="team-analytics-tab-expense-items">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items')}
+                  </TabsTrigger>
+                  <TabsTrigger value="expense-requests" data-testid="team-analytics-tab-expense-requests">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_list.flows_button.expense_requests',
+                      'Expense Requests'
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="expense-plans" data-testid="team-analytics-tab-expense-plans">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+                      'Expense Plans'
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="advance-payments" data-testid="team-analytics-tab-advance-payments">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:backoffice_expense_landing_page.advance_title',
+                      'Advance Payments'
+                    )}
+                  </TabsTrigger>
                 </TabsList>
-                {teamAnalyticsTabs.map(tab => (
-                  <TabsContent
-                    key={tab.value}
-                    value={tab.value}
-                    className="gba:space-y-6 gba:mt-6"
-                    data-testid={tab.contentTestId}
-                  >
-                    {renderTabContent(tab.value, tab.render)}
-                  </TabsContent>
-                ))}
+
+                <TabsContent
+                  value="expense-items"
+                  className="gba:space-y-6 gba:mt-6"
+                  data-testid="team-analytics-tab-content-expense-items"
+                >
+                  {isLoading ? (
+                    <div className="gba:flex gba:justify-center gba:p-8">
+                      <Spinner data-testid="loading-spinner" />
+                    </div>
+                  ) : (
+                    renderExpenseItemsTab()
+                  )}
+                </TabsContent>
+
+                <TabsContent
+                  value="expense-requests"
+                  className="gba:space-y-6 gba:mt-6"
+                  data-testid="team-analytics-tab-content-expense-requests"
+                >
+                  {isLoading ? (
+                    <div className="gba:flex gba:justify-center gba:p-8">
+                      <Spinner data-testid="loading-spinner" />
+                    </div>
+                  ) : (
+                    renderExpenseRequestsTab()
+                  )}
+                </TabsContent>
+
+                <TabsContent
+                  value="expense-plans"
+                  className="gba:space-y-6 gba:mt-6"
+                  data-testid="team-analytics-tab-content-expense-plans"
+                >
+                  {isLoading ? (
+                    <div className="gba:flex gba:justify-center gba:p-8">
+                      <Spinner data-testid="loading-spinner" />
+                    </div>
+                  ) : (
+                    renderExpensePlansTab()
+                  )}
+                </TabsContent>
+
+                <TabsContent
+                  value="advance-payments"
+                  className="gba:space-y-6 gba:mt-6"
+                  data-testid="team-analytics-tab-content-advance-payments"
+                >
+                  {isLoading ? (
+                    <div className="gba:flex gba:justify-center gba:p-8">
+                      <Spinner data-testid="loading-spinner" />
+                    </div>
+                  ) : (
+                    renderAdvancePaymentsTab()
+                  )}
+                </TabsContent>
               </Tabs>
             )}
           </div>

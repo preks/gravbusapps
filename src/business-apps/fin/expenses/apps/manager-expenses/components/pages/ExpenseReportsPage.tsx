@@ -61,23 +61,11 @@ const buildFilename = (type: string, ext: string) => {
   return sanitizeFilename(filename)
 }
 
-const triggerFileDownload = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename // Already sanitized by buildFilename()
-  link.setAttribute('rel', 'noopener noreferrer')
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
-
 interface ExpenseReportsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void
 }
 
-const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
+const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack, accessToken, userInfo }) => {
   // State
   // search term handled by hook; keep local for type search only
   const [reportTypeSearchTerm, setReportTypeSearchTerm] = useState('')
@@ -426,8 +414,18 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     const csvLines = [header.join(','), ...rows.map(r => r.join(','))]
     const csvContent = csvLines.join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
     const filename = buildFilename(String(selectedReportType), 'csv')
-    triggerFileDownload(blob, filename)
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename // Already sanitized by buildFilename()
+    // Set additional security attributes
+    link.setAttribute('rel', 'noopener noreferrer')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
   }
 
   // Handle download action (Excel .xls via HTML table)
@@ -456,14 +454,25 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><table>${headerHtml}<tbody>${bodyRows}</tbody></table></body></html>`
 
     const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
+    const url = URL.createObjectURL(blob)
     const filename = buildFilename(String(selectedReportType), 'xls')
-    triggerFileDownload(blob, filename)
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename // Already sanitized by buildFilename()
+    // Set additional security attributes
+    link.setAttribute('rel', 'noopener noreferrer')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
   }
 
   const columns = getColumns()
 
   return (
     <div data-testid="expense-reports-page-container">
+      {/* Back Button Above Everything */}
       <div className="gba:px-6 gba:pt-6 gba:pb-0">
         <div className="gba:flex gba:items-center gba:justify-between">
           <button
@@ -479,6 +488,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
               )}
             </span>
           </button>
+
           <div className="gba:flex gba:items-center gba:gap-2">
             <Button
               variant="outline"
