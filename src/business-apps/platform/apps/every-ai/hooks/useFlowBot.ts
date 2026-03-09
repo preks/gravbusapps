@@ -899,7 +899,8 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       isThinking: boolean = false,
       isSearching: boolean = false,
       additionInfo?: string,
-      skills?: string[]
+      skills?: string[],
+      mentions?: Array<{ id: string; type: string; display: string }>
     ) => {
       if (!userInputText.trim() && files.length === 0) return
       if (inFlightRef.current) return
@@ -954,6 +955,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           skills.forEach(skill => {
             form.append('skills', skill)
           })
+        }
+        if (mentions && mentions.length > 0) {
+          form.append('mentions', JSON.stringify(mentions))
         }
 
         const currentPagePayload = await buildCurrentPageContextPayload()

@@ -13,8 +13,29 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { getScreenDirectories } from './utils/screenDiscovery.js'
 import { calculateScreenHash, loadHashFile } from './utils/componentHashUtils.js'
+import {
+  getSkippedScreensSummary,
+  isScreenChanged,
+  pickHashBaseline,
+  shouldFailOnMissingBuildOutput
+} from './utils/hashPipelineUtils.js'
 
 function loadPreviousHashes(projectRootDir, hashFilePath) {
+  let localHashes = null
+  let remoteHashes = null
+
+  // Prefer the checked-out pipeline commit baseline to keep detection deterministic.
+  if (fs.existsSync(hashFilePath)) {
+    try {
+      const localHashContent = fs.readFileSync(hashFilePath, 'utf8')
+      localHashes = JSON.parse(localHashContent)
+    } catch (error) {
+      console.log(`Local hash baseline is invalid (${error.message}). Falling back to origin/develop.`)
+    }
+  } else {
+    console.log('Local component-hashes.json not found. Falling back to origin/develop.')
+  }
+
   try {
     const remoteHashContent = execSync('git show origin/develop:component-hashes.json', {
       cwd: projectRootDir,
@@ -22,13 +43,22 @@ function loadPreviousHashes(projectRootDir, hashFilePath) {
       stdio: ['ignore', 'pipe', 'pipe']
     })
 
-    const parsed = JSON.parse(remoteHashContent)
-    console.log('Using hash baseline from origin/develop:component-hashes.json')
-    return parsed
+    remoteHashes = JSON.parse(remoteHashContent)
   } catch (error) {
-    console.log(`Could not load origin/develop hash baseline (${error.message}). Falling back to local file.`)
-    return loadHashFile(hashFilePath)
+    console.log(`Could not load origin/develop hash baseline (${error.message}).`)
   }
+
+  const selected = pickHashBaseline({ localHashes, remoteHashes })
+  if (selected.source === 'local') {
+    console.log('Using hash baseline from local component-hashes.json (checked-out commit)')
+  } else if (selected.source === 'remote') {
+    console.log('Using hash baseline from origin/develop:component-hashes.json')
+  } else {
+    console.log('Falling back to local loader result (or empty baseline).')
+    selected.hashes = loadHashFile(hashFilePath)
+  }
+
+  return selected
 }
 
 async function main() {
@@ -37,13 +67,14 @@ async function main() {
   const outputFilePath = path.join(projectRootDir, 'changed-tsx.txt')
   const hashBaselineOutputPath = path.join(projectRootDir, 'hash-build-screen-hashes.json')
 
-  const previousHashes = loadPreviousHashes(projectRootDir, hashFilePath)
+  const { hashes: previousHashes, source: baselineSource } = loadPreviousHashes(projectRootDir, hashFilePath)
   const screenDirs = await getScreenDirectories({ cwd: projectRootDir })
   const currentBuildHashes = {}
 
   const changedScreens = []
   let checkedScreens = 0
   let skippedWithoutBuildOutput = 0
+  const skippedScreens = []
 
   console.log('Detecting changed screens by hash...')
   console.log(`Total discovered screens: ${screenDirs.length}`)
@@ -55,6 +86,7 @@ async function main() {
     // Only consider screens that were successfully built.
     if (!fs.existsSync(buildOutputDir)) {
       skippedWithoutBuildOutput++
+      skippedScreens.push(screenPath)
       continue
     }
 
@@ -69,7 +101,7 @@ async function main() {
     checkedScreens++
     currentBuildHashes[screenPath] = currentHash
     const previousHash = previousHashes[screenPath]
-    if (!previousHash || previousHash !== currentHash) {
+    if (isScreenChanged(previousHash, currentHash)) {
       changedScreens.push(`src/business-apps/${screenPath}`)
       const reason = !previousHash ? 'new_screen' : 'hash_mismatch'
       console.log(`Changed: ${screenPath} (${reason})`)
@@ -88,8 +120,28 @@ async function main() {
   console.log(`  Screens with build artifacts checked: ${checkedScreens}`)
   console.log(`  Screens skipped (no build output): ${skippedWithoutBuildOutput}`)
   console.log(`  Screens to publish: ${changedScreens.length}`)
+  console.log(`  Baseline source: ${baselineSource}`)
   console.log(`  Output file: ${outputFilePath}`)
   console.log(`  Hash baseline file: ${hashBaselineOutputPath}`)
+
+  if (skippedWithoutBuildOutput > 0) {
+    const skippedSummary = getSkippedScreensSummary(skippedScreens)
+    console.warn('')
+    console.warn(`WARNING: Missing build output for ${skippedSummary.total} screen(s).`)
+    skippedSummary.sample.forEach(screen => console.warn(`  - ${screen}`))
+    if (skippedSummary.remaining > 0) {
+      console.warn(`  ... and ${skippedSummary.remaining} more`)
+    }
+  }
+
+  const failOnMissingBuildOutput = shouldFailOnMissingBuildOutput(process.env)
+  if (skippedWithoutBuildOutput > 0 && failOnMissingBuildOutput) {
+    console.error('')
+    console.error(
+      `ERROR: Missing build output for ${skippedWithoutBuildOutput} screen(s). Failing to avoid silent under-publishing.`
+    )
+    process.exit(1)
+  }
 }
 
 main().catch(error => {

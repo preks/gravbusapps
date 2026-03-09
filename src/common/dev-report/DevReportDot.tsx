@@ -22,6 +22,7 @@ import { Bug, Camera, CameraOff, Lightbulb, Send } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env, setProductReportBaseUrlOverride } from '@/common/env/EnvUtils'
 import { submitGravityIssue } from './productReportApi'
+import { getReportedEnvironmentFromUrl } from './environment'
 import { captureDevReportScreenshot } from './screenshot'
 import { getDevReportTelemetrySnapshot, startDevReportTelemetry } from './telemetry'
 import type { CreateGravityIssueRequest, GravityIssueType } from './types'
@@ -103,6 +104,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
 
   const doSubmit = async (screenshotRes: { screenshot: any; error?: string }) => {
     const pageUrl = typeof window !== 'undefined' ? window.location.href : undefined
+    const reportedEnvironment = getReportedEnvironmentFromUrl(pageUrl)
     const buildInfo = typeof globalThis !== 'undefined' ? ((globalThis as any).__APP_BUILD_INFO__ ?? null) : null
     const telemetry = getDevReportTelemetrySnapshot()
 
@@ -112,6 +114,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
       title: title.trim(),
       description: description.trim(),
       pageUrl,
+      reportedEnvironment,
       buildInfo,
       evidence: {
         screenshot: screenshotRes.screenshot,
