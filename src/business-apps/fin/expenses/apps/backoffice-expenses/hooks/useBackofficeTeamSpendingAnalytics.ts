@@ -28,7 +28,7 @@ import {
   buildCoreProcessedAnalyticsData,
   buildCorePaidClosedData,
   useAnalyticsBaseState
-} from '../../manager-expenses/hooks/teamSpendingAnalytics/shared'
+} from './teamSpendingAnalytics/analyticsShared'
 
 export { DateRangeOption } from '../../manager-expenses/hooks/teamSpendingAnalytics/types'
 export type { LocationFilter, DepartmentFilter } from '../../manager-expenses/hooks/teamSpendingAnalytics/types'

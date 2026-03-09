@@ -17,7 +17,7 @@ import {
   buildOverviewCoreDependencies,
   executeOverviewWithCache,
   type GqlBoolExp
-} from '../../manager-expenses/hooks/expensesOverview/sharedOverview'
+} from './backofficeSharedOverview'
 
 export interface OverviewPagingAndSort<TOrder> {
   limit?: number

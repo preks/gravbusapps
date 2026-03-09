@@ -58,7 +58,7 @@ import {
   buildDateRangeCondition as buildDateRangeConditionShared,
   buildRequestEffectiveDateFilter,
   buildRequestTypeFilter
-} from '../../../../manager-expenses/hooks/expensesOverview/sharedOverview'
+} from '../../../hooks/backofficeSharedOverview'
 import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
@@ -1288,7 +1288,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       totalAmount: item.totalAmount ?? 0,
       reimbursableAmount: item.reimbursableAmount,
       currency: { code: item.currency?.code ?? '' },
-      status: item.status ?? 'UNKNOWN',
+      status: item.status ?? '',
       creationDate: formatDateLocalized(item.createdAt),
       employeeDocumentId: item.employeeDocumentId ?? '-',
       documentData: item.documentData

@@ -1,9 +1,6 @@
 import { GET_BACKOFFICE_ANALYTICS_DATA } from '../../queries/backofficeAnalytics'
 import type { AnalyticsData } from '../../../manager-expenses/hooks/teamSpendingAnalytics/types'
-import {
-  buildCurrencyQueryVariables,
-  mapAnalyticsResult
-} from '../../../manager-expenses/hooks/teamSpendingAnalytics/shared'
+import { buildCurrencyQueryVariables, mapAnalyticsResult } from './analyticsShared'
 
 const inFlightRequests = new Map<string, Promise<AnalyticsData>>()
 const clientIds = new WeakMap<object, number>()

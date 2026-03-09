@@ -11,10 +11,7 @@ import {
   buildStatusFilterCondition,
   buildEmployeeFilterCondition
 } from './queryFilterUtils'
-import {
-  buildRequestEffectiveDateFilter,
-  buildRequestTypeFilter
-} from '../../manager-expenses/hooks/expensesOverview/sharedOverview'
+import { buildRequestEffectiveDateFilter, buildRequestTypeFilter } from './backofficeSharedOverview'
 
 export const useExpenseRequests = (context: BusinessAppContextProps, isActive: boolean = true) => {
   const { accessToken } = context

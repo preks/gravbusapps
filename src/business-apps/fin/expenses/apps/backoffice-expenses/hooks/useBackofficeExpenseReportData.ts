@@ -445,7 +445,7 @@ export const useBackofficeExpenseReportData = (
       'IN APPROVAL': ['PENDING'],
       'VERIFICATION REQUIRED': ['APPROVED'],
       PAID: ['PAID'],
-      'PAYMENT REQUIRED': ['PAYMENT_REQUIRED'],
+      'PAYMENT REQUIRED': ['TRANSFERRED'],
       PREPARED: ['PREPARED'],
       'TRANSFER REQUIRED': ['VERIFIED', 'BOOKED', 'TRANSFERRED']
     }
@@ -453,7 +453,6 @@ export const useBackofficeExpenseReportData = (
       'PENDING',
       'APPROVED',
       'PAID',
-      'PAYMENT_REQUIRED',
       'PREPARED',
       'VERIFIED',
       'BOOKED',
