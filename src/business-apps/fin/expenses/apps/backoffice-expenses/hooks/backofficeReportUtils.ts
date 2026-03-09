@@ -215,56 +215,66 @@ export interface SlaKpiCounts {
 type CommentRow = { expenseRequestId: string; commentDate: string; comment: string }
 type PaymentRow = { transactionDate?: string; decisionDate?: string; createdAt?: string; requestId: string }
 
-export const computeSlaKpiFromFlat = (
-  comments: CommentRow[],
-  payments: PaymentRow[],
-  slaPolicy: ExpensesSlaPolicy
-): SlaKpiCounts => {
-  const byRequest = new Map<string, { pendingDates: string[]; approvedDates: string[]; paidDates: string[] }>()
+type RequestDates = { pendingDates: string[]; approvedDates: string[]; paidDates: string[] }
 
+const matchesAny = (text: string, patterns: string[]): boolean => patterns.some(p => text.includes(p))
+
+const TO_PENDING = ['TO: PENDING', 'TO PENDING']
+const FROM_CREATED_OR_DRAFT = ['FROM: CREATED', 'FROM CREATED', 'FROM: DRAFT', 'FROM DRAFT']
+const TO_APPROVED = ['TO: APPROVED', 'TO APPROVED', 'TO: APPROVAL', 'TO APPROVAL']
+const FROM_PENDING = ['FROM: PENDING', 'FROM PENDING']
+const TO_PAID_OR_CLOSED = ['TO: PAID', 'TO PAID', 'TO: CLOSED', 'TO CLOSED']
+
+const classifyComment = (upper: string, date: string, entry: RequestDates): void => {
+  if (matchesAny(upper, TO_PENDING) && matchesAny(upper, FROM_CREATED_OR_DRAFT)) {
+    entry.pendingDates.push(date)
+  }
+  if (matchesAny(upper, TO_APPROVED) && matchesAny(upper, FROM_PENDING)) {
+    entry.approvedDates.push(date)
+  }
+  if (matchesAny(upper, TO_PAID_OR_CLOSED)) {
+    entry.paidDates.push(date)
+  }
+}
+
+const buildRequestDateMap = (comments: CommentRow[], payments: PaymentRow[]): Map<string, RequestDates> => {
+  const byRequest = new Map<string, RequestDates>()
   const ensure = (id: string) => {
     if (!byRequest.has(id)) byRequest.set(id, { pendingDates: [], approvedDates: [], paidDates: [] })
     return byRequest.get(id)!
   }
 
   for (const c of comments) {
-    const upper = (c.comment || '').toUpperCase()
-    const entry = ensure(c.expenseRequestId)
-    if (upper.includes('TO: PENDING') || upper.includes('TO PENDING')) {
-      if (
-        upper.includes('FROM: CREATED') ||
-        upper.includes('FROM CREATED') ||
-        upper.includes('FROM: DRAFT') ||
-        upper.includes('FROM DRAFT')
-      ) {
-        entry.pendingDates.push(c.commentDate)
-      }
-    }
-    if (
-      upper.includes('TO: APPROVED') ||
-      upper.includes('TO APPROVED') ||
-      upper.includes('TO: APPROVAL') ||
-      upper.includes('TO APPROVAL')
-    ) {
-      if (upper.includes('FROM: PENDING') || upper.includes('FROM PENDING')) {
-        entry.approvedDates.push(c.commentDate)
-      }
-    }
-    if (
-      upper.includes('TO: PAID') ||
-      upper.includes('TO PAID') ||
-      upper.includes('TO: CLOSED') ||
-      upper.includes('TO CLOSED')
-    ) {
-      entry.paidDates.push(c.commentDate)
-    }
+    classifyComment((c.comment || '').toUpperCase(), c.commentDate, ensure(c.expenseRequestId))
   }
-
   for (const p of payments) {
     const date = p.transactionDate || p.decisionDate || p.createdAt
     if (date) ensure(p.requestId).paidDates.push(date)
   }
+  return byRequest
+}
 
+const accumulateSlaStatus = (status: string, counts: SlaKpiCounts, field: 'approval' | 'payout' | 'total'): void => {
+  if (status === '-') return
+  if (field === 'approval') {
+    counts.approvalEvaluated++
+    if (status === 'Breached') counts.approvalBreached++
+  } else if (field === 'payout') {
+    counts.payoutEvaluated++
+    if (status === 'Breached') counts.payoutBreached++
+  } else {
+    counts.totalEvaluated++
+    if (status === 'Breached') counts.totalBreached++
+    if (status === 'Within SLA') counts.totalWithin++
+  }
+}
+
+export const computeSlaKpiFromFlat = (
+  comments: CommentRow[],
+  payments: PaymentRow[],
+  slaPolicy: ExpensesSlaPolicy
+): SlaKpiCounts => {
+  const byRequest = buildRequestDateMap(comments, payments)
   const counts: SlaKpiCounts = {
     approvalBreached: 0,
     approvalEvaluated: 0,
@@ -289,22 +299,10 @@ export const computeSlaKpiFromFlat = (
       slaPolicy.totalCycleSlaBusinessDays
     )
     const totalCycleDays = daysDiff(pendingAt, paidAt)
-    const approvalStatus = buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays)
-    const totalCycleStatus = buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays)
 
-    if (approvalStatus !== '-') {
-      counts.approvalEvaluated++
-      if (approvalStatus === 'Breached') counts.approvalBreached++
-    }
-    if (payoutEval.status !== '-') {
-      counts.payoutEvaluated++
-      if (payoutEval.status === 'Breached') counts.payoutBreached++
-    }
-    if (totalCycleStatus !== '-') {
-      counts.totalEvaluated++
-      if (totalCycleStatus === 'Breached') counts.totalBreached++
-      if (totalCycleStatus === 'Within SLA') counts.totalWithin++
-    }
+    accumulateSlaStatus(buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays), counts, 'approval')
+    accumulateSlaStatus(payoutEval.status, counts, 'payout')
+    accumulateSlaStatus(buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays), counts, 'total')
   }
 
   return counts

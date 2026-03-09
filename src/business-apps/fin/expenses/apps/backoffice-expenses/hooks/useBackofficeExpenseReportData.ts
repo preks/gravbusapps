@@ -75,8 +75,9 @@ interface FetchResult {
 }
 
 const resolveOverride = (override: unknown, fallback: unknown): string[] => {
-  const source = Array.isArray(override) ? override : Array.isArray(fallback) ? fallback : []
-  return source.map(String)
+  if (Array.isArray(override)) return override.map(String)
+  if (Array.isArray(fallback)) return fallback.map(String)
+  return []
 }
 
 const extractIds = (items: any[], paths: string[]): string[] =>
@@ -346,7 +347,7 @@ export const useBackofficeExpenseReportData = (
       expensesSlaPolicyRef.current = {
         approvalSlaBusinessDays: approval ?? DEFAULT_EXPENSES_SLA_POLICY.approvalSlaBusinessDays,
         payoutRunWeekday:
-          payout !== null ? Math.max(0, Math.min(6, Math.trunc(payout))) : DEFAULT_EXPENSES_SLA_POLICY.payoutRunWeekday,
+          payout === null ? DEFAULT_EXPENSES_SLA_POLICY.payoutRunWeekday : Math.max(0, Math.min(6, Math.trunc(payout))),
         totalCycleSlaBusinessDays: total ?? DEFAULT_EXPENSES_SLA_POLICY.totalCycleSlaBusinessDays
       }
       return expensesSlaPolicyRef.current
@@ -463,9 +464,9 @@ export const useBackofficeExpenseReportData = (
             rows: processApprovalPayoutCycleData(
               result,
               nameById,
-              slaPolicy,
               resolveDisplayName,
-              resolveDepartmentName
+              resolveDepartmentName,
+              slaPolicy
             ),
             totalCount: getCount(result)
           }

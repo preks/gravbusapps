@@ -2,6 +2,35 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ReportType } from '../../types/reportTypes'
 import type { ReportColumnDef } from './backofficeExpenseReportsPage.utils'
 
+const amountAndDateColumns = (): ReportColumnDef[] => [
+  {
+    key: 'totalAmount',
+    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Total Amount')
+  },
+  {
+    key: 'advancePaidAmount',
+    title: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
+      'Advance Payment'
+    )
+  },
+  {
+    key: 'remainingAmount',
+    title: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
+      'Remaining Amount'
+    )
+  },
+  {
+    key: 'startDate',
+    title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date')
+  },
+  {
+    key: 'endDate',
+    title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')
+  }
+]
+
 export const getReportColumns = (selectedReportType: ReportType | null): ReportColumnDef[] => {
   switch (selectedReportType) {
     case ReportType.EXPENSE_ITEM:
@@ -82,35 +111,7 @@ export const getReportColumns = (selectedReportType: ReportType | null): ReportC
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
           widthClass: 'gba:w-[13%]'
         },
-        {
-          key: 'totalAmount',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_plan_table.amount',
-            'Total Amount'
-          )
-        },
-        {
-          key: 'advancePaidAmount',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
-            'Advance Payment'
-          )
-        },
-        {
-          key: 'remainingAmount',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
-            'Remaining Amount'
-          )
-        },
-        {
-          key: 'startDate',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date')
-        },
-        {
-          key: 'endDate',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')
-        }
+        ...amountAndDateColumns()
       ]
     case ReportType.EXPENSE_REQUEST:
       return [
@@ -142,35 +143,7 @@ export const getReportColumns = (selectedReportType: ReportType | null): ReportC
           key: 'status',
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
         },
-        {
-          key: 'totalAmount',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_plan_table.amount',
-            'Total Amount'
-          )
-        },
-        {
-          key: 'advancePaidAmount',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
-            'Advance Payment'
-          )
-        },
-        {
-          key: 'remainingAmount',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
-            'Remaining Amount'
-          )
-        },
-        {
-          key: 'startDate',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date')
-        },
-        {
-          key: 'endDate',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')
-        }
+        ...amountAndDateColumns()
       ]
     case ReportType.ADVANCE_PAYMENT:
       return [

@@ -211,9 +211,7 @@ export function useExpenseRequestExport({
       } catch (err) {
         console.error(`[EXPORT ${formatLabel}] Error during export:`, err)
         toast.error('Export Failed', {
-          description:
-            `Failed to export ${formatLabel}: ` +
-            (err instanceof Error ? err.message : typeof err === 'string' ? err : String(err))
+          description: `Failed to export ${formatLabel}: ` + (err instanceof Error ? err.message : String(err))
         })
       } finally {
         setIsExporting(false)

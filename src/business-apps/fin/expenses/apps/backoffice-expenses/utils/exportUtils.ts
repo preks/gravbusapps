@@ -4,13 +4,12 @@
 
 import {
   formatCellValue,
-  buildFilename,
   triggerDownload,
   buildExcelWorkbook,
   downloadExcelWorkbook
 } from '@/common/utils/excelExportUtils'
 
-export { buildFilename }
+export { buildFilename } from '@/common/utils/excelExportUtils'
 
 /**
  * Escapes a value for use in CSV format

@@ -31,34 +31,43 @@ type NameResolver = (candidates: Array<string | undefined | null>, employeeNameB
 
 type DepartmentResolver = (candidates: Array<string | undefined | null>) => string
 
+const mapSingleRequest = (
+  request: any,
+  employeeNameById: Record<string, string>,
+  resolveDisplayName: NameResolver,
+  resolveDepartmentName: DepartmentResolver
+): ExpenseRequestReport => {
+  const statusDisplay = request.status ? getExpenseRequestStatusDisplay(request.status) : { label: '', type: 'draft' }
+  return {
+    id: request.id,
+    code: request.code || '',
+    planCode: request.expensePlan?.code || '',
+    title: request.title || '',
+    requestDate: request.requestDate || '',
+    startDate: request.startDate || '',
+    endDate: request.endDate || '',
+    createdAt: request.createdAt || '',
+    status: statusDisplay.label,
+    totalAmount: Number(request.reimbursableAmount ?? 0),
+    advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
+    remainingAmount: Number(request.totalRemainingAmount ?? 0),
+    currency: extractCurrencyCode(request.currencyRef),
+    employeeName:
+      buildEmployeeDisplayName(request.employee) ||
+      resolveDisplayName([request.employeeId, request.createdBy], employeeNameById),
+    departmentName: resolveDepartmentName([request.employeeId, request.createdBy])
+  } as ExpenseRequestReport
+}
+
 export const mapRequestsFromOverview = (
   rows: any[],
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
   resolveDepartmentName: DepartmentResolver
 ): ExpenseRequestReport[] => {
-  return (rows || []).map((request: any) => {
-    const statusDisplay = request.status ? getExpenseRequestStatusDisplay(request.status) : { label: '', type: 'draft' }
-    return {
-      id: request.id,
-      code: request.code || '',
-      planCode: request.expensePlan?.code || '',
-      title: request.title || '',
-      requestDate: request.requestDate || '',
-      startDate: request.startDate || '',
-      endDate: request.endDate || '',
-      createdAt: request.createdAt || '',
-      status: statusDisplay.label,
-      totalAmount: Number(request.reimbursableAmount ?? 0),
-      advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-      remainingAmount: Number(request.totalRemainingAmount ?? 0),
-      currency: extractCurrencyCode(request.currencyRef),
-      employeeName:
-        buildEmployeeDisplayName(request.employee) ||
-        resolveDisplayName([request.employeeId, request.createdBy], employeeNameById),
-      departmentName: resolveDepartmentName([request.employeeId, request.createdBy])
-    } as ExpenseRequestReport
-  })
+  return (rows || []).map((request: any) =>
+    mapSingleRequest(request, employeeNameById, resolveDisplayName, resolveDepartmentName)
+  )
 }
 
 export const mapPlansFromOverview = (
@@ -189,26 +198,9 @@ export const processExpenseRequestsData = (
   resolveDepartmentName: DepartmentResolver
 ): ExpenseRequestReport[] => {
   if (!data?.ExpenseRequest?.length) return []
-  return data.ExpenseRequest.map((request: any) => {
-    const statusDisplay = request.status ? getExpenseRequestStatusDisplay(request.status) : { label: '', type: 'draft' }
-    return {
-      id: request.id,
-      code: request.code || '',
-      planCode: request.expensePlan?.code || '',
-      title: request.title || '',
-      requestDate: request.requestDate || '',
-      startDate: request.startDate || '',
-      endDate: request.endDate || '',
-      createdAt: request.createdAt || '',
-      status: statusDisplay.label,
-      totalAmount: Number(request.reimbursableAmount ?? 0),
-      advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-      remainingAmount: Number(request.totalRemainingAmount ?? 0),
-      currency: extractCurrencyCode(request.currencyRef),
-      employeeName: resolveDisplayName([request.employeeId, request.createdBy], employeeNameById),
-      departmentName: resolveDepartmentName([request.employeeId, request.createdBy])
-    }
-  })
+  return data.ExpenseRequest.map((request: any) =>
+    mapSingleRequest(request, employeeNameById, resolveDisplayName, resolveDepartmentName)
+  )
 }
 
 export const mapAdvancePaymentToReport = (
@@ -335,9 +327,9 @@ const mapApprovalPayoutCycleRow = (
 export const processApprovalPayoutCycleData = (
   data: any,
   employeeNameById: Record<string, string>,
-  slaPolicy: ExpensesSlaPolicy = DEFAULT_EXPENSES_SLA_POLICY,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  slaPolicy: ExpensesSlaPolicy = DEFAULT_EXPENSES_SLA_POLICY
 ): ApprovalPayoutCycleReport[] => {
   const rows = Array.isArray(data?.ExpenseRequest) ? data.ExpenseRequest : []
   return rows.map((request: any) =>
