@@ -27,6 +27,26 @@ interface DirectoryEntry {
   avatarUrl?: string
 }
 
+interface DirectoryUserMatch {
+  id: string
+  name: string
+  email: string
+  avatarUrl?: string
+}
+
+function normalizeEmailForLookup(rawEmail: string): string {
+  const trimmed = rawEmail.trim().toLowerCase()
+  if (!trimmed) return ''
+
+  // Handles formats like "User Name <user@company.com>".
+  const startBracket = trimmed.indexOf('<')
+  const endBracket = startBracket >= 0 ? trimmed.indexOf('>', startBracket + 1) : -1
+  const bracketValue =
+    startBracket >= 0 && endBracket > startBracket + 1 ? trimmed.slice(startBracket + 1, endBracket) : ''
+  const candidate = (bracketValue || trimmed).replace(/^mailto:/, '').trim()
+  return candidate.includes('@') ? candidate : ''
+}
+
 /** Load recent recipients from localStorage */
 function loadRecentRecipients(): EmailContact[] {
   try {
@@ -259,6 +279,46 @@ export function useEmailDirectory(accessToken: string | null, accounts: EmailAcc
     [addRecentRecipient]
   )
 
+  const findDirectoryUserByEmail = useCallback((email: string): DirectoryUserMatch | null => {
+    const normalizedEmail = normalizeEmailForLookup(email)
+    if (!normalizedEmail) return null
+
+    const match = directoryRef.current.find(entry => normalizeEmailForLookup(entry.email) === normalizedEmail)
+    if (!match) return null
+
+    return {
+      id: match.id,
+      name: match.name,
+      email: match.email,
+      avatarUrl: match.avatarUrl
+    }
+  }, [])
+
+  const findDirectoryUserMatch = useCallback(
+    (sender: { email?: string; name?: string }): DirectoryUserMatch | null => {
+      const normalizedName = sender.name?.trim().toLowerCase() || ''
+
+      if (sender.email) {
+        const emailMatch = findDirectoryUserByEmail(sender.email)
+        if (emailMatch) return emailMatch
+      }
+
+      if (!normalizedName) return null
+
+      const nameMatches = directoryRef.current.filter(entry => entry.name.trim().toLowerCase() === normalizedName)
+      if (nameMatches.length !== 1) return null
+
+      const match = nameMatches[0]
+      return {
+        id: match.id,
+        name: match.name,
+        email: match.email,
+        avatarUrl: match.avatarUrl
+      }
+    },
+    [findDirectoryUserByEmail]
+  )
+
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
@@ -272,6 +332,8 @@ export function useEmailDirectory(accessToken: string | null, accounts: EmailAcc
     searchContacts,
     addRecentRecipient,
     addRecentRecipients,
+    findDirectoryUserByEmail,
+    findDirectoryUserMatch,
     isLoading,
     directorySize: directory.length
   }
