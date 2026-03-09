@@ -180,6 +180,53 @@ export const employmentRegionHolidaysInRangeQuery = `
   }
 `
 
+/** Per-day absence calendar view for a single employee — use for calendar painting. */
+export const employeeAbsenceCalendarRangeQuery = `
+  query GetEmployeeAbsenceCalendarRange($employeeId: uuid!, $from: date!, $to: date!) {
+    EmployeeAbsenceCalendarView(
+      where: {
+        employeeId: { _eq: $employeeId }
+        dayDate: { _gte: $from, _lte: $to }
+      }
+      orderBy: [{ dayDate: ASC }]
+    ) {
+      typeRef
+      status
+      dayDate
+    }
+  }
+`
+
+/** Latest snapshot for one employee + absence type in an overlapping period window. */
+export const latestEntitlementSnapshotForRangeQuery = `
+  query GetLatestEntitlementSnapshotForRange(
+    $employeeId: uuid!
+    $typeRef: String!
+    $from: date!
+    $to: date!
+  ) {
+    EntitlementUsageSnapshotView(
+      where: {
+        employeeId: { _eq: $employeeId }
+        typeRef: { _eq: $typeRef }
+        periodStart: { _lte: $to }
+        periodEnd: { _gte: $from }
+      }
+      orderBy: [{ snapshotAt: DESC }]
+      limit: 1
+    ) {
+      typeRef
+      periodStart
+      periodEnd
+      totalEntitlement
+      usedApproved
+      usedPending
+      remaining
+      snapshotAt
+    }
+  }
+`
+
 export const employeeWorkingHoursQuery = `
   query GetEmployeeWorkingHours($employeeId: uuid!) {
     employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {

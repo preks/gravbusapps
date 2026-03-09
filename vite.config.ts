@@ -1048,7 +1048,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         cssFileName: 'main'
       },
       minify: isProduction ? 'esbuild' : false, // Ensure minification for production
-      reportCompressedSize: isUnversionedBuild && isSingleBuild ? true : false,
+      reportCompressedSize: false,
       // Enable CSS processing
       css: {
         devSourcemap: true

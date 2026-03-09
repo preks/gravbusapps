@@ -10,6 +10,12 @@ export interface ActiveFilters {
   typeEquals?: string
 }
 
+type CatalogSelectValueState = {
+  value?: string | null
+}
+
+export type CatalogSelectExternalValue = string | string[] | null
+
 /**
  * Gets the localized value for a catalog entry based on the provided locale.
  * Falls back to the default value if:
@@ -76,6 +82,36 @@ export const buildFiltersSignature = (filters: ActiveFilters): string => {
     p: filters.parentEntryId || null,
     t: filters.typeEquals || null
   })
+}
+
+export const resolveCatalogSelectFieldValue = (
+  fieldId: string,
+  externalValues?: Record<string, CatalogSelectExternalValue>,
+  stateById?: Record<string, CatalogSelectValueState | undefined>
+): string => {
+  if (externalValues && Object.prototype.hasOwnProperty.call(externalValues, fieldId)) {
+    const externalValue = externalValues[fieldId]
+    return typeof externalValue === 'string' ? externalValue : ''
+  }
+
+  return stateById?.[fieldId]?.value || ''
+}
+
+export const resolveCatalogSelectFieldValues = (
+  fieldId: string,
+  externalValues?: Record<string, CatalogSelectExternalValue>,
+  stateById?: Record<string, CatalogSelectValueState | undefined>
+): string[] => {
+  if (externalValues && Object.prototype.hasOwnProperty.call(externalValues, fieldId)) {
+    const externalValue = externalValues[fieldId]
+    if (Array.isArray(externalValue)) {
+      return externalValue.filter((value): value is string => typeof value === 'string' && value.length > 0)
+    }
+    return typeof externalValue === 'string' && externalValue.length > 0 ? [externalValue] : []
+  }
+
+  const stateValue = stateById?.[fieldId]?.value
+  return typeof stateValue === 'string' && stateValue.length > 0 ? [stateValue] : []
 }
 
 export const isValueValidForFilters = (

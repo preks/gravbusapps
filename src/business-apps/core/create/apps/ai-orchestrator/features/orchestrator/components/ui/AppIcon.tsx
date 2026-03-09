@@ -108,10 +108,18 @@ import {
   HelpCircle,
   Info,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Gamepad,
+  Gamepad2,
+  Joystick,
+  Dices,
+  Trophy,
+  PartyPopper,
+  Clapperboard
 } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
 
+/** Must stay in sync with ai-builder-service APP_ICON_NAMES (app-icons.ts). */
 const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   Users,
   UserPlus,
@@ -222,22 +230,67 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   HelpCircle,
   Info,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Gamepad,
+  Gamepad2,
+  Joystick,
+  Dices,
+  Trophy,
+  PartyPopper,
+  Clapperboard
 }
 
 interface AppIconProps extends LucideProps {
   name?: string
 }
 
-/** Normalize icon name: trim and use as-is (API contract is PascalCase). */
-function normalizeIconName(name: string | undefined): string | undefined {
-  if (!name || typeof name !== 'string') return undefined
+/**
+ * Normalize and resolve icon name with fallback strategies:
+ * 1. Exact match (case-sensitive)
+ * 2. Case-insensitive match
+ * 3. Common aliases (Gamepad2 -> Gamepad, GameController -> Gamepad)
+ * 4. Strip suffixes (Icon, 2, Filled)
+ * 5. Default fallback: Layers
+ */
+function resolveIcon(name: string | undefined): React.ComponentType<LucideProps> {
+  if (!name || typeof name !== 'string') return Layers
   const trimmed = name.trim()
-  return trimmed.length > 0 ? trimmed : undefined
+  if (!trimmed) return Layers
+
+  // 1. Exact match
+  if (ICON_MAP[trimmed]) return ICON_MAP[trimmed]
+
+  // 2. Case-insensitive match
+  const lowerName = trimmed.toLowerCase()
+  const exactCaseMatch = Object.keys(ICON_MAP).find(k => k.toLowerCase() === lowerName)
+  if (exactCaseMatch) return ICON_MAP[exactCaseMatch]
+
+  // 3. Common aliases for game/entertainment icons
+  const aliases: Record<string, string> = {
+    gamepad: 'Gamepad',
+    gamecontroller: 'Gamepad',
+    game: 'Gamepad',
+    dice: 'Dices',
+    achievement: 'Trophy',
+    party: 'PartyPopper',
+    celebration: 'PartyPopper',
+    movie: 'Clapperboard',
+    video: 'Clapperboard',
+    film: 'Clapperboard'
+  }
+  const aliasMatch = aliases[lowerName]
+  if (aliasMatch && ICON_MAP[aliasMatch]) return ICON_MAP[aliasMatch]
+
+  // 4. Strip common suffixes and retry
+  const withoutSuffix = trimmed.replace(/(Icon|2|Filled)$/i, '')
+  if (withoutSuffix !== trimmed && ICON_MAP[withoutSuffix]) {
+    return ICON_MAP[withoutSuffix]
+  }
+
+  return Layers
 }
 
 export function AppIcon({ name, ...props }: AppIconProps) {
-  const key = normalizeIconName(name)
-  const Icon = (key && ICON_MAP[key]) || Sparkles
+  const Icon = resolveIcon(name)
   return <Icon {...props} />
 }

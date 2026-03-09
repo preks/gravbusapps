@@ -13,6 +13,8 @@ interface FeedbackCardsProps {
   publicBadgeLabel: string
   showMoreLabel: string
   showLessLabel: string
+  /** When sender equals this label (e.g. "Unknown user"), the name is not rendered as a link. */
+  unknownSenderLabel?: string
 }
 
 const FeedbackCards: React.FC<FeedbackCardsProps> = ({
@@ -20,7 +22,8 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
   privateBadgeLabel,
   publicBadgeLabel,
   showMoreLabel,
-  showLessLabel
+  showLessLabel,
+  unknownSenderLabel
 }) => {
   const [expandedByKey, setExpandedByKey] = React.useState<Record<string, boolean>>({})
 
@@ -45,7 +48,7 @@ const FeedbackCards: React.FC<FeedbackCardsProps> = ({
                 </div>
                 <div className="gba:flex-grow">
                   <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
-                    {feedback.senderId ? (
+                    {feedback.senderId && (!unknownSenderLabel || feedback.sender !== unknownSenderLabel) ? (
                       <button
                         type="button"
                         className="gba:font-semibold gba:text-info gba:hover:underline gba:bg-transparent gba:border-none gba:p-0"
