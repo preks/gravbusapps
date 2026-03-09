@@ -2,8 +2,12 @@ interface NavigationMapping {
   [key: string]: string
 }
 
-// Mapping of platform URLs to app paths for development mode
-const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
+/**
+ * Canonical mapping of platform URLs to app paths.
+ * Used by navigateTo for dev-mode URL conversion. Export allows consumers
+ * (e.g. IDE entry point) to resolve path-based URLs in their use case.
+ */
+export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // CRM
 
   /// Core: Apps
@@ -139,15 +143,6 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
 /** Canonical platform path for Every Office (Desk hub). Use with navigateTo(). */
 export const EVERY_OFFICE_PLATFORM_PATH = '/platform/every-office'
-
-/**
- * Get app path from pathname when using path-based URLs (e.g. flow task links, Excel Collection copy links).
- * Used by the dev app entry point to normalize URLs before BusinessAppIDE loads (adds ?app= when missing).
- */
-export const getAppPathFromPathname = (pathname: string): string | null => {
-  const normalized = pathname.replace(/\/+$/, '') || '/'
-  return PLATFORM_URL_TO_APP_MAPPING[normalized] ?? null
-}
 
 /**
  * Checks if a URL is a platform URL that should be mapped to app query parameters

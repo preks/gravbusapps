@@ -2,8 +2,6 @@ import { env } from '@/common/env/EnvUtils'
 
 const normalizeUrl = (value: string): string => value.trim().replace(/\/+$/, '')
 
-const isLocalUrl = (url: string): boolean => url.includes('localhost') || url.includes('127.0.0.1')
-
 /**
  * Build flow-engine base URL from a custom env value.
  * Accepts:
@@ -36,7 +34,7 @@ export const getFlowEngineBaseUrl = (): string => {
   if (custom?.trim()) return resolveFlowEngineBaseFromCustom(custom)
 
   const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-  const develop = baseUrl?.trim() && !isLocalUrl(baseUrl) ? `${normalizeUrl(baseUrl)}/flow-engine` : null
+  const develop = baseUrl?.trim() ? `${normalizeUrl(baseUrl)}/flow-engine` : null
   if (develop) return develop
 
   return '/flow-engine'
@@ -71,7 +69,7 @@ export const getFlowEngineApiBaseUrl = (): string => {
   if (custom?.trim()) return resolveFlowEngineApiFromCustom(custom)
 
   const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-  const developBase = baseUrl?.trim() && !isLocalUrl(baseUrl) ? `${normalizeUrl(baseUrl)}/flow-engine` : null
+  const developBase = baseUrl?.trim() ? `${normalizeUrl(baseUrl)}/flow-engine` : null
   if (developBase) return `${developBase}/api`
 
   return '/flow-engine/api'

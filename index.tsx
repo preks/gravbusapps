@@ -3,12 +3,20 @@ import { name, version } from './package.json'
 
 import './src/index.css'
 import { BusinessAppIDE } from './src/BusinessAppIDE'
-import { getAppPathFromPathname } from '@/common/utils/navigationUtils'
+import { PLATFORM_URL_TO_APP_MAPPING } from '@/common/utils/navigationUtils'
+
+/**
+ * IDE-specific: resolve app path from pathname using the navigation mapping.
+ * Path-based URLs (e.g. Excel Collection copy links) need ?app= for the IDE to load correctly.
+ */
+function getAppPathFromPathname(pathname: string): string | null {
+  const normalized = pathname.replace(/\/+$/, '') || '/'
+  return PLATFORM_URL_TO_APP_MAPPING[normalized] ?? null
+}
 
 /**
  * Normalize path-based platform URLs to include ?app= for the IDE.
- * Uses navigation utils mapping (platform path → app path) so direct links
- * like /platform/spreadsheets?appId=xxx work without logic in BusinessAppIDE.
+ * Uses PLATFORM_URL_TO_APP_MAPPING from navigation utils (properly registered).
  */
 function ensureAppParamInUrl(): boolean {
   if (typeof window === 'undefined') return false
