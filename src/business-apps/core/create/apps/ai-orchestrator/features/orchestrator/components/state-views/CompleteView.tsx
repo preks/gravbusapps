@@ -11,8 +11,7 @@ import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-rea
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
-import { BuildPlanTab } from './BuildPlanTab'
-import { DataFlowDiagram } from './DataFlowDiagram'
+import { OverviewTab } from './OverviewTab'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import { AppAboutView } from './AppAboutView'
 import { DataModelPreview } from '@/common/components/ai-builder/data-model-preview/DataModelPreview'
@@ -84,10 +83,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   const renderTabContent = () => {
     switch (activeTab) {
       case 'build-plan':
-        return <BuildPlanTab components={components} userSummary={userSummary} prompt={prompt} />
-
-      case 'data-flow':
-        return <DataFlowDiagram components={components} />
+        return <OverviewTab components={components} userSummary={userSummary} prompt={prompt} />
 
       case 'screen':
         if (previewComponent && accessToken) {
