@@ -243,7 +243,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
         {/* Field list */}
         {fields.map((field, index) => (
           <FormFieldEditor
-            key={`${field.name}-${index}`}
+            key={`field-row-${index}`}
             field={field}
             index={index}
             total={fields.length}

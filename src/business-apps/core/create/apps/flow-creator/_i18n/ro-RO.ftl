@@ -11,6 +11,13 @@ studio-discard-title = Renunțați la modificări?
 studio-discard-desc = Aveți modificări nesalvate. Ieșiți fără salvare și renunțați la ele.
 studio-discard-cancel = Continuă editarea
 studio-discard-confirm = Renunță și închide
+studio-save-name-title = Denumiți flow-ul înainte de salvare
+studio-save-name-description = Oferiți acestui flow un nume clar pentru a putea fi salvat și găsit mai târziu.
+studio-save-name-label = Nume flow
+studio-save-name-placeholder = ex. Onboarding angajat
+studio-save-name-validation = Introduceți un nume pentru flow înainte de salvare.
+studio-save-name-cancel = Anulează
+studio-save-name-confirm = Salvează flow-ul
 
 # Labels / Tags
 labels-title = Etichete

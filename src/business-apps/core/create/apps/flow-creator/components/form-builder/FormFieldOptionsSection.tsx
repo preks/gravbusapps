@@ -235,7 +235,7 @@ export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = (
         <>
           <Label className="gba:text-[10px] gba:font-medium gba:text-muted-foreground">Options</Label>
           {(field.options ?? []).map((opt, oi) => (
-            <div key={opt.value || opt.label || `opt-${oi}`} className="gba:flex gba:items-center gba:gap-1.5">
+            <div key={`opt-${oi}`} className="gba:flex gba:items-center gba:gap-1.5">
               <Input
                 value={opt.label}
                 onChange={e => onUpdateOption(oi, { label: e.target.value })}

@@ -11,6 +11,13 @@ studio-discard-title = Änderungen verwerfen?
 studio-discard-desc = Es gibt ungespeicherte Änderungen. Studio ohne Speichern verlassen und verwerfen?
 studio-discard-cancel = Weiter bearbeiten
 studio-discard-confirm = Verwerfen und schließen
+studio-save-name-title = Flow vor dem Speichern benennen
+studio-save-name-description = Geben Sie diesem Flow einen eindeutigen Namen, damit er gespeichert und später wiedergefunden werden kann.
+studio-save-name-label = Flow-Name
+studio-save-name-placeholder = z. B. Mitarbeiter-Onboarding
+studio-save-name-validation = Bitte geben Sie vor dem Speichern einen Flow-Namen ein.
+studio-save-name-cancel = Abbrechen
+studio-save-name-confirm = Flow speichern
 
 # Labels / Tags
 labels-title = Labels

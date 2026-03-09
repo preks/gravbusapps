@@ -11,6 +11,13 @@ studio-discard-title = Discard changes?
 studio-discard-desc = You have unsaved changes. Leave the studio without saving and discard them.
 studio-discard-cancel = Keep editing
 studio-discard-confirm = Discard and close
+studio-save-name-title = Name flow before saving
+studio-save-name-description = Give this flow a clear name so it can be saved and found again later.
+studio-save-name-label = Flow name
+studio-save-name-placeholder = e.g. Employee onboarding
+studio-save-name-validation = Please enter a flow name before saving.
+studio-save-name-cancel = Cancel
+studio-save-name-confirm = Save flow
 
 # Labels / Tags
 labels-title = Labels

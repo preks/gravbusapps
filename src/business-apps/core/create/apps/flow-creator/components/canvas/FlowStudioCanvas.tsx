@@ -5,7 +5,6 @@ import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { CanvasToolbar } from './CanvasToolbar'
 import { ConfigPanelContainer } from '../config-panels/ConfigPanelContainer'
 import { useFlowValidation } from '../../hooks/useFlowValidation'
-import { useFlowStudioClient } from '../../hooks/useFlowStudioClient'
 import { useFlowStudioData } from '../../hooks/useFlowStudioData'
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import type { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
@@ -16,6 +15,7 @@ type SimStatus = 'pending' | 'active' | 'completed'
 interface FlowStudioCanvasProps extends BusinessAppContextProps {
   mode: DesignerMode
   onModeChange?: (mode: DesignerMode) => void
+  onSave?: () => Promise<void> | void
   'data-testid'?: string
 }
 
@@ -23,6 +23,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   accessToken,
   mode,
   onModeChange,
+  onSave,
   'data-testid': testId = 'flow-studio-canvas'
 }) => {
   const storeNodes = useFlowStudioStore(s => s.nodes)
@@ -36,7 +37,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   const openEdgeDetails = useFlowStudioStore(s => s.openEdgeDetails)
   const openEdgeInsert = useFlowStudioStore(s => s.openEdgeInsert)
   const toGraphDefinition = useFlowStudioStore(s => s.toGraphDefinition)
-  const { saveFlow } = useFlowStudioClient(accessToken)
   const studioData = useFlowStudioData(accessToken)
   const { errors, warnings } = useFlowValidation()
   const [simStatuses, setSimStatuses] = useState<Record<string, SimStatus>>({})
@@ -129,10 +129,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
     },
     [storeEdges, openEdgeInsert, insertNodeOnEdge]
   )
-
-  const onSave = useCallback(async () => {
-    await saveFlow()
-  }, [saveFlow])
 
   const onSimulate = useCallback(() => {
     const start = storeNodes.find(node => node.type === 'start')
