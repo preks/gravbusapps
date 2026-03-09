@@ -118,22 +118,25 @@ export const getReportColumns = (selectedReportType: ReportType | null): ReportC
         {
           key: 'title',
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          widthClass: 'gba:w-[25%]'
+          widthClass: 'gba:w-[18%]'
         },
         {
           key: 'code',
           title: getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_request_list.expense_request_filter.request_number_input',
             'Request Code'
-          )
+          ),
+          widthClass: 'gba:w-[8%]'
         },
         {
           key: 'planCode',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code')
+          title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code'),
+          widthClass: 'gba:w-[8%]'
         },
         {
           key: 'employeeName',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
+          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
+          widthClass: 'gba:w-[13%]'
         },
         {
           key: 'createdAt',
@@ -194,18 +197,20 @@ export const getReportColumns = (selectedReportType: ReportType | null): ReportC
         {
           key: 'title',
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-          widthClass: 'gba:w-[20%]'
+          widthClass: 'gba:w-[14%]'
         },
         {
           key: 'code',
           title: getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_request_list.expense_request_filter.request_number_input',
             'Request Code'
-          )
+          ),
+          widthClass: 'gba:w-[8%]'
         },
         {
           key: 'employeeName',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
+          title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
+          widthClass: 'gba:w-[12%]'
         },
         {
           key: 'pendingAt',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ReportType } from '../../hooks/useBackofficeExpenseReportData'
@@ -9,7 +9,6 @@ import {
   TRANSFER_REQUIRED_LABEL,
   normalizeReportFilters,
   areReportFiltersEqual,
-  hasAnyReportFilters,
   normalizeStatusFilterValue,
   buildTransferRequiredAliases
 } from './reportFilterUtils'
@@ -42,7 +41,6 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
   const [fullFilterOptionsByType, setFullFilterOptionsByType] = useState<
     Partial<Record<ReportType, ReportFilterOptionSnapshot>>
   >({})
-  const didHandleInitialFilterSyncRef = useRef<Partial<Record<ReportType, boolean>>>({})
   const transferRequiredStatusAliases = useMemo(() => buildTransferRequiredAliases(), [])
 
   const selectedFilters = useMemo(() => {
@@ -260,11 +258,6 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
       if (!selectedReportType) return
       const nextFilters = normalizeReportFilters(filters)
       const currentFilters = normalizeReportFilters(filtersByReportType[selectedReportType] ?? {})
-      const didSync = didHandleInitialFilterSyncRef.current[selectedReportType] === true
-      if (!didSync) {
-        didHandleInitialFilterSyncRef.current[selectedReportType] = true
-        if (!hasAnyReportFilters(currentFilters) && hasAnyReportFilters(nextFilters)) return
-      }
       if (areReportFiltersEqual(currentFilters, nextFilters)) return
       setFiltersByReportType(prev => ({ ...prev, [selectedReportType]: nextFilters }))
       setCurrentPage(1)
@@ -274,7 +267,6 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
 
   const handleResetFilters = useCallback(() => {
     if (!selectedReportType) return
-    didHandleInitialFilterSyncRef.current[selectedReportType] = true
     setFiltersByReportType(prev => ({ ...prev, [selectedReportType]: { ...EMPTY_REPORT_FILTERS } }))
     setLocalSearchText('')
     setSearchTerm('')

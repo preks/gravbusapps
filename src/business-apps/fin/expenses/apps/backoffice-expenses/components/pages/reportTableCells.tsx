@@ -12,11 +12,11 @@ export const renderReportTableCell = (columnKey: string, rowOriginal: any): Reac
   if (isDateKey(columnKey)) {
     return <span className="gba:text-sm">{value ? formatDateLocalized(value, 'L') : '-'}</span>
   }
-  if (columnKey === 'title') {
-    const titleValue = value || '-'
+  if (columnKey === 'title' || columnKey === 'employeeName') {
+    const displayValue = value || '-'
     return (
-      <span className="gba:block gba:max-w-[280px] gba:truncate gba:text-sm" title={titleValue}>
-        {titleValue}
+      <span className="gba:block gba:truncate gba:text-sm" title={displayValue}>
+        {displayValue}
       </span>
     )
   }

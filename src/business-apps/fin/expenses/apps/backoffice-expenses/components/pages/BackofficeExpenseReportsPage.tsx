@@ -24,7 +24,8 @@ import {
   type ReportSnapshot,
   REPORT_TYPE_DEFINITIONS,
   normalizeStatusFilterValue,
-  buildTransferRequiredAliases
+  buildTransferRequiredAliases,
+  hasAnyReportFilters
 } from './reportFilterUtils'
 import { useReportFilters } from './useReportFilters'
 import { renderReportTableCell } from './reportTableCells'
@@ -104,6 +105,15 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   })
 
   const slaKpiValues = useSlaKpiValues(slaKpiCounts)
+  const hasActiveFilters = useMemo(() => hasAnyReportFilters(selectedFilters), [selectedFilters])
+  const activeFiltersOnly = useMemo(() => {
+    if (!hasActiveFilters) return undefined
+    const result: Record<string, string[]> = {}
+    for (const [key, values] of Object.entries(selectedFilters)) {
+      if (Array.isArray(values) && values.length > 0) result[key] = values
+    }
+    return result
+  }, [selectedFilters, hasActiveFilters])
   const hasReportRows = Array.isArray(baseReportRows) && baseReportRows.length > 0
   const displayTotalCount = isDataAlignedWithSelectedType ? totalCount : (selectedReportSnapshot?.totalCount ?? 0)
   const tableLoading = isLoading && !hasReportRows
@@ -257,7 +267,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                 'Search report data...'
               )}
               onSearchChange={handleSearchChange}
-              filters={selectedFilters}
+              filters={activeFiltersOnly}
               filterConfiguration={filterConfiguration}
               onFilterChange={handleFilterChange}
               sorting={sorting}
@@ -265,16 +275,18 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
               onSortingChange={handleSortingChange}
               primaryAction={
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleResetFilters}
-                    data-testid="backoffice-expense-reports-reset-filters-button"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.reset_filters',
-                      'Reset Filters'
-                    )}
-                  </Button>
+                  {hasActiveFilters && (
+                    <Button
+                      variant="outline"
+                      onClick={handleResetFilters}
+                      data-testid="backoffice-expense-reports-reset-filters-button"
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:team_expenses_page.dashboard_tab.reset_filters',
+                        'Reset Filters'
+                      )}
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     onClick={handleDownload}
