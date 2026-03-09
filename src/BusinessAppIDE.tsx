@@ -60,7 +60,6 @@ import {
   STORAGE_KEY_ADDITIONAL_DATA,
   STORAGE_KEY_SIDEBAR_COLLAPSED
 } from './common/constants/ideStorageKeys'
-import { getAppPathFromPathname } from '@/common/utils/navigationUtils'
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob('./business-apps/**/index.ts', {
@@ -276,8 +275,7 @@ const resolveAppFromUrl = (pathname: string, search: string): string | null => {
     urlParams.get('app') ||
     urlParams.get('form') ||
     urlParams.get('popup') ||
-    urlParams.get('window') ||
-    getAppPathFromPathname(pathname)
+    urlParams.get('window')
   if (explicitApp) return explicitApp
   if (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft')) {
     return 'flow/apps/creator'
