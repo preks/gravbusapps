@@ -579,19 +579,26 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     () => (sortOrder ? [{ id: sortField || 'expenseDate', desc: sortOrder === 'descend' }] : []),
     [sortField, sortOrder]
   )
-  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
-    const entry = newSorting[0]
-    const field = entry?.id || 'expenseDate'
-    const order = entry ? (entry.desc ? 'descend' : 'ascend') : undefined
-    if (entry) {
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      const entry = newSorting[0]
+      const field = entry?.id || 'expenseDate'
+      const orderFromTable = entry ? (entry.desc ? 'descend' : 'ascend') : undefined
+      const isSameColumn = sortField === field
+      let nextOrder: 'ascend' | 'descend'
+      if (isSameColumn && orderFromTable != null && orderFromTable !== sortOrder) {
+        nextOrder = orderFromTable
+      } else if (isSameColumn) {
+        nextOrder = sortOrder === 'descend' ? 'ascend' : 'descend'
+      } else {
+        nextOrder = 'ascend'
+      }
       setSortField(field)
-      setSortOrder(order)
-    } else {
-      setSortField('expenseDate')
-      setSortOrder('descend')
-    }
-    setCurrentPage(1)
-  }, [])
+      setSortOrder(nextOrder)
+      setCurrentPage(1)
+    },
+    [sortField, sortOrder]
+  )
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
   const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
     setCurrentPage(newPagination.pageIndex + 1)

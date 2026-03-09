@@ -96,6 +96,7 @@ export const useGetExpenseItems = (
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState<number>(0)
   const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
+  const itemsRef = useRef<ExpenseItem[]>([]) // For checking existing data inside fetchItems (avoid loading flash on sort/pagination)
   // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder)
   const pageCacheRef = useRef<Map<string, { items: ExpenseItem[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
@@ -342,7 +343,10 @@ export const useGetExpenseItems = (
         }
       }
 
-      setIsLoading(true)
+      // Only show loading when we have no data yet (initial load); skip for sort/pagination to avoid table rerender/flash
+      if (itemsRef.current.length === 0) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {
@@ -395,6 +399,10 @@ export const useGetExpenseItems = (
       generateCacheKey
     ]
   )
+
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   // Initial fetch on component mount (configurable)
   useEffect(() => {
