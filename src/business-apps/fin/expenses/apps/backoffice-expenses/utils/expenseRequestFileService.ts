@@ -9,7 +9,7 @@ export interface PrintExpenseRequestResult {
   error?: string
 }
 
-export const useExpenseRequestFileService = (props: BusinessAppContextProps) => {
+export const useExpenseRequestFileService = (props: Readonly<BusinessAppContextProps>) => {
   const isMounted = useRef<boolean>(true)
 
   useEffect(() => {

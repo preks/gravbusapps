@@ -9,6 +9,7 @@ import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useFilterData } from '../../../hooks/useFilterData'
 import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
+import { filterOptionsByName } from '../../../hooks/queryFilterUtils'
 import dayjs from 'dayjs'
 
 import {
@@ -92,11 +93,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     () => getActiveStructureDepartmentOptions(organizationalUnits),
     [organizationalUnits]
   )
-  const filteredDepartmentOptions = useMemo(() => {
-    if (!departmentSearch.trim()) return departmentOptions
-    const search = departmentSearch.toLowerCase()
-    return departmentOptions.filter(d => d.name.toLowerCase().includes(search))
-  }, [departmentOptions, departmentSearch])
+  const filteredDepartmentOptions = useMemo(
+    () => filterOptionsByName(departmentOptions, departmentSearch),
+    [departmentOptions, departmentSearch]
+  )
 
   const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } =
     useAdvancePayments(context)
@@ -220,15 +220,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   // Handle search changes
   const handleSearchChange = useCallback(
-    (value: string) => {
-      const normalizedValue = value ?? ''
-      setSearchText(normalizedValue)
+    (value: string = '') => {
+      setSearchText(value)
       setCurrentPage(1)
-
-      // Notify parent if callback exists
-      if (onSearchChange) {
-        onSearchChange(normalizedValue)
-      }
+      onSearchChange?.(value)
     },
     [onSearchChange]
   )
@@ -806,7 +801,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           />
           <div className="gba:max-h-40 gba:overflow-y-auto">
             <button
-              className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${!departmentId ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-foreground'}`}
+              className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${departmentId ? 'gba:text-foreground' : 'gba:bg-accent gba:text-accent-foreground'}`}
               onClick={() => {
                 setDepartmentId('')
                 setCurrentPage(1)

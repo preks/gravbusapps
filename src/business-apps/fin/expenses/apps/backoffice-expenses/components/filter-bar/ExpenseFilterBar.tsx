@@ -5,6 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../hooks/useFilterData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getActiveStructureDepartmentOptions } from '../../utils/departmentOptions'
+import { filterOptionsByName } from '../../hooks/queryFilterUtils'
 
 export interface FilterOptions {
   department?: string
@@ -57,14 +58,10 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
     () => getActiveStructureDepartmentOptions(organizationalUnits),
     [organizationalUnits]
   )
-  const filteredOrganizationalUnits = useMemo(() => {
-    const query = departmentSearch.trim().toLowerCase()
-    if (!query) return departmentOptions
-    return departmentOptions.filter(unit => {
-      const name = String(unit.name || '').toLowerCase()
-      return name.includes(query)
-    })
-  }, [departmentSearch, departmentOptions])
+  const filteredOrganizationalUnits = useMemo(
+    () => filterOptionsByName(departmentOptions, departmentSearch),
+    [departmentOptions, departmentSearch]
+  )
 
   // ⚡ REMOVED: Automatic currency setting to prevent override of user selections
   // The dashboard will handle all currency initialization

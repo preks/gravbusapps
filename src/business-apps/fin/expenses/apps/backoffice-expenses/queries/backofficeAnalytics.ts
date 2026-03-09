@@ -29,7 +29,7 @@ export const GET_BACKOFFICE_ANALYTICS_DATA = `
         ]
       }
     ) {
-      id title expenseDate createdAt status totalAmount currencyRef
+      id title expenseDate createdAt status totalAmount reimbursableAmount currencyRef
       employee {
         id
         fullName
@@ -61,7 +61,7 @@ export const GET_BACKOFFICE_ANALYTICS_DATA = `
         ]
       }
     ) {
-      id title createdAt status totalAmount currencyRef requestTypeRef startDate
+      id title createdAt status totalAmount reimbursableAmount currencyRef requestTypeRef startDate
       employee {
         id
         fullName

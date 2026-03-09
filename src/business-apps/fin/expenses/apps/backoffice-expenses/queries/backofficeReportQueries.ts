@@ -52,6 +52,7 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
       expensePosition { expenseGroupRef }
       expenseDate
       totalAmount
+      reimbursableAmount
       expenseRequestId
       expenseRequest {
         id code createdAt startDate requestTypeRef currencyRef status
@@ -79,7 +80,7 @@ export const GET_EXPENSE_PLANS_BACKOFFICE = `
         amount
         status
       }
-      startDate endDate status activeFrom activeTo totalAmount currencyRef
+      startDate endDate status activeFrom activeTo totalAmount totalRemainingAmount currencyRef
       createdAt updatedAt decisionDate planDate
       employeeDocument { id file fileSize name mimeType }
     }
@@ -96,7 +97,7 @@ export const GET_EXPENSE_REQUESTS_BACKOFFICE = `
     ExpenseRequestAggregate(where: $where) { aggregate { count } }
     ExpenseRequest(limit: $limit, offset: $offset, orderBy: $orderBy, where: $where) {
       id code title employeeId requestDate startDate endDate description
-      totalAmount currencyRef status createdAt updatedAt
+      totalAmount reimbursableAmount totalRemainingAmount currencyRef status createdAt updatedAt
       requestType { value translations { value localeCode } }
       expensePlan {
         code
@@ -152,6 +153,7 @@ export const GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE = `
       decisionDate
       status
       totalAmount
+      reimbursableAmount
       currencyRef
       expenseRequestComment(where: { isDeleted: { _eq: false } }, orderBy: { commentDate: ASC }) {
         commentDate

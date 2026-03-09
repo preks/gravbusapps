@@ -13,7 +13,7 @@ import useBackofficeContentHeader from '../common/useBackofficeContentHeader'
 
 type AdvancePaymentTabProps = BackofficeTabProps
 
-function AdvancePaymentTab(props: AdvancePaymentTabProps) {
+function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
   const { isActive = true, onContentHeaderChange } = props
 
   const { searchTerm, handleSearchChange } = useBackofficeTabSearch()

@@ -191,11 +191,12 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
                 'lowcoder:expense_request_list.expense_plan_table.total_amount',
                 'Total Amount'
               ),
-              typeof selectedItem.totalAmount === 'number'
-                ? formatCurrencyDisplay(selectedItem.totalAmount, selectedItem.currency?.code)
-                : typeof selectedItem.amount === 'number'
-                  ? formatCurrencyDisplay(selectedItem.amount, selectedItem.currency?.code)
-                  : '-',
+              (() => {
+                const displayAmount = selectedItem.reimbursableAmount ?? selectedItem.amount
+                return typeof displayAmount === 'number'
+                  ? formatCurrencyDisplay(displayAmount, selectedItem.currency?.code)
+                  : '-'
+              })(),
               true
             )}
 

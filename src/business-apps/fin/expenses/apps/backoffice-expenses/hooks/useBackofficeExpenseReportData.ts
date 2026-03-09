@@ -38,6 +38,7 @@ import {
   evaluatePayoutSlaAgainstRunDay,
   type ExpensesSlaPolicy
 } from './backofficeReportUtils'
+import { normalizeFilterValues } from './queryFilterUtils'
 
 export enum ReportType {
   EXPENSE_ITEM = 'expense_item',
@@ -233,9 +234,6 @@ const getFilterValues = (
   return Array.isArray(value) ? value.map(String) : []
 }
 
-const normalizeFilterValues = (values: string[] = []): string[] =>
-  Array.from(new Set(values.map(value => String(value || '').trim()).filter(Boolean)))
-
 const buildDepartmentPredicate = (name: string) => ({
   employeePosition: {
     organizationalUnit: {
@@ -281,7 +279,7 @@ function mapSortingToOrderBy(selectedReportType: ReportType | null, sorting: Sor
       const fieldMap: Record<string, string> = {
         title: 'title',
         date: 'expenseDate',
-        amount: 'totalAmount',
+        amount: 'reimbursableAmount',
         status: 'status'
       }
       const mappedField = fieldMap[sortField]
@@ -293,7 +291,7 @@ function mapSortingToOrderBy(selectedReportType: ReportType | null, sorting: Sor
         code: 'code',
         createdAt: 'createdAt',
         status: 'status',
-        totalAmount: 'totalAmount',
+        totalAmount: 'reimbursableAmount',
         requestDate: 'requestDate',
         startDate: 'startDate',
         endDate: 'endDate'
@@ -329,7 +327,7 @@ function mapSortingToOrderBy(selectedReportType: ReportType | null, sorting: Sor
         title: 'title',
         code: 'code',
         status: 'status',
-        totalAmount: 'totalAmount'
+        totalAmount: 'reimbursableAmount'
       }
       const mappedField = fieldMap[sortField]
       return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_APPROVAL_PAYOUT_ORDER
@@ -615,12 +613,9 @@ export const useBackofficeExpenseReportData = (
           endDate: request.endDate || '',
           createdAt: request.createdAt || '',
           status: statusDisplay.label,
-          totalAmount: Number(request.totalAmount || 0),
+          totalAmount: Number(request.reimbursableAmount ?? 0),
           advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-          remainingAmount: Math.max(
-            Number(request.totalAmount || 0) - getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-            0
-          ),
+          remainingAmount: Number(request.totalRemainingAmount ?? 0),
           currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
           employeeName:
             buildEmployeeDisplayName(request.employee) ||
@@ -648,10 +643,7 @@ export const useBackofficeExpenseReportData = (
           status: statusDisplay.label,
           totalAmount: Number(plan.totalAmount || 0),
           advancePaidAmount: getSettledAdvancePaidAmount(plan?.advancePayment),
-          remainingAmount: Math.max(
-            Number(plan.totalAmount || 0) - getSettledAdvancePaidAmount(plan?.advancePayment),
-            0
-          ),
+          remainingAmount: Number(plan.totalRemainingAmount ?? 0),
           currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
           employeeName:
             buildEmployeeDisplayName(plan.employee) ||
@@ -931,7 +923,7 @@ export const useBackofficeExpenseReportData = (
         title: item.title || '',
         description: item.description || '',
         category: expenseGroup,
-        amount: item.totalAmount || 0,
+        amount: item.reimbursableAmount ?? 0,
         employeeName:
           buildEmployeeDisplayName(item.employee) ||
           employeeNameById[item.employeeId] ||
@@ -984,12 +976,9 @@ export const useBackofficeExpenseReportData = (
         endDate: request.endDate || '',
         createdAt: request.createdAt || '',
         status: statusDisplay.label,
-        totalAmount: Number(request.totalAmount || 0),
+        totalAmount: Number(request.reimbursableAmount ?? 0),
         advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-        remainingAmount: Math.max(
-          Number(request.totalAmount || 0) - getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-          0
-        ),
+        remainingAmount: Number(request.totalRemainingAmount ?? 0),
         currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
         employeeName: resolveDisplayName([request.employeeId, request.createdBy], employeeNameById),
         departmentName: resolveDepartmentName(
@@ -1108,7 +1097,7 @@ export const useBackofficeExpenseReportData = (
           request?.status
         ),
         status: statusDisplay.label,
-        totalAmount: Number(request.totalAmount || 0),
+        totalAmount: Number(request.reimbursableAmount ?? 0),
         currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR'
       }
     },
@@ -1361,21 +1350,13 @@ export const useBackofficeExpenseReportData = (
         .filter(Boolean)
       const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
       const rows = processExpenseItemsData(result, employeeNameById)
-      const selectedStatuses = Array.isArray(overrides?.statusFilters)
-        ? overrides.statusFilters.map(String)
-        : Array.isArray(selectedStatusFilters)
-          ? selectedStatusFilters.map(String)
-          : []
-      const selectedEmployees = Array.isArray(overrides?.employeeFilters)
-        ? overrides.employeeFilters.map(String)
-        : Array.isArray(selectedEmployeeFilters)
-          ? selectedEmployeeFilters.map(String)
-          : []
-      const selectedDepartments = Array.isArray(overrides?.departmentFilters)
-        ? overrides.departmentFilters.map(String)
-        : Array.isArray(selectedDepartmentFilters)
-          ? selectedDepartmentFilters.map(String)
-          : []
+      const resolveFilter = (override: unknown, fallback: unknown): string[] => {
+        const source = Array.isArray(override) ? override : Array.isArray(fallback) ? fallback : []
+        return source.map(String)
+      }
+      const selectedStatuses = resolveFilter(overrides?.statusFilters, selectedStatusFilters)
+      const selectedEmployees = resolveFilter(overrides?.employeeFilters, selectedEmployeeFilters)
+      const selectedDepartments = resolveFilter(overrides?.departmentFilters, selectedDepartmentFilters)
       return rows.filter(row => {
         const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(String(row?.status || ''))
         const employeeMatch =

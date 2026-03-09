@@ -173,7 +173,7 @@ export function buildMonthlyTrends(trendItems: any[]): Array<{ month: string; am
     if (!effectiveDate) continue
     const monthKey = String(effectiveDate).slice(0, 7)
     const prev = monthToAmount.get(monthKey) ?? 0
-    const add = Number(row?.totalAmount ?? 0) || 0
+    const add = Number(row?.reimbursableAmount ?? 0) || 0
     monthToAmount.set(monthKey, prev + add)
   }
   return Array.from(monthToAmount.entries())
@@ -186,7 +186,7 @@ export function aggregateExpenseCategories(trendItems: any[]): Array<{ name: str
   for (const row of trendItems) {
     const positions = Array.isArray(row?.expensePosition) ? row.expensePosition : []
     if (positions.length === 0) continue
-    const per = (Number(row?.totalAmount ?? 0) || 0) / positions.length
+    const per = (Number(row?.reimbursableAmount ?? 0) || 0) / positions.length
     for (const position of positions) {
       const translations = Array.isArray(position?.expenseGroup?.translations) ? position.expenseGroup.translations : []
       const fallback = position?.expenseGroup?.value || 'Uncategorized'
@@ -214,8 +214,8 @@ export function buildOverviewCoreState(result: any) {
     teamMembersCount: Number(result?.TeamMembersAggregate?.aggregate?.count ?? 0),
     pendingApprovalsCount: Number(result?.PendingApprovalsAggregate?.aggregate?.count ?? 0),
     totalPlansAmount: Number(result?.ExpensePlansTotalAggregate?.aggregate?.sum?.totalAmount ?? 0),
-    totalRequestsUsedAmount: Number(result?.ExpenseRequestsUsedAggregate?.aggregate?.sum?.totalAmount ?? 0),
-    monthlyExpensesAmount: Number(result?.MonthlyExpensesAggregate?.aggregate?.sum?.totalAmount ?? 0),
+    totalRequestsUsedAmount: Number(result?.ExpenseRequestsUsedAggregate?.aggregate?.sum?.reimbursableAmount ?? 0),
+    monthlyExpensesAmount: Number(result?.MonthlyExpensesAggregate?.aggregate?.sum?.reimbursableAmount ?? 0),
     expenseRequests,
     expenseRequestsTotal,
     expensePlans,
@@ -223,9 +223,10 @@ export function buildOverviewCoreState(result: any) {
     advancePayments,
     advancePaymentsTotal,
     requestPendingCount: Number(result?.RequestsPendingCountAggregate?.aggregate?.count ?? 0),
-    requestPendingAmount: Number(result?.RequestsPendingAmountAggregate?.aggregate?.sum?.totalAmount ?? 0) || 0,
+    requestPendingAmount: Number(result?.RequestsPendingAmountAggregate?.aggregate?.sum?.reimbursableAmount ?? 0) || 0,
     requestSubmittedCount: Number(result?.RequestsSubmittedCountAggregate?.aggregate?.count ?? 0),
-    requestSubmittedAmount: Number(result?.RequestsSubmittedAmountAggregate?.aggregate?.sum?.totalAmount ?? 0) || 0,
+    requestSubmittedAmount:
+      Number(result?.RequestsSubmittedAmountAggregate?.aggregate?.sum?.reimbursableAmount ?? 0) || 0,
     planTotalCount: Number(result?.AllPlansAggregate?.aggregate?.count ?? 0),
     planTotalAmount: Number(result?.AllPlansAggregate?.aggregate?.sum?.totalAmount ?? 0) || 0,
     planPendingCount: Number(result?.PendingPlansCountAggregate?.aggregate?.count ?? 0),

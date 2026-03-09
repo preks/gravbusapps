@@ -368,9 +368,9 @@ export const useDashboardStats = ({
           percentChange: null,
           isIncrease: false
         },
-        transferRequired: safeNum(combinedResponse?.transferRequired?.aggregate?.sum?.totalAmount),
+        transferRequired: safeNum(combinedResponse?.transferRequired?.aggregate?.sum?.reimbursableAmount),
         pendingRequestsCount: safeNum(combinedResponse?.pendingRequests?.aggregate?.count),
-        avgSpendPerTrip: safeNum(combinedResponse?.avgSpendPerTrip?.aggregate?.avg?.totalAmount),
+        avgSpendPerTrip: safeNum(combinedResponse?.avgSpendPerTrip?.aggregate?.avg?.reimbursableAmount),
         travelExpensesCount: 0,
         advancePaymentsApproved: {
           count: safeNum(combinedResponse?.advancePaymentsApproved?.aggregate?.count),

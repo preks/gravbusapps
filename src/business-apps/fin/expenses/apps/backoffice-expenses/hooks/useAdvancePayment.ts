@@ -7,7 +7,11 @@ import {
   GET_ADVANCE_PAYMENT_REPORTERS
 } from '../queries/advancePayment.queries'
 import { AdvancePaymentItem, AdvancePaymentStatisticsData } from '../types'
-import { buildNumericRangeCondition, buildSearchCondition as buildSearchConditionBase } from './queryFilterUtils'
+import {
+  buildNumericRangeCondition,
+  buildSearchCondition as buildSearchConditionBase,
+  buildStatusFilterCondition
+} from './queryFilterUtils'
 
 // ⚡ BEST PRACTICE: Query limit enforcement for safety (like leads)
 const MAX_QUERY_LIMIT = 1000
@@ -73,21 +77,6 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
   const client = useGraphqlClient(accessToken)
   const [orderBy, setOrderBy] = useState<OrderByClause>([{ createdAt: 'DESC' }])
 
-  // Helper: Build status filter condition (reduces cognitive complexity)
-  const buildStatusCondition = (status?: string): any[] => {
-    if (!status || status === 'all' || status === '') return []
-
-    if (status.includes(',')) {
-      const statusArray = status
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean)
-      return statusArray.length > 0 ? [{ status: { _in: statusArray } }] : []
-    }
-
-    return [{ status: { _eq: status } }]
-  }
-
   // Helper: Build search condition (reduces cognitive complexity)
   const buildSearchCondition = (searchTerm: string): any[] => {
     return buildSearchConditionBase(searchTerm, searchValue => [
@@ -112,17 +101,8 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
     }))
   }
 
-  // Helper: Build advance filter condition (reduces cognitive complexity)
   const buildAdvanceFilterCondition = (advanceMin?: string, advanceMax?: string): any[] => {
-    if (!advanceMin && !advanceMax) return []
-
-    const advanceConditions: any = {}
-    if (advanceMin) advanceConditions._gte = Number.parseFloat(advanceMin)
-    if (advanceMax) advanceConditions._lte = Number.parseFloat(advanceMax)
-
-    if (Object.keys(advanceConditions).length === 0) return []
-
-    return [{ amount: advanceConditions }]
+    return buildNumericRangeCondition(advanceMin, advanceMax, range => ({ amount: range }))
   }
 
   // Helper: Build reporter filter condition (reduces cognitive complexity)
@@ -179,7 +159,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
     const conditions: any[] = [
       { isDeleted: { _eq: false } },
       ...defaultStatusExclusion,
-      ...buildStatusCondition(status),
+      ...buildStatusFilterCondition(status),
       ...buildSearchCondition(searchTerm),
       ...buildAmountFilterCondition(amountMin, amountMax),
       ...buildAdvanceFilterCondition(advanceMin, advanceMax),

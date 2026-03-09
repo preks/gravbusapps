@@ -127,7 +127,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
           { isDeleted: { _eq: false } }
         ]
       }
-    ) { aggregate { sum { totalAmount } } }
+    ) { aggregate { sum { reimbursableAmount } } }
 
     RequestsPendingCountAggregate: ExpenseRequestAggregate(
       where: {
@@ -147,7 +147,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
           { isDeleted: { _eq: false } }
         ]
       }
-    ) { aggregate { sum { totalAmount } } }
+    ) { aggregate { sum { reimbursableAmount } } }
 
     RequestsSubmittedCountAggregate: ExpenseRequestAggregate(
       where: {
@@ -167,7 +167,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
           { isDeleted: { _eq: false } }
         ]
       }
-    ) { aggregate { sum { totalAmount } } }
+    ) { aggregate { sum { reimbursableAmount } } }
 
     MonthlyExpensesAggregate: ExpenseItemAggregate(
       where: {
@@ -186,7 +186,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
           ]}
         ]
       }
-    ) { aggregate { sum { totalAmount } } }
+    ) { aggregate { sum { reimbursableAmount } } }
 
     MonthlyExpenseItemsForTrends: ExpenseItem(
       orderBy: { expenseDate: ASC },
@@ -209,6 +209,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
     ) {
       expenseDate
       totalAmount
+      reimbursableAmount
       expenseRequest { requestTypeRef startDate }
       expensePosition {
         expenseGroupRef
@@ -243,7 +244,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW = `
       }
     ) @include(if: $includeRequests) {
       id code title employeeId requestDate startDate endDate description
-      totalAmount currencyRef status createdAt updatedAt
+      totalAmount reimbursableAmount currencyRef status createdAt updatedAt
       requestType { value translations { value localeCode } }
       expensePlan {
         code
@@ -470,7 +471,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_KPI = `
           { isDeleted: { _eq: false } }
         ]
       }
-    ) { aggregate { sum { totalAmount } } }
+    ) { aggregate { sum { reimbursableAmount } } }
 
     RequestsPendingCountAggregate: ExpenseRequestAggregate(
       where: {
@@ -490,7 +491,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_KPI = `
           { isDeleted: { _eq: false } }
         ]
       }
-    ) { aggregate { sum { totalAmount } } }
+    ) { aggregate { sum { reimbursableAmount } } }
 
     RequestsSubmittedCountAggregate: ExpenseRequestAggregate(
       where: {
@@ -510,7 +511,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_KPI = `
           { isDeleted: { _eq: false } }
         ]
       }
-    ) { aggregate { sum { totalAmount } } }
+    ) { aggregate { sum { reimbursableAmount } } }
 
     MonthlyExpensesAggregate: ExpenseItemAggregate(
       where: {
@@ -529,7 +530,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_KPI = `
           ]}
         ]
       }
-    ) { aggregate { sum { totalAmount } } }
+    ) { aggregate { sum { reimbursableAmount } } }
 
     MonthlyExpenseItemsForTrends: ExpenseItem(
       orderBy: { expenseDate: ASC },
@@ -552,6 +553,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_KPI = `
     ) {
       expenseDate
       totalAmount
+      reimbursableAmount
       expenseRequest { requestTypeRef startDate }
       expensePosition {
         expenseGroupRef
@@ -620,7 +622,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
       }
     ) @include(if: $includeRequests) {
       id code title employeeId requestDate startDate endDate description
-      totalAmount currencyRef status createdAt updatedAt
+      totalAmount reimbursableAmount currencyRef status createdAt updatedAt
       requestType { value translations { value localeCode } }
       expensePlan {
         code

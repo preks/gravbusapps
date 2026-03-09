@@ -13,7 +13,7 @@ import type { BackofficeTabProps } from '../common/backofficeTabProps'
 
 type ExpenseRequestTabProps = BackofficeTabProps
 
-function ExpenseRequestTab(props: ExpenseRequestTabProps) {
+function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
   const { onContentHeaderChange, isActive = true } = props
 
   const { searchTerm, handleSearchChange } = useBackofficeTabSearch()

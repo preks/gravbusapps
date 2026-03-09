@@ -34,6 +34,7 @@ import {
   computeSlaKpis,
   type ReportColumnDef
 } from './backofficeExpenseReportsPage.utils'
+import { normalizeFilterValues } from '../../hooks/queryFilterUtils'
 
 type BackofficeExpenseReportsPageProps = BusinessAppContextProps
 
@@ -56,11 +57,6 @@ const EMPTY_REPORT_FILTERS: ReportFilters = {
   status: [],
   employeeName: [],
   departmentName: []
-}
-
-const normalizeFilterValues = (values: unknown): string[] => {
-  if (!Array.isArray(values)) return []
-  return Array.from(new Set(values.map(value => String(value ?? '').trim()).filter(Boolean)))
 }
 
 const normalizeReportFilters = (filters: Record<string, any> | undefined | null): ReportFilters => {

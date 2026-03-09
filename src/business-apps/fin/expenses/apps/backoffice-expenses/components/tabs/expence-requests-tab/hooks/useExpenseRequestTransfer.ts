@@ -16,11 +16,11 @@ const mapRecordToExpenseRequest = (record: ExpenseData) => ({
   requestTypeRef: record.requestTypeRef || '',
   employee: record.employeeId || '',
   title: record.title || '',
-  totalAmount: record.totalAmount || ''
+  totalAmount: record.reimbursableAmount || ''
 })
 
 export const useExpenseRequestTransfer = (
-  props: BusinessAppContextProps,
+  props: Readonly<BusinessAppContextProps>,
   refetchData?: () => void,
   clearSelection?: () => void
 ) => {

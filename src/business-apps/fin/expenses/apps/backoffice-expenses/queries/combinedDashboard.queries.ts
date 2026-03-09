@@ -223,7 +223,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     ) {
       aggregate {
         sum {
-          totalAmount
+          reimbursableAmount
         }
       }
     }
@@ -262,7 +262,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     ) {
       aggregate {
         avg {
-          totalAmount
+          reimbursableAmount
         }
       }
     }
@@ -541,7 +541,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     ) {
       aggregate {
         sum {
-          totalAmount
+          reimbursableAmount
         }
       }
     }
@@ -578,7 +578,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     ) {
       aggregate {
         avg {
-          totalAmount
+          reimbursableAmount
         }
       }
     }
@@ -792,7 +792,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     ) {
       aggregate {
         sum {
-          totalAmount
+          reimbursableAmount
         }
       }
     }
@@ -829,7 +829,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     ) {
       aggregate {
         avg {
-          totalAmount
+          reimbursableAmount
         }
       }
     }

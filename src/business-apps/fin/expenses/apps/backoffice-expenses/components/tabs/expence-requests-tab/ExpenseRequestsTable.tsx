@@ -48,6 +48,17 @@ import { useFilterData, type OrganizationalUnit, type Currency } from '../../../
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils/utils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { downloadCsv, downloadExcel, buildFilename } from '../../../utils/exportUtils'
+import {
+  buildExpenseRequestSearchOrConditions,
+  buildSearchCondition as buildSearchConditionUtil,
+  buildNumericRangeCondition,
+  filterOptionsByName
+} from '../../../hooks/queryFilterUtils'
+import {
+  buildDateRangeCondition as buildDateRangeConditionShared,
+  buildRequestEffectiveDateFilter,
+  buildRequestTypeFilter
+} from '../../../../manager-expenses/hooks/expensesOverview/sharedOverview'
 import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
@@ -266,11 +277,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     [organizationalUnits]
   )
 
-  const filteredDepartmentOptions = useMemo(() => {
-    const query = departmentSearch.trim().toLowerCase()
-    if (!query) return departmentOptions
-    return departmentOptions.filter(option => option.name.toLowerCase().includes(query))
-  }, [departmentSearch, departmentOptions])
+  const filteredDepartmentOptions = useMemo(
+    () => filterOptionsByName(departmentOptions, departmentSearch),
+    [departmentOptions, departmentSearch]
+  )
 
   const selectedDepartmentName = useMemo(() => {
     const found = departmentOptions.find(ou => ou.id === departmentId)
@@ -894,6 +904,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     if (columnKey === 'requestNumber') {
       return 'code'
     }
+    if (columnKey === 'totalAmount') {
+      return 'reimbursableAmount'
+    }
     return columnKey
   }, [])
 
@@ -909,6 +922,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           | 'createdAt'
           | 'status'
           | 'totalAmount'
+          | 'reimbursableAmount'
           | 'totalRemainingAmount'
           | 'employee.fullName'
           | 'employee.code'
@@ -1272,6 +1286,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       userId: item.userId ?? '-',
       expenseRuleId: item.expenseRuleId ?? '-',
       totalAmount: item.totalAmount ?? 0,
+      reimbursableAmount: item.reimbursableAmount,
       currency: { code: item.currency?.code ?? '' },
       status: item.status ?? 'UNKNOWN',
       creationDate: formatDateLocalized(item.createdAt),
@@ -1375,51 +1390,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       : []
   }, [hasBookableSelected, selectedBookableCount, handleBulkTransfer, isBulkTransferInProgress])
 
-  // Helper to build search condition (reduces cognitive complexity of buildQueryConditions)
-  const buildSearchCondition = useCallback((searchValue: string): any => {
-    return {
-      _or: [
-        { employee: { firstName: { _ilike: searchValue } } },
-        { employee: { lastName: { _ilike: searchValue } } },
-        { employee: { code: { _ilike: searchValue } } },
-        { employee: { hrReferenceCode: { _ilike: searchValue } } },
-        { title: { _ilike: searchValue } },
-        { code: { _ilike: searchValue } },
-        {
-          employee: {
-            employeePosition: {
-              costCenter: { name: { _ilike: searchValue } }
-            }
-          }
-        },
-        {
-          employee: {
-            employeePosition: {
-              organizationalUnit: { name: { _ilike: searchValue } }
-            }
-          }
-        },
-        { requestType: { value: { _ilike: searchValue } } },
-        {
-          requestType: { translations: { value: { _ilike: searchValue } } }
-        },
-        { currency: { code: { _ilike: searchValue } } }
-      ]
-    }
-  }, [])
-
-  // Helper to build date range condition (reduces cognitive complexity)
-  // Note: Returns 'any' type for GraphQL query conditions (null when no range specified)
-  const buildDateRangeCondition = useCallback((from: string | undefined, to: string | undefined): any => {
-    if (!from && !to) {
-      return null
-    }
-    const rangeCond: any = {}
-    if (from) rangeCond._gte = from
-    if (to) rangeCond._lte = to
-    return rangeCond
-  }, [])
-
   // Helper to handle clearing all filters (avoids boolean parameter pattern)
   const handleClearAllFilters = useCallback(() => {
     setEmployeeFilter('')
@@ -1480,101 +1450,54 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     handleEmployeeFilter('')
   }, [handleEmployeeFilter])
 
-  // Helper: Build amount filter condition (reduces cognitive complexity)
-  // Note: Returns 'any' type for GraphQL query conditions (null when no amount filter)
   const buildAmountCondition = useCallback((): any => {
-    if (!amountMinFilter && !amountMaxFilter) {
-      return null
-    }
-    const amountConditions: any = {}
-    if (amountMinFilter) {
-      amountConditions._gte = Number.parseFloat(amountMinFilter)
-    }
-    if (amountMaxFilter) {
-      amountConditions._lte = Number.parseFloat(amountMaxFilter)
-    }
-    return Object.keys(amountConditions).length > 0 ? { totalAmount: amountConditions } : null
+    const result = buildNumericRangeCondition(amountMinFilter, amountMaxFilter, range => ({
+      reimbursableAmount: range
+    }))
+    return result.length > 0 ? result[0] : null
   }, [amountMinFilter, amountMaxFilter])
 
-  // Helper: Build all filter conditions (reduces cognitive complexity)
+  const formatDatePickerRange = (range: any[] | null): { from?: string; to?: string } | null => {
+    if (!range?.[0] && !range?.[1]) return null
+    return {
+      from: range?.[0] ? dayjs(range[0]).format('YYYY-MM-DD') : undefined,
+      to: range?.[1] ? dayjs(range[1]).format('YYYY-MM-DD') : undefined
+    }
+  }
+
+  const pushIfPresent = (conditions: any[], value: any) => {
+    if (value) conditions.push(value)
+  }
+
   const buildAllFilterConditions = useCallback((): any[] => {
     const conditions: any[] = []
 
-    if (statusFilter?.length > 0) {
-      conditions.push({ status: { _in: statusFilter } })
-    } else {
-      conditions.push({ status: { _nin: ['DISCARDED', 'CREATED'] } })
+    conditions.push(
+      statusFilter?.length > 0 ? { status: { _in: statusFilter } } : { status: { _nin: ['DISCARDED', 'CREATED'] } }
+    )
+
+    if (employeeFilter) conditions.push({ employee: { id: { _eq: employeeFilter } } })
+    pushIfPresent(conditions, buildAmountCondition())
+    if (departmentId)
+      conditions.push({ employee: { employeePosition: { organizationalUnitId: { _eq: departmentId } } } })
+    if (currencyRef) conditions.push({ currencyRef: { _eq: currencyRef } })
+
+    const startCond = buildDateRangeConditionShared(startFrom, startTo)
+    if (startCond) conditions.push({ startDate: startCond })
+    const endCond = buildDateRangeConditionShared(endFrom, endTo)
+    if (endCond) conditions.push({ endDate: endCond })
+
+    const effRange = formatDatePickerRange(effectiveDateRange)
+    if (effRange) pushIfPresent(conditions, buildRequestEffectiveDateFilter(effRange))
+
+    const reqRange = formatDatePickerRange(requestDateRange)
+    if (reqRange) {
+      const reqCond = buildDateRangeConditionShared(reqRange.from, reqRange.to)
+      if (reqCond) conditions.push({ requestDate: reqCond })
     }
 
-    if (employeeFilter) {
-      conditions.push({ employee: { id: { _eq: employeeFilter } } })
-    }
-
-    const amountCond = buildAmountCondition()
-    if (amountCond) {
-      conditions.push(amountCond)
-    }
-
-    if (departmentId) {
-      conditions.push({
-        employee: { employeePosition: { organizationalUnitId: { _eq: departmentId } } }
-      })
-    }
-
-    if (currencyRef) {
-      conditions.push({ currencyRef: { _eq: currencyRef } })
-    }
-
-    const startDateRange = buildDateRangeCondition(startFrom, startTo)
-    if (startDateRange) {
-      conditions.push({ startDate: startDateRange })
-    }
-
-    const endDateRange = buildDateRangeCondition(endFrom, endTo)
-    if (endDateRange) {
-      conditions.push({ endDate: endDateRange })
-    }
-
-    if (effectiveDateRange?.[0] || effectiveDateRange?.[1]) {
-      const tripAnd: any[] = []
-      const expenseAnd: any[] = []
-      if (effectiveDateRange?.[0]) {
-        const from = dayjs(effectiveDateRange[0]).format('YYYY-MM-DD')
-        tripAnd.push({ startDate: { _gte: from } })
-        expenseAnd.push({ expenseItem: { expenseDate: { _gte: from } } })
-      }
-      if (effectiveDateRange?.[1]) {
-        const to = dayjs(effectiveDateRange[1]).format('YYYY-MM-DD')
-        tripAnd.push({ startDate: { _lte: to } })
-        expenseAnd.push({ expenseItem: { expenseDate: { _lte: to } } })
-      }
-      conditions.push({
-        _or: [
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
-        ]
-      })
-    }
-
-    if (requestDateRange?.[0] || requestDateRange?.[1]) {
-      const reqDateCond: any = {}
-      if (requestDateRange?.[0]) reqDateCond._gte = dayjs(requestDateRange[0]).format('YYYY-MM-DD')
-      if (requestDateRange?.[1]) reqDateCond._lte = dayjs(requestDateRange[1]).format('YYYY-MM-DD')
-      conditions.push({ requestDate: reqDateCond })
-    }
-
-    if (requestTypeFilterLocal.length > 0) {
-      const typeOr = requestTypeFilterLocal
-        .filter(f => f.startsWith('ExpenseRequestType:'))
-        .map(t => ({ requestTypeRef: { _eq: t } }))
-      if (typeOr.length > 0) {
-        conditions.push({ _or: typeOr })
-      }
-    }
-
-    if (searchText?.trim()) {
-      conditions.push(buildSearchCondition(`%${searchText.trim()}%`))
-    }
+    pushIfPresent(conditions, buildRequestTypeFilter(requestTypeFilterLocal))
+    conditions.push(...buildSearchConditionUtil(searchText ?? '', buildExpenseRequestSearchOrConditions))
 
     return conditions
   }, [
@@ -1590,9 +1513,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     effectiveDateRange,
     requestDateRange,
     requestTypeFilterLocal,
-    searchText,
-    buildDateRangeCondition,
-    buildSearchCondition
+    searchText
   ])
 
   const buildQueryConditions = useCallback(() => {
@@ -1727,7 +1648,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     totalRemainingAmount: expense.totalRemainingAmount
       ? formatNumberFunction(String(expense.totalRemainingAmount))
       : '0',
-    totalAmount: expense.totalAmount ? formatNumberFunction(String(expense.totalAmount)) : '0',
+    totalAmount: expense.reimbursableAmount ? formatNumberFunction(String(expense.reimbursableAmount)) : '0',
     currency: expense.currency?.code || '-',
     status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus).label,
     creationDate: expense.creationDate

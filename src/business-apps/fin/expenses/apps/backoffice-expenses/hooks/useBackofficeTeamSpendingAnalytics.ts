@@ -238,7 +238,7 @@ export const useBackofficeTeamSpendingAnalytics = (
     for (const request of paidClosedTravelExpenseRequests) {
       const destinationPoint = resolveDestinationPoint(request)
       const existing = travelDestinationMap.get(destinationPoint) || { count: 0, amount: 0 }
-      const requestAmount = Number(request?.totalAmount || 0)
+      const requestAmount = Number(request?.reimbursableAmount || 0)
       travelDestinationMap.set(destinationPoint, {
         count: existing.count + 1,
         amount: existing.amount + requestAmount
@@ -247,8 +247,12 @@ export const useBackofficeTeamSpendingAnalytics = (
 
     return {
       ...coreProcessedData,
-      travelExpenseItemsByMonth: processTimeSeriesData(paidClosedTravelExpenseItems, 'totalAmount', 'expenseDate'),
-      travelRequestsByMonth: processTimeSeriesData(paidClosedTravelExpenseRequests, 'totalAmount', 'startDate'),
+      travelExpenseItemsByMonth: processTimeSeriesData(
+        paidClosedTravelExpenseItems,
+        'reimbursableAmount',
+        'expenseDate'
+      ),
+      travelRequestsByMonth: processTimeSeriesData(paidClosedTravelExpenseRequests, 'reimbursableAmount', 'startDate'),
       travelAdvancePaymentsByMonth: processTimeSeriesData(paidClosedTravelAdvancePayments, 'amount', 'createdAt'),
       travelByDepartment: mapToOrgUnitBreakdown(travelOrgUnitMap),
       travelByLocation: mapToLocationBreakdown(travelLocationMap),
@@ -263,7 +267,6 @@ export const useBackofficeTeamSpendingAnalytics = (
   useEffect(() => {
     if (!analyticsDebugEnabled || !rawData) return
 
-    const sumBy = (rows: Array<any>, key: string) => rows.reduce((sum, row) => sum + Number(row?.[key] || 0), 0)
     const { selectedLocationIds, selectedDepartmentIds } = getSelectedFilterIds(locationFilters, departmentFilters)
     const debugSignature = JSON.stringify({
       dateRange,
@@ -299,13 +302,13 @@ export const useBackofficeTeamSpendingAnalytics = (
       '[BackofficeAnalyticsDebug] rawTotals',
       JSON.stringify({
         itemsCount: rawData.expenseItems?.length || 0,
-        itemsAmount: sumBy(rawData.expenseItems || [], 'totalAmount'),
+        itemsAmount: calculateTotalAmount(rawData.expenseItems || [], 'reimbursableAmount'),
         requestsCount: rawData.expenseRequests?.length || 0,
-        requestsAmount: sumBy(rawData.expenseRequests || [], 'totalAmount'),
+        requestsAmount: calculateTotalAmount(rawData.expenseRequests || [], 'reimbursableAmount'),
         plansCount: rawData.expensePlans?.length || 0,
-        plansAmount: sumBy(rawData.expensePlans || [], 'totalAmount'),
+        plansAmount: calculateTotalAmount(rawData.expensePlans || [], 'totalAmount'),
         paymentsCount: rawData.advancePayments?.length || 0,
-        paymentsAmount: sumBy(rawData.advancePayments || [], 'amount')
+        paymentsAmount: calculateTotalAmount(rawData.advancePayments || [], 'amount')
       })
     )
 
@@ -313,13 +316,13 @@ export const useBackofficeTeamSpendingAnalytics = (
       '[BackofficeAnalyticsDebug] filteredTotals',
       JSON.stringify({
         itemsCount: paidClosedExpenseItems.length,
-        itemsAmount: sumBy(paidClosedExpenseItems, 'totalAmount'),
+        itemsAmount: calculateTotalAmount(paidClosedExpenseItems, 'reimbursableAmount'),
         requestsCount: paidClosedExpenseRequests.length,
-        requestsAmount: sumBy(paidClosedExpenseRequests, 'totalAmount'),
+        requestsAmount: calculateTotalAmount(paidClosedExpenseRequests, 'reimbursableAmount'),
         plansCount: paidClosedExpensePlans.length,
-        plansAmount: sumBy(paidClosedExpensePlans, 'totalAmount'),
+        plansAmount: calculateTotalAmount(paidClosedExpensePlans, 'totalAmount'),
         paymentsCount: paidClosedAdvancePayments.length,
-        paymentsAmount: sumBy(paidClosedAdvancePayments, 'amount')
+        paymentsAmount: calculateTotalAmount(paidClosedAdvancePayments, 'amount')
       })
     )
   }, [

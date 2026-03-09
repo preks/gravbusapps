@@ -212,9 +212,9 @@ export const buildCoreProcessedAnalyticsData = (
   return {
     processedData: {
       expenseItemsByCategory: processExpenseItemsByCategory(paidClosedExpenseItems),
-      expenseItemsByMonth: processTimeSeriesData(paidClosedExpenseItems, 'totalAmount', 'expenseDate'),
+      expenseItemsByMonth: processTimeSeriesData(paidClosedExpenseItems, 'reimbursableAmount', 'expenseDate'),
       expenseItemsByStatus: processStatusData(paidClosedExpenseItems),
-      expenseRequestsByMonth: processTimeSeriesData(paidClosedExpenseRequests, 'totalAmount', 'createdAt'),
+      expenseRequestsByMonth: processTimeSeriesData(paidClosedExpenseRequests, 'reimbursableAmount', 'createdAt'),
       expenseRequestsByStatus: processStatusData(paidClosedExpenseRequests),
       expensePlansByMonth: processTimeSeriesData(paidClosedExpensePlans, 'totalAmount', 'createdAt'),
       expensePlansByStatus: processStatusData(paidClosedExpensePlans),
@@ -228,5 +228,23 @@ export const buildCoreProcessedAnalyticsData = (
       totalAdvanceAmount: calculateTotalAmount(paidClosedAdvancePayments, 'amount')
     },
     corePaidClosedData
+  }
+}
+
+export const mapAnalyticsResult = (result: any): AnalyticsData => ({
+  expenseItems: result?.expenseItems || [],
+  expenseRequests: result?.expenseRequests || [],
+  expensePlans: result?.expensePlans || [],
+  advancePayments: result?.advancePayments || []
+})
+
+export const buildCurrencyQueryVariables = (currencyRef: string | undefined | null): Record<string, unknown> => {
+  const hasCurrency = currencyRef && currencyRef !== '' && currencyRef !== 'null' && currencyRef !== 'undefined'
+  if (!hasCurrency) return {}
+  return {
+    itemCurrencyWhere: { currencyRef: { _eq: currencyRef } },
+    reqCurrencyWhere: { currencyRef: { _eq: currencyRef } },
+    planCurrencyWhere: { currencyRef: { _eq: currencyRef } },
+    payCurrencyWhere: { currencyRef: { _eq: currencyRef } }
   }
 }

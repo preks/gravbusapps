@@ -4,9 +4,17 @@ import { GET_EXPENSE_REQUESTS, PROCESS_PAYMENT_MUTATION } from '../queries'
 import { ExpenseData, ExpenseRequestQueryData } from '../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDateLocalized } from '../utils/dateUtils'
-import { buildNumericRangeCondition, buildSearchCondition as buildSearchConditionBase } from './queryFilterUtils'
-
-type GqlBoolExp = Record<string, unknown>
+import {
+  buildNumericRangeCondition,
+  buildSearchCondition as buildSearchConditionBase,
+  buildExpenseRequestSearchOrConditions,
+  buildStatusFilterCondition,
+  buildEmployeeFilterCondition
+} from './queryFilterUtils'
+import {
+  buildRequestEffectiveDateFilter,
+  buildRequestTypeFilter
+} from '../../manager-expenses/hooks/expensesOverview/sharedOverview'
 
 export const useExpenseRequests = (context: BusinessAppContextProps, isActive: boolean = true) => {
   const { accessToken } = context
@@ -58,7 +66,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       case 'status':
         return [{ status: order }, { id: order }]
       case 'totalAmount':
-        return [{ totalAmount: order }, { id: order }]
+        return [{ reimbursableAmount: order }, { id: order }]
       case 'totalRemainingAmount':
         return [{ totalRemainingAmount: order }, { id: order }]
       case 'employee.fullName':
@@ -139,10 +147,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       requestDate: formatDateLocalized(item.createdAt),
       reporter: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
       type: item.requestType?.value ?? '-',
-      amount: item.totalAmount ? `${item.totalAmount} ${item.currency?.code ?? ''}`.trim() : '-',
+      amount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',
       advance: '',
       status: item.status ?? '',
-      payableAmount: item.totalAmount ? `${item.totalAmount} ${item.currency?.code ?? ''}`.trim() : '-',
+      payableAmount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',
       paymentMethod: '-',
       employeeId: String(item.employee?.id ?? '-'),
       version: item.version ?? '',
@@ -153,7 +161,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       totalRemainingAmount: item.totalRemainingAmount ?? '-',
       userId: '',
       expenseRuleId: '',
-      totalAmount: item.totalAmount ?? 0,
+      totalAmount: item.reimbursableAmount ?? 0,
       employeeDocumentId: item.employeeDocumentId ?? null,
       documentData: null,
       employeeDocument: item.employeeDocument,
@@ -163,37 +171,11 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     }
   }
 
-  // Helper: Build status filter condition (reduces cognitive complexity)
-  const buildStatusFilterCondition = (statusFilter: string): any[] => {
-    if (!statusFilter || statusFilter === '') return []
-
-    const statusArray = statusFilter
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-    return statusArray.length > 0 ? [{ status: { _in: statusArray } }] : []
-  }
-
-  // Helper: Build employee filter condition (reduces cognitive complexity)
-  const buildEmployeeFilterCondition = (employeeFilter: string): any[] => {
-    if (!employeeFilter || employeeFilter === '') return []
-
-    const employeeIds = employeeFilter
-      .split(',')
-      .map(id => id.trim())
-      .filter(Boolean)
-    if (employeeIds.length === 0) return []
-
-    return [
-      {
-        _or: employeeIds.map(id => ({ employee: { id: { _eq: id } } }))
-      }
-    ]
-  }
-
   // Helper: Build amount filter condition (reduces cognitive complexity)
   const buildAmountFilterCondition = (amountMin?: string, amountMax?: string): any[] => {
-    return buildNumericRangeCondition(amountMin, amountMax, amountConditions => ({ totalAmount: amountConditions }))
+    return buildNumericRangeCondition(amountMin, amountMax, amountConditions => ({
+      reimbursableAmount: amountConditions
+    }))
   }
 
   // Helper: Build date range filter conditions (reduces cognitive complexity)
@@ -220,67 +202,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     return conditions
   }
 
-  // Helper: Build search condition (reduces cognitive complexity)
   const buildSearchCondition = (searchTerm: string): any[] => {
-    return buildSearchConditionBase(searchTerm, searchValue => [
-      { employee: { firstName: { _ilike: searchValue } } },
-      { employee: { lastName: { _ilike: searchValue } } },
-      { employee: { code: { _ilike: searchValue } } },
-      { employee: { hrReferenceCode: { _ilike: searchValue } } },
-      { title: { _ilike: searchValue } },
-      { code: { _ilike: searchValue } },
-      { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } },
-      { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } },
-      { requestType: { value: { _ilike: searchValue } } },
-      { requestType: { translations: { value: { _ilike: searchValue } } } },
-      { currency: { code: { _ilike: searchValue } } }
-    ])
+    return buildSearchConditionBase(searchTerm, buildExpenseRequestSearchOrConditions)
   }
-
-  // Helper: Build effective date filter condition (matching manager/personal pattern)
-  const buildEffectiveDateFilterCondition = useCallback(
-    (effectiveDateRange: { from?: string; to?: string } | null): GqlBoolExp | null => {
-      if (!effectiveDateRange?.from && !effectiveDateRange?.to) return null
-
-      const tripAnd: GqlBoolExp[] = []
-      const expenseAnd: GqlBoolExp[] = []
-
-      if (effectiveDateRange.from) {
-        tripAnd.push({ startDate: { _gte: effectiveDateRange.from } })
-        expenseAnd.push({ expenseItem: { expenseDate: { _gte: effectiveDateRange.from } } })
-      }
-      if (effectiveDateRange.to) {
-        tripAnd.push({ startDate: { _lte: effectiveDateRange.to } })
-        expenseAnd.push({ expenseItem: { expenseDate: { _lte: effectiveDateRange.to } } })
-      }
-
-      if (tripAnd.length === 0 && expenseAnd.length === 0) return null
-
-      return {
-        _or: [
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
-        ]
-      }
-    },
-    []
-  )
-
-  // Helper: Build request type filter condition
-  const buildRequestTypeFilterCondition = useCallback((requestTypeFilter: string[]): GqlBoolExp | null => {
-    if (!requestTypeFilter || requestTypeFilter.length === 0) return null
-
-    const requestTypeTokens = requestTypeFilter.filter(f => f.startsWith('ExpenseRequestType:'))
-    if (requestTypeTokens.length === 0) return null
-
-    const allowedTypes = requestTypeTokens
-      .map(t => t.replace('ExpenseRequestType:v1:', ''))
-      .filter(t => t === 'EXPENSES' || t === 'TRIP')
-    if (allowedTypes.length === 0) return null
-
-    const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
-    return { _or: typeOr }
-  }, [])
 
   // Helper: Build complete where conditions from all filters (reduces cognitive complexity)
   // Refactored to use options object to avoid too many parameters
@@ -338,7 +262,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       }
 
       // Add effective date filter if provided
-      const effectiveDateFilter = buildEffectiveDateFilterCondition(effectiveDateRangeFilter)
+      const effectiveDateFilter = buildRequestEffectiveDateFilter(effectiveDateRangeFilter)
       if (effectiveDateFilter) {
         conditions.push(effectiveDateFilter)
       }
@@ -352,14 +276,14 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       }
 
       // Add request type filter if provided
-      const requestTypeFilterCond = buildRequestTypeFilterCondition(requestTypeFilter)
+      const requestTypeFilterCond = buildRequestTypeFilter(requestTypeFilter)
       if (requestTypeFilterCond) {
         conditions.push(requestTypeFilterCond)
       }
 
       return conditions.length === 1 ? conditions[0] : { _and: conditions }
     },
-    [buildEffectiveDateFilterCondition, buildRequestTypeFilterCondition]
+    [buildRequestEffectiveDateFilter, buildRequestTypeFilter]
   )
 
   const fetchData = async (force: boolean = false) => {

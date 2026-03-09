@@ -21,6 +21,7 @@ export const GET_EXPENSE_REQUESTS = `
       status
       title
       totalAmount
+      reimbursableAmount
       totalRemainingAmount
       startDate
       endDate
@@ -124,7 +125,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
     aggregate {
       count
       sum {
-        totalAmount
+        reimbursableAmount
       }
     }
   }
@@ -142,7 +143,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
     aggregate {
       count
       sum {
-        totalAmount
+        reimbursableAmount
       }
     }
   }
@@ -160,7 +161,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
     aggregate {
       count
       sum {
-        totalAmount
+        reimbursableAmount
       }
     }
   }
@@ -177,7 +178,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
   ) {
     aggregate {
       sum {
-        totalAmount
+        reimbursableAmount
       }
     }
   }
