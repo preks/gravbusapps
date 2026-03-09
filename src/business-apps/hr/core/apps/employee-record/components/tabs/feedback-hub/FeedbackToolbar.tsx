@@ -42,6 +42,8 @@ interface FeedbackToolbarProps {
   clearLabel: string
   onClearFilters: () => void
   showSenderFilter?: boolean
+  /** When true, visibility filter is disabled and only Public is shown (e.g. when viewing another employee's profile). */
+  visibilityFilterLockedToPublic?: boolean
 }
 
 const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
@@ -70,7 +72,8 @@ const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
   typeLabel,
   clearLabel,
   onClearFilters,
-  showSenderFilter = true
+  showSenderFilter = true,
+  visibilityFilterLockedToPublic = false
 }) => {
   const dateLabel = ((): string => {
     if (dateFrom && dateTo) return `${dateFrom} - ${dateTo}`
@@ -146,13 +149,18 @@ const FeedbackToolbar: React.FC<FeedbackToolbarProps> = ({
         </SelectContent>
       </Select>
 
-      <Select value={filterType} onValueChange={onFilterChange} data-testid="feedback-filter-select">
+      <Select
+        value={visibilityFilterLockedToPublic ? 'public' : filterType}
+        onValueChange={visibilityFilterLockedToPublic ? () => {} : onFilterChange}
+        disabled={visibilityFilterLockedToPublic}
+        data-testid="feedback-filter-select"
+      >
         <SelectTrigger>
-          <SelectValue placeholder={`${publicLabel} • ${privateLabel}`} />
+          <SelectValue placeholder={visibilityFilterLockedToPublic ? publicLabel : `${publicLabel} • ${privateLabel}`} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{allLabel}</SelectItem>
-          <SelectItem value="private">{privateLabel}</SelectItem>
+          {!visibilityFilterLockedToPublic && <SelectItem value="all">{allLabel}</SelectItem>}
+          {!visibilityFilterLockedToPublic && <SelectItem value="private">{privateLabel}</SelectItem>}
           <SelectItem value="public">{publicLabel}</SelectItem>
         </SelectContent>
       </Select>
