@@ -966,20 +966,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
   console.log('[vite.config.ts] wrappedEntries:', wrappedEntries)
 
   return {
-    server:
-      command === 'serve'
-        ? {
-            proxy: {
-              // Proxy FeatureHub API to avoid CORS when running on localhost
-              '/__featurehub': {
-                target: env.NEXT_PUBLIC_FEATURE_HUB_API || 'https://features-dev.newwork.com',
-                changeOrigin: true,
-                secure: true,
-                rewrite: (path: string) => path.replace(/^\/__featurehub/, '')
-              }
-            }
-          }
-        : undefined,
     optimizeDeps: {
       include: [
         'antd',
@@ -1019,7 +1005,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
     ].filter(Boolean),
 
     define: {
-      // This replaces process.env.NODE_ENV with the current mode in the build output.
+      // This replaces process.env.NODE_ENV with the current mode in the build output
       'process.env.NODE_ENV': JSON.stringify(mode)
       // globalThis.__APP_BUILD_INFO__ is handled by the prependBannerPlugin, so no need to define it here.
     },
@@ -1087,7 +1073,9 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
           'react',
           'react-dom',
           'react/jsx-runtime',
-          'react-router-dom'
+          'react-router-dom',
+          '@univerjs/preset-sheets-core',
+          '@univerjs/presets'
         ],
         output: {
           globals: {
@@ -1105,7 +1093,9 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
             '@newwork/gravity-ui-catalog': 'GravityUICatalog',
             'class-variance-authority': 'classVarianceAuthority',
             'lucide-react': 'lucideReact',
-            'react-router-dom': 'reactRouterDom'
+            'react-router-dom': 'reactRouterDom',
+            '@univerjs/preset-sheets-core': 'univerjsPresetSheetsCore',
+            '@univerjs/presets': 'univerjsPresets'
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
