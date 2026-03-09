@@ -17,7 +17,8 @@ import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
   GET_COMBINED_DASHBOARD_STATS_MONTHLY,
   GET_COMBINED_DASHBOARD_STATS_QUARTERLY,
-  GET_COMBINED_DASHBOARD_STATS_YEARLY
+  GET_COMBINED_DASHBOARD_STATS_YEARLY,
+  GET_DASHBOARD_MONTHLY_TRENDS
 } from '../queries/combinedDashboard.queries'
 import { DashboardStats } from '../types'
 
@@ -28,9 +29,11 @@ interface UseDashboardStatsResult {
   refetch: () => void
 }
 
+const EMPTY_FILTERS: { currency?: string; department?: string; period?: string } = {}
+
 export const useDashboardStats = ({
   accessToken,
-  filters = {},
+  filters = EMPTY_FILTERS,
   isActive = true
 }: Pick<BusinessAppContextProps, 'accessToken'> & {
   filters?: {
@@ -91,77 +94,62 @@ export const useDashboardStats = ({
   // Guard in fetchEssentialStats prevents requests when accessToken is empty
   const client = useGraphqlClient(accessToken || '')
 
-  // Helper: Calculate date ranges for all periods (reduces cognitive complexity)
   const calculateDateRanges = useCallback(() => {
-    const currentDate = new Date()
-    const currentYear = currentDate.getFullYear()
-    const previousYear = currentYear - 1
+    const now = new Date()
+    const Y = now.getFullYear()
+    const M = now.getMonth()
+    const D = now.getDate()
+    const h = now.getHours()
+    const m = now.getMinutes()
+    const s = now.getSeconds()
+    const prevY = Y - 1
 
-    // Year boundaries
-    const startOfYearTs = new Date(currentYear, 0, 1).toISOString().replace('Z', '')
-    const endOfYearTs = new Date(currentYear, 11, 31, 23, 59, 59).toISOString().replace('Z', '')
-    const currentYTD = currentDate.toISOString().replace('Z', '')
-    const previousYearStart = new Date(previousYear, 0, 1).toISOString().replace('Z', '')
-    const previousYTD = new Date(previousYear, currentDate.getMonth(), currentDate.getDate())
-      .toISOString()
-      .replace('Z', '')
-
-    // Month boundaries
-    const currentMonthStart = new Date(Date.UTC(currentYear, currentDate.getMonth(), 1)).toISOString().replace('Z', '')
-    const currentMonthEnd = new Date(Date.UTC(currentYear, currentDate.getMonth() + 1, 1))
-      .toISOString()
-      .replace('Z', '')
-    const previousMonthStart = new Date(currentYear, currentDate.getMonth() - 1, 1).toISOString().replace('Z', '')
-    const previousMonthEnd = new Date(currentYear, currentDate.getMonth(), 0, 23, 59, 59).toISOString().replace('Z', '')
-
-    // Quarter boundaries
-    const month = currentDate.getMonth()
-    const quarter = Math.floor(month / 3)
-    const quarterStartMonth = quarter * 3
-    const quarterEndMonth = quarterStartMonth + 2
-    const quarterStart = new Date(currentYear, quarterStartMonth, 1).toISOString().replace('Z', '')
-    const quarterEnd = new Date(currentYear, quarterEndMonth + 1, 0, 23, 59, 59).toISOString().replace('Z', '')
-
-    // Previous quarter
-    let previousQuarter = quarter - 1
-    let previousQuarterYear = currentYear
-    if (previousQuarter < 0) {
-      previousQuarter = 3
-      previousQuarterYear = currentYear - 1
+    const ts = (year: number, month: number, day: number, hh = 0, mm = 0, ss = 0) => {
+      const pad = (n: number) => String(n).padStart(2, '0')
+      return `${year}-${pad(month + 1)}-${pad(day)}T${pad(hh)}:${pad(mm)}:${pad(ss)}`
     }
-    const previousQuarterStartMonth = previousQuarter * 3
-    const previousQuarterEndMonth = previousQuarterStartMonth + 2
-    const previousQuarterStart = new Date(previousQuarterYear, previousQuarterStartMonth, 1)
-      .toISOString()
-      .replace('Z', '')
-    const previousQuarterEnd = new Date(previousQuarterYear, previousQuarterEndMonth + 1, 0, 23, 59, 59)
-      .toISOString()
-      .replace('Z', '')
+    const lastDay = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
 
-    // QTD year-over-year: same quarter last year, same relative day
-    const currentQTD = currentDate.toISOString().replace('Z', '')
-    const sameQuarterLastYearStart = new Date(previousYear, quarterStartMonth, 1).toISOString().replace('Z', '')
-    const sameQuarterLastYearEnd = new Date(previousYear, quarterEndMonth + 1, 0, 23, 59, 59)
-      .toISOString()
-      .replace('Z', '')
-    const monthInQuarter = month - quarterStartMonth
-    const previousQTD = new Date(
-      previousYear,
-      quarterStartMonth + monthInQuarter,
-      currentDate.getDate(),
-      currentDate.getHours(),
-      currentDate.getMinutes(),
-      currentDate.getSeconds()
-    )
-      .toISOString()
-      .replace('Z', '')
+    const startOfYearTs = ts(Y, 0, 1)
+    const endOfYearTs = ts(Y, 11, 31, 23, 59, 59)
+    const currentYTD = ts(Y, M, D, h, m, s)
+    const previousYearStart = ts(prevY, 0, 1)
+    const previousYTD = ts(prevY, M, D, h, m, s)
 
-    // Same month last year (for monthly YoY first card)
-    const sameMonthLastYearStart = new Date(previousYear, currentDate.getMonth(), 1).toISOString().replace('Z', '')
-    const sameMonthLastYearEnd = new Date(previousYear, currentDate.getMonth() + 1, 1).toISOString().replace('Z', '')
+    const currentMonthStart = ts(Y, M, 1)
+    const currentMonthEnd = ts(Y, M + 1, 1)
+    const prevM = M - 1 < 0 ? 11 : M - 1
+    const prevMYear = M - 1 < 0 ? Y - 1 : Y
+    const previousMonthStart = ts(prevMYear, prevM, 1)
+    const previousMonthEnd = ts(prevMYear, prevM, lastDay(prevMYear, prevM), 23, 59, 59)
+
+    const quarter = Math.floor(M / 3)
+    const qStart = quarter * 3
+    const qEnd = qStart + 2
+    const quarterStart = ts(Y, qStart, 1)
+    const quarterEnd = ts(Y, qEnd, lastDay(Y, qEnd), 23, 59, 59)
+
+    let prevQ = quarter - 1
+    let prevQYear = Y
+    if (prevQ < 0) {
+      prevQ = 3
+      prevQYear = Y - 1
+    }
+    const pqStart = prevQ * 3
+    const pqEnd = pqStart + 2
+    const previousQuarterStart = ts(prevQYear, pqStart, 1)
+    const previousQuarterEnd = ts(prevQYear, pqEnd, lastDay(prevQYear, pqEnd), 23, 59, 59)
+
+    const monthInQuarter = M - qStart
+    const sameQuarterLastYearStart = ts(prevY, qStart, 1)
+    const sameQuarterLastYearEnd = ts(prevY, qEnd, lastDay(prevY, qEnd), 23, 59, 59)
+    const previousQTD = ts(prevY, qStart + monthInQuarter, D, h, m, s)
+
+    const sameMonthLastYearStart = ts(prevY, M, 1)
+    const sameMonthLastYearEnd = ts(prevY, M + 1, 1)
 
     return {
-      currentYear,
+      currentYear: Y,
       startOfYearTs,
       endOfYearTs,
       currentYTD,
@@ -177,15 +165,24 @@ export const useDashboardStats = ({
       quarterEnd,
       previousQuarterStart,
       previousQuarterEnd,
-      currentQTD,
+      currentQTD: currentYTD,
       sameQuarterLastYearStart,
       sameQuarterLastYearEnd,
       previousQTD
     }
   }, [])
 
-  // Helper: Execute query based on period (reduces cognitive complexity)
-  const executeQueryForPeriod = useCallback(
+  const buildMonthTrendVars = useCallback((currentYear: number) => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const vars: Record<string, string> = {}
+    for (let i = 0; i < 12; i++) {
+      vars[`m${i + 1}Start`] = `${currentYear}-${pad(i + 1)}-01T00:00:00`
+      vars[`m${i + 1}End`] = i < 11 ? `${currentYear}-${pad(i + 2)}-01T00:00:00` : `${currentYear + 1}-01-01T00:00:00`
+    }
+    return vars
+  }, [])
+
+  const executeKpiQuery = useCallback(
     async (
       period: string,
       selectedCurrency: string,
@@ -196,21 +193,15 @@ export const useDashboardStats = ({
       let query
       let variables: any
 
-      const addMonthTrendVars = (vars: any) => {
-        for (let i = 0; i < 12; i++) {
-          vars[`m${i + 1}Start`] = new Date(Date.UTC(dateRanges.currentYear, i, 1)).toISOString().replace('Z', '')
-          vars[`m${i + 1}End`] = new Date(Date.UTC(dateRanges.currentYear, i + 1, 1)).toISOString().replace('Z', '')
-        }
-      }
-
       if (period === 'yearly') {
         query = GET_COMBINED_DASHBOARD_STATS_YEARLY(hasDepartment)
+        const prevY = dateRanges.currentYear - 1
         variables = {
           selectedCurrency,
           currentYearStart: dateRanges.startOfYearTs,
           currentYearEnd: dateRanges.endOfYearTs,
-          previousYearStart: new Date(dateRanges.currentYear - 1, 0, 1).toISOString().replace('Z', ''),
-          previousYearEnd: new Date(dateRanges.currentYear - 1, 11, 31, 23, 59, 59).toISOString().replace('Z', ''),
+          previousYearStart: `${prevY}-01-01T00:00:00`,
+          previousYearEnd: `${prevY}-12-31T23:59:59`,
           currentYTD: dateRanges.currentYTD,
           previousYTD: dateRanges.previousYTD
         }
@@ -247,15 +238,31 @@ export const useDashboardStats = ({
         }
       }
 
-      addMonthTrendVars(variables)
-
       if (hasDepartment) {
         variables.selectedDepartment = selectedDepartment
       }
 
-      return await client.request(query, variables)
+      const result = await client.request(query, variables)
+      return result
     },
     [client]
+  )
+
+  const executeTrendsQuery = useCallback(
+    async (selectedCurrency: string, selectedDepartment: string | null, currentYear: number) => {
+      const hasDepartment = !!selectedDepartment
+      const variables: any = {
+        selectedCurrency,
+        ...buildMonthTrendVars(currentYear)
+      }
+      if (hasDepartment) {
+        variables.selectedDepartment = selectedDepartment
+      }
+
+      const result = await client.request(GET_DASHBOARD_MONTHLY_TRENDS(hasDepartment), variables)
+      return result
+    },
+    [client, buildMonthTrendVars]
   )
 
   const calculatePercentChange = useCallback((currentValue: number, previousValue: number) => {
@@ -300,20 +307,17 @@ export const useDashboardStats = ({
       const selectedCurrency = filters.currency && filters.currency.trim() !== '' ? filters.currency : 'Currency:v1:EUR'
       const selectedDepartment = filters.department?.trim() && filters.department !== 'all' ? filters.department : null
 
-      // ⚡ OPTIMIZATION: Use ONE combined query instead of 10 separate queries
       const activePeriod = filters.period || 'yearly'
-      const combinedResponse = await executeQueryForPeriod(
-        activePeriod,
-        selectedCurrency,
-        selectedDepartment,
-        dateRanges
-      )
 
-      // ⚡ OPTIMIZATION: Monthly trends are now included in combinedResponse (no separate query)
+      const [combinedResponse, trendsResponse] = await Promise.all([
+        executeKpiQuery(activePeriod, selectedCurrency, selectedDepartment, dateRanges),
+        executeTrendsQuery(selectedCurrency, selectedDepartment, dateRanges.currentYear)
+      ])
+
       const monthlyTrendsResponse = Array.from({ length: 12 }, (_, index) => {
-        const itemAggKey = `m${index + 1}_item` as keyof typeof combinedResponse
+        const itemAggKey = `m${index + 1}_item` as keyof typeof trendsResponse
         return {
-          itemAgg: combinedResponse[itemAggKey]
+          itemAgg: trendsResponse[itemAggKey]
         } as any
       })
 
@@ -417,8 +421,6 @@ export const useDashboardStats = ({
       setLoading(false)
       isLoadingRef.current = false
     }
-    // Note: executeQueryForPeriod is async but stable (wrapped in useCallback)
-    // React dependency arrays need the function reference, not its return value
   }, [
     accessToken,
     client,
@@ -426,7 +428,8 @@ export const useDashboardStats = ({
     filters.period,
     filters.department,
     calculateDateRanges,
-    executeQueryForPeriod,
+    executeKpiQuery,
+    executeTrendsQuery,
     calculatePercentChange
   ])
 

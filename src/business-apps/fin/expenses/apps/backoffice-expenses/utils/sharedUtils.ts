@@ -1,9 +1,10 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { extractCurrencyCode as extractFromCommon } from '../../../common/utils/currencyUtils'
 import type { StatusDisplayConfig } from './utils'
 
 export const extractCurrencyCode = (currencyRef: string | null | undefined, fallback = 'EUR'): string => {
   if (!currencyRef) return fallback
-  return String(currencyRef).split(':').pop() || fallback
+  return extractFromCommon(currencyRef) || fallback
 }
 
 export const buildStatusDisplayName = (

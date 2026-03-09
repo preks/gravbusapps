@@ -401,7 +401,8 @@ export async function executeOverviewWithCache<TState>(options: ExecuteWithCache
 
   try {
     let requestPromise = inFlightBySignature.get(signature)
-    if (!requestPromise) {
+    const isNewRequest = !requestPromise
+    if (isNewRequest) {
       requestPromise = requestFactory().finally(() => {
         inFlightBySignature.delete(signature)
       })

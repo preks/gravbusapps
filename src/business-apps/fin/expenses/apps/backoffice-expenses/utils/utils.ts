@@ -75,9 +75,14 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
       }
 
     case ExpenseStatus.BOOKED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transfer_required', 'Transfer Required'),
+        badgeVariant: 'warning'
+      }
+
     case ExpenseStatus.VERIFIED:
       return {
-        label: 'Transfer Required',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required'),
         badgeVariant: 'warning'
       }
 
@@ -95,7 +100,7 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        badgeVariant: 'warning'
+        badgeVariant: 'destructive'
       }
 
     case ExpenseStatus.DISCARDED:
@@ -179,15 +184,4 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
  */
 export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig => {
   return getExpenseRequestStatusDisplay(status)
-}
-
-/**
- * Formats a date string to YYYY-MM-DD format
- *
- * @param dateString - ISO date string
- * @returns Formatted date string
- */
-export const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  return dateString.split('T')[0]
 }

@@ -51,9 +51,9 @@ import {
   type ReportItem,
   type ReportMetadata,
   type UseBackofficeExpenseReportDataReturn,
-  type UseBackofficeExpenseReportFilters,
   type ExportFilterOverrides
 } from '../types/reportTypes'
+import type { ReportFilters } from '../components/pages/reportFilterUtils'
 
 export { ReportType } from '../types/reportTypes'
 export type {
@@ -64,9 +64,10 @@ export type {
   ExpenseRequestReport,
   AdvancePaymentReport,
   ApprovalPayoutCycleReport,
-  UseBackofficeExpenseReportDataReturn,
-  UseBackofficeExpenseReportFilters
+  UseBackofficeExpenseReportDataReturn
 } from '../types/reportTypes'
+
+const EMPTY_STRING_ARRAY: string[] = []
 
 interface FetchResult {
   rows: ReportItem[]
@@ -93,7 +94,7 @@ const AGGREGATE_KEY: Record<string, string> = {
 
 export const useBackofficeExpenseReportData = (
   { accessToken, userInfo }: BusinessAppContextProps,
-  activeFiltersByReportType: Partial<Record<ReportType, UseBackofficeExpenseReportFilters>> = {},
+  activeFiltersByReportType: Partial<Record<ReportType, ReportFilters>> = {},
   sorting: SortingState = []
 ): UseBackofficeExpenseReportDataReturn => {
   const { graphqlClient, resolveEmployeeNamesByIds, resolveDisplayName, resolveDepartmentName } =
@@ -191,9 +192,18 @@ export const useBackofficeExpenseReportData = (
   }, [])
 
   const activeFilters = selectedReportType ? (activeFiltersByReportType[selectedReportType] ?? {}) : {}
-  const selectedStatusFilters = Array.isArray(activeFilters?.status) ? activeFilters.status : []
-  const selectedEmployeeFilters = Array.isArray(activeFilters?.employeeName) ? activeFilters.employeeName : []
-  const selectedDepartmentFilters = Array.isArray(activeFilters?.departmentName) ? activeFilters.departmentName : []
+  const selectedStatusFilters = useMemo(
+    () => (Array.isArray(activeFilters?.status) ? activeFilters.status : EMPTY_STRING_ARRAY),
+    [activeFilters?.status]
+  )
+  const selectedEmployeeFilters = useMemo(
+    () => (Array.isArray(activeFilters?.employeeName) ? activeFilters.employeeName : EMPTY_STRING_ARRAY),
+    [activeFilters?.employeeName]
+  )
+  const selectedDepartmentFilters = useMemo(
+    () => (Array.isArray(activeFilters?.departmentName) ? activeFilters.departmentName : EMPTY_STRING_ARRAY),
+    [activeFilters?.departmentName]
+  )
 
   const mapStatusLabelsToRaw = useCallback((statusFilters: readonly string[]): string[] => {
     const labelMap: Record<string, string[]> = {
@@ -438,16 +448,17 @@ export const useBackofficeExpenseReportData = (
         case ReportType.APPROVAL_PAYOUT_CYCLE: {
           const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
           const where = buildRequestWhere(search, statuses, empFilters, deptFilters)
+          const slaPolicyPromise = loadSlaPolicy()
           const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
             where,
             limit,
             offset,
             orderBy: reportOrderBy
           })
-          const nameById = await resolveEmployeeNamesByIds(
-            extractIds(result?.ExpenseRequest || [], ['employeeId', 'createdBy'])
-          )
-          const slaPolicy = await loadSlaPolicy()
+          const [nameById, slaPolicy] = await Promise.all([
+            resolveEmployeeNamesByIds(extractIds(result?.ExpenseRequest || [], ['employeeId', 'createdBy'])),
+            slaPolicyPromise
+          ])
           return {
             rows: processApprovalPayoutCycleData(
               result,
@@ -460,7 +471,7 @@ export const useBackofficeExpenseReportData = (
           }
         }
         default:
-          return { rows: [], totalCount: 0 }
+          return { rows: [], totalCount: 0 } as FetchResult
       }
     },
     [
@@ -520,36 +531,7 @@ export const useBackofficeExpenseReportData = (
     [graphqlClient, currentPage, pageSize, fetchReport, applyRows]
   )
 
-  // Prefetch expense items cache
-  useEffect(() => {
-    if (!graphqlClient || searchTerm.trim()) return
-    const sig = JSON.stringify({ type: ReportType.EXPENSE_ITEM, currentPage, pageSize, searchTerm })
-    if (
-      reportCacheRef.current[ReportType.EXPENSE_ITEM]?.rows?.length &&
-      reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] === sig
-    )
-      return
-
-    let cancelled = false
-    const prefetch = async () => {
-      try {
-        const { rows, totalCount: count } = await fetchReport(
-          ReportType.EXPENSE_ITEM,
-          (currentPage - 1) * pageSize,
-          pageSize
-        )
-        if (cancelled) return
-        reportCacheRef.current[ReportType.EXPENSE_ITEM] = { rows, totalCount: count }
-        reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] = sig
-      } catch {
-        /* no-op */
-      }
-    }
-    void prefetch()
-    return () => {
-      cancelled = true
-    }
-  }, [graphqlClient, currentPage, pageSize, searchTerm, fetchReport])
+  // Prefetch removed — the page-level useEffect already fetches expense_item data
 
   const fetchAllForExport = useCallback(async (): Promise<ReportItem[]> => {
     if (!graphqlClient || !selectedReportType) return []

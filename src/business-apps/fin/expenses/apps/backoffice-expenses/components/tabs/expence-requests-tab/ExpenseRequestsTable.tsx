@@ -493,10 +493,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       const fromDate = dates[0]?.toDate() || null
       const toDate = dates[1]?.toDate() || null
       setEffectiveDateRange([fromDate, toDate])
-      // Convert to ISO strings for GraphQL query
       setEffectiveDateRangeFilter({
-        from: fromDate ? dayjs(fromDate).startOf('day').toISOString() : undefined,
-        to: toDate ? dayjs(toDate).endOf('day').toISOString() : undefined
+        from: fromDate ? dayjs(fromDate).startOf('day').format('YYYY-MM-DDTHH:mm:ss') : undefined,
+        to: toDate ? dayjs(toDate).endOf('day').format('YYYY-MM-DDTHH:mm:ss') : undefined
       })
     },
     [setEffectiveDateRangeFilter]
@@ -513,10 +512,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       const fromDate = dates[0]?.toDate() || null
       const toDate = dates[1]?.toDate() || null
       setRequestDateRange([fromDate, toDate])
-      // Convert to ISO strings for GraphQL query
       setRequestDateRangeFilter({
-        from: fromDate ? dayjs(fromDate).startOf('day').toISOString() : undefined,
-        to: toDate ? dayjs(toDate).endOf('day').toISOString() : undefined
+        from: fromDate ? dayjs(fromDate).startOf('day').format('YYYY-MM-DDTHH:mm:ss') : undefined,
+        to: toDate ? dayjs(toDate).endOf('day').format('YYYY-MM-DDTHH:mm:ss') : undefined
       })
     },
     [setRequestDateRangeFilter]

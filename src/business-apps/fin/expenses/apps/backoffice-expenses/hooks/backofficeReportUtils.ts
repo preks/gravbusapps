@@ -12,7 +12,9 @@ export const DEFAULT_EXPENSES_SLA_POLICY: ExpensesSlaPolicy = {
 
 export const FORMER_EMPLOYEE_LABEL = 'Former employee'
 
-export const buildEmployeeDisplayName = (employee: any): string => {
+export const buildEmployeeDisplayName = (
+  employee: { fullName?: string; firstName?: string; lastName?: string } | null | undefined
+): string => {
   if (!employee) return ''
   const fullName = (employee.fullName || '').trim()
   if (fullName) return fullName
@@ -101,11 +103,25 @@ export const pickEarliest = (values: Array<unknown>): string => {
   return sorted[0]?.raw || ''
 }
 
+const countBusinessDays = (start: Date, end: Date): number => {
+  let count = 0
+  const cursor = new Date(start)
+  cursor.setHours(0, 0, 0, 0)
+  const target = new Date(end)
+  target.setHours(0, 0, 0, 0)
+  while (cursor < target) {
+    const dow = cursor.getDay()
+    if (dow !== 0 && dow !== 6) count++
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return count
+}
+
 export const daysDiff = (from: string, to: string): number | null => {
   const start = parseDateOrNull(from)
   const end = parseDateOrNull(to)
   if (!start || !end) return null
-  return Number(((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)).toFixed(2))
+  return countBusinessDays(start, end)
 }
 
 const getObjectPathValue = (source: Record<string, any>, path: string): unknown => {
@@ -172,19 +188,16 @@ export const evaluatePayoutSlaAgainstRunDay = (
   if (!approvedDate) return { limitDays: null, status: '-' }
 
   const mondayDueDate = getNextOrSameWeekday(approvedDate, payoutRunWeekday)
-  const mondayWindowDays = Number(
-    ((mondayDueDate.getTime() - approvedDate.getTime()) / (1000 * 60 * 60 * 24)).toFixed(2)
-  )
+  const mondayWindowDays = countBusinessDays(approvedDate, mondayDueDate)
 
-  const remainingTotalWindowDays =
-    approvalDays === null ? null : Math.max(Number((totalCycleSlaBusinessDays - approvalDays).toFixed(2)), 0)
+  const remainingTotalWindowDays = approvalDays === null ? null : Math.max(totalCycleSlaBusinessDays - approvalDays, 0)
 
   const limitDays =
     remainingTotalWindowDays === null ? mondayWindowDays : Math.min(mondayWindowDays, remainingTotalWindowDays)
 
   const paidDate = parseDateOrNull(paidAt)
   const evaluationDate = paidDate || new Date()
-  const elapsedDays = Number(((evaluationDate.getTime() - approvedDate.getTime()) / (1000 * 60 * 60 * 24)).toFixed(2))
+  const elapsedDays = countBusinessDays(approvedDate, evaluationDate)
   const status = elapsedDays <= limitDays ? 'Within SLA' : 'Breached'
   return { limitDays, status }
 }

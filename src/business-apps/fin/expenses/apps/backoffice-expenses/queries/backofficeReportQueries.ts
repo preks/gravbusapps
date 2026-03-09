@@ -197,7 +197,8 @@ export const GET_SLA_KPI_COMMENTS = `
           { comment: { _ilike: "%to: CLOSED%" } }
         ]
       },
-      orderBy: [{ commentDate: ASC }]
+      orderBy: [{ commentDate: ASC }],
+      limit: 50000
     ) {
       expenseRequestId
       commentDate
@@ -213,7 +214,8 @@ export const GET_SLA_KPI_PAYMENTS = `
         isDeleted: { _eq: false },
         status: { _in: ["PAID", "CLOSED"] },
         expensePlan: { expenseRequest: { isDeleted: { _eq: false }, status: { _nin: ["CREATED", "DISCARDED"] } } }
-      }
+      },
+      limit: 50000
     ) {
       status
       transactionDate

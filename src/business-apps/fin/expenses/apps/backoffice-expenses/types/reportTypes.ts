@@ -18,7 +18,7 @@ export interface ReportMetadata {
 
 export interface ReportItem {
   id: string
-  [key: string]: any
+  [key: string]: string | number | boolean | null | undefined
 }
 
 export interface ExpenseItemReport extends ReportItem {
@@ -123,12 +123,6 @@ export interface UseBackofficeExpenseReportDataReturn {
   fetchAllForExport: () => Promise<ReportItem[]>
   fetchAllForFilterOptions: () => Promise<ReportItem[]>
   slaKpiCounts: SlaKpiCounts | null
-}
-
-export interface UseBackofficeExpenseReportFilters {
-  status?: string[]
-  employeeName?: string[]
-  departmentName?: string[]
 }
 
 export type ExportFilterOverrides = {

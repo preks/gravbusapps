@@ -1,30 +1,16 @@
 /**
- * ⚡ PERFORMANCE OPTIMIZATION: Combined Dashboard Query
+ * ⚡ PERFORMANCE OPTIMIZATION: Split Dashboard Queries
  *
- * This file contains a single, optimized GraphQL query that fetches ALL dashboard statistics
- * in ONE request instead of making 10 separate queries.
- *
- * Pattern inspired by manager-expenses/queries/expenseDashboard.ts
- *
- * Benefits:
- * - Reduces network roundtrips from ~10 to 1
- * - Faster dashboard load times
- * - Lower server load
- * - Better user experience
+ * KPI queries and monthly trend queries are separated so they can run in parallel.
+ * KPI cards render as soon as the KPI query resolves (~4s), while the chart
+ * loads independently via the trends query.
  */
 
-/**
- * Helper to generate department filter condition for entities with direct employee relationship
- */
 const getDeptFilter = (hasDepartment: boolean) =>
   hasDepartment
     ? ',\n          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }'
     : ''
 
-/**
- * Helper to generate department filter condition for AdvancePayment entities
- * Path: AdvancePayment -> expensePlan -> employee -> employeePosition -> organizationalUnitId
- */
 const getAdvancePaymentDeptFilter = (hasDepartment: boolean) =>
   hasDepartment
     ? ',\n          { expensePlan: { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } } }'
@@ -59,8 +45,7 @@ const buildMonthlyTrendsSubqueries = (hasDepartment: boolean) =>
   }).join('\n\n')
 
 /**
- * Combined dashboard query for MONTHLY period
- * Fetches all dashboard statistics in ONE request INCLUDING bulk monthly trends
+ * KPI-only dashboard query for MONTHLY period (trends fetched separately in parallel)
  */
 export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => {
   return `
@@ -75,8 +60,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     $currentYearStart: timestamp!,
     $currentYTD: timestamp!,
     $previousYearStart: timestamp!,
-    $previousYTD: timestamp!,
-    ${MONTH_TREND_VARS}
+    $previousYTD: timestamp!
   ) {
     # 1. Current Month Expenses (for monthly spend comparison and first card)
     currentMonthExpenses: ExpenseItemAggregate(
@@ -348,14 +332,12 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
       }
     }
 
-    # 11. Bulk Monthly Trends (all 12 months in one request) - uses ExpenseItem only
-${buildMonthlyTrendsSubqueries(hasDepartment)}
   }
   `
 }
 
 /**
- * Combined dashboard query for QUARTERLY period
+ * KPI-only dashboard query for QUARTERLY period
  */
 export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) => `
   query GetCombinedDashboardStatsQuarterly(
@@ -370,8 +352,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     $currentYearStart: timestamp!,
     $currentYTD: timestamp!,
     $previousYearStart: timestamp!,
-    $previousYTD: timestamp!,
-    ${MONTH_TREND_VARS}
+    $previousYTD: timestamp!
   ) {
     # QTD: current quarter start → today (for first card)
     currentQTDExpenses: ExpenseItemAggregate(
@@ -660,13 +641,11 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
         }
       }
     }
-
-${buildMonthlyTrendsSubqueries(hasDepartment)}
   }
 `
 
 /**
- * Combined dashboard query for YEARLY period
+ * KPI-only dashboard query for YEARLY period
  */
 export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
   query GetCombinedDashboardStatsYearly(
@@ -676,8 +655,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     $previousYearStart: timestamp!,
     $previousYearEnd: timestamp!,
     $currentYTD: timestamp!,
-    $previousYTD: timestamp!,
-    ${MONTH_TREND_VARS}
+    $previousYTD: timestamp!
   ) {
     currentYearExpensesComparison: ExpenseItemAggregate(
       where: {
@@ -911,7 +889,18 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
         }
       }
     }
+  }
+`
 
+/**
+ * Separate query for monthly trends — runs in parallel with KPI query.
+ * Shared across all period modes (monthly/quarterly/yearly) since trends always show full year.
+ */
+export const GET_DASHBOARD_MONTHLY_TRENDS = (hasDepartment: boolean) => `
+  query GetDashboardMonthlyTrends(
+    $selectedCurrency: String!${hasDepartment ? ',\n    $selectedDepartment: uuid!' : ''},
+    ${MONTH_TREND_VARS}
+  ) {
 ${buildMonthlyTrendsSubqueries(hasDepartment)}
   }
 `
