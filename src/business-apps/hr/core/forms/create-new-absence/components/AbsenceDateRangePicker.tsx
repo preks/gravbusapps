@@ -4,6 +4,7 @@ import { Badge, Button, Calendar, Popover, PopoverContent, PopoverTrigger, Spinn
 import { CalendarIcon, XIcon } from 'lucide-react'
 import { useAbsenceCalendarData } from '../hooks/useAbsenceCalendarData'
 import { useAbsencePrevalidate } from '../hooks/useAbsencePrevalidate'
+import { getPrevalidateErrorLabel } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AbsenceDateRangePickerProps {
@@ -22,15 +23,6 @@ const formatDate = (d: Date): string =>
 
 const toLocalDateStr = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
-const PREVALIDATE_ERROR_LABELS: Record<string, string> = {
-  INSUFFICIENT_BALANCE: 'Insufficient balance for this period',
-  INVALID_DATE_RANGE: 'Invalid date range (overlap or out-of-window)',
-  INVALID_REQUEST: 'Invalid request',
-  UNAUTHORIZED: 'Authentication required',
-  FORBIDDEN: 'You do not have permission to validate this absence',
-  INTERNAL_ERROR: 'Could not validate — please try again'
-}
 
 /**
  * Absence date range picker built on Calendar + Popover.
@@ -139,7 +131,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
           mode="range"
           numberOfMonths={2}
           selected={{ from: startDate, to: endDate }}
-          onSelect={range => handleSelect(range as DateRange | undefined)}
+          onSelect={(range: unknown) => handleSelect(range as DateRange | undefined)}
           onMonthChange={handleMonthChange}
           defaultMonth={visibleMonth}
           disabled={date => blockedDateSet.has(toLocalDateStr(date))}
@@ -212,7 +204,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
               </div>
             ) : prevalidate.errorCode ? (
               <Badge variant="destructive" data-testid="prevalidate-error">
-                {PREVALIDATE_ERROR_LABELS[prevalidate.errorCode] ?? prevalidate.errorCode}
+                {getPrevalidateErrorLabel(prevalidate.errorCode)}
               </Badge>
             ) : (
               <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2" data-testid="prevalidate-success">

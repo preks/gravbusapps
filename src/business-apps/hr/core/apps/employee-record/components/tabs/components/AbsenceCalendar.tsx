@@ -20,6 +20,7 @@ import {
   getAbsenceStatusBackgroundClass,
   getAbsenceStatusTextClass
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { getPrevalidateErrorLabel } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import translations from './_i18n'
 import { calculateContextMenuPosition } from './utils/contextMenuPositioning'
 import { hasHolidayInRange, isHoliday } from './utils/holidayUtils'
@@ -128,15 +129,6 @@ const getAbsenceTooltipContent = (
       </div>
     </div>
   )
-}
-
-const PREVALIDATE_ERROR_LABELS: Record<string, string> = {
-  INSUFFICIENT_BALANCE: 'Insufficient balance for this period',
-  INVALID_DATE_RANGE: 'Invalid date range (overlap or out-of-window)',
-  INVALID_REQUEST: 'Invalid request',
-  UNAUTHORIZED: 'Authentication required',
-  FORBIDDEN: 'You do not have permission to validate this absence',
-  INTERNAL_ERROR: 'Could not validate — please try again'
 }
 
 const AbsenceCalendar: React.FC<
@@ -773,7 +765,7 @@ const AbsenceCalendar: React.FC<
                   <Spinner size="sm" data-testid="prevalidate-loading" />
                 ) : prevalidateResult.errorCode ? (
                   <Badge variant="destructive" data-testid="prevalidate-error">
-                    {PREVALIDATE_ERROR_LABELS[prevalidateResult.errorCode] ?? prevalidateResult.errorCode}
+                    {getPrevalidateErrorLabel(prevalidateResult.errorCode)}
                   </Badge>
                 ) : prevalidateResult.effectiveDays !== null ? (
                   <Badge variant="info" data-testid="prevalidate-effective-days">
