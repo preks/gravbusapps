@@ -27,16 +27,7 @@ export const SEARCH_EMPLOYEES_LIGHT = (variables: EmployeeSearchVariables = {}):
 								{ displayName: { _ilike: "%${search}%" } },
 								{ firstName: { _ilike: "%${search}%" } },
 								{ lastName: { _ilike: "%${search}%" } },
-								{ userId: { _ilike: "%${search}%" } },
-								{
-									communication: {
-										_and: [
-											{ isDeleted: { _eq: false } }
-											{ value: { _ilike: "%${search}%" } }
-											{ channelRef: { _eq: "CommunicationChannel:v1:e-mail" } }
-										]
-									}
-								}
+								{ userId: { _ilike: "%${search}%" } }
 							]
 						}
 					]
@@ -48,17 +39,9 @@ export const SEARCH_EMPLOYEES_LIGHT = (variables: EmployeeSearchVariables = {}):
 				lastName
 				userId
 				pictureThumbnail
-				workCommunications: communication(
-					where: {
-						_and: [
-							{ isDeleted: { _eq: false } }
-							{ channelRef: { _eq: "CommunicationChannel:v1:e-mail" } }
-							{ value: { _neq: "" } }
-						]
-					}
-					limit: 1
-				) {
+				communication(where: { isDeleted: { _eq: false } }) {
 					value
+					channelRef
 				}
 				employeePosition {
 					jobPosition { name }
@@ -81,17 +64,9 @@ export const GET_EMPLOYEE_LIGHT_BY_ID = (id: string): string => {
         lastName
         userId
         pictureThumbnail
-        workCommunications: communication(
-          where: {
-            _and: [
-              { isDeleted: { _eq: false } }
-              { channelRef: { _eq: "CommunicationChannel:v1:e-mail" } }
-              { value: { _neq: "" } }
-            ]
-          }
-          limit: 1
-        ) {
+        communication(where: { isDeleted: { _eq: false } }) {
           value
+          channelRef
         }
         employeePosition {
           jobPosition { name }
@@ -114,17 +89,9 @@ export const GET_EMPLOYEE_LIGHT_BY_USER_ID = (userId: string): string => {
         lastName
         userId
         pictureThumbnail
-        workCommunications: communication(
-          where: {
-            _and: [
-              { isDeleted: { _eq: false } }
-              { channelRef: { _eq: "CommunicationChannel:v1:e-mail" } }
-              { value: { _neq: "" } }
-            ]
-          }
-          limit: 1
-        ) {
+        communication(where: { isDeleted: { _eq: false } }) {
           value
+          channelRef
         }
         employeePosition {
           jobPosition { name }

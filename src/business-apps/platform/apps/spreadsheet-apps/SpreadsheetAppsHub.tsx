@@ -72,6 +72,7 @@ import {
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { getWorkEmailFromCommunication } from '@/common/data/employee/useEmployeeSearch'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
 
 // Components
@@ -619,14 +620,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               try {
                 const query = queryFn(share.userId)
                 const result = await graphqlClient.request<{
-                  Employee: Array<{ displayName: string; pictureThumbnail?: string; workEmail?: string }>
+                  Employee: Array<{
+                    displayName: string
+                    pictureThumbnail?: string
+                    communication?: Array<{ value?: string; channelRef?: string }>
+                  }>
                 }>(query)
                 const emp = result.Employee?.[0]
                 if (emp?.displayName) {
                   return {
                     ...share,
                     userName: emp.displayName,
-                    userEmail: emp.workEmail || '',
+                    userEmail: getWorkEmailFromCommunication(emp.communication) || '',
                     userAvatar: emp.pictureThumbnail
                       ? emp.pictureThumbnail.startsWith('data:')
                         ? emp.pictureThumbnail

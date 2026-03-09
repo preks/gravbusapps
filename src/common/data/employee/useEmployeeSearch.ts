@@ -1,6 +1,16 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { COMMUNICATION_CHANNEL_EMAIL_REF } from '@/common/data/common/constants/communicationChannelConstants'
 import { SEARCH_EMPLOYEES_LIGHT, GET_EMPLOYEE_LIGHT_BY_ID } from './queries/employeeQueries'
+
+/** Extract work email from generic communication array (filter by e-mail channel). Exported for callers of GET_EMPLOYEE_LIGHT_* */
+export const getWorkEmailFromCommunication = (
+  communication?: Array<{ value?: string; channelRef?: string }>
+): string => {
+  if (!communication?.length) return ''
+  const emailChannel = communication.find(c => c.channelRef === COMMUNICATION_CHANNEL_EMAIL_REF)
+  return (emailChannel?.value ?? '').trim() || ''
+}
 
 export interface EmployeeLiteOption {
   id: string
@@ -72,7 +82,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
           firstName: e.firstName,
           lastName: e.lastName,
           userId: e.userId,
-          workEmail: e.workCommunications?.[0]?.value || '',
+          workEmail: getWorkEmailFromCommunication(e.communication),
           pictureThumbnail: e.pictureThumbnail,
           organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
           jobPositionName: e.employeePosition?.jobPosition?.name
@@ -151,7 +161,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
           firstName: e.firstName,
           lastName: e.lastName,
           userId: e.userId,
-          workEmail: e.workCommunications?.[0]?.value || '',
+          workEmail: getWorkEmailFromCommunication(e.communication),
           pictureThumbnail: e.pictureThumbnail,
           organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
           jobPositionName: e.employeePosition?.jobPosition?.name
