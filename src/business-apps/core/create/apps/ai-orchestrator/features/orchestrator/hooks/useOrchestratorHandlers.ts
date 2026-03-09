@@ -118,7 +118,21 @@ export const useOrchestratorHandlers = ({
       state.setViewState('analyzing')
       state.setCapturedBuildError(null)
 
-      const response = await orchestratorClient.analyzeStream(prompt, undefined, event => {
+      // Build createdBy from userInfo
+      const createdBy = userInfo?.id
+        ? {
+            id: userInfo.id,
+            employeeId: userInfo.employeeDetails?.employeeId,
+            firstName: userInfo.givenName || userInfo.employeeDetails?.firstName,
+            lastName: userInfo.familyName || userInfo.employeeDetails?.lastName,
+            displayName: [userInfo.givenName, userInfo.familyName].filter(Boolean).join(' ') || userInfo.userName,
+            email: userInfo.email || userInfo.employeeDetails?.email,
+            pictureThumbnail: userInfo.pictureThumbnail || userInfo.employeeDetails?.pictureThumbnail,
+            consentToStorePii: true
+          }
+        : undefined
+
+      const response = await orchestratorClient.analyzeStream(prompt, { createdBy }, event => {
         bumpAnalysisProgress(event.progress)
 
         const detail = typeof event.content === 'string' ? event.content : undefined
@@ -143,6 +157,15 @@ export const useOrchestratorHandlers = ({
           case 'plan_ready':
             stepIndex = 3
             break
+          case 'session_created':
+            // Extract session info immediately so chat can be saved
+            if (event.metadata && typeof event.metadata === 'object') {
+              const meta = event.metadata as { sessionId?: string; repoId?: string }
+              if (meta.sessionId && meta.repoId) {
+                orchestratorClient.setSessionFromBuild(meta.sessionId, meta.repoId)
+              }
+            }
+            return
           case 'error':
             if (detail) {
               state.setCapturedBuildError(detail)

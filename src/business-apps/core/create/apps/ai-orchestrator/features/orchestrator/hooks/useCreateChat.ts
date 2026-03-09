@@ -203,9 +203,15 @@ export function useCreateChat({
 
   const addUserMessage = useCallback(
     (content: string, type: ChatMessageType = 'prompt', extras?: Partial<CreateChatMessage>) => {
-      return appendMessage({ ...extras, role: 'user', content, messageType: type })
+      return appendMessage({
+        ...extras,
+        role: 'user',
+        content,
+        messageType: type,
+        createdBy: extras?.createdBy ?? userInfo?.id
+      })
     },
-    [appendMessage]
+    [appendMessage, userInfo?.id]
   )
 
   const replaceMessages = useCallback((nextMessages: CreateChatMessage[]) => {

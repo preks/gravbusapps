@@ -171,7 +171,18 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
       setLastContext(context)
 
       try {
-        const request: AnalyzeRequest = { prompt, context }
+        // Extract createdBy from context if provided
+        const createdBy = context?.createdBy as AnalyzeRequest['createdBy'] | undefined
+        const filteredContext = context ? { ...context } : undefined
+        if (filteredContext) {
+          delete filteredContext.createdBy
+        }
+
+        const request: AnalyzeRequest = {
+          prompt,
+          context: Object.keys(filteredContext || {}).length > 0 ? filteredContext : undefined,
+          createdBy
+        }
         const response = await client.analyzeStream(request, onEvent)
 
         if (response.success && response.plan) {

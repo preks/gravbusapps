@@ -123,6 +123,8 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
         syncCount = 0
       } else if (dsAny.provider === 'flowEngine') {
         const syncLimit = dataSource.limit != null ? dataSource.limit : 200
+        const fmRaw = dsAny.fieldMappings as Array<{ sourceField: string }> | undefined
+        const selFields = fmRaw?.length ? fmRaw.map((m: { sourceField: string }) => m.sourceField) : undefined
         const result = await BoardApiService.syncFromFlowEngine(board.id, activeSheet.id, {
           flowEntity: (dsAny.flowEntity as 'flows' | 'tasks') || 'flows',
           templateIds: dsAny.templateIds as string[] | undefined,
@@ -135,7 +137,8 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
           priority: dsAny.priority as string | undefined,
           limit: syncLimit,
           mode: 'replace',
-          autoColumns: true
+          autoColumns: true,
+          selectedFields: selFields
         })
         if (!result) {
           toast.error('Sync failed')
