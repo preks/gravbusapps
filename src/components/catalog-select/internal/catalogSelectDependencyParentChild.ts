@@ -1,0 +1,403 @@
+import type React from 'react'
+import type { CatalogSelectConfig } from './useCatalogSelect'
+import {
+  appendResolvedOptionIfMissing,
+  clearChildValue,
+  fetchFilteredOptionsWithParent,
+  fetchSingleOptionLabel,
+  getParentValue,
+  resolveChildMeta,
+  resetToPrefetchedOptions
+} from './catalogSelectDependencyShared'
+import type {
+  CatalogSelectDependencyFetcher,
+  CatalogSelectDependencySetter,
+  CatalogSelectDependencyState
+} from './catalogSelectDependencyTypes'
+import { CatalogSelectExternalValue, toOptions } from './catalogSelectUtils'
+
+export type DependencyCase =
+  | 'initial-load'
+  | 'parent-selected'
+  | 'child-selected-bi'
+  | 'child-selected-uni'
+  | 'parent-cleared'
+  | 'child-cleared'
+  | 'no-change'
+
+export type CaseHandlerParams = {
+  id: string
+  config: CatalogSelectConfig
+  parentField: string
+  parentValue: string
+  childValue: string
+  isBiDirectional: boolean
+  stateById: Record<string, CatalogSelectDependencyState>
+  setFor: CatalogSelectDependencySetter
+  fetchCatalogEntriesByIdentifier: CatalogSelectDependencyFetcher
+  defaultPageSize: number
+  locale?: string
+  lastParentValuesRef: React.MutableRefObject<Map<string, string>>
+  lastChildValuesRef: React.MutableRefObject<Map<string, string>>
+  autoSelectedParentsRef: React.MutableRefObject<Set<string>>
+  externalValues?: Record<string, CatalogSelectExternalValue>
+  configs: CatalogSelectConfig[]
+  nextVersion: (id: string) => number
+  isCurrentVersion: (id: string, version: number) => boolean
+}
+
+export const determineCase = (
+  parentValue: string,
+  childValue: string,
+  lastParentValue: string | undefined,
+  lastChildValue: string | undefined,
+  isBiDirectional: boolean,
+  wasAutoSelected: boolean,
+  parentManuallyCleared: boolean
+): DependencyCase => {
+  if (lastParentValue === undefined && parentValue && childValue) return 'initial-load'
+  if (lastParentValue !== parentValue && parentValue && !wasAutoSelected) return 'parent-selected'
+  if (
+    isBiDirectional &&
+    childValue &&
+    lastChildValue !== childValue &&
+    !parentValue &&
+    !lastParentValue &&
+    !parentManuallyCleared
+  ) {
+    return 'child-selected-bi'
+  }
+  if (!isBiDirectional && childValue && lastChildValue !== childValue) return 'child-selected-uni'
+  if (lastParentValue && !parentValue) return 'parent-cleared'
+  if (lastChildValue && !childValue) return 'child-cleared'
+  return 'no-change'
+}
+
+const setParentValueAndFetchOptions = async ({
+  parentField,
+  parentValue,
+  id,
+  config,
+  stateById,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  defaultPageSize,
+  locale,
+  autoSelectedParentsRef,
+  nextVersion,
+  isCurrentVersion
+}: {
+  parentField: string
+  parentValue: string
+  id: string
+  config: CatalogSelectConfig
+  stateById: Record<string, CatalogSelectDependencyState>
+  setFor: CatalogSelectDependencySetter
+  fetchCatalogEntriesByIdentifier: CatalogSelectDependencyFetcher
+  defaultPageSize: number
+  locale?: string
+  autoSelectedParentsRef: React.MutableRefObject<Set<string>>
+  nextVersion: (id: string) => number
+  isCurrentVersion: (id: string, version: number) => boolean
+}) => {
+  autoSelectedParentsRef.current.add(parentField)
+
+  setFor(parentField, previousState =>
+    previousState.value === parentValue && previousState.manuallyCleared === false
+      ? previousState
+      : { ...previousState, value: parentValue, manuallyCleared: false }
+  )
+
+  const parentHasOption = stateById[parentField]?.options?.some(option => option.value === parentValue)
+  if (!parentHasOption && parentValue) {
+    const resolvedOption = await fetchSingleOptionLabel({
+      id: parentField,
+      optionValue: parentValue,
+      locale,
+      fetchCatalogEntriesByIdentifier
+    })
+
+    if (resolvedOption) {
+      appendResolvedOptionIfMissing({
+        id: parentField,
+        optionValue: resolvedOption.value,
+        optionLabel: resolvedOption.label,
+        setFor
+      })
+    }
+  }
+
+  fetchFilteredOptionsWithParent({
+    id,
+    parentValue,
+    config,
+    defaultPageSize,
+    setFor,
+    fetchCatalogEntriesByIdentifier,
+    locale,
+    nextVersion,
+    isCurrentVersion
+  })
+}
+
+export const handleInitialLoad = async ({
+  id,
+  parentField,
+  parentValue,
+  childValue,
+  config,
+  configs,
+  defaultPageSize,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  locale,
+  lastParentValuesRef,
+  lastChildValuesRef,
+  stateById,
+  nextVersion,
+  isCurrentVersion
+}: CaseHandlerParams) => {
+  if (parentValue) {
+    const currentParentValue = stateById[parentField]?.value
+    if (!currentParentValue || currentParentValue !== parentValue) {
+      const parentConfig = configs.find(currentConfig => currentConfig.id === parentField)
+      setFor(parentField, previousState =>
+        previousState
+          ? { ...previousState, value: parentValue }
+          : {
+              value: parentValue,
+              loading: false,
+              options: [],
+              total: 0,
+              limit: parentConfig?.pageSize ?? defaultPageSize,
+              offset: 0,
+              variant: 'combobox'
+            }
+      )
+    }
+
+    const parentHasOption = stateById[parentField]?.options?.some(option => option.value === parentValue)
+    if (!parentHasOption) {
+      const resolvedOption = await fetchSingleOptionLabel({
+        id: parentField,
+        optionValue: parentValue,
+        locale,
+        fetchCatalogEntriesByIdentifier
+      }).catch(() => undefined)
+
+      if (resolvedOption) {
+        appendResolvedOptionIfMissing({
+          id: parentField,
+          optionValue: resolvedOption.value,
+          optionLabel: resolvedOption.label,
+          setFor
+        })
+      }
+    }
+
+    fetchFilteredOptionsWithParent({
+      id,
+      parentValue,
+      config,
+      defaultPageSize,
+      setFor,
+      fetchCatalogEntriesByIdentifier,
+      locale,
+      nextVersion,
+      isCurrentVersion
+    })
+  }
+
+  if (parentValue) lastParentValuesRef.current.set(parentField, parentValue)
+  if (childValue) lastChildValuesRef.current.set(id, childValue)
+}
+
+export const handleParentSelected = async ({
+  id,
+  parentField,
+  parentValue,
+  childValue,
+  isBiDirectional,
+  config,
+  stateById,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  defaultPageSize,
+  locale,
+  lastParentValuesRef,
+  lastChildValuesRef,
+  nextVersion,
+  isCurrentVersion
+}: CaseHandlerParams) => {
+  const childMeta = childValue
+    ? await resolveChildMeta({
+        id,
+        childValue,
+        stateById,
+        setFor,
+        fetchCatalogEntriesByIdentifier
+      }).catch(() => stateById[id]?.metaByValue?.[childValue])
+    : undefined
+
+  const shouldKeepChild = isBiDirectional && childMeta?.parentEntryId === parentValue
+
+  if (childValue && !shouldKeepChild) {
+    clearChildValue({ id, setFor })
+  }
+
+  if (parentValue) {
+    fetchFilteredOptionsWithParent({
+      id,
+      parentValue,
+      config,
+      defaultPageSize,
+      setFor,
+      fetchCatalogEntriesByIdentifier,
+      locale,
+      nextVersion,
+      isCurrentVersion
+    })
+  }
+
+  lastParentValuesRef.current.set(parentField, parentValue)
+  if (childValue && !shouldKeepChild) {
+    lastChildValuesRef.current.set(id, '')
+  }
+}
+
+const autoSelectParentFromChild = async ({
+  id,
+  parentField,
+  childValue,
+  childMeta,
+  config,
+  stateById,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  defaultPageSize,
+  locale,
+  autoSelectedParentsRef,
+  nextVersion,
+  isCurrentVersion
+}: CaseHandlerParams & { childMeta?: { parentEntryId?: string; type?: string } }) => {
+  const resolvedChildMeta =
+    childMeta?.parentEntryId || childMeta?.type
+      ? childMeta
+      : await resolveChildMeta({
+          id,
+          childValue,
+          stateById,
+          setFor,
+          fetchCatalogEntriesByIdentifier
+        }).catch(() => childMeta)
+
+  if (!resolvedChildMeta?.parentEntryId) return undefined
+
+  await setParentValueAndFetchOptions({
+    parentField,
+    parentValue: resolvedChildMeta.parentEntryId,
+    id,
+    config,
+    stateById,
+    setFor,
+    fetchCatalogEntriesByIdentifier,
+    defaultPageSize,
+    locale,
+    autoSelectedParentsRef,
+    nextVersion,
+    isCurrentVersion
+  })
+
+  return resolvedChildMeta.parentEntryId
+}
+
+export const handleChildSelectedBi = async (params: CaseHandlerParams) => {
+  const childMeta = params.stateById[params.id]?.metaByValue?.[params.childValue]
+
+  if (!childMeta && params.childValue) {
+    await autoSelectParentFromChild({ ...params, childMeta: undefined }).catch(() => undefined)
+  } else if (childMeta?.parentEntryId) {
+    await autoSelectParentFromChild({ ...params, childMeta })
+  }
+
+  params.lastChildValuesRef.current.set(params.id, params.childValue)
+}
+
+export const handleChildSelectedUni = ({ childValue, id, lastChildValuesRef }: CaseHandlerParams) => {
+  lastChildValuesRef.current.set(id, childValue)
+}
+
+export const handleParentCleared = async ({
+  id,
+  parentField,
+  childValue,
+  config,
+  stateById,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  defaultPageSize,
+  locale,
+  lastParentValuesRef,
+  lastChildValuesRef
+}: CaseHandlerParams) => {
+  if (childValue) {
+    clearChildValue({ id, setFor })
+    lastChildValuesRef.current.set(id, '')
+  }
+
+  const childState = stateById[id]
+  if (!childState?.prefetchedOptions || childState.prefetchedOptions.length === 0) {
+    setFor(id, previousState =>
+      previousState.loading &&
+      previousState.options.length === 0 &&
+      previousState.offset === 0 &&
+      previousState.lastFiltersSig === undefined
+        ? previousState
+        : { ...previousState, loading: true, options: [], offset: 0, lastFiltersSig: undefined }
+    )
+
+    try {
+      const result = await fetchCatalogEntriesByIdentifier(id, {
+        limit: config.pageSize ?? defaultPageSize,
+        offset: 0
+      })
+
+      const nextOptions = toOptions(result.entries, locale)
+      setFor(id, previousState => ({
+        ...previousState,
+        loading: false,
+        options: nextOptions,
+        prefetchedOptions: nextOptions,
+        search: undefined,
+        total: result.totalCount,
+        fullTotal: result.totalCount,
+        offset: nextOptions.length,
+        lastFiltersSig: undefined
+      }))
+    } catch {
+      setFor(id, previousState => (previousState.loading ? { ...previousState, loading: false } : previousState))
+    }
+  } else {
+    resetToPrefetchedOptions({ id, setFor })
+  }
+
+  lastParentValuesRef.current.set(parentField, '')
+}
+
+export const handleChildCleared = ({
+  id,
+  isBiDirectional,
+  wasAutoSelected,
+  parentField,
+  setFor,
+  lastChildValuesRef
+}: CaseHandlerParams & { wasAutoSelected: boolean; parentState?: CatalogSelectDependencyState }) => {
+  lastChildValuesRef.current.set(id, '')
+  if (isBiDirectional && wasAutoSelected) {
+    setFor(parentField, previousState =>
+      previousState.manuallyCleared === false ? previousState : { ...previousState, manuallyCleared: false }
+    )
+  }
+}
+
+export { getParentValue }
