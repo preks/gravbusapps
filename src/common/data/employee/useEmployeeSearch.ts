@@ -3,7 +3,11 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { COMMUNICATION_CHANNEL_EMAIL_REF } from '@/common/data/common/constants/communicationChannelConstants'
 import { SEARCH_EMPLOYEES_LIGHT, GET_EMPLOYEE_LIGHT_BY_ID } from './queries/employeeQueries'
 
-/** Extract work email from generic communication array (filter by e-mail channel). Exported for callers of GET_EMPLOYEE_LIGHT_* */
+/**
+ * Extract work email from generic communication array (filter by e-mail channel).
+ * Exported for callers of GET_EMPLOYEE_LIGHT_*. Use only at consumption sites – do not
+ * compute workEmail in this hook; pass communication through (see employeeQueries.ts).
+ */
 export const getWorkEmailFromCommunication = (
   communication?: Array<{ value?: string; channelRef?: string }>
 ): string => {
@@ -76,6 +80,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
         inFlightRef.current = { key, promise }
         const result = await promise
 
+        // Pass communication through; filter with getWorkEmailFromCommunication at use sites only
         const next = (result.Employee || []).map(e => ({
           id: e.id,
           displayName: e.displayName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown',
