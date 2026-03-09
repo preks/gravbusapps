@@ -17,6 +17,7 @@ import {
   MailOpen,
   Mail,
   MessageSquare,
+  MessageCircle,
   ChevronRight,
   ChevronDown,
   Reply,
@@ -40,6 +41,8 @@ interface EmailListItemProps {
   onReply?: () => void
   onReplyAll?: () => void
   onForward?: () => void
+  onChatWithUser?: () => void
+  canChatWithUser?: boolean
   onToggleRead?: () => void
   onArchive?: () => void
   onDelete?: () => void
@@ -60,6 +63,8 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   onReply,
   onReplyAll,
   onForward,
+  onChatWithUser,
+  canChatWithUser = false,
   onToggleRead,
   onArchive,
   onDelete,
@@ -235,6 +240,16 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
           <Forward className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
           {t('list-context-forward')}
         </ContextMenuItem>
+        {canChatWithUser && (
+          <ContextMenuItem
+            onSelect={() => onChatWithUser?.()}
+            disabled={!onChatWithUser}
+            data-testid={`${testId}-context-chat-with-user`}
+          >
+            <MessageCircle className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+            {t('list-context-chat-with-user')}
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={() => onToggleRead?.()}
