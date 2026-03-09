@@ -120,8 +120,9 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   )
 
   const handleSubmit = async () => {
-    const firstDay = new Date(year, 0, 1, 0, 0, 0, 0)
-    const lastDay = new Date(year, 11, 31, 23, 59, 59, 999)
+    // Build boundaries in UTC to avoid user timezone shifts in persisted timestamps.
+    const firstDay = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0))
+    const lastDay = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999))
 
     const body: any = {
       employeeAbsenceEntitlement: {

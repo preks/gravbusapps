@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { EmailApiService } from '../services/EmailApiService'
-import { normalizeLabels } from '../utils/labelUtils'
-import type { EmailMessageSummary, EmailMessage } from '../types'
+import { normalizeLabels, normalizeLabelObjects } from '../utils/labelUtils'
+import type { EmailMessageSummary, EmailMessage, EmailLabel } from '../types'
 
 interface UseEmailsOptions {
   accessToken: string
@@ -347,8 +347,8 @@ export function useEmails({
     [selectedMessage]
   )
 
-  const updateMessageLabels = useCallback((id: string, labels: string[]) => {
-    const normalized = normalizeLabels(labels)
+  const updateMessageLabels = useCallback((id: string, labels: EmailLabel[]) => {
+    const normalized = normalizeLabelObjects(labels)
     setMessages(prev => prev.map(m => (m.id === id ? { ...m, labels: normalized } : m)))
     setSelectedMessage(prev => (prev?.id === id ? { ...prev, labels: normalized } : prev))
   }, [])

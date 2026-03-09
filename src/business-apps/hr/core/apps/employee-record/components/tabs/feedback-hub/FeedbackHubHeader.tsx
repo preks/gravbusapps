@@ -21,6 +21,16 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({ t, employee, acce
       <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
         <AppAction
           variant="update-primary"
+          contexts={[{ context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }]}
+          prefixDataTestId="add-feedback"
+          accessToken={accessToken}
+          autoExecute={true}
+        >
+          {t('feedback-hub-give-feedback')}
+        </AppAction>
+        <AppAction
+          variant="update-secondary"
+          buttonSize="default"
           contexts={[
             {
               context: FlowContextName.employeeRequestFeedback,
@@ -32,16 +42,6 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({ t, employee, acce
           autoExecute={true}
         >
           {t('feedback-hub-request-feedback')}
-        </AppAction>
-        <AppAction
-          variant="update-secondary"
-          buttonSize="default"
-          contexts={[{ context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }]}
-          prefixDataTestId="add-feedback"
-          accessToken={accessToken}
-          autoExecute={true}
-        >
-          {t('feedback-hub-give-feedback')}
         </AppAction>
       </div>
     </div>

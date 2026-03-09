@@ -133,13 +133,20 @@ export const CreateSessionSidebar = ({
             const isActive = plan.jobId === currentPlanId
 
             return (
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 key={plan.jobId}
                 className={`gba:w-full gba:text-left gba:flex gba:items-start gba:gap-2.5 gba:rounded-xl gba:px-2.5 gba:py-2 gba:cursor-pointer gba:group gba:transition-all gba:duration-150 gba:border-0 gba:bg-transparent ${
                   isActive ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:hover:bg-muted/70'
                 }`}
                 onClick={() => onSelectSession(plan.jobId)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelectSession(plan.jobId)
+                  }
+                }}
                 data-testid={`${testId}-plan-${plan.jobId}`}
               >
                 <AppIconBadge iconName={plan.appMetadata?.icon} size="sm" />
@@ -169,7 +176,7 @@ export const CreateSessionSidebar = ({
                     <Trash2 className="gba:h-3 gba:w-3" />
                   </Button>
                 )}
-              </button>
+              </div>
             )
           })}
       </div>

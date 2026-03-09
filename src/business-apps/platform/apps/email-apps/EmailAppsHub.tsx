@@ -5,11 +5,12 @@
  * account management, calendar sync, and admin provider settings.
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { postToPlatform } from '@/common/utils/postToPlatform'
 import { useEmailAccounts, useEmailFolders, useEmails, useEmailDirectory } from './hooks'
 import { EmailApiService } from './services/EmailApiService'
 import {
@@ -22,14 +23,16 @@ import {
   EmailEmptyState,
   MicrosoftOAuthCallback
 } from './components'
-import type { EmailMessage, ComposeMode } from './types'
+import type { EmailMessage, EmailMessageSummary, ComposeMode, EmailLabel } from './types'
 import translations from './_i18n'
 
 // Capture OAuth params at module load time (before platform can strip them)
 ;(() => {
   try {
-    const searchParams = new URLSearchParams(window.location.search)
-    const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null
+    const searchParams = new URLSearchParams(globalThis.window.location.search)
+    const hashParams = globalThis.window.location.hash
+      ? new URLSearchParams(globalThis.window.location.hash.substring(1))
+      : null
 
     const code = searchParams.get('code') || hashParams?.get('code')
     const state = searchParams.get('state') || hashParams?.get('state')
@@ -68,6 +71,47 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   'data-testid': testId = 'email-apps-hub'
 }) => {
   const { t } = useTranslation(translations)
+  const pendingChatFallbackTimerRef = useRef<number | null>(null)
+
+  const clearPendingChatFallback = useCallback(() => {
+    if (pendingChatFallbackTimerRef.current !== null) {
+      globalThis.window.clearTimeout(pendingChatFallbackTimerRef.current)
+      pendingChatFallbackTimerRef.current = null
+    }
+  }, [])
+
+  const scheduleChatOpenFallback = useCallback(() => {
+    clearPendingChatFallback()
+    pendingChatFallbackTimerRef.current = globalThis.window.setTimeout(() => {
+      pendingChatFallbackTimerRef.current = null
+      const currentPath = globalThis.window.location.pathname
+      const isAlreadyOnChat = currentPath === '/platform/chat' || currentPath === '/platform/apps/chat'
+      if (isAlreadyOnChat) return
+
+      navigateTo('/platform/chat?view=chat')
+    }, 800)
+  }, [clearPendingChatFallback])
+
+  useEffect(() => {
+    const handleConversationReady = () => {
+      clearPendingChatFallback()
+    }
+
+    const handleWindowMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'CHAT_CONVERSATION_READY') {
+        handleConversationReady()
+      }
+    }
+
+    globalThis.window.addEventListener('chat:conversation-ready', handleConversationReady)
+    globalThis.window.addEventListener('message', handleWindowMessage)
+
+    return () => {
+      globalThis.window.removeEventListener('chat:conversation-ready', handleConversationReady)
+      globalThis.window.removeEventListener('message', handleWindowMessage)
+      clearPendingChatFallback()
+    }
+  }, [clearPendingChatFallback])
 
   // Check if this is an OAuth callback redirect
   const [isOAuthCallback, setIsOAuthCallback] = useState(() => {
@@ -76,12 +120,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     )
     if (!hasVerifier) return false
 
-    const queryParams = new URLSearchParams(window.location.search)
+    const queryParams = new URLSearchParams(globalThis.window.location.search)
     let hasCode = queryParams.has('code') && queryParams.has('state')
     let hasError = queryParams.has('error')
 
-    if (!hasCode && window.location.hash) {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    if (!hasCode && globalThis.window.location.hash) {
+      const hashParams = new URLSearchParams(globalThis.window.location.hash.substring(1))
       hasCode = hashParams.has('code') && hashParams.has('state')
       hasError = hasError || hashParams.has('error')
     }
@@ -163,7 +207,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   })
 
   // Directory hook for auto-suggest (org directory + provider contacts)
-  const { searchContacts, addRecentRecipients } = useEmailDirectory(accessToken, accounts)
+  const { searchContacts, addRecentRecipients, findDirectoryUserMatch } = useEmailDirectory(accessToken, accounts)
 
   // Set access token on API service
   useEffect(() => {
@@ -174,7 +218,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   // Handle OAuth callback completion
   const handleOAuthSuccess = useCallback(() => {
-    window.history.replaceState({}, '', '/platform/mail')
+    globalThis.window.history.replaceState({}, '', '/platform/mail')
     setIsOAuthCallback(false)
     refreshAccounts()
   }, [refreshAccounts])
@@ -293,8 +337,44 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     [refreshMessages, t]
   )
 
+  const canChatWithSender = useCallback(
+    (message: EmailMessageSummary): boolean => {
+      const sender = message.fromAddress
+      if (!sender?.address && !sender?.name) return false
+      const senderUser = findDirectoryUserMatch({ email: sender.address, name: sender.name })
+      return Boolean(senderUser)
+    },
+    [findDirectoryUserMatch]
+  )
+
+  const handleChatWithUserFromList = useCallback(
+    (message: EmailMessageSummary) => {
+      const sender = message.fromAddress
+      const senderUser = findDirectoryUserMatch({ email: sender?.address, name: sender?.name })
+      if (!senderUser) return
+
+      const payload = {
+        userId: senderUser.id,
+        userName: senderUser.name,
+        metadata: {
+          source: 'mail',
+          messageId: message.id,
+          senderEmail: senderUser.email
+        }
+      }
+
+      // Dispatch across all known channels to maximize compatibility.
+      postToPlatform({ type: 'OPEN_CHAT_WITH_USER', payload })
+      globalThis.window.postMessage({ type: 'OPEN_CHAT_WITH_USER', payload }, globalThis.window.location.origin)
+      globalThis.window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: payload }))
+      sessionStorage.setItem('chatPendingOpenWithUser', JSON.stringify(payload))
+      scheduleChatOpenFallback()
+    },
+    [findDirectoryUserMatch, scheduleChatOpenFallback]
+  )
+
   const handleMessageLabelsUpdatedFromList = useCallback(
-    (messageId: string, labels?: string[]) => {
+    (messageId: string, labels?: EmailLabel[]) => {
       if (labels) {
         updateMessageLabels(messageId, labels)
         return
@@ -316,16 +396,16 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   // Deep-link: auto-open message from ?messageId=<uuid> parameter
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search)
+      const params = new URLSearchParams(globalThis.window.location.search)
       const deepLinkMessageId = params.get('messageId')
       if (deepLinkMessageId && accessToken) {
         selectMessage(deepLinkMessageId)
         // Clean up URL param after opening
         params.delete('messageId')
         const cleanUrl = params.toString()
-          ? `${window.location.pathname}?${params.toString()}`
-          : window.location.pathname
-        window.history.replaceState({}, '', cleanUrl)
+          ? `${globalThis.window.location.pathname}?${params.toString()}`
+          : globalThis.window.location.pathname
+        globalThis.window.history.replaceState({}, '', cleanUrl)
       }
     } catch {
       // Silently ignore URL parsing errors
@@ -405,6 +485,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onReply={handleReplyFromList}
         onReplyAll={handleReplyAllFromList}
         onForward={handleForwardFromList}
+        onChatWithUser={handleChatWithUserFromList}
+        canChatWithUser={canChatWithSender}
         onToggleRead={handleToggleReadFromList}
         onArchive={handleArchive}
         onDelete={deleteMessage}

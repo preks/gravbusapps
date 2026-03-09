@@ -78,6 +78,12 @@ const PreviewFeature = {
   Enabled: { Key: 'preview.enabled' }
 }
 
+const ReportingFeature = {
+  Internal: {
+    Enabled: { Key: 'reporting.internal.enabled' }
+  }
+}
+
 export const Feature = {
   OrgChart: OrgChartFeature,
   Core: CoreFeature,
@@ -88,5 +94,6 @@ export const Feature = {
   Platform: PlatformFeature,
   Dev: DevFeature,
   Preview: PreviewFeature,
+  Reporting: ReportingFeature,
   EveryBox: EveryBoxFeature
 }
