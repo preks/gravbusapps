@@ -266,6 +266,7 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
               className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
             >
               <TaskGeneralTab
+                nodeId={nodeId}
                 mode={mode}
                 config={config}
                 accessToken={accessToken}

@@ -10,7 +10,8 @@ import type {
   InputBlock,
   SummaryField,
   EventSubscription,
-  TaskPriority
+  TaskPriority,
+  Link
 } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
 
@@ -55,6 +56,7 @@ export interface TaskNodeConfig {
   title: string
   message?: string
   form?: InputBlock[]
+  links?: Link[]
   assignment: TaskAssignment
   dueInMinutes?: number
   defaultPriority?: TaskPriority

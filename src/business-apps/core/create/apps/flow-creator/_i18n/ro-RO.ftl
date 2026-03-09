@@ -134,6 +134,33 @@ task-kind = Tip pas
 task-kind-user = Pas utilizator
 task-kind-system = Pas sistem
 
+# Task links / attachments
+task-links-title = Linkuri
+task-links-subtitle = Atașați documente și adăugați referințe utile.
+task-links-add = Adaugă link
+task-links-empty = Nu există linkuri configurate încă.
+task-links-item = Link
+task-links-kind = Tip
+task-links-kind-document = Document
+task-links-kind-link = Link
+task-links-document-source = Document din pas anterior
+task-links-document-source-placeholder = Selectați un câmp fișier…
+task-links-document-empty-hint = Nu au fost găsite încărcări de fișiere în pașii anteriori.
+task-links-link-type = Tip link
+task-links-link-type-knowledge = Bază de cunoștințe
+task-links-link-type-policy = Articol de politici
+task-links-link-type-external = URL extern
+task-links-picker-knowledge = Articol din baza de cunoștințe
+task-links-picker-policy = Articol de politici
+task-links-picker-placeholder = Selectați conținut…
+task-links-picker-search = Căutați conținut…
+task-links-name = Nume
+task-links-name-placeholder = ex. Contract, Politică, FAQ
+task-links-url = URL
+task-links-url-placeholder = https://exemplu.ro
+task-links-document-url = Referință document (expresie)
+task-links-document-url-placeholder = {{ $steps.step_0.formData.fileField }}
+
 # AI Task Expert parameter mapping
 task-input-params = Parametri de intrare
 task-input-params-loading = Se încarcă parametrii...

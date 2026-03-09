@@ -11,8 +11,10 @@ import { FunctionSelector } from './FunctionSelector'
 import { PermissionContextSection } from './PermissionContextSection'
 import { AgentOutputSchemaSection } from './AgentOutputSchemaSection'
 import { FlowContextExpressionEditor } from '../../shared/FlowContextExpressionEditor'
+import { TaskLinksSection } from './TaskLinksSection'
 
 interface TaskGeneralTabProps {
+  nodeId: string
   mode: DesignerMode
   config: TaskNodeConfig
   accessToken: string
@@ -25,6 +27,7 @@ interface TaskGeneralTabProps {
 }
 
 export const TaskGeneralTab: React.FC<TaskGeneralTabProps> = ({
+  nodeId,
   mode,
   config,
   accessToken,
@@ -176,6 +179,14 @@ export const TaskGeneralTab: React.FC<TaskGeneralTabProps> = ({
           />
         </div>
       )}
+
+      <TaskLinksSection
+        nodeId={nodeId}
+        value={config.links ?? []}
+        onChange={next => update({ links: next })}
+        t={t}
+        data-testid={`${testId}-links`}
+      />
 
       {config.kind === 'USER' && (
         <div className="gba:flex gba:flex-col gba:gap-2">

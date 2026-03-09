@@ -26,6 +26,7 @@ export function createDefaultConfig(type: FlowNodeType): StudioNodeConfig {
         kind: 'USER',
         title: 'New Task',
         form: [],
+        links: [],
         assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM }
       } satisfies TaskNodeConfig
     case 'decision':

@@ -134,6 +134,33 @@ task-kind = Step Kind
 task-kind-user = User Step
 task-kind-system = System Step
 
+# Task links / attachments
+task-links-title = Links
+task-links-subtitle = Attach documents and add helpful references.
+task-links-add = Add link
+task-links-empty = No links configured yet.
+task-links-item = Link
+task-links-kind = Kind
+task-links-kind-document = Document
+task-links-kind-link = Link
+task-links-document-source = Document from previous step
+task-links-document-source-placeholder = Select a file field…
+task-links-document-empty-hint = No file uploads found in earlier steps.
+task-links-link-type = Link type
+task-links-link-type-knowledge = Knowledgebase
+task-links-link-type-policy = Policy article
+task-links-link-type-external = External URL
+task-links-picker-knowledge = Knowledgebase article
+task-links-picker-policy = Policy article
+task-links-picker-placeholder = Select content…
+task-links-picker-search = Search content…
+task-links-name = Name
+task-links-name-placeholder = e.g. Contract, Policy, FAQ
+task-links-url = URL
+task-links-url-placeholder = https://example.com
+task-links-document-url = Document reference (expression)
+task-links-document-url-placeholder = {{ $steps.step_0.formData.fileField }}
+
 # AI Task Expert parameter mapping
 task-input-params = Input parameters
 task-input-params-loading = Loading parameters...
