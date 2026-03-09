@@ -3,7 +3,7 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpenseData } from '../types/expenseRequest.types'
 
-export interface PrintExpenseRequestResult {
+interface PrintExpenseRequestResult {
   success: boolean
   pdfUrl?: string
   error?: string

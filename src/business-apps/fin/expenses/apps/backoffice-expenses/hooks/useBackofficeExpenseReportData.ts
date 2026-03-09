@@ -1,340 +1,94 @@
-/**
- * Backoffice Expense Report Data hook - global data (no supervisor/manager filter).
- * Adapted from manager useExpenseReportData; removes managerId from all queries.
- */
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   GET_EXPENSE_ITEMS_BACKOFFICE,
   GET_EXPENSE_PLANS_BACKOFFICE,
   GET_EXPENSE_REQUESTS_BACKOFFICE,
   GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE,
-  GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE
+  GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE,
+  GET_EXPENSES_SLA_POLICY,
+  GET_SLA_KPI_COMMENTS,
+  GET_SLA_KPI_PAYMENTS
 } from '../queries/backofficeReportQueries'
-import {
-  getExpenseRequestStatusDisplay,
-  getExpensePlanStatusDisplay,
-  getAdvancePaymentStatusDisplay
-} from '../utils/utils'
 import { useBackofficeExpensesOverview } from './useBackofficeExpensesOverview'
 import {
-  buildEmployeeDisplayName,
-  FORMER_EMPLOYEE_LABEL,
   DEFAULT_EXPENSES_SLA_POLICY,
-  getSettledAdvancePaidAmount,
-  isPaidLikeStatus,
-  toUpperText,
-  hasStatusTransition,
-  hasFromToTransition,
-  pickEarliest,
-  daysDiff,
   getFirstNumberAtPaths,
   parseAdditionalProperties,
   extractBusinessDaysByLabel,
-  buildSlaStatus,
-  evaluatePayoutSlaAgainstRunDay,
-  type ExpensesSlaPolicy
+  toUpperText,
+  computeSlaKpiFromFlat,
+  type ExpensesSlaPolicy,
+  type SlaKpiCounts
 } from './backofficeReportUtils'
-import { normalizeFilterValues } from './queryFilterUtils'
+import {
+  getFilterValues,
+  buildReportExpenseRequestWhere,
+  buildExpensePlanWhereForExport,
+  buildAdvancePaymentWhereForExport
+} from './queryFilterUtils'
+import { useEmployeeResolver } from './useEmployeeResolver'
+import {
+  mapRequestsFromOverview,
+  mapPlansFromOverview,
+  mapPaymentsFromOverview,
+  processExpenseItemsData,
+  processExpensePlansData,
+  processExpenseRequestsData,
+  processApprovalPayoutCycleData,
+  mapAdvancePaymentToReport
+} from './reportDataMappers'
+import {
+  mapSortingToOrderBy,
+  DEFAULT_EXPENSE_REQUEST_ORDER,
+  DEFAULT_EXPENSE_PLAN_ORDER,
+  DEFAULT_ADVANCE_PAYMENT_ORDER
+} from './reportSortingUtils'
+import {
+  ReportType,
+  type ReportItem,
+  type ReportMetadata,
+  type UseBackofficeExpenseReportDataReturn,
+  type UseBackofficeExpenseReportFilters,
+  type ExportFilterOverrides
+} from '../types/reportTypes'
 
-export enum ReportType {
-  EXPENSE_ITEM = 'expense_item',
-  EXPENSE_PLAN = 'expense_plan',
-  EXPENSE_REQUEST = 'expense_request',
-  ADVANCE_PAYMENT = 'advance_payment',
-  APPROVAL_PAYOUT_CYCLE = 'approval_payout_cycle'
-}
+export { ReportType } from '../types/reportTypes'
+export type {
+  ReportItem,
+  ReportMetadata,
+  ExpenseItemReport,
+  ExpensePlanReport,
+  ExpenseRequestReport,
+  AdvancePaymentReport,
+  ApprovalPayoutCycleReport,
+  UseBackofficeExpenseReportDataReturn,
+  UseBackofficeExpenseReportFilters
+} from '../types/reportTypes'
 
-export interface ReportMetadata {
-  id: string
-  name: string
-  type: ReportType
-  description?: string
-  selected?: boolean
-}
-
-export interface ReportItem {
-  id: string
-  [key: string]: any
-}
-
-export interface ExpenseItemReport extends ReportItem {
-  date: string
-  title: string
-  description: string
-  category: string
-  amount: number
-  employeeName: string
-  departmentName?: string
-  status: string
-  code?: string
-  currency?: string
-}
-
-export interface ExpensePlanReport extends ReportItem {
-  code: string
-  title: string
-  startDate: string
-  endDate: string
-  status: string
-  totalAmount: number
-  advancePaidAmount: number
-  remainingAmount: number
-  employeeName: string
-  departmentName?: string
-  expenseRequestCode?: string
-  currency: string
-  createdAt?: string
-}
-
-export interface ExpenseRequestReport extends ReportItem {
-  code: string
-  planCode?: string
-  title: string
-  requestDate: string
-  startDate: string
-  endDate: string
-  createdAt: string
-  status: string
-  totalAmount: number
-  advancePaidAmount: number
-  remainingAmount: number
-  employeeName: string
-  departmentName?: string
-  currency: string
-}
-
-export interface AdvancePaymentReport extends ReportItem {
-  code: string
-  title: string
-  requestDate: string
-  status: string
-  amount: number
-  employeeName: string
-  departmentName?: string
-  paymentMethod?: string
-  costCenter?: string
-  currency?: string
-}
-
-export interface ApprovalPayoutCycleReport extends ReportItem {
-  code: string
-  title: string
-  employeeName: string
-  departmentName?: string
-  createdAt: string
-  pendingAt: string
-  approvedAt: string
-  paidAt: string
-  approvalDays: number | null
-  payoutDays: number | null
-  totalCycleDays: number | null
-  approvalSlaLimitDays: number
-  payoutSlaLimitDays: number | null
-  totalCycleSlaLimitDays: number
-  approvalSlaStatus: string
-  payoutSlaStatus: string
-  totalCycleSlaStatus: string
-  bottleneckStage: string
-  status: string
-  totalAmount: number
-  currency: string
-}
-
-export interface UseBackofficeExpenseReportDataReturn {
-  reportTypes: ReportMetadata[]
-  selectedReportType: ReportType | null
-  reportDataType: ReportType | null
-  setSelectedReportType: (type: ReportType) => void
-  reportData: ReportItem[]
-  isLoading: boolean
-  error: string | null
+interface FetchResult {
+  rows: ReportItem[]
   totalCount: number
-  currentPage: number
-  setCurrentPage: (page: number) => void
-  pageSize: number
-  setPageSize: (size: number) => void
-  searchTerm: string
-  setSearchTerm: (term: string) => void
-  fetchReportData: () => Promise<void>
-  fetchAllForExport: () => Promise<ReportItem[]>
-  fetchAllForFilterOptions: () => Promise<ReportItem[]>
 }
 
-interface UseBackofficeExpenseReportFilters {
-  status?: string[]
-  employeeName?: string[]
-  departmentName?: string[]
+const resolveOverride = (override: unknown, fallback: unknown): string[] => {
+  const source = Array.isArray(override) ? override : Array.isArray(fallback) ? fallback : []
+  return source.map(String)
 }
 
-const GET_EMPLOYEE_POSITIONS_BY_IDENTIFIERS = `
-  query GetEmployeePositionsByIdentifiers($where: EmployeePositionBoolExp!) {
-    EmployeePosition(where: $where) {
-      id
-      userId
-      employeeId
-      firstName
-      lastName
-      organizationalUnit {
-        id
-        name
-      }
-    }
-  }
-`
+const extractIds = (items: any[], paths: string[]): string[] =>
+  items
+    .flatMap((item: any) => paths.map(p => String(p.split('.').reduce((o: any, k: string) => o?.[k], item) || '')))
+    .filter(Boolean)
 
-const GET_EMPLOYEES_BY_IDS = `
-  query GetEmployeesByIds($ids: [uuid!]) {
-    Employee(where: { id: { _in: $ids }, isDeleted: { _eq: false } }) {
-      id
-      fullName
-      firstName
-      lastName
-      displayName
-    }
-  }
-`
-
-const GET_EXPENSES_SLA_POLICY = `
-  query GetExpensesSlaPolicy($searchTerm: String!) {
-    ContentEntry(
-      limit: 1
-      orderBy: [{ updatedAt: DESC }]
-      where: {
-        isDeleted: { _eq: false }
-        _or: [{ content: { _ilike: $searchTerm } }, { title: { _ilike: $searchTerm } }]
-      }
-    ) {
-      id
-      additionalProperties
-      content
-      updatedAt
-      createdAt
-    }
-  }
-`
-
-const DEFAULT_EXPENSE_ITEM_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_EXPENSE_REQUEST_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_EXPENSE_PLAN_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_ADVANCE_PAYMENT_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_APPROVAL_PAYOUT_ORDER: any[] = [{ createdAt: 'DESC' }]
-
-const getFilterValues = (
-  filtersByReportType: Partial<Record<ReportType, UseBackofficeExpenseReportFilters>>,
-  reportType: ReportType,
-  selectedType: ReportType | null,
-  key: keyof UseBackofficeExpenseReportFilters
-): string[] => {
-  if (selectedType !== reportType) return []
-  const value = filtersByReportType[reportType]?.[key]
-  return Array.isArray(value) ? value.map(String) : []
-}
-
-const buildDepartmentPredicate = (name: string) => ({
-  employeePosition: {
-    organizationalUnit: {
-      name: { _eq: name }
-    }
-  }
-})
-
-const buildAndConditions = (
-  search: string,
-  searchPredicates: Array<Record<string, unknown>>,
-  employeePredicateBuilder: (name: string) => Record<string, unknown>,
-  departmentPredicateBuilder: (name: string) => Record<string, unknown>,
-  employeeFilters: string[] = [],
-  departmentFilters: string[] = []
-) => {
-  const andConditions: Record<string, unknown>[] = []
-  if (search?.trim()) {
-    andConditions.push({ _or: searchPredicates })
-  }
-  const normalizedEmployees = normalizeFilterValues(employeeFilters)
-  if (normalizedEmployees.length > 0) {
-    andConditions.push({
-      _or: normalizedEmployees.map(name => employeePredicateBuilder(name))
-    })
-  }
-  const normalizedDepartments = normalizeFilterValues(departmentFilters)
-  if (normalizedDepartments.length > 0) {
-    andConditions.push({
-      _or: normalizedDepartments.map(name => departmentPredicateBuilder(name))
-    })
-  }
-  return andConditions
-}
-
-function mapSortingToOrderBy(selectedReportType: ReportType | null, sorting: SortingState): any[] {
-  const primarySort = Array.isArray(sorting) && sorting.length > 0 ? sorting[0] : undefined
-  const sortDirection = primarySort?.desc ? 'DESC' : 'ASC'
-  const sortField = String(primarySort?.id || '').trim()
-
-  switch (selectedReportType) {
-    case ReportType.EXPENSE_ITEM: {
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        date: 'expenseDate',
-        amount: 'reimbursableAmount',
-        status: 'status'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_EXPENSE_ITEM_ORDER
-    }
-    case ReportType.EXPENSE_REQUEST: {
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        code: 'code',
-        createdAt: 'createdAt',
-        status: 'status',
-        totalAmount: 'reimbursableAmount',
-        requestDate: 'requestDate',
-        startDate: 'startDate',
-        endDate: 'endDate'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_EXPENSE_REQUEST_ORDER
-    }
-    case ReportType.EXPENSE_PLAN: {
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        code: 'code',
-        createdAt: 'createdAt',
-        status: 'status',
-        totalAmount: 'totalAmount',
-        startDate: 'startDate',
-        endDate: 'endDate'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_EXPENSE_PLAN_ORDER
-    }
-    case ReportType.ADVANCE_PAYMENT: {
-      const fieldMap: Record<string, string> = {
-        requestDate: 'createdAt',
-        status: 'status',
-        amount: 'amount',
-        paymentMethod: 'paymentMethod'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_ADVANCE_PAYMENT_ORDER
-    }
-    case ReportType.APPROVAL_PAYOUT_CYCLE: {
-      const fieldMap: Record<string, string> = {
-        title: 'title',
-        code: 'code',
-        status: 'status',
-        totalAmount: 'reimbursableAmount'
-      }
-      const mappedField = fieldMap[sortField]
-      return mappedField ? [{ [mappedField]: sortDirection }] : DEFAULT_APPROVAL_PAYOUT_ORDER
-    }
-    default:
-      return [{ createdAt: 'DESC' }]
-  }
+const AGGREGATE_KEY: Record<string, string> = {
+  [ReportType.EXPENSE_ITEM]: 'ExpenseItemAggregate',
+  [ReportType.EXPENSE_PLAN]: 'ExpensePlanAggregate',
+  [ReportType.EXPENSE_REQUEST]: 'ExpenseRequestAggregate',
+  [ReportType.ADVANCE_PAYMENT]: 'AdvancePaymentAggregate',
+  [ReportType.APPROVAL_PAYOUT_CYCLE]: 'ExpenseRequestAggregate'
 }
 
 export const useBackofficeExpenseReportData = (
@@ -342,24 +96,24 @@ export const useBackofficeExpenseReportData = (
   activeFiltersByReportType: Partial<Record<ReportType, UseBackofficeExpenseReportFilters>> = {},
   sorting: SortingState = []
 ): UseBackofficeExpenseReportDataReturn => {
-  const graphqlClient = useGraphQLClient(accessToken)
+  const { graphqlClient, resolveEmployeeNamesByIds, resolveDisplayName, resolveDepartmentName } =
+    useEmployeeResolver(accessToken)
+
   const [reportData, setReportData] = useState<ReportItem[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(20)
-  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [totalCount, setTotalCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [searchTerm, setSearchTerm] = useState('')
   const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(ReportType.APPROVAL_PAYOUT_CYCLE)
   const [reportDataType, setReportDataType] = useState<ReportType | null>(ReportType.APPROVAL_PAYOUT_CYCLE)
-  const selectedReportTypeRef = useRef<ReportType | null>(ReportType.APPROVAL_PAYOUT_CYCLE)
-  const employeeNameCacheRef = useRef<Record<string, string>>({})
-  const employeeDepartmentCacheRef = useRef<Record<string, string>>({})
   const activeFetchTokenRef = useRef(0)
-  const reportCacheRef = useRef<Partial<Record<ReportType, { rows: ReportItem[]; totalCount: number }>>>({})
+  const reportCacheRef = useRef<Partial<Record<ReportType, FetchResult>>>({})
   const reportQuerySignatureRef = useRef<Partial<Record<ReportType, string>>>({})
   const expensesSlaPolicyRef = useRef<ExpensesSlaPolicy>(DEFAULT_EXPENSES_SLA_POLICY)
   const reportOrderBy = useMemo(() => mapSortingToOrderBy(selectedReportType, sorting), [selectedReportType, sorting])
+
   const overview = useBackofficeExpensesOverview(
     { accessToken, userInfo },
     {
@@ -422,6 +176,7 @@ export const useBackofficeExpenseReportData = (
       includeKpis: false
     }
   )
+
   const handleSelectedReportTypeChange = useCallback((nextType: ReportType) => {
     const cached = reportCacheRef.current[nextType]
     setReportDataType(nextType)
@@ -440,8 +195,8 @@ export const useBackofficeExpenseReportData = (
   const selectedEmployeeFilters = Array.isArray(activeFilters?.employeeName) ? activeFilters.employeeName : []
   const selectedDepartmentFilters = Array.isArray(activeFilters?.departmentName) ? activeFilters.departmentName : []
 
-  const mapSelectedStatusFiltersToRawStatuses = useCallback((statusFilters: string[]): string[] => {
-    const statusLabelToRawStatuses: Record<string, string[]> = {
+  const mapStatusLabelsToRaw = useCallback((statusFilters: readonly string[]): string[] => {
+    const labelMap: Record<string, string[]> = {
       'IN APPROVAL': ['PENDING'],
       'VERIFICATION REQUIRED': ['APPROVED'],
       PAID: ['PAID'],
@@ -449,264 +204,43 @@ export const useBackofficeExpenseReportData = (
       PREPARED: ['PREPARED'],
       'TRANSFER REQUIRED': ['VERIFIED', 'BOOKED', 'TRANSFERRED']
     }
-    const directlySupportedRawStatuses = new Set([
-      'PENDING',
-      'APPROVED',
-      'PAID',
-      'PREPARED',
-      'VERIFIED',
-      'BOOKED',
-      'TRANSFERRED'
-    ])
-    const mappedStatuses = new Set<string>()
-
-    statusFilters.forEach(filter => {
-      const normalizedLabel = toUpperText(filter).replaceAll(/[_-]+/g, ' ').replaceAll(/\s+/g, ' ').trim()
-      const mappedValues = statusLabelToRawStatuses[normalizedLabel]
-      if (Array.isArray(mappedValues)) {
-        mappedValues.forEach(value => mappedStatuses.add(value))
+    const directRaw = new Set(['PENDING', 'APPROVED', 'PAID', 'PREPARED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'])
+    const mapped = new Set<string>()
+    statusFilters.forEach(f => {
+      const norm = toUpperText(f).replaceAll(/[_-]+/g, ' ').replaceAll(/\s+/g, ' ').trim()
+      const vals = labelMap[norm]
+      if (vals) {
+        vals.forEach(v => mapped.add(v))
         return
       }
-
-      const upperFilter = toUpperText(filter)
-      if (directlySupportedRawStatuses.has(upperFilter)) {
-        mappedStatuses.add(upperFilter)
-      }
+      const upper = toUpperText(f)
+      if (directRaw.has(upper)) mapped.add(upper)
     })
-
-    return Array.from(mappedStatuses)
+    return Array.from(mapped)
   }, [])
 
-  const cacheEmployeePositionRows = useCallback((rows: any[]) => {
-    rows.forEach((row: any) => {
-      const displayName = `${row?.firstName || ''} ${row?.lastName || ''}`.trim()
-      const departmentName = String(row?.organizationalUnit?.name || '').trim()
-      const keys = [row?.id, row?.userId, row?.employeeId].map(value => String(value || '')).filter(Boolean)
-
-      if (displayName) {
-        keys.forEach(key => {
-          employeeNameCacheRef.current[key] = displayName
-        })
-      }
-      if (departmentName) {
-        keys.forEach(key => {
-          employeeDepartmentCacheRef.current[key] = departmentName
-        })
-      }
-    })
-  }, [])
-
-  const cacheEmployeeRows = useCallback((rows: any[]) => {
-    rows.forEach((employee: any) => {
-      const displayName =
-        String(employee?.fullName || '').trim() ||
-        `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() ||
-        String(employee?.displayName || '').trim()
-      if (!displayName || !employee?.id) return
-      employeeNameCacheRef.current[String(employee.id)] = displayName
-    })
-  }, [])
-
-  const chunkIdentifiers = useCallback((identifiers: string[], chunkSize = 50): string[][] => {
-    const chunks: string[][] = []
-    for (let index = 0; index < identifiers.length; index += chunkSize) {
-      chunks.push(identifiers.slice(index, index + chunkSize))
-    }
-    return chunks
-  }, [])
-
-  const fetchEmployeePositionBatch = useCallback(
-    async (batchIds: string[]) => {
-      if (!graphqlClient || batchIds.length === 0) return
-      try {
-        const where = {
-          _or: batchIds.flatMap(id => [{ id: { _eq: id } }, { userId: { _eq: id } }, { employeeId: { _eq: id } }])
-        }
-        const result = await graphqlClient.request(GET_EMPLOYEE_POSITIONS_BY_IDENTIFIERS, { where })
-        const rows = Array.isArray(result?.EmployeePosition) ? result.EmployeePosition : []
-        cacheEmployeePositionRows(rows)
-      } catch {
-        // Keep unresolved identifiers empty; UI should not display UUID fallback.
-      }
-    },
-    [graphqlClient, cacheEmployeePositionRows]
+  const buildRequestWhere = useCallback(
+    (search: string, statuses: string[] = [], employees: string[] = [], departments: string[] = []) =>
+      buildReportExpenseRequestWhere(search, statuses, employees, departments, mapStatusLabelsToRaw),
+    [mapStatusLabelsToRaw]
   )
 
-  const fetchEmployeeBatch = useCallback(
-    async (batchIds: string[]) => {
-      if (!graphqlClient || batchIds.length === 0) return
-      try {
-        const result = await graphqlClient.request(GET_EMPLOYEES_BY_IDS, { ids: batchIds })
-        const rows = Array.isArray(result?.Employee) ? result.Employee : []
-        cacheEmployeeRows(rows)
-      } catch {
-        // Keep unresolved IDs as fallback label.
-      }
-    },
-    [graphqlClient, cacheEmployeeRows]
-  )
-
-  const resolveEmployeeNamesByIds = useCallback(
-    async (employeeIds: string[]) => {
-      if (!graphqlClient || employeeIds.length === 0) return employeeNameCacheRef.current
-
-      const uniqueIds = Array.from(new Set(employeeIds.filter(Boolean)))
-      const unresolvedIds = uniqueIds.filter(id => !employeeNameCacheRef.current[id])
-      if (unresolvedIds.length === 0) return employeeNameCacheRef.current
-
-      const positionChunks = chunkIdentifiers(unresolvedIds)
-      for (const batchIds of positionChunks) {
-        await fetchEmployeePositionBatch(batchIds)
-      }
-
-      const unresolvedAfterPositions = unresolvedIds.filter(id => !employeeNameCacheRef.current[id])
-      const employeeChunks = chunkIdentifiers(unresolvedAfterPositions)
-      for (const batchIds of employeeChunks) {
-        await fetchEmployeeBatch(batchIds)
-      }
-
-      return employeeNameCacheRef.current
-    },
-    [graphqlClient, chunkIdentifiers, fetchEmployeePositionBatch, fetchEmployeeBatch]
-  )
-
-  const resolveDisplayName = useCallback(
-    (candidates: Array<string | undefined | null>, employeeNameById: Record<string, string>) => {
-      for (const id of candidates) {
-        const key = String(id || '')
-        if (!key) continue
-        const resolved = employeeNameById[key]
-        if (resolved) return resolved
-      }
-      return FORMER_EMPLOYEE_LABEL
-    },
-    []
-  )
-
-  const resolveDepartmentName = useCallback(
-    (candidates: Array<string | undefined | null>, employeeDepartmentById: Record<string, string>) => {
-      for (const id of candidates) {
-        const key = String(id || '')
-        if (!key) continue
-        const resolved = employeeDepartmentById[key]
-        if (resolved) return resolved
-      }
-      return ''
-    },
-    []
-  )
-
-  const mapRequestsFromOverview = useCallback(
-    (rows: any[], employeeNameById: Record<string, string>): ExpenseRequestReport[] => {
-      return (rows || []).map((request: any) => {
-        const statusDisplay = request.status
-          ? getExpenseRequestStatusDisplay(request.status)
-          : { label: '', type: 'draft' }
-        return {
-          id: request.id,
-          code: request.code || '',
-          planCode: request.expensePlan?.code || '',
-          title: request.title || '',
-          requestDate: request.requestDate || '',
-          startDate: request.startDate || '',
-          endDate: request.endDate || '',
-          createdAt: request.createdAt || '',
-          status: statusDisplay.label,
-          totalAmount: Number(request.reimbursableAmount ?? 0),
-          advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-          remainingAmount: Number(request.totalRemainingAmount ?? 0),
-          currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-          employeeName:
-            buildEmployeeDisplayName(request.employee) ||
-            resolveDisplayName([request.employeeId, request.createdBy], employeeNameById),
-          departmentName: resolveDepartmentName(
-            [request.employeeId, request.createdBy],
-            employeeDepartmentCacheRef.current
-          )
-        } as ExpenseRequestReport
-      })
-    },
-    [resolveDisplayName, resolveDepartmentName]
-  )
-
-  const mapPlansFromOverview = useCallback(
-    (rows: any[], employeeNameById: Record<string, string>): ExpensePlanReport[] => {
-      return (rows || []).map((plan: any) => {
-        const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
-        return {
-          id: plan.id,
-          code: plan.code || '',
-          title: plan.title || '',
-          startDate: plan.startDate || '',
-          endDate: plan.endDate || '',
-          status: statusDisplay.label,
-          totalAmount: Number(plan.totalAmount || 0),
-          advancePaidAmount: getSettledAdvancePaidAmount(plan?.advancePayment),
-          remainingAmount: Number(plan.totalRemainingAmount ?? 0),
-          currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-          employeeName:
-            buildEmployeeDisplayName(plan.employee) ||
-            resolveDisplayName([plan.employeeId, plan.createdBy], employeeNameById),
-          departmentName: resolveDepartmentName([plan.employeeId, plan.createdBy], employeeDepartmentCacheRef.current),
-          expenseRequestCode:
-            Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
-              ? plan.expenseRequest[0].code || ''
-              : '',
-          createdAt: plan.createdAt || ''
-        } as ExpensePlanReport
-      })
-    },
-    [resolveDisplayName, resolveDepartmentName]
-  )
-
-  const mapPaymentsFromOverview = useCallback(
-    (rows: any[], employeeNameById: Record<string, string>): AdvancePaymentReport[] => {
-      return (rows || []).map((p: any) => {
-        const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
-        return {
-          id: p.id,
-          code: p.expensePlan?.code || p.code || '',
-          title: p.expensePlan?.title || '',
-          requestDate: p.createdAt || '',
-          status: statusDisplay.label,
-          amount: Number(p.amount || 0),
-          employeeName:
-            buildEmployeeDisplayName(p.expensePlan?.employee) ||
-            buildEmployeeDisplayName(p.employee) ||
-            resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
-          departmentName: resolveDepartmentName(
-            [p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy],
-            employeeDepartmentCacheRef.current
-          ),
-          paymentMethod: p.paymentMethod || undefined,
-          costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
-          currency: p.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
-        } as AdvancePaymentReport
-      })
-    },
-    [resolveDisplayName, resolveDepartmentName]
-  )
-
-  const applyOverviewRows = useCallback((type: ReportType, mappedRows: ReportItem[], mappedTotalCount: number) => {
-    setReportData(mappedRows)
+  const applyRows = useCallback((type: ReportType, rows: ReportItem[], count: number) => {
+    setReportData(rows)
     setReportDataType(type)
-    setTotalCount(mappedTotalCount)
-    reportCacheRef.current[type] = {
-      rows: mappedRows,
-      totalCount: mappedTotalCount
-    }
+    setTotalCount(count)
+    reportCacheRef.current[type] = { rows, totalCount: count }
     setError(null)
   }, [])
 
+  // Overview-based loading for requests, plans, payments
   useEffect(() => {
     if (
       !selectedReportType ||
       selectedReportType === ReportType.EXPENSE_ITEM ||
       selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
-    ) {
+    )
       return
-    }
-
     setIsLoading(overview.isLoading)
     if (overview.error) {
       setError(overview.error)
@@ -715,52 +249,48 @@ export const useBackofficeExpenseReportData = (
     if (overview.isLoading) return
 
     let cancelled = false
-    const loadRows = async () => {
+    const load = async () => {
+      const { data } = overview
+      const resolvers = { resolveEmployeeNamesByIds, resolveDisplayName, resolveDepartmentName }
       switch (selectedReportType) {
         case ReportType.EXPENSE_REQUEST: {
-          const rows = overview.data?.expenseRequests || []
-          const ids = rows
-            .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
-            .filter(Boolean)
-          const employeeNameById = await resolveEmployeeNamesByIds(ids)
+          const rows = data?.expenseRequests || []
+          const nameById = await resolvers.resolveEmployeeNamesByIds(extractIds(rows, ['employeeId', 'createdBy']))
           if (cancelled) return
-          const mappedRows = mapRequestsFromOverview(rows, employeeNameById) as ReportItem[]
-          const mappedTotalCount = overview.data?.expenseRequestsTotal || 0
-          applyOverviewRows(ReportType.EXPENSE_REQUEST, mappedRows, mappedTotalCount)
+          applyRows(
+            ReportType.EXPENSE_REQUEST,
+            mapRequestsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            data?.expenseRequestsTotal || 0
+          )
           break
         }
         case ReportType.EXPENSE_PLAN: {
-          const rows = overview.data?.expensePlans || []
-          const ids = rows
-            .flatMap((plan: any) => [String(plan?.employeeId || ''), String(plan?.createdBy || '')])
-            .filter(Boolean)
-          const employeeNameById = await resolveEmployeeNamesByIds(ids)
+          const rows = data?.expensePlans || []
+          const nameById = await resolvers.resolveEmployeeNamesByIds(extractIds(rows, ['employeeId', 'createdBy']))
           if (cancelled) return
-          const mappedRows = mapPlansFromOverview(rows, employeeNameById) as ReportItem[]
-          const mappedTotalCount = overview.data?.expensePlansTotal || 0
-          applyOverviewRows(ReportType.EXPENSE_PLAN, mappedRows, mappedTotalCount)
+          applyRows(
+            ReportType.EXPENSE_PLAN,
+            mapPlansFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            data?.expensePlansTotal || 0
+          )
           break
         }
         case ReportType.ADVANCE_PAYMENT: {
-          const rows = overview.data?.advancePayments || []
-          const ids = rows
-            .flatMap((payment: any) => [
-              String(payment?.expensePlan?.employeeId || ''),
-              String(payment?.createdBy || ''),
-              String(payment?.expensePlan?.createdBy || '')
-            ])
-            .filter(Boolean)
-          const employeeNameById = await resolveEmployeeNamesByIds(ids)
+          const rows = data?.advancePayments || []
+          const nameById = await resolvers.resolveEmployeeNamesByIds(
+            extractIds(rows, ['expensePlan.employeeId', 'createdBy', 'expensePlan.createdBy'])
+          )
           if (cancelled) return
-          const mappedRows = mapPaymentsFromOverview(rows, employeeNameById) as ReportItem[]
-          const mappedTotalCount = overview.data?.advancePaymentsTotal || 0
-          applyOverviewRows(ReportType.ADVANCE_PAYMENT, mappedRows, mappedTotalCount)
+          applyRows(
+            ReportType.ADVANCE_PAYMENT,
+            mapPaymentsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            data?.advancePaymentsTotal || 0
+          )
           break
         }
       }
     }
-
-    void loadRows()
+    void load()
     return () => {
       cancelled = true
     }
@@ -770,349 +300,12 @@ export const useBackofficeExpenseReportData = (
     overview.isLoading,
     overview.error,
     resolveEmployeeNamesByIds,
-    mapRequestsFromOverview,
-    mapPlansFromOverview,
-    mapPaymentsFromOverview,
-    applyOverviewRows
+    resolveDisplayName,
+    resolveDepartmentName,
+    applyRows
   ])
 
-  const buildExpenseRequestWhere = useCallback(
-    (
-      search: string,
-      statusFilters: string[] = [],
-      employeeFilters: string[] = [],
-      departmentFilters: string[] = []
-    ) => {
-      const mappedStatusFilters = mapSelectedStatusFiltersToRawStatuses(statusFilters)
-      const normalizedEmployees = Array.from(
-        new Set(employeeFilters.map(value => String(value || '').trim()).filter(Boolean))
-      )
-      const normalizedDepartments = Array.from(
-        new Set(departmentFilters.map(value => String(value || '').trim()).filter(Boolean))
-      )
-      const where: any = {
-        isDeleted: { _eq: false },
-        status: mappedStatusFilters.length > 0 ? { _in: mappedStatusFilters } : { _nin: ['CREATED', 'DISCARDED'] }
-      }
-      const andConditions: any[] = []
-      if (search?.trim()) {
-        const searchPattern = `%${search.trim()}%`
-        andConditions.push({
-          _or: [
-            { code: { _ilike: searchPattern } },
-            { title: { _ilike: searchPattern } },
-            { status: { _ilike: searchPattern } },
-            { employee: { firstName: { _ilike: searchPattern } } },
-            { employee: { lastName: { _ilike: searchPattern } } },
-            { expensePlan: { code: { _ilike: searchPattern } } }
-          ]
-        })
-      }
-      if (normalizedEmployees.length > 0) {
-        andConditions.push({
-          _or: normalizedEmployees.map(name => ({
-            employee: { fullName: { _eq: name } }
-          }))
-        })
-      }
-      if (normalizedDepartments.length > 0) {
-        andConditions.push({
-          _or: normalizedDepartments.map(name => ({
-            employee: {
-              employeePosition: {
-                organizationalUnit: {
-                  name: { _eq: name }
-                }
-              }
-            }
-          }))
-        })
-      }
-      if (andConditions.length > 0) {
-        where._and = andConditions
-      }
-      return where
-    },
-    [mapSelectedStatusFiltersToRawStatuses]
-  )
-
-  const buildExpensePlanWhereForExport = useCallback(
-    (search: string, employeeFilters: string[] = [], departmentFilters: string[] = []) => {
-      const where: any = {
-        isDeleted: { _eq: false },
-        status: { _nin: ['CREATED', 'DISCARDED'] }
-      }
-      const searchPattern = `%${search.trim()}%`
-      const andConditions = buildAndConditions(
-        search,
-        [
-          { code: { _ilike: searchPattern } },
-          { title: { _ilike: searchPattern } },
-          { status: { _ilike: searchPattern } },
-          { employee: { firstName: { _ilike: searchPattern } } },
-          { employee: { lastName: { _ilike: searchPattern } } },
-          { expenseRequest: { code: { _ilike: searchPattern } } }
-        ],
-        name => ({ employee: { fullName: { _eq: name } } }),
-        name => ({ employee: buildDepartmentPredicate(name) }),
-        employeeFilters,
-        departmentFilters
-      )
-      if (andConditions.length > 0) {
-        where._and = andConditions
-      }
-      return where
-    },
-    []
-  )
-
-  const buildAdvancePaymentWhereForExport = useCallback(
-    (search: string, employeeFilters: string[] = [], departmentFilters: string[] = []) => {
-      const where: any = {
-        isDeleted: { _eq: false },
-        status: { _nin: ['CREATED', 'DISCARDED'] }
-      }
-      const searchPattern = `%${search.trim()}%`
-      const andConditions = buildAndConditions(
-        search,
-        [
-          { code: { _ilike: searchPattern } },
-          { description: { _ilike: searchPattern } },
-          { status: { _ilike: searchPattern } },
-          { expensePlan: { code: { _ilike: searchPattern } } },
-          { expensePlan: { title: { _ilike: searchPattern } } },
-          { expensePlan: { employee: { firstName: { _ilike: searchPattern } } } },
-          { expensePlan: { employee: { lastName: { _ilike: searchPattern } } } },
-          { paymentMethod: { _ilike: searchPattern } },
-          { costCenter: { name: { _ilike: searchPattern } } }
-        ],
-        name => ({ expensePlan: { employee: { fullName: { _eq: name } } } }),
-        name => ({ expensePlan: { employee: buildDepartmentPredicate(name) } }),
-        employeeFilters,
-        departmentFilters
-      )
-      if (andConditions.length > 0) {
-        where._and = andConditions
-      }
-      return where
-    },
-    []
-  )
-
-  const processExpenseItemsData = (data: any, employeeNameById: Record<string, string> = {}): ExpenseItemReport[] => {
-    if (!data?.ExpenseItem?.length) return []
-    return data.ExpenseItem.map((item: any) => {
-      const expenseGroup =
-        item.expensePosition && item.expensePosition.length > 0 && item.expensePosition[0].expenseGroupRef
-          ? item.expensePosition[0].expenseGroupRef.replaceAll('ExpenseGroup:v1:', '')
-          : 'Uncategorized'
-      const statusDisplay = item.expenseRequest?.status
-        ? getExpenseRequestStatusDisplay(item.expenseRequest.status)
-        : { label: '', type: 'draft' }
-      return {
-        id: item.id,
-        code: item.expenseRequest?.code || '',
-        currency: item.expenseRequest?.currencyRef
-          ? String(item.expenseRequest.currencyRef).split(':').pop() || 'EUR'
-          : 'EUR',
-        date:
-          item.expenseRequest?.requestTypeRef === 'ExpenseRequestType:v1:TRIP'
-            ? item.expenseRequest?.startDate || ''
-            : item.expenseDate || '',
-        title: item.title || '',
-        description: item.description || '',
-        category: expenseGroup,
-        amount: item.reimbursableAmount ?? 0,
-        employeeName:
-          buildEmployeeDisplayName(item.employee) ||
-          employeeNameById[item.employeeId] ||
-          employeeNameById[item.createdBy] ||
-          FORMER_EMPLOYEE_LABEL,
-        departmentName: resolveDepartmentName([item.employeeId, item.createdBy], employeeDepartmentCacheRef.current),
-        status: statusDisplay.label
-      }
-    })
-  }
-
-  const processExpensePlansData = (data: any, employeeNameById: Record<string, string> = {}): ExpensePlanReport[] => {
-    if (!data?.ExpensePlan?.length) return []
-    return data.ExpensePlan.map((plan: any) => {
-      const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
-      return {
-        id: plan.id,
-        code: plan.code || '',
-        title: plan.title || '',
-        startDate: plan.startDate || '',
-        endDate: plan.endDate || '',
-        status: statusDisplay.label,
-        totalAmount: plan.totalAmount || 0,
-        currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-        employeeName: resolveDisplayName([plan.employeeId, plan.createdBy], employeeNameById),
-        departmentName: resolveDepartmentName([plan.employeeId, plan.createdBy], employeeDepartmentCacheRef.current),
-        expenseRequestCode:
-          Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0 ? plan.expenseRequest[0].code || '' : '',
-        createdAt: plan.createdAt || ''
-      }
-    })
-  }
-
-  const processExpenseRequestsData = (
-    data: any,
-    employeeNameById: Record<string, string> = {}
-  ): ExpenseRequestReport[] => {
-    if (!data?.ExpenseRequest?.length) return []
-    return data.ExpenseRequest.map((request: any) => {
-      const statusDisplay = request.status
-        ? getExpenseRequestStatusDisplay(request.status)
-        : { label: '', type: 'draft' }
-      return {
-        id: request.id,
-        code: request.code || '',
-        planCode: request.expensePlan?.code || '',
-        title: request.title || '',
-        requestDate: request.requestDate || '',
-        startDate: request.startDate || '',
-        endDate: request.endDate || '',
-        createdAt: request.createdAt || '',
-        status: statusDisplay.label,
-        totalAmount: Number(request.reimbursableAmount ?? 0),
-        advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
-        remainingAmount: Number(request.totalRemainingAmount ?? 0),
-        currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-        employeeName: resolveDisplayName([request.employeeId, request.createdBy], employeeNameById),
-        departmentName: resolveDepartmentName(
-          [request.employeeId, request.createdBy],
-          employeeDepartmentCacheRef.current
-        )
-      }
-    })
-  }
-
-  const collectSystemCommentDates = useCallback((comments: any[], fromStatuses: string[], toStatuses: string[]) => {
-    return comments
-      .filter((comment: any) => {
-        const text = String(comment?.comment || '')
-        const type = toUpperText(comment?.commentType)
-        return type === 'SYSTEM_COMMENT' && hasFromToTransition(text, fromStatuses, toStatuses)
-      })
-      .map((comment: any) => comment?.commentDate)
-  }, [])
-
-  const resolveBottleneckStage = useCallback(
-    (
-      pendingAt: string,
-      approvedAt: string,
-      paidAt: string,
-      approvalDays: number | null,
-      payoutDays: number | null,
-      status?: any
-    ) => {
-      const requestStatus = toUpperText(status)
-      const hasFullCycle = Boolean(pendingAt && approvedAt && paidAt)
-      const isSameDayCycle = hasFullCycle && approvalDays === 0 && payoutDays === 0
-
-      if (isSameDayCycle || ['PAID', 'CLOSED'].includes(requestStatus)) {
-        return ''
-      }
-      if (approvalDays !== null && payoutDays !== null) {
-        return approvalDays >= payoutDays ? 'Approval' : 'Payout'
-      }
-      return approvedAt ? 'Payout' : 'Approval'
-    },
-    []
-  )
-
-  const mapApprovalPayoutCycleRow = useCallback(
-    (
-      request: any,
-      employeeNameById: Record<string, string>,
-      slaPolicy: ExpensesSlaPolicy
-    ): ApprovalPayoutCycleReport => {
-      const comments = Array.isArray(request?.expenseRequestComment) ? request.expenseRequestComment : []
-      const paymentRows = Array.isArray(request?.expensePlan?.advancePayment) ? request.expensePlan.advancePayment : []
-      const paymentComments = paymentRows.flatMap((payment: any) =>
-        Array.isArray(payment?.advancePaymentComment) ? payment.advancePaymentComment : []
-      )
-
-      const pendingAt = pickEarliest(collectSystemCommentDates(comments, ['DRAFT', 'CREATED'], ['PENDING']))
-      const approvedAt = pickEarliest(collectSystemCommentDates(comments, ['PENDING'], ['APPROVED', 'APPROVAL']))
-      const paidFromPayments = paymentRows
-        .filter((payment: any) => isPaidLikeStatus(payment?.status))
-        .map((payment: any) => payment?.transactionDate || payment?.decisionDate || payment?.createdAt)
-      const paidFromPaymentComments = paymentComments
-        .filter((comment: any) => hasStatusTransition(String(comment?.comment || ''), ['PAID', 'CLOSED']))
-        .map((comment: any) => comment?.commentDate)
-      const paidFromSystemComments = collectSystemCommentDates(
-        comments,
-        ['APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'],
-        ['PAID', 'CLOSED']
-      )
-      const paidAt = pickEarliest([...paidFromPayments, ...paidFromPaymentComments, ...paidFromSystemComments]) || ''
-
-      const approvalDays = daysDiff(pendingAt, approvedAt)
-      const payoutDays = daysDiff(approvedAt, paidAt)
-      const totalCycleDays = daysDiff(pendingAt, paidAt)
-      const approvalSlaStatus = buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays)
-      const payoutSlaEvaluation = evaluatePayoutSlaAgainstRunDay(
-        approvedAt,
-        paidAt,
-        slaPolicy.payoutRunWeekday,
-        approvalDays,
-        slaPolicy.totalCycleSlaBusinessDays
-      )
-      const totalCycleSlaStatus = buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays)
-      const statusDisplay = request?.status
-        ? getExpenseRequestStatusDisplay(request.status)
-        : { label: '', type: 'draft' }
-
-      return {
-        id: request.id,
-        code: request.code || '',
-        title: request.title || '',
-        employeeName: resolveDisplayName([request.employeeId, request.createdBy], employeeNameById),
-        departmentName: resolveDepartmentName(
-          [request.employeeId, request.createdBy],
-          employeeDepartmentCacheRef.current
-        ),
-        createdAt: request.createdAt || '',
-        pendingAt,
-        approvedAt,
-        paidAt,
-        approvalDays,
-        payoutDays,
-        totalCycleDays,
-        approvalSlaLimitDays: slaPolicy.approvalSlaBusinessDays,
-        payoutSlaLimitDays: payoutSlaEvaluation.limitDays,
-        totalCycleSlaLimitDays: slaPolicy.totalCycleSlaBusinessDays,
-        approvalSlaStatus,
-        payoutSlaStatus: payoutSlaEvaluation.status,
-        totalCycleSlaStatus,
-        bottleneckStage: resolveBottleneckStage(
-          pendingAt,
-          approvedAt,
-          paidAt,
-          approvalDays,
-          payoutDays,
-          request?.status
-        ),
-        status: statusDisplay.label,
-        totalAmount: Number(request.reimbursableAmount ?? 0),
-        currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR'
-      }
-    },
-    [collectSystemCommentDates, resolveBottleneckStage, resolveDisplayName, resolveDepartmentName]
-  )
-
-  const processApprovalPayoutCycleData = (
-    data: any,
-    employeeNameById: Record<string, string> = {},
-    slaPolicy: ExpensesSlaPolicy = DEFAULT_EXPENSES_SLA_POLICY
-  ): ApprovalPayoutCycleReport[] => {
-    const rows = Array.isArray(data?.ExpenseRequest) ? data.ExpenseRequest : []
-    return rows.map((request: any) => mapApprovalPayoutCycleRow(request, employeeNameById, slaPolicy))
-  }
-
-  const loadExpensesSlaPolicy = useCallback(async (): Promise<ExpensesSlaPolicy> => {
+  const loadSlaPolicy = useCallback(async (): Promise<ExpensesSlaPolicy> => {
     if (!graphqlClient) return expensesSlaPolicyRef.current
     try {
       const result = await graphqlClient.request(GET_EXPENSES_SLA_POLICY, {
@@ -1120,39 +313,30 @@ export const useBackofficeExpenseReportData = (
       })
       const entry = Array.isArray(result?.ContentEntry) ? result.ContentEntry[0] : null
       if (!entry) return expensesSlaPolicyRef.current
-
-      const additionalProperties = parseAdditionalProperties(entry.additionalProperties)
+      const props = parseAdditionalProperties(entry.additionalProperties)
       const content = String(entry.content || '')
-
       const approval =
-        getFirstNumberAtPaths(additionalProperties, [
+        getFirstNumberAtPaths(props, [
           'approvalSlaBusinessDays',
           'approvalSla.days',
           'approval.businessDays',
           'thresholds.approvalBusinessDays'
         ]) ?? extractBusinessDaysByLabel(content, 'Approval SLA')
       const payout =
-        getFirstNumberAtPaths(additionalProperties, [
-          'payoutRunWeekday',
-          'payout.runWeekday',
-          'thresholds.payoutRunWeekday'
-        ]) ?? (toUpperText(content).includes('MONDAY') ? 1 : null)
+        getFirstNumberAtPaths(props, ['payoutRunWeekday', 'payout.runWeekday', 'thresholds.payoutRunWeekday']) ??
+        (toUpperText(content).includes('MONDAY') ? 1 : null)
       const total =
-        getFirstNumberAtPaths(additionalProperties, [
+        getFirstNumberAtPaths(props, [
           'totalCycleSlaBusinessDays',
           'totalSlaBusinessDays',
           'totalCycleSla.days',
           'totalCycle.businessDays',
           'thresholds.totalCycleBusinessDays'
         ]) ?? extractBusinessDaysByLabel(content, 'Total Cycle SLA')
-
-      let payoutRunWeekday = DEFAULT_EXPENSES_SLA_POLICY.payoutRunWeekday
-      if (payout !== null) {
-        payoutRunWeekday = Math.max(0, Math.min(6, Math.trunc(payout)))
-      }
       expensesSlaPolicyRef.current = {
         approvalSlaBusinessDays: approval ?? DEFAULT_EXPENSES_SLA_POLICY.approvalSlaBusinessDays,
-        payoutRunWeekday,
+        payoutRunWeekday:
+          payout !== null ? Math.max(0, Math.min(6, Math.trunc(payout))) : DEFAULT_EXPENSES_SLA_POLICY.payoutRunWeekday,
         totalCycleSlaBusinessDays: total ?? DEFAULT_EXPENSES_SLA_POLICY.totalCycleSlaBusinessDays
       }
       return expensesSlaPolicyRef.current
@@ -1161,600 +345,286 @@ export const useBackofficeExpenseReportData = (
     }
   }, [graphqlClient])
 
-  const fetchExpenseItems = useCallback(
-    async (fetchToken: number, querySignature: string) => {
-      if (!graphqlClient) return
-      const hasCachedRows = Boolean(reportCacheRef.current[ReportType.EXPENSE_ITEM]?.rows?.length)
-      const shouldSetBlockingLoading = !hasCachedRows
-      try {
-        if (shouldSetBlockingLoading) {
-          setIsLoading(true)
-        }
-        setError(null)
-        const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
-          limit: pageSize,
-          offset: (currentPage - 1) * pageSize,
-          searchTerm: searchTerm ? `%${searchTerm}%` : '%%',
-          orderBy: reportOrderBy
-        })
-        const employeeIds = (result?.ExpenseItem || [])
-          .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
-          .filter(Boolean)
-        const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-        const processedData = processExpenseItemsData(result, employeeNameById)
-        if (fetchToken !== activeFetchTokenRef.current) {
-          return
-        }
-        setReportData(processedData)
-        setReportDataType(ReportType.EXPENSE_ITEM)
-        const mappedTotalCount = result?.ExpenseItemAggregate?.aggregate?.count || 0
-        setTotalCount(mappedTotalCount)
-        reportCacheRef.current[ReportType.EXPENSE_ITEM] = {
-          rows: processedData as ReportItem[],
-          totalCount: mappedTotalCount
-        }
-        reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] = querySignature
-      } catch {
-        setError('Failed to load expense items data')
-      } finally {
-        if (shouldSetBlockingLoading) {
-          setIsLoading(false)
-        }
-      }
-    },
-    [graphqlClient, pageSize, currentPage, searchTerm, reportOrderBy, resolveEmployeeNamesByIds]
-  )
+  /**
+   * Single fetch function for all report types. Returns rows + totalCount.
+   * Used by page-level fetch, export, filter options, and prefetch.
+   */
+  const fetchReport = useCallback(
+    async (
+      type: ReportType,
+      offset: number,
+      limit: number,
+      overrides?: ExportFilterOverrides
+    ): Promise<FetchResult> => {
+      const search = overrides?.searchTerm ?? searchTerm
+      const empFilters = resolveOverride(overrides?.employeeFilters, selectedEmployeeFilters)
+      const deptFilters = resolveOverride(overrides?.departmentFilters, selectedDepartmentFilters)
+      const getCount = (result: any) => result?.[AGGREGATE_KEY[type]]?.aggregate?.count ?? 0
 
-  const fetchApprovalPayoutCycle = useCallback(
-    async (fetchToken: number, querySignature: string) => {
-      if (!graphqlClient) return
-      const hasCachedRows = Boolean(reportCacheRef.current[ReportType.APPROVAL_PAYOUT_CYCLE]?.rows?.length)
-      const shouldSetBlockingLoading = !hasCachedRows
-      try {
-        if (shouldSetBlockingLoading) {
-          setIsLoading(true)
+      switch (type) {
+        case ReportType.EXPENSE_ITEM: {
+          const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
+            limit,
+            offset,
+            searchTerm: search ? `%${search}%` : '%%',
+            orderBy: reportOrderBy
+          })
+          const nameById = await resolveEmployeeNamesByIds(
+            extractIds(result?.ExpenseItem || [], ['employeeId', 'createdBy'])
+          )
+          let rows: ReportItem[] = processExpenseItemsData(result, nameById, resolveDepartmentName)
+          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
+          if (statuses.length || empFilters.length || deptFilters.length) {
+            rows = rows.filter(
+              r =>
+                (!statuses.length || statuses.includes(String(r?.status || ''))) &&
+                (!empFilters.length || empFilters.includes(String(r?.employeeName || ''))) &&
+                (!deptFilters.length || deptFilters.includes(String(r?.departmentName || '')))
+            )
+          }
+          return { rows, totalCount: getCount(result) }
         }
-        setError(null)
-        const where = buildExpenseRequestWhere(
-          searchTerm,
-          selectedStatusFilters,
-          selectedEmployeeFilters,
-          selectedDepartmentFilters
-        )
-        const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
-          where,
-          limit: pageSize,
-          offset: (currentPage - 1) * pageSize,
-          orderBy: reportOrderBy
-        })
-        const employeeIds = (result?.ExpenseRequest || [])
-          .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
-          .filter(Boolean)
-        const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-        const slaPolicy = await loadExpensesSlaPolicy()
-        const processedData = processApprovalPayoutCycleData(result, employeeNameById, slaPolicy)
-        if (fetchToken !== activeFetchTokenRef.current) {
-          return
+        case ReportType.EXPENSE_PLAN: {
+          const where = buildExpensePlanWhereForExport(search, empFilters, deptFilters)
+          const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
+            where,
+            limit,
+            offset,
+            orderBy: reportOrderBy
+          })
+          const nameById = await resolveEmployeeNamesByIds(
+            extractIds(result?.ExpensePlan || [], ['employeeId', 'createdBy'])
+          )
+          return {
+            rows: processExpensePlansData(result, nameById, resolveDisplayName, resolveDepartmentName),
+            totalCount: getCount(result)
+          }
         }
-        setReportData(processedData)
-        setReportDataType(ReportType.APPROVAL_PAYOUT_CYCLE)
-        const mappedTotalCount = result?.ExpenseRequestAggregate?.aggregate?.count || 0
-        setTotalCount(mappedTotalCount)
-        reportCacheRef.current[ReportType.APPROVAL_PAYOUT_CYCLE] = {
-          rows: processedData as ReportItem[],
-          totalCount: mappedTotalCount
+        case ReportType.EXPENSE_REQUEST: {
+          const statuses = resolveOverride(overrides?.statusFilters, [])
+          const where = buildRequestWhere(search, statuses, empFilters, deptFilters)
+          const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BACKOFFICE, {
+            where,
+            limit,
+            offset,
+            orderBy: reportOrderBy
+          })
+          const nameById = await resolveEmployeeNamesByIds(
+            extractIds(result?.ExpenseRequest || [], ['employeeId', 'createdBy'])
+          )
+          return {
+            rows: processExpenseRequestsData(result, nameById, resolveDisplayName, resolveDepartmentName),
+            totalCount: getCount(result)
+          }
         }
-        reportQuerySignatureRef.current[ReportType.APPROVAL_PAYOUT_CYCLE] = querySignature
-      } catch {
-        setError('Failed to load approval and payout cycle data')
-      } finally {
-        if (shouldSetBlockingLoading) {
-          setIsLoading(false)
+        case ReportType.ADVANCE_PAYMENT: {
+          const where = buildAdvancePaymentWhereForExport(search, empFilters, deptFilters)
+          const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
+            where,
+            limit,
+            offset,
+            orderBy: reportOrderBy
+          })
+          const nameById = await resolveEmployeeNamesByIds(
+            extractIds(result?.AdvancePayment || [], ['expensePlan.employeeId', 'createdBy', 'expensePlan.createdBy'])
+          )
+          return {
+            rows: (result?.AdvancePayment || []).map((p: any) =>
+              mapAdvancePaymentToReport(p, nameById, resolveDisplayName, resolveDepartmentName)
+            ),
+            totalCount: getCount(result)
+          }
         }
+        case ReportType.APPROVAL_PAYOUT_CYCLE: {
+          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
+          const where = buildRequestWhere(search, statuses, empFilters, deptFilters)
+          const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
+            where,
+            limit,
+            offset,
+            orderBy: reportOrderBy
+          })
+          const nameById = await resolveEmployeeNamesByIds(
+            extractIds(result?.ExpenseRequest || [], ['employeeId', 'createdBy'])
+          )
+          const slaPolicy = await loadSlaPolicy()
+          return {
+            rows: processApprovalPayoutCycleData(
+              result,
+              nameById,
+              slaPolicy,
+              resolveDisplayName,
+              resolveDepartmentName
+            ),
+            totalCount: getCount(result)
+          }
+        }
+        default:
+          return { rows: [], totalCount: 0 }
       }
     },
     [
       graphqlClient,
-      pageSize,
-      currentPage,
       searchTerm,
+      reportOrderBy,
       selectedStatusFilters,
       selectedEmployeeFilters,
       selectedDepartmentFilters,
-      reportOrderBy,
-      buildExpenseRequestWhere,
+      buildRequestWhere,
       resolveEmployeeNamesByIds,
-      loadExpensesSlaPolicy
+      resolveDisplayName,
+      resolveDepartmentName,
+      loadSlaPolicy
     ]
   )
 
-  const mapAdvancePaymentToReport = useCallback(
-    (p: any, employeeNameById: Record<string, string>): AdvancePaymentReport => {
-      const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
-      const currencyCode = p?.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
-      return {
-        id: p.id,
-        code: p.expensePlan?.code || p.code || '',
-        title: p.expensePlan?.title || '',
-        requestDate: p.createdAt || '',
-        status: statusDisplay.label,
-        amount: p.amount || 0,
-        employeeName: resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
-        departmentName: resolveDepartmentName(
-          [p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy],
-          employeeDepartmentCacheRef.current
-        ),
-        paymentMethod: p.paymentMethod || undefined,
-        costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
-        currency: currencyCode
-      }
-    },
-    [resolveDisplayName, resolveDepartmentName]
-  )
-
-  const fetchBatchedData = useCallback(
-    async <T extends ReportItem>(
-      fetchFn: (offset: number, limit: number) => Promise<T[]>,
-      errorContext: string
-    ): Promise<T[]> => {
+  const fetchBatched = useCallback(
+    async (type: ReportType, overrides?: ExportFilterOverrides): Promise<ReportItem[]> => {
       const batchLimit = 1000
       const maxBatches = 500
-      const all: T[] = []
+      const all: ReportItem[] = []
       let offset = 0
-      let batchCount = 0
-      try {
-        while (true) {
-          batchCount += 1
-          if (batchCount > maxBatches) {
-            setError(`Export stopped: too many ${errorContext} batches`)
-            break
-          }
-
-          const processed = await fetchFn(offset, batchLimit)
-          if (!Array.isArray(processed)) {
-            setError(`Partial export: invalid ${errorContext} batch response`)
-            break
-          }
-
-          all.push(...processed)
-          if (processed.length < batchLimit) break
-          offset += batchLimit
+      for (let i = 0; i < maxBatches; i++) {
+        const { rows } = await fetchReport(type, offset, batchLimit, overrides)
+        if (!Array.isArray(rows)) {
+          setError(`Partial export: invalid ${type} batch`)
+          break
         }
-      } catch {
-        setError(`Partial export: some ${errorContext} could not be fetched`)
+        all.push(...rows)
+        if (rows.length < batchLimit) break
+        offset += batchLimit
       }
       return all
     },
-    []
+    [fetchReport]
   )
 
-  type ExportFilterOverrides = {
-    searchTerm?: string
-    statusFilters?: string[]
-    employeeFilters?: string[]
-    departmentFilters?: string[]
-  }
-
-  const fetchExpenseItemsForExport = useCallback(
-    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
-      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
-      const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
-        limit,
-        offset,
-        searchTerm: effectiveSearchTerm ? `%${effectiveSearchTerm}%` : '%%',
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.ExpenseItem || [])
-        .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      const rows = processExpenseItemsData(result, employeeNameById)
-      const resolveFilter = (override: unknown, fallback: unknown): string[] => {
-        const source = Array.isArray(override) ? override : Array.isArray(fallback) ? fallback : []
-        return source.map(String)
+  // Page-level fetch for direct-fetch types (EXPENSE_ITEM, APPROVAL_PAYOUT_CYCLE)
+  const fetchPageData = useCallback(
+    async (type: ReportType, fetchToken: number, querySignature: string) => {
+      if (!graphqlClient) return
+      const hasCached = Boolean(reportCacheRef.current[type]?.rows?.length)
+      try {
+        if (!hasCached) setIsLoading(true)
+        setError(null)
+        const { rows, totalCount: count } = await fetchReport(type, (currentPage - 1) * pageSize, pageSize)
+        if (fetchToken !== activeFetchTokenRef.current) return
+        applyRows(type, rows, count)
+        reportQuerySignatureRef.current[type] = querySignature
+      } catch {
+        setError(`Failed to load ${type} data`)
+      } finally {
+        if (!hasCached) setIsLoading(false)
       }
-      const selectedStatuses = resolveFilter(overrides?.statusFilters, selectedStatusFilters)
-      const selectedEmployees = resolveFilter(overrides?.employeeFilters, selectedEmployeeFilters)
-      const selectedDepartments = resolveFilter(overrides?.departmentFilters, selectedDepartmentFilters)
-      return rows.filter(row => {
-        const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(String(row?.status || ''))
-        const employeeMatch =
-          selectedEmployees.length === 0 || selectedEmployees.includes(String(row?.employeeName || ''))
-        const departmentMatch =
-          selectedDepartments.length === 0 || selectedDepartments.includes(String(row?.departmentName || ''))
-        return statusMatch && employeeMatch && departmentMatch
-      })
     },
-    [
-      graphqlClient,
-      searchTerm,
-      reportOrderBy,
-      selectedStatusFilters,
-      selectedEmployeeFilters,
-      selectedDepartmentFilters,
-      resolveEmployeeNamesByIds
-    ]
+    [graphqlClient, currentPage, pageSize, fetchReport, applyRows]
   )
 
-  const fetchExpensePlansForExport = useCallback(
-    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
-      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
-      const effectiveEmployeeFilters = Array.isArray(overrides?.employeeFilters)
-        ? overrides.employeeFilters
-        : selectedEmployeeFilters
-      const effectiveDepartmentFilters = Array.isArray(overrides?.departmentFilters)
-        ? overrides.departmentFilters
-        : selectedDepartmentFilters
-      const where = buildExpensePlanWhereForExport(
-        effectiveSearchTerm,
-        effectiveEmployeeFilters,
-        effectiveDepartmentFilters
-      )
-      const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
-        where,
-        limit,
-        offset,
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.ExpensePlan || [])
-        .flatMap((plan: any) => [String(plan?.employeeId || ''), String(plan?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      return processExpensePlansData(result, employeeNameById)
-    },
-    [
-      graphqlClient,
-      searchTerm,
-      selectedEmployeeFilters,
-      selectedDepartmentFilters,
-      reportOrderBy,
-      buildExpensePlanWhereForExport,
-      resolveEmployeeNamesByIds
-    ]
-  )
-
-  const fetchExpenseRequestsForExport = useCallback(
-    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
-      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
-      const effectiveStatusFilters = Array.isArray(overrides?.statusFilters) ? overrides.statusFilters : []
-      const effectiveEmployeeFilters = Array.isArray(overrides?.employeeFilters)
-        ? overrides.employeeFilters
-        : selectedEmployeeFilters
-      const effectiveDepartmentFilters = Array.isArray(overrides?.departmentFilters)
-        ? overrides.departmentFilters
-        : selectedDepartmentFilters
-      const where = buildExpenseRequestWhere(
-        effectiveSearchTerm,
-        effectiveStatusFilters,
-        effectiveEmployeeFilters,
-        effectiveDepartmentFilters
-      )
-      const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BACKOFFICE, {
-        where,
-        limit,
-        offset,
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.ExpenseRequest || [])
-        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      return processExpenseRequestsData(result, employeeNameById)
-    },
-    [
-      graphqlClient,
-      searchTerm,
-      selectedEmployeeFilters,
-      selectedDepartmentFilters,
-      reportOrderBy,
-      buildExpenseRequestWhere,
-      resolveEmployeeNamesByIds
-    ]
-  )
-
-  const fetchAdvancePaymentsForExport = useCallback(
-    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
-      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
-      const effectiveEmployeeFilters = Array.isArray(overrides?.employeeFilters)
-        ? overrides.employeeFilters
-        : selectedEmployeeFilters
-      const effectiveDepartmentFilters = Array.isArray(overrides?.departmentFilters)
-        ? overrides.departmentFilters
-        : selectedDepartmentFilters
-      const where = buildAdvancePaymentWhereForExport(
-        effectiveSearchTerm,
-        effectiveEmployeeFilters,
-        effectiveDepartmentFilters
-      )
-      const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
-        where,
-        limit,
-        offset,
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.AdvancePayment || [])
-        .flatMap((payment: any) => [
-          String(payment?.expensePlan?.employeeId || ''),
-          String(payment?.createdBy || ''),
-          String(payment?.expensePlan?.createdBy || '')
-        ])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      return (result?.AdvancePayment || []).map((payment: any) => mapAdvancePaymentToReport(payment, employeeNameById))
-    },
-    [
-      graphqlClient,
-      searchTerm,
-      selectedEmployeeFilters,
-      selectedDepartmentFilters,
-      reportOrderBy,
-      buildAdvancePaymentWhereForExport,
-      mapAdvancePaymentToReport,
-      resolveEmployeeNamesByIds
-    ]
-  )
-
-  const fetchApprovalPayoutCycleForExport = useCallback(
-    async (offset: number, limit: number, overrides?: ExportFilterOverrides) => {
-      const effectiveSearchTerm = overrides?.searchTerm ?? searchTerm
-      const effectiveStatusFilters = Array.isArray(overrides?.statusFilters)
-        ? overrides.statusFilters
-        : selectedStatusFilters
-      const effectiveEmployeeFilters = Array.isArray(overrides?.employeeFilters)
-        ? overrides.employeeFilters
-        : selectedEmployeeFilters
-      const effectiveDepartmentFilters = Array.isArray(overrides?.departmentFilters)
-        ? overrides.departmentFilters
-        : selectedDepartmentFilters
-      const where = buildExpenseRequestWhere(
-        effectiveSearchTerm,
-        effectiveStatusFilters,
-        effectiveEmployeeFilters,
-        effectiveDepartmentFilters
-      )
-      const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
-        where,
-        limit,
-        offset,
-        orderBy: reportOrderBy
-      })
-      const employeeIds = (result?.ExpenseRequest || [])
-        .flatMap((request: any) => [String(request?.employeeId || ''), String(request?.createdBy || '')])
-        .filter(Boolean)
-      const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-      const slaPolicy = await loadExpensesSlaPolicy()
-      return processApprovalPayoutCycleData(result, employeeNameById, slaPolicy)
-    },
-    [
-      graphqlClient,
-      searchTerm,
-      selectedStatusFilters,
-      selectedEmployeeFilters,
-      selectedDepartmentFilters,
-      reportOrderBy,
-      buildExpenseRequestWhere,
-      resolveEmployeeNamesByIds,
-      loadExpensesSlaPolicy
-    ]
-  )
-
+  // Prefetch expense items cache
   useEffect(() => {
-    if (!graphqlClient) return
-    if (searchTerm.trim()) return
-
-    const prefetchSignature = JSON.stringify({
-      selectedReportType: ReportType.EXPENSE_ITEM,
-      currentPage,
-      pageSize,
-      searchTerm
-    })
-
+    if (!graphqlClient || searchTerm.trim()) return
+    const sig = JSON.stringify({ type: ReportType.EXPENSE_ITEM, currentPage, pageSize, searchTerm })
     if (
       reportCacheRef.current[ReportType.EXPENSE_ITEM]?.rows?.length &&
-      reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] === prefetchSignature
-    ) {
+      reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] === sig
+    )
       return
-    }
 
     let cancelled = false
-    const prefetchExpenseItemsCache = async () => {
+    const prefetch = async () => {
       try {
-        const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
-          limit: pageSize,
-          offset: (currentPage - 1) * pageSize,
-          searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
-        })
-        const employeeIds = (result?.ExpenseItem || [])
-          .flatMap((item: any) => [String(item?.employeeId || ''), String(item?.createdBy || '')])
-          .filter(Boolean)
-        const employeeNameById = await resolveEmployeeNamesByIds(employeeIds)
-        const processedData = processExpenseItemsData(result, employeeNameById)
+        const { rows, totalCount: count } = await fetchReport(
+          ReportType.EXPENSE_ITEM,
+          (currentPage - 1) * pageSize,
+          pageSize
+        )
         if (cancelled) return
-        const mappedTotalCount = result?.ExpenseItemAggregate?.aggregate?.count || 0
-        reportCacheRef.current[ReportType.EXPENSE_ITEM] = {
-          rows: processedData as ReportItem[],
-          totalCount: mappedTotalCount
-        }
-        reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] = prefetchSignature
+        reportCacheRef.current[ReportType.EXPENSE_ITEM] = { rows, totalCount: count }
+        reportQuerySignatureRef.current[ReportType.EXPENSE_ITEM] = sig
       } catch {
-        // no-op prefetch failure
+        /* no-op */
       }
     }
-
-    void prefetchExpenseItemsCache()
+    void prefetch()
     return () => {
       cancelled = true
     }
-  }, [graphqlClient, currentPage, pageSize, searchTerm, resolveEmployeeNamesByIds])
+  }, [graphqlClient, currentPage, pageSize, searchTerm, fetchReport])
 
   const fetchAllForExport = useCallback(async (): Promise<ReportItem[]> => {
     if (!graphqlClient || !selectedReportType) return []
     try {
-      switch (selectedReportType) {
-        case ReportType.EXPENSE_ITEM:
-          return await fetchBatchedData(fetchExpenseItemsForExport, 'items')
-        case ReportType.EXPENSE_PLAN:
-          return await fetchBatchedData(fetchExpensePlansForExport, 'plans')
-        case ReportType.EXPENSE_REQUEST:
-          return await fetchBatchedData(fetchExpenseRequestsForExport, 'requests')
-        case ReportType.ADVANCE_PAYMENT:
-          return await fetchBatchedData(fetchAdvancePaymentsForExport, 'advance payments')
-        case ReportType.APPROVAL_PAYOUT_CYCLE:
-          return await fetchBatchedData(fetchApprovalPayoutCycleForExport, 'approval and payout cycle')
-        default:
-          return []
-      }
+      return await fetchBatched(selectedReportType)
     } catch {
       setError('Failed to export report data')
       return []
     }
-  }, [
-    graphqlClient,
-    selectedReportType,
-    fetchBatchedData,
-    fetchExpenseItemsForExport,
-    fetchExpensePlansForExport,
-    fetchExpenseRequestsForExport,
-    fetchAdvancePaymentsForExport,
-    fetchApprovalPayoutCycleForExport
-  ])
-
-  const fetchRawExpenseItemsForFilterOptions = useCallback(
-    async (offset: number, limit: number) =>
-      fetchExpenseItemsForExport(offset, limit, {
-        searchTerm: '',
-        statusFilters: [],
-        employeeFilters: [],
-        departmentFilters: []
-      }),
-    [fetchExpenseItemsForExport]
-  )
-
-  const fetchRawExpensePlansForFilterOptions = useCallback(
-    async (offset: number, limit: number) =>
-      fetchExpensePlansForExport(offset, limit, {
-        searchTerm: '',
-        employeeFilters: [],
-        departmentFilters: []
-      }),
-    [fetchExpensePlansForExport]
-  )
-
-  const fetchRawExpenseRequestsForFilterOptions = useCallback(
-    async (offset: number, limit: number) =>
-      fetchExpenseRequestsForExport(offset, limit, {
-        searchTerm: '',
-        statusFilters: [],
-        employeeFilters: [],
-        departmentFilters: []
-      }),
-    [fetchExpenseRequestsForExport]
-  )
-
-  const fetchRawAdvancePaymentsForFilterOptions = useCallback(
-    async (offset: number, limit: number) =>
-      fetchAdvancePaymentsForExport(offset, limit, {
-        searchTerm: '',
-        employeeFilters: [],
-        departmentFilters: []
-      }),
-    [fetchAdvancePaymentsForExport]
-  )
-
-  const fetchRawApprovalPayoutCycleForFilterOptions = useCallback(
-    async (offset: number, limit: number) =>
-      fetchApprovalPayoutCycleForExport(offset, limit, {
-        searchTerm: '',
-        statusFilters: [],
-        employeeFilters: [],
-        departmentFilters: []
-      }),
-    [fetchApprovalPayoutCycleForExport]
-  )
+  }, [graphqlClient, selectedReportType, fetchBatched])
 
   const fetchAllForFilterOptions = useCallback(async (): Promise<ReportItem[]> => {
     if (!graphqlClient || !selectedReportType) return []
     try {
-      switch (selectedReportType) {
-        case ReportType.EXPENSE_ITEM:
-          return await fetchBatchedData(fetchRawExpenseItemsForFilterOptions, 'items')
-        case ReportType.EXPENSE_PLAN:
-          return await fetchBatchedData(fetchRawExpensePlansForFilterOptions, 'plans')
-        case ReportType.EXPENSE_REQUEST:
-          return await fetchBatchedData(fetchRawExpenseRequestsForFilterOptions, 'requests')
-        case ReportType.ADVANCE_PAYMENT:
-          return await fetchBatchedData(fetchRawAdvancePaymentsForFilterOptions, 'advance payments')
-        case ReportType.APPROVAL_PAYOUT_CYCLE:
-          return await fetchBatchedData(fetchRawApprovalPayoutCycleForFilterOptions, 'approval and payout cycle')
-        default:
-          return []
-      }
+      return await fetchBatched(selectedReportType, {
+        searchTerm: '',
+        statusFilters: [],
+        employeeFilters: [],
+        departmentFilters: []
+      })
     } catch {
       return []
     }
-  }, [
-    graphqlClient,
-    selectedReportType,
-    fetchBatchedData,
-    fetchRawExpenseItemsForFilterOptions,
-    fetchRawExpensePlansForFilterOptions,
-    fetchRawExpenseRequestsForFilterOptions,
-    fetchRawAdvancePaymentsForFilterOptions,
-    fetchRawApprovalPayoutCycleForFilterOptions
-  ])
+  }, [graphqlClient, selectedReportType, fetchBatched])
 
-  const fetchReportData = useCallback(async () => {
-    if (!selectedReportType) return
-    const fetchToken = ++activeFetchTokenRef.current
-    const querySignature = JSON.stringify({
-      selectedReportType,
-      currentPage,
-      pageSize,
-      searchTerm,
-      reportOrderBy,
-      selectedStatusFilters: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedStatusFilters : [],
-      selectedEmployeeFilters: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedEmployeeFilters : [],
-      selectedDepartmentFilters:
-        selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedDepartmentFilters : []
-    })
-    const hasCachedRows = Boolean(reportCacheRef.current[selectedReportType]?.rows?.length)
-    const previousSignature = reportQuerySignatureRef.current[selectedReportType]
-    const canReuseWithoutRefetch = hasCachedRows && previousSignature === querySignature
-    if (
-      canReuseWithoutRefetch &&
-      (selectedReportType === ReportType.EXPENSE_ITEM || selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE)
-    ) {
-      return
-    }
-    switch (selectedReportType) {
-      case ReportType.EXPENSE_ITEM:
-        await fetchExpenseItems(fetchToken, querySignature)
-        break
-      case ReportType.APPROVAL_PAYOUT_CYCLE:
-        await fetchApprovalPayoutCycle(fetchToken, querySignature)
-        break
-      default:
-        break
-    }
-  }, [
-    selectedReportType,
-    currentPage,
-    pageSize,
-    searchTerm,
-    reportOrderBy,
-    selectedStatusFilters,
-    selectedEmployeeFilters,
-    selectedDepartmentFilters,
-    fetchExpenseItems,
-    fetchApprovalPayoutCycle
-  ])
+  const [slaKpiCounts, setSlaKpiCounts] = useState<SlaKpiCounts | null>(null)
 
-  const lastFetchSignatureRef = useRef<string | null>(null)
-  const lastSelectedReportTypeRef = useRef<ReportType | null>(selectedReportType)
   useEffect(() => {
-    selectedReportTypeRef.current = selectedReportType
-    lastSelectedReportTypeRef.current = selectedReportType
+    if (!graphqlClient) return
+    let cancelled = false
+    const run = async () => {
+      try {
+        const [slaPolicy, commentsResult, paymentsResult] = await Promise.all([
+          loadSlaPolicy(),
+          graphqlClient.request(GET_SLA_KPI_COMMENTS, {}),
+          graphqlClient.request(GET_SLA_KPI_PAYMENTS, {})
+        ])
+        if (cancelled) return
+        const comments = (commentsResult?.ExpenseRequestComment ?? []).map((c: any) => ({
+          expenseRequestId: c.expenseRequestId,
+          commentDate: c.commentDate,
+          comment: c.comment
+        }))
+        const payments = (paymentsResult?.AdvancePayment ?? []).flatMap((p: any) => {
+          const requests = p?.expensePlan?.expenseRequest
+          const reqId = Array.isArray(requests) ? requests[0]?.id : requests?.id
+          if (!reqId) return []
+          return [
+            {
+              transactionDate: p.transactionDate,
+              decisionDate: p.decisionDate,
+              createdAt: p.createdAt,
+              requestId: reqId
+            }
+          ]
+        })
+        setSlaKpiCounts(computeSlaKpiFromFlat(comments, payments, slaPolicy))
+      } catch {
+        /* SLA KPI fetch failed */
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [graphqlClient, loadSlaPolicy])
 
+  // Auto-fetch on parameter change for direct-fetch types
+  const lastFetchSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (
+      !selectedReportType ||
+      (selectedReportType !== ReportType.EXPENSE_ITEM && selectedReportType !== ReportType.APPROVAL_PAYOUT_CYCLE)
+    )
+      return
     const signature = JSON.stringify({
       selectedReportType,
       currentPage,
@@ -1767,8 +637,14 @@ export const useBackofficeExpenseReportData = (
         selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedDepartmentFilters : []
     })
     if (lastFetchSignatureRef.current === signature) return
+    if (
+      reportCacheRef.current[selectedReportType]?.rows?.length &&
+      reportQuerySignatureRef.current[selectedReportType] === signature
+    )
+      return
     lastFetchSignatureRef.current = signature
-    void fetchReportData()
+    const token = ++activeFetchTokenRef.current
+    void fetchPageData(selectedReportType, token, signature)
   }, [
     selectedReportType,
     currentPage,
@@ -1778,7 +654,7 @@ export const useBackofficeExpenseReportData = (
     selectedStatusFilters,
     selectedEmployeeFilters,
     selectedDepartmentFilters,
-    fetchReportData
+    fetchPageData
   ])
 
   const reportTypes: ReportMetadata[] = [
@@ -1844,8 +720,18 @@ export const useBackofficeExpenseReportData = (
     setPageSize,
     searchTerm,
     setSearchTerm,
-    fetchReportData,
+    fetchReportData: useCallback(async () => {
+      if (
+        !selectedReportType ||
+        (selectedReportType !== ReportType.EXPENSE_ITEM && selectedReportType !== ReportType.APPROVAL_PAYOUT_CYCLE)
+      )
+        return
+      const token = ++activeFetchTokenRef.current
+      const sig = JSON.stringify({ selectedReportType, currentPage, pageSize, searchTerm, reportOrderBy })
+      await fetchPageData(selectedReportType, token, sig)
+    }, [selectedReportType, currentPage, pageSize, searchTerm, reportOrderBy, fetchPageData]),
     fetchAllForExport,
-    fetchAllForFilterOptions
+    fetchAllForFilterOptions,
+    slaKpiCounts
   }
 }

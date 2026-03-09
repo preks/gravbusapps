@@ -259,7 +259,7 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
         <div className="gba:text-xs gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:plan_vs_request.data_scope_note',
-            'Data scope: Planned amounts include all active plans (excludes drafts, rejected, discarded). Actual amounts include approved, verified, booked, and paid expense items.'
+            'Data scope: Planned amounts include all active plans (excludes drafts, rejected, discarded). Actual amounts include paid expenses.'
           )}
         </div>
       </div>

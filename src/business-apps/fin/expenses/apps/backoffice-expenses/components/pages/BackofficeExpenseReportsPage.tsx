@@ -6,19 +6,13 @@ import {
   Alert,
   AlertDescription,
   Button,
-  Card,
-  CardContent,
   PageLayout,
   Tabs,
   TabsList,
-  TabsTrigger,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
+  TabsTrigger
 } from '@newwork/nw-design-system'
 import type { ColumnDef as TanstackColumnDef, OnChangeFn, SortingState } from '@tanstack/react-table'
-import { PiDownload, PiFileText, PiInfo } from 'react-icons/pi'
+import { PiDownload, PiFileText } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBackofficeExpenseReportData, ReportType } from '../../hooks/useBackofficeExpenseReportData'
 import { useDebounce } from '@/common/hooks/useDebounce'
@@ -27,37 +21,16 @@ import { getActiveStructureDepartmentNames } from '../../utils/departmentOptions
 import { ensureShortDateFormat } from '../../../manager-expenses/utils/dateUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../personal-expenses/utils'
-import {
-  isDateKey,
-  downloadCsvReport,
-  downloadExcelReport,
-  computeSlaKpis,
-  type ReportColumnDef
-} from './backofficeExpenseReportsPage.utils'
+import { isDateKey, downloadCsvReport, downloadExcelReport } from './backofficeExpenseReportsPage.utils'
 import { normalizeFilterValues } from '../../hooks/queryFilterUtils'
+import { getReportColumns, getExportColumns, getBackendSortableColumnKeys } from './reportColumnDefinitions'
+import ReportSlaKpiCards from './ReportSlaKpiCards'
 
-type BackofficeExpenseReportsPageProps = BusinessAppContextProps
+type ReportFilters = { status: string[]; employeeName: string[]; departmentName: string[] }
+type ReportSnapshot = { rows: any[]; totalCount: number }
+type ReportFilterOptionSnapshot = { employees: string[]; departments: string[] }
 
-type ReportSnapshot = {
-  rows: any[]
-  totalCount: number
-}
-type ReportFilterOptionSnapshot = {
-  employees: string[]
-  departments: string[]
-}
-
-type ReportFilters = {
-  status: string[]
-  employeeName: string[]
-  departmentName: string[]
-}
-
-const EMPTY_REPORT_FILTERS: ReportFilters = {
-  status: [],
-  employeeName: [],
-  departmentName: []
-}
+const EMPTY_REPORT_FILTERS: ReportFilters = { status: [], employeeName: [], departmentName: [] }
 
 const normalizeReportFilters = (filters: Record<string, any> | undefined | null): ReportFilters => {
   const raw = filters ?? {}
@@ -68,30 +41,69 @@ const normalizeReportFilters = (filters: Record<string, any> | undefined | null)
   }
 }
 
-const areReportFiltersEqual = (left: ReportFilters, right: ReportFilters): boolean => {
-  return (
-    left.status.length === right.status.length &&
-    left.employeeName.length === right.employeeName.length &&
-    left.departmentName.length === right.departmentName.length &&
-    left.status.every((value, index) => value === right.status[index]) &&
-    left.employeeName.every((value, index) => value === right.employeeName[index]) &&
-    left.departmentName.every((value, index) => value === right.departmentName[index])
-  )
-}
+const areReportFiltersEqual = (left: ReportFilters, right: ReportFilters): boolean =>
+  left.status.length === right.status.length &&
+  left.employeeName.length === right.employeeName.length &&
+  left.departmentName.length === right.departmentName.length &&
+  left.status.every((v, i) => v === right.status[i]) &&
+  left.employeeName.every((v, i) => v === right.employeeName[i]) &&
+  left.departmentName.every((v, i) => v === right.departmentName[i])
 
 const hasAnyReportFilters = (filters: ReportFilters): boolean =>
   filters.status.length > 0 || filters.employeeName.length > 0 || filters.departmentName.length > 0
 
-const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
-  const toFilterText = (value: unknown): string => {
-    if (value === null || value === undefined) return ''
-    if (typeof value === 'string') return value.trim()
-    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
-      return String(value).trim()
-    }
-    return ''
-  }
+const toFilterText = (value: unknown): string => {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value).trim()
+  return ''
+}
 
+const REPORT_TYPE_DEFINITIONS: Array<{
+  key: ReportType
+  nameKey: string
+  nameFallback: string
+  descKey: string
+  descFallback: string
+}> = [
+  {
+    key: ReportType.APPROVAL_PAYOUT_CYCLE,
+    nameKey: 'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
+    nameFallback: 'Approval & Payout Cycle',
+    descKey: 'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle_subheader',
+    descFallback: 'Pending to approved to paid cycle durations'
+  },
+  {
+    key: ReportType.EXPENSE_ITEM,
+    nameKey: 'lowcoder:personal_expenses.expense_items',
+    nameFallback: 'Expense Items',
+    descKey: 'lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions',
+    descFallback: 'Individual expense items and transactions'
+  },
+  {
+    key: ReportType.EXPENSE_PLAN,
+    nameKey: 'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+    nameFallback: 'Expense Plans',
+    descKey: 'lowcoder:team_expenses_page.dashboard_tab.expense_plans_subheader',
+    descFallback: 'Budget plans and allocations'
+  },
+  {
+    key: ReportType.EXPENSE_REQUEST,
+    nameKey: 'lowcoder:employee_list.flows_button.expense_requests',
+    nameFallback: 'Expense Requests',
+    descKey: 'lowcoder:team_expenses_page.dashboard_tab.expense_requests_subheader',
+    descFallback: 'Submitted expense requests and approvals'
+  },
+  {
+    key: ReportType.ADVANCE_PAYMENT,
+    nameKey: 'lowcoder:backoffice_expense_landing_page.advance_title',
+    nameFallback: 'Advance Payments',
+    descKey: 'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
+    descFallback: 'Cash advances and prepayments'
+  }
+]
+
+const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [reportSnapshotsByType, setReportSnapshotsByType] = useState<Partial<Record<ReportType, ReportSnapshot>>>({})
@@ -100,14 +112,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   >({})
   const didHandleInitialFilterSyncRef = useRef<Partial<Record<ReportType, boolean>>>({})
 
-  const contextProps = useMemo(
-    () => ({
-      accessToken,
-      userInfo
-    }),
-    [accessToken, userInfo]
-  )
-
+  const contextProps = useMemo(() => ({ accessToken, userInfo }), [accessToken, userInfo])
   const {
     reportData,
     isLoading,
@@ -123,455 +128,31 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     reportDataType,
     setSelectedReportType,
     fetchAllForExport,
-    fetchAllForFilterOptions
+    fetchAllForFilterOptions,
+    slaKpiCounts
   } = useBackofficeExpenseReportData(contextProps, filtersByReportType, sorting)
   const { organizationalUnits } = useFilterData({ accessToken })
+
   const selectedFilters = useMemo(() => {
     if (!selectedReportType) return EMPTY_REPORT_FILTERS
     return normalizeReportFilters(filtersByReportType[selectedReportType] ?? {})
   }, [filtersByReportType, selectedReportType])
 
-  const reportTypes: Array<{ key: ReportType; name: string; description: string }> = [
-    {
-      key: ReportType.APPROVAL_PAYOUT_CYCLE,
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
-        'Approval & Payout Cycle'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle_subheader',
-        'Pending to approved to paid cycle durations'
-      )
-    },
-    {
-      key: ReportType.EXPENSE_ITEM,
-      name: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items'),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions',
-        'Individual expense items and transactions'
-      )
-    },
-    {
-      key: ReportType.EXPENSE_PLAN,
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-        'Expense Plans'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plans_subheader',
-        'Budget plans and allocations'
-      )
-    },
-    {
-      key: ReportType.EXPENSE_REQUEST,
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.flows_button.expense_requests',
-        'Expense Requests'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_requests_subheader',
-        'Submitted expense requests and approvals'
-      )
-    },
-    {
-      key: ReportType.ADVANCE_PAYMENT,
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:backoffice_expense_landing_page.advance_title',
-        'Advance Payments'
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
-        'Cash advances and prepayments'
-      )
-    }
-  ]
+  const reportTypes = useMemo(
+    () =>
+      REPORT_TYPE_DEFINITIONS.map(def => ({
+        key: def.key,
+        name: getTranslationFromI18nKeyAndLabel(def.nameKey, def.nameFallback),
+        description: getTranslationFromI18nKeyAndLabel(def.descKey, def.descFallback)
+      })),
+    []
+  )
 
-  const getExportColumns = (): ReportColumnDef[] => {
-    const uiCols = getColumns()
-    const insertCurrencyAfter = (afterKey: string) => {
-      const alreadyHasCurrency = uiCols.some(c => c.key === 'currency')
-      if (alreadyHasCurrency) return uiCols
-      const idx = uiCols.findIndex(c => c.key === afterKey)
-      if (idx === -1) return uiCols
-      const currencyCol: ReportColumnDef = {
-        key: 'currency',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.currency', 'Currency')
-      }
-      const next = [...uiCols]
-      next.splice(idx + 1, 0, currencyCol)
-      return next
-    }
-    switch (selectedReportType) {
-      case ReportType.EXPENSE_ITEM:
-        return insertCurrencyAfter('amount')
-      case ReportType.EXPENSE_PLAN:
-        return insertCurrencyAfter('totalAmount')
-      case ReportType.EXPENSE_REQUEST:
-        return insertCurrencyAfter('totalAmount')
-      case ReportType.ADVANCE_PAYMENT:
-        return insertCurrencyAfter('amount')
-      case ReportType.APPROVAL_PAYOUT_CYCLE:
-        return insertCurrencyAfter('totalAmount')
-      default:
-        return uiCols
-    }
-  }
-
-  const getColumns = (): ReportColumnDef[] => {
-    switch (selectedReportType) {
-      case ReportType.EXPENSE_ITEM:
-        return [
-          {
-            key: 'title',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-            widthClass: 'gba:w-[20%]'
-          },
-          {
-            key: 'code',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-              'Expense Code'
-            ),
-            widthClass: 'gba:w-[8%]'
-          },
-          {
-            key: 'employeeName',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-            widthClass: 'gba:w-[13%]'
-          },
-          {
-            key: 'date',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:acknowledge_sick_leave.submission_date',
-              'Submission Date'
-            ),
-            widthClass: 'gba:w-[8%]'
-          },
-          {
-            key: 'amount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.amount',
-              'Amount'
-            )
-          },
-          {
-            key: 'category',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.category', 'Category')
-          },
-          {
-            key: 'status',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.status',
-              'Status'
-            )
-          }
-        ]
-      case ReportType.EXPENSE_PLAN:
-        return [
-          {
-            key: 'title',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-            widthClass: 'gba:w-[18%]'
-          },
-          {
-            key: 'code',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_table.code',
-              'Plan Code'
-            )
-          },
-          {
-            key: 'expenseRequestCode',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-              'Request Code'
-            ),
-            widthClass: 'gba:w-[8%]'
-          },
-          {
-            key: 'employeeName',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-            widthClass: 'gba:w-[15%]'
-          },
-          {
-            key: 'createdAt',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:acknowledge_sick_leave.submission_date',
-              'Submission Date'
-            ),
-            widthClass: 'gba:w-[8%]'
-          },
-          {
-            key: 'status',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.status',
-              'Status'
-            ),
-            widthClass: 'gba:w-[13%]'
-          },
-          {
-            key: 'totalAmount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.amount',
-              'Total Amount'
-            )
-          },
-          {
-            key: 'advancePaidAmount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
-              'Advance Payment'
-            )
-          },
-          {
-            key: 'remainingAmount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
-              'Remaining Amount'
-            )
-          },
-          {
-            key: 'startDate',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date')
-          },
-          {
-            key: 'endDate',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')
-          }
-        ]
-      case ReportType.EXPENSE_REQUEST:
-        return [
-          {
-            key: 'title',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-            widthClass: 'gba:w-[25%]'
-          },
-          {
-            key: 'code',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-              'Request Code'
-            )
-          },
-          {
-            key: 'planCode',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_table.code',
-              'Plan Code'
-            )
-          },
-          {
-            key: 'employeeName',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-          },
-          {
-            key: 'createdAt',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:acknowledge_sick_leave.submission_date',
-              'Submission Date'
-            )
-          },
-          {
-            key: 'status',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.status',
-              'Status'
-            )
-          },
-          {
-            key: 'totalAmount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.amount',
-              'Total Amount'
-            )
-          },
-          {
-            key: 'advancePaidAmount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.advance_payments_subheader',
-              'Advance Payment'
-            )
-          },
-          {
-            key: 'remainingAmount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.plan_vs_request',
-              'Remaining Amount'
-            )
-          },
-          {
-            key: 'startDate',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date')
-          },
-          {
-            key: 'endDate',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')
-          }
-        ]
-      case ReportType.ADVANCE_PAYMENT:
-        return [
-          {
-            key: 'title',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-            widthClass: 'gba:w-[19%]'
-          },
-          {
-            key: 'employeeName',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-            widthClass: 'gba:w-[18%]'
-          },
-          {
-            key: 'code',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_table.code',
-              'Plan Code'
-            )
-          },
-          {
-            key: 'requestDate',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:acknowledge_sick_leave.submission_date',
-              'Submission Date'
-            ),
-            widthClass: 'gba:w-[10%]'
-          },
-          {
-            key: 'status',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.status',
-              'Status'
-            ),
-            widthClass: 'gba:w-[11%]'
-          },
-          {
-            key: 'amount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.amount',
-              'Amount'
-            )
-          },
-          {
-            key: 'paymentMethod',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:payment_method', 'Payment Method'),
-            widthClass: 'gba:w-[8%]'
-          },
-          {
-            key: 'costCenter',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:cost_center', 'Cost Center'),
-            widthClass: 'gba:w-[8%]'
-          }
-        ]
-      case ReportType.APPROVAL_PAYOUT_CYCLE:
-        return [
-          {
-            key: 'title',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title'),
-            widthClass: 'gba:w-[20%]'
-          },
-          {
-            key: 'code',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-              'Request Code'
-            )
-          },
-          {
-            key: 'employeeName',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-          },
-          {
-            key: 'pendingAt',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.submitted_label',
-              'Pending At'
-            )
-          },
-          {
-            key: 'approvedAt',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_date', 'Approved At')
-          },
-          {
-            key: 'paidAt',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:payment_date', 'Paid At')
-          },
-          {
-            key: 'approvalDays',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_days', 'Approval Days')
-          },
-          {
-            key: 'payoutDays',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_days', 'Payout Days')
-          },
-          {
-            key: 'totalCycleDays',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_days', 'Total Cycle Days')
-          },
-          {
-            key: 'approvalSlaLimitDays',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_limit_days', 'Approval SLA Limit (Days)')
-          },
-          {
-            key: 'payoutSlaLimitDays',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_limit_days', 'Payout SLA Limit (Days)')
-          },
-          {
-            key: 'totalCycleSlaLimitDays',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:total_cycle_sla_limit_days',
-              'Total Cycle SLA Limit (Days)'
-            )
-          },
-          {
-            key: 'approvalSlaStatus',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_status', 'Approval SLA Status')
-          },
-          {
-            key: 'payoutSlaStatus',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_status', 'Payout SLA Status')
-          },
-          {
-            key: 'totalCycleSlaStatus',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_sla_status', 'Total Cycle SLA Status')
-          },
-          {
-            key: 'bottleneckStage',
-            title: getTranslationFromI18nKeyAndLabel('lowcoder:bottleneck_stage', 'Bottleneck Stage')
-          },
-          {
-            key: 'status',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.status',
-              'Status'
-            )
-          },
-          {
-            key: 'totalAmount',
-            title: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.amount',
-              'Total Amount'
-            )
-          }
-        ]
-      default:
-        return []
-    }
-  }
-
-  const handleDownload = async () => {
-    const cols = getExportColumns()
-    if (!cols || cols.length === 0) return
-    const allRows = await fetchAllForExport()
-    downloadCsvReport(selectedReportType, cols, allRows as any[])
-  }
-
-  const handleDownloadExcel = async () => {
-    const cols = getExportColumns()
-    if (!cols || cols.length === 0) return
-    const allRows = await fetchAllForExport()
-    downloadExcelReport(selectedReportType, cols, allRows as any[])
-  }
-
-  const columns = useMemo(() => getColumns(), [selectedReportType])
+  const columns = useMemo(() => getReportColumns(selectedReportType), [selectedReportType])
+  const backendSortableColumnKeys = useMemo(
+    () => getBackendSortableColumnKeys(selectedReportType),
+    [selectedReportType]
+  )
   const isDataAlignedWithSelectedType = reportDataType === selectedReportType
   const selectedReportSnapshot = selectedReportType ? reportSnapshotsByType[selectedReportType] : undefined
   const baseReportRows = useMemo<any[]>(
@@ -584,137 +165,60 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   const hasReportRows = Array.isArray(baseReportRows) && baseReportRows.length > 0
   const displayTotalCount = isDataAlignedWithSelectedType ? totalCount : (selectedReportSnapshot?.totalCount ?? 0)
   const tableLoading = isLoading && !hasReportRows
+
   useEffect(() => {
     if (!selectedReportType || !isDataAlignedWithSelectedType || !Array.isArray(reportData)) return
-    setReportSnapshotsByType(previous => ({
-      ...previous,
-      [selectedReportType]: {
-        rows: reportData as any[],
-        totalCount
-      }
-    }))
+    setReportSnapshotsByType(prev => ({ ...prev, [selectedReportType]: { rows: reportData as any[], totalCount } }))
   }, [selectedReportType, isDataAlignedWithSelectedType, reportData, totalCount])
 
-  const selectedReportMeta = reportTypes.find(type => type.key === selectedReportType)
+  const selectedReportMeta = reportTypes.find(t => t.key === selectedReportType)
   const tabsValue = selectedReportType || ReportType.APPROVAL_PAYOUT_CYCLE
-  const handleReportTypeChange = (value: string) => {
-    const nextReportType = reportTypes.find(type => type.key === value)?.key
-    if (nextReportType) {
-      setSelectedReportType(nextReportType)
-    }
-  }
-  const approvalPayoutKpiTooltips = {
-    approvalBreached:
-      'Share of requests where Approval SLA Status is Breached. Formula: breached approval rows / evaluable approval rows. Rows with missing approval timeline are excluded.',
-    payoutBreached:
-      'Share of requests where Payout SLA Status is Breached. Payout SLA limit is dynamic per request: min(next or same Monday after approval, remaining total SLA window = total SLA - approval days).',
-    totalBreached:
-      'Share of requests where Total Cycle SLA Status is Breached. Formula: breached total-cycle rows / evaluable total-cycle rows. Total cycle compares pending-to-paid duration against total SLA limit.',
-    totalWithin:
-      'Share of requests where Total Cycle SLA Status is Within SLA. Formula: within-SLA total-cycle rows / evaluable total-cycle rows.'
-  }
-  const approvalPayoutRowsForKpi = useMemo<any[]>(() => {
-    const approvalSnapshotRows = reportSnapshotsByType[ReportType.APPROVAL_PAYOUT_CYCLE]?.rows
-    if (Array.isArray(approvalSnapshotRows) && approvalSnapshotRows.length > 0) {
-      return approvalSnapshotRows
-    }
-    if (selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE && Array.isArray(baseReportRows)) {
-      return baseReportRows
-    }
-    return []
-  }, [reportSnapshotsByType, selectedReportType, baseReportRows])
 
-  const approvalPayoutSlaKpiValues = useMemo(
-    () => computeSlaKpis(ReportType.APPROVAL_PAYOUT_CYCLE, approvalPayoutRowsForKpi),
-    [approvalPayoutRowsForKpi]
-  )
-  const approvalSlaCards = [
-    {
-      cardTestId: 'backoffice-approval-sla-breached-kpi',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:approval_sla_breached_rate', 'Approval SLA Breached'),
-      triggerTestId: 'backoffice-approval-sla-breached-tooltip-trigger',
-      triggerLabel: 'Approval SLA Breached formula',
-      tooltip: approvalPayoutKpiTooltips.approvalBreached,
-      value: approvalPayoutSlaKpiValues.approvalBreachedRate,
-      label: approvalPayoutSlaKpiValues.approvalBreachedLabel
-    },
-    {
-      cardTestId: 'backoffice-payout-sla-breached-kpi',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:payout_sla_breached_rate', 'Payout SLA Breached'),
-      triggerTestId: 'backoffice-payout-sla-breached-tooltip-trigger',
-      triggerLabel: 'Payout SLA Breached formula',
-      tooltip: approvalPayoutKpiTooltips.payoutBreached,
-      value: approvalPayoutSlaKpiValues.payoutBreachedRate,
-      label: approvalPayoutSlaKpiValues.payoutBreachedLabel
-    },
-    {
-      cardTestId: 'backoffice-total-cycle-sla-breached-kpi',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_sla_breached_rate', 'Total Cycle SLA Breached'),
-      triggerTestId: 'backoffice-total-cycle-sla-breached-tooltip-trigger',
-      triggerLabel: 'Total Cycle SLA Breached formula',
-      tooltip: approvalPayoutKpiTooltips.totalBreached,
-      value: approvalPayoutSlaKpiValues.totalBreachedRate,
-      label: approvalPayoutSlaKpiValues.totalBreachedLabel
-    },
-    {
-      cardTestId: 'backoffice-total-cycle-within-sla-kpi',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:total_cycle_within_sla_rate', 'Total Cycle Within SLA'),
-      triggerTestId: 'backoffice-total-cycle-within-sla-tooltip-trigger',
-      triggerLabel: 'Total Cycle Within SLA formula',
-      tooltip: approvalPayoutKpiTooltips.totalWithin,
-      value: approvalPayoutSlaKpiValues.withinTotalRate,
-      label: approvalPayoutSlaKpiValues.withinTotalLabel
-    }
-  ]
-  const backendSortableColumnKeys = useMemo(() => {
-    switch (selectedReportType) {
-      case ReportType.EXPENSE_ITEM:
-        return new Set(['title', 'date', 'amount', 'status'])
-      case ReportType.EXPENSE_REQUEST:
-        return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'requestDate', 'startDate', 'endDate'])
-      case ReportType.EXPENSE_PLAN:
-        return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'startDate', 'endDate'])
-      case ReportType.ADVANCE_PAYMENT:
-        return new Set(['requestDate', 'status', 'amount', 'paymentMethod'])
-      case ReportType.APPROVAL_PAYOUT_CYCLE:
-        return new Set(['title', 'code', 'status', 'totalAmount'])
-      default:
-        return new Set<string>()
-    }
-  }, [selectedReportType])
-  const renderTableCell = (columnKey: string, rowOriginal: any) => {
-    const value = rowOriginal?.[columnKey]
-    if (columnKey.includes('amount') || columnKey.includes('Amount')) {
-      return <span className="gba:text-sm">{formatCurrencyDisplay(value || 0, rowOriginal?.currency || 'EUR')}</span>
-    }
-    if (isDateKey(columnKey)) {
-      return <span className="gba:text-sm">{value ? ensureShortDateFormat(value) : '-'}</span>
-    }
-    if (columnKey === 'title') {
-      const titleValue = value || '-'
-      return (
-        <span className="gba:block gba:max-w-[280px] gba:truncate gba:text-sm" title={titleValue}>
-          {titleValue}
-        </span>
-      )
-    }
-    return (
-      <span className="gba:text-sm">{value === null || value === undefined || value === '' ? '-' : String(value)}</span>
-    )
+  const handleReportTypeChange = (value: string) => {
+    const nextType = reportTypes.find(t => t.key === value)?.key
+    if (nextType) setSelectedReportType(nextType)
   }
-  const dataTableColumns = useMemo<TanstackColumnDef<any>[]>(() => {
-    return columns.map(column => ({
-      id: column.key,
-      enableSorting: backendSortableColumnKeys.has(column.key),
-      header: column.title ?? '',
-      accessorFn: (row: any) => row?.[column.key],
-      cell: ({ row }: any) => renderTableCell(column.key, row?.original)
-    }))
-  }, [columns, backendSortableColumnKeys])
-  const alignedReportRows = useMemo<any[]>(
-    () => (Array.isArray(baseReportRows) ? baseReportRows : []),
-    [baseReportRows]
-  )
+
+  const handleDownload = async () => {
+    const cols = getExportColumns(selectedReportType)
+    if (!cols.length) return
+    const allRows = await fetchAllForExport()
+    downloadCsvReport(selectedReportType, cols, allRows as any[])
+  }
+
+  const handleDownloadExcel = async () => {
+    const cols = getExportColumns(selectedReportType)
+    if (!cols.length) return
+    const allRows = await fetchAllForExport()
+    downloadExcelReport(selectedReportType, cols, allRows as any[])
+  }
+
+  const slaKpiValues = useMemo(() => {
+    const formatRate = (count: number, total: number) => (total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0.0%')
+    if (!slaKpiCounts)
+      return {
+        approvalBreachedLabel: '0/0',
+        approvalBreachedRate: '0.0%',
+        payoutBreachedLabel: '0/0',
+        payoutBreachedRate: '0.0%',
+        totalBreachedLabel: '0/0',
+        totalBreachedRate: '0.0%',
+        withinTotalLabel: '0/0',
+        withinTotalRate: '0.0%'
+      }
+    return {
+      approvalBreachedLabel: `${slaKpiCounts.approvalBreached}/${slaKpiCounts.approvalEvaluated}`,
+      approvalBreachedRate: formatRate(slaKpiCounts.approvalBreached, slaKpiCounts.approvalEvaluated),
+      payoutBreachedLabel: `${slaKpiCounts.payoutBreached}/${slaKpiCounts.payoutEvaluated}`,
+      payoutBreachedRate: formatRate(slaKpiCounts.payoutBreached, slaKpiCounts.payoutEvaluated),
+      totalBreachedLabel: `${slaKpiCounts.totalBreached}/${slaKpiCounts.totalEvaluated}`,
+      totalBreachedRate: formatRate(slaKpiCounts.totalBreached, slaKpiCounts.totalEvaluated),
+      withinTotalLabel: `${slaKpiCounts.totalWithin}/${slaKpiCounts.totalEvaluated}`,
+      withinTotalRate: formatRate(slaKpiCounts.totalWithin, slaKpiCounts.totalEvaluated)
+    }
+  }, [slaKpiCounts])
+
+  // Transfer Required status grouping
   const transferRequiredFilterLabel = 'Transfer Required'
   const transferRequiredStatusAliases = useMemo(
     () =>
@@ -730,25 +234,26 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
       ]),
     [transferRequiredFilterLabel]
   )
+
   const normalizeStatusFilterValue = (value: unknown): string => {
-    const normalizedValue = toFilterText(value)
-    if (!normalizedValue) return ''
-    if (
-      transferRequiredStatusAliases.has(normalizedValue) ||
-      transferRequiredStatusAliases.has(normalizedValue.toUpperCase())
-    ) {
+    const normalized = toFilterText(value)
+    if (!normalized) return ''
+    if (transferRequiredStatusAliases.has(normalized) || transferRequiredStatusAliases.has(normalized.toUpperCase())) {
       return transferRequiredFilterLabel
     }
-    return normalizedValue
+    return normalized
   }
+
+  const alignedReportRows = useMemo<any[]>(
+    () => (Array.isArray(baseReportRows) ? baseReportRows : []),
+    [baseReportRows]
+  )
   const reportRowsWithGroupedStatuses = useMemo(
-    () =>
-      alignedReportRows.map(row => ({
-        ...row,
-        status: normalizeStatusFilterValue(row?.status)
-      })),
+    () => alignedReportRows.map(row => ({ ...row, status: normalizeStatusFilterValue(row?.status) })),
     [alignedReportRows, transferRequiredStatusAliases, transferRequiredFilterLabel]
   )
+
+  // Filter options
   const statusFilterOptions = useMemo(() => {
     if (selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE) {
       return [
@@ -765,30 +270,24 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
       new Set(reportRowsWithGroupedStatuses.map(row => String(row?.status || '').trim()).filter(Boolean))
     )
       .sort((a, b) => a.localeCompare(b))
-      .map(value => ({ id: value, label: value }))
-    if (selectedReportType === ReportType.ADVANCE_PAYMENT) {
-      return options
-    }
-    return options.filter(option => !restrictedStatuses.has(String(option.id)))
+      .map(v => ({ id: v, label: v }))
+    if (selectedReportType === ReportType.ADVANCE_PAYMENT) return options
+    return options.filter(o => !restrictedStatuses.has(String(o.id)))
   }, [selectedReportType, reportRowsWithGroupedStatuses, transferRequiredFilterLabel])
-  useEffect(() => {
-    if (!selectedReportType) return
-    if (fullFilterOptionsByType[selectedReportType]) return
 
+  useEffect(() => {
+    if (!selectedReportType || fullFilterOptionsByType[selectedReportType]) return
     let cancelled = false
     const loadAllRowsForFilterOptions = async () => {
       const allRows = (await fetchAllForFilterOptions()) as any[]
       if (cancelled) return
       const employees = Array.from(
-        new Set(allRows.map(row => String(row?.employeeName || '').trim()).filter(Boolean))
+        new Set(allRows.map(r => String(r?.employeeName || '').trim()).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b))
       const departments = Array.from(
-        new Set(allRows.map(row => String(row?.departmentName || '').trim()).filter(Boolean))
+        new Set(allRows.map(r => String(r?.departmentName || '').trim()).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b))
-      setFullFilterOptionsByType(previous => ({
-        ...previous,
-        [selectedReportType]: { employees, departments }
-      }))
+      setFullFilterOptionsByType(prev => ({ ...prev, [selectedReportType]: { employees, departments } }))
     }
     void loadAllRowsForFilterOptions()
     return () => {
@@ -797,30 +296,24 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
   }, [selectedReportType, fullFilterOptionsByType, fetchAllForFilterOptions])
 
   const employeeFilterOptions = useMemo(() => {
-    const fullEmployees = selectedReportType ? fullFilterOptionsByType[selectedReportType]?.employees || [] : []
-    return fullEmployees.map(value => ({ id: value, label: value }))
+    const full = selectedReportType ? fullFilterOptionsByType[selectedReportType]?.employees || [] : []
+    return full.map(v => ({ id: v, label: v }))
   }, [selectedReportType, fullFilterOptionsByType])
+
   const departmentFilterOptions = useMemo(() => {
-    const structureDepartments = getActiveStructureDepartmentNames(organizationalUnits || []).map(value => ({
-      id: value,
-      label: value
-    }))
-    if (structureDepartments.length > 0) {
-      return structureDepartments
-    }
-    const fullDepartments = selectedReportType ? fullFilterOptionsByType[selectedReportType]?.departments || [] : []
-    if (fullDepartments.length > 0) {
-      return fullDepartments.map(value => ({ id: value, label: value }))
-    }
+    const structureDepts = getActiveStructureDepartmentNames(organizationalUnits || []).map(v => ({ id: v, label: v }))
+    if (structureDepts.length > 0) return structureDepts
+    const full = selectedReportType ? fullFilterOptionsByType[selectedReportType]?.departments || [] : []
+    if (full.length > 0) return full.map(v => ({ id: v, label: v }))
     return Array.from(
-      new Set(reportRowsWithGroupedStatuses.map(row => String(row?.departmentName || '').trim()).filter(Boolean))
+      new Set(reportRowsWithGroupedStatuses.map(r => String(r?.departmentName || '').trim()).filter(Boolean))
     )
       .sort((a, b) => a.localeCompare(b))
-      .map(value => ({ id: value, label: value }))
+      .map(v => ({ id: v, label: v }))
   }, [organizationalUnits, reportRowsWithGroupedStatuses, selectedReportType, fullFilterOptionsByType])
+
   const filterConfiguration = useMemo<FilterConfiguration>(
     () => ({
-      // Include report type in config id to reset filter sheet internals on tab switch.
       id: `backoffice-expense-reports-filters-${selectedReportType || 'unknown'}`,
       name: 'Report Filters',
       groups: [
@@ -888,61 +381,47 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     }),
     [statusFilterOptions, employeeFilterOptions, departmentFilterOptions, selectedReportType]
   )
+
+  // Sanitize stale filter values when options change
   useEffect(() => {
     if (!selectedReportType) return
-
-    const allowedStatusIds = new Set(statusFilterOptions.map(option => String(option.id)))
-    const allowedEmployeeIds = new Set(employeeFilterOptions.map(option => String(option.id)))
-    const allowedDepartmentIds = new Set(departmentFilterOptions.map(option => String(option.id)))
-    const currentFilters = normalizeReportFilters(filtersByReportType[selectedReportType] ?? {})
-    const selectedStatuses = currentFilters.status
-    const selectedEmployees = currentFilters.employeeName
-    const selectedDepartments = currentFilters.departmentName
-
-    const sanitizedStatuses = selectedStatuses.filter(status => allowedStatusIds.has(status))
-    const sanitizedEmployees = selectedEmployees.filter(employee => allowedEmployeeIds.has(employee))
-    const sanitizedDepartments = selectedDepartments.filter(department => allowedDepartmentIds.has(department))
-
-    const statusesChanged = sanitizedStatuses.length !== selectedStatuses.length
-    const employeesChanged = sanitizedEmployees.length !== selectedEmployees.length
-    const departmentsChanged = sanitizedDepartments.length !== selectedDepartments.length
-    if (!statusesChanged && !employeesChanged && !departmentsChanged) return
-
-    setFiltersByReportType(previous => ({
-      ...previous,
-      [selectedReportType]: {
-        status: sanitizedStatuses,
-        employeeName: sanitizedEmployees,
-        departmentName: sanitizedDepartments
-      }
-    }))
-  }, [selectedReportType, statusFilterOptions, employeeFilterOptions, departmentFilterOptions, filtersByReportType])
-  const filteredReportRows = useMemo(() => {
-    const isBackendFilteringReport =
-      selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ||
-      selectedReportType === ReportType.EXPENSE_REQUEST ||
-      selectedReportType === ReportType.EXPENSE_PLAN ||
-      selectedReportType === ReportType.ADVANCE_PAYMENT
-    const selectedStatuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
-    const selectedEmployees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
-    const selectedDepartments = Array.isArray(selectedFilters?.departmentName) ? selectedFilters.departmentName : []
-    if (selectedStatuses.length === 0 && selectedEmployees.length === 0 && selectedDepartments.length === 0) {
-      return reportRowsWithGroupedStatuses
+    const allowedStatusIds = new Set(statusFilterOptions.map(o => String(o.id)))
+    const allowedEmployeeIds = new Set(employeeFilterOptions.map(o => String(o.id)))
+    const allowedDepartmentIds = new Set(departmentFilterOptions.map(o => String(o.id)))
+    const current = normalizeReportFilters(filtersByReportType[selectedReportType] ?? {})
+    const sanitized = {
+      status: current.status.filter(s => allowedStatusIds.has(s)),
+      employeeName: current.employeeName.filter(e => allowedEmployeeIds.has(e)),
+      departmentName: current.departmentName.filter(d => allowedDepartmentIds.has(d))
     }
-    const selectedStatusSet = isBackendFilteringReport
+    if (
+      sanitized.status.length === current.status.length &&
+      sanitized.employeeName.length === current.employeeName.length &&
+      sanitized.departmentName.length === current.departmentName.length
+    )
+      return
+    setFiltersByReportType(prev => ({ ...prev, [selectedReportType]: sanitized }))
+  }, [selectedReportType, statusFilterOptions, employeeFilterOptions, departmentFilterOptions, filtersByReportType])
+
+  // Client-side filtering for EXPENSE_ITEM (no backend filter support)
+  const filteredReportRows = useMemo(() => {
+    const isBackendFiltered = selectedReportType !== ReportType.EXPENSE_ITEM
+    const statuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
+    const employees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
+    const departments = Array.isArray(selectedFilters?.departmentName) ? selectedFilters.departmentName : []
+    if (statuses.length === 0 && employees.length === 0 && departments.length === 0)
+      return reportRowsWithGroupedStatuses
+    const statusSet = isBackendFiltered
       ? new Set<string>()
-      : new Set(selectedStatuses.map((status: string) => normalizeStatusFilterValue(status)).filter(Boolean))
-    const selectedEmployeeSet = isBackendFilteringReport ? new Set<string>() : new Set(selectedEmployees.map(String))
-    const selectedDepartmentSet = isBackendFilteringReport
-      ? new Set<string>()
-      : new Set(selectedDepartments.map(String))
-    return reportRowsWithGroupedStatuses.filter(row => {
-      const statusMatch = selectedStatusSet.size === 0 || selectedStatusSet.has(String(row?.status || ''))
-      const employeeMatch = selectedEmployeeSet.size === 0 || selectedEmployeeSet.has(String(row?.employeeName || ''))
-      const departmentMatch =
-        selectedDepartmentSet.size === 0 || selectedDepartmentSet.has(String(row?.departmentName || ''))
-      return statusMatch && employeeMatch && departmentMatch
-    })
+      : new Set(statuses.map(s => normalizeStatusFilterValue(s)).filter(Boolean))
+    const employeeSet = isBackendFiltered ? new Set<string>() : new Set(employees.map(String))
+    const departmentSet = isBackendFiltered ? new Set<string>() : new Set(departments.map(String))
+    return reportRowsWithGroupedStatuses.filter(
+      row =>
+        (statusSet.size === 0 || statusSet.has(String(row?.status || ''))) &&
+        (employeeSet.size === 0 || employeeSet.has(String(row?.employeeName || ''))) &&
+        (departmentSet.size === 0 || departmentSet.has(String(row?.departmentName || '')))
+    )
   }, [
     selectedReportType,
     reportRowsWithGroupedStatuses,
@@ -950,81 +429,101 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     transferRequiredStatusAliases,
     transferRequiredFilterLabel
   ])
+
   const hasClientSideFilters = useMemo(() => {
-    const isBackendFilteringReport =
-      selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ||
-      selectedReportType === ReportType.EXPENSE_REQUEST ||
-      selectedReportType === ReportType.EXPENSE_PLAN ||
-      selectedReportType === ReportType.ADVANCE_PAYMENT
-    const selectedStatuses = Array.isArray(selectedFilters?.status) ? selectedFilters.status : []
-    const selectedEmployees = Array.isArray(selectedFilters?.employeeName) ? selectedFilters.employeeName : []
-    const selectedDepartments = Array.isArray(selectedFilters?.departmentName) ? selectedFilters.departmentName : []
+    const isBackendFiltered = selectedReportType !== ReportType.EXPENSE_ITEM
     return (
-      !isBackendFilteringReport &&
-      (selectedEmployees.length > 0 || selectedStatuses.length > 0 || selectedDepartments.length > 0)
+      !isBackendFiltered &&
+      (selectedFilters.employeeName.length > 0 ||
+        selectedFilters.status.length > 0 ||
+        selectedFilters.departmentName.length > 0)
     )
   }, [selectedFilters, selectedReportType])
+
+  // Table columns
+  const renderTableCell = (columnKey: string, rowOriginal: any) => {
+    const value = rowOriginal?.[columnKey]
+    if (columnKey.includes('amount') || columnKey.includes('Amount')) {
+      return <span className="gba:text-sm">{formatCurrencyDisplay(value || 0, rowOriginal?.currency || 'EUR')}</span>
+    }
+    if (isDateKey(columnKey)) {
+      return <span className="gba:text-sm">{value ? ensureShortDateFormat(value) : '-'}</span>
+    }
+    if (columnKey === 'title') {
+      const titleValue = value || '-'
+      return (
+        <span className="gba:block gba:max-w-[280px] gba:truncate gba:text-sm" title={titleValue}>
+          {titleValue}
+        </span>
+      )
+    }
+    return (
+      <span className="gba:text-sm">{value === null || value === undefined || value === '' ? '-' : String(value)}</span>
+    )
+  }
+
+  const dataTableColumns = useMemo<TanstackColumnDef<any>[]>(
+    () =>
+      columns.map(col => ({
+        id: col.key,
+        enableSorting: backendSortableColumnKeys.has(col.key),
+        header: col.title ?? '',
+        accessorFn: (row: any) => row?.[col.key],
+        cell: ({ row }: any) => renderTableCell(col.key, row?.original)
+      })),
+    [columns, backendSortableColumnKeys]
+  )
+
   const sortableColumns = useMemo(
     () =>
       columns
-        .filter(column => backendSortableColumnKeys.has(column.key))
-        .map(column => ({
-          id: column.key,
-          label: typeof column.title === 'string' ? column.title : column.key
-        })),
+        .filter(c => backendSortableColumnKeys.has(c.key))
+        .map(c => ({ id: c.key, label: typeof c.title === 'string' ? c.title : c.key })),
     [columns, backendSortableColumnKeys]
   )
+
+  // Search
   const [localSearchText, setLocalSearchText] = useState(searchTerm)
   const debouncedLocalSearch = useDebounce(localSearchText, 300)
-
   useEffect(() => {
     setSearchTerm(debouncedLocalSearch)
     setCurrentPage(1)
   }, [debouncedLocalSearch, setSearchTerm, setCurrentPage])
-
   const handleSearchChange = useCallback((value: string) => {
     setLocalSearchText(value)
   }, [])
+
+  // Filter handlers
   const handleFilterChange = (filters: Record<string, any>) => {
     if (!selectedReportType) return
     const nextFilters = normalizeReportFilters(filters)
     const currentFilters = normalizeReportFilters(filtersByReportType[selectedReportType] ?? {})
-    const didHandleInitialSync = didHandleInitialFilterSyncRef.current[selectedReportType] === true
-    if (!didHandleInitialSync) {
+    const didSync = didHandleInitialFilterSyncRef.current[selectedReportType] === true
+    if (!didSync) {
       didHandleInitialFilterSyncRef.current[selectedReportType] = true
-      if (!hasAnyReportFilters(currentFilters) && hasAnyReportFilters(nextFilters)) {
-        // DataDisplay can emit an initial non-empty hydration event.
-        // Ignore that first automatic event and only persist explicit user changes.
-        return
-      }
+      if (!hasAnyReportFilters(currentFilters) && hasAnyReportFilters(nextFilters)) return
     }
     if (areReportFiltersEqual(currentFilters, nextFilters)) return
-    setFiltersByReportType(previous => ({
-      ...previous,
-      [selectedReportType]: nextFilters
-    }))
+    setFiltersByReportType(prev => ({ ...prev, [selectedReportType]: nextFilters }))
     setCurrentPage(1)
   }
+
   const handleSortingChange: OnChangeFn<SortingState> = updater => {
-    setSorting(previous => (typeof updater === 'function' ? updater(previous) : updater))
+    setSorting(prev => (typeof updater === 'function' ? updater(prev) : updater))
     setCurrentPage(1)
   }
+
   const handleResetFilters = () => {
     if (!selectedReportType) return
     didHandleInitialFilterSyncRef.current[selectedReportType] = true
-    setFiltersByReportType(previous => ({
-      ...previous,
-      [selectedReportType]: { ...EMPTY_REPORT_FILTERS }
-    }))
+    setFiltersByReportType(prev => ({ ...prev, [selectedReportType]: { ...EMPTY_REPORT_FILTERS } }))
     setLocalSearchText('')
     setSearchTerm('')
     setCurrentPage(1)
   }
+
   const tablePagination = useMemo(
-    () => ({
-      pageIndex: Math.max(currentPage - 1, 0),
-      pageSize
-    }),
+    () => ({ pageIndex: Math.max(currentPage - 1, 0), pageSize }),
     [currentPage, pageSize]
   )
   const handleTablePaginationChange = (pagination: { pageIndex: number; pageSize: number }) => {
@@ -1035,11 +534,9 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
     setPageSize(pagination.pageSize)
     setCurrentPage(1)
   }
+
   const dataDisplayStateKey = useMemo(() => {
-    const statusKey = selectedFilters.status.join('|')
-    const employeeKey = selectedFilters.employeeName.join('|')
-    const departmentKey = selectedFilters.departmentName.join('|')
-    return `${selectedReportType || 'unknown'}::${statusKey}::${employeeKey}::${departmentKey}::${searchTerm || ''}`
+    return `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${searchTerm || ''}`
   }, [selectedFilters, selectedReportType, searchTerm])
 
   return (
@@ -1069,36 +566,7 @@ const BackofficeExpenseReportsPage: React.FC<BackofficeExpenseReportsPageProps> 
               </Alert>
             )}
 
-            <div className="gba:mb-4 gba:min-h-[140px]" data-testid="backoffice-expense-reports-kpi-row">
-              <TooltipProvider>
-                <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:md:grid-cols-2 gba:xl:grid-cols-4">
-                  {approvalSlaCards.map(card => (
-                    <Card key={card.cardTestId} className="gba:min-h-[124px]" data-testid={card.cardTestId}>
-                      <CardContent className="gba:p-4">
-                        <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                          {card.title}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                className="gba:inline-flex gba:items-center gba:text-muted-foreground"
-                                aria-label={card.triggerLabel}
-                                data-testid={card.triggerTestId}
-                              >
-                                <PiInfo />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="gba:max-w-[320px]">{card.tooltip}</TooltipContent>
-                          </Tooltip>
-                        </p>
-                        <p className="gba:text-xl gba:font-semibold">{card.value}</p>
-                        <p className="gba:text-xs gba:text-muted-foreground">{card.label}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TooltipProvider>
-            </div>
+            <ReportSlaKpiCards kpiValues={slaKpiValues} />
 
             <div>
               <Tabs

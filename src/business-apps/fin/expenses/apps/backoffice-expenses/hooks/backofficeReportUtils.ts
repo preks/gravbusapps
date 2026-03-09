@@ -34,7 +34,7 @@ const toPrimitiveString = (value: unknown): string => {
   return ''
 }
 
-export const parseDateOrNull = (value: unknown): Date | null => {
+const parseDateOrNull = (value: unknown): Date | null => {
   if (!value) return null
   const parsed = new Date(toPrimitiveString(value))
   return Number.isNaN(parsed.getTime()) ? null : parsed
@@ -44,7 +44,7 @@ export const isPaidLikeStatus = (value: unknown): boolean =>
   ['PAID', 'CLOSED'].includes(toPrimitiveString(value).toUpperCase())
 
 export const toUpperText = (value: unknown): string => toPrimitiveString(value).toUpperCase()
-export const toUpperSafeText = (value: unknown): string => {
+const toUpperSafeText = (value: unknown): string => {
   if (value === null || value === undefined) return ''
   if (typeof value === 'string') return value.toUpperCase()
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
@@ -112,7 +112,7 @@ const getObjectPathValue = (source: Record<string, any>, path: string): unknown 
   return path.split('.').reduce((acc: any, key) => (acc && typeof acc === 'object' ? acc[key] : undefined), source)
 }
 
-export const parsePositiveNumber = (value: unknown): number | null => {
+const parsePositiveNumber = (value: unknown): number | null => {
   if (value === null || value === undefined) return null
   if (typeof value === 'object') return null
   const normalized = Number(toPrimitiveString(value).replace(',', '.'))
@@ -187,4 +187,112 @@ export const evaluatePayoutSlaAgainstRunDay = (
   const elapsedDays = Number(((evaluationDate.getTime() - approvedDate.getTime()) / (1000 * 60 * 60 * 24)).toFixed(2))
   const status = elapsedDays <= limitDays ? 'Within SLA' : 'Breached'
   return { limitDays, status }
+}
+
+export interface SlaKpiCounts {
+  approvalBreached: number
+  approvalEvaluated: number
+  payoutBreached: number
+  payoutEvaluated: number
+  totalBreached: number
+  totalEvaluated: number
+  totalWithin: number
+}
+
+type CommentRow = { expenseRequestId: string; commentDate: string; comment: string }
+type PaymentRow = { transactionDate?: string; decisionDate?: string; createdAt?: string; requestId: string }
+
+export const computeSlaKpiFromFlat = (
+  comments: CommentRow[],
+  payments: PaymentRow[],
+  slaPolicy: ExpensesSlaPolicy
+): SlaKpiCounts => {
+  const byRequest = new Map<string, { pendingDates: string[]; approvedDates: string[]; paidDates: string[] }>()
+
+  const ensure = (id: string) => {
+    if (!byRequest.has(id)) byRequest.set(id, { pendingDates: [], approvedDates: [], paidDates: [] })
+    return byRequest.get(id)!
+  }
+
+  for (const c of comments) {
+    const upper = (c.comment || '').toUpperCase()
+    const entry = ensure(c.expenseRequestId)
+    if (upper.includes('TO: PENDING') || upper.includes('TO PENDING')) {
+      if (
+        upper.includes('FROM: CREATED') ||
+        upper.includes('FROM CREATED') ||
+        upper.includes('FROM: DRAFT') ||
+        upper.includes('FROM DRAFT')
+      ) {
+        entry.pendingDates.push(c.commentDate)
+      }
+    }
+    if (
+      upper.includes('TO: APPROVED') ||
+      upper.includes('TO APPROVED') ||
+      upper.includes('TO: APPROVAL') ||
+      upper.includes('TO APPROVAL')
+    ) {
+      if (upper.includes('FROM: PENDING') || upper.includes('FROM PENDING')) {
+        entry.approvedDates.push(c.commentDate)
+      }
+    }
+    if (
+      upper.includes('TO: PAID') ||
+      upper.includes('TO PAID') ||
+      upper.includes('TO: CLOSED') ||
+      upper.includes('TO CLOSED')
+    ) {
+      entry.paidDates.push(c.commentDate)
+    }
+  }
+
+  for (const p of payments) {
+    const date = p.transactionDate || p.decisionDate || p.createdAt
+    if (date) ensure(p.requestId).paidDates.push(date)
+  }
+
+  const counts: SlaKpiCounts = {
+    approvalBreached: 0,
+    approvalEvaluated: 0,
+    payoutBreached: 0,
+    payoutEvaluated: 0,
+    totalBreached: 0,
+    totalEvaluated: 0,
+    totalWithin: 0
+  }
+
+  for (const entry of byRequest.values()) {
+    const pendingAt = pickEarliest(entry.pendingDates)
+    const approvedAt = pickEarliest(entry.approvedDates)
+    const paidAt = pickEarliest(entry.paidDates) || ''
+
+    const approvalDays = daysDiff(pendingAt, approvedAt)
+    const payoutEval = evaluatePayoutSlaAgainstRunDay(
+      approvedAt,
+      paidAt,
+      slaPolicy.payoutRunWeekday,
+      approvalDays,
+      slaPolicy.totalCycleSlaBusinessDays
+    )
+    const totalCycleDays = daysDiff(pendingAt, paidAt)
+    const approvalStatus = buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays)
+    const totalCycleStatus = buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays)
+
+    if (approvalStatus !== '-') {
+      counts.approvalEvaluated++
+      if (approvalStatus === 'Breached') counts.approvalBreached++
+    }
+    if (payoutEval.status !== '-') {
+      counts.payoutEvaluated++
+      if (payoutEval.status === 'Breached') counts.payoutBreached++
+    }
+    if (totalCycleStatus !== '-') {
+      counts.totalEvaluated++
+      if (totalCycleStatus === 'Breached') counts.totalBreached++
+      if (totalCycleStatus === 'Within SLA') counts.totalWithin++
+    }
+  }
+
+  return counts
 }

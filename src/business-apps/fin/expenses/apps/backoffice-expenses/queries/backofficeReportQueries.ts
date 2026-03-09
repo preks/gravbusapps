@@ -1,7 +1,54 @@
 /**
  * Backoffice report queries - global data (no supervisor/manager filter).
- * Used by BackofficeExpenseReportsPage for all 4 report types.
+ * Used by BackofficeExpenseReportsPage for all 5 report types.
  */
+
+export const GET_EMPLOYEE_POSITIONS_BY_IDENTIFIERS = `
+  query GetEmployeePositionsByIdentifiers($where: EmployeePositionBoolExp!) {
+    EmployeePosition(where: $where) {
+      id
+      userId
+      employeeId
+      firstName
+      lastName
+      organizationalUnit {
+        id
+        name
+      }
+    }
+  }
+`
+
+export const GET_EMPLOYEES_BY_IDS = `
+  query GetEmployeesByIds($ids: [uuid!]) {
+    Employee(where: { id: { _in: $ids }, isDeleted: { _eq: false } }) {
+      id
+      fullName
+      firstName
+      lastName
+      displayName
+    }
+  }
+`
+
+export const GET_EXPENSES_SLA_POLICY = `
+  query GetExpensesSlaPolicy($searchTerm: String!) {
+    ContentEntry(
+      limit: 1
+      orderBy: [{ updatedAt: DESC }]
+      where: {
+        isDeleted: { _eq: false }
+        _or: [{ content: { _ilike: $searchTerm } }, { title: { _ilike: $searchTerm } }]
+      }
+    ) {
+      id
+      additionalProperties
+      content
+      updatedAt
+      createdAt
+    }
+  }
+`
 
 export const GET_EXPENSE_ITEMS_BACKOFFICE = `
   query GetExpenseItemsBackoffice(
@@ -130,6 +177,50 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE = `
       expensePlan {
         code title employeeId
         requestType { value translations { value localeCode } }
+      }
+    }
+  }
+`
+
+export const GET_SLA_KPI_COMMENTS = `
+  query GetSlaKpiComments {
+    ExpenseRequestComment(
+      where: {
+        isDeleted: { _eq: false },
+        commentType: { _eq: "SYSTEM_COMMENT" },
+        expenseRequest: { isDeleted: { _eq: false }, status: { _nin: ["CREATED", "DISCARDED"] } },
+        _or: [
+          { comment: { _ilike: "%to: PENDING%" } },
+          { comment: { _ilike: "%to: APPROVED%" } },
+          { comment: { _ilike: "%to: APPROVAL%" } },
+          { comment: { _ilike: "%to: PAID%" } },
+          { comment: { _ilike: "%to: CLOSED%" } }
+        ]
+      },
+      orderBy: [{ commentDate: ASC }]
+    ) {
+      expenseRequestId
+      commentDate
+      comment
+    }
+  }
+`
+
+export const GET_SLA_KPI_PAYMENTS = `
+  query GetSlaKpiPayments {
+    AdvancePayment(
+      where: {
+        isDeleted: { _eq: false },
+        status: { _in: ["PAID", "CLOSED"] },
+        expensePlan: { expenseRequest: { isDeleted: { _eq: false }, status: { _nin: ["CREATED", "DISCARDED"] } } }
+      }
+    ) {
+      status
+      transactionDate
+      decisionDate
+      createdAt
+      expensePlan {
+        expenseRequest(where: { isDeleted: { _eq: false } }) { id }
       }
     }
   }

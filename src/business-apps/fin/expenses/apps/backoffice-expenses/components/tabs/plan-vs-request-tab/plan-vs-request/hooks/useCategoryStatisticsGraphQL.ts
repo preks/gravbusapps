@@ -174,7 +174,7 @@ export const useCategoryStatisticsGraphQL = ({
               _and: [
                 { isDeleted: { _eq: false } },
                 { expenseItem: {
-                  status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID", "CLOSED"] },
+                  status: { _in: ["PAID", "CLOSED"] },
                   currencyRef: { _eq: $currency },
                   ${departmentCondition}
                   isDeleted: { _eq: false },
@@ -194,7 +194,7 @@ export const useCategoryStatisticsGraphQL = ({
               _and: [
                 { isDeleted: { _eq: false } },
                 { expenseItem: {
-                  status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID", "CLOSED"] },
+                  status: { _in: ["PAID", "CLOSED"] },
                   currencyRef: { _eq: $currency },
                   ${departmentCondition}
                   isDeleted: { _eq: false },

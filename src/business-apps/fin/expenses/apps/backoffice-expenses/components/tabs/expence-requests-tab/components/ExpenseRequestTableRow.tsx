@@ -2,6 +2,7 @@ import React from 'react'
 import { TableCell, TableRow, Checkbox, Badge } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../../../../utils/currencyUtils'
+import { extractCurrencyCode } from '../../../../utils/sharedUtils'
 import { getExpenseRequestStatusDisplay } from '../../../../utils/utils'
 import { ExpenseData } from '../../../../types'
 import ExpenseRequestTableActions from './ExpenseRequestTableActions'
@@ -29,8 +30,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
   onSelectRecord,
   transferInProgress = false
 }) => {
-  // Extract ISO currency code from record.currency.code (handles "Currency:v1:EUR" format)
-  const currencyCode = record.currency?.code?.split(':').pop() || 'EUR'
+  const currencyCode = extractCurrencyCode(record.currency?.code)
   const renderEllipsisCell = (config: {
     cellClassName?: string
     value: string | undefined

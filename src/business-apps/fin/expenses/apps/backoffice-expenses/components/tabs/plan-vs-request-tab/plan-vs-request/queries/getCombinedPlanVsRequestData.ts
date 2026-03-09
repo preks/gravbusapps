@@ -106,7 +106,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
       requestTotal: ExpenseItemAggregate(
         where: {
           _and: [
-            { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+            { status: { _in: ["PAID", "CLOSED"] } },
             { currencyRef: { _eq: $currency } },
             ${departmentCondition}
             { isDeleted: { _eq: false } },
@@ -123,7 +123,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
           _and: [
             { isDeleted: { _eq: false } },
             { expenseItem: {
-              status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+              status: { _in: ["PAID", "CLOSED"] },
               currencyRef: { _eq: $currency },
               ${nestedDepartmentCondition}
               isDeleted: { _eq: false },
@@ -144,7 +144,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
           _and: [
             { isDeleted: { _eq: false } },
             { expenseItem: {
-              status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+              status: { _in: ["PAID", "CLOSED"] },
               currencyRef: { _eq: $currency },
               ${nestedDepartmentCondition}
               isDeleted: { _eq: false },

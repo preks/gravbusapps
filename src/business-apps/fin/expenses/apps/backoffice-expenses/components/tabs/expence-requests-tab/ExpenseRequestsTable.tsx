@@ -7,9 +7,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseRequests } from '../../../hooks/useExpenseRequests'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EXPENSE_REQUESTS } from '../../../queries'
-import { ExpenseRequestQueryData, ExpenseData } from '../../../types'
+import { ExpenseData } from '../../../types'
 import {
   Table,
   TableHeader,
@@ -21,44 +19,37 @@ import {
   Spinner,
   Button,
   Checkbox,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Input,
   Separator,
   Badge,
   Card,
   CardContent,
-  toast,
   Sheet,
   SheetContent
 } from '@newwork/nw-design-system'
 import { ArrowUpIcon, ArrowDownIcon, DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
-import { formatDateLocalized } from '../../../utils/dateUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../../../utils/currencyUtils'
 import { DatePicker, Tooltip } from 'antd'
 import { InfoIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../../hooks/useFilterData'
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils/utils'
+import { buildStatusDisplayName } from '../../../utils/sharedUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { downloadCsv, downloadExcel, buildFilename } from '../../../utils/exportUtils'
+import CurrencySelectFilter from '../common/CurrencySelectFilter'
+import DepartmentSelectFilter from '../common/DepartmentSelectFilter'
+import { useExpenseRequestExport } from './expenseRequestExport'
+import { useExpenseRequestQueryBuilder } from './expenseRequestQueryBuilder'
 import {
-  buildExpenseRequestSearchOrConditions,
-  buildSearchCondition as buildSearchConditionUtil,
-  buildNumericRangeCondition,
-  filterOptionsByName
-} from '../../../hooks/queryFilterUtils'
-import {
-  buildDateRangeCondition as buildDateRangeConditionShared,
-  buildRequestEffectiveDateFilter,
-  buildRequestTypeFilter
-} from '../../../hooks/backofficeSharedOverview'
+  getStartDateLabel,
+  getEndDateLabel,
+  getCurrencyLabel,
+  getDepartmentLabel,
+  getEffectiveDateLabel,
+  getRequestDateLabel
+} from './expenseRequestFilterLabels'
 import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
@@ -253,7 +244,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   // Selected filter chips to display above the table (DataContainer)
   const [departmentId, setDepartmentId] = useState<string>('')
-  const [departmentSearch, setDepartmentSearch] = useState<string>('')
   const [currencyRef, setCurrencyRef] = useState<string>('')
   // Date range filters - matching manager/personal expenses pattern
   const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null)
@@ -276,16 +266,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     () => getActiveStructureDepartmentOptions(organizationalUnits || []),
     [organizationalUnits]
   )
-
-  const filteredDepartmentOptions = useMemo(
-    () => filterOptionsByName(departmentOptions, departmentSearch),
-    [departmentOptions, departmentSearch]
-  )
-
-  const selectedDepartmentName = useMemo(() => {
-    const found = departmentOptions.find(ou => ou.id === departmentId)
-    return found?.name || ''
-  }, [departmentOptions, departmentId])
 
   const selectedFilters: string[] = useMemo(() => {
     return [
@@ -448,21 +428,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   }, [selectedRecords])
 
   // Helper function to format status display name with brackets (matching personal expenses pattern)
-  const getStatusDisplayName = useCallback((status: string): string => {
-    const statusConfig = getExpenseRequestStatusDisplay(status)
-    // Only show backend status in parentheses if the label is different from the status
-    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
-      return statusConfig.label
-    } else {
-      // Format backend status with only first letter uppercase and translate it
-      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-      const translatedStatus = getTranslationFromI18nKeyAndLabel(
-        `lowcoder:expense_statuses.${status.toLowerCase()}`,
-        formattedStatus
-      )
-      return `${statusConfig.label} (${translatedStatus})`
-    }
-  }, [])
+  const getStatusDisplayName = useCallback(
+    (status: string): string => buildStatusDisplayName(status, getExpenseRequestStatusDisplay),
+    []
+  )
 
   // Helper: Build unique status filters (reduces cognitive complexity)
   const buildStatusFilters = useCallback(() => {
@@ -577,38 +546,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency', 'Currency'),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-full">
-            <Select
-              onValueChange={val => {
-                setCurrencyRef(val || '')
-                handleCurrencyFilter(val || '')
-              }}
-              value={currencyRef || ''}
-            >
-              <SelectTrigger data-testid="expense-requests-currency-select" className="gba:border-border">
-                <SelectValue
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:manager_expense_landing_page.all_currencies',
-                    'All Currencies'
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {(currencies || []).map(c => (
-                  <SelectItem
-                    key={c.currencyRef}
-                    value={c.currencyRef}
-                    data-testid={`expense-requests-currency-option-${c.code}`}
-                  >
-                    {c.code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <CurrencySelectFilter
+            currencyRef={currencyRef}
+            onCurrencyChange={val => {
+              setCurrencyRef(val)
+              handleCurrencyFilter(val)
+            }}
+            currencies={currencies}
+            testIdPrefix="expense-requests"
+          />
         )
       },
-      // Department
       {
         id: 'department',
         title: getTranslationFromI18nKeyAndLabel(
@@ -617,56 +565,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         ),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-full">
-            <Select
-              value={departmentId || 'all'}
-              onValueChange={value => {
-                const nextDepartmentId = value === 'all' ? '' : value
-                setDepartmentId(nextDepartmentId)
-                handleDepartmentFilter(nextDepartmentId)
-                setDepartmentSearch('')
-              }}
-              data-testid="expense-requests-department-select"
-            >
-              <SelectTrigger className="gba:border-border">
-                <SelectValue
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:backoffice_expense_landing_page.department_placeholder',
-                    'Select department'
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <div className="gba:p-2">
-                  <Input
-                    value={departmentSearch}
-                    onChange={event => setDepartmentSearch(event.target.value)}
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.search_departments',
-                      'Search departments...'
-                    )}
-                    className="gba:w-full gba:h-8 gba:rounded gba:border gba:border-input gba:px-2 gba:text-sm"
-                    data-testid="expense-requests-department-search-input"
-                  />
-                </div>
-                <SelectItem value="all" data-testid="expense-requests-department-option-all">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_request_filter.all_departments',
-                    'All Departments'
-                  )}
-                </SelectItem>
-                {filteredDepartmentOptions.map(option => (
-                  <SelectItem
-                    key={option.id}
-                    value={option.id}
-                    data-testid={`expense-requests-department-option-${option.id}`}
-                  >
-                    {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <DepartmentSelectFilter
+            departmentId={departmentId}
+            onDepartmentChange={val => {
+              setDepartmentId(val)
+              handleDepartmentFilter(val)
+            }}
+            departmentOptions={departmentOptions}
+            testIdPrefix="expense-requests"
+          />
         )
       },
       // Effective Date Range
@@ -1251,122 +1158,25 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     handleEnhancedTableChange
   ])
 
-  // Export functionality
-  const [isExporting, setIsExporting] = useState(false)
+  const { buildQueryConditions } = useExpenseRequestQueryBuilder({
+    statusFilter,
+    employeeFilter,
+    amountMinFilter,
+    amountMaxFilter,
+    departmentId,
+    currencyRef,
+    startFrom,
+    startTo,
+    endFrom,
+    endTo,
+    effectiveDateRange,
+    requestDateRange,
+    requestTypeFilterLocal,
+    searchText: debouncedSearchText
+  })
 
-  // Initialize GraphQL client
-  const graphqlClient = useGraphqlClient(accessToken)
-
-  // Helper function to transform expense request data (aligned with useExpenseRequests hook)
-  const transformExpenseRequest = useCallback((item: any): ExpenseData => {
-    return {
-      id: item.id,
-      expenseId: String(item.id ?? '-'),
-      code: item.code ?? '-',
-      sapNumber: item.employee?.hrReferenceCode ?? '-',
-      employee: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
-      employeeCode: item.employee?.code ?? '-',
-      title: item.title ?? '-',
-      department: item.employee?.employeePosition?.costCenter?.name ?? '-',
-      startDate: formatDateLocalized(item.startDate),
-      endDate: formatDateLocalized(item.endDate),
-      requestDate: formatDateLocalized(item.requestDate),
-      reporter: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
-      type: item.requestType?.value ?? '-',
-      amount: String(item.totalAmount ?? 0),
-      advance: item.advancePaymentPaidAmount ?? 0,
-      payableAmount: String(item.payableAmount ?? 0),
-      paymentMethod: item.paymentMethod ?? '-',
-      employeeId: item.employee?.id ?? '-',
-      version: String(item.version ?? ''),
-      currencyRef: item.currencyRef ?? '',
-      typeRef: item.typeRef ?? '',
-      requestTypeRef: item.requestTypeRef ?? '',
-      totalRemainingAmount: item.totalRemainingAmount ?? 0,
-      userId: item.userId ?? '-',
-      expenseRuleId: item.expenseRuleId ?? '-',
-      totalAmount: item.totalAmount ?? 0,
-      reimbursableAmount: item.reimbursableAmount,
-      currency: { code: item.currency?.code ?? '' },
-      status: item.status ?? '',
-      creationDate: formatDateLocalized(item.createdAt),
-      employeeDocumentId: item.employeeDocumentId ?? '-',
-      documentData: item.documentData
-    }
-  }, [])
-
-  // Helper to build query conditions (reduces cognitive complexity)
-  // Helper to format start date range label (avoids nested ternary)
-  const getStartDateLabel = useCallback((): string => {
-    if (!startFrom && !startTo) {
-      return 'Start: All'
-    }
-    const fromLabel = startFrom ? formatDateLocalized(startFrom) : '-'
-    const toLabel = startTo ? formatDateLocalized(startTo) : '-'
-    return `Start: ${fromLabel} → ${toLabel}`
-  }, [startFrom, startTo])
-
-  // Helper to format end date range label (avoids nested ternary)
-  const getEndDateLabel = useCallback((): string => {
-    if (!endFrom && !endTo) {
-      return 'End: All'
-    }
-    const fromLabel = endFrom ? formatDateLocalized(endFrom) : '-'
-    const toLabel = endTo ? formatDateLocalized(endTo) : '-'
-    return `End: ${fromLabel} → ${toLabel}`
-  }, [endFrom, endTo])
-
-  // Helper to format currency label (avoids nested ternary with optional chaining)
-  const getCurrencyLabel = useCallback((): string => {
-    if (!currencyRef) {
-      return 'Currency: All'
-    }
-    const currency = currencies?.find(c => c.currencyRef === currencyRef)
-    const currencyCode = currency?.code || currencyRef.split(':').pop() || currencyRef
-    return `Currency: ${currencyCode}`
-  }, [currencyRef, currencies])
-
-  // Helper to format effective date range label
-  const getEffectiveDateLabel = useCallback((): string => {
-    if (!effectiveDateRange || (!effectiveDateRange[0] && !effectiveDateRange[1])) {
-      return 'Effective Date: All'
-    }
-    const fromLabel = effectiveDateRange[0] ? formatDateLocalized(effectiveDateRange[0]) : '-'
-    const toLabel = effectiveDateRange[1] ? formatDateLocalized(effectiveDateRange[1]) : '-'
-    return `Effective Date: ${fromLabel} → ${toLabel}`
-  }, [effectiveDateRange])
-
-  // Helper to format creation date range label
-  const getRequestDateLabel = useCallback((): string => {
-    if (!requestDateRange || (!requestDateRange[0] && !requestDateRange[1])) {
-      return 'Creation Date: All'
-    }
-    const fromLabel = requestDateRange[0] ? formatDateLocalized(requestDateRange[0]) : '-'
-    const toLabel = requestDateRange[1] ? formatDateLocalized(requestDateRange[1]) : '-'
-    return `Creation Date: ${fromLabel} → ${toLabel}`
-  }, [requestDateRange])
-
-  // Helper to get CSV export button title (reduces nested ternary complexity)
-  const getExportCsvTitle = useCallback((): string => {
-    if (isExporting) {
-      return 'Exporting all pages...'
-    }
-    if (totalItems === 0) {
-      return 'No expenses to export'
-    }
-    return `Export all ${totalItems} expense requests to CSV`
-  }, [isExporting, totalItems])
-
-  // Helper to get Excel export button title (avoids nested ternary)
-  const getExportExcelTitle = useCallback((): string => {
-    if (isExporting) {
-      return 'Exporting all pages...'
-    }
-    if (totalItems === 0) {
-      return 'No expenses to export'
-    }
-    return `Export all ${totalItems} expense requests to Excel`
-  }, [isExporting, totalItems])
+  const { isExporting, handleExportCsv, handleExportExcel, getExportCsvTitle, getExportExcelTitle } =
+    useExpenseRequestExport({ accessToken, totalItems, buildQueryConditions })
 
   // Memoize actions array to ensure it updates when selectedBookableCount changes
   const dataControllerActions = useMemo(() => {
@@ -1449,271 +1259,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     setEmployeeSearchText('')
     handleEmployeeFilter('')
   }, [handleEmployeeFilter])
-
-  const buildAmountCondition = useCallback((): any => {
-    const result = buildNumericRangeCondition(amountMinFilter, amountMaxFilter, range => ({
-      reimbursableAmount: range
-    }))
-    return result.length > 0 ? result[0] : null
-  }, [amountMinFilter, amountMaxFilter])
-
-  const formatDatePickerRange = (range: any[] | null): { from?: string; to?: string } | null => {
-    if (!range?.[0] && !range?.[1]) return null
-    return {
-      from: range?.[0] ? dayjs(range[0]).format('YYYY-MM-DD') : undefined,
-      to: range?.[1] ? dayjs(range[1]).format('YYYY-MM-DD') : undefined
-    }
-  }
-
-  const pushIfPresent = (conditions: any[], value: any) => {
-    if (value) conditions.push(value)
-  }
-
-  const buildAllFilterConditions = useCallback((): any[] => {
-    const conditions: any[] = []
-
-    conditions.push(
-      statusFilter?.length > 0 ? { status: { _in: statusFilter } } : { status: { _nin: ['DISCARDED', 'CREATED'] } }
-    )
-
-    if (employeeFilter) conditions.push({ employee: { id: { _eq: employeeFilter } } })
-    pushIfPresent(conditions, buildAmountCondition())
-    if (departmentId)
-      conditions.push({ employee: { employeePosition: { organizationalUnitId: { _eq: departmentId } } } })
-    if (currencyRef) conditions.push({ currencyRef: { _eq: currencyRef } })
-
-    const startCond = buildDateRangeConditionShared(startFrom, startTo)
-    if (startCond) conditions.push({ startDate: startCond })
-    const endCond = buildDateRangeConditionShared(endFrom, endTo)
-    if (endCond) conditions.push({ endDate: endCond })
-
-    const effRange = formatDatePickerRange(effectiveDateRange)
-    if (effRange) pushIfPresent(conditions, buildRequestEffectiveDateFilter(effRange))
-
-    const reqRange = formatDatePickerRange(requestDateRange)
-    if (reqRange) {
-      const reqCond = buildDateRangeConditionShared(reqRange.from, reqRange.to)
-      if (reqCond) conditions.push({ requestDate: reqCond })
-    }
-
-    pushIfPresent(conditions, buildRequestTypeFilter(requestTypeFilterLocal))
-    conditions.push(...buildSearchConditionUtil(searchText ?? '', buildExpenseRequestSearchOrConditions))
-
-    return conditions
-  }, [
-    statusFilter,
-    employeeFilter,
-    buildAmountCondition,
-    departmentId,
-    currencyRef,
-    startFrom,
-    startTo,
-    endFrom,
-    endTo,
-    effectiveDateRange,
-    requestDateRange,
-    requestTypeFilterLocal,
-    searchText
-  ])
-
-  const buildQueryConditions = useCallback(() => {
-    const conditions: any[] = [{ isDeleted: { _eq: false } }, ...buildAllFilterConditions()]
-    return conditions.length === 1 ? conditions[0] : { _and: conditions }
-  }, [buildAllFilterConditions])
-
-  // Fetch all expense requests for export (bypassing pagination)
-  const fetchAllExpenseRequestsForExport = useCallback(async (): Promise<ExpenseData[]> => {
-    const batchLimit = 1000
-    const allExpenses: ExpenseData[] = []
-    let offset = 0
-
-    try {
-      while (true) {
-        const baseWhere = buildQueryConditions()
-
-        const variables = {
-          where: baseWhere,
-          limit: batchLimit,
-          offset,
-          orderBy: [{ createdAt: 'DESC' }]
-        }
-
-        const response = await graphqlClient.request(GET_EXPENSE_REQUESTS, variables)
-        const responseData = response as ExpenseRequestQueryData
-
-        if (!responseData?.ExpenseRequest || responseData.ExpenseRequest.length === 0) {
-          break
-        }
-
-        const transformedData = responseData.ExpenseRequest.map(transformExpenseRequest)
-        allExpenses.push(...transformedData)
-
-        // If we got fewer results than the batch limit, we've reached the end
-        if (responseData.ExpenseRequest.length < batchLimit) {
-          break
-        }
-
-        offset += batchLimit
-      }
-
-      return allExpenses
-    } catch {
-      console.error('[EXPORT] Error fetching all expense requests:', error)
-      throw error
-    }
-  }, [graphqlClient, totalItems, buildQueryConditions, transformExpenseRequest])
-
-  // Export columns - using SAME translation keys as UI table headers
-  const getExportColumns = () => [
-    {
-      key: 'employee',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-    },
-    {
-      key: 'employeeCode',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Code')
-    },
-    {
-      key: 'sapNumber',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
-        'SAP Number'
-      )
-    },
-    {
-      key: 'code',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-        'Request Number'
-      )
-    },
-    {
-      key: 'title',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.title', 'Title')
-    },
-    {
-      key: 'startDate',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')
-    },
-    {
-      key: 'endDate',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
-    },
-    {
-      key: 'requestDate',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_request_list.expense_table.creation_date',
-        'Creation Date'
-      )
-    },
-    {
-      key: 'status',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-    },
-    {
-      key: 'totalRemainingAmount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')
-    },
-    {
-      key: 'totalAmount',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.expense_plan_table.total_amount',
-        'Total Amount'
-      )
-    },
-    { key: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency') },
-    {
-      key: 'department',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')
-    },
-    {
-      key: 'requestDate',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:confirm_transfer_advance_payment.request_date_label',
-        'Request Date'
-      )
-    }
-  ]
-
-  const formatExpenseForExport = (expense: ExpenseData) => ({
-    code: expense.code || '-',
-    employee: expense.employee || '-',
-    employeeCode: expense.employeeCode || '-',
-    sapNumber: expense.sapNumber || '-',
-    title: expense.title || '-',
-    department: expense.department || '-',
-    startDate: expense.startDate,
-    endDate: expense.endDate,
-    requestDate: expense.requestDate,
-    totalRemainingAmount: expense.totalRemainingAmount
-      ? formatNumberFunction(String(expense.totalRemainingAmount))
-      : '0',
-    totalAmount: expense.reimbursableAmount ? formatNumberFunction(String(expense.reimbursableAmount)) : '0',
-    currency: expense.currency?.code || '-',
-    status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus).label,
-    creationDate: expense.creationDate
-  })
-
-  const handleExport = useCallback(
-    async (format: 'csv' | 'excel', e?: React.MouseEvent) => {
-      e?.preventDefault()
-      e?.stopPropagation()
-
-      if (isExporting) {
-        return
-      }
-
-      if (totalItems === 0) {
-        toast.error('No Data Available', {
-          description: 'No expense data available to export'
-        })
-        return
-      }
-
-      setIsExporting(true)
-
-      const formatLabel = format === 'csv' ? 'CSV' : 'Excel'
-
-      try {
-        const allExpenses = await fetchAllExpenseRequestsForExport()
-
-        if (!allExpenses || allExpenses.length === 0) {
-          toast.error('No Data Available', {
-            description: 'No expense data available to export'
-          })
-          return
-        }
-
-        const formattedData = allExpenses.map(formatExpenseForExport)
-        const columns = getExportColumns()
-        const filename = buildFilename('expense-requests', format === 'csv' ? 'csv' : 'xlsx')
-
-        if (format === 'csv') {
-          downloadCsv(formattedData, columns, filename)
-        } else {
-          await downloadExcel(formattedData, columns, filename)
-        }
-
-        toast.success('Export Successful', {
-          description: `Exported ${formattedData.length} expense requests to ${formatLabel}`
-        })
-      } catch (err) {
-        console.error(`[EXPORT ${formatLabel}] Error during export:`, err)
-        toast.error('Export Failed', {
-          description:
-            `Failed to export ${formatLabel}: ` +
-            (err instanceof Error ? err.message : typeof err === 'string' ? err : String(err))
-        })
-      } finally {
-        setIsExporting(false)
-      }
-    },
-    [isExporting, totalItems, fetchAllExpenseRequestsForExport, formatExpenseForExport, getExportColumns]
-  )
-
-  const handleExportCsv = useCallback((e?: React.MouseEvent) => handleExport('csv', e), [handleExport])
-
-  const handleExportExcel = useCallback((e?: React.MouseEvent) => handleExport('excel', e), [handleExport])
 
   // Keep DataContainer mounted at all times to avoid closing the filter sidebar during loading/errors
 
@@ -1900,12 +1445,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             ),
             employee: employeeFilter ? `Employee: ${selectedEmployees.map(e => e.name).join(', ')}` : 'Employee: All',
             amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
-            department: departmentId ? `Department: ${selectedDepartmentName || departmentId}` : 'Department: All',
-            currency: getCurrencyLabel(),
-            effectiveDateRange: getEffectiveDateLabel(),
-            requestDateRange: getRequestDateLabel(),
-            startDate: getStartDateLabel(),
-            endDate: getEndDateLabel(),
+            department: getDepartmentLabel(departmentId, departmentOptions),
+            currency: getCurrencyLabel(currencyRef, currencies),
+            effectiveDateRange: getEffectiveDateLabel(effectiveDateRange),
+            requestDateRange: getRequestDateLabel(requestDateRange),
+            startDate: getStartDateLabel(startFrom, startTo),
+            endDate: getEndDateLabel(endFrom, endTo),
             'ExpenseRequestType:v1:EXPENSES': getTranslationFromI18nKeyAndLabel(
               'lowcoder:personal_expenses.expense',
               'Expense'

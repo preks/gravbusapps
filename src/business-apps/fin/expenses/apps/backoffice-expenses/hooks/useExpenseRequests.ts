@@ -12,6 +12,8 @@ import {
   buildEmployeeFilterCondition
 } from './queryFilterUtils'
 import { buildRequestEffectiveDateFilter, buildRequestTypeFilter } from './backofficeSharedOverview'
+import { extractUniqueStatuses, extractUniqueEmployees } from '../utils/sharedUtils'
+import { buildEmployeeDisplayName } from './backofficeReportUtils'
 
 export const useExpenseRequests = (context: BusinessAppContextProps, isActive: boolean = true) => {
   const { accessToken } = context
@@ -136,13 +138,13 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       employeeCode: item.employee?.code ?? '-',
       code: item.code ?? '-',
       sapNumber: item.employee?.hrReferenceCode ?? '-',
-      employee: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
+      employee: buildEmployeeDisplayName(item.employee) || '-',
       title: item.title ?? '-',
       creationDate: formatDateLocalized(item.createdAt),
       startDate: formatDateLocalized(item.startDate),
       endDate: formatDateLocalized(item.endDate),
       requestDate: formatDateLocalized(item.createdAt),
-      reporter: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
+      reporter: buildEmployeeDisplayName(item.employee) || '-',
       type: item.requestType?.value ?? '-',
       amount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',
       advance: '',
@@ -491,24 +493,13 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     }
   }
 
-  // Search employees method
   const searchEmployees = useCallback(
     async (searchTerm: string): Promise<Array<{ id: string; name: string }>> => {
-      if (!accessToken) {
-        return []
-      }
-
-      if (!client) {
-        return []
-      }
-
-      if (!searchTerm.trim()) {
-        return []
-      }
+      if (!accessToken || !client || !searchTerm.trim()) return []
 
       try {
         const searchValue = `%${searchTerm.trim()}%`
-        const variables = {
+        const data = await client.request(GET_EXPENSE_REQUESTS, {
           where: {
             _and: [
               { isDeleted: { _eq: false } },
@@ -523,39 +514,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
           },
           limit: 1000,
           offset: 0
-        }
-
-        const data = await client.request(GET_EXPENSE_REQUESTS, variables)
-
-        const employees = new Map<string, { id: string; name: string }>()
-        const searchLower = searchTerm.trim().toLowerCase()
-
-        data?.ExpenseRequest?.forEach((request: any) => {
-          if (request.employee) {
-            const firstName = request.employee.firstName || ''
-            const lastName = request.employee.lastName || ''
-            const displayName = request.employee.displayName || ''
-            const employeeId = request.employee.id
-
-            const fullName = `${firstName} ${lastName}`.trim()
-
-            const matchesSearch =
-              fullName.toLowerCase().includes(searchLower) ||
-              displayName.toLowerCase().includes(searchLower) ||
-              firstName.toLowerCase().includes(searchLower) ||
-              lastName.toLowerCase().includes(searchLower)
-
-            if (fullName && matchesSearch && employeeId) {
-              employees.set(employeeId, { id: employeeId, name: fullName })
-            }
-            if (displayName && matchesSearch && employeeId) {
-              employees.set(employeeId, { id: employeeId, name: displayName })
-            }
-          }
         })
 
-        const result = Array.from(employees.values()).sort((a, b) => a.name.localeCompare(b.name))
-        return result
+        return extractUniqueEmployees(data?.ExpenseRequest || [], (request: any) => request.employee, searchTerm)
       } catch {
         return []
       }
@@ -563,36 +524,15 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     [client, accessToken]
   )
 
-  // Search statuses method
   const searchStatuses = useCallback(async (): Promise<string[]> => {
-    if (!accessToken) {
-      return []
-    }
-
-    if (!client) {
-      return []
-    }
-
+    if (!accessToken || !client) return []
     try {
-      const variables = {
-        where: {
-          _and: [{ isDeleted: { _eq: false } }, { status: { _neq: 'DISCARDED' } }]
-        },
+      const data = await client.request(GET_EXPENSE_REQUESTS, {
+        where: { _and: [{ isDeleted: { _eq: false } }, { status: { _neq: 'DISCARDED' } }] },
         limit: 1000,
         offset: 0
-      }
-
-      const data = await client.request(GET_EXPENSE_REQUESTS, variables)
-
-      const statuses = new Set<string>()
-      data?.ExpenseRequest?.forEach((request: any) => {
-        if (request.status) {
-          statuses.add(request.status)
-        }
       })
-
-      const result = Array.from(statuses).sort()
-      return result
+      return extractUniqueStatuses(data?.ExpenseRequest || [], ['DISCARDED'])
     } catch {
       return []
     }

@@ -19,13 +19,13 @@ import {
   type GqlBoolExp
 } from './backofficeSharedOverview'
 
-export interface OverviewPagingAndSort<TOrder> {
+interface OverviewPagingAndSort<TOrder> {
   limit?: number
   offset?: number
   orderBy?: TOrder[]
 }
 
-export interface UseBackofficeExpensesOverviewParams {
+interface UseBackofficeExpensesOverviewParams {
   currencyRef?: string | null
   searchTerm?: string | null
   monthStart?: string | null
@@ -60,7 +60,7 @@ export interface UseBackofficeExpensesOverviewParams {
   includeKpis?: boolean
 }
 
-export interface BackofficeExpensesOverviewState {
+interface BackofficeExpensesOverviewState {
   distinctCurrencies: string[]
   distinctCurrenciesFromPayments: string[]
   teamMembersCount: number
@@ -96,7 +96,7 @@ export interface BackofficeExpensesOverviewState {
   advancePaymentsTotal: number
 }
 
-export interface UseBackofficeExpensesOverviewReturn {
+interface UseBackofficeExpensesOverviewReturn {
   data: BackofficeExpensesOverviewState | null
   isLoading: boolean
   error: string | null

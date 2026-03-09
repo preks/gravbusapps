@@ -41,7 +41,7 @@ const buildMonthlyTrendsSubqueries = (hasDepartment: boolean) =>
     return `    m${idx}_item: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -82,7 +82,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     currentMonthExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -109,7 +109,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     previousMonthExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -136,7 +136,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     sameMonthLastYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -163,7 +163,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     currentYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -190,7 +190,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     previousYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -244,7 +244,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -297,7 +297,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
     actualExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -377,7 +377,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     currentQTDExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -404,7 +404,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     previousQTDExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -431,7 +431,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     currentQuarterExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -457,7 +457,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     previousQuarterExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -483,7 +483,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     currentYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -509,7 +509,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     previousYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -560,7 +560,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -611,7 +611,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     actualExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -682,7 +682,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     currentYearExpensesComparison: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -708,7 +708,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     previousYearExpensesComparison: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -734,7 +734,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     currentYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -760,7 +760,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     previousYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -811,7 +811,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [
@@ -862,7 +862,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     actualExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
           { _or: [

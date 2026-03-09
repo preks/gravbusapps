@@ -10,8 +10,7 @@ import {
   downloadExcelWorkbook
 } from '@/common/utils/excelExportUtils'
 
-// Re-export shared utilities so existing imports still work
-export { formatCellValue, buildFilename, triggerDownload }
+export { buildFilename }
 
 /**
  * Escapes a value for use in CSV format
@@ -20,27 +19,11 @@ export { formatCellValue, buildFilename, triggerDownload }
  * Note: Uses replace(/pattern/g) instead of replaceAll() for ES2020 compatibility
  * Project target: ES2020, replaceAll() requires ES2021+
  */
-export const escapeCsv = (value: string): string => {
+const escapeCsv = (value: string): string => {
   const needsQuotes = /[",\r\n]/.test(value)
   const out = value.replace(/"/g, '""')
   return needsQuotes ? `"${out}"` : out
 }
-
-/**
- * Escapes HTML special characters
- *
- * Note: Uses replace(/pattern/g) instead of replaceAll() for ES2020 compatibility
- * Project target: ES2020, replaceAll() requires ES2021+
- * NOSONAR: Intentionally using replace() for ES2020 compatibility
- */
-export const htmlEscape = (value: string): string =>
-  value
-    // NOSONAR - ES2020 compatibility: replaceAll() requires ES2021+
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 
 /**
  * Downloads data as CSV file

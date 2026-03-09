@@ -1,4 +1,4 @@
-export type DateRangeInput = { from?: string | null; to?: string | null } | null | undefined
+type DateRangeInput = { from?: string | null; to?: string | null } | null | undefined
 export type GqlBoolExp = Record<string, unknown>
 type RequestTypeMode = 'plan' | 'request'
 type PaginationParams = {
@@ -29,7 +29,7 @@ export type OverviewDateFilterParams = {
   requestsTypeFilter?: string[]
 }
 
-export function buildSearchPattern(searchTerm?: string | null): string {
+function buildSearchPattern(searchTerm?: string | null): string {
   const trimmedSearch = (searchTerm ?? '').toString().trim()
   return trimmedSearch.length > 0 ? `%${trimmedSearch}%` : '%%'
 }
@@ -42,7 +42,7 @@ export function buildDateRangeCondition(from?: string | null, to?: string | null
   return Object.keys(condition).length > 0 ? (condition as unknown as GqlBoolExp) : null
 }
 
-export function wrapFieldCondition(field: string, condition: GqlBoolExp | null): GqlBoolExp | null {
+function wrapFieldCondition(field: string, condition: GqlBoolExp | null): GqlBoolExp | null {
   return condition ? ({ [field]: condition } as unknown as GqlBoolExp) : null
 }
 
@@ -76,7 +76,7 @@ function buildEffectiveDateFilter(range: DateRangeInput, mode: RequestTypeMode):
   } as unknown as GqlBoolExp
 }
 
-export function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
+function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
   return buildEffectiveDateFilter(range, 'plan')
 }
 
@@ -84,7 +84,7 @@ export function buildRequestEffectiveDateFilter(range: DateRangeInput): GqlBoolE
   return buildEffectiveDateFilter(range, 'request')
 }
 
-export function buildPlanTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
+function buildPlanTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
   if (!typeFilters || typeFilters.length === 0) return null
   const planTypeTokens = typeFilters.filter(filterToken => filterToken.startsWith('planType:'))
   if (planTypeTokens.length === 0) return null
@@ -150,7 +150,7 @@ export function buildRequestDateWhereClause(params: OverviewDateFilterParams): G
   return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
 }
 
-export function extractDistinctCurrenciesByKeys(result: any, keys: string[]): string[] {
+function extractDistinctCurrenciesByKeys(result: any, keys: string[]): string[] {
   const currencyRefs = new Set<string>()
   const pushRefs = (arr?: Array<{ currencyRef?: string }>) => {
     if (!Array.isArray(arr)) return
@@ -164,7 +164,7 @@ export function extractDistinctCurrenciesByKeys(result: any, keys: string[]): st
   return Array.from(currencyRefs).sort((left, right) => left.localeCompare(right))
 }
 
-export function buildMonthlyTrends(trendItems: any[]): Array<{ month: string; amount: number }> {
+function buildMonthlyTrends(trendItems: any[]): Array<{ month: string; amount: number }> {
   const monthToAmount = new Map<string, number>()
   for (const row of trendItems) {
     const typeRef: string | undefined = row?.expenseRequest?.requestTypeRef
@@ -181,7 +181,7 @@ export function buildMonthlyTrends(trendItems: any[]): Array<{ month: string; am
     .map(([month, amount]) => ({ month, amount }))
 }
 
-export function aggregateExpenseCategories(trendItems: any[]): Array<{ name: string; amount: number }> {
+function aggregateExpenseCategories(trendItems: any[]): Array<{ name: string; amount: number }> {
   const categoryMap = new Map<string, number>()
   for (const row of trendItems) {
     const positions = Array.isArray(row?.expensePosition) ? row.expensePosition : []
@@ -202,7 +202,7 @@ export function aggregateExpenseCategories(trendItems: any[]): Array<{ name: str
     .sort((left, right) => right.amount - left.amount)
 }
 
-export function buildOverviewCoreState(result: any) {
+function buildOverviewCoreState(result: any) {
   const expenseRequests = Array.isArray(result?.ExpenseRequests) ? result.ExpenseRequests : []
   const expenseRequestsTotal = Number(result?.ExpenseRequestsAggregate?.aggregate?.count ?? 0)
   const expensePlans = Array.isArray(result?.ExpensePlans) ? result.ExpensePlans : []
@@ -275,7 +275,7 @@ export function buildOverviewBaseVariables(
   }
 }
 
-export function buildOverviewState(
+function buildOverviewState(
   result: any,
   distinctCurrencies: string[],
   distinctCurrenciesFromPayments: string[],
@@ -298,7 +298,7 @@ const OVERVIEW_CURRENCY_KEYS = [
   'DistinctCurrenciesFromPayments'
 ]
 
-export function extractDistinctOverviewCurrencies(result: any): string[] {
+function extractDistinctOverviewCurrencies(result: any): string[] {
   const currencyRefs = new Set<string>()
 
   if (Array.isArray(result?.DistinctCurrencies)) {
@@ -314,7 +314,7 @@ export function extractDistinctOverviewCurrencies(result: any): string[] {
   return Array.from(currencyRefs).sort((left, right) => left.localeCompare(right))
 }
 
-export function extractDistinctOverviewPaymentCurrencies(result: any): string[] {
+function extractDistinctOverviewPaymentCurrencies(result: any): string[] {
   return extractDistinctCurrenciesByKeys(result, ['DistinctCurrenciesFromPayments'])
 }
 

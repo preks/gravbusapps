@@ -16,6 +16,7 @@ import MonthlyExpenseTrendsCard from '../../cards/MonthlyExpenseTrendsCard'
 import { ExpenseFilterBar, FilterOptions } from '../../filter-bar'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../../../utils/currencyUtils'
+import { extractCurrencyCode } from '../../../utils/sharedUtils'
 import { useFilterData } from '../../../hooks/useFilterData'
 import { PiChartLineUp, PiFileText } from 'react-icons/pi'
 
@@ -150,10 +151,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
         return getTranslatedMonth(previousMonth.getMonth())
       }
     }
-  }
-
-  const extractCurrencyCode = (currencyRef: string): string => {
-    return currencyRef.split(':').pop() || 'EUR'
   }
 
   const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:EUR')

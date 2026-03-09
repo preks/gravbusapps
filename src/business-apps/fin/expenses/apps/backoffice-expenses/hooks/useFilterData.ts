@@ -7,6 +7,7 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 import { GET_EXPENSE_CURRENCIES, GET_ORGANIZATIONAL_UNITS } from '../queries/filterData.queries'
+import { extractCurrencyCode } from '../utils/sharedUtils'
 
 // ⚡ SECURITY: Hash function for sensitive data in cache keys
 const createHash = (input: string): string => {
@@ -94,7 +95,7 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     if (currenciesResponse?.ExpenseRequest) {
       currenciesResponse.ExpenseRequest.forEach((item: any) => {
         if (item.currency && item.currencyRef) {
-          const currencyCode = item.currency.code || item.currencyRef.split(':').pop() || 'EUR'
+          const currencyCode = item.currency.code || extractCurrencyCode(item.currencyRef)
           allCurrencies.set(item.currencyRef, {
             code: currencyCode,
             value: item.currency.value || currencyCode,

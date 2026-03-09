@@ -24,6 +24,7 @@ import { CalendarIcon, GlobeIcon, CurrencyDollarIcon, UserIcon, ChatCircleIcon }
 import useExpenseRequestDetails from '../../hooks/useExpenseRequestDetails'
 import { formatCurrency, extractCurrencyCode } from '../../utils/currencyUtils'
 import { formatDateTimeLocalized } from '../../utils/dateUtils'
+import { buildEmployeeDisplayName } from '../../hooks/backofficeReportUtils'
 
 interface ExpenseDetailDrawerProps {
   visible: boolean
@@ -143,8 +144,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
       {apData.expensePlan?.employee && (
         <DescriptionsSection title="Employee Information">
           <DescriptionItem label="Name">
-            {`${apData.expensePlan.employee.firstName || ''} ${apData.expensePlan.employee.lastName || ''}`.trim() ||
-              'N/A'}
+            {buildEmployeeDisplayName(apData.expensePlan.employee) || 'N/A'}
           </DescriptionItem>
           <DescriptionItem label="Employee Code">{apData.expensePlan.employee.code || 'N/A'}</DescriptionItem>
         </DescriptionsSection>
@@ -199,9 +199,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
 
         {/* Employee Information */}
         <DescriptionsSection title="Employee Information">
-          <DescriptionItem label="Name">
-            {`${data.employee?.firstName || ''} ${data.employee?.lastName || ''}`.trim() || 'N/A'}
-          </DescriptionItem>
+          <DescriptionItem label="Name">{buildEmployeeDisplayName(data.employee) || 'N/A'}</DescriptionItem>
           <DescriptionItem label="Employee Code">{data.employee?.businessKey || 'N/A'}</DescriptionItem>
           <DescriptionItem label="Email">{data.employee?.email || 'N/A'}</DescriptionItem>
           <DescriptionItem label="Cost Center">

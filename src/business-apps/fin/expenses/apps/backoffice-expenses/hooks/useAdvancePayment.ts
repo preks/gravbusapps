@@ -13,11 +13,8 @@ import {
   buildStatusFilterCondition
 } from './queryFilterUtils'
 
-// ⚡ BEST PRACTICE: Query limit enforcement for safety (like leads)
-const MAX_QUERY_LIMIT = 1000
-const enforceQueryLimit = (limit: number): number => {
-  return Math.min(limit, MAX_QUERY_LIMIT)
-}
+import { enforceQueryLimit, extractUniqueStatuses } from '../utils/sharedUtils'
+import { buildEmployeeDisplayName } from './backofficeReportUtils'
 
 // Type definition for GraphQL orderBy clause
 type OrderDirection = 'ASC' | 'DESC'
@@ -25,7 +22,7 @@ type OrderByValue = OrderDirection | { [field: string]: OrderByValue }
 type OrderByEntry = { [field: string]: OrderByValue }
 type OrderByClause = OrderByEntry[]
 
-export interface FetchPaymentsOptions {
+interface FetchPaymentsOptions {
   searchTerm?: string
   page?: number
   pageSize?: number
@@ -41,7 +38,7 @@ export interface FetchPaymentsOptions {
   dateTo?: string
 }
 
-export interface AdvancePaymentsResult {
+interface AdvancePaymentsResult {
   payments: AdvancePaymentItem[]
   isLoading: boolean
   error: any
@@ -55,7 +52,7 @@ export interface AdvancePaymentsResult {
   setOrderBy: (orderBy: OrderByClause) => void
 }
 
-export interface UseAdvancePaymentsProps extends BusinessAppContextProps {
+interface UseAdvancePaymentsProps extends BusinessAppContextProps {
   isActive?: boolean // ⚡ PERFORMANCE: Only initialize loading state when tab is active
 }
 
@@ -213,14 +210,8 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       description: payment.description,
       status: payment.status ?? 'PENDING',
       title: payment.expensePlan?.title,
-      employeeDisplayName: payment.expensePlan?.employee
-        ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
-        : 'N/A',
-      employeeFullName:
-        payment.expensePlan?.employee?.fullName ||
-        (payment.expensePlan?.employee
-          ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
-          : 'N/A'),
+      employeeDisplayName: buildEmployeeDisplayName(payment.expensePlan?.employee) || 'N/A',
+      employeeFullName: buildEmployeeDisplayName(payment.expensePlan?.employee) || 'N/A',
       amount: payment.amount,
       startDate: payment.expensePlan?.startDate,
       paymentMethod: payment.paymentMethod,
@@ -376,17 +367,8 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
         const reporters = new Set<string>()
         data?.AdvancePayment?.forEach((payment: any) => {
           if (payment.expensePlan?.employee) {
-            const firstName = payment.expensePlan.employee.firstName || ''
-            const lastName = payment.expensePlan.employee.lastName || ''
-            const displayName = payment.expensePlan.employee.displayName || ''
-
-            const fullName = `${firstName} ${lastName}`.trim()
-            if (fullName) {
-              reporters.add(fullName)
-            }
-            if (displayName) {
-              reporters.add(displayName)
-            }
+            const name = buildEmployeeDisplayName(payment.expensePlan.employee)
+            if (name) reporters.add(name)
           }
         })
 
@@ -398,27 +380,11 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
     [client, accessToken]
   )
 
-  // ⚡ OPTIMIZED: Use lightweight query with distinct_on to get unique statuses
   const searchStatuses = useCallback(async (): Promise<string[]> => {
-    if (!accessToken) {
-      throw new Error('Access token not found.')
-    }
-
+    if (!accessToken) throw new Error('Access token not found.')
     try {
       const data = await client.request(GET_ADVANCE_PAYMENT_STATUSES, {})
-
-      // Extract unique statuses from the results
-      const statuses = new Set<string>()
-      data?.AdvancePayment?.forEach((payment: any) => {
-        if (payment.status) {
-          statuses.add(payment.status)
-        }
-      })
-
-      // Filter out CREATED (draft) status from the filter options
-      return Array.from(statuses)
-        .filter(status => status !== 'CREATED')
-        .sort((a, b) => a.localeCompare(b))
+      return extractUniqueStatuses(data?.AdvancePayment || [])
     } catch {
       return []
     }

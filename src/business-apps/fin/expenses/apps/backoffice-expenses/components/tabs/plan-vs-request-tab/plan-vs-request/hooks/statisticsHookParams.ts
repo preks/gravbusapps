@@ -14,7 +14,3 @@ export interface CategoryStatisticsGraphQLHookParams extends PeriodHookBaseParam
   requestTypes: string[]
   isActive?: boolean
 }
-
-export interface CategoryStatisticsDatasetHookParams extends PeriodHookBaseParams {
-  requestTypes: string[]
-}
