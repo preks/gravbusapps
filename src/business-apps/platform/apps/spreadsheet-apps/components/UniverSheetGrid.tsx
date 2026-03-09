@@ -14,6 +14,7 @@ import type { DocumentParticipant, DocumentOperation } from '../../shared/servic
 import {
   buildWorkbookSnapshot,
   createUniverConversionContext,
+  transformAvatarFormulasInSnapshot,
   type ConversionContext,
   type UniverWorkbookSnapshot
 } from '../utils/univerAdapter'
@@ -1005,6 +1006,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       try {
         if (initialSnapshotForSheet && typeof initialSnapshotForSheet === 'object') {
           snapshotForInit = initialSnapshotForSheet as UniverWorkbookSnapshot
+          transformAvatarFormulasInSnapshot(snapshotForInit as unknown as Record<string, unknown>, c)
         } else {
           snapshotForInit = buildWorkbookSnapshot(s, d, c)
         }

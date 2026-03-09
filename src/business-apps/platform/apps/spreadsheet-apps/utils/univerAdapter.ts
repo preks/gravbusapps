@@ -188,7 +188,12 @@ function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellDa
       const imageUrl = toImageUrl(trimmed)
       if (imageUrl) {
         const safeUrl = imageUrl.replace(/"/g, '""')
-        return { f: `=IMAGE("${safeUrl}")` }
+        // Avatar columns: use custom size (sizing=3, 32x32) for small round-like display.
+        // Regular image columns: default stretch behavior.
+        const isAvatar = avatarColumn
+        return isAvatar
+          ? { f: `=IMAGE("${safeUrl}", "", 3, 32, 32)` }
+          : { f: `=IMAGE("${safeUrl}")` }
       }
     }
   }
@@ -228,9 +233,17 @@ export function buildWorkbookSnapshot(
   const UNIVER_ROW_HEADER_WIDTH = 46
   const UNIVER_COLUMN_HEADER_HEIGHT = 20
 
+  const AVATAR_COL_WIDTH = 40
   const columnData: Record<number, { w?: number }> = {}
   visibleColumns.forEach((col, idx) => {
-    const w = typeof col.width === 'number' && col.width > 0 ? col.width : UNIVER_DEFAULT_COL_WIDTH
+    let w: number
+    if (typeof col.width === 'number' && col.width > 0) {
+      w = col.width
+    } else if (isAvatarColumn(col)) {
+      w = AVATAR_COL_WIDTH
+    } else {
+      w = UNIVER_DEFAULT_COL_WIDTH
+    }
     columnData[idx] = { w }
   })
 
@@ -264,6 +277,59 @@ export function buildWorkbookSnapshot(
     locale: 'en-US',
     sheets: {
       [sheet.id]: worksheet
+    }
+  }
+}
+
+/** Regex to match old 1-arg IMAGE formula for upgrade to sized version (allows optional spaces) */
+const OLD_IMAGE_FORMULA = /^=IMAGE\s*\(\s*"((?:[^"]|"")*)"\s*\)$/
+
+/**
+ * Transform a loaded Univer snapshot to use small avatar images.
+ * - Upgrades =IMAGE("url") to =IMAGE("url", "", 3, 32, 32) in avatar columns
+ * - Ensures avatar column width is 40px
+ * Call this before passing a bootstrap snapshot to Univer.
+ */
+export function transformAvatarFormulasInSnapshot(
+  snapshot: Record<string, unknown>,
+  columns: SpreadsheetColumn[]
+): void {
+  const sheets = snapshot?.sheets as Record<string, UniverWorksheetData> | undefined
+  if (!sheets) return
+
+  const visibleColumns = columns.filter(c => c.isVisible !== false)
+  const avatarColIndices = new Set(
+    visibleColumns.map((col, idx) => (isAvatarColumn(col) ? idx : -1)).filter(i => i >= 0)
+  )
+  if (avatarColIndices.size === 0) return
+
+  const AVATAR_COL_WIDTH = 40
+
+  for (const sheetData of Object.values(sheets)) {
+    if (!sheetData?.cellData) continue
+
+    for (const rowCells of Object.values(sheetData.cellData) as Record<number, UniverCellData>[]) {
+      if (typeof rowCells !== 'object') continue
+      for (const colIdx of avatarColIndices) {
+        const cell = rowCells[colIdx]
+        if (!cell?.f || typeof cell.f !== 'string') continue
+        const m = cell.f.match(OLD_IMAGE_FORMULA)
+        if (m) {
+          const url = m[1].replace(/""/g, '"')
+          cell.f = `=IMAGE("${url.replace(/"/g, '""')}", "", 3, 32, 32)`
+        }
+      }
+    }
+
+    if (sheetData.columnData && typeof sheetData.columnData === 'object') {
+      for (const colIdx of avatarColIndices) {
+        const colConfig = sheetData.columnData[colIdx]
+        if (colConfig && typeof colConfig === 'object') {
+          ;(colConfig as { w?: number }).w = AVATAR_COL_WIDTH
+        } else {
+          ;(sheetData.columnData as Record<number, { w?: number }>)[colIdx] = { w: AVATAR_COL_WIDTH }
+        }
+      }
     }
   }
 }

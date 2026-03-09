@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { UniverSheetGrid } from '../UniverSheetGrid'
 
 const eventHandlers: Record<string, (payload: any) => void> = {}
@@ -90,6 +90,11 @@ describe('UniverSheetGrid read-only behavior', () => {
     Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
   })
 
+  afterEach(() => {
+    document.body.innerHTML = ''
+    jest.useRealTimers()
+  })
+
   it('shows an interaction-blocking overlay when read-only', () => {
     render(
       <UniverSheetGrid
@@ -155,5 +160,89 @@ describe('UniverSheetGrid read-only behavior', () => {
       }
     })
     expect(onCellsChange).toHaveBeenCalled()
+  })
+
+  it('injects Add comment into the vertical context menu list', () => {
+    jest.useFakeTimers()
+    const onOpenCommentRequest = jest.fn()
+    const { getByTestId } = render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onOpenCommentRequest={onOpenCommentRequest}
+      />
+    )
+
+    const setRect = (el: HTMLElement, left: number, top: number, width: number, height: number) => {
+      Object.defineProperty(el, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({
+          x: left,
+          y: top,
+          left,
+          top,
+          width,
+          height,
+          right: left + width,
+          bottom: top + height,
+          toJSON: () => ({})
+        })
+      })
+    }
+
+    const gridContainer = getByTestId('univer-sheet-grid-container')
+    setRect(gridContainer, 0, 0, 1200, 800)
+
+    // Simulate Univer popup showing after native context menu opens.
+    setTimeout(() => {
+      const popup = document.createElement('div')
+      popup.className = 'mock-univer-popup'
+
+      const quickRow = document.createElement('div')
+      const quickCopy = document.createElement('button')
+      quickCopy.textContent = 'Copy'
+      const quickCut = document.createElement('button')
+      quickCut.textContent = 'Cut'
+      const quickPaste = document.createElement('button')
+      quickPaste.textContent = 'Paste'
+      quickRow.append(quickCopy, quickCut, quickPaste)
+
+      const mainList = document.createElement('ul')
+      ;['Copy Special', 'Paste Special', 'Clear', 'Insert', 'Delete', 'Freeze'].forEach((label, index) => {
+        const item = document.createElement('li')
+        item.textContent = label
+        setRect(item, 120, 180 + index * 34, 220, 30)
+        mainList.appendChild(item)
+      })
+
+      popup.append(quickRow, mainList)
+      document.body.appendChild(popup)
+
+      setRect(popup, 100, 100, 280, 360)
+      setRect(quickRow, 110, 120, 250, 70)
+      setRect(quickCopy, 120, 130, 70, 28)
+      setRect(quickCut, 200, 130, 70, 28)
+      setRect(quickPaste, 280, 130, 70, 28)
+      setRect(mainList, 110, 170, 250, 240)
+    }, 20)
+
+    fireEvent.contextMenu(gridContainer, { clientX: 130, clientY: 150 })
+
+    act(() => {
+      jest.advanceTimersByTime(1200)
+    })
+
+    const injected = document.querySelector<HTMLElement>('[data-univer-custom-comment-item]')
+    expect(injected).toBeTruthy()
+    expect(injected?.textContent).toContain('Add comment')
+    expect(injected?.parentElement?.tagName).toBe('UL')
+
+    if (injected) fireEvent.click(injected)
+    expect(onOpenCommentRequest).toHaveBeenCalledTimes(1)
   })
 })
