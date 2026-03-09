@@ -39,7 +39,10 @@ const normalizeDashboardResponse = (raw: unknown): DashboardResponse => {
     timeseries: asArray(obj['timeseries']),
     error_breakdown: asArray(obj['error_breakdown']),
     tool_breakdown: asArray(obj['tool_breakdown']),
+    model_breakdown: asArray(obj['model_breakdown']),
+    provider_breakdown: asArray(obj['provider_breakdown']),
     token_breakdown: (obj['token_breakdown'] as any) ?? undefined,
+    token_breakdown_by_model: asArray(obj['token_breakdown_by_model']),
     tool_token_stats: (obj['tool_token_stats'] as any) ?? undefined,
     top_cost_runs: asArray(obj['top_cost_runs']),
     recent_runs: asArray(obj['recent_runs'])
@@ -72,6 +75,8 @@ export interface DashboardFilters {
   toLocal: string
   bucket: BucketGranularity
   includeSplitView: boolean
+  llmProvider: string
+  llmModel: string
 }
 
 export interface UseEvalsDashboardState {
@@ -97,9 +102,19 @@ export function useEvalsDashboard(context: BusinessAppContextProps, filters: Das
       from_ts,
       to_ts,
       bucket: filters.bucket,
-      include_split_view: filters.includeSplitView ? true : undefined
+      include_split_view: filters.includeSplitView ? true : undefined,
+      llm_provider: filters.llmProvider.trim() || undefined,
+      llm_model: filters.llmModel.trim() || undefined
     }
-  }, [filters.bucket, filters.fromLocal, filters.includeSplitView, filters.toLocal, filters.workflow])
+  }, [
+    filters.bucket,
+    filters.fromLocal,
+    filters.includeSplitView,
+    filters.llmModel,
+    filters.llmProvider,
+    filters.toLocal,
+    filters.workflow
+  ])
 
   const fetchDashboard = useCallback(async () => {
     if (!context.accessToken) {

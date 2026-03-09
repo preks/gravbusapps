@@ -42,6 +42,8 @@ function RunsTable({ title, rows, dataTestId }: Readonly<RunsTableProps>) {
               <TableRow>
                 <TableHead>Created</TableHead>
                 <TableHead>Workflow</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Model</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>TTFT</TableHead>
                 <TableHead>Tokens</TableHead>
@@ -55,6 +57,8 @@ function RunsTable({ title, rows, dataTestId }: Readonly<RunsTableProps>) {
                 <TableRow key={r.run_id}>
                   <TableCell className="gba:whitespace-nowrap">{formatDateTime(r.created_at)}</TableCell>
                   <TableCell className="gba:w-56 gba:truncate">{r.workflow_display ?? r.workflow ?? '—'}</TableCell>
+                  <TableCell className="gba:w-28 gba:truncate">{r.llm_provider ?? '—'}</TableCell>
+                  <TableCell className="gba:w-40 gba:truncate">{r.llm_model ?? '—'}</TableCell>
                   <TableCell className="gba:whitespace-nowrap">{formatMs(r.total_ms)}</TableCell>
                   <TableCell className="gba:whitespace-nowrap">{formatMs(r.ttft_ms)}</TableCell>
                   <TableCell className="gba:whitespace-nowrap">{formatMaybeNumber(r.total_tokens)}</TableCell>
@@ -65,7 +69,7 @@ function RunsTable({ title, rows, dataTestId }: Readonly<RunsTableProps>) {
               ))}
               {visible.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="gba:text-center gba:text-muted-foreground">
+                  <TableCell colSpan={10} className="gba:text-center gba:text-muted-foreground">
                     No runs in this time range.
                   </TableCell>
                 </TableRow>

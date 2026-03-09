@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { BreakdownItem } from './types'
 import { Alert, Badge, Button } from '@newwork/nw-design-system'
 import { ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { useEvalsDashboard, type DashboardFilters } from './hooks/useEvalsDashboard'
@@ -44,7 +45,9 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       fromLocal: daysAgoDateInputValue(6),
       toLocal: todayDateInputValue(),
       bucket: 'day',
-      includeSplitView: false
+      includeSplitView: false,
+      llmProvider: '',
+      llmModel: ''
     }),
     []
   )
@@ -69,6 +72,41 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       .slice(0, 30)
   }, [data])
 
+  // Keep dropdown options stable: only update from responses where that filter is not active.
+  const stableProviderRef = useRef<BreakdownItem[]>([])
+  useEffect(() => {
+    if (!filters.llmProvider && data?.provider_breakdown?.length) {
+      stableProviderRef.current = data.provider_breakdown
+    }
+  }, [filters.llmProvider, data?.provider_breakdown])
+  const stableProviderBreakdown = filters.llmProvider ? stableProviderRef.current : (data?.provider_breakdown ?? [])
+
+  const stableModelRef = useRef<BreakdownItem[]>([])
+  useEffect(() => {
+    if (!filters.llmModel && data?.model_breakdown?.length) {
+      stableModelRef.current = data.model_breakdown
+    }
+  }, [filters.llmModel, data?.model_breakdown])
+  const stableModelBreakdown = filters.llmModel ? stableModelRef.current : (data?.model_breakdown ?? [])
+
+  // Derive provider→models mapping from token_breakdown_by_model to scope models by provider.
+  const providerModelsMap = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    data?.token_breakdown_by_model?.forEach(entry => {
+      if (!entry.provider || !entry.key) return
+      if (!map.has(entry.provider)) map.set(entry.provider, new Set())
+      map.get(entry.provider)!.add(entry.key)
+    })
+    return map
+  }, [data?.token_breakdown_by_model])
+
+  const scopedModelBreakdown = useMemo(() => {
+    if (!filters.llmProvider) return stableModelBreakdown
+    const allowed = providerModelsMap.get(filters.llmProvider)
+    if (!allowed?.size) return stableModelBreakdown
+    return stableModelBreakdown.filter(m => allowed.has(m.key))
+  }, [filters.llmProvider, stableModelBreakdown, providerModelsMap])
+
   const showData = data && !error
 
   const resetFilters = () => {
@@ -77,7 +115,9 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       filters.fromLocal === defaultFilters.fromLocal &&
       filters.toLocal === defaultFilters.toLocal &&
       filters.bucket === defaultFilters.bucket &&
-      filters.includeSplitView === defaultFilters.includeSplitView
+      filters.includeSplitView === defaultFilters.includeSplitView &&
+      filters.llmProvider === defaultFilters.llmProvider &&
+      filters.llmModel === defaultFilters.llmModel
 
     if (isAlreadyDefault) {
       void refetch()
@@ -111,6 +151,16 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
             >
               Split-view: {data?.include_split_view ? 'on' : 'off'}
             </Badge>
+            {!!filters.llmProvider.trim() && (
+              <Badge variant="secondary" data-testid="flowbot-evals-dashboard-summary-provider">
+                Provider: {filters.llmProvider.trim()}
+              </Badge>
+            )}
+            {!!filters.llmModel.trim() && (
+              <Badge variant="secondary" data-testid="flowbot-evals-dashboard-summary-model">
+                Model: {filters.llmModel.trim()}
+              </Badge>
+            )}
             {!!filters.workflow.trim() && (
               <Badge variant="outline" data-testid="flowbot-evals-dashboard-summary-workflow">
                 Workflow: {filters.workflow.trim()}
@@ -135,21 +185,26 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
         setFilters={setFilters}
         onReset={resetFilters}
         workflowSuggestions={derivedWorkflowSuggestions}
+        providerBreakdown={stableProviderBreakdown}
+        modelBreakdown={scopedModelBreakdown}
         onQuick24h={() =>
           setFilters(prev => ({
             ...prev,
             fromLocal: todayDateInputValue(),
             toLocal: todayDateInputValue(),
-            bucket: 'hour'
+            bucket: 'hour',
+            llmProvider: '',
+            llmModel: ''
           }))
         }
         onQuick7d={() =>
           setFilters(prev => ({
             ...prev,
-            // Inclusive 7-day window with toLocal +1 day at request time.
             fromLocal: daysAgoDateInputValue(6),
             toLocal: todayDateInputValue(),
-            bucket: 'day'
+            bucket: 'day',
+            llmProvider: '',
+            llmModel: ''
           }))
         }
       />

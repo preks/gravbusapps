@@ -10,7 +10,10 @@ export interface DashboardResponse {
   timeseries: TimeseriesPoint[]
   error_breakdown: BreakdownItem[]
   tool_breakdown: BreakdownItem[]
+  model_breakdown: BreakdownItem[]
+  provider_breakdown: BreakdownItem[]
   token_breakdown?: TokenBreakdownBlock
+  token_breakdown_by_model?: TokenBreakdownByModelEntry[]
   tool_token_stats?: ToolTokenStat[]
   top_cost_runs: RunRow[]
   recent_runs: RunRow[]
@@ -102,4 +105,17 @@ export interface RunRow {
   num_tool_calls: number | null
   tool: string | null
   error_type: string | null
+  llm_provider?: string | null
+  llm_model?: string | null
+}
+
+export interface TokenBreakdownByModelEntry {
+  key: string
+  provider: string
+  runs: number
+  avg_total_tokens: number | null
+  sum_total_tokens: number | null
+  avg_total_ms: number | null
+  p50_total_ms: number | null
+  p95_total_ms: number | null
 }
