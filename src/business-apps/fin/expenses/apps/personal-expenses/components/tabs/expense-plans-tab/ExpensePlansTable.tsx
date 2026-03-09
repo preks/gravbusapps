@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { DataTable } from '@newwork/nw-design-system'
+import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpensePlan } from '../../../hooks/useGetExpensePlans'
@@ -7,16 +7,28 @@ import { getExpensePlanStatusDisplay } from '../../../utils'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
 import { startProcess } from '@/common/utils/start-process'
-import { Spinner, Badge, Sheet, SheetContent } from '@newwork/nw-design-system'
+import {
+  Spinner,
+  Badge,
+  Sheet,
+  SheetContent,
+  Button,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { useExpensePlanFileService } from '../../../utils/expensePlanFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
 
@@ -44,6 +56,16 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   // Sorting state from parent
   sortField?: string
   sortOrder?: 'ascend' | 'descend' | null
+  planDateRange?: [Date | null, Date | null] | null
+  setPlanDateRange?: (range: [Date | null, Date | null] | null) => void
+  startDateRange?: [Date | null, Date | null] | null
+  setStartDateRange?: (range: [Date | null, Date | null] | null) => void
+  endDateRange?: [Date | null, Date | null] | null
+  setEndDateRange?: (range: [Date | null, Date | null] | null) => void
+  effectiveDateRange?: [Date | null, Date | null] | null
+  setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
+  onFiltersChange?: () => void
+  availableStatuses?: string[]
 }
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => {
@@ -58,54 +80,351 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     selectedFilters,
     sortField,
     sortOrder,
+    planDateRange,
+    setPlanDateRange,
+    startDateRange,
+    setStartDateRange,
+    endDateRange,
+    setEndDateRange,
+    effectiveDateRange,
+    setEffectiveDateRange,
+    onFiltersChange,
+    availableStatuses = [],
     ...contextProps
   } = props
 
-  const dataControllerFilterLabelMap = useMemo(() => {
-    const currencyLabelMap: Record<string, string> = {}
-    ;(props.currencyStats || []).forEach(cs => {
-      currencyLabelMap[`currency:${cs.ref}`] = cs.code
-    })
+  // Column visibility (like Items tab)
+  const baseVisibleColumnIds = useMemo(
+    () => [
+      'code',
+      'title',
+      'planDate',
+      'startDate',
+      'endDate',
+      'status',
+      'reimbursableAmount',
+      'advancePaymentPaidAmount'
+    ],
+    []
+  )
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
 
-    // Ensure selected currency filters always have a readable label (e.g. "EUR"),
-    // even when currencyStats is empty or does not include the selected ref.
-    ;(props.selectedFilters || [])
-      .filter(token => token.startsWith('currency:'))
-      .forEach(token => {
-        if (!currencyLabelMap[token]) {
-          const ref = token.substring('currency:'.length)
-          const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
-          currencyLabelMap[token] = codeFromRef || ref
-        }
-      })
-
-    return { ...props.filterLabelMap, ...currencyLabelMap }
-  }, [props.filterLabelMap, props.currencyStats, props.selectedFilters])
-
-  const dataFilterGroups = useMemo(() => {
-    const currencyFilters =
-      props.currencyStats?.map(cs => ({
-        id: `currency:${cs.ref}`,
-        label: cs.code,
-        selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
-      })) || []
-
-    const currencyGroup =
-      currencyFilters.length > 0
-        ? [
-            {
-              id: 'currency',
-              title: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                'Currency'
-              ),
-              filters: currencyFilters
+  // FilterConfiguration for DataDisplay filter sheet (currency in toolbar)
+  const expensePlansFilterConfig: FilterConfiguration = useMemo(() => {
+    const statusOptions = availableStatuses.map(s => ({
+      id: s,
+      label: props.filterLabelMap?.[s] || s
+    }))
+    const planTypeOptions = [
+      {
+        id: 'planType:EXPENSES',
+        label:
+          props.filterLabelMap?.['planType:EXPENSES'] ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      },
+      {
+        id: 'planType:TRIP',
+        label:
+          props.filterLabelMap?.['planType:TRIP'] ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      }
+    ]
+    const groups: FilterConfiguration['groups'] = [
+      {
+        id: 'status-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'statusIds',
+            field: 'statusIds',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.status',
+              'Status'
+            ),
+            type: 'multi-select',
+            config: { options: statusOptions }
+          }
+        ]
+      },
+      {
+        id: 'planDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'planDateRange',
+            field: 'planDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
             }
-          ]
-        : []
+          }
+        ]
+      },
+      {
+        id: 'effectiveDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.effective_date_info',
+          'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
+        ),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'effectiveDateRange',
+            field: 'effectiveDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+            type: 'date',
+            description: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_expenses.effective_date_info',
+              'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
+            ),
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'startDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'startDateRange',
+            field: 'startDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'endDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'endDateRange',
+            field: 'endDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'planType-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'planTypeIds',
+            field: 'planTypeIds',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+            type: 'multi-select',
+            config: { options: planTypeOptions }
+          }
+        ]
+      }
+    ]
+    return { id: 'expense-plans-filters', name: 'Expense Plans Filters', groups }
+  }, [availableStatuses, props.filterLabelMap])
 
-    return [...currencyGroup, ...props.filterGroups]
-  }, [props.filterGroups, props.selectedFilters, props.currencyStats])
+  const formatDateRangeForChip = useCallback((range: [Date | null, Date | null] | null | undefined) => {
+    if (!range?.[0] && !range?.[1]) return null
+    const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
+    const fmt = (d: Date | null | undefined) => (d ? d.toLocaleDateString('en-GB', opts) : '')
+    return range[0] && range[1] ? `${fmt(range[0])} – ${fmt(range[1])}` : fmt(range[0]) || fmt(range[1])
+  }, [])
+
+  const filtersObject = useMemo((): Record<string, unknown> => {
+    const statusIds = (selectedFilters || []).filter(f => availableStatuses.includes(f))
+    const planTypeIds = (selectedFilters || []).filter(f => f.startsWith('planType:'))
+    const obj: Record<string, unknown> = {}
+    if (statusIds.length > 0) obj.statusIds = statusIds
+    if (planTypeIds.length > 0) obj.planTypeIds = planTypeIds
+    const planDateStr = formatDateRangeForChip(planDateRange)
+    if (planDateStr) obj.planDateRange = planDateStr
+    const effectiveDateStr = formatDateRangeForChip(effectiveDateRange)
+    if (effectiveDateStr) obj.effectiveDateRange = effectiveDateStr
+    const startDateStr = formatDateRangeForChip(startDateRange)
+    if (startDateStr) obj.startDateRange = startDateStr
+    const endDateStr = formatDateRangeForChip(endDateRange)
+    if (endDateStr) obj.endDateRange = endDateStr
+    return obj
+  }, [
+    selectedFilters,
+    planDateRange,
+    effectiveDateRange,
+    startDateRange,
+    endDateRange,
+    availableStatuses,
+    formatDateRangeForChip
+  ])
+
+  const applyDateRangeFromFilter = useCallback(
+    (raw: unknown, setter: ((r: [Date | null, Date | null] | null) => void) | undefined): boolean => {
+      if (!setter) return false
+      const isDisplayString =
+        typeof raw === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(raw) && !(raw as string).includes(',')
+      if (isDisplayString) return false
+      const fromTo =
+        typeof raw === 'object' &&
+        raw != null &&
+        !Array.isArray(raw) &&
+        ((raw as any).from != null || (raw as any).to != null)
+          ? [(raw as any).from, (raw as any).to].filter(Boolean).join(',')
+          : (raw as string)
+      const normalized = normalizeDateRange(raw == null ? undefined : fromTo)
+      if (normalized && (normalized.from || normalized.to)) {
+        setter([normalized.from ? new Date(normalized.from) : null, normalized.to ? new Date(normalized.to) : null])
+        return true
+      }
+      setter(null)
+      return false
+    },
+    []
+  )
+
+  const handleFilterChangeFromDisplay = useCallback(
+    (filters: Record<string, unknown>) => {
+      const statusIds = (filters.statusIds as string[] | undefined) || []
+      const planTypeIds = (filters.planTypeIds as string[] | undefined) || []
+      const dateRangeTokens: string[] = []
+      if (applyDateRangeFromFilter(filters.planDateRange, setPlanDateRange)) dateRangeTokens.push('planDateRange')
+      if (applyDateRangeFromFilter(filters.effectiveDateRange, setEffectiveDateRange))
+        dateRangeTokens.push('effectiveDateRange')
+      if (applyDateRangeFromFilter(filters.startDateRange, setStartDateRange)) dateRangeTokens.push('startDateRange')
+      if (applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)) dateRangeTokens.push('endDateRange')
+      props.setFilters([...statusIds, ...planTypeIds, ...dateRangeTokens])
+      onFiltersChange?.()
+    },
+    [
+      props.setFilters,
+      setPlanDateRange,
+      setEffectiveDateRange,
+      setStartDateRange,
+      setEndDateRange,
+      applyDateRangeFromFilter,
+      onFiltersChange
+    ]
+  )
+
+  const sortableColumns = useMemo(
+    () => [
+      {
+        id: 'code',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
+          'Plan Number'
+        )
+      },
+      {
+        id: 'title',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
+      },
+      {
+        id: 'planDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')
+      },
+      {
+        id: 'startDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_table.start_date',
+          'Start Date'
+        )
+      },
+      {
+        id: 'endDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      },
+      {
+        id: 'reimbursableAmount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      }
+    ],
+    []
+  )
+
+  const availableColumnsForDisplay = useMemo(
+    () => [
+      {
+        id: 'code',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
+          'Plan Number'
+        )
+      },
+      {
+        id: 'title',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
+      },
+      {
+        id: 'planDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')
+      },
+      {
+        id: 'startDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_table.start_date',
+          'Start Date'
+        )
+      },
+      {
+        id: 'endDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      },
+      {
+        id: 'reimbursableAmount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      },
+      {
+        id: 'advancePaymentPaidAmount',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_table.paid_advance',
+          'Paid Advance'
+        )
+      }
+    ],
+    []
+  )
 
   // Preserve page index across search clear (search is controlled by parent via props)
   const savedPageBeforeSearchRef = useRef<number | null>(null)
@@ -229,6 +548,59 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         'lowcoder:personal_expenses.no_plan_data',
         'No expense plans found. Create your first expense plan to get started.'
       )
+
+  const selectedCurrencyCode = useMemo(() => {
+    const token = (selectedFilters || []).find(f => f.startsWith('currency:'))
+    if (!token) return 'ALL'
+    const ref = token.substring('currency:'.length)
+    return props.currencyStats?.find(cs => cs.ref === ref)?.code ?? 'ALL'
+  }, [selectedFilters, props.currencyStats])
+
+  const handleCurrencyChange = useCallback(
+    (code: string) => {
+      const current = selectedFilters || []
+      if (code === 'ALL') {
+        props.setFilters(current.filter(f => !f.startsWith('currency:')))
+      } else {
+        const cs = props.currencyStats?.find(c => c.code === code)
+        if (cs) {
+          props.setFilters([...current.filter(f => !f.startsWith('currency:')), `currency:${cs.ref}`])
+        }
+      }
+    },
+    [selectedFilters, props.currencyStats, props.setFilters]
+  )
+
+  const secondaryActions = useMemo(
+    () =>
+      props.currencyStats?.length ? (
+        <div className="gba:flex gba:items-center gba:gap-2" key="currency-dropdown">
+          <Label className="gba:font-medium gba:shrink-0">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+              'Currency'
+            )}
+            :
+          </Label>
+          <Select value={selectedCurrencyCode} onValueChange={handleCurrencyChange}>
+            <SelectTrigger className="gba:w-[140px]" data-testid="expense-plans-currency-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
+              </SelectItem>
+              {props.currencyStats.map(cs => (
+                <SelectItem key={cs.ref} value={cs.code}>
+                  {cs.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : undefined,
+    [props.currencyStats, selectedCurrencyCode, handleCurrencyChange]
+  )
 
   const columns = useMemo<ColumnDef<ExpensePlan>[]>(
     () => [
@@ -570,62 +942,84 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     prevSearchRef.current = props.search || ''
   }, [props.search, onTableChange, currentPage, pageSize, totalCount])
 
+  const primaryAction = useMemo(
+    () => (
+      <Button
+        onClick={handleAddExpensePlan}
+        data-testid="add-expense-plan-button"
+        className="gba:inline-flex gba:items-center gba:gap-2"
+      >
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
+          'Add'
+        )}
+      </Button>
+    ),
+    [handleAddExpensePlan]
+  )
+
   return (
     <div>
-      <DataContainer
-        dataControllerProps={{
-          search: props.search,
-          setSearch: props.onSearchChange,
-          filter: props.selectedFilters,
-          setFilter: props.setFilters,
-          filterLabelMap: dataControllerFilterLabelMap,
-          placeholder:
-            getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
-            '...',
-          addButton: {
-            onClick: handleAddExpensePlan,
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
-              'Add'
-            ),
-            'data-testid': 'add-expense-plan-button'
-          },
-          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.title', 'My Expense Plans'),
-          listAmount: totalCount ? `${totalCount}` : undefined
-        }}
-        dataFilterProps={{
-          filterGroups: dataFilterGroups,
-          onFilterChange: props.handleFilterChange
-        }}
-        hideFilter={false}
-        dataBody={
-          <DataTable<ExpensePlan>
-            data={plans || []}
-            columns={columns}
-            loading={isLoading}
-            error={props.error || undefined}
-            totalCount={totalCount}
-            sorting={sorting}
-            onSortingChange={handleSortingChange}
-            pagination={pagination}
-            onPaginationChange={handlePaginationChange}
-            enablePagination
-            enableSorting
-            enableSelection={false}
-            enableColumnPinning
-            enableResizing={false}
-            tableLayout="fixed"
-            rowsPerPageOptions={[10, 20, 50, 100]}
-            showPageNumbers
-            maxVisiblePages={7}
-            emptyMessage={emptyMessage}
-            actions={rowActions}
-            onRowClick={handleSelectItem}
-            data-testid={DATA_TEST_ID_PREFIX}
-          />
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'list',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.title', 'My Expense Plans'),
+            metadata: { count: totalCount, isLoading }
+          }
+        ]}
+        currentSection="list"
+        searchValue={search ?? ''}
+        searchPlaceholder={
+          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
+          '...'
         }
-        addLeftPaddingWhenNoFilter={true}
-      />
+        onSearchChange={props.onSearchChange}
+        filters={filtersObject}
+        filterConfiguration={expensePlansFilterConfig}
+        onFilterChange={handleFilterChangeFromDisplay}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={handleSortingChange}
+        primaryAction={primaryAction}
+        secondaryActions={secondaryActions}
+        availableColumns={availableColumnsForDisplay}
+        visibleColumns={visibleColumns}
+        onVisibleColumnsChange={setVisibleColumns}
+        toolbarDensity="default"
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.title', 'Filter Expense Plans')}
+        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.filter_expense_plans_description',
+          'Apply filters to narrow down the expense plans list.'
+        )}
+      >
+        <DataTable<ExpensePlan>
+          data={plans || []}
+          columns={columns.filter(col =>
+            visibleColumns.includes((col as ColumnDef<ExpensePlan> & { id?: string }).id ?? '')
+          )}
+          loading={isLoading}
+          error={props.error || undefined}
+          totalCount={totalCount}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          tableLayout="fixed"
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage={emptyMessage}
+          actions={rowActions}
+          onRowClick={handleSelectItem}
+          data-testid={DATA_TEST_ID_PREFIX}
+        />
+      </DataDisplay>
 
       {/* Expense Plan Details Sheet */}
       <Sheet

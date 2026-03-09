@@ -9,9 +9,10 @@ import dayjs from 'dayjs'
 import { getPlanCardStrategies, preserveCurrencyAndResetPlans } from './cardStrategies'
 // ExpenseStatus usage moved into strategies
 import { useExpensePlanCurrencies } from '../../../hooks/useExpensePlanCurrencies'
-import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { getSelectedCurrencyRef, pickMostUsedCurrencyRef } from '../../../utils/currencyUtils'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ExpenseStatus } from '../../../utils'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
@@ -28,7 +29,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const [suppressCurrencyAutoSelect, setSuppressCurrencyAutoSelect] = useState<boolean>(false)
   // Add sorting state for server-side sorting
   const [sortField, setSortField] = useState<string>('createdAt')
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>('descend')
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>('ascend')
 
   const {
     filterGroups,
@@ -40,15 +41,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setSearch,
     debouncedSearch,
     getFilters,
+    startDateRange,
     setStartDateRange,
+    endDateRange,
     setEndDateRange,
+    planDateRange,
     setPlanDateRange,
-    // expose effective date setter from filters hook
+    effectiveDateRange,
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
     removeFilter
   } = useExpensePlanFilters()
+
+  const availableStatuses = useMemo(() => Object.values(ExpenseStatus).filter(s => s !== ExpenseStatus.DISCARDED), [])
 
   const debouncedSelectedFilters = useDebounce(selectedFilters, 200) // Reduced from 300ms for faster filter response
 
@@ -61,10 +67,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     fetchOverview,
     invalidateCache
   } = useExpensePlansOverview(props)
-  const selectedCurrencyRef = useMemo(
-    () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
-    [selectedFilters]
+  const { currencyStats } = useExpensePlanCurrencies(props, selectedFilters, setFilters)
+  const mostUsedCurrencyRef = useMemo(
+    () => pickMostUsedCurrencyRef(currencyStats as { ref: string; code: string; count: number }[]),
+    [currencyStats]
   )
+  const selectedCurrencyRef = useMemo(
+    () => getSelectedCurrencyRef(selectedFilters, mostUsedCurrencyRef),
+    [selectedFilters, mostUsedCurrencyRef]
+  )
+  const currencyCodeForCards = useMemo(() => {
+    if (!selectedCurrencyRef) return 'EUR'
+    const code = currencyStats.find((s: { ref: string; code: string }) => s.ref === selectedCurrencyRef)?.code
+    return code ?? selectedCurrencyRef.split(':').pop() ?? 'EUR'
+  }, [selectedCurrencyRef, currencyStats])
   // Statistics should be undefined until loaded - don't default to 0 values
   // This prevents showing "0" values before real data loads
   const statistics = overview?.statistics
@@ -79,7 +95,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     const token = selectedFilters.find(f => f.startsWith('currency:'))
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
-  const { currencyStats } = useExpensePlanCurrencies(props, selectedFilters, setFilters)
 
   // Add a filter "pill" for the Top Destination widget so users can see/remove it.
   const topDestinationPill = useMemo(() => {
@@ -142,12 +157,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       if (isDeactivating) {
         strategies[widgetKey]?.remove()
         // Restore to base state while preserving currency selection
-        preserveCurrencyAndResetPlans(selectedFilters, clearFilters, setFilters)
+        preserveCurrencyAndResetPlans(selectedFilters, clearFilters, setFilters, mostUsedCurrencyRef)
         if (widgetKey === 'top-destinations') setDestinationFilter(null)
         return
       }
 
-      preserveCurrencyAndResetPlans(selectedFilters, clearFilters, setFilters)
+      preserveCurrencyAndResetPlans(selectedFilters, clearFilters, setFilters, mostUsedCurrencyRef)
       if (widgetKey !== 'top-destinations') setDestinationFilter(null)
       strategies[widgetKey]?.apply()
     },
@@ -161,7 +176,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       overview?.topDestination,
       selectedFilters,
       clearFilters,
-      setFilters
+      setFilters,
+      mostUsedCurrencyRef
     ]
   )
 
@@ -426,7 +442,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         activeWidgetKey={activeWidget ?? undefined}
         currentMonthClosedPlans={hasStatistics ? statistics.currentMonthClosedPlans : 0}
         previousMonthClosedPlans={hasStatistics ? statistics.previousMonthClosedPlans : 0}
-        currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
+        currencyCode={currencyCodeForCards}
       />
     )
   }, [
@@ -436,7 +452,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     overviewError,
     handleWidgetClick,
     activeWidget,
-    selectedCurrencyRef
+    currencyCodeForCards
   ])
 
   useEffect(() => {
@@ -456,27 +472,28 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setCurrentPage(validPage)
       setPageSize(pagination.pageSize)
 
-      // Handle sorting for server-side sorting
+      // New column always starts with ascend; use table order only when cycling the same column
       if (sorter && sorter.field) {
-        // If clicking the same field, cycle through: ascend -> descend -> clear
-        if (sortField === sorter.field) {
-          if (sortOrder === 'ascend') {
-            setSortOrder('descend')
-          } else if (sortOrder === 'descend') {
-            setSortField('createdAt')
-            setSortOrder('descend')
-          } else {
-            setSortOrder('ascend')
-          }
+        const isSameColumn = sortField === sorter.field
+        const orderFromTable = sorter.order !== undefined && sorter.order !== null ? sorter.order : null
+        let nextField = sorter.field
+        let nextOrder: 'ascend' | 'descend' | null
+        if (isSameColumn && orderFromTable !== null) {
+          nextOrder = orderFromTable
+        } else if (isSameColumn) {
+          if (sortOrder === 'ascend') nextOrder = 'descend'
+          else if (sortOrder === 'descend') {
+            nextField = 'createdAt'
+            nextOrder = 'ascend'
+          } else nextOrder = 'ascend'
         } else {
-          // New field - start with ascend
-          setSortField(sorter.field)
-          setSortOrder('ascend')
+          nextOrder = 'ascend'
         }
+        setSortField(nextField)
+        setSortOrder(nextOrder ?? 'ascend')
       } else {
-        // Reset to default sorting (creation date descending)
         setSortField('createdAt')
-        setSortOrder('descend')
+        setSortOrder('ascend')
       }
     },
     [sortField, sortOrder, overview?.totalCount]
@@ -533,6 +550,16 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       tableRefreshTrigger={tableRefreshTrigger}
       sortField={sortField}
       sortOrder={sortOrder}
+      planDateRange={planDateRange}
+      setPlanDateRange={setPlanDateRange}
+      startDateRange={startDateRange}
+      setStartDateRange={setStartDateRange}
+      endDateRange={endDateRange}
+      setEndDateRange={setEndDateRange}
+      effectiveDateRange={effectiveDateRange}
+      setEffectiveDateRange={setEffectiveDateRange}
+      onFiltersChange={() => setCurrentPage(1)}
+      availableStatuses={availableStatuses}
       {...({ currencyStats } as any)}
     />
   )

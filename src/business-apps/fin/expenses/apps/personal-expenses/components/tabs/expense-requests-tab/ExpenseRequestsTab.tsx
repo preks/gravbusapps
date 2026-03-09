@@ -7,7 +7,7 @@ import ExpenseRequestsTable from './ExpenseRequestsTable'
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests'
 import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
 import { useExpenseRequestCurrencies } from '../../../hooks/useExpenseRequestCurrencies'
-import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { getSelectedCurrencyRef, pickMostUsedCurrencyRef } from '../../../utils/currencyUtils'
 import { message } from 'antd'
 import { getRequestCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -51,19 +51,28 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   } = useExpenseRequestFilters()
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps)
-  const selectedCurrencyRef = useMemo(
-    () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
-    [selectedFilters]
-  )
-  const explicitSelectedCurrencyRef = useMemo(() => {
-    const token = selectedFilters.find(f => f.startsWith('currency:'))
-    return token ? token.substring('currency:'.length) : undefined
-  }, [selectedFilters])
   const { currencyStats, initialized: currenciesInitialized } = useExpenseRequestCurrencies(
     contextProps,
     selectedFilters,
     setFilters
   )
+  const mostUsedCurrencyRef = useMemo(
+    () => pickMostUsedCurrencyRef(currencyStats as { ref: string; code: string; count: number }[]),
+    [currencyStats]
+  )
+  const selectedCurrencyRef = useMemo(
+    () => getSelectedCurrencyRef(selectedFilters, mostUsedCurrencyRef),
+    [selectedFilters, mostUsedCurrencyRef]
+  )
+  const currencyCodeForCards = useMemo(() => {
+    if (!selectedCurrencyRef) return 'EUR'
+    const code = currencyStats.find((s: { ref: string; code: string }) => s.ref === selectedCurrencyRef)?.code
+    return code ?? selectedCurrencyRef.split(':').pop() ?? 'EUR'
+  }, [selectedCurrencyRef, currencyStats])
+  const explicitSelectedCurrencyRef = useMemo(() => {
+    const token = selectedFilters.find(f => f.startsWith('currency:'))
+    return token ? token.substring('currency:'.length) : undefined
+  }, [selectedFilters])
 
   const prevSelectedFiltersRef = useRef<string | null>(null)
 
@@ -84,7 +93,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
         return
       }
 
-      preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter)
+      preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter, mostUsedCurrencyRef)
       strategies[widgetKey]?.apply()
       setActiveWidget(widgetKey)
     },
@@ -96,7 +105,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       setStartDateRange,
       setEndDateRange,
       selectedFilters,
-      addFilter
+      addFilter,
+      mostUsedCurrencyRef
     ]
   )
 
@@ -201,14 +211,14 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     return (
       <ExpenseRequestStatistics
         {...contextProps}
-        currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
+        currencyCode={currencyCodeForCards}
         {...({ selectedCurrencyRef } as any)}
         {...({ currencyInitialized: currenciesInitialized } as any)}
         onWidgetClick={handleWidgetClick}
         activeWidgetKey={activeWidget || undefined}
       />
     )
-  }, [contextProps, handleWidgetClick, activeWidget, selectedCurrencyRef])
+  }, [contextProps, handleWidgetClick, activeWidget, currencyCodeForCards])
 
   const onContentHeaderChange = props.onContentHeaderChange
   useEffect(() => {
