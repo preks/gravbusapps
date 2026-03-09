@@ -39,6 +39,21 @@ interface PreviewSandboxProps {
   allowLoad?: boolean
 }
 
+interface PreviewNamespaceContext {
+  sessionNamespace: string
+  namespace: string
+}
+
+function derivePreviewNamespaceContext(sessionNamespaceOrId: string): PreviewNamespaceContext {
+  const seed = (sessionNamespaceOrId || '').trim()
+  const normalized = seed.replace(/[^a-zA-Z0-9_]/g, '_')
+  const draftNamespace = `draft_${normalized}`
+  return {
+    sessionNamespace: seed,
+    namespace: draftNamespace
+  }
+}
+
 export interface PreviewSandboxHandle {
   reload: (opts?: { cacheOnly?: boolean }) => void
 }
@@ -67,6 +82,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bundleVersion, setBundleVersion] = useState<string | null>(null)
+  const [namespaceContext, setNamespaceContext] = useState<PreviewNamespaceContext | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
 
@@ -95,6 +111,33 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     }),
     [builderClient, sessionId, previewAppName]
   )
+
+  useEffect(() => {
+    let mounted = true
+    const fallback = derivePreviewNamespaceContext(sessionId)
+    setNamespaceContext(fallback)
+
+    const loadSessionNamespace = async () => {
+      try {
+        const response = await builderClient.getSession(sessionId)
+        const sessionNamespace = response.session?.namespace?.trim() || sessionId
+        const derived = derivePreviewNamespaceContext(sessionNamespace)
+        if (!mounted) return
+        setNamespaceContext(derived)
+      } catch {
+        if (!mounted) return
+        setNamespaceContext(fallback)
+      }
+    }
+
+    if (sessionId) {
+      void loadSessionNamespace()
+    }
+
+    return () => {
+      mounted = false
+    }
+  }, [builderClient, sessionId])
 
   useEffect(() => {
     let mounted = true
@@ -162,6 +205,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
       setPreviewReady(true)
 
       const nwEnvs = getRuntimeEnvsForIframe()
+      const resolvedNamespaceContext = namespaceContext ?? derivePreviewNamespaceContext(sessionId)
       const targetOrigin = typeof event.origin === 'string' ? event.origin : '*'
       ;(source as Window).postMessage(
         {
@@ -169,6 +213,11 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
           context: {
             accessToken: accessToken,
             userInfo: userInfo,
+            additionalData: {
+              namespace: resolvedNamespaceContext.namespace,
+              publishState: 'draft',
+              sessionNamespace: resolvedNamespaceContext.sessionNamespace
+            },
             nwEnvs,
             sentAt: Date.now()
           }
@@ -178,12 +227,13 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
       console.log('[PreviewSandbox] Sent BUSINESS_APP_CONTEXT to iframe', {
         hasAccessToken: !!accessToken,
         hasUserInfo: !!userInfo,
+        hasAdditionalDataNamespace: !!resolvedNamespaceContext.namespace,
         nwEnvsKeys: Object.keys(nwEnvs || {})
       })
     }
     globalThis.addEventListener('message', handleMessage)
     return () => globalThis.removeEventListener('message', handleMessage)
-  }, [accessToken, userInfo, previewReady])
+  }, [accessToken, userInfo, previewReady, namespaceContext, sessionId])
 
   const handleIframeError = () => {
     const errorMsg = 'Failed to load preview iframe'
