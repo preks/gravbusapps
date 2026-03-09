@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -107,6 +107,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const abortControllerRef = useRef<AbortController | null>(null)
   const pageCacheRef = useRef<Map<string, { items: AdvancePayment[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
+  const itemsRef = useRef<AdvancePayment[]>([]) // For checking existing data (avoid loading flash on sort/pagination, same as items table)
 
   const generateCacheKey = useCallback(
     (params: {
@@ -192,20 +193,33 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     return true
   }
 
-  // Helper function to build sort order
+  // Helper function to build sort order (maps UI column ids to AdvancePaymentOrderBy field names)
   const buildOrderBy = (sortField?: SortField, sortOrder?: SortOrder): any[] => {
     if (sortField && sortOrder) {
+      const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
+      // expensePlan is a relation; AdvancePaymentOrderBy expects ExpensePlanOrderBy object, not a string
+      if (sortField === 'expensePlan') {
+        return [{ expensePlan: { title: direction } }]
+      }
+      // Plan Number column shows expensePlan.code, so sort by nested relation
+      if (sortField === 'planNumber') {
+        return [{ expensePlan: { code: direction } }]
+      }
+      // Amount column shows expensePlan.totalAmount (plan total), so sort by nested relation
+      if (sortField === 'amount') {
+        return [{ expensePlan: { totalAmount: direction } }]
+      }
       const fieldMap: Record<string, string> = {
         status: 'status',
-        amount: 'amount',
+        advance: 'amount', // Advance column = AdvancePayment.amount
         paymentMethod: 'paymentMethod',
         createdAt: 'createdAt',
         updatedAt: 'updatedAt',
         description: 'description',
-        currencyRef: 'currencyRef'
+        currencyRef: 'currencyRef',
+        code: 'code'
       }
       const gqlField = fieldMap[sortField] || sortField
-      const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
       return [{ [gqlField]: direction }]
     }
     return [{ createdAt: 'DESC_NULLS_LAST' }]
@@ -386,7 +400,10 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         return
       }
 
-      setIsLoading(true)
+      // Only show loading when we have no data yet (initial load); skip for sort/pagination to avoid table rerender/flash (same as items table)
+      if (itemsRef.current.length === 0) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {
@@ -455,6 +472,10 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       processResponseData
     ]
   )
+
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   const invalidateAllCache = useCallback(() => {
     pageCacheRef.current.clear()

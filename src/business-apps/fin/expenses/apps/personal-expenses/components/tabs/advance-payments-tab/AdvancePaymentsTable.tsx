@@ -1,14 +1,23 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { DataTable } from '@newwork/nw-design-system'
+import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Sheet, SheetContent } from '@newwork/nw-design-system'
-import { Badge } from '@newwork/nw-design-system'
+import {
+  Sheet,
+  SheetContent,
+  Badge,
+  Button,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { message } from 'antd'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { startProcess } from '@/common/utils/start-process'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments'
 import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
@@ -38,6 +47,8 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   filterLabelMap?: Record<string, string>
   amountRange?: { min?: number; max?: number } | null
   advanceRange?: { min?: number; max?: number } | null
+  setAmountRange?: (range: { min?: number; max?: number } | null) => void
+  setAdvanceRange?: (range: { min?: number; max?: number } | null) => void
   selectedFilters?: string[]
   removeFilter?: (filterId: string) => void
   tableRefreshTrigger?: number
@@ -85,7 +96,6 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter])
   const currentAmountRange = useMemo(() => props.amountRange || null, [props.amountRange])
   const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange])
-  const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups])
   const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap])
 
   // Add debounced versions for filter debouncing (200ms debounce for responsive feel)
@@ -275,13 +285,219 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     fetchApprovalData()
   }, [generateDocOpen, generateDocRecord, contextProps.accessToken, graphqlClient])
 
-  const currencyLabelMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    currencyStats.forEach(cs => {
-      map[`currency:${cs.ref}`] = cs.code
-    })
-    return map
-  }, [currencyStats])
+  // FilterConfiguration for DataDisplay filter sheet (same pattern as items/plans)
+  const advancePaymentsFilterConfig: FilterConfiguration = useMemo(() => {
+    const statusOptions = Object.keys(filterLabelMap)
+      .filter(k => !k.startsWith('currency:') && k !== 'amountRange' && k !== 'advanceRange')
+      .map(s => ({ id: s, label: filterLabelMap[s] || s }))
+    const groups: FilterConfiguration['groups'] = [
+      {
+        id: 'status-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'statusIds',
+            field: 'statusIds',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
+            type: 'multi-select',
+            config: { options: statusOptions }
+          }
+        ]
+      },
+      {
+        id: 'amount-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'amount',
+            field: 'amount',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
+            type: 'number',
+            config: {
+              mode: 'range',
+              min: 0,
+              max: 1000000,
+              step: 100,
+              placeholderMin: 'Min Amount',
+              placeholderMax: 'Max Amount'
+            }
+          }
+        ]
+      },
+      {
+        id: 'advance-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_range_filter', 'Advance Range'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'advance',
+            field: 'advance',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_expenses.advance_range_filter',
+              'Advance Range'
+            ),
+            type: 'number',
+            config: {
+              mode: 'range',
+              min: 0,
+              max: 1000000,
+              step: 100,
+              placeholderMin: 'Min Advance',
+              placeholderMax: 'Max Advance'
+            }
+          }
+        ]
+      }
+    ]
+    return { id: 'advance-payments-filters', name: 'Advance Payments Filters', groups }
+  }, [filterLabelMap])
+
+  // filters object for DataDisplay chips (from current state)
+  const filtersObject = useMemo((): Record<string, unknown> => {
+    const statusIds = currentStatusFilter.filter(
+      s => !s.startsWith('currency:') && s !== 'amountRange' && s !== 'advanceRange'
+    )
+    const obj: Record<string, unknown> = {}
+    if (statusIds.length > 0) obj.statusIds = statusIds
+    if (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) {
+      obj.amount = { ...currentAmountRange }
+    }
+    if (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined)) {
+      obj.advance = { ...currentAdvanceRange }
+    }
+    return obj
+  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange])
+
+  // When DataDisplay filter sheet applies changes, sync back to parent/hook state
+  const handleFilterChangeFromDisplay = useCallback(
+    (filters: Record<string, unknown>) => {
+      const statusIds = (filters.statusIds as string[] | undefined) || []
+      const amt = filters.amount as { min?: number; max?: number } | undefined
+      const adv = filters.advance as { min?: number; max?: number } | undefined
+      const hasAmount = amt && (amt.min !== undefined || amt.max !== undefined)
+      const hasAdvance = adv && (adv.min !== undefined || adv.max !== undefined)
+      const currencyTokens = (props.selectedFilters || []).filter(f => f.startsWith('currency:'))
+      const rangeMarkers: string[] = []
+      if (hasAmount) rangeMarkers.push('amountRange')
+      if (hasAdvance) rangeMarkers.push('advanceRange')
+      if (props.onFilterChange) {
+        props.onFilterChange([...statusIds, ...currencyTokens, ...rangeMarkers])
+      }
+      props.setAmountRange?.(hasAmount ? amt! : null)
+      props.setAdvanceRange?.(hasAdvance ? adv! : null)
+      setCurrentPage(1)
+    },
+    [props.selectedFilters, props.onFilterChange, props.setAmountRange, props.setAdvanceRange]
+  )
+
+  // Sortable columns for DataDisplay (match API fieldMap: code, status, amount, paymentMethod, createdAt)
+  const sortableColumns = useMemo(
+    () => [
+      {
+        id: 'createdAt',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.created_at', 'Created')
+      },
+      {
+        id: 'code',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
+          'Plan Number'
+        )
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status')
+      },
+      {
+        id: 'amount',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:manager_expense_request_list.expense_table.advance',
+          'Advance'
+        )
+      },
+      {
+        id: 'paymentMethod',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+          'Payment Method'
+        )
+      }
+    ],
+    []
+  )
+
+  const baseVisibleColumnIds = useMemo(
+    () => ['expensePlan', 'planNumber', 'status', 'amount', 'advance', 'paymentMethod'],
+    []
+  )
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
+
+  const availableColumnsForDisplay = useMemo(
+    () => [
+      {
+        id: 'expensePlan',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.initial_expense_plan_select_label',
+          'Expense Plan'
+        )
+      },
+      {
+        id: 'planNumber',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
+          'Plan Number'
+        )
+      },
+      { id: 'status', label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status') },
+      {
+        id: 'amount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount')
+      },
+      {
+        id: 'advance',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:manager_expense_request_list.expense_table.advance',
+          'Advance'
+        )
+      },
+      {
+        id: 'paymentMethod',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+          'Payment Method'
+        )
+      }
+    ],
+    []
+  )
+
+  const selectedCurrencyCode = useMemo(() => {
+    const token = (props.selectedFilters || []).find(f => f.startsWith('currency:'))
+    if (!token) return 'ALL'
+    const ref = token.substring('currency:'.length)
+    return currencyStats.find(cs => cs.ref === ref)?.code ?? 'ALL'
+  }, [props.selectedFilters, currencyStats])
+
+  const handleCurrencyChange = useCallback(
+    (code: string) => {
+      const current = props.selectedFilters || []
+      if (code === 'ALL') {
+        props.onFilterChange?.(current.filter(f => !f.startsWith('currency:')))
+      } else {
+        const cs = currencyStats.find(c => c.code === code)
+        if (cs) {
+          props.onFilterChange?.([...current.filter(f => !f.startsWith('currency:')), `currency:${cs.ref}`])
+        }
+      }
+      setCurrentPage(1)
+    },
+    [props.selectedFilters, currencyStats, props.onFilterChange]
+  )
 
   const entityDataMapForDoc = useMemo((): Record<string, Record<string, unknown>> => {
     if (!generateDocRecord) return {}
@@ -541,19 +757,18 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     () => (sortOrder ? [{ id: sortField || 'createdAt', desc: sortOrder === 'descend' }] : []),
     [sortField, sortOrder]
   )
-  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
-    const entry = newSorting[0]
-    const field = entry?.id || 'createdAt'
-    const order = entry ? (entry.desc ? 'descend' : 'ascend') : undefined
-    if (entry) {
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      const entry = newSorting[0]
+      const field = entry?.id || 'createdAt'
+      const order = entry ? (entry.desc ? 'descend' : 'ascend') : 'descend'
+      if (field === sortField && order === sortOrder) return
       setSortField(field)
       setSortOrder(order)
-    } else {
-      setSortField('createdAt')
-      setSortOrder('descend')
-    }
-    setCurrentPage(1)
-  }, [])
+      setCurrentPage(1)
+    },
+    [sortField, sortOrder]
+  )
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
   const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
     setCurrentPage(newPagination.pageIndex + 1)
@@ -798,116 +1013,123 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     [contextProps.accessToken, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails]
   )
 
-  // Memoize DataContainer props to prevent unnecessary re-renders
-  const dataControllerProps = useMemo(
-    () => ({
-      search: searchText,
-      filter: props.selectedFilters || currentStatusFilter,
-      setSearch: handleSearchChange,
-      setFilter: (newFilters: any) => {
-        // Handle filter changes
-        if (props.onFilterChange) {
-          props.onFilterChange(newFilters as string[])
-        }
-      },
-      addButton: {
-        onClick: handleAddAdvancePayment,
-        label: getTranslationFromI18nKeyAndLabel(
+  const primaryAction = useMemo(
+    () => (
+      <Button
+        onClick={handleAddAdvancePayment}
+        size="sm"
+        variant="default"
+        data-testid="add-advance-payment-button"
+        type="button"
+      >
+        {getTranslationFromI18nKeyAndLabel(
           'lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.btn_add',
           'Add'
-        ),
-        'data-testid': 'add-advance-payment-button'
-      },
-      listTitle: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:advance_lists.my_advance_payments.title',
-        'My Advance Payments'
-      ),
-      listAmount: totalCount ? `${totalCount}` : undefined,
-      filterLabelMap: { ...filterLabelMap, ...currencyLabelMap }
-    }),
-    [
-      searchText,
-      props.selectedFilters,
-      currentStatusFilter,
-      handleSearchChange,
-      props.onFilterChange,
-      handleAddAdvancePayment,
-      totalCount,
-      isLoading,
-      filterLabelMap,
-      currencyLabelMap
-    ]
+        )}
+      </Button>
+    ),
+    [handleAddAdvancePayment]
   )
 
-  const currencyAugmentedFilterGroups = useMemo(() => {
-    const currencyGroup =
-      currencyStats.length > 0
-        ? [
-            {
-              id: 'currency',
-              title: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                'Currency'
-              ),
-              filters: currencyStats.map(cs => ({
-                id: `currency:${cs.ref}`,
-                label: cs.code,
-                selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
-              })),
-              selectionMode: 'single'
-            }
-          ]
-        : []
-    return [...currencyGroup, ...filterGroups]
-  }, [currencyStats, filterGroups, props.selectedFilters])
-
-  const dataFilterProps = useMemo(
-    () => ({
-      filterGroups: currencyAugmentedFilterGroups,
-      onFilterChange: (filterId: string, selected: boolean) => {
-        if (props.handleFilterChange) {
-          props.handleFilterChange(filterId, selected)
-        }
-      }
-    }),
-    [currencyAugmentedFilterGroups, props.handleFilterChange]
+  const secondaryActions = useMemo(
+    () =>
+      currencyStats.length > 0 ? (
+        <div className="gba:flex gba:items-center gba:gap-2" key="currency-dropdown">
+          <Label className="gba:font-medium gba:shrink-0">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+              'Currency'
+            )}
+            :
+          </Label>
+          <Select value={selectedCurrencyCode} onValueChange={handleCurrencyChange}>
+            <SelectTrigger className="gba:w-[140px]" data-testid="advance-payments-currency-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
+              </SelectItem>
+              {currencyStats.map(cs => (
+                <SelectItem key={cs.ref} value={cs.code}>
+                  {cs.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : undefined,
+    [currencyStats, selectedCurrencyCode, handleCurrencyChange]
   )
 
   return (
     <div ref={ref}>
-      <DataContainer
-        dataControllerProps={dataControllerProps}
-        dataFilterProps={dataFilterProps}
-        hideFilter={false}
-        dataBody={
-          <DataTable<AdvancePayment>
-            data={items || []}
-            columns={columns}
-            loading={isLoading}
-            error={error || undefined}
-            totalCount={totalCount}
-            sorting={sorting}
-            onSortingChange={handleSortingChange}
-            pagination={pagination}
-            onPaginationChange={handlePaginationChange}
-            enablePagination
-            enableSorting
-            enableSelection={false}
-            enableColumnPinning
-            enableResizing={false}
-            tableLayout="fixed"
-            rowsPerPageOptions={[10, 20, 50, 100]}
-            showPageNumbers
-            maxVisiblePages={7}
-            emptyMessage={emptyMessage}
-            actions={rowActions}
-            onRowClick={handleSelectItem}
-            data-testid={DATA_TEST_ID_PREFIX}
-          />
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'list',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:advance_lists.my_advance_payments.title',
+              'My Advance Payments'
+            ),
+            metadata: { count: totalCount, isLoading }
+          }
+        ]}
+        currentSection="list"
+        searchValue={searchText}
+        searchPlaceholder={
+          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
+          '...'
         }
-        contentBackground="white"
-        addLeftPaddingWhenNoFilter={true}
-      />
+        onSearchChange={handleSearchChange}
+        filters={filtersObject}
+        filterConfiguration={advancePaymentsFilterConfig}
+        onFilterChange={handleFilterChangeFromDisplay}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={handleSortingChange}
+        primaryAction={primaryAction}
+        secondaryActions={secondaryActions}
+        availableColumns={availableColumnsForDisplay}
+        visibleColumns={visibleColumns}
+        onVisibleColumnsChange={setVisibleColumns}
+        toolbarDensity="default"
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:advance_lists.my_advance_payments.title',
+          'Filter Advance Payments'
+        )}
+        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.filter_advance_payments_description',
+          'Apply filters to narrow down the advance payments list.'
+        )}
+      >
+        <DataTable<AdvancePayment>
+          data={items || []}
+          columns={columns.filter(col =>
+            visibleColumns.includes((col as ColumnDef<AdvancePayment> & { id?: string }).id ?? '')
+          )}
+          loading={isLoading}
+          error={error || undefined}
+          totalCount={totalCount}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          tableLayout="fixed"
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage={emptyMessage}
+          actions={rowActions}
+          onRowClick={handleSelectItem}
+          data-testid={DATA_TEST_ID_PREFIX}
+        />
+      </DataDisplay>
 
       {/* Advance Payment Details Sheet */}
       <Sheet open={!!selectedItem} onOpenChange={open => !open && handleCloseDetails()}>
