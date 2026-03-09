@@ -11,6 +11,17 @@ export interface AnalyzeRequest {
   prompt: string
   context?: Record<string, unknown>
   answers?: Record<string, string>
+  /** Builder identity (user who initiated the build) */
+  createdBy?: {
+    id: string
+    employeeId?: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+    email?: string
+    pictureThumbnail?: string
+    consentToStorePii?: boolean
+  }
 }
 
 // Response from analyze endpoint

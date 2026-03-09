@@ -7,6 +7,7 @@
 import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { calculateScreenHash, loadHashFile, saveHashFile, configureGit } from './utils/componentHashUtils.js'
+import { mergeTouchedHashes } from './utils/hashPipelineUtils.js'
 
 async function main() {
   // Read the list of successfully published screens from changed-tsx.txt
@@ -55,6 +56,7 @@ async function main() {
 
   // Load current hashes
   const componentHashes = loadHashFile(hashFilePath)
+  const touchedHashes = {}
 
   // Update hashes for all successfully published screens
   let updatedCount = 0
@@ -70,6 +72,7 @@ async function main() {
     try {
       const screenHash = hashBuildBaseline[screen] || calculateScreenHash(buildOutputDir)
       componentHashes[screen] = screenHash
+      touchedHashes[screen] = screenHash
       updatedCount++
       console.log(`   ✅ ${screen}: ${screenHash}`)
     } catch (error) {
@@ -82,8 +85,8 @@ async function main() {
     saveHashFile(hashFilePath, componentHashes)
     console.log(`\n   📝 Updated ${updatedCount} component hash(es)`)
 
-    // Keep our new hashes for merge conflict resolution
-    const ourNewHashes = { ...componentHashes }
+    // Keep only touched hashes for conflict-safe merge resolution.
+    const ourTouchedHashes = { ...touchedHashes }
     const hashFileName = 'component-hashes.json'
 
     /**
@@ -129,13 +132,14 @@ async function main() {
         // If file doesn't exist or is invalid, start fresh
       }
 
-      // Merge our new hashes into the remote version
-      const mergedHashes = { ...remoteHashes, ...ourNewHashes }
+      // Merge only touched hashes into the remote version.
+      // This prevents unrelated local keys from overwriting newer remote updates.
+      const mergedHashes = mergeTouchedHashes(remoteHashes, ourTouchedHashes)
 
       // Save the merged result
       saveHashFile(hashFilePath, mergedHashes)
       console.log(
-        `   🔀 Merged ${Object.keys(ourNewHashes).length} local hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
+        `   🔀 Merged ${Object.keys(ourTouchedHashes).length} touched hash(es) with ${Object.keys(remoteHashes).length} remote hash(es)`
       )
 
       // Stage the resolved file

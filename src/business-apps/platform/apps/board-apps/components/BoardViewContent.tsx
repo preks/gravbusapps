@@ -241,13 +241,19 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
       return (
         <BoardTimelineView
           rows={rows}
+          columns={visibleColumns}
           viewConfig={{
             type: 'timeline',
             startDateColumn: tc.startDateColumn || dateName,
             endDateColumn: tc.endDateColumn || dateName,
-            titleColumn: tc.titleColumn || primaryName
+            titleColumn: tc.titleColumn || primaryName,
+            dependencyColumn: tc.dependencyColumn
           }}
           onRowClick={onRowClick}
+          onUpdateCell={onUpdateCell}
+          onUpdateView={
+            view && onUpdateView ? (config: Partial<TimelineViewConfig>) => onUpdateView(view.id, config) : undefined
+          }
           data-testid={testId}
         />
       )
