@@ -5,11 +5,12 @@
  * account management, calendar sync, and admin provider settings.
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { postToPlatform } from '@/common/utils/postToPlatform'
 import { useEmailAccounts, useEmailFolders, useEmails, useEmailDirectory } from './hooks'
 import { EmailApiService } from './services/EmailApiService'
 import {
@@ -22,7 +23,7 @@ import {
   EmailEmptyState,
   MicrosoftOAuthCallback
 } from './components'
-import type { EmailMessage, ComposeMode, EmailLabel } from './types'
+import type { EmailMessage, EmailMessageSummary, ComposeMode, EmailLabel } from './types'
 import translations from './_i18n'
 
 // Capture OAuth params at module load time (before platform can strip them)
@@ -68,6 +69,47 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   'data-testid': testId = 'email-apps-hub'
 }) => {
   const { t } = useTranslation(translations)
+  const pendingChatFallbackTimerRef = useRef<number | null>(null)
+
+  const clearPendingChatFallback = useCallback(() => {
+    if (pendingChatFallbackTimerRef.current !== null) {
+      window.clearTimeout(pendingChatFallbackTimerRef.current)
+      pendingChatFallbackTimerRef.current = null
+    }
+  }, [])
+
+  const scheduleChatOpenFallback = useCallback(() => {
+    clearPendingChatFallback()
+    pendingChatFallbackTimerRef.current = window.setTimeout(() => {
+      pendingChatFallbackTimerRef.current = null
+      const currentPath = window.location.pathname
+      const isAlreadyOnChat = currentPath === '/platform/chat' || currentPath === '/platform/apps/chat'
+      if (isAlreadyOnChat) return
+
+      navigateTo('/platform/chat?view=chat')
+    }, 800)
+  }, [clearPendingChatFallback])
+
+  useEffect(() => {
+    const handleConversationReady = () => {
+      clearPendingChatFallback()
+    }
+
+    const handleWindowMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'CHAT_CONVERSATION_READY') {
+        handleConversationReady()
+      }
+    }
+
+    window.addEventListener('chat:conversation-ready', handleConversationReady)
+    window.addEventListener('message', handleWindowMessage)
+
+    return () => {
+      window.removeEventListener('chat:conversation-ready', handleConversationReady)
+      window.removeEventListener('message', handleWindowMessage)
+      clearPendingChatFallback()
+    }
+  }, [clearPendingChatFallback])
 
   // Check if this is an OAuth callback redirect
   const [isOAuthCallback, setIsOAuthCallback] = useState(() => {
@@ -163,7 +205,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   })
 
   // Directory hook for auto-suggest (org directory + provider contacts)
-  const { searchContacts, addRecentRecipients } = useEmailDirectory(accessToken, accounts)
+  const { searchContacts, addRecentRecipients, findDirectoryUserMatch } = useEmailDirectory(accessToken, accounts)
 
   // Set access token on API service
   useEffect(() => {
@@ -293,6 +335,42 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     [refreshMessages, t]
   )
 
+  const canChatWithSender = useCallback(
+    (message: EmailMessageSummary): boolean => {
+      const sender = message.fromAddress
+      if (!sender?.address && !sender?.name) return false
+      const senderUser = findDirectoryUserMatch({ email: sender.address, name: sender.name })
+      return Boolean(senderUser)
+    },
+    [findDirectoryUserMatch]
+  )
+
+  const handleChatWithUserFromList = useCallback(
+    (message: EmailMessageSummary) => {
+      const sender = message.fromAddress
+      const senderUser = findDirectoryUserMatch({ email: sender?.address, name: sender?.name })
+      if (!senderUser) return
+
+      const payload = {
+        userId: senderUser.id,
+        userName: senderUser.name,
+        metadata: {
+          source: 'mail',
+          messageId: message.id,
+          senderEmail: senderUser.email
+        }
+      }
+
+      // Dispatch across all known channels to maximize compatibility.
+      postToPlatform({ type: 'OPEN_CHAT_WITH_USER', payload })
+      window.postMessage({ type: 'OPEN_CHAT_WITH_USER', payload }, '*')
+      window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: payload }))
+      sessionStorage.setItem('chatPendingOpenWithUser', JSON.stringify(payload))
+      scheduleChatOpenFallback()
+    },
+    [findDirectoryUserMatch, scheduleChatOpenFallback]
+  )
+
   const handleMessageLabelsUpdatedFromList = useCallback(
     (messageId: string, labels?: EmailLabel[]) => {
       if (labels) {
@@ -405,6 +483,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onReply={handleReplyFromList}
         onReplyAll={handleReplyAllFromList}
         onForward={handleForwardFromList}
+        onChatWithUser={handleChatWithUserFromList}
+        canChatWithUser={canChatWithSender}
         onToggleRead={handleToggleReadFromList}
         onArchive={handleArchive}
         onDelete={deleteMessage}

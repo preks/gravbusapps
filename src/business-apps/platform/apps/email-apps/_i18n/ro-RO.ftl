@@ -23,6 +23,7 @@ list-context-labels = Etichete
 list-context-reply = Răspunde
 list-context-reply-all = Răspunde tuturor
 list-context-forward = Redirecționează
+list-context-chat-with-user = Chat cu utilizatorul
 list-context-mark-read = Marchează ca citit
 list-context-mark-unread = Marchează ca necitit
 list-context-archive = Arhivează
