@@ -95,11 +95,13 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
                 <li className="gba:space-y-1.5">
                   <p className="gba:mt-0.5">
                     {t('feedback-hub-suggested-no-received', {
-                      days: kpis.daysSinceReceived != null ? String(kpis.daysSinceReceived) : t('feedback-hub-days-never')
+                      days:
+                        kpis.daysSinceReceived != null ? String(kpis.daysSinceReceived) : t('feedback-hub-days-never')
                     })}
                   </p>
                   <AppAction
-                    variant="update-primary"
+                    variant="update-secondary"
+                    buttonSize="default"
                     contexts={[
                       {
                         context: FlowContextName.employeeRequestFeedback,
@@ -118,8 +120,7 @@ const FeedbackHubKpiGrid: React.FC<FeedbackHubKpiGridProps> = ({
                 <li className="gba:space-y-1.5">
                   <p className="gba:mt-0.5">{t('feedback-hub-suggested-no-given')}</p>
                   <AppAction
-                    variant="update-secondary"
-                    buttonSize="default"
+                    variant="update-primary"
                     contexts={[
                       { context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }
                     ]}
