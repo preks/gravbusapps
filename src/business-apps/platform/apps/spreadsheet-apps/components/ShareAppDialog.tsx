@@ -29,7 +29,11 @@ import {
 } from '@newwork/nw-design-system'
 import { Share2, Users, X, Search, Trash2, Eye, Pencil, Shield, Send, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
+import {
+  useEmployeeSearch,
+  type EmployeeLiteOption,
+  getWorkEmailFromCommunication
+} from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
 import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
 import type { SharePermission } from '../types'
@@ -283,7 +287,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
         !selectedIds.has(emp.userId) &&
         (!normalizedQuery ||
           emp.displayName?.toLowerCase().includes(normalizedQuery) ||
-          emp.workEmail?.toLowerCase().includes(normalizedQuery) ||
+          getWorkEmailFromCommunication(emp.communication)?.toLowerCase().includes(normalizedQuery) ||
           emp.userId?.toLowerCase().includes(normalizedQuery))
     )
   }, [searchResults, selectedUsers, resolvedSharedUsers, currentUserId, searchQuery])
@@ -370,7 +374,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
         userId: (u.userId || u.id) as string,
         displayName: u.displayName,
         avatar: u.pictureThumbnail,
-        email: ''
+        email: getWorkEmailFromCommunication(u.communication)
       }))
       const success = await onShare(shares, userDetails)
 

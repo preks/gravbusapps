@@ -18,7 +18,7 @@ export interface EmployeeLiteOption {
   firstName?: string
   lastName?: string
   userId?: string
-  workEmail?: string
+  communication?: Array<{ value?: string; channelRef?: string }>
   pictureThumbnail?: string
   organizationalUnitName?: string
   jobPositionName?: string
@@ -82,7 +82,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
           firstName: e.firstName,
           lastName: e.lastName,
           userId: e.userId,
-          workEmail: getWorkEmailFromCommunication(e.communication),
+          communication: e.communication,
           pictureThumbnail: e.pictureThumbnail,
           organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
           jobPositionName: e.employeePosition?.jobPosition?.name
@@ -161,7 +161,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
           firstName: e.firstName,
           lastName: e.lastName,
           userId: e.userId,
-          workEmail: getWorkEmailFromCommunication(e.communication),
+          communication: e.communication,
           pictureThumbnail: e.pictureThumbnail,
           organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
           jobPositionName: e.employeePosition?.jobPosition?.name
