@@ -97,6 +97,7 @@ export const useGetExpenseItems = (
   const [totalCount, setTotalCount] = useState<number>(0)
   const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
   const itemsRef = useRef<ExpenseItem[]>([]) // For checking existing data inside fetchItems (avoid loading flash on sort/pagination)
+  const lastDisplayedCacheKeyRef = useRef<string>('') // When filters/card change, clear stale data so correct data shows directly
   // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder)
   const pageCacheRef = useRef<Map<string, { items: ExpenseItem[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
@@ -302,12 +303,19 @@ export const useGetExpenseItems = (
       // Check cache first - if page is cached and not forcing refresh, return immediately
       const cachedData = pageCacheRef.current.get(cacheKey)
       if (cachedData && !options?.force) {
-        // Return cached data immediately - no loading state
+        lastDisplayedCacheKeyRef.current = cacheKey
         setItems(cachedData.items)
         setTotalCount(cachedData.totalCount)
         setIsLoading(false)
         setError(null)
         return
+      }
+
+      // When filters/card changed (different cache key), clear stale data and show loading so correct data appears directly
+      if (cacheKey !== lastDisplayedCacheKeyRef.current && itemsRef.current.length > 0) {
+        setItems([])
+        setTotalCount(0)
+        setIsLoading(true)
       }
 
       // Cancel previous request if it exists
@@ -332,7 +340,7 @@ export const useGetExpenseItems = (
 
           // Cache the result
           pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
-
+          lastDisplayedCacheKeyRef.current = cacheKey
           setItems(mappedItems)
           setTotalCount(finalCount)
           setIsLoading(false)
@@ -375,7 +383,7 @@ export const useGetExpenseItems = (
 
         // Cache the result
         pageCacheRef.current.set(cacheKey, { items: mappedItems, totalCount: finalCount })
-
+        lastDisplayedCacheKeyRef.current = cacheKey
         setItems(mappedItems)
         setTotalCount(finalCount)
       } catch (err) {

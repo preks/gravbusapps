@@ -74,7 +74,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   // Get all selected filters (including date range and amount range) - use props instead of hook
   const allSelectedFilters = selectedFilters
-  const debouncedSelectedFilters = useDebounce(allSelectedFilters, 200) // 200ms debounce
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
@@ -344,7 +343,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   )
 
   const buildApiFilters = useCallback(() => {
-    const apiFilters = { ...getFilters(debouncedSelectedFilters) } as ExpenseFilter
+    // Use allSelectedFilters (immediate) so that when a card is deactivated we fetch with correct filters right away instead of after debounce (avoids brief flash of wrong data)
+    const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter
 
     // Only apply currency filter if explicitly selected by user
     // Check if currency is in selected filters first, then use selectedCurrencyRef
@@ -371,7 +371,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     }
 
     return apiFilters
-  }, [getFilters, debouncedSelectedFilters, selectedCurrencyRef, props.activeWidgetKey, allSelectedFilters])
+  }, [getFilters, selectedCurrencyRef, props.activeWidgetKey, allSelectedFilters])
 
   useEffect(() => {
     if (!initialized) return
