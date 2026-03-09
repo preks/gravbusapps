@@ -53,6 +53,39 @@ const extractErrorCode = (errorData: any, status: number): string => {
   return STATUS_TO_ERROR_CODE[status] ?? 'UNKNOWN_ERROR'
 }
 
+const trimTrailingSlashes = (url: string): string => {
+  let normalized = url
+  while (normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1)
+  }
+  return normalized
+}
+
+const parseErrorCodeFromResponse = async (response: Response): Promise<string> => {
+  const errorCode = STATUS_TO_ERROR_CODE[response.status] ?? 'UNKNOWN_ERROR'
+  try {
+    const errorData = await response.json()
+    return extractErrorCode(errorData, response.status)
+  } catch {
+    try {
+      const errorText = await response.text()
+      if (typeof errorText === 'string' && errorText.trim() !== '') {
+        const parsed = JSON.parse(errorText)
+        return extractErrorCode(parsed, response.status)
+      }
+    } catch {
+      // Keep status-mapped fallback.
+    }
+  }
+
+  return errorCode
+}
+
+const toFiniteNumber = (value: unknown): number | null => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
+}
+
 export const useAbsencePrevalidateShared = ({
   accessToken,
   employeeId,
@@ -73,7 +106,7 @@ export const useAbsencePrevalidateShared = ({
 
     const timer = setTimeout(async () => {
       try {
-        const baseUrl = (env('NEXT_PUBLIC_BASE_URL') ?? '').replace(/\/+$/, '')
+        const baseUrl = trimTrailingSlashes(env('NEXT_PUBLIC_BASE_URL') ?? '')
         const requestBody = JSON.stringify({
           employeeId,
           typeRef,
@@ -111,29 +144,15 @@ export const useAbsencePrevalidateShared = ({
         if (response.ok) {
           const data = await response.json()
           setResult({
-            effectiveDays: Number.isFinite(Number(data?.effectiveDays)) ? Number(data.effectiveDays) : null,
-            workingDays: Number.isFinite(Number(data?.workingDays)) ? Number(data.workingDays) : null,
+            effectiveDays: toFiniteNumber(data?.effectiveDays),
+            workingDays: toFiniteNumber(data?.workingDays),
             errorCode: null,
             isLoading: false
           })
           return
         }
 
-        let errorCode = STATUS_TO_ERROR_CODE[response.status] ?? 'UNKNOWN_ERROR'
-        try {
-          const errorData = await response.json()
-          errorCode = extractErrorCode(errorData, response.status)
-        } catch {
-          try {
-            const errorText = await response.text()
-            if (typeof errorText === 'string' && errorText.trim() !== '') {
-              const parsed = JSON.parse(errorText)
-              errorCode = extractErrorCode(parsed, response.status)
-            }
-          } catch {
-            // Keep status-mapped fallback.
-          }
-        }
+        const errorCode = await parseErrorCodeFromResponse(response)
 
         setResult({
           effectiveDays: null,

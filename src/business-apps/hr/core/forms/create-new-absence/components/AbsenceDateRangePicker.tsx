@@ -75,14 +75,53 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
   )
   const placeholderEnd = getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_end_date', 'Select end date')
 
-  const displayValue =
-    startDate && endDate
-      ? `${formatDate(startDate)} – ${formatDate(endDate)}`
-      : startDate
-        ? `${formatDate(startDate)} – ${placeholderEnd}`
-        : null
+  let displayValue: string | null = null
+  if (startDate && endDate) {
+    displayValue = `${formatDate(startDate)} – ${formatDate(endDate)}`
+  } else if (startDate) {
+    displayValue = `${formatDate(startDate)} – ${placeholderEnd}`
+  }
 
   const hasValue = !!startDate || !!endDate
+  const hasDisplayValue = displayValue !== null
+
+  const renderPrevalidateContent = () => {
+    if (prevalidate.isLoading) {
+      return (
+        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+          <Spinner size="sm" />
+          <span>
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.validation_checking', 'Checking availability...')}
+          </span>
+        </div>
+      )
+    }
+
+    if (prevalidate.errorCode) {
+      return (
+        <Badge variant="destructive" data-testid="prevalidate-error">
+          {getPrevalidateErrorLabel(prevalidate.errorCode)}
+        </Badge>
+      )
+    }
+
+    return (
+      <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2" data-testid="prevalidate-success">
+        {prevalidate.effectiveDays !== null && (
+          <Badge variant="info">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.effective_days', 'Effective days')}:{' '}
+            {prevalidate.effectiveDays}
+          </Badge>
+        )}
+        {prevalidate.workingDays !== null && (
+          <Badge variant="secondary">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.working_days', 'Working days')}:{' '}
+            {prevalidate.workingDays}
+          </Badge>
+        )}
+      </div>
+    )
+  }
 
   return (
     <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
@@ -92,15 +131,14 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
           disabled={disabled}
           data-testid={testId}
           className={`gba:w-full gba:justify-start gba:text-left gba:font-normal gba:h-10 gba:px-3 ${
-            !displayValue ? 'gba:text-muted-foreground' : ''
+            hasDisplayValue ? '' : 'gba:text-muted-foreground'
           }`}
         >
           <CalendarIcon className="gba:w-4 gba:h-4 gba:mr-2 gba:shrink-0 gba:text-muted-foreground" />
           <span className="gba:truncate gba:flex-1">{displayValue ?? `${placeholderStart} / ${placeholderEnd}`}</span>
           {hasValue && !disabled ? (
-            <span
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.clear_dates', 'Clear dates')}
               className="gba:inline-flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded gba:hover:bg-muted gba:text-muted-foreground"
               onMouseDown={e => {
@@ -121,7 +159,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
               }}
             >
               <XIcon className="gba:w-3.5 gba:h-3.5" />
-            </span>
+            </button>
           ) : null}
         </Button>
       </PopoverTrigger>
@@ -192,36 +230,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
         )}
         {startDate && endDate && selectedTypeRef && (
           <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border gba:bg-muted/20">
-            {prevalidate.isLoading ? (
-              <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-                <Spinner size="sm" />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_form.validation_checking',
-                    'Checking availability...'
-                  )}
-                </span>
-              </div>
-            ) : prevalidate.errorCode ? (
-              <Badge variant="destructive" data-testid="prevalidate-error">
-                {getPrevalidateErrorLabel(prevalidate.errorCode)}
-              </Badge>
-            ) : (
-              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2" data-testid="prevalidate-success">
-                {prevalidate.effectiveDays !== null && (
-                  <Badge variant="info">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.effective_days', 'Effective days')}:{' '}
-                    {prevalidate.effectiveDays}
-                  </Badge>
-                )}
-                {prevalidate.workingDays !== null && (
-                  <Badge variant="secondary">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.working_days', 'Working days')}:{' '}
-                    {prevalidate.workingDays}
-                  </Badge>
-                )}
-              </div>
-            )}
+            {renderPrevalidateContent()}
           </div>
         )}
         <div className="gba:flex gba:gap-4 gba:px-4 gba:py-2 gba:border-t gba:border-border gba:text-xs gba:text-muted-foreground">

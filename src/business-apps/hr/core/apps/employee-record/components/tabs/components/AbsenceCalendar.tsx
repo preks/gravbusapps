@@ -329,6 +329,39 @@ const AbsenceCalendar: React.FC<
     setContextMenuOpen(false)
   }
 
+  const renderPrevalidateFooterContent = () => {
+    if (!selectedStartDate || !selectedEndDate || !prevalidateResult) {
+      return null
+    }
+
+    if (prevalidateResult.isLoading) {
+      return <Spinner size="sm" data-testid="prevalidate-loading" />
+    }
+
+    if (prevalidateResult.errorCode) {
+      return (
+        <Badge variant="destructive" data-testid="prevalidate-error">
+          {getPrevalidateErrorLabel(prevalidateResult.errorCode)}
+        </Badge>
+      )
+    }
+
+    if (prevalidateResult.effectiveDays === null) {
+      return null
+    }
+
+    const dayLabel =
+      prevalidateResult.effectiveDays === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.day', 'effective day')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.days', 'effective days')
+
+    return (
+      <Badge variant="info" data-testid="prevalidate-effective-days">
+        {prevalidateResult.effectiveDays} {dayLabel}
+      </Badge>
+    )
+  }
+
   if (loading) {
     return (
       <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
@@ -761,19 +794,7 @@ const AbsenceCalendar: React.FC<
 
             {selectedStartDate && selectedEndDate && prevalidateResult && (
               <div className="gba:flex gba:items-center gba:gap-2" data-testid="prevalidate-result">
-                {prevalidateResult.isLoading ? (
-                  <Spinner size="sm" data-testid="prevalidate-loading" />
-                ) : prevalidateResult.errorCode ? (
-                  <Badge variant="destructive" data-testid="prevalidate-error">
-                    {getPrevalidateErrorLabel(prevalidateResult.errorCode)}
-                  </Badge>
-                ) : prevalidateResult.effectiveDays !== null ? (
-                  <Badge variant="info" data-testid="prevalidate-effective-days">
-                    {prevalidateResult.effectiveDays === 1
-                      ? `${prevalidateResult.effectiveDays} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.day', 'effective day')}`
-                      : `${prevalidateResult.effectiveDays} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.days', 'effective days')}`}
-                  </Badge>
-                ) : null}
+                {renderPrevalidateFooterContent()}
               </div>
             )}
           </div>

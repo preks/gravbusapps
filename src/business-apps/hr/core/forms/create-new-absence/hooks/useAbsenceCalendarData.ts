@@ -166,7 +166,9 @@ export const useAbsenceCalendarData = (
             .map(d => parseLocalDate(d.dayDate))
         )
 
-        if (holidayResult != null) {
+        if (holidayResult === null) {
+          setBankHolidayDates([])
+        } else {
           const holidays = (holidayResult?.holidays ?? [])
             .filter((h: { alternativeCode?: string; additionalValue1?: string }) => {
               // Align picker semantics with validation logic:
@@ -180,13 +182,15 @@ export const useAbsenceCalendarData = (
               return parseLocalDate(`${c.slice(0, 4)}-${c.slice(4, 6)}-${c.slice(6, 8)}`)
             })
           setBankHolidayDates(holidays)
-        } else {
-          setBankHolidayDates([])
         }
 
-        if (snapshotResult != null) {
+        if (snapshotResult === null) {
+          setEntitlementSnapshot(null)
+        } else {
           const row = snapshotResult?.EntitlementUsageSnapshotView?.[0]
-          if (row) {
+          if (!row) {
+            setEntitlementSnapshot(null)
+          } else {
             setEntitlementSnapshot({
               typeRef: row.typeRef,
               periodStart: row.periodStart,
@@ -197,11 +201,7 @@ export const useAbsenceCalendarData = (
               remaining: Number(row.remaining) || 0,
               snapshotAt: row.snapshotAt
             })
-          } else {
-            setEntitlementSnapshot(null)
           }
-        } else {
-          setEntitlementSnapshot(null)
         }
       } catch {
         // Silent fail — calendar renders without markers
