@@ -29,8 +29,10 @@ import translations from './_i18n'
 // Capture OAuth params at module load time (before platform can strip them)
 ;(() => {
   try {
-    const searchParams = new URLSearchParams(window.location.search)
-    const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null
+    const searchParams = new URLSearchParams(globalThis.window.location.search)
+    const hashParams = globalThis.window.location.hash
+      ? new URLSearchParams(globalThis.window.location.hash.substring(1))
+      : null
 
     const code = searchParams.get('code') || hashParams?.get('code')
     const state = searchParams.get('state') || hashParams?.get('state')
@@ -73,16 +75,16 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   const clearPendingChatFallback = useCallback(() => {
     if (pendingChatFallbackTimerRef.current !== null) {
-      window.clearTimeout(pendingChatFallbackTimerRef.current)
+      globalThis.window.clearTimeout(pendingChatFallbackTimerRef.current)
       pendingChatFallbackTimerRef.current = null
     }
   }, [])
 
   const scheduleChatOpenFallback = useCallback(() => {
     clearPendingChatFallback()
-    pendingChatFallbackTimerRef.current = window.setTimeout(() => {
+    pendingChatFallbackTimerRef.current = globalThis.window.setTimeout(() => {
       pendingChatFallbackTimerRef.current = null
-      const currentPath = window.location.pathname
+      const currentPath = globalThis.window.location.pathname
       const isAlreadyOnChat = currentPath === '/platform/chat' || currentPath === '/platform/apps/chat'
       if (isAlreadyOnChat) return
 
@@ -101,12 +103,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       }
     }
 
-    window.addEventListener('chat:conversation-ready', handleConversationReady)
-    window.addEventListener('message', handleWindowMessage)
+    globalThis.window.addEventListener('chat:conversation-ready', handleConversationReady)
+    globalThis.window.addEventListener('message', handleWindowMessage)
 
     return () => {
-      window.removeEventListener('chat:conversation-ready', handleConversationReady)
-      window.removeEventListener('message', handleWindowMessage)
+      globalThis.window.removeEventListener('chat:conversation-ready', handleConversationReady)
+      globalThis.window.removeEventListener('message', handleWindowMessage)
       clearPendingChatFallback()
     }
   }, [clearPendingChatFallback])
@@ -118,12 +120,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     )
     if (!hasVerifier) return false
 
-    const queryParams = new URLSearchParams(window.location.search)
+    const queryParams = new URLSearchParams(globalThis.window.location.search)
     let hasCode = queryParams.has('code') && queryParams.has('state')
     let hasError = queryParams.has('error')
 
-    if (!hasCode && window.location.hash) {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    if (!hasCode && globalThis.window.location.hash) {
+      const hashParams = new URLSearchParams(globalThis.window.location.hash.substring(1))
       hasCode = hashParams.has('code') && hashParams.has('state')
       hasError = hasError || hashParams.has('error')
     }
@@ -216,7 +218,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   // Handle OAuth callback completion
   const handleOAuthSuccess = useCallback(() => {
-    window.history.replaceState({}, '', '/platform/mail')
+    globalThis.window.history.replaceState({}, '', '/platform/mail')
     setIsOAuthCallback(false)
     refreshAccounts()
   }, [refreshAccounts])
@@ -363,8 +365,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
       // Dispatch across all known channels to maximize compatibility.
       postToPlatform({ type: 'OPEN_CHAT_WITH_USER', payload })
-      window.postMessage({ type: 'OPEN_CHAT_WITH_USER', payload }, '*')
-      window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: payload }))
+      globalThis.window.postMessage({ type: 'OPEN_CHAT_WITH_USER', payload }, globalThis.window.location.origin)
+      globalThis.window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: payload }))
       sessionStorage.setItem('chatPendingOpenWithUser', JSON.stringify(payload))
       scheduleChatOpenFallback()
     },
@@ -394,16 +396,16 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   // Deep-link: auto-open message from ?messageId=<uuid> parameter
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search)
+      const params = new URLSearchParams(globalThis.window.location.search)
       const deepLinkMessageId = params.get('messageId')
       if (deepLinkMessageId && accessToken) {
         selectMessage(deepLinkMessageId)
         // Clean up URL param after opening
         params.delete('messageId')
         const cleanUrl = params.toString()
-          ? `${window.location.pathname}?${params.toString()}`
-          : window.location.pathname
-        window.history.replaceState({}, '', cleanUrl)
+          ? `${globalThis.window.location.pathname}?${params.toString()}`
+          : globalThis.window.location.pathname
+        globalThis.window.history.replaceState({}, '', cleanUrl)
       }
     } catch {
       // Silently ignore URL parsing errors

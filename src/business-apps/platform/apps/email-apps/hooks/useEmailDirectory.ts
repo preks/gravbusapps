@@ -39,8 +39,11 @@ function normalizeEmailForLookup(rawEmail: string): string {
   if (!trimmed) return ''
 
   // Handles formats like "User Name <user@company.com>".
-  const bracketMatch = trimmed.match(/<([^>]+)>/)
-  const candidate = (bracketMatch?.[1] || trimmed).replace(/^mailto:/, '').trim()
+  const startBracket = trimmed.indexOf('<')
+  const endBracket = startBracket >= 0 ? trimmed.indexOf('>', startBracket + 1) : -1
+  const bracketValue =
+    startBracket >= 0 && endBracket > startBracket + 1 ? trimmed.slice(startBracket + 1, endBracket) : ''
+  const candidate = (bracketValue || trimmed).replace(/^mailto:/, '').trim()
   return candidate.includes('@') ? candidate : ''
 }
 
