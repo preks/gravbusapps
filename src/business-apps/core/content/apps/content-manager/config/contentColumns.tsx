@@ -38,7 +38,7 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
         const variantMap: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
           News: 'default',
           Knowledge: 'secondary',
-          Policies: 'outline',
+          Policy: 'outline',
           Document: 'outline',
           Question: 'default'
         }
