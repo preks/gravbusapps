@@ -48,7 +48,8 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   const locale = getCurrentActiveUserLocale()
   const { currentMonth, prevMonth, nextMonth, entries, pageSize, setPageSize, error, refresh } = useTimeTrackingData({
     employeeId,
-    accessToken
+    accessToken,
+    workingHours
   })
 
   const { t } = useTranslation(timeTrackingTranslations)
