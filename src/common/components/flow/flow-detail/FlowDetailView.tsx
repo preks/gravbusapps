@@ -3,6 +3,7 @@ import { Button, Badge, Tabs, TabsContent, TabsList, TabsTrigger, Alert } from '
 import { ArrowLeft, Calendar, Clock, AlertCircle, CheckCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { formatDisplayText } from '@/common/utils/displayText'
 import { OverviewTab, WorkflowTab, DataTab, AuditTab } from './tabs'
 
 // Helper function to calculate running time from start time (for incomplete workflows)
@@ -195,7 +196,7 @@ function generateFallbackSteps(total: number, completed: number, currentStep: nu
 
 function transformAuditEntry(entry: any, index: number): HistoryEvent {
   let eventType: 'step' | 'assignment' | 'comment' | 'flow' | 'status' = 'step'
-  const stepTitle = entry.taskName || 'Unknown Step'
+  const stepTitle = formatDisplayText(entry.taskName, 'Unknown Step')
   let eventTitle = entry.action || 'Unknown Action'
   let description = `${entry.userName || entry.userId || 'Unknown User'} performed ${entry.action}`
   const stepMatch = stepTitle.match(/Step (\d+)/i)
@@ -290,7 +291,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
       const additionalCommentEvents: HistoryEvent[] = []
       auditEntries.forEach((entry: any, index: number) => {
         if (entry.details?.comment && entry.action !== 'COMMENT') {
-          const stepTitle = entry.taskName || 'Unknown Step'
+          const stepTitle = formatDisplayText(entry.taskName, 'Unknown Step')
           const stepMatch = stepTitle.match(/Step (\d+)/i)
           const stepIndex = stepMatch ? Number.parseInt(stepMatch[1], 10) - 1 : index
 
@@ -561,7 +562,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           <div className="gba:min-w-0">
             <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3">
               <h1 className="gba:text-3xl gba:font-semibold gba:text-gray-900 gba:leading-tight gba:truncate">
-                {flowData.flowName}
+                {formatDisplayText(flowData.flowName, 'Unknown Workflow')}
               </h1>
               <Badge
                 variant="outline"
@@ -666,7 +667,9 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
 
             {!hiddenTabs.includes('workflow') && (
               <TabsContent value="workflow">
-                <WorkflowTab flowSteps={flowSteps} />
+                {activeTab === 'workflow' ? (
+                  <WorkflowTab flowId={flowId} templateId={flowData?.templateId} accessToken={accessToken} />
+                ) : null}
               </TabsContent>
             )}
 

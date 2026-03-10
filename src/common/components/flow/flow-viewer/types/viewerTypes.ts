@@ -123,6 +123,10 @@ export interface FlowCanvasViewProps {
   nodesDraggable?: boolean
   /** When true, nodes and edges are selectable. Default from provider isInteractive when no edit callbacks. */
   elementsSelectable?: boolean
+  /** Vertical alignment used after fitView. Defaults to top so flows open with the start node visible. */
+  fitViewVerticalAlign?: 'top' | 'center'
+  /** When false, hides the minimap. Defaults to true. */
+  showMiniMap?: boolean
   /** Test ID for automated testing */
   'data-testid'?: string
 }

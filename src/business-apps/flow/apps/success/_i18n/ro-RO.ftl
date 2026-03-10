@@ -1,0 +1,227 @@
+# App shell
+app-title = FLOW Success
+app-description = Rezultate workflow si informatii despre performanta
+tab-overview = Prezentare generala
+tab-flows = Flow-uri
+tab-tasks = Sarcini
+tab-sla = SLA
+tab-trends = Tendinte
+tab-decisions = Decizii
+tab-audit = Audit
+
+# Shared actions and filters
+action-retry = Incearca din nou
+action-refresh = Reimprospateaza
+action-previous = Anterior
+action-next = Urmator
+action-export-csv = Exporta CSV
+action-export-json = Exporta JSON
+action-clear = Reseteaza
+action-back = Inapoi
+label-timeframe = Perioada
+label-scope = Domeniu
+label-flow = Flow
+label-user = Utilizator
+label-action = Actiune
+label-status = Status
+label-date-from = De la
+label-date-to = Pana la
+label-search = Cauta
+placeholder-select-template = Selecteaza un template
+placeholder-search-templates = Cauta template-uri
+placeholder-search-flows = Cauta flow-uri
+placeholder-search-flow-id = Cauta dupa ID flow
+filter-all-flows = Toate flow-urile
+filter-all-users = Toti utilizatorii
+filter-all-actions = Toate actiunile
+filter-all-statuses = Toate statusurile
+timeframe-last24h = Ultimele 24 de ore
+timeframe-wtd = Saptamana curenta
+timeframe-mtd = Luna curenta
+timeframe-qtd = Trimestrul curent
+timeframe-ytd = Anul curent
+state-loading = Se incarca datele
+state-empty = Nu exista date
+state-no-selection = Selectati un element pentru a vedea detaliile
+state-no-activity = Nu exista activitate recenta
+state-error-title = Eroare la incarcarea datelor
+
+# Overview
+overview-title = Prezentare generala business
+overview-description = Indicatori cheie si cea mai recenta activitate din workflow.
+overview-total-workflows = Total workflow-uri
+overview-total-workflows-description = Workflow-uri initiate in perioada selectata
+overview-completion-rate = Rata de finalizare
+overview-completion-rate-description = Workflow-uri finalizate cu succes
+overview-avg-cycle-time = Timp mediu de ciclu
+overview-avg-cycle-time-description = Timp mediu de finalizare
+overview-sla-adherence = Respectare SLA
+overview-sla-adherence-description = Rata de livrare la timp
+overview-recent-flows = Flow-uri recente
+overview-recent-flows-description = Cautati si inspectati instantele de workflow actualizate recent.
+overview-recent-activity = Activitate recenta
+overview-recent-activity-description = Cele mai recente evenimente de workflow si task din portofoliu.
+overview-no-flows = Nu au fost gasite flow-uri pentru filtrele curente.
+overview-last-activity = Ultima activitate
+overview-started = Pornit
+overview-in-progress = In desfasurare
+overview-completed = Finalizat
+overview-timed-out = Expirat
+overview-failed = Esuat
+overview-terminated = Oprit
+overview-page = Pagina
+overview-of = din
+
+# Flows
+flows-title = Analitica flow-urilor
+flows-description = Monitorizati sanatatea portofoliului si treceti la analiza detaliata a unui template selectat.
+flows-portfolio-title = Prezentare portofoliu
+flows-portfolio-description = Metrici agregate pentru toate template-urile din perioada selectata.
+flows-selected-title = Analitica template-ului selectat
+flows-selected-description = Metrici, tendinte si previzualizarea definitiei pentru template-ul selectat.
+flows-selector-description = Selectati un template pentru a trece de la analitica de portofoliu la monitorizare focalizata.
+flows-templates-title = Performanta template-urilor
+flows-templates-description = Clasamentul performantei template-urilor in perioada selectata.
+flows-template-name = Template
+flows-total-workflows = Total workflow-uri
+flows-completed-workflows = Finalizate
+flows-completion-rate = Rata de finalizare
+flows-avg-cycle-time = Timp mediu de ciclu
+flows-median-cycle-time = Timp median de ciclu
+flows-graph-preview = Previzualizare definitie
+flows-graph-preview-description = Redare doar in citire bazata pe noul flow viewer din flow-creator.
+flows-selected-empty = Selectati un template pentru a incarca analitica detaliata si previzualizarea definitiei.
+flows-period-activity = Activitate in perioada
+flows-started = Pornite
+flows-completed = Finalizate
+flows-no-templates = Nu exista analitica pentru template-uri in perioada selectata.
+
+# Tasks
+tasks-title = Performanta sarcinilor
+tasks-description = Analizati ratele de finalizare, tiparele de alocare si productivitatea utilizatorilor.
+tasks-pending = Sarcini in asteptare
+tasks-pending-description = Sarcini active in acest moment
+tasks-overdue = Sarcini intarziate
+tasks-overdue-description = Sarcini care au depasit termenul limita
+tasks-avg-completion-rate = Rata medie de finalizare
+tasks-avg-completion-rate-description = Rata medie de finalizare pe tipuri de sarcini
+tasks-avg-tasks-per-user = Medie sarcini per utilizator
+tasks-avg-tasks-per-user-description = Sarcini finalizate in medie per utilizator activ
+tasks-task-types = Performanta pe tip de sarcina
+tasks-task-types-description = Metrici de finalizare si timp de raspuns pentru fiecare tip de sarcina.
+tasks-assignment-modes = Moduri de alocare
+tasks-assignment-modes-description = Comparati tiparele de alocare si rezultatele de finalizare.
+tasks-user-productivity = Productivitatea utilizatorilor
+tasks-user-productivity-description = Output si viteza de finalizare pentru cei mai activi utilizatori.
+tasks-task-type = Tip sarcina
+tasks-total-tasks = Total sarcini
+tasks-completed-tasks = Finalizate
+tasks-avg-response-time = Timp mediu de raspuns
+tasks-median-response-time = Timp median de raspuns
+tasks-assignment-mode = Mod de alocare
+tasks-avg-completion-time = Timp mediu de finalizare
+tasks-user-name = Utilizator
+tasks-tasks-completed = Sarcini finalizate
+tasks-productivity-score = Scor de productivitate
+
+# SLA
+sla-title = Monitorizare SLA
+sla-description = Identificati munca intarziata si pasii din workflow care genereaza cele mai multe incalcari SLA.
+sla-overdue-tasks = Sarcini intarziate
+sla-overdue-tasks-description = Sarcini in asteptare dupa termenul limita
+sla-overdue-rate = Rata de intarziere
+sla-overdue-rate-description = Ponderea sarcinilor in asteptare care sunt intarziate
+sla-violations = Incalcari SLA
+sla-violations-description = Sarcini finalizate dupa termenul limita
+sla-critical-flows = Flow-uri critice
+sla-critical-flows-description = Tipuri de flow cu rata istorica mare de incalcare
+sla-immediate-action = Actiune imediata
+sla-immediate-action-description = Munca intarziata curenta care necesita atentie imediata.
+sla-no-overdue-title = Nu exista sarcini intarziate
+sla-no-overdue-description = Toate sarcinile in asteptare sunt in limitele SLA.
+sla-critical-steps = Pasi critici
+sla-critical-steps-description = Pasi de workflow cu cele mai mari rate de incalcare in perioada selectata.
+sla-flow = Flow
+sla-step = Pas
+sla-violation-rate = Rata de incalcare
+sla-avg-overdue = Intarziere medie
+
+# Trends
+trends-title = Analiza tendintelor
+trends-description = Comparati perioada curenta cu perioada anterioara si observati schimbarile de directie.
+trends-performance = Tendinte de performanta
+trends-summary = Rezumat performanta
+trends-current-period = Perioada curenta
+trends-previous-period = Perioada anterioara
+trends-workflows-started = Workflow-uri pornite
+trends-workflows-completed = Workflow-uri finalizate
+trends-completion-rate = Rata de finalizare
+trends-avg-cycle-time = Timp mediu de procesare pentru sarcini
+trends-active-users = Utilizatori activi
+trends-avg-tasks-per-user = Medie sarcini per utilizator
+trends-no-comparison = Datele pentru comparatia cu perioada anterioara nu sunt inca disponibile.
+
+# Decisions
+decisions-title = Jurnal decizii
+decisions-description = Inspectati deciziile de ramificare si escaladarile inregistrate pentru pasii finalizati ai workflow-ului.
+decisions-total = Total decizii
+decisions-total-description = Intrari de decizie in domeniul selectat
+decisions-escalated = Escaladate
+decisions-escalated-description = Decizii escaladate pentru interventie umana
+decisions-user = Decizii utilizatori
+decisions-user-description = Intrari de decizie finalizate de persoane
+decisions-ai = Decizii AI
+decisions-ai-description = Intrari de decizie executate in modul AI
+decisions-logic = Decizii logice
+decisions-logic-description = Intrari de decizie executate de logica workflow-ului
+decisions-flow-instances = Instante flow
+decisions-flow-instances-description = Instante unice de workflow cu decizii
+decisions-entries = Intrari
+decisions-time = Timp
+decisions-step = Pas
+decisions-mode = Mod
+decisions-selected-branch = Ramura selectata
+decisions-decided-by = Decis de
+decisions-escalation = Escaladare
+decisions-flow-status = Stare flow
+decisions-duration = Durata
+decisions-direct = Direct
+decisions-no-entries = Nu au fost gasite intrari de decizie pentru filtrele curente.
+
+# Audit
+audit-title = Audit trail
+audit-description = Explorati activitatea workflow-urilor, treceti la vizualizarea tip cronologie si izolati actiunile de sistem.
+audit-total-entries = Total intrari
+audit-total-entries-description = Intrari de audit in domeniul selectat
+audit-user-actions = Actiuni utilizatori
+audit-user-actions-description = Actiuni efectuate de utilizatori
+audit-unique-flows = Flow-uri unice
+audit-unique-flows-description = Flow-uri distincte cu activitate
+audit-unique-users = Utilizatori unici
+audit-unique-users-description = Utilizatori distincti cu activitate
+audit-view-timeline = Cronologie
+audit-view-table = Tabel
+audit-view-system = Activitate de sistem
+audit-scope-all = Toata activitatea
+audit-scope-user = Activitate utilizatori
+audit-scope-system = Activitate de sistem
+audit-system-description = Evidentiati evenimentele generate de sistem si urmele de executie ale functiilor sau agentilor.
+audit-no-entries = Nu au fost gasite intrari de audit pentru filtrele curente.
+audit-timestamp = Marcaj temporal
+audit-user = Utilizator
+audit-task-type = Tip sarcina
+audit-task = Sarcina
+audit-status-transition = Tranzitie status
+audit-latest-system-events = Ultimele evenimente de sistem
+audit-latest-system-events-description = Lista focalizata a evenimentelor generate de sistem si a traselor de executie.
+audit-reason = Motiv
+
+# Flow detail
+flow-detail-definition = Definitia flow-ului
+flow-detail-system-activity = Activitate task-uri de sistem
+flow-detail-system-activity-description = Evenimente generate de sistem pentru aceasta instanta de flow.
+flow-detail-system-empty = Nu au fost gasite evenimente de sistem pentru aceasta instanta de flow.
+
+# Generic table values
+value-unknown = Necunoscut
+value-not-available = n/a

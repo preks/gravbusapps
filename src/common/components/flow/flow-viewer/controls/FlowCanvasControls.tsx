@@ -11,6 +11,7 @@ interface FlowCanvasControlsProps {
   uiColors: FlowCanvasThemeColors
   onExport: () => void
   isExporting: boolean
+  onFitView?: () => void
   'data-testid'?: string
 }
 
@@ -18,6 +19,7 @@ export const FlowCanvasControls: React.FC<FlowCanvasControlsProps> = ({
   uiColors,
   onExport,
   isExporting,
+  onFitView,
   'data-testid': testId = 'flow-canvas-controls'
 }) => {
   const { zoomIn, zoomOut, zoomTo, fitView } = useReactFlow()
@@ -110,7 +112,13 @@ export const FlowCanvasControls: React.FC<FlowCanvasControlsProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => fitView({ duration: 300 })}
+          onClick={() => {
+            if (onFitView) {
+              onFitView()
+              return
+            }
+            fitView({ duration: 300 })
+          }}
           data-testid={`${testId}-fit-view`}
           aria-label="Fit to view"
         >

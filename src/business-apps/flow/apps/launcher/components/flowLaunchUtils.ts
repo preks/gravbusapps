@@ -79,11 +79,17 @@ const isFallbackUserTaskStep = (step: any): boolean => {
 }
 
 export const resolveLaunchFormContext = (template: FlowTemplate | null): LaunchFormContext => {
-  const initForm = (template as any)?.initStep?.form
-  if (Array.isArray(initForm) && initForm.length > 0) {
+  const startForm =
+    (Array.isArray((template as any)?.start?.form) && (template as any).start.form) ||
+    (Array.isArray((template as any)?.start?.inputs) && (template as any).start.inputs) ||
+    (Array.isArray((template as any)?.initStep?.form) && (template as any).initStep.form) ||
+    (Array.isArray((template as any)?.initStep?.inputs) && (template as any).initStep.inputs) ||
+    null
+
+  if (Array.isArray(startForm) && startForm.length > 0) {
     return {
       mode: 'start-form',
-      inputs: initForm,
+      inputs: startForm,
       fallbackStepIndex: null
     }
   }

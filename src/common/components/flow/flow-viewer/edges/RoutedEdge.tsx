@@ -31,6 +31,12 @@ const midpointOfPolyline = (pts: Array<{ x: number; y: number }>): { x: number; 
   return pts[pts.length - 1]
 }
 
+const hasRenderablePoints = (
+  pts: Array<{ x: number; y: number }> | undefined
+): pts is Array<{ x: number; y: number }> => {
+  return Boolean(pts && pts.length >= 2 && pts.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)))
+}
+
 /* ─── insertable node types ───────────────────────────────────────── */
 
 type InsertableType = 'task' | 'decision' | 'fork'
@@ -170,7 +176,7 @@ export const RoutedEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX,
   }
 
   // If ELK provided routed points, build an SVG path from them
-  if (points && points.length >= 2) {
+  if (hasRenderablePoints(points)) {
     const adjustedPoints = extendEdgePointsByHandleOffset(points, HANDLE_OFFSET)
     const edgePath = adjustedPoints.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ')
     const mid = midpointOfPolyline(adjustedPoints)

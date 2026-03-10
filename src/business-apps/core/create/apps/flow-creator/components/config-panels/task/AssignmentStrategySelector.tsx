@@ -56,6 +56,32 @@ function normalizeExpr(value: string): string {
   return value.replace(/\s+/g, '').trim()
 }
 
+function unwrapExpressionReference(rawExpression: string): string {
+  const expr = normalizeExpr(rawExpression)
+  if (expr.startsWith('{{') && expr.endsWith('}}')) {
+    return expr.slice(2, -2)
+  }
+  return expr
+}
+
+function isExpressionReference(rawExpression: string): boolean {
+  const expr = unwrapExpressionReference(rawExpression)
+  if (!expr) return false
+  return expr.startsWith('$')
+}
+
+function requiresDeferredAssignmentExpression(rawExpression: string): boolean {
+  const expr = unwrapExpressionReference(rawExpression)
+  if (!expr) return false
+  return /\$workflow\.input(?:\.|\[|$)/.test(expr) || /\$steps(?:\.|\[|$)/.test(expr)
+}
+
+function isMultiUserAssignmentExpression(rawExpression: string): boolean {
+  const expr = unwrapExpressionReference(rawExpression)
+  if (!expr) return false
+  return expr.startsWith('$orgchart.directReportsByUserId[') || expr.startsWith('$orgchart.directReports[')
+}
+
 function getFieldOptionId(field: AssignmentPersonFieldOption): string {
   return String(field.id || field.name)
 }
@@ -71,9 +97,9 @@ function buildLegacyFieldExpression(strategyId: AssignmentStrategyId, fieldName?
     case 'REQUESTER_DIRECT_REPORTS':
       return '{{$orgchart.directReportsByUserId[$workflow.initiator]}}'
     case 'START_FIELD_USER':
-      return `{{$orgchart.userIdByEmployeeId[$workflow.input.${fieldName || 'field'}]}}`
+      return `{{$orgchart.userIdByEmployeeId[$workflow.input.inputValues.${fieldName || 'field'}]}}`
     case 'START_FIELD_MANAGER':
-      return `{{$orgchart.manager[$workflow.input.${fieldName || 'field'}]}}`
+      return `{{$orgchart.manager[$workflow.input.inputValues.${fieldName || 'field'}]}}`
     case 'CUSTOM_EXPRESSION':
       return ''
     default:
@@ -93,46 +119,57 @@ function buildFieldExpression(strategyId: AssignmentStrategyId, field?: Assignme
 
 function inferAssignmentModeForExpression(
   rawExpression: string,
-  fallback: AssignmentModeValue = 'ASSIGN'
+  fallback: AssignmentModeValue = 'ASSIGN_SINGLE'
 ): AssignmentModeValue {
   const expr = normalizeExpr(rawExpression)
   if (!expr) return fallback
-  if (expr.includes('$steps.')) return 'ASSIGN_DEFERRED'
-  if (expr === normalizeExpr(buildLegacyFieldExpression('REQUESTER_DIRECT_REPORTS'))) return 'ASSIGN'
-  return fallback
+  if (!isExpressionReference(expr)) return fallback
+  if (requiresDeferredAssignmentExpression(expr)) return 'ASSIGN_DEFERRED'
+  if (isMultiUserAssignmentExpression(expr)) return 'ASSIGN'
+  return 'ASSIGN_SINGLE'
+}
+
+function inferAssignmentModeForCustomExpression(rawExpression: string): AssignmentModeValue {
+  return inferAssignmentModeForExpression(rawExpression, 'ASSIGN_SINGLE')
 }
 
 function inferAssignmentModeForStrategy(
   strategyId: AssignmentStrategyId,
   field?: AssignmentPersonFieldOption
 ): AssignmentModeValue {
-  if (strategyId === 'CUSTOM_EXPRESSION') return 'ASSIGN_DEFERRED'
-  if (strategyId === 'REQUESTER_DIRECT_REPORTS') return 'ASSIGN'
+  if (strategyId === 'CUSTOM_EXPRESSION') return 'ASSIGN_SINGLE'
 
   const expression = buildFieldExpression(strategyId, field)
-  if (strategyId === 'START_FIELD_USER' || strategyId === 'START_FIELD_MANAGER') {
-    return inferAssignmentModeForExpression(expression, 'ASSIGN_SINGLE')
-  }
+  return inferAssignmentModeForExpression(
+    expression,
+    strategyId === 'REQUESTER_DIRECT_REPORTS' ? 'ASSIGN' : 'ASSIGN_SINGLE'
+  )
+}
 
-  return inferAssignmentModeForExpression(expression, 'ASSIGN_SINGLE')
+function inferAssignmentModeForDerivedStrategy(
+  strategyId: AssignmentStrategyId,
+  rawExpression: string,
+  field?: AssignmentPersonFieldOption
+): AssignmentModeValue {
+  if (strategyId === 'CUSTOM_EXPRESSION') {
+    return inferAssignmentModeForCustomExpression(rawExpression)
+  }
+  return inferAssignmentModeForStrategy(strategyId, field)
+}
+
+function inferAssignmentModeForUsers(users: string[]): AssignmentModeValue {
+  if (users.length === 0) return 'ASSIGN'
+  if (users.some(expression => requiresDeferredAssignmentExpression(expression))) return 'ASSIGN_DEFERRED'
+  if (users.length > 1 || users.some(expression => isMultiUserAssignmentExpression(expression))) return 'ASSIGN'
+  if (users.some(expression => isExpressionReference(expression))) return 'ASSIGN_SINGLE'
+  return 'ASSIGN_SINGLE'
 }
 
 export function inferAssignmentModeForTargets(targets: AssignmentTargetShape | null): AssignmentModeValue {
   if (!targets) return 'ASSIGN_SINGLE'
 
   const users = Array.isArray(targets.users) ? targets.users.filter(Boolean).map(value => String(value)) : []
-  if (users.length === 0) return 'ASSIGN'
-
-  if (users.some(expression => normalizeExpr(expression).includes('$steps.'))) return 'ASSIGN_DEFERRED'
-  if (
-    users.some(
-      expression => normalizeExpr(expression) === normalizeExpr(buildLegacyFieldExpression('REQUESTER_DIRECT_REPORTS'))
-    )
-  ) {
-    return 'ASSIGN'
-  }
-
-  return users.length === 1 ? 'ASSIGN_SINGLE' : 'ASSIGN'
+  return inferAssignmentModeForUsers(users)
 }
 
 function findFieldOptionByName(
@@ -179,8 +216,9 @@ function parseStrategyFromAssignment(
   }
 
   const legacyStartUserField =
-    expr.match(/^\{\{\$orgchart\.userIdByEmployeeId\[\$workflow\.input(?:\.formData)?\.([a-zA-Z0-9_]+)\]\}\}$/)?.[1] ||
-    expr.match(/^\{\{\$workflow\.input(?:\.formData)?\.([a-zA-Z0-9_]+)\}\}$/)?.[1]
+    expr.match(
+      /^\{\{\$orgchart\.userIdByEmployeeId\[\$workflow\.input(?:\.(?:formData|inputValues))?\.([a-zA-Z0-9_]+)\]\}\}$/
+    )?.[1] || expr.match(/^\{\{\$workflow\.input(?:\.(?:formData|inputValues))?\.([a-zA-Z0-9_]+)\}\}$/)?.[1]
   if (legacyStartUserField) {
     return {
       strategyId: 'START_FIELD_USER',
@@ -192,8 +230,12 @@ function parseStrategyFromAssignment(
   }
 
   const legacyStartManagerField =
-    expr.match(/^\{\{\$orgchart\.manager\[\$workflow\.input(?:\.formData)?\.([a-zA-Z0-9_]+)\]\}\}$/)?.[1] ||
-    expr.match(/^\{\{\$orgchart\.managerByUserId\[\$workflow\.input(?:\.formData)?\.([a-zA-Z0-9_]+)\]\}\}$/)?.[1]
+    expr.match(
+      /^\{\{\$orgchart\.manager\[\$workflow\.input(?:\.(?:formData|inputValues))?\.([a-zA-Z0-9_]+)\]\}\}$/
+    )?.[1] ||
+    expr.match(
+      /^\{\{\$orgchart\.managerByUserId\[\$workflow\.input(?:\.(?:formData|inputValues))?\.([a-zA-Z0-9_]+)\]\}\}$/
+    )?.[1]
   if (legacyStartManagerField) {
     return {
       strategyId: 'START_FIELD_MANAGER',
@@ -349,12 +391,16 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
     }
     return buildFieldExpression(derived.strategyId, resolveFieldOption(derivedFieldId))
   }, [derived.rawExpression, derived.strategyId, derivedFieldId, resolveFieldOption])
-
-  const requiresDeferredMode = useMemo(() => {
-    if (!derivedExpression) return false
-    if (derived.strategyId === 'CUSTOM_EXPRESSION') return true
-    return normalizeExpr(derivedExpression).includes('$steps.')
-  }, [derived.strategyId, derivedExpression])
+  const normalizedRawExpression = useMemo(
+    () => normalizeExpr(derived.rawExpression?.trim() ?? ''),
+    [derived.rawExpression]
+  )
+  const normalizedDerivedExpression = useMemo(() => normalizeExpr(derivedExpression), [derivedExpression])
+  const inferredDerivedAssignmentMode = useMemo(
+    () =>
+      inferAssignmentModeForDerivedStrategy(derived.strategyId, derivedExpression, resolveFieldOption(derivedFieldId)),
+    [derived.strategyId, derivedExpression, derivedFieldId, resolveFieldOption]
+  )
 
   const setStrategy = useCallback(
     (strategyId: string) => {
@@ -378,7 +424,7 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
       const expr = nextStrategyId === 'CUSTOM_EXPRESSION' ? current : buildFieldExpression(nextStrategyId, nextField)
       const nextAssignmentMode =
         nextStrategyId === 'CUSTOM_EXPRESSION'
-          ? 'ASSIGN_DEFERRED'
+          ? inferAssignmentModeForCustomExpression(current)
           : inferAssignmentModeForStrategy(nextStrategyId, nextField)
 
       onChange({
@@ -417,7 +463,7 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
       setSelectedStrategyId('CUSTOM_EXPRESSION')
       onChange({
         ...value,
-        assignmentMode: 'ASSIGN_DEFERRED',
+        assignmentMode: inferAssignmentModeForCustomExpression(raw),
         targets: {
           users: [raw]
         }
@@ -467,14 +513,38 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
   ])
 
   useEffect(() => {
-    if (!requiresDeferredMode) return
-    if (value.assignmentMode === 'ASSIGN_DEFERRED') return
+    if (!derivedExpression) return
+    if (value.assignmentMode === inferredDerivedAssignmentMode) return
 
     onChange({
       ...value,
-      assignmentMode: 'ASSIGN_DEFERRED'
+      assignmentMode: inferredDerivedAssignmentMode
     })
-  }, [onChange, requiresDeferredMode, value])
+  }, [derivedExpression, inferredDerivedAssignmentMode, onChange, value])
+
+  useEffect(() => {
+    if (Date.now() - lastUserEditAtRef.current < 250) return
+    if (derived.strategyId === 'CUSTOM_EXPRESSION') return
+    if (!normalizedRawExpression || !normalizedDerivedExpression) return
+    if (normalizedRawExpression === normalizedDerivedExpression) return
+
+    onChange({
+      ...value,
+      assignmentMode: inferredDerivedAssignmentMode,
+      targets: {
+        ...(value.targets || {}),
+        users: [derivedExpression]
+      }
+    })
+  }, [
+    derived.strategyId,
+    derivedExpression,
+    normalizedDerivedExpression,
+    normalizedRawExpression,
+    inferredDerivedAssignmentMode,
+    onChange,
+    value
+  ])
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-2" data-testid={testId}>

@@ -1,0 +1,227 @@
+# App shell
+app-title = FLOW Success
+app-description = Workflow-Ergebnisse und Performance-Einblicke
+tab-overview = Übersicht
+tab-flows = Flows
+tab-tasks = Aufgaben
+tab-sla = SLA
+tab-trends = Trends
+tab-decisions = Entscheidungen
+tab-audit = Audit
+
+# Shared actions and filters
+action-retry = Erneut versuchen
+action-refresh = Aktualisieren
+action-previous = Zuruck
+action-next = Weiter
+action-export-csv = CSV exportieren
+action-export-json = JSON exportieren
+action-clear = Zurücksetzen
+action-back = Zurück
+label-timeframe = Zeitraum
+label-scope = Bereich
+label-flow = Flow
+label-user = Benutzer
+label-action = Aktion
+label-status = Status
+label-date-from = Von
+label-date-to = Bis
+label-search = Suchen
+placeholder-select-template = Vorlage auswählen
+placeholder-search-templates = Vorlagen suchen
+placeholder-search-flows = Flows suchen
+placeholder-search-flow-id = Nach Flow-ID suchen
+filter-all-flows = Alle Flows
+filter-all-users = Alle Benutzer
+filter-all-actions = Alle Aktionen
+filter-all-statuses = Alle Status
+timeframe-last24h = Letzte 24 Stunden
+timeframe-wtd = Woche bis heute
+timeframe-mtd = Monat bis heute
+timeframe-qtd = Quartal bis heute
+timeframe-ytd = Jahr bis heute
+state-loading = Daten werden geladen
+state-empty = Keine Daten verfügbar
+state-no-selection = Wählen Sie ein Element aus, um Details zu sehen
+state-no-activity = Keine aktuellen Aktivitäten
+state-error-title = Fehler beim Laden der Daten
+
+# Overview
+overview-title = Business-Übersicht
+overview-description = Wichtige Kennzahlen und die neueste Workflow-Aktivität.
+overview-total-workflows = Gesamtanzahl Flows
+overview-total-workflows-description = Im ausgewählten Zeitraum gestartete Workflows
+overview-completion-rate = Abschlussrate
+overview-completion-rate-description = Erfolgreich abgeschlossene Workflows
+overview-avg-cycle-time = Durchschnittliche Zykluszeit
+overview-avg-cycle-time-description = Durchschnittliche Abschlusszeit
+overview-sla-adherence = SLA-Einhaltung
+overview-sla-adherence-description = Pünktliche Lieferquote
+overview-recent-flows = Letzte Flows
+overview-recent-flows-description = Suchen und prüfen Sie die zuletzt aktualisierten Workflow-Instanzen.
+overview-recent-activity = Letzte Aktivität
+overview-recent-activity-description = Neueste Workflow- und Task-Ereignisse im gesamten Portfolio.
+overview-no-flows = Keine Flows für die aktuellen Filter gefunden.
+overview-last-activity = Letzte Aktivität
+overview-started = Gestartet
+overview-in-progress = In Bearbeitung
+overview-completed = Abgeschlossen
+overview-timed-out = Zeitüberschreitung
+overview-failed = Fehlgeschlagen
+overview-terminated = Beendet
+overview-page = Seite
+overview-of = von
+
+# Flows
+flows-title = Flow-Analysen
+flows-description = Überwachen Sie die Portfolio-Gesundheit und wechseln Sie in eine fokussierte Vorlagenanalyse.
+flows-portfolio-title = Portfolio-Übersicht
+flows-portfolio-description = Aggregierte Kennzahlen über alle Vorlagen im ausgewählten Zeitraum.
+flows-selected-title = Analyse der ausgewählten Vorlage
+flows-selected-description = Detaillierte Kennzahlen, Trenddaten und eine Vorschau der Definition für die ausgewählte Vorlage.
+flows-selector-description = Wählen Sie eine Vorlage aus, um von Portfolio-Analysen zu einer fokussierten Überwachung zu wechseln.
+flows-templates-title = Vorlagen-Performance
+flows-templates-description = Rangliste der Vorlagen-Performance im ausgewählten Zeitraum.
+flows-template-name = Vorlage
+flows-total-workflows = Gesamtanzahl Workflows
+flows-completed-workflows = Abgeschlossen
+flows-completion-rate = Abschlussrate
+flows-avg-cycle-time = Durchschn. Zykluszeit
+flows-median-cycle-time = Median-Zykluszeit
+flows-graph-preview = Definitionsvorschau
+flows-graph-preview-description = Schreibgeschützte Darstellung auf Basis des neuen Graph-Viewers aus dem Flow Creator.
+flows-selected-empty = Wählen Sie eine Vorlage aus, um fokussierte Analysen und die Definitionsvorschau zu laden.
+flows-period-activity = Aktivität im Zeitraum
+flows-started = Gestartet
+flows-completed = Abgeschlossen
+flows-no-templates = Für den ausgewählten Zeitraum sind keine Vorlagenanalysen verfügbar.
+
+# Tasks
+tasks-title = Task-Performance
+tasks-description = Analysieren Sie Abschlussraten, Zuweisungsmuster und Benutzerproduktivität.
+tasks-pending = Offene Aufgaben
+tasks-pending-description = Derzeit aktive Aufgaben
+tasks-overdue = Überfällige Aufgaben
+tasks-overdue-description = Aufgaben mit überschrittenem Fälligkeitsdatum
+tasks-avg-completion-rate = Durchschnittliche Abschlussrate
+tasks-avg-completion-rate-description = Durchschnittliche Abschlussrate über alle Aufgabentypen
+tasks-avg-tasks-per-user = Ø Aufgaben pro Benutzer
+tasks-avg-tasks-per-user-description = Durchschnittlich abgeschlossene Aufgaben pro aktivem Benutzer
+tasks-task-types = Performance nach Aufgabentyp
+tasks-task-types-description = Kennzahlen zu Abschluss und Reaktionszeit je Aufgabentyp.
+tasks-assignment-modes = Zuweisungsmodi
+tasks-assignment-modes-description = Vergleichen Sie Zuweisungsmuster und Abschlussresultate.
+tasks-user-productivity = Benutzerproduktivität
+tasks-user-productivity-description = Output und Abschlussgeschwindigkeit der aktivsten Benutzer.
+tasks-task-type = Aufgabentyp
+tasks-total-tasks = Gesamtanzahl Aufgaben
+tasks-completed-tasks = Abgeschlossen
+tasks-avg-response-time = Ø Reaktionszeit
+tasks-median-response-time = Median-Reaktionszeit
+tasks-assignment-mode = Zuweisungsmodus
+tasks-avg-completion-time = Ø Abschlusszeit
+tasks-user-name = Benutzer
+tasks-tasks-completed = Abgeschlossene Aufgaben
+tasks-productivity-score = Produktivitätsscore
+
+# SLA
+sla-title = SLA-Überwachung
+sla-description = Erkennen Sie überfällige Arbeit und Workflow-Schritte mit den meisten SLA-Verstößen.
+sla-overdue-tasks = Überfällige Aufgaben
+sla-overdue-tasks-description = Offene Aufgaben nach ihrem Fälligkeitsdatum
+sla-overdue-rate = Überfälligkeitsrate
+sla-overdue-rate-description = Anteil der offenen Aufgaben, die überfällig sind
+sla-violations = SLA-Verstöße
+sla-violations-description = Abgeschlossene Aufgaben mit Fristüberschreitung
+sla-critical-flows = Kritische Flows
+sla-critical-flows-description = Flow-Typen mit hoher historischer Verstoßquote
+sla-immediate-action = Sofortiger Handlungsbedarf
+sla-immediate-action-description = Aktuelle überfällige Arbeit mit sofortigem Bedarf.
+sla-no-overdue-title = Keine überfälligen Aufgaben
+sla-no-overdue-description = Alle offenen Aufgaben liegen aktuell innerhalb ihrer SLA-Ziele.
+sla-critical-steps = Kritische Schritte
+sla-critical-steps-description = Workflow-Schritte mit den höchsten Verstoßquoten im ausgewählten Zeitraum.
+sla-flow = Flow
+sla-step = Schritt
+sla-violation-rate = Verstoßquote
+sla-avg-overdue = Ø Überfälligkeit
+
+# Trends
+trends-title = Trendanalyse
+trends-description = Vergleichen Sie den aktuellen Zeitraum mit dem vorherigen Zeitraum und erkennen Sie Richtungsänderungen.
+trends-performance = Performance-Trends
+trends-summary = Performance-Zusammenfassung
+trends-current-period = Aktueller Zeitraum
+trends-previous-period = Vorheriger Zeitraum
+trends-workflows-started = Gestartete Workflows
+trends-workflows-completed = Abgeschlossene Workflows
+trends-completion-rate = Abschlussrate
+trends-avg-cycle-time = Durchschnittliche Aufgabenlaufzeit
+trends-active-users = Aktive Benutzer
+trends-avg-tasks-per-user = Ø Aufgaben pro Benutzer
+trends-no-comparison = Vergleichsdaten für den vorherigen Zeitraum sind noch nicht verfügbar.
+
+# Decisions
+decisions-title = Entscheidungsprotokolle
+decisions-description = Prüfen Sie Verzweigungsentscheidungen und Eskalationen für abgeschlossene Workflow-Schritte.
+decisions-total = Gesamtanzahl Entscheidungen
+decisions-total-description = Entscheidungseinträge im ausgewählten Bereich
+decisions-escalated = Eskaliert
+decisions-escalated-description = Entscheidungen, die an Menschen eskaliert wurden
+decisions-user = Benutzerentscheidungen
+decisions-user-description = Entscheidungseinträge, die von Personen abgeschlossen wurden
+decisions-ai = KI-Entscheidungen
+decisions-ai-description = Entscheidungseinträge im KI-Modus
+decisions-logic = Logikentscheidungen
+decisions-logic-description = Entscheidungseinträge, die durch Workflow-Logik ausgeführt wurden
+decisions-flow-instances = Flow-Instanzen
+decisions-flow-instances-description = Eindeutige Workflow-Instanzen mit Entscheidungen
+decisions-entries = Einträge
+decisions-time = Zeit
+decisions-step = Schritt
+decisions-mode = Modus
+decisions-selected-branch = Gewählter Pfad
+decisions-decided-by = Entschieden von
+decisions-escalation = Eskalation
+decisions-flow-status = Flow-Status
+decisions-duration = Dauer
+decisions-direct = Direkt
+decisions-no-entries = Für die aktuellen Filter wurden keine Entscheidungseinträge gefunden.
+
+# Audit
+audit-title = Audit Trail
+audit-description = Erkunden Sie Workflow-Aktivitäten über alle Flows hinweg, wechseln Sie in die Timeline und isolieren Sie Systemaktionen.
+audit-total-entries = Gesamtanzahl Einträge
+audit-total-entries-description = Audit-Einträge im ausgewählten Bereich
+audit-user-actions = Benutzeraktionen
+audit-user-actions-description = Aktionen, die von Benutzern ausgeführt wurden
+audit-unique-flows = Eindeutige Flows
+audit-unique-flows-description = Unterschiedliche Flows mit Aktivität
+audit-unique-users = Eindeutige Benutzer
+audit-unique-users-description = Unterschiedliche Benutzer mit Aktivität
+audit-view-timeline = Timeline
+audit-view-table = Tabelle
+audit-view-system = Systemaktivität
+audit-scope-all = Gesamte Aktivität
+audit-scope-user = Benutzeraktivität
+audit-scope-system = Systemaktivität
+audit-system-description = Heben Sie systemgesteuerte Ereignisse sowie Funktions- und Agent-Ausführungen hervor.
+audit-no-entries = Für die aktuellen Filter wurden keine Audit-Einträge gefunden.
+audit-timestamp = Zeitstempel
+audit-user = Benutzer
+audit-task-type = Aufgabentyp
+audit-task = Aufgabe
+audit-status-transition = Statuswechsel
+audit-latest-system-events = Neueste Systemereignisse
+audit-latest-system-events-description = Fokussierte Liste systemgenerierter Ereignisse und Task-Ausführungsspuren.
+audit-reason = Grund
+
+# Flow detail
+flow-detail-definition = Flow-Definition
+flow-detail-system-activity = System-Task-Aktivität
+flow-detail-system-activity-description = Neueste systemgenerierte Ereignisse für diese Flow-Instanz.
+flow-detail-system-empty = Für diese Flow-Instanz wurden keine Systemereignisse gefunden.
+
+# Generic table values
+value-unknown = Unbekannt
+value-not-available = k. A.

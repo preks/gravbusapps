@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Card, CardContent, PageLayout } from '@newwork/nw-design-system'
+import React, { useCallback, useEffect, useState } from 'react'
+import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { TrendingUp, BarChart3, Shield, Timer, Workflow, AlertTriangle, GitBranch } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from './_i18n'
 
 // Components
 import { OverviewTab } from './components/tabs/OverviewTab'
@@ -16,33 +17,30 @@ interface FlowSuccessProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-export const FlowSuccess: React.FC<FlowSuccessProps> = ({
+const VALID_VIEW_KEYS = new Set(['overview', 'flow', 'task-performance', 'sla', 'trends', 'decisions', 'audit'])
+
+const FlowSuccessContent: React.FC<FlowSuccessProps> = ({
   prefixDataTestId = 'flow-success',
   accessToken,
   ...context
 }) => {
+  const { t } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState('overview')
 
-  const viewOptions = useMemo(
-    () => [
-      { key: 'overview', label: 'Overview', icon: <BarChart3 className="gba:h-4 gba:w-4" /> },
-      { key: 'flow', label: 'Flows', icon: <Workflow className="gba:h-4 gba:w-4" /> },
-      { key: 'task-performance', label: 'Tasks', icon: <Timer className="gba:h-4 gba:w-4" /> },
-      { key: 'sla', label: 'SLA', icon: <AlertTriangle className="gba:h-4 gba:w-4" /> },
-      { key: 'trends', label: 'Trends', icon: <TrendingUp className="gba:h-4 gba:w-4" /> },
-      { key: 'decisions', label: 'Decisions', icon: <GitBranch className="gba:h-4 gba:w-4" /> },
-      { key: 'audit', label: 'Audit', icon: <Shield className="gba:h-4 gba:w-4" /> }
-    ],
-    []
-  )
+  const viewOptions = [
+    { key: 'overview', label: t('tab-overview'), icon: <BarChart3 className="gba:h-4 gba:w-4" /> },
+    { key: 'flow', label: t('tab-flows'), icon: <Workflow className="gba:h-4 gba:w-4" /> },
+    { key: 'task-performance', label: t('tab-tasks'), icon: <Timer className="gba:h-4 gba:w-4" /> },
+    { key: 'sla', label: t('tab-sla'), icon: <AlertTriangle className="gba:h-4 gba:w-4" /> },
+    { key: 'trends', label: t('tab-trends'), icon: <TrendingUp className="gba:h-4 gba:w-4" /> },
+    { key: 'decisions', label: t('tab-decisions'), icon: <GitBranch className="gba:h-4 gba:w-4" /> },
+    { key: 'audit', label: t('tab-audit'), icon: <Shield className="gba:h-4 gba:w-4" /> }
+  ]
 
-  const resolveViewKey = useCallback(
-    (candidate?: string | null) => {
-      if (!candidate) return null
-      return viewOptions.some(option => option.key === candidate) ? candidate : null
-    },
-    [viewOptions]
-  )
+  const resolveViewKey = useCallback((candidate?: string | null) => {
+    if (!candidate) return null
+    return VALID_VIEW_KEYS.has(candidate) ? candidate : null
+  }, [])
 
   // Sync tab with URL hash (deep linking)
   useEffect(() => {
@@ -101,8 +99,8 @@ export const FlowSuccess: React.FC<FlowSuccessProps> = ({
     <div data-testid={prefixDataTestId}>
       <PageLayout
         headerIcon={TrendingUp}
-        headerTitle="FLOW Success"
-        headerDescription="Workflow Outcomes & Performance Insights"
+        headerTitle={t('app-title')}
+        headerDescription={t('app-description')}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
@@ -114,12 +112,21 @@ export const FlowSuccess: React.FC<FlowSuccessProps> = ({
         }}
         className="gba:min-h-screen"
       >
-        <Card className="gba:w-full" data-testid={`${prefixDataTestId}-content-card`}>
-          <CardContent className="gba:p-6">{renderTabContent()}</CardContent>
-        </Card>
+        <div
+          className="gba:mx-auto gba:flex gba:w-full gba:max-w-[1400px] gba:flex-col gba:gap-6 gba:px-1 gba:pb-6"
+          data-testid={`${prefixDataTestId}-content-shell`}
+        >
+          {renderTabContent()}
+        </div>
       </PageLayout>
     </div>
   )
+}
+
+export const FlowSuccess: React.FC<FlowSuccessProps> = props => {
+  // Pre-register the bundle before PageLayout mounts so header labels do not flash raw keys.
+  useTranslation(translations)
+  return <FlowSuccessContent {...props} />
 }
 
 export default FlowSuccess

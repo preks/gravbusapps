@@ -108,7 +108,7 @@ export function collectAssignmentPersonFieldOptions(params: {
         field,
         id: `start:${String(field?.name || '').trim()}`,
         labelPrefix: 'Start',
-        reference: `$workflow.input.${String(field?.name || '').trim()}`
+        reference: `$workflow.input.inputValues.${String(field?.name || '').trim()}`
       })
     )
   })

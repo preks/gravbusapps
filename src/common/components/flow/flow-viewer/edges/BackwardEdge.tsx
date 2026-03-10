@@ -3,6 +3,12 @@ import { BaseEdge, type EdgeProps, EdgeLabelRenderer, MarkerType } from '@xyflow
 import { HANDLE_OFFSET } from '../nodes/nodeDimensions'
 import { extendEdgePointsByHandleOffset } from './edgePathUtils'
 
+const hasRenderablePoints = (
+  pts: Array<{ x: number; y: number }> | undefined
+): pts is Array<{ x: number; y: number }> => {
+  return Boolean(pts && pts.length >= 2 && pts.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)))
+}
+
 /**
  * Dashed backward edge for rework / go-back loops.
  * Visually distinct from forward edges: dashed stroke, muted color, curved path.
@@ -30,7 +36,7 @@ export const BackwardEdge: React.FC<EdgeProps> = ({
   let labelX: number
   let labelY: number
 
-  if (points && points.length >= 2) {
+  if (hasRenderablePoints(points)) {
     const adjustedPoints = extendEdgePointsByHandleOffset(points, HANDLE_OFFSET)
     edgePath = adjustedPoints.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ')
     const mid = adjustedPoints[Math.floor(adjustedPoints.length / 2)]

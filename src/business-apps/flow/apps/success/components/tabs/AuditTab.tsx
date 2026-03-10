@@ -1,31 +1,48 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Alert, Button } from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
-import { Shield, Download, Search, RefreshCw, FileText, Database, Users, Activity } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { Activity, Database, Download, FileText, Shield, Users } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { formatDisplayText } from '@/common/utils/displayText'
+import translations from '../../_i18n'
 import { useAuditLogs, useAuditFilterOptions, exportAuditLogs, AuditFilters } from '../../hooks/useAuditData'
-import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
+import { SuccessEmptyState, SuccessErrorState, SuccessKpiGrid, SuccessStatusBadge, SuccessTabPage } from '../shared'
+import { formatDateTime, formatEnumLabel, formatStatusLabel } from '../../utils/formatters'
 
 interface AuditTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-tab', accessToken }) => {
-  // Filter state
+  const { t } = useTranslation(translations)
   const [filters, setFilters] = useState<AuditFilters>({
     limit: 50,
     offset: 0
   })
-
-  // Loading states
   const [exportLoading, setExportLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline')
+  const [scope, setScope] = useState<'all' | 'system' | 'user'>('all')
 
-  // Fetch data
   const { data: auditData, isLoading, error, refetch } = useAuditLogs(filters, accessToken)
   const { data: filterOptions, isLoading: filterOptionsLoading } = useAuditFilterOptions(accessToken)
 
-  // Handle filter changes
   const handleFilterChange = (key: keyof AuditFilters, value: string | number | undefined) => {
     setFilters(prev => ({
       ...prev,
@@ -34,12 +51,10 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
     }))
   }
 
-  // Handle pagination
   const handlePageChange = (newOffset: number) => {
     setFilters(prev => ({ ...prev, offset: newOffset }))
   }
 
-  // Handle export
   const handleExport = async (format: 'csv' | 'json') => {
     setExportLoading(true)
     try {
@@ -51,599 +66,326 @@ export const AuditTab: React.FC<AuditTabProps> = ({ prefixDataTestId = 'audit-ta
     }
   }
 
-  // Format timestamp
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString()
-  }
-
-  const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-
-  const formatEnumLabel = (value: string) =>
-    String(value || '')
-      .replace(/_/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-
-  const normalizeEnumKey = (value: string) => formatEnumLabel(value).toUpperCase().replace(/\s+/g, '_')
-
-  // Format action with color
-  const getActionColor = (action: string) => {
-    switch (normalizeEnumKey(action)) {
-      case 'APPROVE':
-      case 'APPROVAL':
-        return 'gba:text-green-600 gba:bg-green-100'
-      case 'REJECT':
-      case 'REJECTION':
-        return 'gba:text-red-600 gba:bg-red-100'
-      case 'CLAIM':
-        return 'gba:text-blue-600 gba:bg-blue-100'
-      case 'UNCLAIM':
-        return 'gba:text-orange-600 gba:bg-orange-100'
-      case 'REASSIGN':
-        return 'gba:text-purple-600 gba:bg-purple-100'
-      case 'COMPLETE':
-        return 'gba:text-emerald-600 gba:bg-emerald-100'
-      case 'HUMAN':
-        return 'gba:text-cyan-600 gba:bg-cyan-100'
-      case 'TASK':
-        return 'gba:text-indigo-600 gba:bg-indigo-100'
-      case 'SYSTEM':
-        return 'gba:text-gray-600 gba:bg-gray-100'
-      default:
-        return 'gba:text-slate-600 gba:bg-slate-100'
-    }
-  }
-
-  // Format status with color
-  const getStatusColor = (status: string) => {
-    switch (normalizeEnumKey(status)) {
-      case 'COMPLETED':
-      case 'APPROVED':
-        return 'gba:text-green-600 gba:bg-green-100'
-      case 'REJECTED':
-        return 'gba:text-red-600 gba:bg-red-100'
-      case 'FAILED':
-      case 'ERROR':
-        return 'gba:text-red-600 gba:bg-red-100'
-      case 'CANCELED':
-      case 'CANCELLED':
-        return 'gba:text-orange-600 gba:bg-orange-100'
-      case 'IN_PROGRESS':
-      case 'CLAIMED':
-        return 'gba:text-blue-600 gba:bg-blue-100'
-      case 'OPEN':
-      case 'CLAIMABLE':
-        return 'gba:text-yellow-600 gba:bg-yellow-100'
-      case 'SCHEDULED':
-        return 'gba:text-purple-600 gba:bg-purple-100'
-      case 'QUEUED':
-        return 'gba:text-indigo-600 gba:bg-indigo-100'
-      default:
-        return 'gba:text-gray-600 gba:bg-gray-100'
-    }
-  }
-
-  // Format task type with color
-  const getTaskTypeColor = (taskType: string | null | undefined) => {
-    if (!taskType) return 'gba:text-gray-600 gba:bg-gray-100'
-    switch (normalizeEnumKey(taskType)) {
-      case 'TASK':
-        return 'gba:text-indigo-600 gba:bg-indigo-100'
-      case 'INFORMATION':
-        return 'gba:text-cyan-600 gba:bg-cyan-100'
-      case 'APPROVAL':
-        return 'gba:text-purple-600 gba:bg-purple-100'
-      case 'ACKNOWLEDGE':
-        return 'gba:text-green-600 gba:bg-green-100'
-      case 'HUMAN':
-        return 'gba:text-cyan-600 gba:bg-cyan-100'
-      case 'SIMPLE':
-      case 'USER_TASK':
-        return 'gba:text-indigo-600 gba:bg-indigo-100'
-      case 'LAMBDA':
-        return 'gba:text-orange-600 gba:bg-orange-100'
-      case 'DO_WHILE':
-        return 'gba:text-blue-600 gba:bg-blue-100'
-      default:
-        return 'gba:text-slate-600 gba:bg-slate-100'
-    }
-  }
-
-  // Format task type display name
-  const formatTaskType = (taskType: string | null | undefined) => {
-    if (!taskType) return 'Unknown'
-    switch (normalizeEnumKey(taskType)) {
-      case 'TASK':
-        return 'Task'
-      case 'INFORMATION':
-        return 'Information'
-      case 'APPROVAL':
-        return 'Approval'
-      case 'ACKNOWLEDGE':
-        return 'Acknowledgment'
-      case 'USER_TASK':
-        return 'User Task'
-      case 'SIMPLE':
-        return 'Simple Task'
-      case 'LAMBDA':
-        return 'Lambda'
-      case 'DO_WHILE':
-        return 'Loop'
-      case 'HUMAN':
-        return 'Human Task'
-      default:
-        return formatEnumLabel(taskType)
-    }
-  }
-
-  const formatStatusLabel = (status: string) => formatEnumLabel(status).toUpperCase()
-  const formatActionLabel = (action: string) => formatEnumLabel(action).toUpperCase()
-
-  const filterUserNameById = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const u of filterOptions?.users || []) {
-      const id = String(u?.id || '')
-      const name = String(u?.name || '')
-      if (id) map.set(id, name || id)
-    }
-    return map
-  }, [filterOptions?.users])
-
-  // Extra name resolution: if the backend can't resolve a UUID, try the org directory with the current user's token.
-  const [resolvedUserNameById, setResolvedUserNameById] = useState<Record<string, string>>({})
-  const attemptedUserIdsRef = useRef<Set<string>>(new Set())
-
-  const auditUserIdsKey = useMemo(() => {
-    const ids = (auditData?.entries || [])
-      .map(e => String(e.userId || '').trim())
-      .filter(Boolean)
-      .filter(id => isUuid(id))
-    ids.sort()
-    return ids.join(',')
-  }, [auditData?.entries])
-
-  useEffect(() => {
-    if (!accessToken) return
-    if (!auditData?.entries?.length) return
-
-    const unresolvedIds = Array.from(new Set(auditUserIdsKey.split(',').filter(Boolean)))
-      // Only resolve if filter-options doesn't already give us a meaningful name
-      .filter(id => {
-        const fromFilterOptions = filterUserNameById.get(id)
-        return !fromFilterOptions || fromFilterOptions === id
-      })
-      // Prevent retry loops: attempt each id at most once per session (including failures).
-      .filter(id => !attemptedUserIdsRef.current.has(id))
-      // Be conservative: avoid blasting the org directory.
-      .slice(0, 25)
-
-    if (!unresolvedIds.length) return
-    unresolvedIds.forEach(id => attemptedUserIdsRef.current.add(id))
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        const org = new OrgDirectoryClient(accessToken)
-        const results = await Promise.allSettled(
-          unresolvedIds.map(async id => {
-            const u = await org.getUserById(id)
-            const name = String(u?.name || '').trim()
-            return { id, name }
-          })
-        )
-
-        if (cancelled) return
-
-        setResolvedUserNameById(prev => {
-          const next = { ...prev }
-          let changed = false
-          for (const r of results) {
-            if (r.status !== 'fulfilled') continue
-            const { id, name } = r.value
-            if (id && name && name !== id && next[id] !== name) {
-              next[id] = name
-              changed = true
-            }
-          }
-          return changed ? next : prev
-        })
-      } catch {
-        // best-effort only; fall back to IDs
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [accessToken, auditData?.entries?.length, auditUserIdsKey, filterUserNameById])
-
-  const resolveUserName = (userId: string, userName?: string) => {
-    const id = String(userId || '').trim()
-    if (!id) return 'Unknown'
-    const resolved = resolvedUserNameById[id]
-    if (resolved) return resolved
-    const fromFilters = filterUserNameById.get(id)
-    if (fromFilters) return fromFilters
-    const fromEntry = String(userName || '').trim()
-    if (fromEntry) return fromEntry
-    return id
-  }
-
-  // Calculate current page
   const currentPage = Math.floor((filters.offset || 0) / (filters.limit || 50)) + 1
   const totalPages = auditData ? Math.ceil(auditData.pagination.total / (filters.limit || 50)) : 0
 
-  // Calculate user actions count (all actions except SYSTEM)
   const userActionsCount = auditData?.summary?.actionBreakdown
     ? Object.entries(auditData.summary.actionBreakdown)
         .filter(([action]) => action !== 'SYSTEM')
         .reduce((total, [, count]) => total + count, 0)
     : 0
 
-  // Summary widgets in requested order: Total Entries, User Actions, Unique Flows, Unique Users
-  const summaryWidgets: WidgetItem[] = auditData?.summary
+  const summaryItems = auditData?.summary
     ? [
         {
-          key: 'total-entries',
-          title: 'Total Entries',
-          value: auditData.summary.totalEntries,
-          prefix: <Database className="gba:h-4 gba:w-4" />,
-          color: '#3b82f6',
-          description: 'Total audit log entries'
+          id: 'total-entries',
+          label: t('audit-total-entries'),
+          value: String(auditData.summary.totalEntries),
+          description: t('audit-total-entries-description'),
+          icon: <Database className="gba:h-5 gba:w-5" />
         },
         {
-          key: 'user-actions',
-          title: 'User Actions',
-          value: userActionsCount,
-          prefix: <Users className="gba:h-4 gba:w-4" />,
-          color: '#10b981',
-          description: 'Actions performed by users'
+          id: 'user-actions',
+          label: t('audit-user-actions'),
+          value: String(userActionsCount),
+          description: t('audit-user-actions-description'),
+          icon: <Users className="gba:h-5 gba:w-5" />
         },
         {
-          key: 'unique-flows',
-          title: 'Unique Flows',
-          value: auditData.summary.uniqueFlows,
-          prefix: <Activity className="gba:h-4 gba:w-4" />,
-          color: '#8b5cf6',
-          description: 'Unique flows'
+          id: 'unique-flows',
+          label: t('audit-unique-flows'),
+          value: String(auditData.summary.uniqueFlows),
+          description: t('audit-unique-flows-description'),
+          icon: <Activity className="gba:h-5 gba:w-5" />
         },
         {
-          key: 'unique-users',
-          title: 'Unique Users',
-          value: auditData.summary.uniqueUsers,
-          prefix: <Users className="gba:h-4 gba:w-4" />,
-          color: '#f59e0b',
-          description: 'Users with activity'
+          id: 'unique-users',
+          label: t('audit-unique-users'),
+          value: String(auditData.summary.uniqueUsers),
+          description: t('audit-unique-users-description'),
+          icon: <Shield className="gba:h-5 gba:w-5" />
         }
       ]
     : []
 
-  if (isLoading || filterOptionsLoading) {
-    return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center gba:h-64"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner />
-      </div>
-    )
-  }
+  const filteredEntries = useMemo(() => {
+    const entries = auditData?.entries || []
+    if (scope === 'system') return entries.filter(entry => entry.action === 'SYSTEM')
+    if (scope === 'user') return entries.filter(entry => entry.action !== 'SYSTEM')
+    return entries
+  }, [auditData?.entries, scope])
 
   if (error) {
     return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        <h3>Error Loading Audit Data</h3>
-        <p>{error instanceof Error ? error.message : 'Failed to load audit data'}</p>
-        <Button onClick={refetch} className="gba:mt-2">
-          Retry
-        </Button>
-      </Alert>
+      <SuccessErrorState
+        title={t('state-error-title')}
+        message={error instanceof Error ? error.message : t('state-error-title')}
+        onRetry={refetch}
+        retryLabel={t('action-retry')}
+        data-testid={`${prefixDataTestId}-error`}
+      />
     )
   }
 
   return (
-    <div className="gba:space-y-6" data-testid={prefixDataTestId}>
-      {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center">
-        <div>
-          <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
-            <Shield className="gba:h-6 gba:w-6 gba:text-blue-600" />
-            Audit Trail
-          </h2>
-          <p className="gba:text-gray-600">Comprehensive audit logs with filtering and export capabilities</p>
-        </div>
-
-        {/* Export buttons */}
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Button
-            onClick={() => handleExport('csv')}
-            disabled={exportLoading}
-            variant="outline"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <Download className="gba:h-4 gba:w-4" />
-            Export CSV
+    <SuccessTabPage
+      title={t('audit-title')}
+      description={t('audit-description')}
+      actions={
+        <>
+          <Button variant="outline" onClick={() => handleExport('csv')} disabled={exportLoading}>
+            <Download className="gba:mr-2 gba:h-4 gba:w-4" />
+            {t('action-export-csv')}
           </Button>
-          <Button
-            onClick={() => handleExport('json')}
-            disabled={exportLoading}
-            variant="outline"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <FileText className="gba:h-4 gba:w-4" />
-            Export JSON
+          <Button variant="outline" onClick={() => handleExport('json')} disabled={exportLoading}>
+            <FileText className="gba:mr-2 gba:h-4 gba:w-4" />
+            {t('action-export-json')}
           </Button>
-          <Button onClick={refetch} variant="outline" className="gba:flex gba:items-center gba:gap-2">
-            <RefreshCw className="gba:h-4 gba:w-4" />
-            Refresh
+          <Button variant="outline" onClick={refetch}>
+            {t('action-refresh')}
           </Button>
-        </div>
-      </div>
-
-      {/* Summary Statistics */}
-      <WidgetGroup
-        widgets={summaryWidgets}
-        isLoading={isLoading}
-        error={error}
-        onRetry={refetch}
-        skeletonCount={4}
-        emptyText="No audit data available"
-        data-testid={`${prefixDataTestId}-summary-widgets`}
+        </>
+      }
+      data-testid={prefixDataTestId}
+    >
+      <SuccessKpiGrid
+        items={summaryItems}
+        isLoading={isLoading || filterOptionsLoading}
+        emptyTitle={t('state-empty')}
+        emptyDescription={t('audit-description')}
+        data-testid={`${prefixDataTestId}-summary`}
       />
 
-      {/* Filters */}
-      <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
-        {/* User filter */}
-        <select
-          value={filters.userId || ''}
-          onChange={e => handleFilterChange('userId', e.target.value || undefined)}
-          className="gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
-        >
-          <option value="">All Users</option>
-          {filterOptions?.users.map(user => (
-            <option key={user.id} value={user.id}>
-              {user.name}
-            </option>
-          ))}
-        </select>
-
-        {/* Action filter */}
-        <select
-          value={filters.action || ''}
-          onChange={e => handleFilterChange('action', e.target.value || undefined)}
-          className="gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
-        >
-          <option value="">All Actions</option>
-          {filterOptions?.actions.map(action => (
-            <option key={action} value={action}>
-              {action}
-            </option>
-          ))}
-        </select>
-
-        {/* Status filter */}
-        <select
-          value={filters.status || ''}
-          onChange={e => handleFilterChange('status', e.target.value || undefined)}
-          className="gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
-        >
-          <option value="">All Statuses</option>
-          {filterOptions?.statuses.map(status => (
-            <option key={status} value={status}>
-              {formatStatusLabel(status)}
-            </option>
-          ))}
-        </select>
-
-        {/* Date Range */}
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <input
+      <Card className="gba:border-border gba:bg-card">
+        <CardHeader className="gba:border-b gba:border-border">
+          <CardTitle>{t('label-search')}</CardTitle>
+          <CardDescription>{t('audit-description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="gba:grid gba:grid-cols-1 gba:gap-3 gba:p-5 gba:md:grid-cols-2 gba:xl:grid-cols-5">
+          <Select
+            value={filters.userId || 'ALL'}
+            onValueChange={value => handleFilterChange('userId', value === 'ALL' ? undefined : value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">{t('filter-all-users')}</SelectItem>
+              {(filterOptions?.users || []).map(user => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.action || 'ALL'}
+            onValueChange={value => handleFilterChange('action', value === 'ALL' ? undefined : value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">{t('filter-all-actions')}</SelectItem>
+              {(filterOptions?.actions || []).map(action => (
+                <SelectItem key={action} value={action}>
+                  {formatEnumLabel(action)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.status || 'ALL'}
+            onValueChange={value => handleFilterChange('status', value === 'ALL' ? undefined : value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">{t('filter-all-statuses')}</SelectItem>
+              {(filterOptions?.statuses || []).map(status => (
+                <SelectItem key={status} value={status}>
+                  {formatStatusLabel(status)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
             type="date"
             value={filters.startDate || ''}
-            onChange={e => handleFilterChange('startDate', e.target.value || undefined)}
-            className="gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
+            onChange={event => handleFilterChange('startDate', event.target.value || undefined)}
           />
-          <span className="gba:text-gray-500">to</span>
-          <input
+          <Input
             type="date"
             value={filters.endDate || ''}
-            onChange={e => handleFilterChange('endDate', e.target.value || undefined)}
-            className="gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
+            onChange={event => handleFilterChange('endDate', event.target.value || undefined)}
           />
-        </div>
-
-        {/* Flow ID search */}
-        <input
-          type="text"
-          placeholder="Search by Flow ID"
-          value={filters.flowId || ''}
-          onChange={e => handleFilterChange('flowId', e.target.value || undefined)}
-          className="gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Audit Logs Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:justify-between">
-            <span className="gba:flex gba:items-center gba:gap-2">
-              <Search className="gba:h-5 gba:w-5" />
-              Audit Logs
-            </span>
-            <span className="gba:text-sm gba:font-normal gba:text-gray-500">
-              {auditData ? `${auditData.pagination.total} total entries` : ''}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {auditData?.entries.length ? (
-            <>
-              {/* Table */}
-              <div className="gba:overflow-x-auto">
-                <table className="gba:w-full gba:border-collapse">
-                  <thead>
-                    <tr className="gba:border-b gba:border-gray-200">
-                      <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">Timestamp</th>
-                      <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">User</th>
-                      <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">Task Type</th>
-                      <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">Action</th>
-                      <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">Flow</th>
-                      <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">Task</th>
-                      <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">
-                        Status Transition
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditData.entries.map(entry => (
-                      <tr key={entry.id} className="gba:border-b gba:border-gray-100 gba:hover:bg-gray-50">
-                        <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-gray-900">
-                          {formatTimestamp(entry.timestamp)}
-                        </td>
-                        <td className="gba:py-3 gba:px-4 gba:text-sm">
-                          <div>
-                            <div className="gba:font-medium gba:text-gray-900">
-                              {resolveUserName(entry.userId, entry.userName)}
-                            </div>
-                            <div className="gba:text-xs gba:text-gray-500">{entry.userId}</div>
-                          </div>
-                        </td>
-                        <td className="gba:py-3 gba:px-4">
-                          <div>
-                            <span
-                              className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getTaskTypeColor(entry.stepType || entry.taskType)}`}
-                            >
-                              {formatTaskType(entry.stepType || entry.taskType)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="gba:py-3 gba:px-4">
-                          <div>
-                            <span
-                              className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getActionColor(entry.action)}`}
-                            >
-                              {formatActionLabel(entry.action)}
-                            </span>
-                            {entry.assignmentChange && (
-                              <div className="gba:mt-1 gba:text-xs gba:text-gray-500">
-                                {resolveUserName(entry.assignmentChange.from)}
-                                {' → '}
-                                {resolveUserName(entry.assignmentChange.to)}
-                                {entry.assignmentChange.reason && (
-                                  <div className="gba:text-xs gba:text-gray-400">{entry.assignmentChange.reason}</div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="gba:py-3 gba:px-4 gba:text-sm">
-                          <div>
-                            <div
-                              className="gba:font-medium gba:text-gray-900 gba:truncate gba:max-w-32"
-                              title={entry.flowName}
-                            >
-                              {entry.flowName}
-                            </div>
-                            <div
-                              className="gba:text-xs gba:text-gray-500 gba:truncate gba:max-w-32"
-                              title={entry.flowId}
-                            >
-                              {entry.flowId}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="gba:py-3 gba:px-4 gba:text-sm">
-                          <div>
-                            <div
-                              className="gba:font-medium gba:text-gray-900 gba:truncate gba:max-w-32"
-                              title={entry.taskName}
-                            >
-                              {entry.taskName}
-                            </div>
-                            <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:max-w-32">
-                              {entry.taskType} - {entry.taskId}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="gba:py-3 gba:px-4">
-                          <div className="gba:space-y-1">
-                            {/* Show status transition if we have both previous and new status */}
-                            {entry.previousStatus && entry.newStatus && entry.previousStatus !== entry.newStatus ? (
-                              <div className="gba:flex gba:items-center gba:gap-2">
-                                <span
-                                  className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getStatusColor(entry.previousStatus)}`}
-                                >
-                                  {formatStatusLabel(entry.previousStatus)}
-                                </span>
-                                <span className="gba:text-gray-400">→</span>
-                                <span
-                                  className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getStatusColor(entry.newStatus)}`}
-                                >
-                                  {formatStatusLabel(entry.newStatus)}
-                                </span>
-                              </div>
-                            ) : (
-                              <span
-                                className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getStatusColor(entry.status)}`}
-                              >
-                                {formatStatusLabel(entry.status)}
-                              </span>
-                            )}
-                            {entry.details?.reason && (
-                              <div className="gba:text-xs gba:text-gray-500">{entry.details.reason}</div>
-                            )}
-                            {entry.details?.executedBy && entry.details.executedBy !== entry.userId && (
-                              <div className="gba:text-xs gba:text-gray-400">
-                                Executed by: {resolveUserName(entry.details.executedBy)}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:mt-6">
-                  <div className="gba:text-sm gba:text-gray-700">
-                    Showing {(filters.offset || 0) + 1} to{' '}
-                    {Math.min((filters.offset || 0) + (filters.limit || 50), auditData.pagination.total)} of{' '}
-                    {auditData.pagination.total} entries
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Button
-                      onClick={() => handlePageChange((filters.offset || 0) - (filters.limit || 50))}
-                      disabled={currentPage === 1}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Previous
-                    </Button>
-                    <span className="gba:text-sm gba:text-gray-700">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                      onClick={() => handlePageChange((filters.offset || 0) + (filters.limit || 50))}
-                      disabled={!auditData.pagination.hasMore}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="gba:text-center gba:py-8 gba:text-gray-500">
-              No audit logs found matching the current filters.
-            </div>
-          )}
+          <Input
+            className="gba:md:col-span-2 gba:xl:col-span-3"
+            value={filters.flowId || ''}
+            placeholder={t('placeholder-search-flow-id')}
+            onChange={event => handleFilterChange('flowId', event.target.value || undefined)}
+          />
+          <Select value={scope} onValueChange={value => setScope(value as 'all' | 'system' | 'user')}>
+            <SelectTrigger className="gba:md:col-span-2 gba:xl:col-span-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('audit-scope-all')}</SelectItem>
+              <SelectItem value="user">{t('audit-scope-user')}</SelectItem>
+              <SelectItem value="system">{t('audit-scope-system')}</SelectItem>
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
-    </div>
+
+      <Card className="gba:border-border gba:bg-card">
+        <CardHeader className="gba:border-b gba:border-border">
+          <CardTitle>{scope === 'system' ? t('audit-latest-system-events') : t('audit-title')}</CardTitle>
+          <CardDescription>
+            {scope === 'system' ? t('audit-latest-system-events-description') : t('audit-description')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="gba:p-5">
+          <Tabs value={viewMode} onValueChange={value => setViewMode(value as 'timeline' | 'table')}>
+            <TabsList className="gba:mb-4">
+              <TabsTrigger value="timeline">{t('audit-view-timeline')}</TabsTrigger>
+              <TabsTrigger value="table">{t('audit-view-table')}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="timeline">
+              {!filteredEntries.length ? (
+                <SuccessEmptyState
+                  title={t('state-empty')}
+                  description={t('audit-no-entries')}
+                  icon={<Activity className="gba:h-8 gba:w-8" />}
+                />
+              ) : (
+                <div className="gba:flex gba:flex-col gba:gap-4">
+                  {filteredEntries.map(entry => (
+                    <div
+                      key={entry.id}
+                      className="gba:flex gba:gap-4 gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-4"
+                    >
+                      <div className="gba:flex gba:h-10 gba:w-10 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted">
+                        <Activity className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                      </div>
+                      <div className="gba:flex gba:min-w-0 gba:flex-1 gba:flex-col gba:gap-1">
+                        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                          <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                            {formatEnumLabel(entry.action)}
+                          </span>
+                          <SuccessStatusBadge status={entry.status} />
+                        </div>
+                        <span className="gba:text-sm gba:text-muted-foreground">
+                          {formatDisplayText(entry.flowName, entry.flowId)}
+                        </span>
+                        <span className="gba:text-sm gba:text-muted-foreground">
+                          {formatDisplayText(entry.taskName, entry.taskId)} · {entry.userName || entry.userId}
+                        </span>
+                        {entry.details?.reason ? (
+                          <span className="gba:text-xs gba:text-muted-foreground">{entry.details.reason}</span>
+                        ) : null}
+                        <span className="gba:text-xs gba:text-muted-foreground">{formatDateTime(entry.timestamp)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="table">
+              {!filteredEntries.length ? (
+                <SuccessEmptyState
+                  title={t('state-empty')}
+                  description={t('audit-no-entries')}
+                  icon={<Database className="gba:h-8 gba:w-8" />}
+                />
+              ) : (
+                <>
+                  <div className="gba:overflow-x-auto">
+                    <table className="gba:w-full gba:border-collapse">
+                      <thead>
+                        <tr className="gba:border-b gba:border-border">
+                          <th className="gba:p-3 gba:text-left gba:text-sm gba:font-medium">{t('audit-timestamp')}</th>
+                          <th className="gba:p-3 gba:text-left gba:text-sm gba:font-medium">{t('audit-user')}</th>
+                          <th className="gba:p-3 gba:text-left gba:text-sm gba:font-medium">{t('audit-task-type')}</th>
+                          <th className="gba:p-3 gba:text-left gba:text-sm gba:font-medium">{t('label-action')}</th>
+                          <th className="gba:p-3 gba:text-left gba:text-sm gba:font-medium">{t('label-flow')}</th>
+                          <th className="gba:p-3 gba:text-left gba:text-sm gba:font-medium">{t('audit-task')}</th>
+                          <th className="gba:p-3 gba:text-left gba:text-sm gba:font-medium">
+                            {t('audit-status-transition')}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredEntries.map(entry => (
+                          <tr key={entry.id} className="gba:border-b gba:border-border/60">
+                            <td className="gba:p-3 gba:text-sm gba:text-foreground">
+                              {formatDateTime(entry.timestamp)}
+                            </td>
+                            <td className="gba:p-3 gba:text-sm gba:text-foreground">
+                              {entry.userName || entry.userId}
+                            </td>
+                            <td className="gba:p-3 gba:text-sm gba:text-foreground">
+                              {formatEnumLabel(entry.stepType || entry.taskType)}
+                            </td>
+                            <td className="gba:p-3 gba:text-sm gba:text-foreground">{formatEnumLabel(entry.action)}</td>
+                            <td className="gba:p-3 gba:text-sm gba:text-foreground">
+                              {formatDisplayText(entry.flowName, entry.flowId)}
+                            </td>
+                            <td className="gba:p-3 gba:text-sm gba:text-foreground">
+                              {formatDisplayText(entry.taskName, entry.taskId)}
+                            </td>
+                            <td className="gba:p-3">
+                              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                                {entry.previousStatus && entry.newStatus && entry.previousStatus !== entry.newStatus ? (
+                                  <>
+                                    <SuccessStatusBadge status={entry.previousStatus} />
+                                    <span className="gba:text-muted-foreground">→</span>
+                                    <SuccessStatusBadge status={entry.newStatus} />
+                                  </>
+                                ) : (
+                                  <SuccessStatusBadge status={entry.status} />
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {totalPages > 1 ? (
+                    <div className="gba:flex gba:flex-col gba:gap-3 gba:pt-4 gba:md:flex-row gba:md:items-center gba:md:justify-between">
+                      <span className="gba:text-sm gba:text-muted-foreground">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange((filters.offset || 0) - (filters.limit || 50))}
+                          disabled={currentPage === 1}
+                        >
+                          {t('action-previous')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange((filters.offset || 0) + (filters.limit || 50))}
+                          disabled={!auditData?.pagination.hasMore}
+                        >
+                          {t('action-next')}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </SuccessTabPage>
   )
 }

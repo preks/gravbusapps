@@ -1,0 +1,227 @@
+# App shell
+app-title = FLOW Success
+app-description = Workflow outcomes and performance insights
+tab-overview = Overview
+tab-flows = Flows
+tab-tasks = Tasks
+tab-sla = SLA
+tab-trends = Trends
+tab-decisions = Decisions
+tab-audit = Audit
+
+# Shared actions and filters
+action-retry = Retry
+action-refresh = Refresh
+action-previous = Previous
+action-next = Next
+action-export-csv = Export CSV
+action-export-json = Export JSON
+action-clear = Clear
+action-back = Back
+label-timeframe = Timeframe
+label-scope = Scope
+label-flow = Flow
+label-user = User
+label-action = Action
+label-status = Status
+label-date-from = From
+label-date-to = To
+label-search = Search
+placeholder-select-template = Select a template
+placeholder-search-templates = Search templates
+placeholder-search-flows = Search flows
+placeholder-search-flow-id = Search by flow ID
+filter-all-flows = All flows
+filter-all-users = All users
+filter-all-actions = All actions
+filter-all-statuses = All statuses
+timeframe-last24h = Last 24 hours
+timeframe-wtd = Week to date
+timeframe-mtd = Month to date
+timeframe-qtd = Quarter to date
+timeframe-ytd = Year to date
+state-loading = Loading data
+state-empty = No data available
+state-no-selection = Select an item to see details
+state-no-activity = No recent activity
+state-error-title = Error loading data
+
+# Overview
+overview-title = Business overview
+overview-description = Key performance indicators and the latest workflow activity.
+overview-total-workflows = Total workflows
+overview-total-workflows-description = Workflows initiated in the selected period
+overview-completion-rate = Completion rate
+overview-completion-rate-description = Successfully completed workflows
+overview-avg-cycle-time = Average cycle time
+overview-avg-cycle-time-description = Average completion time
+overview-sla-adherence = SLA adherence
+overview-sla-adherence-description = On-time delivery rate
+overview-recent-flows = Recent flows
+overview-recent-flows-description = Search and inspect the most recently updated workflow instances.
+overview-recent-activity = Recent activity
+overview-recent-activity-description = Latest workflow and task events across the portfolio.
+overview-no-flows = No flows found for the current filters.
+overview-last-activity = Last activity
+overview-started = Started
+overview-in-progress = In progress
+overview-completed = Completed
+overview-timed-out = Timed out
+overview-failed = Failed
+overview-terminated = Terminated
+overview-page = Page
+overview-of = of
+
+# Flows
+flows-title = Flow analytics
+flows-description = Monitor portfolio health and drill into a selected template for scoped analytics.
+flows-portfolio-title = Portfolio overview
+flows-portfolio-description = Aggregate metrics across all templates in the selected period.
+flows-selected-title = Selected template analytics
+flows-selected-description = Scoped metrics, trend data, and the latest definition preview for the selected template.
+flows-selector-description = Choose a template to move from portfolio-level analytics to a focused monitoring view.
+flows-templates-title = Template performance
+flows-templates-description = Ranked template performance for the selected period.
+flows-template-name = Template
+flows-total-workflows = Total workflows
+flows-completed-workflows = Completed
+flows-completion-rate = Completion rate
+flows-avg-cycle-time = Avg cycle time
+flows-median-cycle-time = Median cycle time
+flows-graph-preview = Definition preview
+flows-graph-preview-description = Read-only rendering based on the latest flow-creator graph viewer.
+flows-selected-empty = Select a template to load scoped analytics and the flow definition preview.
+flows-period-activity = Period activity
+flows-started = Started
+flows-completed = Completed
+flows-no-templates = No template analytics available for the selected period.
+
+# Tasks
+tasks-title = Task performance
+tasks-description = Analyze completion rates, assignment patterns, and user productivity.
+tasks-pending = Pending tasks
+tasks-pending-description = Tasks currently active
+tasks-overdue = Overdue tasks
+tasks-overdue-description = Tasks exceeding their due date
+tasks-avg-completion-rate = Average completion rate
+tasks-avg-completion-rate-description = Average completion rate across task types
+tasks-avg-tasks-per-user = Avg tasks per user
+tasks-avg-tasks-per-user-description = Average completed tasks per active user
+tasks-task-types = Task type performance
+tasks-task-types-description = Completion and response-time metrics per task type.
+tasks-assignment-modes = Assignment modes
+tasks-assignment-modes-description = Compare assignment patterns and completion outcomes.
+tasks-user-productivity = User productivity
+tasks-user-productivity-description = Output and completion speed for the most active users.
+tasks-task-type = Task type
+tasks-total-tasks = Total tasks
+tasks-completed-tasks = Completed
+tasks-avg-response-time = Avg response time
+tasks-median-response-time = Median response time
+tasks-assignment-mode = Assignment mode
+tasks-avg-completion-time = Avg completion time
+tasks-user-name = User
+tasks-tasks-completed = Tasks completed
+tasks-productivity-score = Productivity score
+
+# SLA
+sla-title = SLA monitoring
+sla-description = Identify overdue work and the workflow steps that create the most SLA breaches.
+sla-overdue-tasks = Overdue tasks
+sla-overdue-tasks-description = Pending tasks past their due date
+sla-overdue-rate = Overdue rate
+sla-overdue-rate-description = Share of pending tasks that are overdue
+sla-violations = SLA violations
+sla-violations-description = Completed tasks that breached their deadline
+sla-critical-flows = Critical flows
+sla-critical-flows-description = Flow types with a high historical violation rate
+sla-immediate-action = Immediate action
+sla-immediate-action-description = Current overdue work that needs immediate attention.
+sla-no-overdue-title = No overdue tasks
+sla-no-overdue-description = All pending tasks are currently within their SLA targets.
+sla-critical-steps = Critical steps
+sla-critical-steps-description = Workflow steps with the highest violation rates in the selected period.
+sla-flow = Flow
+sla-step = Step
+sla-violation-rate = Violation rate
+sla-avg-overdue = Avg overdue
+
+# Trends
+trends-title = Trend analysis
+trends-description = Compare the current period with the previous period and spot directional changes.
+trends-performance = Performance trends
+trends-summary = Performance summary
+trends-current-period = Current period
+trends-previous-period = Previous period
+trends-workflows-started = Workflows started
+trends-workflows-completed = Workflows completed
+trends-completion-rate = Completion rate
+trends-avg-cycle-time = Average task cycle time
+trends-active-users = Active users
+trends-avg-tasks-per-user = Avg tasks per user
+trends-no-comparison = Previous-period comparison data is not available yet.
+
+# Decisions
+decisions-title = Decision logs
+decisions-description = Inspect branching decisions and escalations recorded for completed workflow steps.
+decisions-total = Total decisions
+decisions-total-description = Decision entries in the selected scope
+decisions-escalated = Escalated
+decisions-escalated-description = Decisions escalated for human handling
+decisions-user = User decisions
+decisions-user-description = Decision entries completed by people
+decisions-ai = AI decisions
+decisions-ai-description = Decision entries executed in AI mode
+decisions-logic = Logic decisions
+decisions-logic-description = Decision entries executed by workflow logic
+decisions-flow-instances = Flow instances
+decisions-flow-instances-description = Distinct workflow instances with decisions
+decisions-entries = Entries
+decisions-time = Time
+decisions-step = Step
+decisions-mode = Mode
+decisions-selected-branch = Selected branch
+decisions-decided-by = Decided by
+decisions-escalation = Escalation
+decisions-flow-status = Flow status
+decisions-duration = Duration
+decisions-direct = Direct
+decisions-no-entries = No decision log entries found for the current filters.
+
+# Audit
+audit-title = Audit trail
+audit-description = Explore workflow activity across all flows, switch to a timeline view, and isolate system actions.
+audit-total-entries = Total entries
+audit-total-entries-description = Audit entries in the selected scope
+audit-user-actions = User actions
+audit-user-actions-description = Actions performed by users
+audit-unique-flows = Unique flows
+audit-unique-flows-description = Distinct flows with activity
+audit-unique-users = Unique users
+audit-unique-users-description = Distinct users with activity
+audit-view-timeline = Timeline
+audit-view-table = Table
+audit-view-system = System activity
+audit-scope-all = All activity
+audit-scope-user = User activity
+audit-scope-system = System activity
+audit-system-description = Highlight system-driven events and function or agent execution traces.
+audit-no-entries = No audit entries found for the current filters.
+audit-timestamp = Timestamp
+audit-user = User
+audit-task-type = Task type
+audit-task = Task
+audit-status-transition = Status transition
+audit-latest-system-events = Latest system events
+audit-latest-system-events-description = Focused list of system-generated events and task execution traces.
+audit-reason = Reason
+
+# Flow detail
+flow-detail-definition = Flow definition
+flow-detail-system-activity = System task activity
+flow-detail-system-activity-description = Recent system-generated events for this flow instance.
+flow-detail-system-empty = No system task events were found for this flow instance.
+
+# Generic table values
+value-unknown = Unknown
+value-not-available = n/a

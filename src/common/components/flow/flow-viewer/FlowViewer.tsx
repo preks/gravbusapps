@@ -1,4 +1,4 @@
-import React, { createContext, useMemo, useEffect, useState, useRef, useContext } from 'react'
+import React, { createContext, useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react'
 import {
   ReactFlow,
   type Node,
@@ -117,7 +117,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   definition,
   themeColors: themeColorsProp,
   fitViewOptions: fitViewOptionsProp,
-  useForwardEdgesOnlyForRanking = false,
+  useForwardEdgesOnlyForRanking = true,
   rightPanel,
   onConnect,
   onNodeClick,
@@ -127,6 +127,8 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   nodesConnectable = false,
   nodesDraggable = false,
   elementsSelectable: elementsSelectableProp,
+  fitViewVerticalAlign = 'top',
+  showMiniMap = true,
   'data-testid': testId = 'flow-viewer'
 }) => {
   const { selectedNodeId, selectedEdgeId, executionState, selectNode, selectEdge, isInteractive } =
@@ -146,7 +148,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const panelShiftAppliedRef = useRef(false)
   const panelShiftPxRef = useRef(0)
   const nodesInitialized = useNodesInitialized()
-  const { fitView, getViewport, setViewport } = useReactFlow()
+  const { fitView, getViewport, setViewport, getNodesBounds } = useReactFlow()
   const { exportPng, isExporting } = useFlowExport()
   const [resolvedThemeColors, setResolvedThemeColors] = useState<FlowCanvasThemeColors | null>(null)
   const panelVisible = rightPanel != null && panelOpenTransition
@@ -297,6 +299,61 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const [flowNodes, setNodes, onNodesChange] = useNodesState(rfNodes)
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState(rfEdges)
 
+  const alignViewportAfterFit = useCallback(
+    (viewport: { x: number; y: number; zoom: number }) => {
+      if (fitViewVerticalAlign !== 'top' || flowNodes.length === 0) return viewport
+
+      const bounds = getNodesBounds(flowNodes)
+      const topPaddingPx = 28
+
+      return {
+        ...viewport,
+        y: topPaddingPx - bounds.y * viewport.zoom
+      }
+    },
+    [fitViewVerticalAlign, flowNodes, getNodesBounds]
+  )
+
+  const runFitView = useCallback(
+    async (duration = 300) => {
+      try {
+        await fitView({
+          padding: fitViewOptions.padding,
+          minZoom: fitViewOptions.minZoom,
+          maxZoom: fitViewOptions.maxZoom,
+          duration
+        })
+      } catch {
+        // ignore
+      }
+
+      let nextViewport = getViewport()
+
+      if (panelVisible) {
+        const width = panelMeasureRef.current?.getBoundingClientRect().width ?? 0
+        const shiftPx = width > 0 ? Math.round(width / 2) : 0
+        if (shiftPx > 0) {
+          panelShiftAppliedRef.current = true
+          panelShiftPxRef.current = shiftPx
+          nextViewport = { ...nextViewport, x: nextViewport.x - shiftPx }
+        }
+      }
+
+      nextViewport = alignViewportAfterFit(nextViewport)
+      setViewport(nextViewport)
+    },
+    [
+      fitView,
+      fitViewOptions.padding,
+      fitViewOptions.minZoom,
+      fitViewOptions.maxZoom,
+      getViewport,
+      panelVisible,
+      alignViewportAfterFit,
+      setViewport
+    ]
+  )
+
   // Run ELK layout and store result in state (like FlowStudioCanvas)
   useEffect(() => {
     let cancelled = false
@@ -355,30 +412,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
       nodesInitialized
     ) {
       const timer = setTimeout(async () => {
-        try {
-          await fitView({
-            padding: fitViewOptions.padding,
-            minZoom: fitViewOptions.minZoom,
-            maxZoom: fitViewOptions.maxZoom,
-            duration: 300
-          })
-        } catch {
-          // ignore
-        }
-
-        // If the right panel is open, apply a matching viewport shift after fitView
-        // so the graph doesn't end up centered under the panel overlay.
-        if (panelVisible) {
-          const width = panelMeasureRef.current?.getBoundingClientRect().width ?? 0
-          const shiftPx = width > 0 ? Math.round(width / 2) : 0
-          if (shiftPx > 0) {
-            const v = getViewport()
-            panelShiftAppliedRef.current = true
-            panelShiftPxRef.current = shiftPx
-            setViewport({ x: v.x - shiftPx, y: v.y, zoom: v.zoom }, { duration: 250 })
-          }
-        }
-
+        await runFitView(300)
         setWasInitiallyCentered(true)
       }, 100)
       return () => clearTimeout(timer)
@@ -390,13 +424,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     layoutKey,
     definition.nodes.length,
     nodesInitialized,
-    fitView,
-    fitViewOptions.padding,
-    fitViewOptions.minZoom,
-    fitViewOptions.maxZoom,
-    panelVisible,
-    getViewport,
-    setViewport
+    runFitView
   ])
 
   // Sync nodes/edges when definition or selection changes (positions come from layout state)
@@ -480,10 +508,13 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:flex-1 gba:relative gba:min-h-0 gba:w-full gba:overflow-hidden" data-testid={testId}>
+    <div
+      className="gba:flex gba:h-full gba:flex-1 gba:relative gba:min-h-0 gba:w-full gba:overflow-hidden"
+      data-testid={testId}
+    >
       <ReactFlow
         data-testid={`${testId}-surface`}
-        style={{ opacity: layoutReady ? 1 : 0, transition: 'opacity 200ms' }}
+        style={{ opacity: layoutReady ? 1 : 0.35, transition: 'opacity 200ms' }}
         nodes={flowNodes}
         edges={flowEdges}
         onNodesChange={onNodesChange}
@@ -508,8 +539,6 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Strict}
-        fitView
-        fitViewOptions={fitViewOptions}
         attributionPosition="bottom-left"
         proOptions={{ hideAttribution: true }}
         nodesDraggable={nodesDraggable}
@@ -543,27 +572,32 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         <Background color={uiColors.border} gap={16} size={1} />
         <FlowCanvasControls
           uiColors={uiColors}
+          onFitView={() => {
+            void runFitView(300)
+          }}
           onExport={exportPng}
           isExporting={isExporting}
           data-testid={`${testId}-controls`}
         />
-        <MiniMap
-          position="bottom-left"
-          nodeStrokeWidth={3}
-          pannable
-          zoomable
-          maskColor={uiColors.mask}
-          style={{
-            marginBottom: '62px',
-            width: 220,
-            height: 150,
-            backgroundColor: uiColors.surface,
-            border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
-            borderRadius: '8px'
-          }}
-          nodeColor={() => uiColors.minimapNode}
-          nodeStrokeColor={() => uiColors.minimapStroke}
-        />
+        {showMiniMap ? (
+          <MiniMap
+            position="bottom-left"
+            nodeStrokeWidth={3}
+            pannable
+            zoomable
+            maskColor={uiColors.mask}
+            style={{
+              marginBottom: '62px',
+              width: 220,
+              height: 150,
+              backgroundColor: uiColors.surface,
+              border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
+              borderRadius: '8px'
+            }}
+            nodeColor={() => uiColors.minimapNode}
+            nodeStrokeColor={() => uiColors.minimapStroke}
+          />
+        ) : null}
         {showRightPanel ? (
           <Panel
             position="top-right"

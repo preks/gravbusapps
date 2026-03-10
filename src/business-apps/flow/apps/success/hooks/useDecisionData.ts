@@ -91,23 +91,24 @@ export const useDecisionLogs = (filters: {
       }
 
       const result = await response.json()
-      const decisions = Array.isArray(result?.entries) ? result.entries : []
+      const payload = result?.status === 'success' ? result.data : result
+      const decisions = Array.isArray(payload?.entries) ? payload.entries : []
       setData({
         decisions,
         summary: {
-          totalDecisions: Number(result?.summary?.totalDecisions || 0),
-          escalatedCount: Number(result?.summary?.escalatedCount || 0),
-          aiCount: Number(result?.summary?.aiCount || 0),
-          userCount: Number(result?.summary?.userCount || 0),
-          logicCount: Number(result?.summary?.logicCount || 0),
-          uniqueFlowInstances: Number(result?.summary?.uniqueFlowInstances || 0)
+          totalDecisions: Number(payload?.summary?.totalDecisions || 0),
+          escalatedCount: Number(payload?.summary?.escalatedCount || 0),
+          aiCount: Number(payload?.summary?.aiCount || 0),
+          userCount: Number(payload?.summary?.userCount || 0),
+          logicCount: Number(payload?.summary?.logicCount || 0),
+          uniqueFlowInstances: Number(payload?.summary?.uniqueFlowInstances || 0)
         },
-        flowOptions: Array.isArray(result?.flowOptions) ? result.flowOptions : [],
+        flowOptions: Array.isArray(payload?.flowOptions) ? payload.flowOptions : [],
         pagination: {
-          total: Number(result?.pagination?.total || decisions.length),
-          limit: Number(result?.pagination?.limit || filters.limit || 100),
-          offset: Number(result?.pagination?.offset || filters.offset || 0),
-          hasMore: Boolean(result?.pagination?.hasMore)
+          total: Number(payload?.pagination?.total || decisions.length),
+          limit: Number(payload?.pagination?.limit || filters.limit || 100),
+          offset: Number(payload?.pagination?.offset || filters.offset || 0),
+          hasMore: Boolean(payload?.pagination?.hasMore)
         }
       })
     } catch (err) {

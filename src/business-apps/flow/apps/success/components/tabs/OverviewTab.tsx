@@ -1,70 +1,69 @@
-import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Alert, Badge, Button } from '@newwork/nw-design-system'
-import { TrendingUp, Target, Clock, Award, Workflow, Calendar, AlertCircle, GitBranch, CheckCircle } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { Activity, CalendarClock, CheckCircle2, Clock3, Target, TrendingUp, Workflow } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { FlowDetailView } from '@/common/components/flow'
+import { formatDisplayText } from '@/common/utils/displayText'
+import translations from '../../_i18n'
+import { useAuditLogs } from '../../hooks/useAuditData'
 import { useFlowAnalytics, useFlowsList } from '../../hooks/useFlowAnalytics'
-import { FlowDetailView } from '../../../../common/components/flow-detail/FlowDetailView'
-
-// Helper function to calculate days running from start time
-const calculateDaysRunning = (startTime: string): number => {
-  if (!startTime) return 0
-  const start = new Date(startTime)
-  const now = new Date()
-  const diffMs = now.getTime() - start.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  return Math.max(0, diffDays)
-}
-
-// Helper function to format last activity
-const formatLastActivity = (flow: any): { label: string; time: string } => {
-  const formatDateTime = (dateString: string): string => {
-    const date = new Date(dateString)
-    return date.toLocaleString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    })
-  }
-
-  // Use lastActivityTime if it's more recent than updateTime, otherwise fall back to updateTime or startTime
-  const lastActivity = flow.lastActivityTime || flow.updateTime || flow.startTime
-  const isRecentActivity =
-    flow.lastActivityTime && (!flow.updateTime || new Date(flow.lastActivityTime) > new Date(flow.updateTime))
-
-  // Debug logging for OverviewTab
-  console.debug('OverviewTab formatLastActivity for', flow.flowId, {
-    lastActivityTime: flow.lastActivityTime,
-    updateTime: flow.updateTime,
-    startTime: flow.startTime,
-    isRecentActivity,
-    label: isRecentActivity ? 'Last activity' : 'Started'
-  })
-
-  return {
-    label: isRecentActivity ? 'Last activity' : 'Started',
-    time: formatDateTime(lastActivity)
-  }
-}
+import {
+  SuccessEmptyState,
+  SuccessErrorState,
+  SuccessKpiGrid,
+  SuccessStatusBadge,
+  SuccessTabPage,
+  SuccessTimeframeSelect
+} from '../shared'
+import { formatDateTime, formatEnumLabel, formatHoursDuration, formatPercent } from '../../utils/formatters'
+import {
+  DEFAULT_SUCCESS_TIMEFRAME,
+  getSuccessTimeframeDateRange,
+  getSuccessTimeframeOptions,
+  type SuccessTimeframe
+} from '../../utils/timeframe'
 
 interface OverviewTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
+const STATUS_OPTIONS = ['RUNNING', 'COMPLETED', 'TIMED_OUT', 'FAILED'] as const
+
 export const OverviewTab: React.FC<OverviewTabProps> = ({
   prefixDataTestId = 'flow-success-overview',
   accessToken
 }) => {
-  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd')
+  const { t } = useTranslation(translations)
+  const [timeframe, setTimeframe] = useState<SuccessTimeframe>(DEFAULT_SUCCESS_TIMEFRAME)
   const [flowsSearch, setFlowsSearch] = useState('')
-  const [flowsStatus, setFlowsStatus] = useState<string>('')
+  const [flowsStatus, setFlowsStatus] = useState<string>('ALL')
   const [flowsPage, setFlowsPage] = useState(0)
-  const [flowsPageSize] = useState(10)
+  const flowsPageSize = 8
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null)
+  const timeframeRange = useMemo(() => getSuccessTimeframeDateRange(timeframe), [timeframe])
+  const recentActivityFilters = useMemo(
+    () => ({
+      limit: 6,
+      offset: 0,
+      startDate: timeframeRange.startDate,
+      endDate: timeframeRange.endDate
+    }),
+    [timeframeRange.endDate, timeframeRange.startDate]
+  )
 
   const {
     data: analytics,
@@ -84,7 +83,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     error: flowsError
   } = useFlowsList({
     search: flowsSearch,
-    status: flowsStatus || undefined,
+    status: flowsStatus === 'ALL' ? undefined : flowsStatus,
+    startDate: timeframeRange.startDate,
+    endDate: timeframeRange.endDate,
     limit: flowsPageSize,
     offset: flowsPage * flowsPageSize,
     orderBy: 'updated_time',
@@ -92,380 +93,268 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     accessToken
   })
 
-  const businessKpis = analytics?.businessKpis
+  const {
+    data: auditData,
+    isLoading: auditLoading,
+    error: auditError
+  } = useAuditLogs(recentActivityFilters, accessToken)
 
-  const error = analyticsError || flowsError
-
-  // Reset paging when filters change
-  React.useEffect(() => {
+  useEffect(() => {
     setFlowsPage(0)
   }, [flowsSearch, flowsStatus])
 
-  // If a flow is selected, show the detail view
+  const timeframeOptions = useMemo(() => getSuccessTimeframeOptions(t), [t])
+  const recentFlows = useMemo(() => {
+    const flows = flowsList?.flows ?? []
+    return [...flows].sort((a, b) => {
+      const aTime = new Date(a.lastActivityTime || a.updateTime || a.startTime || 0).getTime()
+      const bTime = new Date(b.lastActivityTime || b.updateTime || b.startTime || 0).getTime()
+      return bTime - aTime
+    })
+  }, [flowsList?.flows])
+  const auditEntries = useMemo(() => {
+    const entries = auditData?.entries ?? []
+    return [...entries].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())
+  }, [auditData?.entries])
+
   if (selectedFlowId) {
     return (
       <FlowDetailView
         flowId={selectedFlowId}
-        variant="monitoring"
         onBack={() => setSelectedFlowId(null)}
-        showBackButton={true}
-        showActions={true}
+        showBackButton
         accessToken={accessToken}
       />
     )
   }
 
-  // Helper function to format cycle time
-  const formatCycleTime = (hours: number) => {
-    if (hours < 1) {
-      const minutes = Math.round(hours * 60)
-      return {
-        value: minutes,
-        suffix: minutes === 1 ? 'min' : 'min',
-        precision: 0
-      }
-    } else {
-      return {
-        value: hours,
-        suffix: 'h',
-        precision: 1
-      }
-    }
-  }
-
-  // Prepare metrics data for WidgetGroup (without trend for now to fix layout)
-  const avgCycleTimeHours = businessKpis?.avgCycleTime || 0
-  const formattedCycleTime = formatCycleTime(avgCycleTimeHours)
-
-  const kpiWidgets: WidgetItem[] = [
+  const businessKpis = analytics?.businessKpis
+  const kpiItems = [
     {
-      key: 'total-workflows',
-      title: 'Total Workflows',
-      value: businessKpis?.totalWorkflows || 0,
-      prefix: <Target className="gba:h-5 gba:w-5" />,
-      color: '#3b82f6',
-      description: 'Workflows initiated this time period'
+      id: 'total-workflows',
+      label: t('overview-total-workflows'),
+      value: String(businessKpis?.totalWorkflows ?? 0),
+      description: t('overview-total-workflows-description'),
+      icon: <Target className="gba:h-5 gba:w-5" />
     },
     {
-      key: 'completion-rate',
-      title: 'Completion Rate',
-      value: businessKpis?.completionRate || 0,
-      suffix: '%',
-      precision: 1,
-      prefix: <Award className="gba:h-5 gba:w-5" />,
-      color: '#10b981',
-      description: 'Successfully completed flows'
+      id: 'completion-rate',
+      label: t('overview-completion-rate'),
+      value: formatPercent(businessKpis?.completionRate),
+      description: t('overview-completion-rate-description'),
+      icon: <TrendingUp className="gba:h-5 gba:w-5" />
     },
     {
-      key: 'avg-cycle-time',
-      title: 'Avg Cycle Time',
-      value: formattedCycleTime.value,
-      suffix: formattedCycleTime.suffix,
-      precision: formattedCycleTime.precision,
-      prefix: <Clock className="gba:h-5 gba:w-5" />,
-      color: '#f59e0b',
-      description: 'Average completion time'
+      id: 'avg-cycle-time',
+      label: t('overview-avg-cycle-time'),
+      value: formatHoursDuration(businessKpis?.avgCycleTime),
+      description: t('overview-avg-cycle-time-description'),
+      icon: <Clock3 className="gba:h-5 gba:w-5" />
     },
     {
-      key: 'sla-adherence',
-      title: 'SLA Adherence',
-      value: businessKpis?.slaAdherence || 0,
-      suffix: '%',
-      precision: 1,
-      prefix: <TrendingUp className="gba:h-5 gba:w-5" />,
-      color: '#8b5cf6',
-      description: 'On-time delivery rate'
+      id: 'sla-adherence',
+      label: t('overview-sla-adherence'),
+      value: formatPercent(businessKpis?.slaAdherence),
+      description: t('overview-sla-adherence-description'),
+      icon: <CheckCircle2 className="gba:h-5 gba:w-5" />
     }
   ]
 
-  if (error) {
-    return (
-      <div className="gba:space-y-6" data-testid={prefixDataTestId}>
-        <Alert variant="destructive">
-          <div>
-            <h4 className="gba:font-semibold">Error Loading Dashboard Data</h4>
-            <p className="gba:text-sm gba:mt-1">
-              {error instanceof Error ? error.message : 'Failed to load analytics data'}
-            </p>
-          </div>
-        </Alert>
-      </div>
-    )
-  }
-
   return (
-    <div className="gba:space-y-6" data-testid={prefixDataTestId}>
-      {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center">
-        <div>
-          <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">Business Overview</h2>
-          <p className="gba:text-gray-600">Key performance indicators and business outcomes</p>
-        </div>
+    <SuccessTabPage
+      title={t('overview-title')}
+      description={t('overview-description')}
+      actions={
+        <SuccessTimeframeSelect
+          value={timeframe}
+          onChange={setTimeframe}
+          options={timeframeOptions}
+          data-testid={`${prefixDataTestId}-timeframe-select`}
+        />
+      }
+      data-testid={prefixDataTestId}
+    >
+      {analyticsError && !analytics ? (
+        <SuccessErrorState
+          title={t('state-error-title')}
+          message={analyticsError.message}
+          onRetry={refetchAnalytics}
+          retryLabel={t('action-retry')}
+          data-testid={`${prefixDataTestId}-analytics-error`}
+        />
+      ) : (
+        <SuccessKpiGrid
+          items={kpiItems}
+          isLoading={analyticsLoading}
+          emptyTitle={t('state-empty')}
+          emptyDescription={t('overview-description')}
+          data-testid={`${prefixDataTestId}-kpis`}
+        />
+      )}
 
-        {/* Timeframe Selector */}
-        <div className="gba:flex gba:bg-white gba:rounded-lg gba:border gba:p-1">
-          {[
-            { key: 'wtd', label: 'Week' },
-            { key: 'mtd', label: 'Month' },
-            { key: 'qtd', label: 'Quarter' },
-            { key: 'ytd', label: 'Year' }
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTimeframe(key as any)}
-              className={`gba:px-3 gba:py-2 gba:text-sm gba:font-medium gba:rounded-md gba:transition-colors ${
-                timeframe === key ? 'gba:bg-blue-100 gba:text-blue-700' : 'gba:text-gray-500 hover:gba:text-gray-700'
-              }`}
-              data-testid={`${prefixDataTestId}-timeframe-${key}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* KPI Cards - 4 Most Important Metrics */}
-      <WidgetGroup
-        widgets={kpiWidgets}
-        isLoading={analyticsLoading}
-        error={analyticsError}
-        onRetry={refetchAnalytics}
-        skeletonCount={4}
-        emptyText="No KPI data available"
-        data-testid={`${prefixDataTestId}-kpi-cards`}
-      />
-
-      {/* Recent Flows Section */}
-      <Card>
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <div>
-              <CardTitle className="gba:flex gba:items-center gba:gap-3 gba:text-xl gba:font-semibold">
-                <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:bg-gradient-to-br gba:from-blue-500 gba:to-blue-600 gba:rounded-lg gba:shadow-sm">
-                  <GitBranch className="gba:h-5 gba:w-5 gba:text-white" />
-                </div>
-                Recent Flows
-              </CardTitle>
-            </div>
-          </div>
-
-          {/* Filter Bar */}
-          <div className="gba:flex gba:gap-4 gba:mt-4">
-            <div className="gba:flex-1">
-              <DebouncedInput
-                placeholder="Search flows..."
+      <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:xl:grid-cols-[1.8fr_1fr]">
+        <Card className="gba:border-border gba:bg-card">
+          <CardHeader className="gba:border-b gba:border-border">
+            <CardTitle>{t('overview-recent-flows')}</CardTitle>
+            <CardDescription>{t('overview-recent-flows-description')}</CardDescription>
+            <div className="gba:flex gba:flex-col gba:gap-3 gba:pt-2 gba:md:flex-row">
+              <Input
                 value={flowsSearch}
-                onChange={setFlowsSearch}
-                className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:bg-white gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-blue-500"
+                onChange={event => setFlowsSearch(event.target.value)}
+                placeholder={t('placeholder-search-flows')}
                 data-testid={`${prefixDataTestId}-flows-search`}
               />
+              <Select value={flowsStatus} onValueChange={setFlowsStatus}>
+                <SelectTrigger className="gba:w-full gba:md:w-52" data-testid={`${prefixDataTestId}-status-select`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">{t('filter-all-statuses')}</SelectItem>
+                  {STATUS_OPTIONS.map(option => (
+                    <SelectItem key={option} value={option}>
+                      {formatEnumLabel(option)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <select
-              value={flowsStatus}
-              onChange={e => setFlowsStatus(e.target.value)}
-              className="gba:px-3 gba:py-2 gba:border gba:rounded-md gba:text-sm gba:bg-white"
-              data-testid={`${prefixDataTestId}-flows-status-filter`}
-            >
-              <option value="">All Status</option>
-              <option value="RUNNING">In Progress</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="TIMED_OUT">Timed out</option>
-              <option value="FAILED">Failed</option>
-            </select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {flowsLoading ? (
-            <div className="gba:space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg">
-                  <div className="gba:w-10 gba:h-10 gba:bg-gray-200 gba:rounded gba:animate-pulse" />
-                  <div className="gba:flex-1 gba:space-y-2">
-                    <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:animate-pulse gba:w-2/3" />
-                    <div className="gba:h-3 gba:bg-gray-200 gba:rounded gba:animate-pulse gba:w-1/2" />
-                  </div>
-                  <div className="gba:w-16 gba:h-6 gba:bg-gray-200 gba:rounded gba:animate-pulse" />
-                </div>
-              ))}
-            </div>
-          ) : flowsError ? (
-            <Alert variant="destructive">
-              <AlertCircle className="gba:h-4 gba:w-4" />
-              <div>
-                <h4 className="gba:font-semibold">Error Loading Flows</h4>
-                <p className="gba:text-sm gba:mt-1">
-                  {flowsError && typeof flowsError === 'object' && 'message' in flowsError
-                    ? (flowsError as Error).message
-                    : 'Failed to load flows'}
-                </p>
+          </CardHeader>
+          <CardContent className="gba:flex gba:flex-col gba:gap-4 gba:p-5">
+            {flowsLoading ? (
+              <div className="gba:flex gba:min-h-56 gba:items-center gba:justify-center gba:text-sm gba:text-muted-foreground">
+                {t('state-loading')}
               </div>
-            </Alert>
-          ) : !flowsList?.flows?.length ? (
-            <div className="gba:text-center gba:py-8 gba:text-gray-500">
-              <Workflow className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:text-gray-300" />
-              <p>No flows found</p>
-            </div>
-          ) : (
-            <div className="gba:space-y-3">
-              {flowsList.flows.map((flow, index) => (
-                <div
-                  key={flow.flowId}
-                  className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-gray-200 gba:rounded-xl gba:hover:bg-gray-50 gba:hover:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:bg-white"
-                  data-testid={`${prefixDataTestId}-flow-${index}`}
-                  onClick={() => {
-                    setSelectedFlowId(flow.flowId)
-                  }}
-                >
-                  <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:bg-gradient-to-br gba:from-blue-50 gba:to-blue-100 gba:rounded-lg gba:flex-shrink-0 gba:shadow-sm">
-                    <Workflow className="gba:h-6 gba:w-6 gba:text-blue-600" />
-                  </div>
-
-                  <div className="gba:flex-1 gba:min-w-0">
-                    <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
-                      <h4 className="gba:font-semibold gba:text-base gba:truncate gba:text-gray-900">
-                        {flow.flowName || `Flow ${flow.flowId.slice(-8)}`}
-                      </h4>
-                      {(() => {
-                        const status = flow.status
-                        const statusClassName =
-                          status === 'COMPLETED'
-                            ? 'gba:bg-success gba:text-success-foreground'
-                            : status === 'RUNNING' || status === 'IN_PROGRESS'
-                              ? 'gba:bg-info gba:text-info-foreground'
-                              : status === 'TIMED_OUT'
-                                ? 'gba:bg-warning gba:text-warning-foreground'
-                                : status === 'FAILED'
-                                  ? 'gba:bg-destructive gba:text-destructive-foreground'
-                                  : 'gba:bg-muted gba:text-muted-foreground'
-
-                        return (
-                          <Badge
-                            variant="outline"
-                            className={`gba:text-xs gba:font-medium gba:px-3 gba:py-1 gba:border-0 ${statusClassName}`}
-                          >
-                            {flow.status === 'COMPLETED'
-                              ? 'COMPLETED'
-                              : flow.status === 'RUNNING' || flow.status === 'IN_PROGRESS'
-                                ? 'IN PROGRESS'
-                                : flow.status === 'TIMED_OUT'
-                                  ? 'TIMED OUT'
-                                  : flow.status}
-                          </Badge>
-                        )
-                      })()}
-                    </div>
-                    {/* Unified Progress and Status Line */}
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500 gba:mb-2">
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <Calendar className="gba:h-3 gba:w-3" />
-                        {formatLastActivity(flow).label}: {formatLastActivity(flow).time}
-                      </span>
-                      <span>Progress: {flow.progressPercentage || 0}%</span>
-                      <span>
-                        {flow.stepStatus?.completed || 0}/{flow.stepStatus?.total || 0} steps
-                      </span>
-                    </div>
-
-                    {/* Enhanced Time Insights with End Dates */}
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-600 gba:flex-wrap">
-                      {(flow.timeInsights || flow.startTime) && (
-                        <>
-                          {/* Show end date for completed flows, running time for active flows */}
-                          {['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flow.status) && flow.endTime ? (
-                            <span className="gba:flex gba:items-center gba:gap-1 gba:text-gray-600">
-                              <CheckCircle className="gba:h-3 gba:w-3" />
-                              {flow.status === 'COMPLETED'
-                                ? 'Completed'
-                                : flow.status === 'TIMED_OUT'
-                                  ? 'Timed out'
-                                  : flow.status === 'TERMINATED'
-                                    ? 'Terminated'
-                                    : 'Failed'}
-                              :{' '}
-                              {new Date(flow.endTime).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          ) : (
-                            <span className="gba:flex gba:items-center gba:gap-1 gba:text-blue-600 gba:font-medium">
-                              <Clock className="gba:h-3 gba:w-3" />
-                              Running {flow.timeInsights?.daysRunning || calculateDaysRunning(flow.startTime)} day
-                              {(flow.timeInsights?.daysRunning || calculateDaysRunning(flow.startTime)) !== 1
-                                ? 's'
-                                : ''}
-                            </span>
-                          )}
-
-                          {flow.timeInsights?.avgStepDurationHours && (
-                            <span>~{flow.timeInsights.avgStepDurationHours.toFixed(1)}h per step</span>
-                          )}
-
-                          {flow.timeInsights?.estimatedCompletionDate &&
-                            !['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flow.status) && (
-                              <span className="gba:text-blue-600 gba:font-medium">
-                                Due:{' '}
-                                {new Date(flow.timeInsights.estimatedCompletionDate).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+            ) : flowsError ? (
+              <SuccessErrorState
+                title={t('state-error-title')}
+                message={flowsError.message}
+                data-testid={`${prefixDataTestId}-flows-error`}
+              />
+            ) : !recentFlows.length ? (
+              <SuccessEmptyState
+                title={t('overview-no-flows')}
+                description={t('overview-recent-flows-description')}
+                icon={<Workflow className="gba:h-8 gba:w-8" />}
+                data-testid={`${prefixDataTestId}-flows-empty`}
+              />
+            ) : (
+              <>
+                <div className="gba:flex gba:flex-col gba:gap-3">
+                  {recentFlows.map((flow, index) => {
+                    const activityTimestamp = flow.lastActivityTime || flow.updateTime || flow.startTime
+                    return (
+                      <button
+                        key={flow.flowId}
+                        type="button"
+                        className="gba:flex gba:w-full gba:flex-col gba:gap-3 gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-4 gba:text-left gba:transition-colors gba:hover:bg-muted/50"
+                        onClick={() => setSelectedFlowId(flow.flowId)}
+                        data-testid={`${prefixDataTestId}-flow-${index}`}
+                      >
+                        <div className="gba:flex gba:flex-col gba:gap-3 gba:md:flex-row gba:md:items-start gba:md:justify-between">
+                          <div className="gba:flex gba:flex-col gba:gap-2">
+                            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                              <span className="gba:font-medium gba:text-foreground">
+                                {flow.flowName || `Flow ${flow.flowId.slice(-8)}`}
                               </span>
-                            )}
-                        </>
-                      )}
+                              <SuccessStatusBadge status={flow.status} />
+                            </div>
+                            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
+                              <span className="gba:flex gba:items-center gba:gap-1">
+                                <CalendarClock className="gba:h-4 gba:w-4" />
+                                {flow.lastActivityTime ? t('overview-last-activity') : t('overview-started')}:{' '}
+                                {formatDateTime(activityTimestamp)}
+                              </span>
+                              <span>{flow.progressPercentage || 0}%</span>
+                              <span>
+                                {flow.stepStatus?.completed || 0}/{flow.stepStatus?.total || 0}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="gba:text-xs gba:text-muted-foreground">{flow.flowId.slice(-8)}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+                {flowsList.totalCount > flowsPageSize ? (
+                  <div className="gba:flex gba:flex-col gba:gap-3 gba:border-t gba:border-border gba:pt-4 gba:md:flex-row gba:md:items-center gba:md:justify-between">
+                    <span className="gba:text-sm gba:text-muted-foreground">
+                      {t('overview-page')} {flowsPage + 1} {t('overview-of')}{' '}
+                      {Math.ceil(flowsList.totalCount / flowsPageSize)}
+                    </span>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFlowsPage(Math.max(0, flowsPage - 1))}
+                        disabled={flowsPage === 0}
+                      >
+                        {t('action-back')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFlowsPage(flowsPage + 1)}
+                        disabled={!flowsList.hasMore}
+                      >
+                        {t('action-refresh')}
+                      </Button>
                     </div>
                   </div>
+                ) : null}
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-                  <div className="gba:text-right gba:text-xs gba:text-gray-500 gba:flex-shrink-0">
-                    <div>{flow.flowId.slice(-8)}</div>
+        <Card className="gba:border-border gba:bg-card">
+          <CardHeader className="gba:border-b gba:border-border">
+            <CardTitle>{t('overview-recent-activity')}</CardTitle>
+            <CardDescription>{t('overview-recent-activity-description')}</CardDescription>
+          </CardHeader>
+          <CardContent className="gba:flex gba:flex-col gba:gap-4 gba:p-5" aria-busy={auditLoading}>
+            {auditLoading && !auditEntries.length ? (
+              <div className="gba:flex gba:min-h-56 gba:items-center gba:justify-center gba:text-sm gba:text-muted-foreground">
+                {t('state-loading')}
+              </div>
+            ) : auditError && !auditEntries.length ? (
+              <SuccessErrorState
+                title={t('state-error-title')}
+                message={auditError.message}
+                data-testid={`${prefixDataTestId}-activity-error`}
+              />
+            ) : !auditEntries.length ? (
+              <SuccessEmptyState
+                title={t('state-no-activity')}
+                description={t('overview-recent-activity-description')}
+                icon={<Activity className="gba:h-8 gba:w-8" />}
+                data-testid={`${prefixDataTestId}-activity-empty`}
+              />
+            ) : (
+              auditEntries.map(entry => (
+                <div
+                  key={entry.id}
+                  className="gba:flex gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:p-4"
+                >
+                  <div className="gba:flex gba:h-10 gba:w-10 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted">
+                    <Activity className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                   </div>
-                </div>
-              ))}
-
-              {/* Pagination */}
-              {flowsList.totalCount > flowsPageSize && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t">
-                  <p
-                    className="gba:text-sm gba:text-gray-500"
-                    data-testid={`${prefixDataTestId}-flows-pagination-text`}
-                  >
-                    Showing {flowsPage * flowsPageSize + 1}-
-                    {Math.min((flowsPage + 1) * flowsPageSize, flowsList.totalCount)} of {flowsList.totalCount} flows
-                  </p>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFlowsPage(Math.max(0, flowsPage - 1))}
-                      disabled={flowsPage === 0}
-                      data-testid={`${prefixDataTestId}-flows-prev-page`}
-                    >
-                      Previous
-                    </Button>
-                    <span className="gba:text-sm gba:text-gray-600" data-testid={`${prefixDataTestId}-flows-page`}>
-                      Page {flowsPage + 1} of {Math.ceil(flowsList.totalCount / flowsPageSize)}
+                  <div className="gba:flex gba:min-w-0 gba:flex-1 gba:flex-col gba:gap-1">
+                    <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                      {formatDisplayText(entry.flowName, entry.flowId)}
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFlowsPage(flowsPage + 1)}
-                      disabled={!flowsList.hasMore}
-                      data-testid={`${prefixDataTestId}-flows-next-page`}
-                    >
-                      Next
-                    </Button>
+                    <span className="gba:text-sm gba:text-muted-foreground">
+                      {formatEnumLabel(entry.action)}
+                      {entry.taskName ? ` · ${formatDisplayText(entry.taskName, entry.action)}` : ''}
+                    </span>
+                    <span className="gba:text-xs gba:text-muted-foreground">{formatDateTime(entry.timestamp)}</span>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </SuccessTabPage>
   )
 }

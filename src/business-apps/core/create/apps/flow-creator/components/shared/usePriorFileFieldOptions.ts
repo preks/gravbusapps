@@ -50,7 +50,7 @@ export function usePriorFileFieldOptions(currentNodeId: string): PriorFileFieldO
         id: `start:${name}`,
         label: `Start — ${fieldLabel}`,
         fieldLabel,
-        expression: `{{$workflow.input.formData.${name}}}`
+        expression: `{{$workflow.input.inputValues.${name}}}`
       })
     }
 

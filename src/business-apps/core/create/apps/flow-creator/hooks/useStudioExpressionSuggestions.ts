@@ -13,7 +13,7 @@ function labelForField(field: InputBlock): string {
 
 /**
  * Build expression suggestions for Flow Studio:
- * - Trigger (start node form) suggestions -> `$workflow.input.formData.<field>`
+ * - Trigger (start node form) suggestions -> `$workflow.input.inputValues.<field>`
  * - Step (task form fields) suggestions -> `$steps.step_N.formData.<field>`
  */
 export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
@@ -73,7 +73,7 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
         id: `${name}-${i}`,
         label: `Trigger — ${labelForField(f)}`,
         path: name,
-        kind: 'formData',
+        kind: 'inputValues',
         dataType: mapInputTypeToValueType(f.type)
       })
     }
@@ -154,12 +154,12 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
         {
           id: `userIdByEmployeeId-${employeeIdField}`,
           label: `Convert employeeId → userId (Trigger: ${employeeIdField})`,
-          path: `userIdByEmployeeId[$workflow.input.formData.${employeeIdField}]`
+          path: `userIdByEmployeeId[$workflow.input.inputValues.${employeeIdField}]`
         },
         {
           id: `managerByEmployeeId-${employeeIdField}`,
           label: `Employee → Manager (User ID) (Trigger: ${employeeIdField})`,
-          path: `manager[$workflow.input.formData.${employeeIdField}]`
+          path: `manager[$workflow.input.inputValues.${employeeIdField}]`
         }
       )
     }
