@@ -372,9 +372,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       additionalData?.contentEntry?.contentTypeName ??
       ''
 
-    const isPolicy =
-      initialContentGroupRef === ContentGroup.POLICY ||
-      (typeof initialContentGroupRef === 'string' && initialContentGroupRef.includes('POLICIES'))
+    const isPolicy = initialContentGroupRef === ContentGroup.POLICY
 
     const defaults = {
       id: '',

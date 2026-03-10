@@ -21,6 +21,7 @@ export const GET_EXPENSE_REQUESTS = `
       status
       title
       totalAmount
+      reimbursableAmount
       totalRemainingAmount
       startDate
       endDate
@@ -48,7 +49,7 @@ export const GET_EXPENSE_REQUESTS = `
         lastName 
         code 
         id
-        additionalProperties 
+        hrReferenceCode
         employeePosition { 
           costCenter { name }
           organizationalUnit { name }
@@ -76,130 +77,6 @@ export const GET_EXPENSE_REQUESTS = `
     }
     total: ExpenseRequestAggregate(where: $where) {
       aggregate { count }
-    }
-  }
-`
-
-export const GET_EXPENSE_REQUEST_BY_ID = `
-  query GetExpenseRequestById($id: uuid!) {
-    ExpenseRequest(where: {id: {_eq: $id}}) {
-      id
-      code
-      title
-      description
-      requestDate
-      totalAmount
-      status
-      attachments {
-        fileUrl
-        fileName
-      }
-      employee {
-        id
-        fullName
-        department
-        additionalProperties
-      }
-      costCenter {
-        name
-        code
-      }
-    }
-  }
-`
-
-export const GET_EXPENSE_REQUEST_STATISTICS = `
-  query GetExpenseRequestStatistics($employeeId: uuid!) {
-  pendingRequests: ExpenseRequestAggregate(
-    where: {
-      employee: {
-        employeePosition: {
-          supervisorEmployeeId: {_eq: $employeeId}
-        }
-      },
-      isDeleted: {_eq: false},
-      status: {_eq: "PENDING"}
-    }
-  ) {
-    aggregate {
-      count
-      sum {
-        totalAmount
-      }
-    }
-  }
-  approvedRequests: ExpenseRequestAggregate(
-    where: {
-      employee: {
-        employeePosition: {
-          supervisorEmployeeId: {_eq: $employeeId}
-        }
-      },
-      isDeleted: {_eq: false},
-      status: {_eq: "APPROVED"}
-    }
-  ) {
-    aggregate {
-      count
-      sum {
-        totalAmount
-      }
-    }
-  }
-  rejectedRequests: ExpenseRequestAggregate(
-    where: {
-      employee: {
-        employeePosition: {
-          supervisorEmployeeId: {_eq: $employeeId}
-        }
-      },
-      isDeleted: {_eq: false},
-      status: {_eq: "REJECTED"}
-    }
-  ) {
-    aggregate {
-      count
-      sum {
-        totalAmount
-      }
-    }
-  }
-  allSubmittedRequests: ExpenseRequestAggregate(
-    where: {
-      employee: {
-        employeePosition: {
-          supervisorEmployeeId: {_eq: $employeeId}
-        }
-      },
-      isDeleted: {_eq: false},
-      status: {_nin: ["CREATED", "DISCARDED", "RETURNED"]}
-    }
-  ) {
-    aggregate {
-      sum {
-        totalAmount
-      }
-    }
-  }
-}
-`
-
-// GraphQL mutation for approving an expense request
-export const APPROVE_EXPENSE_MUTATION = `
-  mutation ApproveExpenseRequest($id: uuid!) {
-    update_ExpenseRequest_by_pk(pk_columns: {id: $id}, _set: {status: "APPROVED"}) {
-      id
-      status
-    }
-  }
-`
-
-// GraphQL mutation for rejecting an expense request
-export const REJECT_EXPENSE_MUTATION = `
-  mutation RejectExpenseRequest($id: uuid!) {
-    update_ExpenseRequest_by_pk(pk_columns: {id: $id}, _set: {status: "REJECTED"}) {
-      id
-      status
     }
   }
 `
