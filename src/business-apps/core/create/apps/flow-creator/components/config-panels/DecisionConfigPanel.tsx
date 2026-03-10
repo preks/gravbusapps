@@ -17,6 +17,7 @@ import { LogicDecisionConfig } from './decision/LogicDecisionConfig'
 import { UserDecisionConfig } from './decision/UserDecisionConfig'
 import { useDecisionBranchSanitizers } from './decision/useDecisionBranchSanitizers'
 import { useEligibleSendBackTargets } from './decision/user/useEligibleSendBackTargets'
+import { collectAssignmentPersonFieldOptions } from '../../utils/assignmentPersonFieldUtils'
 
 interface DecisionConfigPanelProps {
   nodeId: string
@@ -43,27 +44,8 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
   const nodes = useFlowStudioStore(s => s.nodes)
 
   const availableStartFields = useMemo(() => {
-    const start = nodes.find(n => n.type === 'start')
-    const form = (start?.config as any)?.form
-    if (!Array.isArray(form)) return []
-
-    const isLikelyPersonField = (f: any): boolean => {
-      const name = String(f?.name || '').toLowerCase()
-      const entity = String(f?.dataSource?.entity || '').toLowerCase()
-      if (entity.includes('employee') || entity.includes('user')) return true
-      return ['employee', 'user', 'assignee', 'requester', 'approver', 'manager', 'owner', 'responsible'].some(p =>
-        name.includes(p)
-      )
-    }
-
-    return form
-      .filter((f: any) => f && typeof f.name === 'string')
-      .filter(isLikelyPersonField)
-      .map((f: any) => ({
-        name: String(f.name),
-        label: String(f.label || f.name)
-      }))
-  }, [nodes])
+    return collectAssignmentPersonFieldOptions({ nodes, edges: edges as any, currentNodeId: nodeId })
+  }, [edges, nodeId, nodes])
 
   const branchEdges = edges.filter(edge => edge.source === nodeId)
 

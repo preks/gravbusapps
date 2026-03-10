@@ -25,7 +25,9 @@ const initialState: FlowStudioState = {
   selectedEdgeId: null,
   selectedEdgePanel: 'details',
   edgePanelLock: null,
+  templateId: undefined,
   templateName: 'Untitled Flow',
+  templateDescription: '',
   templateTags: {},
   templateVersion: 1,
   isDirty: false,
@@ -430,7 +432,14 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       redoStack: []
     })
   },
-  resetStore: () => set({ ...initialState, nodes: initialGraph.nodes, edges: initialGraph.edges }),
+  resetStore: () =>
+    set({
+      ...initialState,
+      templateId: undefined,
+      templateDescription: '',
+      nodes: initialGraph.nodes,
+      edges: initialGraph.edges
+    }),
   pushSnapshot: () => {
     const snapshot: FlowStudioSnapshot = { nodes: structuredClone(get().nodes), edges: structuredClone(get().edges) }
     set({ undoStack: [...get().undoStack, snapshot].slice(-MAX_UNDO) })

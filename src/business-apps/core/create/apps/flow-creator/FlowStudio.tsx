@@ -116,6 +116,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const [saveNameDialogOpen, setSaveNameDialogOpen] = useState(false)
   const [pendingTemplateName, setPendingTemplateName] = useState('')
   const [saveNameError, setSaveNameError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const handleModeChange = useCallback(
     (newMode: DesignerMode) => {
@@ -157,8 +158,14 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
 
   const hasAnyTags = tagPills.length > 0
 
+  const getSaveErrorMessage = useCallback(
+    (error: unknown) => (error instanceof Error ? error.message : 'Failed to save flow'),
+    []
+  )
+
   const openTemplateFromList = useCallback(
     async (id: string) => {
+      setSaveError(null)
       updateUrlWithFlowId(id, true)
       setView('designer')
       try {
@@ -171,12 +178,14 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   )
 
   const createNewFlow = useCallback(() => {
+    setSaveError(null)
     updateUrlWithFlowId(null)
     resetStore()
     setView('designer')
   }, [resetStore])
 
   const backToList = useCallback(() => {
+    setSaveError(null)
     updateUrlWithFlowId(null)
     selectNode(null)
     selectEdge(null)
@@ -203,6 +212,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   }, [backToList, mode, resetStore, setMode])
 
   const executeSave = useCallback(async () => {
+    setSaveError(null)
     await saveFlow()
     onSaveComplete?.()
   }, [onSaveComplete, saveFlow])
@@ -211,14 +221,18 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     if (view !== 'designer') return
 
     if (!isUntitledTemplateName(templateName)) {
-      await executeSave()
+      try {
+        await executeSave()
+      } catch (error) {
+        setSaveError(getSaveErrorMessage(error))
+      }
       return
     }
 
     setPendingTemplateName('')
     setSaveNameError(null)
     setSaveNameDialogOpen(true)
-  }, [executeSave, templateName, view])
+  }, [executeSave, getSaveErrorMessage, templateName, view])
 
   const confirmSaveWithName = useCallback(async () => {
     const trimmedName = pendingTemplateName.trim()
@@ -234,10 +248,13 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     try {
       await executeSave()
       setSaveNameDialogOpen(false)
-    } catch {
+    } catch (error) {
+      const message = getSaveErrorMessage(error)
+      setSaveError(message)
+      setSaveNameError(message)
       // Keep the dialog open so the user can retry after the save error is resolved.
     }
-  }, [executeSave, pendingTemplateName, setTemplateMetadata, t])
+  }, [executeSave, getSaveErrorMessage, pendingTemplateName, setTemplateMetadata, t])
 
   useEffect(() => {
     if (!saveNameDialogOpen) return
@@ -445,14 +462,24 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
             data-testid={`${testId}-list`}
           />
         ) : (
-          <FlowStudioCanvas
-            accessToken={accessToken}
-            userInfo={userInfo}
-            mode={mode}
-            onModeChange={handleModeChange}
-            onSave={requestSave}
-            data-testid={`${testId}-canvas`}
-          />
+          <div className="gba:flex gba:flex-1 gba:flex-col gba:min-h-0">
+            {saveError ? (
+              <div
+                className="gba:border-b gba:border-destructive-secondary gba:bg-destructive-secondary gba:px-5 gba:py-3"
+                data-testid={`${testId}-save-error`}
+              >
+                <p className="gba:text-sm gba:text-destructive-secondary-foreground">{saveError}</p>
+              </div>
+            ) : null}
+            <FlowStudioCanvas
+              accessToken={accessToken}
+              userInfo={userInfo}
+              mode={mode}
+              onModeChange={handleModeChange}
+              onSave={requestSave}
+              data-testid={`${testId}-canvas`}
+            />
+          </div>
         )}
       </div>
 
@@ -499,6 +526,9 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
               value={pendingTemplateName}
               onChange={event => {
                 setPendingTemplateName(event.target.value)
+                if (saveError) {
+                  setSaveError(null)
+                }
                 if (saveNameError) {
                   setSaveNameError(null)
                 }

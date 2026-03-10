@@ -3,9 +3,11 @@ import { Label, useTranslation } from '@newwork/nw-design-system'
 import type { DesignerMode, TaskNodeConfig } from '../../../types/studioTypes'
 import translations from '../../../_i18n'
 import { useFlowStudioStore } from '../../../hooks/useFlowStudioStore'
+import { collectAssignmentPersonFieldOptions } from '../../../utils/assignmentPersonFieldUtils'
 import { AssignmentConfigSection } from './AssignmentConfigSection'
 
 interface TaskAssignmentTabProps {
+  nodeId: string
   mode: DesignerMode
   config: TaskNodeConfig
   update: (partial: Partial<TaskNodeConfig>) => void
@@ -13,32 +15,21 @@ interface TaskAssignmentTabProps {
   testId: string
 }
 
-export const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({ mode, config, update, accessToken, testId }) => {
+export const TaskAssignmentTab: React.FC<TaskAssignmentTabProps> = ({
+  nodeId,
+  mode,
+  config,
+  update,
+  accessToken,
+  testId
+}) => {
   const { t } = useTranslation(translations)
   const nodes = useFlowStudioStore(s => s.nodes)
+  const edges = useFlowStudioStore(s => s.edges)
 
   const availableStartFields = useMemo(() => {
-    const start = nodes.find(n => n.type === 'start')
-    const form = (start?.config as any)?.form
-    if (!Array.isArray(form)) return []
-
-    const isLikelyPersonField = (f: any): boolean => {
-      const name = String(f?.name || '').toLowerCase()
-      const entity = String(f?.dataSource?.entity || '').toLowerCase()
-      if (entity.includes('employee') || entity.includes('user')) return true
-      return ['employee', 'user', 'assignee', 'requester', 'approver', 'manager', 'owner', 'responsible'].some(p =>
-        name.includes(p)
-      )
-    }
-
-    return form
-      .filter((f: any) => f && typeof f.name === 'string')
-      .filter(isLikelyPersonField)
-      .map((f: any) => ({
-        name: String(f.name),
-        label: String(f.label || f.name)
-      }))
-  }, [nodes])
+    return collectAssignmentPersonFieldOptions({ nodes, edges: edges as any, currentNodeId: nodeId })
+  }, [edges, nodeId, nodes])
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4">

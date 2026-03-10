@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react'
 import { Badge } from '@newwork/nw-design-system'
 import { Play, Zap, Calendar, Link as LinkIcon } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
+import { NODE_META_BADGE_STANDARD_CLASS } from './nodeBadgeStyles'
 import type { TriggerType, StepStatus } from '../types/viewerTypes'
 
 interface StartNodeData {
@@ -77,7 +78,7 @@ export const StartNode: React.FC<{ data: StartNodeData }> = ({ data }) => {
         Start
       </div>
 
-      <Badge variant="outline" className="gba:text-xs">
+      <Badge variant="outline" className={NODE_META_BADGE_STANDARD_CLASS}>
         {TRIGGER_LABELS[triggerType] ?? 'Manual'}
       </Badge>
     </button>

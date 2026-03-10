@@ -33,6 +33,7 @@ export enum InputType {
 
 export enum AssignmentMode {
   CLAIM = 'CLAIM',
+  ASSIGN_SINGLE = 'ASSIGN_SINGLE',
   ASSIGN = 'ASSIGN',
   ASSIGN_DEFERRED = 'ASSIGN_DEFERRED'
 }
@@ -101,7 +102,7 @@ export interface AssignmentTarget {
 
 export interface TaskAssignment {
   targets: AssignmentTarget | null // Required in backend - null indicates runtime assignment
-  assignmentMode: AssignmentMode // Required - CLAIM or ASSIGN mode
+  assignmentMode: AssignmentMode // Required - CLAIM, ASSIGN_SINGLE, ASSIGN, or ASSIGN_DEFERRED
   allowReassignment?: boolean
 }
 

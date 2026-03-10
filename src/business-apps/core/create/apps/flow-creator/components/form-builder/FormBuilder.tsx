@@ -3,7 +3,7 @@
  * Manages an array of InputBlocks with add, remove, reorder, and field config.
  */
 
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { FileText, Plus } from 'lucide-react'
 import { InputType, type InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
@@ -20,13 +20,36 @@ function slugifyKey(raw: string): string {
   return s
 }
 
-function isDefaultLabel(label: string): boolean {
-  const s = String(label || '').trim()
-  return /^field\s+\d+$/i.test(s)
-}
-
 function isAutoName(name: string): boolean {
   return /^field_\d+$/i.test(String(name || '').trim())
+}
+
+function toInitialism(raw: string): string {
+  return String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map(part => part[0])
+    .join('')
+}
+
+function shouldNormalizeHiddenName(name: string, label: string): boolean {
+  const normalizedName = String(name || '')
+    .trim()
+    .toLowerCase()
+  const normalizedLabel = String(label || '').trim()
+  if (!normalizedLabel) return false
+  if (!normalizedName) return true
+  if (isAutoName(normalizedName)) return true
+  if (/^[a-z0-9]$/i.test(normalizedName)) return true
+
+  const initialism = toInitialism(normalizedLabel)
+  if (initialism && normalizedName === initialism && normalizedName !== slugifyKey(normalizedLabel)) {
+    return true
+  }
+
+  return false
 }
 
 function uniqueName(base: string, existing: Set<string>, current?: string): string {
@@ -149,6 +172,42 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
 
   const existingNames = useMemo(() => new Set(fields.map(f => f.name).filter(Boolean)), [fields])
 
+  useEffect(() => {
+    const usedNames = new Set<string>()
+    let changed = false
+
+    const normalizedFields = fields.map(field => {
+      const currentName = String(field?.name || '').trim()
+      const label = String(field?.label || '').trim()
+      const base = slugifyKey(label)
+
+      let nextName = currentName
+      if (base && shouldNormalizeHiddenName(currentName, label)) {
+        nextName = uniqueName(base, usedNames, undefined)
+      } else if (!nextName && label) {
+        nextName = uniqueName(base || nextAutoFieldName(usedNames), usedNames, undefined)
+      }
+
+      if (nextName) {
+        usedNames.add(nextName)
+      }
+
+      if (nextName && nextName !== currentName) {
+        changed = true
+        if (currentName) {
+          onFieldKeyRename?.({ oldKey: currentName, newKey: nextName })
+        }
+        return { ...field, name: nextName }
+      }
+
+      return field
+    })
+
+    if (changed) {
+      onChange(normalizedFields)
+    }
+  }, [fields, onChange, onFieldKeyRename])
+
   const addField = useCallback(
     (type: InputType = addType) => {
       onChange([...fields, createField(type, existingNames)])
@@ -167,9 +226,9 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
       const newLabel = String(updated?.label || '')
       const oldName = String(prev?.name || '').trim()
 
-      // One-time: when user renames the default label ("Field 1") on an auto-key field ("field_1"),
-      // generate a semantic key from the new label.
-      if (oldLabel !== newLabel && isDefaultLabel(oldLabel) && isAutoName(oldName)) {
+      // Hidden technical keys should stay human-readable. When a field still has an
+      // auto/opaque key, derive a semantic one from the latest label.
+      if (oldLabel !== newLabel && shouldNormalizeHiddenName(oldName, newLabel)) {
         const base = slugifyKey(newLabel)
         if (base) {
           updated = { ...updated, name: uniqueName(base, nextExisting, oldName) }

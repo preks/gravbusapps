@@ -7,7 +7,12 @@ import type { ResourceTypeKey } from '@/components/assignment-selector/assignmen
 import type { DesignerMode } from '../../../types/studioTypes'
 import translations from '../../../_i18n'
 import { NEUTRAL_SWITCH_CLASSNAME } from '../../../utils/neutralSwitchClassName'
-import { AssignmentStrategySelector, type AssignmentStrategyId } from './AssignmentStrategySelector'
+import type { AssignmentPersonFieldOption } from '../../../utils/assignmentPersonFieldUtils'
+import {
+  AssignmentStrategySelector,
+  inferAssignmentModeForTargets,
+  type AssignmentStrategyId
+} from './AssignmentStrategySelector'
 
 type PrimaryMode = 'CLAIMABLE' | 'ASSIGN'
 
@@ -16,7 +21,7 @@ export interface AssignmentConfigSectionProps {
   accessToken: string
   value: TaskAssignment
   onChange: (next: TaskAssignment) => void
-  availableStartFields: Array<{ name: string; label: string }>
+  availableStartFields: AssignmentPersonFieldOption[]
   /** Used when switching to Assign and no user target exists yet. */
   defaultUserTargets?: string[]
   defaultStrategyId?: string
@@ -43,27 +48,50 @@ export const AssignmentConfigSection: React.FC<AssignmentConfigSectionProps> = (
 }) => {
   const { t } = useTranslation(translations)
 
-  const assignmentMode =
-    value.assignmentMode === AssignmentMode.CLAIM ? AssignmentMode.CLAIM : AssignmentMode.ASSIGN_DEFERRED
+  const assignmentMode = value.assignmentMode ?? AssignmentMode.CLAIM
   const targets = value.targets ?? null
   const allowReassignment = value.allowReassignment ?? true
+  const defaultAssignMode = inferAssignmentModeForTargets({ users: defaultUserTargets }) as AssignmentMode
 
   const primaryMode: PrimaryMode = assignmentMode === AssignmentMode.CLAIM ? 'CLAIMABLE' : 'ASSIGN'
-  const assignAtExecution = allowAssignAtExecution && primaryMode === 'ASSIGN' && targets == null
+  const assignAtExecution =
+    allowAssignAtExecution &&
+    (assignmentMode === AssignmentMode.ASSIGN_SINGLE || assignmentMode === AssignmentMode.ASSIGN) &&
+    primaryMode === 'ASSIGN' &&
+    targets == null
+  const assignMultipleAtExecution = assignAtExecution && assignmentMode === AssignmentMode.ASSIGN
 
   useEffect(() => {
     if (primaryMode !== 'ASSIGN') return
+    if (allowAssignAtExecution && assignmentMode === AssignmentMode.ASSIGN_DEFERRED && targets == null) {
+      onChange({
+        ...value,
+        assignmentMode: AssignmentMode.ASSIGN_SINGLE,
+        targets: null,
+        allowReassignment
+      })
+      return
+    }
     if (allowAssignAtExecution) return
     if (targets != null) return
 
     const users = Array.isArray((targets as any)?.users) ? ((targets as any).users as any) : []
     onChange({
       ...value,
-      assignmentMode: AssignmentMode.ASSIGN_DEFERRED,
+      assignmentMode: users.length ? (inferAssignmentModeForTargets({ users }) as AssignmentMode) : defaultAssignMode,
       targets: { users: users.length ? users : defaultUserTargets },
       allowReassignment
     })
-  }, [allowAssignAtExecution, allowReassignment, defaultUserTargets, onChange, primaryMode, targets, value])
+  }, [
+    allowAssignAtExecution,
+    allowReassignment,
+    assignmentMode,
+    defaultUserTargets,
+    onChange,
+    primaryMode,
+    targets,
+    value
+  ])
 
   const setAllowReassignment = (checked: boolean) => {
     onChange({
@@ -89,7 +117,7 @@ export const AssignmentConfigSection: React.FC<AssignmentConfigSectionProps> = (
     const users = Array.isArray((targets as any)?.users) ? ((targets as any).users as any) : []
     onChange({
       ...value,
-      assignmentMode: AssignmentMode.ASSIGN_DEFERRED,
+      assignmentMode: users.length ? (inferAssignmentModeForTargets({ users }) as AssignmentMode) : defaultAssignMode,
       targets: { users: users.length ? users : defaultUserTargets },
       allowReassignment
     })
@@ -99,7 +127,7 @@ export const AssignmentConfigSection: React.FC<AssignmentConfigSectionProps> = (
     if (checked) {
       onChange({
         ...value,
-        assignmentMode: AssignmentMode.ASSIGN_DEFERRED,
+        assignmentMode: AssignmentMode.ASSIGN_SINGLE,
         targets: null,
         allowReassignment
       })
@@ -109,8 +137,17 @@ export const AssignmentConfigSection: React.FC<AssignmentConfigSectionProps> = (
     const users = Array.isArray((targets as any)?.users) ? ((targets as any).users as any) : []
     onChange({
       ...value,
-      assignmentMode: AssignmentMode.ASSIGN_DEFERRED,
+      assignmentMode: users.length ? (inferAssignmentModeForTargets({ users }) as AssignmentMode) : defaultAssignMode,
       targets: { users: users.length ? users : defaultUserTargets },
+      allowReassignment
+    })
+  }
+
+  const setAssignMultipleAtExecution = (checked: boolean) => {
+    onChange({
+      ...value,
+      assignmentMode: checked ? AssignmentMode.ASSIGN : AssignmentMode.ASSIGN_SINGLE,
+      targets: null,
       allowReassignment
     })
   }
@@ -196,17 +233,37 @@ export const AssignmentConfigSection: React.FC<AssignmentConfigSectionProps> = (
       ) : (
         <div className="gba:flex gba:flex-col gba:gap-3">
           {allowAssignAtExecution && (
-            <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
-              <div className="gba:flex gba:flex-col gba:gap-0.5">
-                <Label className="gba:text-xs gba:font-medium">{t('assignment-assign-at-execution-label')}</Label>
-                <p className="gba:text-xs gba:text-muted-foreground">{t('assignment-assign-at-execution-desc')}</p>
+            <div className="gba:flex gba:flex-col gba:gap-3">
+              <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+                <div className="gba:flex gba:flex-col gba:gap-0.5">
+                  <Label className="gba:text-xs gba:font-medium">{t('assignment-assign-at-execution-label')}</Label>
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('assignment-assign-at-execution-desc')}</p>
+                </div>
+                <Switch
+                  checked={assignAtExecution}
+                  onCheckedChange={setAssignAtExecution}
+                  className={NEUTRAL_SWITCH_CLASSNAME}
+                  data-testid={`${testId}-assign-at-execution`}
+                />
               </div>
-              <Switch
-                checked={assignAtExecution}
-                onCheckedChange={setAssignAtExecution}
-                className={NEUTRAL_SWITCH_CLASSNAME}
-                data-testid={`${testId}-assign-at-execution`}
-              />
+              {assignAtExecution ? (
+                <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+                  <div className="gba:flex gba:flex-col gba:gap-0.5">
+                    <Label className="gba:text-xs gba:font-medium">
+                      {t('assignment-assign-at-execution-multi-label')}
+                    </Label>
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {t('assignment-assign-at-execution-multi-desc')}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={assignMultipleAtExecution}
+                    onCheckedChange={setAssignMultipleAtExecution}
+                    className={NEUTRAL_SWITCH_CLASSNAME}
+                    data-testid={`${testId}-assign-at-execution-multi`}
+                  />
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -220,13 +277,14 @@ export const AssignmentConfigSection: React.FC<AssignmentConfigSectionProps> = (
               variant="select"
               value={{
                 targets,
-                assignmentMode: AssignmentMode.ASSIGN_DEFERRED,
+                assignmentMode,
                 allowReassignment
               }}
               onChange={next =>
                 onChange({
                   ...value,
-                  assignmentMode: AssignmentMode.ASSIGN_DEFERRED,
+                  assignmentMode: (next.assignmentMode ??
+                    inferAssignmentModeForTargets(next.targets ?? null)) as AssignmentMode,
                   targets: (next as any).targets ?? null,
                   allowReassignment: (next as any).allowReassignment ?? allowReassignment
                 })

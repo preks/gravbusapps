@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react'
 import { Badge } from '@newwork/nw-design-system'
 import { Merge } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
+import { NODE_META_BADGE_COMPACT_CLASS } from './nodeBadgeStyles'
 import type { StepStatus } from '../types/viewerTypes'
 
 interface JoinNodeData {
@@ -84,7 +85,7 @@ export const JoinNode: React.FC<{ data: JoinNodeData }> = ({ data }) => {
       >
         <Merge className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
         <span className="gba:text-xs gba:font-semibold gba:text-foreground">{data.label || 'Parallel Merge'}</span>
-        <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+        <Badge variant="outline" className={NODE_META_BADGE_COMPACT_CLASS}>
           {condition === 'ALL' ? 'Wait All' : 'Wait Any'}
         </Badge>
       </div>

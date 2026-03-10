@@ -81,7 +81,7 @@ export const UserDecisionConfig: React.FC<UserDecisionConfigProps> = ({
         options: [],
         assignment: {
           targets: { users: ['{{$orgchart.managerByUserId[$workflow.initiator]}}'] },
-          assignmentMode: AssignmentMode.ASSIGN_DEFERRED,
+          assignmentMode: AssignmentMode.ASSIGN_SINGLE,
           allowReassignment: true
         }
       }

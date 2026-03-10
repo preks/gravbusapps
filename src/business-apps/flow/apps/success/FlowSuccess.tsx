@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, PageLayout } from '@newwork/nw-design-system'
-import { TrendingUp, BarChart3, Shield, Timer, Workflow, AlertTriangle } from 'lucide-react'
+import { TrendingUp, BarChart3, Shield, Timer, Workflow, AlertTriangle, GitBranch } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Components
@@ -8,6 +8,7 @@ import { OverviewTab } from './components/tabs/OverviewTab'
 import { FlowTab } from './components/tabs/FlowTab'
 import { TrendsTab } from './components/tabs/TrendsTab'
 import { TaskPerformanceTab } from './components/tabs/TaskPerformanceTab'
+import { DecisionTab } from './components/tabs/DecisionTab'
 import { AuditTab } from './components/tabs/AuditTab'
 import { SLATab } from './components/tabs/SLATab'
 
@@ -29,6 +30,7 @@ export const FlowSuccess: React.FC<FlowSuccessProps> = ({
       { key: 'task-performance', label: 'Tasks', icon: <Timer className="gba:h-4 gba:w-4" /> },
       { key: 'sla', label: 'SLA', icon: <AlertTriangle className="gba:h-4 gba:w-4" /> },
       { key: 'trends', label: 'Trends', icon: <TrendingUp className="gba:h-4 gba:w-4" /> },
+      { key: 'decisions', label: 'Decisions', icon: <GitBranch className="gba:h-4 gba:w-4" /> },
       { key: 'audit', label: 'Audit', icon: <Shield className="gba:h-4 gba:w-4" /> }
     ],
     []
@@ -86,6 +88,8 @@ export const FlowSuccess: React.FC<FlowSuccessProps> = ({
         return <SLATab accessToken={accessToken} prefixDataTestId={`${prefixDataTestId}-sla`} {...context} />
       case 'trends':
         return <TrendsTab accessToken={accessToken} prefixDataTestId={`${prefixDataTestId}-trends`} {...context} />
+      case 'decisions':
+        return <DecisionTab accessToken={accessToken} prefixDataTestId={`${prefixDataTestId}-decisions`} {...context} />
       case 'audit':
         return <AuditTab accessToken={accessToken} prefixDataTestId={`${prefixDataTestId}-audit`} {...context} />
       default:

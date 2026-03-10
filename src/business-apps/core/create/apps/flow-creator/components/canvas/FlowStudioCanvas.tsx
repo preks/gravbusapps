@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { DesignerMode } from '../../types/studioTypes'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
@@ -8,9 +8,6 @@ import { useFlowValidation } from '../../hooks/useFlowValidation'
 import { useFlowStudioData } from '../../hooks/useFlowStudioData'
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import type { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
-import type { StepStatus } from '@/common/components/flow/flow-viewer/types/viewerTypes'
-
-type SimStatus = 'pending' | 'active' | 'completed'
 
 interface FlowStudioCanvasProps extends BusinessAppContextProps {
   mode: DesignerMode
@@ -39,7 +36,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   const toGraphDefinition = useFlowStudioStore(s => s.toGraphDefinition)
   const studioData = useFlowStudioData(accessToken)
   const { errors, warnings } = useFlowValidation()
-  const [simStatuses, setSimStatuses] = useState<Record<string, SimStatus>>({})
   const prevContentKeyRef = useRef<string>('')
   const prevDefinitionRef = useRef<ReturnType<typeof toGraphDefinition>>({
     nodes: [],
@@ -66,11 +62,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
     prevDefinitionRef.current = next
     return next
   }, [toGraphDefinition, storeNodes, storeEdges])
-
-  const executionState = useMemo<{ nodeStates: Record<string, StepStatus> }>(
-    () => ({ nodeStates: simStatuses }),
-    [simStatuses]
-  )
 
   const onConnect = useCallback(
     (connection: { source: string; target: string }) => {
@@ -130,47 +121,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
     [storeEdges, openEdgeInsert, insertNodeOnEdge]
   )
 
-  const onSimulate = useCallback(() => {
-    const start = storeNodes.find(node => node.type === 'start')
-    if (!start) return
-    const forwardEdges = storeEdges.filter(
-      edge => String((edge as { direction?: string }).direction ?? 'forward').toLowerCase() === 'forward'
-    )
-    const nextBySource = new Map<string, string[]>()
-    for (const edge of forwardEdges) {
-      nextBySource.set(edge.source, [...(nextBySource.get(edge.source) ?? []), edge.target])
-    }
-    const route: string[] = []
-    const visited = new Set<string>()
-    const queue = [start.id]
-    while (queue.length > 0) {
-      const current = queue.shift()!
-      if (visited.has(current)) continue
-      visited.add(current)
-      route.push(current)
-      for (const next of nextBySource.get(current) ?? []) queue.push(next)
-    }
-    setSimStatuses({})
-    const advanceSimStatus =
-      (nodeId: string) =>
-      (
-        prev: Record<string, 'pending' | 'active' | 'completed'>
-      ): Record<string, 'pending' | 'active' | 'completed'> => {
-        const next = { ...prev }
-        for (const key of Object.keys(next)) {
-          if (next[key] === 'active') next[key] = 'completed'
-        }
-        next[nodeId] = 'active'
-        return next
-      }
-    route.forEach((nodeId, index) => {
-      setTimeout(() => {
-        setSimStatuses(advanceSimStatus(nodeId))
-        selectNode(nodeId)
-      }, index * 600)
-    })
-  }, [selectNode, storeEdges, storeNodes])
-
   const rightPanel =
     selectedNodeId || selectedEdgeId ? (
       <ConfigPanelContainer
@@ -183,13 +133,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
-      <CanvasToolbar
-        onSave={onSave}
-        onSimulate={onSimulate}
-        mode={mode}
-        onModeChange={onModeChange}
-        data-testid={`${testId}-toolbar`}
-      />
+      <CanvasToolbar onSave={onSave} mode={mode} onModeChange={onModeChange} data-testid={`${testId}-toolbar`} />
       {(errors.length > 0 || warnings.length > 0) && (
         <div className="gba:px-3 gba:py-1.5 gba:border-b gba:border-border gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:text-xs">
           {errors.length > 0 ? `${errors.length} errors` : 'No errors'} · {warnings.length} warnings
@@ -202,7 +146,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
           onNodeSelect={selectNode}
           selectedEdgeId={selectedEdgeId}
           onEdgeSelect={selectEdge}
-          executionState={executionState}
         >
           <FlowCanvas
             definition={definition}

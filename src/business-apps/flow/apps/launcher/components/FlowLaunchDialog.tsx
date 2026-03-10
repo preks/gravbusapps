@@ -32,22 +32,29 @@ import {
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import {
+  AssignmentMode,
   FlowTemplateClient,
   FlowTriggerType,
   InputType,
-  type FlowTemplate
+  type FlowTemplate,
+  type TaskAssignment
 } from '@/common/network/flows/FlowTemplateClient'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import EmployeeSelect from '@/components/employee-select/EmployeeSelect'
+import { AssignmentSelector } from '@/components/assignment-selector/AssignmentSelector'
 import FlowDataSourceSelect from '@/business-apps/flow/common/components/data-source/FlowDataSourceSelect'
 import FlowDataSourceMultiSelect from '@/business-apps/flow/common/components/data-source/FlowDataSourceMultiSelect'
-
-type RuntimeAssignment = {
-  stepIndex: number
-  stepTitle: string
-  assignmentMode: string
-  assignedUserId: string | null
-}
+import {
+  buildRuntimeAssignmentsPayload,
+  coerceFormDataBySchema,
+  collectRuntimeAssignments,
+  getFallbackCompletionUserId,
+  hasAssignmentTargets,
+  normalizeOption,
+  resolveLaunchFormContext,
+  submitFirstTaskFormFallback,
+  toRuntimeTaskAssignment,
+  type RuntimeAssignment
+} from './flowLaunchUtils'
 
 export interface FlowLaunchDialogProps extends Partial<BusinessAppContextProps> {
   open: boolean
@@ -90,29 +97,6 @@ const getTriggerLabel = (triggerType: FlowTriggerType): string => {
   }
 }
 
-const isSystemTaskType = (stepType: unknown): boolean => {
-  const t = String(stepType || '').toUpperCase()
-  return t === 'FUNCTION' || t === 'AI_AGENT' || t === 'AI_TASK_EXPERT'
-}
-
-const normalizeOption = (opt: any): { value: string; label: string } => {
-  if (typeof opt === 'string') return { value: opt, label: opt }
-  if (opt && typeof opt === 'object') {
-    const value = opt.value ?? opt.code ?? opt.id
-    const label = opt.label ?? opt.value ?? opt.name ?? opt.code ?? opt.id
-    return { value: String(value ?? ''), label: String(label ?? '') }
-  }
-  return { value: String(opt ?? ''), label: String(opt ?? '') }
-}
-
-const needsRuntimeAssignment = (step: any): boolean => {
-  if (!step?.assignment) return false
-  const targets = step.assignment.targets
-  if (targets === null || targets === undefined) return true
-  if (typeof targets === 'object' && Object.keys(targets || {}).length === 0) return true
-  return false
-}
-
 export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
   open,
   onOpenChange,
@@ -129,13 +113,13 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
   const [isLaunching, setIsLaunching] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const startInputs = useMemo(() => {
-    const init = (template as any)?.initStep?.form
-    if (Array.isArray(init)) return init
-    const step0 = (template as any)?.steps?.[0]
-    const formInputs = step0?.form
-    return Array.isArray(formInputs) ? formInputs : []
-  }, [template])
+  const launchFormContext = useMemo(() => resolveLaunchFormContext(template), [template])
+  const startInputs = launchFormContext.inputs
+  const startFormTitle = launchFormContext.mode === 'first-task-form' ? 'First task form' : 'Start form'
+  const startFormEmptyText =
+    launchFormContext.mode === 'first-task-form'
+      ? 'This flow has no launcher form and the first task does not expose a supported form fallback.'
+      : 'This flow has no start form fields.'
 
   useEffect(() => {
     if (!open) return
@@ -161,22 +145,7 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
         setTriggerTypes(
           triggers.length > 0 ? triggers.map(t => t.type) : ([FlowTriggerType.MANUAL_FORM] as FlowTriggerType[])
         )
-
-        const runtimeAssignments: RuntimeAssignment[] = (tpl.steps || [])
-          .map((step: any, stepIndex: number) => {
-            if (stepIndex === 0) return null
-            if (isSystemTaskType(step.type)) return null
-            if (!needsRuntimeAssignment(step)) return null
-            return {
-              stepIndex,
-              stepTitle: step.title || `Step ${stepIndex + 1}`,
-              assignmentMode: step.assignment?.assignmentMode || 'CLAIM',
-              assignedUserId: null
-            }
-          })
-          .filter(Boolean) as RuntimeAssignment[]
-
-        setAssignments(runtimeAssignments)
+        setAssignments(collectRuntimeAssignments(tpl, resolveLaunchFormContext(tpl)))
         form.reset({})
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load template')
@@ -192,11 +161,22 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
     if (isLoading) return false
     if (!template) return false
     if (!accessToken) return false
-    return assignments.every(a => Boolean(a.assignedUserId))
+    return assignments.every(a => hasAssignmentTargets(a.targets))
   }, [accessToken, assignments, isLoading, template])
 
-  const handleAssignmentChange = (stepIndex: number, userId: string | null) => {
-    setAssignments(prev => prev.map(a => (a.stepIndex === stepIndex ? { ...a, assignedUserId: userId } : a)))
+  const handleAssignmentChange = (stepIndex: number, nextAssignment: TaskAssignment) => {
+    setAssignments(prev =>
+      prev.map(a =>
+        a.stepIndex === stepIndex
+          ? {
+              ...a,
+              targets: nextAssignment.targets,
+              assignedUserId: nextAssignment.targets?.users?.[0] ?? null,
+              assignedUserIds: nextAssignment.targets?.users ?? []
+            }
+          : a
+      )
+    )
   }
 
   const handleLaunch = async () => {
@@ -214,22 +194,17 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
 
       const effectiveInitiatorId =
         userInfo?.id || userInfo?.employeeDetails?.employeeId || userInfo?.userName || 'unknown'
-
-      const runtimeAssignments: Record<string, any> = {}
-      assignments.forEach(a => {
-        if (!a.assignedUserId) return
-        runtimeAssignments[`step_${a.stepIndex}`] = {
-          assignmentMode: a.assignmentMode,
-          targets: { users: [a.assignedUserId] },
-          allowReassignment: true
-        }
-      })
-
       const inputValues = form.getValues()
+      const normalizedFallbackValues = coerceFormDataBySchema(startInputs, inputValues)
+      const runtimeAssignments = buildRuntimeAssignmentsPayload(assignments, {
+        template,
+        launchFormContext,
+        defaultUserId: effectiveInitiatorId
+      })
 
       const result = await client.executeWorkflow(templateId, {
         initiator: effectiveInitiatorId,
-        inputValues,
+        inputValues: normalizedFallbackValues,
         runtimeAssignments,
         runtimeParameters: {},
         context: {
@@ -238,6 +213,30 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
           templateTitle: template?.name || templateId
         }
       })
+
+      if (launchFormContext.mode === 'first-task-form') {
+        try {
+          const completionUserId = getFallbackCompletionUserId(
+            assignments,
+            launchFormContext.fallbackStepIndex,
+            effectiveInitiatorId
+          )
+
+          await submitFirstTaskFormFallback({
+            accessToken,
+            userId: completionUserId,
+            workflowId: result.workflowId,
+            templateId,
+            formData: normalizedFallbackValues
+          })
+        } catch (fallbackError) {
+          const description =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : 'The first task form could not be submitted automatically.'
+          toast.error('Flow launched, but the first task still needs input', { description })
+        }
+      }
 
       toast.success('Flow launched', {
         description: `Flow ID: ${result.workflowId}`
@@ -292,11 +291,16 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
             <Separator />
 
             <div className="gba:space-y-3" data-testid={`${testId}-start-form`}>
-              <div className="gba:text-sm gba:font-medium">Start form</div>
+              <div className="gba:text-sm gba:font-medium">{startFormTitle}</div>
+              {launchFormContext.mode === 'first-task-form' ? (
+                <div className="gba:text-xs gba:text-muted-foreground">
+                  This flow has no trigger form. The launcher will submit these values to the first task after start.
+                </div>
+              ) : null}
 
               {startInputs.length === 0 ? (
                 <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${testId}-no-form`}>
-                  This flow has no start form fields.
+                  {startFormEmptyText}
                 </div>
               ) : (
                 <Form {...form}>
@@ -532,14 +536,25 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
                             <div className="gba:text-sm gba:font-medium">{a.stepTitle}</div>
                             <Badge variant="outline">{a.assignmentMode}</Badge>
                           </div>
-                          <EmployeeSelect
-                            value={a.assignedUserId}
-                            onValueChange={val => handleAssignmentChange(a.stepIndex, val)}
-                            accessToken={accessToken}
-                            placeholder="Assign to employee"
-                            searchPlaceholder="Search employee..."
-                            data-testid={`${testId}-assignment-employee-${a.stepIndex}`}
-                          />
+                          {a.selectionMode === 'multi' ? (
+                            <AssignmentSelector
+                              value={toRuntimeTaskAssignment(a)}
+                              onChange={next => handleAssignmentChange(a.stepIndex, next)}
+                              assignmentMode={AssignmentMode.ASSIGN}
+                              accessToken={accessToken}
+                              data-testid={`${testId}-assignment-selector-${a.stepIndex}`}
+                            />
+                          ) : (
+                            <AssignmentSelector
+                              value={toRuntimeTaskAssignment(a)}
+                              onChange={next => handleAssignmentChange(a.stepIndex, next)}
+                              assignmentMode={AssignmentMode.ASSIGN_SINGLE}
+                              accessToken={accessToken}
+                              allowedTypes={['people']}
+                              maxSelectionsPerField={1}
+                              data-testid={`${testId}-assignment-selector-${a.stepIndex}`}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>

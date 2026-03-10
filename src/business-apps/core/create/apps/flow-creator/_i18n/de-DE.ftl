@@ -209,6 +209,8 @@ assignment-capabilities-label = Fähigkeiten
 assignment-runtime-hint = Dieser Schritt muss beim Start des Flows zugewiesen werden.
 assignment-assign-at-execution-label = Bei Ausführung zuweisen
 assignment-assign-at-execution-desc = Zuweisung wird beim Start des Flows bereitgestellt.
+assignment-assign-at-execution-multi-label = Mehrere Bearbeiter:innen erlauben
+assignment-assign-at-execution-multi-desc = Im Launcher können für diesen Schritt mehrere Bearbeiter:innen ausgewählt werden.
 assignment-allow-reassignment-label = Neuzuweisung erlauben
 assignment-allow-reassignment-desc = Der/die Bearbeiter:in kann die Aufgabe weitergeben.
 

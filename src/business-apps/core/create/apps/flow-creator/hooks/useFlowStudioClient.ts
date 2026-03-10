@@ -19,6 +19,17 @@ interface FlowStudioClient {
   error: string | null
 }
 
+function isTemplateNotFoundError(error: unknown): boolean {
+  const statusCode = Number((error as any)?.statusCode ?? (error as any)?.status)
+  if (statusCode === 404) return true
+
+  const message = String((error as any)?.message || '')
+    .trim()
+    .toLowerCase()
+
+  return message.includes('not found') || message.includes('workflow definition not found')
+}
+
 export function useFlowStudioClient(accessToken: string): FlowStudioClient {
   const templateClient = useFlowTemplateClient(accessToken)
   const markClean = useFlowStudioStore(s => s.markClean)
@@ -28,6 +39,7 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
 
   const saveFlow = useCallback(async () => {
     const state = useFlowStudioStore.getState()
+    const templateId = state.templateId?.trim() || undefined
     setIsLoading(true)
     setError(null)
 
@@ -42,9 +54,9 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
         state.templateVersion
       )
 
-      if (state.templateId) {
+      if (templateId) {
         // Update existing template
-        await templateClient.updateTemplate(state.templateId, template)
+        await templateClient.updateTemplate(templateId, template)
       } else {
         // Create new template
         const created = await templateClient.createTemplate(template)
@@ -56,6 +68,10 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
 
       markClean()
     } catch (err) {
+      if (templateId && isTemplateNotFoundError(err)) {
+        useFlowStudioStore.setState({ templateId: undefined })
+      }
+
       const msg = err instanceof Error ? err.message : 'Failed to save flow template'
       setError(msg)
       throw err

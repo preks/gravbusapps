@@ -209,6 +209,8 @@ assignment-capabilities-label = Capabilities
 assignment-runtime-hint = This step must be assigned when starting the flow.
 assignment-assign-at-execution-label = Assign at execution
 assignment-assign-at-execution-desc = Provide the assignee when starting the flow.
+assignment-assign-at-execution-multi-label = Allow multiple assignees
+assignment-assign-at-execution-multi-desc = Let the launcher select more than one assignee for this step.
 assignment-allow-reassignment-label = Allow reassignment
 assignment-allow-reassignment-desc = Assignee can reassign this task.
 

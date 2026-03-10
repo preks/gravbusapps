@@ -41,7 +41,7 @@ export function createDefaultConfig(type: FlowNodeType): StudioNodeConfig {
           userDecisionType: 'APPROVAL',
           assignment: {
             targets: { users: ['{{$orgchart.managerByUserId[$workflow.initiator]}}'] },
-            assignmentMode: AssignmentMode.ASSIGN_DEFERRED
+            assignmentMode: AssignmentMode.ASSIGN_SINGLE
           },
           options: [
             { id: 'approve', label: 'Approve' },

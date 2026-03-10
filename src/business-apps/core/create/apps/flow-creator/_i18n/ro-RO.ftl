@@ -209,6 +209,8 @@ assignment-capabilities-label = Capabilități
 assignment-runtime-hint = Acest pas trebuie atribuit la pornirea fluxului.
 assignment-assign-at-execution-label = Atribuie la execuție
 assignment-assign-at-execution-desc = Furnizați destinatarul la pornirea fluxului.
+assignment-assign-at-execution-multi-label = Permite mai mulți destinatari
+assignment-assign-at-execution-multi-desc = Permite launcher-ului să selecteze mai mulți destinatari pentru acest pas.
 assignment-allow-reassignment-label = Permite reasignarea
 assignment-allow-reassignment-desc = Destinatarul poate reasigna această sarcină.
 

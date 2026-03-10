@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react'
 import { Badge } from '@newwork/nw-design-system'
 import { CheckCircle, BarChart3 } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
+import { NODE_META_BADGE_STANDARD_CLASS } from './nodeBadgeStyles'
 import type { StepStatus } from '../types/viewerTypes'
 
 interface EndNodeData {
@@ -72,7 +73,7 @@ export const EndNode: React.FC<{ data: EndNodeData }> = ({ data }) => {
       </div>
 
       {hasFields ? (
-        <Badge variant="outline" className="gba:text-xs gba:bg-success/10 gba:text-success gba:border-success/30">
+        <Badge variant="outline" className={NODE_META_BADGE_STANDARD_CLASS}>
           {data.summaryFieldsCount} {data.summaryFieldsCount === 1 ? 'field' : 'fields'}
         </Badge>
       ) : (

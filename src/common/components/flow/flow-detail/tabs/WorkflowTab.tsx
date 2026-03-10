@@ -26,8 +26,13 @@ export const WorkflowTab: React.FC<WorkflowTabProps> = ({ flowSteps }) => {
 
   const steps = useMemo(() => {
     return flowSteps.map(step => {
+      const normalizedAssignmentMode = String(step.assignmentMode || '').toUpperCase()
       const assignmentMode =
-        String(step.assignmentMode || '').toUpperCase() === 'ASSIGN' ? AssignmentMode.ASSIGN : AssignmentMode.CLAIM
+        normalizedAssignmentMode === 'ASSIGN_SINGLE'
+          ? AssignmentMode.ASSIGN_SINGLE
+          : normalizedAssignmentMode === 'ASSIGN'
+            ? AssignmentMode.ASSIGN
+            : AssignmentMode.CLAIM
 
       const assignment: TaskAssignment = {
         assignmentMode,
