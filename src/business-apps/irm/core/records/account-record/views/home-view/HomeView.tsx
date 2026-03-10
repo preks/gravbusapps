@@ -11,7 +11,7 @@ import {
   useGetInvestmentNotesByAccountId,
   useGetInvestmentTasksByAccountId
 } from '@/common/data/investment/hooks/useInvestmentAccounts'
-import { useGetInvestmentsByAccountId } from '@/common/data/investment/hooks/useInvestments'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
@@ -23,21 +23,21 @@ import SectionWrapper from '@/common/components/common-relations/record-sections
 interface HomeViewProps extends BusinessAppContextProps {
   accountId: string
   accountData: InvestmentAccount | undefined
+  investments: Investment[]
+  investmentsLoading: boolean
 }
 
-const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props }) => {
+const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments, investmentsLoading, ...props }) => {
   // Data fetching hooks for sections
   const { fetchInvestmentActivitiesByAccountId } = useGetInvestmentActivitiesByAccountId(props)
   const { fetchInvestmentNotesByAccountId } = useGetInvestmentNotesByAccountId(props)
   const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(props)
-  const { fetchInvestmentsByAccountId } = useGetInvestmentsByAccountId(props)
 
   // State for section data
   const [activities, setActivities] = useState<any[]>([])
   const [notes, setNotes] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [approvals, setApprovals] = useState<any[]>([])
-  const [investments, setInvestments] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
   const [sectionsError, setSectionsError] = useState<string | null>(null)
 
@@ -67,11 +67,10 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     setSectionsError(null)
 
     try {
-      const [activitiesData, notesData, tasksData, investmentsData] = await Promise.all([
+      const [activitiesData, notesData, tasksData] = await Promise.all([
         fetchInvestmentActivitiesByAccountId(accountId),
         fetchInvestmentNotesByAccountId(accountId),
-        fetchInvestmentTasksByAccountId(accountId),
-        fetchInvestmentsByAccountId(accountId)
+        fetchInvestmentTasksByAccountId(accountId)
       ])
 
       const sortedActivities = (activitiesData || []).sort(
@@ -100,7 +99,6 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
-      setInvestments(investmentsData?.Investment || [])
     } catch (error) {
       console.error('Error loading section data:', error)
       setSectionsError(
@@ -116,8 +114,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     props.accessToken,
     fetchInvestmentActivitiesByAccountId,
     fetchInvestmentNotesByAccountId,
-    fetchInvestmentTasksByAccountId,
-    fetchInvestmentsByAccountId
+    fetchInvestmentTasksByAccountId
   ])
 
   // Load section data on mount
@@ -201,7 +198,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               investments: investments,
-              isLoading: sectionsLoading,
+              isLoading: investmentsLoading,
               error: sectionsError,
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentEntity],

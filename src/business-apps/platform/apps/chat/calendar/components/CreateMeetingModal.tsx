@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   Button,
@@ -427,6 +428,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="gba:max-w-lg gba:w-[95vw] gba:sm:w-full gba:max-h-[90vh] gba:overflow-y-auto">
+        <DialogDescription className="gba:sr-only">
+          {isEditMode ? t('calendar-editMeeting') : t('calendar-scheduleMeeting')}
+        </DialogDescription>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-5 gba:w-5 gba:text-primary" />
@@ -837,6 +841,17 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               />
             </div>
           </div>
+          {enableAITranscription && (
+            <div className="gba:flex gba:items-center gba:gap-2" data-testid="create-meeting-recording-notice">
+              <span
+                className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                aria-hidden
+              />
+              <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                {t('chat-call-recordingTranscriptActive')}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

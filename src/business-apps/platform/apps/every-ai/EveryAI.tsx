@@ -404,12 +404,32 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
 
     try {
-      const initialPrompt = sessionStorage.getItem('everyAIInitialPrompt')
+      const memoryPayload = window.__everyAIInitialPayload
+      const initialPrompt = memoryPayload?.prompt ?? sessionStorage.getItem('everyAIInitialPrompt')
+      const initialAdditionInfo = memoryPayload?.additionInfo ?? sessionStorage.getItem('everyAIInitialAdditionInfo')
+      const initialSkills =
+        memoryPayload?.skills ??
+        (() => {
+          try {
+            const rawSkills = sessionStorage.getItem('everyAIInitialSkills')
+            if (!rawSkills) return undefined
+            const parsedSkills = JSON.parse(rawSkills)
+            return Array.isArray(parsedSkills) ? parsedSkills : undefined
+          } catch {
+            return undefined
+          }
+        })()
+
       if (initialPrompt && initialPrompt !== promptProcessedRef.current) {
         promptProcessedRef.current = initialPrompt
+        window.__everyAIInitialPayload = undefined
         sessionStorage.removeItem('everyAIInitialPrompt')
+        sessionStorage.removeItem('everyAIInitialAdditionInfo')
+        sessionStorage.removeItem('everyAIInitialSkills')
         setTimeout(() => {
-          sendMessage(initialPrompt, [], false, false)
+          // Pass through exactly as resolved so empty string can still force
+          // `addition_info` multipart field inclusion.
+          sendMessage(initialPrompt, [], false, false, initialAdditionInfo ?? undefined, initialSkills)
         }, 300)
       }
     } catch (error) {
@@ -487,11 +507,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     text: string,
     files: File[],
     isThinking: boolean,
-    isSearching: boolean
+    isSearching: boolean,
+    mentions?: Array<{ id: string; type: string; display: string }>
   ) => {
-    // Keep passing files for backwards compatibility.
-    // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
-    sendMessage(text, files, isThinking, isSearching)
+    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions)
   }
 
   const isEmptyState = conversation.length === 0 && !isLoading
@@ -712,7 +731,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         <div
           className="gba:absolute gba:inset-0 gba:bg-black gba:bg-opacity-50 gba:z-20 gba:cursor-pointer"
           onClick={() => setShowHistory(false)}
-          onKeyDown={(e) => {
+          onKeyDown={e => {
             if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
               setShowHistory(false)

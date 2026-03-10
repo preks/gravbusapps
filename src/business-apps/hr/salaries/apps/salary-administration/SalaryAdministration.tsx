@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Tabs, Alert, Button } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -102,7 +102,7 @@ const SalaryAdministration: React.FC<BusinessAppContextProps> = ({ accessToken, 
 
         <Button
           type="primary"
-          icon={<PlusOutlined />}
+          icon={<PlusIcon size={16} />}
           data-testid="add-salary-button"
           disabled={!isAdvancedSalaryEnabled}
         >

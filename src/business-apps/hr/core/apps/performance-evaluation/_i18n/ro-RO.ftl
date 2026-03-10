@@ -19,6 +19,7 @@ table-type = Tip
 table-scale = Scală
 table-participants = Participanți
 table-status = Stare
+table-evaluation-period = Perioada de evaluare
 table-actions = Acțiuni
 empty-no-cycles = Nu există încă cicluri create.
 empty-no-values = Nu există încă valori definite.
@@ -33,6 +34,8 @@ field-end-date = Data încheierii
 field-frequency = Frecvență/Tip
 field-rating-scale = Scală de evaluare
 label-evaluation-participants = Participanți la evaluare
+field-evaluation-period-start = Început perioadă evaluare
+field-evaluation-period-end = Sfârșit perioadă evaluare
 field-values = Valori
 field-title = Titlu
 field-description = Descriere
@@ -98,7 +101,7 @@ values-modal-description = Definește o valoare a companiei și descrierea ei.
 
 # Modal confirmare start ciclu
 start-confirm-title = Pornește evaluarea performanței
-start-confirm-description-with-cycle = Sigur doriți să porniți evaluarea performanței pentru „{ $name }”? Aceasta va iniția fluxul de evaluare.
+start-confirm-description-with-cycle = Sigur doriți să porniți evaluarea performanței pentru „{ $name }"? Aceasta va iniția fluxul de evaluare.
 start-confirm-description-generic = Sigur doriți să porniți această evaluare a performanței?
 start-confirm-run-for-label = Rulează evaluarea pentru
 start-confirm-run-for-employee = Angajat
@@ -119,4 +122,3 @@ cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare p
 cycles-error-no-company-values = Este necesară cel puțin o valoare de companie pentru a crea un ciclu.
 cycles-error-dates-overlap = Datele ciclului nu pot suprapune cu un ciclu existent. Alegeți o dată de început după sfârșitul ciclurilor existente.
 error-activate-out-of-period = Ciclul nu poate fi activat. Data de astăzi este în afara perioadei ciclului.
-

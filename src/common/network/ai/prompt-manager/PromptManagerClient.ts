@@ -188,6 +188,34 @@ export interface PromptExecuteResponse<T = unknown> {
   content: T | string | null
 }
 
+/** Knowledge source entry for execute-json (e.g. catalog reference). */
+export interface ExecutePromptJsonKnowledgeSource {
+  type: string
+  name?: string
+  catalogIdentifier?: string
+  catalogVersion?: string
+  [key: string]: unknown
+}
+
+/** Request body for POST /api/v1/prompts/execute-json (execute prompt with JSON + document links) */
+export interface ExecutePromptJsonBody {
+  model_id?: string
+  model_service?: string
+  model_name?: string
+  system_content?: string
+  user_content?: string
+  tools?: string[]
+  model_settings?: Record<string, unknown>
+  response_schema?: Record<string, unknown>
+  system_params?: Record<string, unknown>
+  user_params?: Record<string, unknown>
+  document_links?: string[]
+  knowledge_sources?: ExecutePromptJsonKnowledgeSource[]
+  citation_mode?: string
+  response_style?: string
+  context?: Record<string, unknown>
+}
+
 // --- Telemetry / Executions ---
 export type ExecutionRunStatus = 'running' | 'success' | 'error'
 
@@ -527,6 +555,14 @@ export class PromptManagerClient extends RestClient {
 
   async executePromptById(id: string, formData: FormData): Promise<PromptExecuteResponse> {
     return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+  }
+
+  /**
+   * Execute prompt with JSON body and optional document links.
+   * POST /api/v1/prompts/execute-json
+   */
+  async executePromptByJson(body: ExecutePromptJsonBody): Promise<PromptExecuteResponse> {
+    return this.post<PromptExecuteResponse>('/api/v1/prompts/execute-json', body)
   }
 
   // --- Execution telemetry (runs + traces) ---

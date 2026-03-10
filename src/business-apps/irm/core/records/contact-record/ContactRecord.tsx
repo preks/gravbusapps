@@ -19,11 +19,6 @@ import { AiActions } from '@/common/components/common-relations/record-sections/
 import { getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
-import {
-  useGetInvestmentActivitiesByContactId,
-  useGetInvestmentNotesByContactId,
-  useGetInvestmentTasksByContactId
-} from '@/common/data/investment/hooks/useInvestmentContacts'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -56,20 +51,8 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   } = useInvestmentContact(props.accessToken, contactId)
 
   // AI Summary hook - must be called before any conditional returns
-  const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
-
-  // Data fetching hooks for sections
-  const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId(props)
-  const { fetchInvestmentNotesByContactId } = useGetInvestmentNotesByContactId(props)
-  const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId(props)
-
-  // State for section data
-  const [activities, setActivities] = useState<any[]>([])
-  const [notes, setNotes] = useState<any[]>([])
-  const [tasks, setTasks] = useState<any[]>([])
-  const [approvals, setApprovals] = useState<any[]>([])
-  const [sectionsLoading, setSectionsLoading] = useState(true)
-  const [sectionsError, setSectionsError] = useState<string | null>(null)
+  // Pass already-fetched contactData to avoid a duplicate GetInvestmentContactById query
+  const aiSummaryHook = useContactAiSummary(contactId, props.accessToken, contactData)
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
@@ -95,70 +78,10 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     return () => window.removeEventListener('popstate', onPop)
   }, [activeTab])
 
-  // Load section data
-  const loadSectionData = useCallback(async () => {
-    if (!contactId || !props.accessToken) return
-
-    setSectionsLoading(true)
-    setSectionsError(null)
-
-    try {
-      const [activitiesData, notesData, tasksData] = await Promise.all([
-        fetchInvestmentActivitiesByContactId(contactId),
-        fetchInvestmentNotesByContactId(contactId),
-        fetchInvestmentTasksByContactId(contactId)
-      ])
-
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      const sortedNotes = (notesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      const sortedTasks = (tasksData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-
-      // Separate regular tasks from approvals based on taskType catalog entry
-      const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
-      })
-      const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
-      })
-
-      setActivities(sortedActivities)
-      setNotes(sortedNotes)
-      setTasks(regularTasks)
-      setApprovals(approvalTasks)
-    } catch (error) {
-      console.error('Error loading section data:', error)
-      setSectionsError(error instanceof Error ? error.message : 'Failed to load data')
-    } finally {
-      setSectionsLoading(false)
-    }
-  }, [
-    contactId,
-    props.accessToken,
-    fetchInvestmentActivitiesByContactId,
-    fetchInvestmentNotesByContactId,
-    fetchInvestmentTasksByContactId
-  ])
-
-  // Load section data on mount
-  useEffect(() => {
-    loadSectionData()
-  }, [loadSectionData])
-
   // Memoized callback for process completion
   const handleProcessSuccess = useCallback(() => {
     refetchContactData()
-    loadSectionData()
-  }, [refetchContactData, loadSectionData])
+  }, [refetchContactData])
 
   // Listen for process completion events to refresh contact data
   useProcessCompletion({
@@ -270,47 +193,6 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     [contactId, fullName, props.accessToken]
   )
 
-  // Action props for sections - must be defined before subViewsConfig
-  const activityActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentActivityCreate],
-      externalContextData: { contactId },
-      prefixDataTestId: 'contact-activity'
-    }),
-    [contactId]
-  )
-
-  const noteActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentNoteCreate],
-      externalContextData: { contactId },
-      prefixDataTestId: 'contact-note'
-    }),
-    [contactId]
-  )
-
-  const taskActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentTaskCreate],
-      externalContextData: { contactId },
-      prefixDataTestId: 'contact-task'
-    }),
-    [contactId]
-  )
-
-  const approvalActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentTaskCreate],
-      externalContextData: {
-        contactId,
-        typeRef: 'InvestmentTaskType:v1:APPROVAL',
-        investmentTask: { contact: contactId, type: 'InvestmentTaskType:v1:APPROVAL' }
-      },
-      prefixDataTestId: 'contact-approval'
-    }),
-    [contactId]
-  )
-
   const subViewsConfig = useMemo(
     () => ({
       defaultValue: activeTab,
@@ -344,24 +226,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         }
       ]
     }),
-    [
-      activeTab,
-      handleTabChange,
-      contactData,
-      contactId,
-      props,
-      tasks,
-      approvals,
-      notes,
-      activities,
-      sectionsLoading,
-      sectionsError,
-      loadSectionData,
-      taskActionProps,
-      approvalActionProps,
-      noteActionProps,
-      activityActionProps
-    ]
+    [activeTab, handleTabChange, contactData, contactId, props]
   )
 
   if (loading) {

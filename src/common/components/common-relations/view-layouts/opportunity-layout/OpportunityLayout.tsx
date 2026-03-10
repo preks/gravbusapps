@@ -577,26 +577,21 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     loadBothSections()
   }, [accessToken, isInitialLoad])
 
-  // Reload list data when filters/search/sort change (only when list is active, skip initial load)
+  // Reload list data when filters/search/sort change (only when list is active, skip initial load).
+  // loadListData is intentionally omitted from deps: it is derived from listQueryVariables,
+  // so including it would cause the effect to fire twice on every query change.
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
     loadListData(false)
-  }, [listQueryVariables, accessToken, loadListData, currentSection])
+  }, [listQueryVariables, accessToken, currentSection])
 
-  // Reload board data when filters/search/currency change (only when board is active, skip initial load)
+  // Reload board data when filters/search/currency change (only when board is active, skip initial load).
+  // loadBoardData is intentionally omitted from deps: it is derived from the other deps listed,
+  // so including it would cause the effect to fire twice on every change.
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'board' || !boardPipelineId) return
     loadBoardData()
-  }, [
-    boardPipelineId,
-    boardFilters,
-    boardSearch,
-    selectedCurrency,
-    isInitialLoad,
-    accessToken,
-    loadBoardData,
-    currentSection
-  ])
+  }, [boardPipelineId, boardFilters, boardSearch, selectedCurrency, isInitialLoad, accessToken, currentSection])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {

@@ -10,7 +10,6 @@ import { FlowTemplatesDetail } from './FlowTemplatesDetail'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SERVICE_PORTAL_CONFIG } from '../../../config/servicePortalConfig'
 import { ArrowLeft, Warning } from '@phosphor-icons/react'
-import { ArrowLeftOutlined } from '@ant-design/icons'
 
 export interface ServiceDetailProps extends BusinessAppContextProps {
   categoryId: string
@@ -323,7 +322,7 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
             className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
             data-testid="back-button"
           >
-            <ArrowLeftOutlined className="gba:mr-2" />
+            <ArrowLeft size={16} className="gba:mr-2" />
             <span>Back to Portal</span>
           </button>
         </div>
@@ -357,7 +356,7 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
           data-testid="back-button"
         >
-          <ArrowLeftOutlined className="gba:mr-2" />
+          <ArrowLeft size={16} className="gba:mr-2" />
           <span>Back to Portal</span>
         </button>
       </div>

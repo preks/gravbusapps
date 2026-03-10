@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { Spin, Alert, Button } from 'antd'
 import {
-  DashboardOutlined,
-  UserOutlined,
-  TeamOutlined,
-  ApartmentOutlined,
-  DollarOutlined,
-  LineChartOutlined,
-  EnvironmentOutlined
-} from '@ant-design/icons'
+  GaugeIcon,
+  UserIcon,
+  UsersIcon,
+  BuildingsIcon,
+  CurrencyDollarIcon,
+  ChartLineIcon,
+  MapPinIcon
+} from '@phosphor-icons/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import Dashboard from './components/views/dashboard/Dashboard'
@@ -24,7 +24,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <DashboardOutlined />,
+      icon: <GaugeIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.dashboard_tab_label',
         'Dashboard'
@@ -32,7 +32,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
     },
     {
       key: 'demographics',
-      icon: <UserOutlined />,
+      icon: <UserIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.demographics_tab_label',
         'Demographics'
@@ -40,7 +40,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
     },
     {
       key: 'workforce',
-      icon: <TeamOutlined />,
+      icon: <UsersIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.workforce_tab_label',
         'Workforce'
@@ -48,7 +48,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
     },
     {
       key: 'compensation',
-      icon: <DollarOutlined />,
+      icon: <CurrencyDollarIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.compensation_tab_label',
         'Compensation'
@@ -56,7 +56,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
     },
     {
       key: 'forecasting',
-      icon: <LineChartOutlined />,
+      icon: <ChartLineIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.forecasting_tab_label',
         'Forecasting'
@@ -64,7 +64,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
     },
     {
       key: 'structural-analysis',
-      icon: <ApartmentOutlined />,
+      icon: <BuildingsIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.structural_analysis_tab_label',
         'Structural Analysis'
@@ -72,7 +72,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
     },
     {
       key: 'office-presence',
-      icon: <EnvironmentOutlined />,
+      icon: <MapPinIcon />,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.analytics_section.office_presence_tab_label',
         'Office Presence'

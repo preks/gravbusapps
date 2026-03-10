@@ -13,6 +13,7 @@ issue-date-not-before-purchase = The asset cannot be allocated before the aquisi
 # Actions
 generate_document = Generate document
 export_pdf = Export PDF
+export_certificate = Export certificate
 actions = Actions
 update_asset = Update Asset
 allocate_asset = Allocate Asset

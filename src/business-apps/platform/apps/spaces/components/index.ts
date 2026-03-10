@@ -1,6 +1,8 @@
 export { SpaceCard } from './SpaceCard'
 export { SpaceHero } from './SpaceHero'
 export { SpaceHeroBackground } from './SpaceHeroBackground'
+export { SpaceHeroBackgroundCss } from './SpaceHeroBackgroundCss'
+export { SpaceHeroWavingDotsCanvas } from './SpaceHeroWavingDotsCanvas'
 export { SpaceStats } from './SpaceStats'
 export { SpaceActivity } from './SpaceActivity'
 export { SpacePinned } from './SpacePinned'

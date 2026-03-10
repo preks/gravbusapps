@@ -22,6 +22,8 @@ interface OrchestratorCanvasContentProps {
   completedPhases: BuildPhase[]
   accessToken: string
   userInfo?: any
+  builtBy?: any
+  builtByLoading?: boolean
   previewRefreshToken: number
   isRestoringSession?: boolean
 }
@@ -34,6 +36,8 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
   completedPhases,
   accessToken,
   userInfo,
+  builtBy,
+  builtByLoading,
   previewRefreshToken,
   isRestoringSession = false
 }) => {
@@ -116,10 +120,11 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             reusedCount={buildProgress.reusedCount}
             totalCount={buildProgress.totalCount}
             failedCount={buildProgress.failedCount}
-            buildLogs={state.buildLogs}
+            buildLogs={buildProgress.buildLogs}
             phaseMessage={buildProgress.phaseMessage}
             isBuilding={buildProgress.isBuilding}
             tiles={buildProgress.tiles}
+            isProgressEstimated={buildProgress.isProgressEstimated}
             appMetadata={orchestratorClient.currentPlan?.appMetadata}
           />
         )
@@ -134,6 +139,8 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             prompt={state.userPrompt}
             accessToken={accessToken}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             previewRefreshToken={previewRefreshToken}
             onReset={handlers.handleReset}
             appMetadata={orchestratorClient.currentPlan.appMetadata}

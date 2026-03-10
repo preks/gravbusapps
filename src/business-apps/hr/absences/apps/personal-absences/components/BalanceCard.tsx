@@ -75,8 +75,10 @@ export function BalanceCard({
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">{ent.type}</span>
                       <span className="gba:font-semibold gba:whitespace-nowrap">
-                        {ent.used}{' '}
-                        <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">/ {ent.total}</span>{' '}
+                        {Math.round(ent.used)}{' '}
+                        <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">
+                          / {Math.round(ent.total)}
+                        </span>{' '}
                         <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">{t('days')}</span>
                       </span>
                     </div>
@@ -117,7 +119,7 @@ export function BalanceCard({
                 >
                   <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">{ent.type}</span>
                   <span className="gba:font-semibold gba:whitespace-nowrap">
-                    {ent.used}{' '}
+                    {Math.round(ent.used)}{' '}
                     <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">{t('days')}</span>
                   </span>
                 </div>
@@ -127,7 +129,7 @@ export function BalanceCard({
               <div className="gba:flex gba:justify-between gba:text-sm">
                 <span className="gba:text-muted-foreground">{t('year-to-date')}:</span>
                 <span className="gba:font-medium">
-                  {ytdAbsentDays} {t('absent-days')} / {ytdTotalWorkingDays} {t('working-days')}
+                  {Math.round(ytdAbsentDays)} {t('absent-days')} / {Math.round(ytdTotalWorkingDays)} {t('working-days')}
                 </span>
               </div>
               <div

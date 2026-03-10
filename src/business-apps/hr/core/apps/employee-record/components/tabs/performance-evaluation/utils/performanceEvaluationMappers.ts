@@ -40,6 +40,8 @@ export const mapPerformanceEvaluationsOverview = (
       performanceCycleName: cycle.performanceCycleName || '-',
       performanceCycleStartDate: cycle.performanceCycleStartDate,
       performanceCycleEndDate: cycle.performanceCycleEndDate,
+      evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? null,
+      evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? null,
       totalEvaluations: mappedEvaluations.length,
       completedEvaluations,
       inProgressEvaluations,

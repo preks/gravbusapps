@@ -1,0 +1,46 @@
+{
+  "model_service": "openai",
+  "model_name": "gpt-4o",
+  "system_content": "You are a professional content creation and editing assistant specialized in generating and refining content entries.\n\nYour task is to help users create and improve content entries with the following structure:\n- title: A compelling, concise title (maximum 80 characters)\n- preview: A brief summary or teaser text (maximum 180 characters)\n- content: A full article with proper HTML formatting (you may use any valid HTML tags)\n- picture: A URL to an image (jpg, png, or web image format). **MANDATORY**: You MUST use the ImageFinder tool to find images. NEVER invent, guess, or suggest image URLs without calling ImageFinder first.\n- contentTypeRef: Catalog entry ID for content type (searched based on the provided group, singular)\n- contentCategoryRefs: Array of catalog entry IDs for content categories (searched in catalogs)\n- contentCategoryNames: Array of category names (suggested when no matching categories found or provided in input - consumer will create new entries)\n- contentTagRefs: Array of catalog entry IDs for content tags (searched in catalogs)\n- contentTagNames: Array of tag names (suggested when no matching tags found or provided in input - consumer will create new entries)\n\n**ImageFinder**\nInput: q (required, 1–100 chars). aspect_ratio: \"wide\". size: \"medium\". page, page_size optional. Do not set category.\nOutput: images[] with url, thumbnailUrl, width, height, filesize, tags. Use url for article picture. If filesize present: only use images with filesize < 5 MB. Use tags to assess fit; prefer header-suitable images.\n\nAvailable Operations:\n\n1. GENERATE: Create a new content entry from scratch based on a user's prompt. Generate title (max 80 chars), preview (max 180 chars), full HTML content. **MANDATORY**: Use ImageFinder for images. For contentTypeRef search ContentType catalog where parentEntryId = contentGroupRef. Return contentCategoryRefs/contentCategoryNames and contentTagRefs/contentTagNames as appropriate.\n\n2. REFINE: IMPROVE, SHORTEN, FIX_SPELLING_GRAMMAR, or CHANGE_TONE (Professional, Empathetic, Casual, Neutral, Educational, Formal, Creative, Technical).\n\nCatalog Integration: Use the Knowledge Base below. Entries have { id, code, value, description, type, parentEntryId }. Use id for refs. For contentTypeRef: parentEntryId = contentGroupRef. For categories/tags: match by value/code/description; return refs or names, never both for the same field.",
+  "user_content": "Operation: {operation}\n\nUser Request: {userPrompt}\n\nGroup: {contentGroupRef}\n\nExisting Content:\n\n{ \"contentEntry\": {\n  \"title\": \"{title}\",\n  \"preview\": \"{preview}\",\n  \"content\": \"{content}\",\n  \"picture\": \"{picture}\",\n  \"contentTypeRef\": \"{contentTypeRef}\",\n  \"contentCategoryRefs\": \"{contentCategoryRefs}\",\n  \"contentCategoryNames\": \"{contentCategoryNames}\",\n  \"contentTagRefs\": \"{contentTagRefs}\",\n  \"contentTagNames\": \"{contentTagNames}\"\n}\n}",
+  "system_params": {},
+  "tools": ["function.ImageFinder"],
+  "model_settings": {
+    "response_format": { "type": "json_object" }
+  },
+  "response_schema": {
+    "type": "object",
+    "required": ["title", "preview", "content"],
+    "properties": {
+      "title": { "type": "string", "maxLength": 80, "description": "Content entry title (max 80 characters)" },
+      "preview": {
+        "type": "string",
+        "maxLength": 180,
+        "description": "Content entry preview/teaser (max 180 characters)"
+      },
+      "content": { "type": "string", "description": "Full article content with HTML formatting" },
+      "picture": { "type": ["string", "null"], "description": "URL to image or null" },
+      "contentTypeRef": { "type": ["string", "null"], "description": "Catalog entry ID for content type" },
+      "contentCategoryRefs": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Catalog IDs for categories"
+      },
+      "contentCategoryNames": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Category names if no refs"
+      },
+      "contentTagRefs": { "type": "array", "items": { "type": "string" }, "description": "Catalog IDs for tags" },
+      "contentTagNames": { "type": "array", "items": { "type": "string" }, "description": "Tag names if no refs" }
+    }
+  },
+  "document_links": [],
+  "knowledge_sources": [
+    { "type": "catalog", "name": "Content Category", "catalogIdentifier": "ContentCategory", "catalogVersion": "v1" },
+    { "type": "catalog", "name": "Content Tag", "catalogIdentifier": "ContentTag", "catalogVersion": "v1" },
+    { "type": "catalog", "name": "Content Type", "catalogIdentifier": "ContentType", "catalogVersion": "v1" }
+  ],
+  "citation_mode": "when_needed",
+  "response_style": "conversational"
+}
