@@ -1,0 +1,113 @@
+import { useEffect, useState } from 'react'
+import { UseFormReturn } from 'react-hook-form'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { GET_TAX_DETAILS_EMPLOYEE, GET_TAX_DETAILS_CATALOG, GET_EMPLOYEE_COUNTRY } from './ChangeTaxDetailsQueries'
+import { isEmployeeInGermany } from './validationScope'
+import type { TaxInfoFormValues, TaxDetailsCatalogs, CatalogEntry } from './types'
+
+const defaultCatalogs: TaxDetailsCatalogs = {
+  taxBracket: [],
+  religion: [],
+  healthInsuranceType: [],
+  documentType: []
+}
+
+export function useChangeTaxDetailsData(
+  accessToken: string | undefined,
+  additionalData: unknown,
+  userInfo: unknown,
+  form: UseFormReturn<TaxInfoFormValues>,
+  initialRef: React.MutableRefObject<TaxInfoFormValues>
+) {
+  const graphqlClient = useGraphQLClient(accessToken)
+  const [data, setData] = useState<unknown>(null)
+  const [catalogs, setCatalogs] = useState<TaxDetailsCatalogs>(defaultCatalogs)
+  const [isReady, setIsReady] = useState(false)
+  const [employeeCountryCode, setEmployeeCountryCode] = useState<string | null>(null)
+  const [employeeGender, setEmployeeGender] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsReady(false)
+        const employeeId =
+          (additionalData as any)?.psi_taskPayload?.employeeId ||
+          (additionalData as any)?.psi_taskPayload?.initialParameters?.employeeId ||
+          (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+          (typeof (additionalData as any)?.contextData === 'object' &&
+            (additionalData as any)?.contextData?.employeeId) ||
+          (userInfo as any)?.employeeDetails?.employeeId ||
+          ''
+
+        const locale = getCurrentActiveUserLocale() || 'en-US'
+        const catalogsRes = await graphqlClient.request<Record<string, unknown>>(GET_TAX_DETAILS_CATALOG, {
+          activeUserLocale: locale
+        })
+        setCatalogs({
+          taxBracket: (catalogsRes?.taxBracket as CatalogEntry[]) || [],
+          religion: (catalogsRes?.religion as CatalogEntry[]) || [],
+          healthInsuranceType: (catalogsRes?.healthInsuranceType as CatalogEntry[]) || [],
+          documentType: (catalogsRes?.documentType as CatalogEntry[]) || []
+        })
+
+        let employeeDetails: unknown = null
+        if (employeeId) {
+          const employeeRes = await graphqlClient.request<any>(GET_TAX_DETAILS_EMPLOYEE, {
+            idEmployee: employeeId,
+            activeUserLocale: locale
+          })
+          employeeDetails = employeeRes?.EmployeeTaxDetail?.[0] ?? null
+          setData(employeeDetails)
+          const g = employeeRes?.EmployeeByPk?.gender?.value
+          setEmployeeGender(typeof g === 'string' ? g.toLowerCase() : null)
+          try {
+            const countryRes = await graphqlClient.request<any>(GET_EMPLOYEE_COUNTRY, { employeeId })
+            const entry = countryRes?.EmployeeWorkingCondition?.[0]?.region?.parentEntry
+            setEmployeeCountryCode(entry?.code ?? null)
+          } catch {
+            setEmployeeCountryCode(null)
+          }
+        } else {
+          setEmployeeCountryCode(null)
+        }
+
+        const emp = employeeDetails as any
+        const defaults: TaxInfoFormValues = {
+          taxNumber: emp?.taxNumber ?? '',
+          taxBracketRef: emp?.taxBracketRef ?? null,
+          healthInsuranceName: emp?.healthInsuranceName ?? '',
+          healthInsuranceTypeRef: emp?.healthInsuranceTypeRef ?? null,
+          taxIdentificationNumber: emp?.taxIdentificationNumber ?? '',
+          taxableChurchAffiliationRef: emp?.taxableChurchAffiliationRef ?? emp?.religionRef ?? null,
+          socialSecurityNumber: emp?.socialSecurityNumber ?? '',
+          childTaxAllowance: emp?.childTaxAllowance ?? '',
+          requestAtTaxOffice: Boolean(emp?.additionalProperties?.requestAtTaxOffice ?? false),
+          employeeTaxOffice: String(emp?.additionalProperties?.employeeTaxOffice ?? ''),
+          individualFreeAmount: String(emp?.additionalProperties?.individualFreeAmount ?? ''),
+          healthInsuranceDocumentTypeId: null,
+          healthInsuranceDocumentValidTo: '',
+          uploadNewHealthInsuranceDocument: false
+        }
+        form.reset(defaults)
+        initialRef.current = defaults
+      } catch {
+        // no-op
+      } finally {
+        setIsReady(true)
+      }
+    }
+    fetchData()
+  }, [(additionalData as any)?.psi_taskPayload, graphqlClient, form, userInfo])
+
+  const isEmployeeInGermanyFlag = isEmployeeInGermany(employeeCountryCode)
+
+  return {
+    data,
+    catalogs,
+    isReady,
+    employeeCountryCode,
+    isEmployeeInGermany: isEmployeeInGermanyFlag,
+    employeeGender
+  }
+}
