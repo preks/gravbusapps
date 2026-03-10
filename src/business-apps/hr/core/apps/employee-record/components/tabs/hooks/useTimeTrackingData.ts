@@ -75,7 +75,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
   // Search removed per requirements
   const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
-  const [sortDir, setSortDir] = useState<SortDirection>('desc')
+  const [sortDir, setSortDir] = useState<SortDirection>('asc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [entries, setEntries] = useState<TimeEntry[]>([])
@@ -648,18 +648,21 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     return filled
   }, [allMonthEntries, currentMonth, workingHours, holidayDates, holidayNamesByDate, absenceLabelsByDate])
 
-  useEffect(() => {
-    const sorted = [...filledMonthEntries].sort((a, b) => {
+  const sortedFilledEntries = useMemo(() => {
+    return [...filledMonthEntries].sort((a, b) => {
       const va = a[sortKey]
       const vb = b[sortKey]
       const cmp = String(va ?? '').localeCompare(String(vb ?? ''))
       return sortDir === 'asc' ? cmp : -cmp
     })
+  }, [filledMonthEntries, sortKey, sortDir])
+
+  useEffect(() => {
     const start = (page - 1) * pageSize
     const end = start + pageSize
-    setEntries(sorted.slice(start, end))
-    setTotalCount(sorted.length)
-  }, [filledMonthEntries, sortKey, sortDir, page, pageSize])
+    setEntries(sortedFilledEntries.slice(start, end))
+    setTotalCount(sortedFilledEntries.length)
+  }, [sortedFilledEntries, page, pageSize])
 
   const paginationInfo = useMemo(() => {
     const start = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
@@ -728,6 +731,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     isNearOffice,
     hasTodayAttendanceRecord,
     entries,
+    entriesForReport: sortedFilledEntries,
     allMonthEntries,
     holidayDates,
     totalCount,
