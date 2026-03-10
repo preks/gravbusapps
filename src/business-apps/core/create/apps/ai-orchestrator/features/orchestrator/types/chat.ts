@@ -49,7 +49,16 @@ export interface CreateChatMessage {
   serverCreatedAt?: string
 }
 
-export type CanvasTab = 'build-plan' | 'screen' | 'data-model' | 'functions' | 'task-expert' | 'flow' | 'about'
+export type CanvasTab =
+  | 'build-plan'
+  | 'data-flow'
+  | 'screen'
+  | 'data-model'
+  | 'functions'
+  | 'task-expert'
+  | 'flow'
+  | 'agent-mesh'
+  | 'about'
 
 export interface CanvasTabInfo {
   id: CanvasTab
@@ -63,6 +72,8 @@ export const CANVAS_TABS: CanvasTabInfo[] = [
   { id: 'functions', label: 'Functions' },
   { id: 'task-expert', label: 'Task Expert' },
   { id: 'flow', label: 'Flow' },
+  { id: 'agent-mesh', label: 'Agent Mesh' },
+  { id: 'data-flow', label: 'Architecture' },
   { id: 'about', label: 'About' }
 ]
 
@@ -92,6 +103,10 @@ export function getVisibleCanvasTabs(components: ComponentSpec[]): CanvasTabInfo
         return hasAgent
       case 'flow':
         return hasFlow
+      case 'agent-mesh':
+        return hasAgent
+      case 'data-flow':
+        return hasFlow || hasAgent
       default:
         return true
     }

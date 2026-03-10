@@ -169,11 +169,12 @@ export const ApproveAttendanceCorrection: React.FC<ChangeRelationshipReviewProps
   const handleReject = async () => {
     setIsAcknowledging(true)
     try {
-      dispatchProcessContinueEvent('pse_discard', {
-        event: 'pse_discard'
+      dispatchProcessContinueEvent('pse_reject', {
+        employeeAttendance: correction?.employeeAttendance,
+        event: 'pse_reject'
       })
     } catch (err) {
-      console.error('Error rejecting relationship change:', err)
+      console.error('Error rejecting attendance correction:', err)
     } finally {
       setIsAcknowledging(false)
     }
