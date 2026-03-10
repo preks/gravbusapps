@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { useNodesState, useEdgesState, MarkerType } from '@xyflow/react'
-import dagre from 'dagre'
+import { useNodesState, useEdgesState, type Node, type Edge } from '@xyflow/react'
+import { getLayoutedPositions } from '@/common/utils/meshLayout'
 import type {
   AgentRegistryEntry,
   Connection,
@@ -10,42 +10,8 @@ import type {
 } from '../types/agentMesh'
 import { useAgentMeshClient } from './useAgentMeshClient'
 import type { MeshEdgeColors } from './useMeshEdgeColors'
-
-const NODE_WIDTH = 220
-const NODE_HEIGHT = 100
-
-function getLayoutedPositions(
-  agents: AgentRegistryEntry[],
-  connections: Connection[]
-): Record<string, { x: number; y: number }> {
-  const g = new dagre.graphlib.Graph()
-  g.setGraph({ rankdir: 'LR', nodesep: 80, ranksep: 160 })
-  g.setDefaultEdgeLabel(() => ({}))
-
-  agents.forEach(a => g.setNode(a.id, { width: NODE_WIDTH, height: NODE_HEIGHT }))
-  connections.forEach(c => g.setEdge(c.caller_id, c.callee_id))
-  dagre.layout(g)
-
-  const positions: Record<string, { x: number; y: number }> = {}
-  agents.forEach(a => {
-    const node = g.node(a.id)
-    if (node) {
-      positions[a.id] = { x: node.x - NODE_WIDTH / 2, y: node.y - NODE_HEIGHT / 2 }
-    }
-  })
-  return positions
-}
-
-export interface MergedEdge {
-  edgeId: string
-  source: string
-  target: string
-  sourceName: string
-  targetName: string
-  isBidirectional: boolean
-  connectionIds: string[]
-  isActive: boolean
-}
+import { mergeConnectionsToEdges, buildMeshNodesAndEdges } from '../utils/meshGraphUtils'
+export type { MergedEdge } from '../utils/meshGraphUtils'
 
 export function useMeshDashboardData(
   accessToken: string,
@@ -59,8 +25,8 @@ export function useMeshDashboardData(
   const [executions, setExecutions] = useState<ExecutionListItem[]>([])
   const [analytics, setAnalytics] = useState<ExecutionAnalytics | null>(null)
   const [alerts, setAlerts] = useState<ActiveAlert[]>([])
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const savedPositionsRef = useRef<Record<string, { x: number; y: number }>>({})
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -141,46 +107,7 @@ export function useMeshDashboardData(
     })
   }, [agents, connections])
 
-  const mergedEdges: MergedEdge[] = useMemo(() => {
-    const pairMap = new Map<string, Connection[]>()
-    connections.forEach(c => {
-      const ids = [c.caller_id, c.callee_id].sort()
-      const pairKey = `${ids[0]}__${ids[1]}`
-      const existing = pairMap.get(pairKey) || []
-      existing.push(c)
-      pairMap.set(pairKey, existing)
-    })
-
-    const result: MergedEdge[] = []
-    pairMap.forEach(conns => {
-      if (conns.length >= 2) {
-        const first = conns[0]
-        result.push({
-          edgeId: first.connection_id,
-          source: first.caller_id,
-          target: first.callee_id,
-          sourceName: first.caller_name,
-          targetName: first.callee_name,
-          isBidirectional: true,
-          connectionIds: conns.map(c => c.connection_id),
-          isActive: conns.some(c => c.status === 'active')
-        })
-      } else {
-        const c = conns[0]
-        result.push({
-          edgeId: c.connection_id,
-          source: c.caller_id,
-          target: c.callee_id,
-          sourceName: c.caller_name,
-          targetName: c.callee_name,
-          isBidirectional: c.config.direction === 'bidirectional',
-          connectionIds: [c.connection_id],
-          isActive: c.status === 'active'
-        })
-      }
-    })
-    return result
-  }, [connections])
+  const mergedEdges = useMemo(() => mergeConnectionsToEdges(connections), [connections])
 
   const handleRemoveFromMesh = useCallback(
     async (agentId: string) => {
@@ -200,44 +127,21 @@ export function useMeshDashboardData(
     const dagrePositions = getLayoutedPositions(meshAgents, connections)
     const saved = savedPositionsRef.current
     const hasSavedPositions = Object.keys(saved).length > 0
+    const positions: Record<string, { x: number; y: number }> = {}
+    meshAgents.forEach(agent => {
+      positions[agent.id] =
+        hasSavedPositions && saved[agent.id] ? saved[agent.id] : dagrePositions[agent.id] || { x: 0, y: 0 }
+    })
 
-    setNodes(
-      meshAgents.map(agent => ({
-        id: agent.id,
-        type: 'agentNode',
-        position: hasSavedPositions && saved[agent.id] ? saved[agent.id] : dagrePositions[agent.id] || { x: 0, y: 0 },
-        data: {
-          agent,
-          status: 'online' as const,
-          activeQueries: 0,
-          onRemove: editMode ? handleRemoveFromMesh : undefined
-        }
-      }))
+    const { nodes: nextNodes, edges: nextEdges } = buildMeshNodesAndEdges(
+      meshAgents,
+      mergedEdges,
+      positions,
+      edgeColors,
+      { selectedEdgeId, onRemove: editMode ? handleRemoveFromMesh : undefined }
     )
-
-    setEdges(
-      mergedEdges.map(me => {
-        const isSelected = me.edgeId === selectedEdgeId
-        const baseColor = me.isActive ? edgeColors.active : edgeColors.inactive
-        const color = isSelected ? edgeColors.selected : baseColor
-        return {
-          id: me.edgeId,
-          source: me.source,
-          target: me.target,
-          type: 'smoothstep',
-          selected: isSelected,
-          markerEnd: { type: MarkerType.ArrowClosed, color, width: 20, height: 20 },
-          ...(me.isBidirectional
-            ? { markerStart: { type: MarkerType.ArrowClosed, color, width: 20, height: 20 } }
-            : {}),
-          style: {
-            stroke: color,
-            strokeWidth: isSelected ? 3 : 2,
-            strokeLinecap: 'round' as const
-          }
-        }
-      })
-    )
+    setNodes(nextNodes)
+    setEdges(nextEdges)
   }, [
     meshAgents,
     connections,

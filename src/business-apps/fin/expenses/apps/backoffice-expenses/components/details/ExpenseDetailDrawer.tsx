@@ -22,6 +22,9 @@ import {
 } from '@newwork/nw-design-system'
 import { CalendarIcon, GlobeIcon, CurrencyDollarIcon, UserIcon, ChatCircleIcon } from '@phosphor-icons/react'
 import useExpenseRequestDetails from '../../hooks/useExpenseRequestDetails'
+import { formatCurrency, extractCurrencyCode } from '../../utils/currencyUtils'
+import { formatDateTimeLocalized } from '../../utils/dateUtils'
+import { buildEmployeeDisplayName } from '../../hooks/backofficeReportUtils'
 
 interface ExpenseDetailDrawerProps {
   visible: boolean
@@ -54,37 +57,12 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
   // Use appropriate data based on type
   const data = type === 'advance-payment' ? advancePaymentData : expenseRequestData
 
-  // Format currency amount
-  const formatCurrency = (amount: number, currencyIdentifier: string = 'USD') => {
-    // Extract currency code from API format (e.g., "Currency:v1:EUR" -> "EUR")
-    const currencyCode = currencyIdentifier.includes(':')
-      ? currencyIdentifier.split(':').pop() || 'EUR'
-      : currencyIdentifier
-
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      currencyDisplay: 'code',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+  const formatDrawerCurrency = (amount: number, currencyIdentifier: string = 'EUR') =>
+    formatCurrency(amount, extractCurrencyCode(currencyIdentifier) || 'EUR', 0)
 
   // ✅ MIGRATED: Custom Description components using nw-design-system
   const DescriptionsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <Card className="gba:mb-6">
+    <Card className="gba:mb-6 gba:bg-card">
       <CardHeader>
         <CardTitle className="gba:text-lg gba:font-semibold gba:text-gray-900">{title}</CardTitle>
       </CardHeader>
@@ -123,9 +101,58 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
     </div>
   )
 
-  // ✅ MIGRATED: Helper function to render the main content using nw-design-system
+  const renderCollectionCard = (config: {
+    title: string
+    icon: React.ReactNode
+    hasItems: boolean
+    emptyDescription: string
+    content: React.ReactNode
+  }) => (
+    <Card className="gba:mb-6">
+      <CardHeader>
+        <CardTitle className="gba:text-lg gba:font-semibold gba:text-gray-900">
+          <span className="gba:flex gba:items-center gba:gap-2">
+            {config.icon}
+            {config.title}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {config.hasItems ? config.content : <EmptyState description={config.emptyDescription} />}
+      </CardContent>
+    </Card>
+  )
+
+  const renderAdvancePaymentContent = (apData: any) => (
+    <div className="gba:space-y-6">
+      <DescriptionsSection title="Advance Payment Information">
+        <DescriptionItem label="Payment Code">{apData.code || 'N/A'}</DescriptionItem>
+        <DescriptionItem label="Description">{apData.description || 'N/A'}</DescriptionItem>
+        <DescriptionItem label="Amount">{apData.amount ? `€${apData.amount}` : 'N/A'}</DescriptionItem>
+      </DescriptionsSection>
+
+      {apData.expensePlan && (
+        <DescriptionsSection title="Expense Plan Information">
+          <DescriptionItem label="Plan Code">{apData.expensePlan.code || 'N/A'}</DescriptionItem>
+          <DescriptionItem label="Plan Title">{apData.expensePlan.title || 'N/A'}</DescriptionItem>
+          <DescriptionItem label="Start Date">
+            {apData.expensePlan.startDate ? formatDateTimeLocalized(apData.expensePlan.startDate) : 'N/A'}
+          </DescriptionItem>
+        </DescriptionsSection>
+      )}
+
+      {apData.expensePlan?.employee && (
+        <DescriptionsSection title="Employee Information">
+          <DescriptionItem label="Name">
+            {buildEmployeeDisplayName(apData.expensePlan.employee) || 'N/A'}
+          </DescriptionItem>
+          <DescriptionItem label="Employee Code">{apData.expensePlan.employee.code || 'N/A'}</DescriptionItem>
+        </DescriptionsSection>
+      )}
+    </div>
+  )
+
   const renderContent = () => {
-    // Only show loading for expense requests (advance payments don't need to fetch data)
     if (type === 'expense-request' && loading) {
       return (
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12">
@@ -135,7 +162,6 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
       )
     }
 
-    // Only show errors for expense requests (advance payments don't use the hook)
     if (type === 'expense-request' && error) {
       return (
         <Alert variant="destructive" className="gba:m-4">
@@ -148,47 +174,12 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
     }
 
     if (!data) {
-      return (
-        <EmptyState
-          description={`No ${type === 'advance-payment' ? 'advance payment' : 'expense'} details available`}
-        />
-      )
+      const label = type === 'advance-payment' ? 'advance payment' : 'expense'
+      return <EmptyState description={`No ${label} details available`} />
     }
 
-    // Render content based on type
     if (type === 'advance-payment') {
-      return (
-        <div className="gba:space-y-6">
-          {/* Basic Information for Advance Payment */}
-          <DescriptionsSection title="Advance Payment Information">
-            <DescriptionItem label="Payment Code">{data.code || 'N/A'}</DescriptionItem>
-            <DescriptionItem label="Description">{data.description || 'N/A'}</DescriptionItem>
-            <DescriptionItem label="Amount">{data.amount ? `€${data.amount}` : 'N/A'}</DescriptionItem>
-          </DescriptionsSection>
-
-          {/* Expense Plan Information */}
-          {data.expensePlan && (
-            <DescriptionsSection title="Expense Plan Information">
-              <DescriptionItem label="Plan Code">{data.expensePlan.code || 'N/A'}</DescriptionItem>
-              <DescriptionItem label="Plan Title">{data.expensePlan.title || 'N/A'}</DescriptionItem>
-              <DescriptionItem label="Start Date">
-                {data.expensePlan.startDate ? formatDate(data.expensePlan.startDate) : 'N/A'}
-              </DescriptionItem>
-            </DescriptionsSection>
-          )}
-
-          {/* Employee Information */}
-          {data.expensePlan?.employee && (
-            <DescriptionsSection title="Employee Information">
-              <DescriptionItem label="Name">
-                {`${data.expensePlan.employee.firstName || ''} ${data.expensePlan.employee.lastName || ''}`.trim() ||
-                  'N/A'}
-              </DescriptionItem>
-              <DescriptionItem label="Employee Code">{data.expensePlan.employee.code || 'N/A'}</DescriptionItem>
-            </DescriptionsSection>
-          )}
-        </div>
-      )
+      return renderAdvancePaymentContent(data)
     }
 
     // Default content for expense requests
@@ -199,16 +190,16 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           <DescriptionItem label="Request Code">{data.code}</DescriptionItem>
           <DescriptionItem label="Title">{data.title}</DescriptionItem>
           <DescriptionItem label="Description">{data.description}</DescriptionItem>
-          <DescriptionItem label="Total Amount">{formatCurrency(data.totalAmount, data.currency)}</DescriptionItem>
-          <DescriptionItem label="Created At">{formatDate(data.createdAt)}</DescriptionItem>
-          <DescriptionItem label="Last Updated">{formatDate(data.updatedAt)}</DescriptionItem>
+          <DescriptionItem label="Total Amount">
+            {formatDrawerCurrency(data.reimbursableAmount, data.currency)}
+          </DescriptionItem>
+          <DescriptionItem label="Created At">{formatDateTimeLocalized(data.createdAt)}</DescriptionItem>
+          <DescriptionItem label="Last Updated">{formatDateTimeLocalized(data.updatedAt)}</DescriptionItem>
         </DescriptionsSection>
 
         {/* Employee Information */}
         <DescriptionsSection title="Employee Information">
-          <DescriptionItem label="Name">
-            {`${data.employee?.firstName || ''} ${data.employee?.lastName || ''}`.trim() || 'N/A'}
-          </DescriptionItem>
+          <DescriptionItem label="Name">{buildEmployeeDisplayName(data.employee) || 'N/A'}</DescriptionItem>
           <DescriptionItem label="Employee Code">{data.employee?.businessKey || 'N/A'}</DescriptionItem>
           <DescriptionItem label="Email">{data.employee?.email || 'N/A'}</DescriptionItem>
           <DescriptionItem label="Cost Center">
@@ -216,102 +207,83 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           </DescriptionItem>
         </DescriptionsSection>
 
-        {/* Trip Details */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <GlobeIcon className="gba:h-5 gba:w-5" />
-              Trip Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.trips && data.trips.length > 0 ? (
-              <div className="gba:space-y-4">
-                {data.trips.map((trip: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={trip.description || 'Trip Details'}
-                    description={`Direction: ${trip.tripDirection || 'N/A'}`}
-                  >
-                    <div className="gba:space-y-2 gba:mt-2">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
-                        <CalendarIcon className="gba:h-4 gba:w-4" />
-                        {formatDate(trip.tripDateTime)}
-                      </div>
-                      <div className="gba:text-sm gba:text-gray-600">
-                        <strong>Destination:</strong> {trip.address}
-                        {trip.country && ` (${trip.country.name})`}
-                      </div>
+        {renderCollectionCard({
+          title: 'Trip Details',
+          icon: <GlobeIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.trips && data.trips.length > 0),
+          emptyDescription: 'No trip details available',
+          content: (
+            <div className="gba:space-y-4">
+              {data.trips?.map((trip: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={trip.description || 'Trip Details'}
+                  description={`Direction: ${trip.tripDirection || 'N/A'}`}
+                >
+                  <div className="gba:space-y-2 gba:mt-2">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
+                      <CalendarIcon className="gba:h-4 gba:w-4" />
+                      {formatDateTimeLocalized(trip.tripDateTime)}
                     </div>
-                  </ListItem>
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No trip details available" />
-            )}
-          </CardContent>
-        </Card>
+                    <div className="gba:text-sm gba:text-gray-600">
+                      <strong>Destination:</strong> {trip.address}
+                      {trip.country && ` (${trip.country.name})`}
+                    </div>
+                  </div>
+                </ListItem>
+              ))}
+            </div>
+          )
+        })}
 
         {/* Expense Items */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <CurrencyDollarIcon className="gba:h-5 gba:w-5" />
-              Expense Items
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.expenseItems && data.expenseItems.length > 0 ? (
-              <div className="gba:space-y-3">
-                {data.expenseItems.map((item: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={item.description || 'Expense Item'}
-                    description={`Category: ${item.category || 'N/A'} | Type: ${item.itemType || 'N/A'}`}
-                    amount={formatCurrency(item.totalAmount, item.currency?.code)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No expense items available" />
-            )}
-          </CardContent>
-        </Card>
+        {renderCollectionCard({
+          title: 'Expense Items',
+          icon: <CurrencyDollarIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.expenseItems && data.expenseItems.length > 0),
+          emptyDescription: 'No expense items available',
+          content: (
+            <div className="gba:space-y-3">
+              {data.expenseItems?.map((item: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={item.description || 'Expense Item'}
+                  description={`Category: ${item.category || 'N/A'} | Type: ${item.itemType || 'N/A'}`}
+                  amount={formatDrawerCurrency(item.reimbursableAmount, item.currency?.code)}
+                />
+              ))}
+            </div>
+          )
+        })}
 
         {/* Approval Metadata */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold gba:text-gray-900">
-              <UserIcon className="gba:h-5 gba:w-5" />
-              Approval Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.approvalMetadata && data.approvalMetadata.length > 0 ? (
-              <div className="gba:space-y-4">
-                {data.approvalMetadata.map((metadata: any, index: number) => (
-                  <ListItem
-                    key={index}
-                    title={metadata.author || 'Unknown Approver'}
-                    description={metadata.position || 'N/A'}
-                  >
-                    <div className="gba:space-y-2 gba:mt-2">
-                      <div className="gba:text-sm gba:text-gray-600">
-                        <strong>Date:</strong> {formatDate(metadata.date)}
-                      </div>
-                      <div className="gba:flex gba:items-start gba:gap-2 gba:text-sm gba:text-gray-600">
-                        <ChatCircleIcon className="gba:h-4 gba:w-4 gba:mt-0.5 gba:flex-shrink-0" />
-                        <span>{metadata.comment || 'No comment provided'}</span>
-                      </div>
+        {renderCollectionCard({
+          title: 'Approval Information',
+          icon: <UserIcon className="gba:h-5 gba:w-5" />,
+          hasItems: Boolean(data.approvalMetadata && data.approvalMetadata.length > 0),
+          emptyDescription: 'No approval information available',
+          content: (
+            <div className="gba:space-y-4">
+              {data.approvalMetadata?.map((metadata: any, index: number) => (
+                <ListItem
+                  key={index}
+                  title={metadata.author || 'Unknown Approver'}
+                  description={metadata.position || 'N/A'}
+                >
+                  <div className="gba:space-y-2 gba:mt-2">
+                    <div className="gba:text-sm gba:text-gray-600">
+                      <strong>Date:</strong> {formatDateTimeLocalized(metadata.date)}
                     </div>
-                  </ListItem>
-                ))}
-              </div>
-            ) : (
-              <EmptyState description="No approval information available" />
-            )}
-          </CardContent>
-        </Card>
+                    <div className="gba:flex gba:items-start gba:gap-2 gba:text-sm gba:text-gray-600">
+                      <ChatCircleIcon className="gba:h-4 gba:w-4 gba:mt-0.5 gba:flex-shrink-0" />
+                      <span>{metadata.comment || 'No comment provided'}</span>
+                    </div>
+                  </div>
+                </ListItem>
+              ))}
+            </div>
+          )
+        })}
       </div>
     )
   }

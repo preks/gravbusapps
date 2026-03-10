@@ -25,6 +25,7 @@ export interface SessionUser {
 export interface SessionMetadata {
   sessionId: string
   repoId: string | null
+  namespace?: string | null
   targetPath: string | null
   resourceUrl: string | null
   createdAt: string

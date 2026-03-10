@@ -44,7 +44,7 @@ type FormValues = {
 }
 
 const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
-  const { additionalData } = context
+  const { additionalData, userInfo } = context
   const { assetId, existingAsset, assetVersion, assetDisplayName } = useAssetFormData(additionalData)
   const { resolveAssetVersion } = useAssetVersion(context, {
     assetId,
@@ -650,33 +650,51 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       employeeAssetPayload.notes = values.notes
                     }
 
-                    const promises: Promise<any>[] = [
-                      assetProcessClient.createEmployeeAsset(employeeAssetPayload),
-                      assetProcessClient.updateAsset({
-                        id: assetId,
-                        version: currentAssetVersion,
-                        assetStatus: AssetStatus.ALLOCATED
-                      })
-                    ]
+                    const allocatorUserId = userInfo?.id ?? ''
+                    const selectedEmployee = employees.find(e => e.id === values.employeeId)
+                    const employeeUserId = selectedEmployee?.userId ?? ''
 
-                    const results = await Promise.all(promises)
+                    if (!allocatorUserId) {
+                      throw new Error(
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.allocator_user_required',
+                          'Unable to identify the current user. Please sign in again.'
+                        )
+                      )
+                    }
+
+                    if (!employeeUserId) {
+                      throw new Error(
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.employee_user_required',
+                          'The selected employee has no user account. Please select another employee or contact HR.'
+                        )
+                      )
+                    }
+
+                    const processResponse = await assetProcessClient.startAllocateAssetToEmployee({
+                      employeeAsset: employeeAssetPayload,
+                      allocatorUserId,
+                      employeeUserId
+                    })
 
                     dispatchProcessContinueEvent('pse_submit', {})
 
+                    // Asset remains PENDING_ASSET until employee acknowledges; then process sets ALLOCATED_ASSET
                     dispatchProcessCompletionEvents({
                       resolution: 'success',
-                      processName: 'allocateAsset',
+                      processName: 'allocateAssetToEmployee',
                       domain: 'employee',
                       response: {
                         employeeAsset: {
-                          id: results[0]?.id || results[0]?.employeeAsset?.id,
+                          id: processResponse?.id || processResponse?.employeeAsset?.id,
                           assetId: assetId,
                           employeeId: values.employeeId
                         },
                         asset: {
                           id: assetId,
                           version: currentAssetVersion,
-                          assetStatus: AssetStatus.ALLOCATED
+                          assetStatus: AssetStatus.PENDING
                         }
                       }
                     })

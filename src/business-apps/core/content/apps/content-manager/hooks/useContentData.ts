@@ -25,7 +25,7 @@ export interface ContentDataFilters {
 }
 
 export interface UseContentDataParams {
-  type?: 'all' | 'news' | 'knowledge' | 'document' | 'question'
+  type?: 'all' | 'news' | 'knowledge' | 'policy' | 'document' | 'question'
   accessToken: string
 }
 
@@ -58,11 +58,11 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
     pageIndex: 0,
     pageSize: 20
   })
-  // Set visible columns based on type
+  // Set visible columns based on type (order: Group | Type)
   const defaultColumns = useMemo(() => {
-    const baseColumns = ['type', 'title', 'author', 'createdAt', 'status', 'actions']
+    const baseColumns = ['group', 'type', 'title', 'author', 'createdAt', 'status', 'actions']
     if (type === 'all') {
-      return ['group', ...baseColumns, 'reactions', 'comments']
+      return [...baseColumns, 'reactions', 'comments']
     }
     return [...baseColumns, 'reactions', 'comments']
   }, [type])
@@ -76,6 +76,7 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
     const groupMap: Record<string, ContentGroup> = {
       news: ContentGroup.NEWS,
       knowledge: ContentGroup.KNOWLEDGE,
+      policy: ContentGroup.POLICY,
       document: ContentGroup.DOCUMENT,
       question: ContentGroup.QUESTION
     }

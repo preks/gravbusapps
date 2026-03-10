@@ -2,16 +2,13 @@ import React from 'react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { ExpenseData } from '../../../../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import withStoppedPropagation from '../../common/withStoppedPropagation'
+import type { ExpenseRequestActionHandlers } from '../../../../types/expenseRequestActionHandlers'
 
-interface ExpenseRequestTableActionsProps {
+interface ExpenseRequestTableActionsProps extends ExpenseRequestActionHandlers {
   record: ExpenseData
   accessToken: string
   transferInProgress?: boolean
-  onNavigateToExpenseRequest: (record: ExpenseData) => void
-  onDownloadAccountingNote: (record: ExpenseData) => void
-  onTriggerCSV: (record: ExpenseData) => void
-  onPrintExpenseRequest: (record: ExpenseData) => void
-  onTransferPayment: (record: ExpenseData) => void
 }
 
 const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
@@ -33,6 +30,16 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
     record.employeeDocumentId !== null
 
   const canTransferPayment = record.status === 'BOOKED'
+  const onNavigate = withStoppedPropagation(() => onNavigateToExpenseRequest(record))
+  const onDownload = withStoppedPropagation(() => onDownloadAccountingNote(record))
+  const onTriggerCsvAction = withStoppedPropagation(() => onTriggerCSV(record))
+  const onPrint = withStoppedPropagation(() => onPrintExpenseRequest(record))
+  const onTransfer = withStoppedPropagation(() => {
+    if (transferInProgress) {
+      return
+    }
+    onTransferPayment(record)
+  })
 
   return (
     <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
@@ -50,10 +57,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
               'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
               'View Request Details'
             ),
-            onClick: (e?: React.MouseEvent) => {
-              e?.stopPropagation()
-              onNavigateToExpenseRequest(record)
-            }
+            onClick: onNavigate
           },
           {
             category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
@@ -62,10 +66,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
               'lowcoder:expense_request_list.modal_list_or_flow_button.download_text',
               'Download Accounting Note'
             ),
-            onClick: (e?: React.MouseEvent) => {
-              e?.stopPropagation()
-              onDownloadAccountingNote(record)
-            }
+            onClick: onDownload
           },
           {
             category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
@@ -74,10 +75,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
               'lowcoder:expense_plan_list.expense_plan_flows.trigger_csv',
               'Trigger CSV'
             ),
-            onClick: (e?: React.MouseEvent) => {
-              e?.stopPropagation()
-              onTriggerCSV(record)
-            }
+            onClick: onTriggerCsvAction
           },
           ...(canTransferPayment
             ? [
@@ -94,13 +92,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
                         'Transfer Payment'
                       ),
                   disabled: transferInProgress,
-                  onClick: (e?: React.MouseEvent) => {
-                    e?.stopPropagation()
-                    if (transferInProgress) {
-                      return
-                    }
-                    onTransferPayment(record)
-                  }
+                  onClick: onTransfer
                 }
               ]
             : []),
@@ -113,10 +105,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
                     'lowcoder:expense_plan_list.expense_plan_flows.print',
                     'Print'
                   ),
-                  onClick: (e?: React.MouseEvent) => {
-                    e?.stopPropagation()
-                    onPrintExpenseRequest(record)
-                  }
+                  onClick: onPrint
                 }
               ]
             : [])

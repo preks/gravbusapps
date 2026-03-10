@@ -70,7 +70,6 @@ const copyInvestmentAccountFilters = (
 export type AccountViewProps = BusinessAppContextProps
 
 export const AccountView: React.FC<AccountViewProps> = context => {
-  const { accessToken } = context
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
 
   const handleQuickFilterChange = useCallback(
@@ -111,11 +110,10 @@ export const AccountView: React.FC<AccountViewProps> = context => {
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
   const accountStatistics = useInvestmentAccountStatistics(context)
 
-  // Statistics - Transform hook data to AccountStatisticsData format
-  // Statistics - Hook already returns the correct format
-  const accountStatisticsData = accountStatistics
-
-  // Config
+  // Config — accountStatistics is intentionally excluded so that statistics state
+  // updates (isLoading, recentAccounts, etc.) do not recreate config, which would
+  // cascade into new queryVariables/loadData references and re-fire GetInvestmentAccounts.
+  // accountStatistics is passed as a separate prop to AccountLayout instead.
   const config: AccountViewConfig<Account, InvestmentAccountQueryVariables> = useMemo(
     () => ({
       fetchAccounts: async (variables: InvestmentAccountQueryVariables) => {
@@ -198,7 +196,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         createContext: FlowContextName.investmentAccountCreate
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/irm/account-record', { accountId: id }),
-      accountStatistics: accountStatisticsData,
       variant: 'investment',
       rowActionsContextArray: [FlowContextName.investmentAccountEntity],
       buildRowActionsExternalContextData: (row: { original: Account }) => ({
@@ -215,13 +212,14 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         addAccount: { key: 'irm:account.addAccount', default: 'Add Account' }
       }
     }),
-    [fetchInvestmentAccounts, accountStatisticsData, accessToken]
+    [fetchInvestmentAccounts]
   )
 
   return (
     <AccountLayout
       context={context}
       config={config}
+      accountStatistics={accountStatistics}
       dataTestId="investment-account-view"
       renderQuickFilters={renderQuickFilters}
     />

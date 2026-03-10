@@ -13,6 +13,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
+import { buildInvestmentsByAccountIdQueryBody } from '@/common/data/investment/queries/investmentQueries'
+import { toInvestment } from '@/common/data/investment/mappers/investmentMappers'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -61,12 +64,24 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
+  const additionalQueries = useMemo(
+    () => [
+      {
+        query: buildInvestmentsByAccountIdQueryBody(accountId),
+        data: (result: any) => (result.accountInvestments || []).map(toInvestment) as Investment[],
+        key: 'investments' as const
+      }
+    ],
+    [accountId]
+  )
+
   const {
     account: accountData,
+    investments,
     loading: dataLoading,
     error: dataError,
     refetch: refetchAccountData
-  } = useInvestmentAccount(props.accessToken, accountId)
+  } = useInvestmentAccount(props.accessToken, accountId, { additionalQueries })
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken)
@@ -204,7 +219,15 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
           icon: <UsersIcon className="gba:mr-2" />,
-          content: <HomeView accountId={accountId} accountData={accountData} {...props} />
+          content: (
+            <HomeView
+              accountId={accountId}
+              accountData={accountData ?? undefined}
+              investments={investments || []}
+              investmentsLoading={dataLoading}
+              {...props}
+            />
+          )
         },
         {
           value: 'opportunities',

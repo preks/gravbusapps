@@ -32,6 +32,8 @@
 
 @import 'react-quill/dist/quill.snow.css';
 
+@import './business-apps/core/content/windows/content-entry-window/quillTable.css';
+
 @import '@newwork/nw-design-system/core';
 @import '@newwork/nw-design-system/layout';
 @import '@newwork/nw-design-system/colors';
