@@ -11,8 +11,8 @@ import {
   handleParentCleared,
   handleParentSelected
 } from './catalogSelectDependencyParentChild'
-import { fetchFilteredOptionsWithParent, getFieldValue } from './catalogSelectDependencyShared'
-import { buildFiltersSignature, CatalogSelectExternalValue } from './catalogSelectUtils'
+import { getFieldValue } from './catalogSelectDependencyShared'
+import { CatalogSelectExternalValue } from './catalogSelectUtils'
 import type {
   CatalogSelectDependencyFetcher,
   CatalogSelectDependencySetter,
@@ -101,62 +101,20 @@ export const useCatalogDependencies = ({
     [configById, setFor, defaultPageSize]
   )
 
-  const shouldFetchChild = useCallback(
-    (childState: CatalogSelectDependencyState | undefined, expectedFiltersSig: string) => {
-      if (!childState) return true
-      if (childState.loading) return false
-      if ((childState.options?.length || 0) > 0) return false
-      if (childState.total > 0) return false
-      return childState.lastFiltersSig !== expectedFiltersSig
-    },
-    []
-  )
-
-  const triggerChildFetchIfNeeded = useCallback(
-    (parentField: string, effectiveParentValue: string) => {
-      if (!parentField || !effectiveParentValue) return
-
-      const childConfigs = childConfigsByParentField.get(parentField) ?? []
-      const expectedFiltersSig = buildFiltersSignature({ parentEntryId: effectiveParentValue })
-
-      for (const childConfig of childConfigs) {
-        const childState = stateByIdRef.current[childConfig.id]
-        if (!shouldFetchChild(childState, expectedFiltersSig)) continue
-
-        fetchFilteredOptionsWithParent({
-          id: childConfig.id,
-          parentValue: effectiveParentValue,
-          config: childConfig,
-          defaultPageSize,
-          setFor,
-          fetchCatalogEntriesByIdentifier,
-          locale,
-          nextVersion,
-          isCurrentVersion
-        })
-      }
-    },
-    [
-      childConfigsByParentField,
-      shouldFetchChild,
-      defaultPageSize,
-      setFor,
-      fetchCatalogEntriesByIdentifier,
-      locale,
-      nextVersion,
-      isCurrentVersion
-    ]
-  )
-
+  // Sync parent field values into catalog state when external form values change.
+  // Child fetches are NOT triggered here — the parentDependencySignature effect below
+  // handles those via handleInitialLoad / handleParentSelected.
+  // Triggering child fetches from both places caused duplicate CountryRegion queries:
+  // both effects fire in the same render cycle and React-batched setFor updates aren't
+  // yet reflected in stateByIdRef, so the loading guard in shouldFetchChild is bypassed.
   useEffect(() => {
     if (!externalValues) return
 
     for (const parentField of parentFieldIds) {
       const parentValueFromForm = getParentValue(parentField, dependencyExternalValues, stateByIdRef.current)
       updateParentStateFromForm(parentField, parentValueFromForm)
-      triggerChildFetchIfNeeded(parentField, parentValueFromForm)
     }
-  }, [dependencyExternalValues, externalValues, parentFieldIds, triggerChildFetchIfNeeded, updateParentStateFromForm])
+  }, [dependencyExternalValues, externalValues, parentFieldIds, updateParentStateFromForm])
 
   const parentDependencySignature = useMemo(
     () =>

@@ -171,6 +171,7 @@ export const preloadCatalogSelectData = async ({
   defaultThreshold,
   locale,
   fetchCatalogs,
+  fetchCatalogEntriesByIdentifier,
   setFor
 }: {
   configs: CatalogSelectConfig[]
@@ -180,6 +181,9 @@ export const preloadCatalogSelectData = async ({
   defaultThreshold: number
   locale?: string
   fetchCatalogs: (params: any) => Promise<{ items?: any[] }>
+  // When provided, selected values not covered by the batch preload are fetched in parallel,
+  // so missingOptionSignature never has to fire a separate network call for them.
+  fetchCatalogEntriesByIdentifier?: (instanceId: string, params: any) => Promise<{ entries: any[]; totalCount: number }>
   setFor: SetFor
 }) => {
   const allIdentifiers = configs.filter(config => config.prefetch !== false).map(config => config.catalogIdentifier)
@@ -205,15 +209,47 @@ export const preloadCatalogSelectData = async ({
   const identifiersToFetch = identifiers.filter(identifier => configsNeedingData.has(identifier))
   if (identifiersToFetch.length === 0) return
 
-  const largestPageSize = Math.max(...configs.map(config => config.pageSize ?? defaultPageSize))
-  const list = await fetchCatalogs({
-    catalogIdentifiers: identifiersToFetch,
-    includeCatalogEntries: true,
-    entriesLimit: largestPageSize,
-    entriesOffset: 0,
-    limit: identifiersToFetch.length
-  })
+  // Identify non-child, non-reused configs that have a known selected value in externalValues.
+  // These will be fetched in parallel with the batch so that missingOptionSignature never needs
+  // to trigger a separate network round-trip after the preload completes.
+  const preemptiveFetches: Array<{ configId: string; values: string[] }> = []
+  if (fetchCatalogEntriesByIdentifier && externalValues) {
+    for (const config of configs.filter(
+      c => c.prefetch !== false && !c.parentField && !c.filterField && !configsToReuse.has(c.id)
+    )) {
+      if (!configsNeedingData.has(config.catalogIdentifier)) continue
+      const values = resolveCatalogSelectFieldValues(config.id, externalValues, stateById)
+      if (values.length > 0) {
+        preemptiveFetches.push({ configId: config.id, values })
+      }
+    }
+  }
 
+  const largestPageSize = Math.max(...configs.map(config => config.pageSize ?? defaultPageSize))
+
+  // Run the batch catalog fetch AND any preemptive entry fetches IN PARALLEL.
+  // The preemptive fetches retrieve the currently-selected entries that are unlikely to appear
+  // in the alphabetically-ordered first page of the batch (e.g. "Romania" in a 195-country list).
+  const [list, ...preemptiveResults] = await Promise.all([
+    fetchCatalogs({
+      catalogIdentifiers: identifiersToFetch,
+      includeCatalogEntries: true,
+      entriesLimit: largestPageSize,
+      entriesOffset: 0,
+      limit: identifiersToFetch.length
+    }),
+    ...preemptiveFetches.map(({ configId, values }) =>
+      fetchCatalogEntriesByIdentifier!(configId, {
+        limit: values.length,
+        offset: 0,
+        entryId: values,
+        orderBy: configs.find(c => c.id === configId)?.orderBy
+      }).catch(() => ({ entries: [], totalCount: 0 }))
+    )
+  ])
+
+  // Track which entry IDs were returned by the batch so we can skip duplicates below.
+  const batchEntryIdsByCatalogId = new Map<string, Set<string>>()
   for (const catalog of list.items || []) {
     processCatalogEntries({
       catalog,
@@ -225,6 +261,44 @@ export const preloadCatalogSelectData = async ({
       stateById,
       locale,
       setFor
+    })
+
+    const catalogId = `${catalog.identifier}:${catalog.version || 'v1'}`
+    batchEntryIdsByCatalogId.set(catalogId, new Set((catalog.entries || []).map((e: any) => e.id as string)))
+  }
+
+  // Merge preemptive results: add entries that were not already returned by the batch.
+  for (let i = 0; i < preemptiveFetches.length; i++) {
+    const { configId } = preemptiveFetches[i]
+    const result = preemptiveResults[i]
+    if (!result || result.entries.length === 0) continue
+
+    const config = configs.find(c => c.id === configId)
+    if (!config) continue
+
+    const batchIds = batchEntryIdsByCatalogId.get(config.catalogIdentifier)
+    const newEntries = result.entries.filter((e: any) => !batchIds?.has(e.id))
+    if (newEntries.length === 0) continue
+
+    setFor(configId, previousState => {
+      const nextOptions = [...previousState.options]
+      const nextMetaByValue = { ...(previousState.metaByValue || {}) }
+      let hasChanges = false
+
+      for (const entry of newEntries) {
+        if (!nextOptions.some(o => o.value === entry.id)) {
+          nextOptions.unshift({ value: entry.id, label: getLocalizedValue(entry, locale) })
+          hasChanges = true
+        }
+        const nextMeta = { parentEntryId: entry.parentEntryId, type: entry.type }
+        const existingMeta = nextMetaByValue[entry.id]
+        if (existingMeta?.parentEntryId !== nextMeta.parentEntryId || existingMeta?.type !== nextMeta.type) {
+          nextMetaByValue[entry.id] = nextMeta
+          hasChanges = true
+        }
+      }
+
+      return hasChanges ? { ...previousState, options: nextOptions, metaByValue: nextMetaByValue } : previousState
     })
   }
 }
