@@ -235,18 +235,26 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   )
 
   useEffect(() => {
+    const pendingRefetchTimers = new Set<number>()
+
     const handleProcessCompletion = (event: Event) => {
       const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
       const resolution = customEvent.detail.resolution
       if (resolution === 'success') {
         // Use silent refetch — avoids the full-page loading spinner for background saves
         silentRefetch()
+        const followUpRefetchTimer = window.setTimeout(() => {
+          pendingRefetchTimers.delete(followUpRefetchTimer)
+          silentRefetch()
+        }, 1200)
+        pendingRefetchTimers.add(followUpRefetchTimer)
       }
     }
 
     globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
 
     return () => {
+      pendingRefetchTimers.forEach(timerId => window.clearTimeout(timerId))
       globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
   }, [silentRefetch])
