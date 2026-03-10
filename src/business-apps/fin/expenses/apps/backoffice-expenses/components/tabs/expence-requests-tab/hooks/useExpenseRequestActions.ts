@@ -8,7 +8,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseData } from '../../../../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
+export const useExpenseRequestActions = (props: Readonly<BusinessAppContextProps>) => {
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   const handleDownloadAccountingNote = useCallback(

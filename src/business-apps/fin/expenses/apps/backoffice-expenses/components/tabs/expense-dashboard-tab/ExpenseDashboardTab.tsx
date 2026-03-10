@@ -9,19 +9,23 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Alert, Spinner, SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import { Alert, Spinner, SectionKpiCards, KpiCardData, Card, CardContent, IconAvatar } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDashboardStats } from '../../../hooks/useDashboardStats'
 import MonthlyExpenseTrendsCard from '../../cards/MonthlyExpenseTrendsCard'
 import { ExpenseFilterBar, FilterOptions } from '../../filter-bar'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../../../utils/currencyUtils'
+import { extractCurrencyCode } from '../../../utils/sharedUtils'
 import { useFilterData } from '../../../hooks/useFilterData'
+import { PiChartLineUp, PiFileText } from 'react-icons/pi'
 
 interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   moduleColor?: string
   isActive?: boolean // ⚡ PERFORMANCE: Only fetch data when tab is active
+  onNavigateToReports?: () => void
+  onNavigateToAnalytics?: () => void
 }
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
@@ -36,13 +40,11 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
     department: '',
     currency: 'Currency:v1:EUR', // Will be updated by useEffect when mostUsedCurrency loads
-    period: 'monthly'
+    period: 'yearly'
   })
 
-  const [isCurrencyLoading, setIsCurrencyLoading] = useState(false)
   const [hasUserSelectedCurrency, setHasUserSelectedCurrency] = useState(false)
-
-  const [currencyDebounceTimer, setCurrencyDebounceTimer] = useState<NodeJS.Timeout | null>(null)
+  const [hasLoadedStatsOnce, setHasLoadedStatsOnce] = useState(false)
 
   // Update currency when mostUsedCurrency is loaded (only if user hasn't manually selected one yet)
   useEffect(() => {
@@ -60,14 +62,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     filters: currentFilters,
     isActive
   })
-
-  React.useEffect(() => {
-    return () => {
-      if (currencyDebounceTimer) {
-        clearTimeout(currencyDebounceTimer)
-      }
-    }
-  }, [currencyDebounceTimer])
 
   const getTranslatedQuarter = (quarterNumber: number): string => {
     return getTranslationFromI18nKeyAndLabel(`lowcoder:cards.quarter_${quarterNumber}`, `Q${quarterNumber}`)
@@ -109,15 +103,31 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
 
   const getCurrentPeriodName = (): string => {
     const date = new Date()
+    const yearText = date.getFullYear().toString()
     switch (currentFilters.period) {
       case 'yearly':
-        return date.getFullYear().toString()
+        return yearText
       case 'quarterly': {
         const quarter = Math.floor(date.getMonth() / 3) + 1
         return `${getTranslatedQuarter(quarter)} ${date.getFullYear()}`
       }
       default:
         return getTranslatedMonth(date.getMonth())
+    }
+  }
+
+  const getSameperiodLastYearName = (): string => {
+    const date = new Date()
+    const previousYear = date.getFullYear() - 1
+    switch (currentFilters.period) {
+      case 'yearly':
+        return previousYear.toString()
+      case 'quarterly': {
+        const currentQuarter = Math.floor(date.getMonth() / 3) + 1
+        return `${getTranslatedQuarter(currentQuarter)} ${previousYear}`
+      }
+      default:
+        return `${getTranslatedMonth(date.getMonth())} ${previousYear}`
     }
   }
 
@@ -143,11 +153,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     }
   }
 
-  const extractCurrencyCode = (currencyRef: string): string => {
-    return currencyRef.split(':').pop() || 'RON'
-  }
-
-  const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON')
+  const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:EUR')
 
   // Helper: Get title for total company spend (reduces cognitive complexity)
   const getTotalCompanySpendTitle = useCallback((period: string | undefined, currencyCode: string) => {
@@ -172,7 +178,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       previousCount: number,
       currencyCode: string
     ) => {
-      return `${currentPeriodName}: ${formatCurrency(currentTotal, currencyCode)} (${currentCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')}) | ${previousPeriodName}: ${formatCurrency(previousTotal, currencyCode)} (${previousCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`
+      const expensesLabel = getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')
+      return `${currentPeriodName}: ${formatCurrency(currentTotal, currencyCode)} (${currentCount} ${expensesLabel})\n${previousPeriodName}: ${formatCurrency(previousTotal, currencyCode)} (${previousCount} ${expensesLabel})`
     },
     []
   )
@@ -198,7 +205,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   // Helper to build Total Company Spend card (reduces complexity of kpiCards)
   const buildTotalCompanySpendCard = useCallback((): KpiCardData => {
     const currentPeriodName = getCurrentPeriodName()
-    const previousPeriodName = getPreviousPeriodName()
+    const previousPeriodName = getSameperiodLastYearName()
 
     return {
       id: 'total-company-spend',
@@ -225,7 +232,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     }
   }, [
     getCurrentPeriodName,
-    getPreviousPeriodName,
+    getSameperiodLastYearName,
     getTotalCompanySpendTitle,
     getTotalCompanySpendFooter,
     getTotalCompanySpendDescription,
@@ -266,7 +273,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       value: actualVsPlannedPercentage ?? 'N/A',
       suffix: actualVsPlannedPercentage === null ? undefined : '%',
       decimalPlaces: actualVsPlannedPercentage === null ? undefined : 1,
-      footer: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.planned', 'Planned')}: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.plans', 'plans')}) | ${getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.achieved', 'Actual')}: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
+      footer: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.planned', 'Planned')}: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.plans', 'plans')})\n${getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.achieved', 'Actual')}: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
       trend:
         actualVsPlannedPercentage === null
           ? undefined
@@ -274,7 +281,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
               value: actualVsPlannedPercentage.toFixed(1) + '%',
               description:
                 actualAmount <= plannedAmount
-                  ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.within_budget', 'Within Budget')
+                  ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.remaining_budget', 'Remaining Budget')
                   : getTranslationFromI18nKeyAndLabel('lowcoder:cards.over_budget', 'Over Budget'),
               trendIcon: actualAmount > plannedAmount ? 'up' : 'down',
               badgeVariant: actualAmount > plannedAmount ? 'destructive' : 'success'
@@ -286,15 +293,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   const buildMonthlySpendComparisonCard = useCallback((): KpiCardData => {
     const monthlyComparison = stats.monthlySpendComparison
 
-    const getComparisonTitle = () => {
-      switch (currentFilters.period) {
-        case 'yearly':
-          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.yearly_spend_comparison', 'Yearly Spend Comparison')} (${selectedCurrencyCode})`
-        case 'quarterly':
-          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.quarterly_spend_comparison', 'Quarterly Spend Comparison')} (${selectedCurrencyCode})`
-        default:
-          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly_spend_comparison', 'Monthly Spend Comparison')} (${selectedCurrencyCode})`
-      }
+    const comparisonTitleByPeriod: Record<'monthly' | 'quarterly' | 'yearly', string> = {
+      yearly: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.yearly_spend_comparison', 'Yearly Spend Comparison')} (${selectedCurrencyCode})`,
+      quarterly: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.quarterly_spend_comparison', 'Quarterly Spend Comparison')} (${selectedCurrencyCode})`,
+      monthly: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly_spend_comparison', 'Monthly Spend Comparison')} (${selectedCurrencyCode})`
     }
 
     const getComparisonDescription = () => {
@@ -325,10 +327,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
 
     return {
       id: 'monthly-spend-comparison',
-      title: getComparisonTitle(),
+      title: comparisonTitleByPeriod[currentFilters.period || 'monthly'],
       value:
         monthlyComparison.percentChange === null ? 'N/A' : Math.abs(monthlyComparison.percentChange).toFixed(1) + ' %',
-      footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')}) | ${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
+      footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})\n${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
       trend:
         monthlyComparison.percentChange === null
           ? undefined
@@ -348,45 +350,54 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   ])
 
   // Helper: Get advance payment footer text (reduces cognitive complexity)
-  const getAdvancePaymentFooter = useCallback(() => {
-    switch (currentFilters.period) {
-      case 'yearly':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:cards.approved_waiting_to_pay_ytd',
-          'Approved - Waiting to Pay This Year'
-        )
-      case 'quarterly':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:cards.approved_waiting_to_pay_qtd',
-          'Approved - Waiting to Pay This Quarter'
-        )
-      default:
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:cards.approved_waiting_to_pay_mtd',
-          'Approved - Waiting to Pay This Month'
-        )
+  const getPeriodFooterText = (labels: {
+    yearly: { key: string; fallback: string }
+    quarterly: { key: string; fallback: string }
+    monthly: { key: string; fallback: string }
+  }) => {
+    if (currentFilters.period === 'yearly') {
+      return getTranslationFromI18nKeyAndLabel(labels.yearly.key, labels.yearly.fallback)
     }
+    if (currentFilters.period === 'quarterly') {
+      return getTranslationFromI18nKeyAndLabel(labels.quarterly.key, labels.quarterly.fallback)
+    }
+    return getTranslationFromI18nKeyAndLabel(labels.monthly.key, labels.monthly.fallback)
+  }
+
+  // Helper: Get advance payment footer text (reduces cognitive complexity)
+  const getAdvancePaymentFooter = useCallback(() => {
+    return getPeriodFooterText({
+      yearly: {
+        key: 'lowcoder:cards.approved_waiting_to_pay_ytd',
+        fallback: 'Approved - Waiting to Pay This Year'
+      },
+      quarterly: {
+        key: 'lowcoder:cards.approved_waiting_to_pay_qtd',
+        fallback: 'Approved - Waiting to Pay This Quarter'
+      },
+      monthly: {
+        key: 'lowcoder:cards.approved_waiting_to_pay_mtd',
+        fallback: 'Approved - Waiting to Pay This Month'
+      }
+    })
   }, [currentFilters.period])
 
   // Helper: Get average spend per trip footer text (reduces cognitive complexity)
   const getAvgSpendPerTripFooter = useCallback(() => {
-    switch (currentFilters.period) {
-      case 'yearly':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:cards.average_spend_per_trip_footer_year',
-          'Based on completed trips this year'
-        )
-      case 'quarterly':
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:cards.average_spend_per_trip_footer_quarter',
-          'Based on completed trips this quarter'
-        )
-      default:
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:cards.average_spend_per_trip_footer_month',
-          'Based on completed trips this month'
-        )
-    }
+    return getPeriodFooterText({
+      yearly: {
+        key: 'lowcoder:cards.average_spend_per_trip_footer_year',
+        fallback: 'Based on completed trips this year'
+      },
+      quarterly: {
+        key: 'lowcoder:cards.average_spend_per_trip_footer_quarter',
+        fallback: 'Based on completed trips this quarter'
+      },
+      monthly: {
+        key: 'lowcoder:cards.average_spend_per_trip_footer_month',
+        fallback: 'Based on completed trips this month'
+      }
+    })
   }, [currentFilters.period])
 
   // Helper: Build Transfer Required card (reduces complexity of kpiCards)
@@ -460,31 +471,55 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
 
   // Removed testing-only CSV export function (no longer used)
 
-  // Handle filter changes and update dashboard stats with debouncing
+  // Handle filter changes and update dashboard stats immediately
   const handleFiltersChange = (newFilters: FilterOptions) => {
     // Mark that user has manually selected a currency (prevent auto-update)
     if (newFilters.currency !== currentFilters.currency) {
       setHasUserSelectedCurrency(true)
-      setIsCurrencyLoading(true)
-
-      if (currencyDebounceTimer) {
-        clearTimeout(currencyDebounceTimer)
-      }
-
-      const newTimer = setTimeout(() => {
-        setCurrentFilters(newFilters)
-        setIsCurrencyLoading(false)
-        setCurrencyDebounceTimer(null)
-      }, 500) // Increased delay to 500ms
-
-      setCurrencyDebounceTimer(newTimer)
-    } else {
-      // For non-currency changes, update immediately
-      setCurrentFilters(newFilters)
     }
+    setCurrentFilters(newFilters)
   }
 
-  const isRefreshing = loading && !isCurrencyLoading
+  useEffect(() => {
+    if (!loading) {
+      setHasLoadedStatsOnce(true)
+    }
+  }, [loading])
+
+  const isRefreshing = loading && hasLoadedStatsOnce
+  const quickActions = useMemo(
+    () => [
+      {
+        key: 'analytics',
+        icon: PiChartLineUp,
+        iconColor: 'gba:text-success',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:backoffice_expenses.analytics.spending_analysis',
+          'Spending Analysis'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:backoffice_expenses.analytics.spending_analysis_cta',
+          'View spending trends and reports.'
+        ),
+        onClick: props.onNavigateToAnalytics
+      },
+      {
+        key: 'reports',
+        icon: PiFileText,
+        iconColor: 'gba:text-accent',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
+          'Expense Reports'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:backoffice_expenses.generate_or_view_expense_reports',
+          'Generate or view expense reports.'
+        ),
+        onClick: props.onNavigateToReports
+      }
+    ],
+    [props.onNavigateToAnalytics, props.onNavigateToReports]
+  )
 
   return (
     <div className="gba:space-y-6 gba:relative" data-testid={prefixDataTestId}>
@@ -517,8 +552,44 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
 
       {/* KPI Cards Section */}
       <div data-testid={`${prefixDataTestId}-kpi-section`}>
-        <SectionKpiCards cards={kpiCards} data-testid={`${prefixDataTestId}-kpi-cards`} />
+        <SectionKpiCards
+          cards={kpiCards}
+          className="gba:[&_[data-slot=card-footer]_div]:whitespace-pre-line"
+          data-testid={`${prefixDataTestId}-kpi-cards`}
+        />
         {/* CSV export toolbar removed */}
+      </div>
+
+      <div className="gba:space-y-3" data-testid="backoffice-dashboard-quick-actions">
+        <h3 className="gba:text-lg gba:font-semibold">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.quick_actions',
+            'Quick Actions'
+          )}
+        </h3>
+        <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+          {quickActions.map(action => (
+            <Card
+              key={action.key}
+              className="gba:cursor-pointer gba:transition-colors"
+              onClick={action.onClick}
+              data-testid={`backoffice-quick-action-${action.key}`}
+            >
+              <CardContent className="gba:p-4">
+                <div className="gba:flex gba:items-center gba:mb-2">
+                  <IconAvatar
+                    icon={action.icon as any}
+                    className={`gba:text-xl ${action.iconColor} gba:mr-2`}
+                    variant="default"
+                    size="md"
+                  />
+                  <h4 className="gba:text-sm gba:font-semibold">{action.title}</h4>
+                </div>
+                <p className="gba:text-sm gba:text-muted-foreground">{action.description}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       {/* Monthly Expense Trends Chart */}

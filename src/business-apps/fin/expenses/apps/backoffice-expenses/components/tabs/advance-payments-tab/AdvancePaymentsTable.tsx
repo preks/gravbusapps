@@ -7,6 +7,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import { useDebounce } from '@/common/hooks/useDebounce'
+import { useFilterData } from '../../../hooks/useFilterData'
+import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOptions'
+import dayjs from 'dayjs'
 
 import {
   Table,
@@ -26,8 +29,15 @@ import {
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import useCloseDropdownOnOutsideClick from '../common/useCloseDropdownOnOutsideClick'
+import withStoppedPropagation from '../common/withStoppedPropagation'
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils'
+import { buildStatusDisplayName } from '../../../utils/sharedUtils'
+import { getCurrencyLabel, getDepartmentLabel } from '../expence-requests-tab/expenseRequestFilterLabels'
+import MinMaxNumberFilter from '../common/MinMaxNumberFilter'
+import DepartmentSelectFilter from '../common/DepartmentSelectFilter'
+import CurrencySelectFilter from '../common/CurrencySelectFilter'
 import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -42,7 +52,7 @@ interface AdvancePaymentsTableProps extends BusinessAppContextProps {
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const { search, onSearchChange, ...context } = props
 
-  const [searchText, setSearchText] = useState(search || '')
+  const [searchText, setSearchText] = useState(search ?? '')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   // Deterministic scroll target for pagination (top of table)
@@ -63,11 +73,25 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const [reporterSearchLoading, setReporterSearchLoading] = useState(false)
   const [selectedReporters, setSelectedReporters] = useState<string[]>([])
 
+  // Currency, department, and date filter states
+  const [currencyRef, setCurrencyRef] = useState<string>('')
+  const [departmentId, setDepartmentId] = useState<string>('')
+
+  const [dateFrom, setDateFrom] = useState<string>('')
+  const [dateTo, setDateTo] = useState<string>('')
+
   // Status filter states
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([])
 
   // Selection states
   const [selectedItem, setSelectedItem] = useState<any>(null)
+
+  // Filter data (currencies, departments)
+  const { organizationalUnits = [], currencies = [] } = useFilterData({ accessToken: context.accessToken }) || {}
+  const departmentOptions = useMemo(
+    () => getActiveStructureDepartmentOptions(organizationalUnits),
+    [organizationalUnits]
+  )
 
   const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } =
     useAdvancePayments(context)
@@ -75,6 +99,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   // Debounced values using useDebounce hook
   const debouncedSearchText = useDebounce(searchText, 300)
   const debouncedReporterSearchText = useDebounce(reporterSearchText, 300)
+  const debouncedAmountMin = useDebounce(amountMinFilter, 500)
+  const debouncedAmountMax = useDebounce(amountMaxFilter, 500)
+  const debouncedAdvanceMin = useDebounce(advanceMinFilter, 500)
+  const debouncedAdvanceMax = useDebounce(advanceMaxFilter, 500)
 
   // Navigation handler for plan details
   const handleNavigateToPlanDetails = useCallback((record: any) => {
@@ -135,22 +163,30 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       page: currentPage,
       pageSize,
       status: statusFilter.length > 0 ? statusFilter.join(',') : undefined,
-      amountMin: amountMinFilter,
-      amountMax: amountMaxFilter,
-      advanceMin: advanceMinFilter,
-      advanceMax: advanceMaxFilter,
-      reporter: reporterFilter
+      amountMin: debouncedAmountMin,
+      amountMax: debouncedAmountMax,
+      advanceMin: debouncedAdvanceMin,
+      advanceMax: debouncedAdvanceMax,
+      reporter: reporterFilter,
+      currencyRef: currencyRef || undefined,
+      departmentId: departmentId || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined
     })
   }, [
     debouncedSearchText,
     currentPage,
     pageSize,
     statusFilter,
-    amountMinFilter,
-    amountMaxFilter,
-    advanceMinFilter,
-    advanceMaxFilter,
+    debouncedAmountMin,
+    debouncedAmountMax,
+    debouncedAdvanceMin,
+    debouncedAdvanceMax,
     reporterFilter,
+    currencyRef,
+    departmentId,
+    dateFrom,
+    dateTo,
     fetchPayments
   ])
 
@@ -170,40 +206,27 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   // Sync with parent search prop if provided
   useEffect(() => {
-    if (search !== undefined && search !== searchText) {
-      setSearchText(search)
+    const normalizedSearch = search ?? ''
+    if (normalizedSearch !== searchText) {
+      setSearchText(normalizedSearch)
       setCurrentPage(1)
     }
   }, [search, searchText])
 
   // Handle search changes
   const handleSearchChange = useCallback(
-    (value: string) => {
+    (value: string = '') => {
       setSearchText(value)
       setCurrentPage(1)
-
-      // Notify parent if callback exists
-      if (onSearchChange) {
-        onSearchChange(value)
-      }
+      onSearchChange?.(value)
     },
     [onSearchChange]
   )
 
-  // Handle clicking outside dropdown to close it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.reporter-search-container')) {
-        setShowReporterDropdown(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
+  useCloseDropdownOnOutsideClick({
+    containerClassName: 'reporter-search-container',
+    onOutsideClick: () => setShowReporterDropdown(false)
+  })
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null)
@@ -316,10 +339,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             'lowcoder:advance_payment_table.view_advance_payment_details',
             'View Advance Payment Details'
           ),
-          onClick: (e?: React.MouseEvent) => {
-            e?.stopPropagation()
-            setSelectedItem(record)
-          }
+          onClick: withStoppedPropagation(() => setSelectedItem(record))
         },
         {
           category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
@@ -328,10 +348,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
             'View Plan Details'
           ),
-          onClick: (e?: React.MouseEvent) => {
-            e?.stopPropagation()
-            handleNavigateToPlanDetails(record)
-          }
+          onClick: withStoppedPropagation(() => handleNavigateToPlanDetails(record))
         }
       ]
 
@@ -343,10 +360,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
             'View Request Details'
           ),
-          onClick: (e?: React.MouseEvent) => {
-            e?.stopPropagation()
-            handleNavigateToRequestDetails(record)
-          }
+          onClick: withStoppedPropagation(() => handleNavigateToRequestDetails(record))
         })
       }
 
@@ -365,9 +379,25 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       !!amountMinFilter ||
       !!amountMaxFilter ||
       !!advanceMinFilter ||
-      !!advanceMaxFilter
+      !!advanceMaxFilter ||
+      !!currencyRef ||
+      !!departmentId ||
+      !!dateFrom ||
+      !!dateTo
     )
-  }, [searchText, statusFilter, reporterFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter])
+  }, [
+    searchText,
+    statusFilter,
+    reporterFilter,
+    amountMinFilter,
+    amountMaxFilter,
+    advanceMinFilter,
+    advanceMaxFilter,
+    currencyRef,
+    departmentId,
+    dateFrom,
+    dateTo
+  ])
 
   // Helper: Get empty state message (reduces cognitive complexity)
   const getEmptyStateMessage = useCallback((): string => {
@@ -388,6 +418,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   }, [isLoading, totalCount, payments])
 
   const renderDataBody = useCallback(() => {
+    const renderSimpleValueCell = (value: string | undefined, testId: string) => (
+      <TableCell>
+        <div data-testid={testId}>{value || 'N/A'}</div>
+      </TableCell>
+    )
+
     if (isLoading && !payments?.length) {
       return (
         <div className="gba:flex gba:justify-center gba:p-8">
@@ -428,10 +464,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                       )}
                     </TableHead>
                     <TableHead className="gba:w-[15%]">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.reporter',
-                        'Reporter'
-                      )}
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
                     </TableHead>
                     <TableHead className="gba:w-[15%]">
                       {getTranslationFromI18nKeyAndLabel(
@@ -516,17 +549,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                           <TableCell>
                             <div data-testid="advance-payment-reporter-cell">{record.employeeFullName || 'N/A'}</div>
                           </TableCell>
-                          <TableCell>
-                            <div data-testid="advance-payment-org-unit-cell">
-                              {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div data-testid="advance-payment-cost-center-cell">{record.costCenter?.name || 'N/A'}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div data-testid="advance-payment-plan-id-cell">{record.expensePlan?.code || 'N/A'}</div>
-                          </TableCell>
+                          {renderSimpleValueCell(
+                            record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name,
+                            'advance-payment-org-unit-cell'
+                          )}
+                          {renderSimpleValueCell(record.costCenter?.name, 'advance-payment-cost-center-cell')}
+                          {renderSimpleValueCell(record.expensePlan?.code, 'advance-payment-plan-id-cell')}
                           <TableCell>
                             <div data-testid="advance-payment-status-cell">
                               <Badge variant={(status as any).badgeVariant || 'outline'}>{status.label}</Badge>
@@ -589,22 +617,22 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     getPaymentMethodLabel
   ])
 
-  // Helper function to format status display name with brackets (matching personal expenses pattern)
-  const getStatusDisplayName = useCallback((status: string): string => {
-    const statusConfig = getAdvancePaymentStatusDisplay(status)
-    // Only show backend status in parentheses if the label is different from the status
-    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
-      return statusConfig.label
-    } else {
-      // Format backend status with only first letter uppercase and translate it
-      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-      const translatedStatus = getTranslationFromI18nKeyAndLabel(
-        `lowcoder:expense_statuses.${status.toLowerCase()}`,
-        formattedStatus
-      )
-      return `${statusConfig.label} (${translatedStatus})`
-    }
-  }, [])
+  const getStatusDisplayName = useCallback(
+    (status: string): string => buildStatusDisplayName(status, getAdvancePaymentStatusDisplay),
+    []
+  )
+
+  const resetPage = useCallback(() => setCurrentPage(1), [])
+
+  // Helper: Get date range label for filter chip
+  const getDateRangeLabel = useCallback((): string => {
+    const from = dateFrom ? dayjs(dateFrom).format('DD/MM/YYYY') : ''
+    const to = dateTo ? dayjs(dateTo).format('DD/MM/YYYY') : ''
+    if (from && to) return `Date: ${from} - ${to}`
+    if (from) return `Date: from ${from}`
+    if (to) return `Date: until ${to}`
+    return 'Date'
+  }, [dateFrom, dateTo])
 
   // Filter groups for DataContainer
   const filterGroups: DataFilterGroup[] = [
@@ -620,10 +648,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     },
     {
       id: 'reporter',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_request_list.expense_table.reporter',
-        'Reporter'
-      ),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
       type: 'custom',
       customComponent: (
         <div className="reporter-search-container gba:relative gba:p-2">
@@ -638,17 +663,89 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
             placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:advance_payment_table.search_reporter_placeholder',
-              'Search reporter...'
+              'Search employee...'
             )}
             data-testid="reporter-search-input"
           />
-
-          {/* Dropdown with search results */}
           {showReporterDropdown && reporterSearchText.trim() && (
-            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-input gba:rounded gba:max-h-40 gba:overflow-y-auto gba:z-10">
               {renderReporterDropdownContent()}
             </div>
           )}
+        </div>
+      )
+    },
+    {
+      id: 'currency',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_landing_page.all_currencies', 'Currency'),
+      type: 'custom',
+      customComponent: (
+        <CurrencySelectFilter
+          currencyRef={currencyRef}
+          onCurrencyChange={val => {
+            setCurrencyRef(val)
+            setCurrentPage(1)
+          }}
+          currencies={currencies}
+          testIdPrefix="advance-payments"
+        />
+      )
+    },
+    {
+      id: 'department',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
+        'Department'
+      ),
+      type: 'custom',
+      customComponent: (
+        <DepartmentSelectFilter
+          departmentId={departmentId}
+          onDepartmentChange={val => {
+            setDepartmentId(val)
+            setCurrentPage(1)
+          }}
+          departmentOptions={departmentOptions}
+          testIdPrefix="advance-payments"
+        />
+      )
+    },
+    {
+      id: 'dateRange',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.date_range', 'Date Range'),
+      type: 'custom',
+      customComponent: (
+        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-10">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:common.from', 'From')}
+            </span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => {
+                setDateFrom(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="gba:h-8 gba:w-[140px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              data-testid="advance-payments-date-from-input"
+            />
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-10">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:common.to', 'To')}
+            </span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => {
+                setDateTo(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="gba:h-8 gba:w-[140px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              data-testid="advance-payments-date-to-input"
+            />
+          </div>
         </div>
       )
     },
@@ -657,36 +754,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
       type: 'custom',
       customComponent: (
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
-            <input
-              type="number"
-              value={amountMinFilter}
-              onChange={e => {
-                setAmountMinFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Min"
-              data-testid="amount-min-filter-input"
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
-            <input
-              type="number"
-              value={amountMaxFilter}
-              onChange={e => {
-                setAmountMaxFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Max"
-              data-testid="amount-max-filter-input"
-            />
-          </div>
-        </div>
+        <MinMaxNumberFilter
+          minValue={amountMinFilter}
+          maxValue={amountMaxFilter}
+          onMinChange={setAmountMinFilter}
+          onMaxChange={setAmountMaxFilter}
+          testIdPrefix="amount"
+          onPageReset={resetPage}
+        />
       )
     },
     {
@@ -697,36 +772,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       ),
       type: 'custom',
       customComponent: (
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
-            <input
-              type="number"
-              value={advanceMinFilter}
-              onChange={e => {
-                setAdvanceMinFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Min"
-              data-testid="advance-min-filter-input"
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
-            <input
-              type="number"
-              value={advanceMaxFilter}
-              onChange={e => {
-                setAdvanceMaxFilter(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder="Max"
-              data-testid="advance-max-filter-input"
-            />
-          </div>
-        </div>
+        <MinMaxNumberFilter
+          minValue={advanceMinFilter}
+          maxValue={advanceMaxFilter}
+          onMinChange={setAdvanceMinFilter}
+          onMaxChange={setAdvanceMaxFilter}
+          testIdPrefix="advance"
+          onPageReset={resetPage}
+        />
       )
     }
   ]
@@ -734,6 +787,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const selectedFilters: string[] = [
     ...statusFilter,
     ...(reporterFilter ? ['reporter'] : []),
+    ...(currencyRef ? ['currency'] : []),
+    ...(departmentId ? ['department'] : []),
+    ...(dateFrom || dateTo ? ['dateRange'] : []),
     ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
     ...(advanceMinFilter || advanceMaxFilter ? ['advance'] : [])
   ]
@@ -741,24 +797,15 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const filterLabelMap: Record<string, string> = {
     ...statusFilter.reduce(
       (acc, status) => {
-        const statusConfig = getAdvancePaymentStatusDisplay(status)
-        // Only show backend status in parentheses if the label is different from the status
-        if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
-          acc[status] = statusConfig.label
-        } else {
-          // Format backend status with only first letter uppercase and translate it
-          const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-          const translatedStatus = getTranslationFromI18nKeyAndLabel(
-            `lowcoder:expense_statuses.${status.toLowerCase()}`,
-            formattedStatus
-          )
-          acc[status] = `${statusConfig.label} (${translatedStatus})`
-        }
+        acc[status] = getStatusDisplayName(status)
         return acc
       },
       {} as Record<string, string>
     ),
     reporter: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.reporter_label', 'Reporter:')} ${selectedReporters.join(', ')}`,
+    currency: getCurrencyLabel(currencyRef, currencies),
+    department: getDepartmentLabel(departmentId, departmentOptions),
+    dateRange: getDateRangeLabel(),
     amount: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.amount_label', 'Amount:')} ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
     advance: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_label', 'Advance:')} ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
   }
@@ -780,34 +827,39 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   // Handle individual filter removal
   const handleSetFilter = useCallback(
     (newFilters: string[]): void => {
-      // Constants for filter type identification
       const isStatusFilter = (f: string) => availableStatuses.includes(f)
 
-      // Separate filters by type
       const statusFilters = newFilters.filter(isStatusFilter)
       const hasReporter = newFilters.includes('reporter')
+      const hasCurrency = newFilters.includes('currency')
+      const hasDepartment = newFilters.includes('department')
+      const hasDateRange = newFilters.includes('dateRange')
       const hasAmount = newFilters.includes('amount')
       const hasAdvance = newFilters.includes('advance')
 
-      // Handle status filter changes
       const statusToRemove = selectedFilters.filter(f => isStatusFilter(f) && !statusFilters.includes(f))
       const statusToAdd = statusFilters.filter(f => !selectedFilters.includes(f))
       statusToRemove.forEach(f => handleFilterChange(f, false))
       statusToAdd.forEach(f => handleFilterChange(f, true))
 
-      // Handle reporter filter removal
       if (!hasReporter && reporterFilter) {
         setReporterFilter('')
         setSelectedReporters([])
       }
-
-      // Handle amount filter removal
+      if (!hasCurrency && currencyRef) {
+        setCurrencyRef('')
+      }
+      if (!hasDepartment && departmentId) {
+        setDepartmentId('')
+      }
+      if (!hasDateRange && (dateFrom || dateTo)) {
+        setDateFrom('')
+        setDateTo('')
+      }
       if (!hasAmount && (amountMinFilter || amountMaxFilter)) {
         setAmountMinFilter('')
         setAmountMaxFilter('')
       }
-
-      // Handle advance filter removal
       if (!hasAdvance && (advanceMinFilter || advanceMaxFilter)) {
         setAdvanceMinFilter('')
         setAdvanceMaxFilter('')
@@ -819,6 +871,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       availableStatuses,
       selectedFilters,
       reporterFilter,
+      currencyRef,
+      departmentId,
+      dateFrom,
+      dateTo,
       amountMinFilter,
       amountMaxFilter,
       advanceMinFilter,
