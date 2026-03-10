@@ -18,7 +18,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { useGetExpenseItems, ExpenseFilter, type ExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { useExpenseCurrencies, type CurrencyStat } from '../../../hooks/useExpenseCurrencies'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
@@ -719,10 +719,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       const record = row.original
       return (
         <div className="gba:flex gba:justify-end gba:gap-2" onClick={e => e.stopPropagation()}>
-          <AppActionButton
-            data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
-            size="icon"
-            staticFlowData={generateExpenseItemActions(
+          <AppAction
+            variant="table-row"
+            customActions={generateExpenseItemActions(
               record,
               {
                 employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
@@ -743,9 +742,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
             })}
             prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
             accessToken={contextProps.accessToken}
-            emptyStateBehavior="enable"
-            deferMainContextRequestsUntilClick
-          />
+            data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
+          >
+            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+              />
+            </svg>
+          </AppAction>
         </div>
       )
     },

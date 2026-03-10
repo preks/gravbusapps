@@ -16,7 +16,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { message } from 'antd'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { startProcess } from '@/common/utils/start-process'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments'
@@ -930,10 +930,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       const record = row.original
       return (
         <div className="gba:flex gba:justify-end gba:gap-2" onClick={e => e.stopPropagation()}>
-          <AppActionButton
-            data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
-            size="icon"
-            staticFlowData={[
+          <AppAction
+            variant="table-row"
+            customActions={[
               {
                 category: getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_list.flows_button.navigations',
@@ -1003,10 +1002,19 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 }
               }
             ]}
+            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-action`}
             accessToken={contextProps.accessToken}
-            emptyStateBehavior="enable"
-            deferMainContextRequestsUntilClick={true}
-          />
+            data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
+          >
+            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+              />
+            </svg>
+          </AppAction>
         </div>
       )
     },
