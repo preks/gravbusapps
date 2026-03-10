@@ -1,10 +1,8 @@
 import type React from 'react'
 import type { CatalogSelectConfig } from './useCatalogSelect'
 import {
-  appendResolvedOptionIfMissing,
   clearChildValue,
   fetchFilteredOptionsWithParent,
-  fetchSingleOptionLabel,
   getParentValue,
   resolveChildMeta,
   resetToPrefetchedOptions
@@ -78,7 +76,6 @@ const setParentValueAndFetchOptions = async ({
   parentValue,
   id,
   config,
-  stateById,
   setFor,
   fetchCatalogEntriesByIdentifier,
   defaultPageSize,
@@ -91,7 +88,6 @@ const setParentValueAndFetchOptions = async ({
   parentValue: string
   id: string
   config: CatalogSelectConfig
-  stateById: Record<string, CatalogSelectDependencyState>
   setFor: CatalogSelectDependencySetter
   fetchCatalogEntriesByIdentifier: CatalogSelectDependencyFetcher
   defaultPageSize: number
@@ -107,25 +103,6 @@ const setParentValueAndFetchOptions = async ({
       ? previousState
       : { ...previousState, value: parentValue, manuallyCleared: false }
   )
-
-  const parentHasOption = stateById[parentField]?.options?.some(option => option.value === parentValue)
-  if (!parentHasOption && parentValue) {
-    const resolvedOption = await fetchSingleOptionLabel({
-      id: parentField,
-      optionValue: parentValue,
-      locale,
-      fetchCatalogEntriesByIdentifier
-    })
-
-    if (resolvedOption) {
-      appendResolvedOptionIfMissing({
-        id: parentField,
-        optionValue: resolvedOption.value,
-        optionLabel: resolvedOption.label,
-        setFor
-      })
-    }
-  }
 
   fetchFilteredOptionsWithParent({
     id,

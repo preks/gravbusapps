@@ -317,8 +317,6 @@ export const useCatalogSelect = (
     })
   }, [fetchMissingOptions, missingOptionSignature])
 
-  const configById = useMemo(() => new Map(configs.map(config => [config.id, config])), [configs])
-
   const createSetValue = useCallback(
     (id: string) => (v: string | null | undefined) => {
       const normalized = v?.length ? v : ''
@@ -477,7 +475,6 @@ export const useCatalogSelect = (
     configs,
     stateById,
     externalValues,
-    configById,
     defaultPageSize,
     createSetValue,
     createOnSearch,

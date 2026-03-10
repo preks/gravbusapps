@@ -775,6 +775,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
   }, [watchContentGroupRef])
 
+  useEffect(() => {
+    if (currentSegment !== 'glossary' || !watchContentTypeRef) {
+      return
+    }
+
+    setValue('contentTypeRef', '', { shouldValidate: false })
+  }, [currentSegment, watchContentTypeRef, setValue])
+
   // Register form with catalog provider
   useEffect(() => {
     if (catalogContext?.registerForm) {

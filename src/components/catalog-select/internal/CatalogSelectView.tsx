@@ -113,17 +113,30 @@ export const CatalogSelectView = React.memo(
     }, [controller, effectiveValue, isControlled, mode])
 
     const hasAutoSelectedRef = React.useRef(false)
+    const autoSelectScopeRef = React.useRef<string | null>(null)
+    const currentAutoSelectScope = controller?.filterSignature || 'unfiltered'
+
+    React.useEffect(() => {
+      if (mode !== 'default' || !autoSelectFirst) return
+      if (!effectiveValue && mergedOptions.length === 0) {
+        hasAutoSelectedRef.current = false
+        autoSelectScopeRef.current = null
+      }
+    }, [mode, autoSelectFirst, effectiveValue, mergedOptions.length])
+
     React.useEffect(() => {
       if (
         mode === 'default' &&
         autoSelectFirst &&
         !hasAutoSelectedRef.current &&
+        autoSelectScopeRef.current !== currentAutoSelectScope &&
         !effectiveValue &&
         mergedOptions.length > 0 &&
         !wiredLoading &&
         !wiredDisabled
       ) {
         hasAutoSelectedRef.current = true
+        autoSelectScopeRef.current = currentAutoSelectScope
         const firstOption = mergedOptions[0]
         if (firstOption?.value) {
           const firstValue = String(firstOption.value)
@@ -140,6 +153,7 @@ export const CatalogSelectView = React.memo(
       autoSelectFirst,
       effectiveValue,
       mergedOptions,
+      currentAutoSelectScope,
       wiredLoading,
       wiredDisabled,
       controller,
@@ -375,6 +389,7 @@ export const CatalogSelectView = React.memo(
 
     const selectValue = Array.isArray(effectiveValue) ? effectiveValue[0] || '' : effectiveValue || ''
     const singleOption = mergedOptions.find(option => String(option.value) === String(selectValue))
+    const cachedSingleOptionLabel = selectValue ? selectedLabelCacheRef.current[selectValue] : undefined
 
     return (
       <Select
@@ -392,7 +407,9 @@ export const CatalogSelectView = React.memo(
                   singleOption.icon,
                   'gba:block'
                 )
-              : 'Select...'}
+              : cachedSingleOptionLabel
+                ? renderCatalogSelectOptionLabel(cachedSingleOptionLabel, undefined, 'gba:block')
+                : 'Select...'}
           </SelectValue>
         </SelectTrigger>
         <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto gba:min-w-0 gba:max-w-[var(--radix-select-trigger-width)]">
