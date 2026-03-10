@@ -521,7 +521,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
   }, [])
 
   const sorting = useMemo(
-    () => (sortOrder ? [{ id: sortField || 'createdAt', desc: sortOrder === 'descend' }] : []),
+    () => (sortOrder ? [{ id: sortField || 'planDate', desc: sortOrder === 'descend' }] : []),
     [sortField, sortOrder]
   )
   const handleSortingChange = useCallback(

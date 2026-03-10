@@ -27,9 +27,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const [destinationFilter, setDestinationFilter] = useState<string | null>(null)
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
   const [suppressCurrencyAutoSelect, setSuppressCurrencyAutoSelect] = useState<boolean>(false)
-  // Add sorting state for server-side sorting
-  const [sortField, setSortField] = useState<string>('createdAt')
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>('ascend')
+  // Add sorting state for server-side sorting (default: plan date descending)
+  const [sortField, setSortField] = useState<string>('planDate')
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>('descend')
 
   const {
     filterGroups,
