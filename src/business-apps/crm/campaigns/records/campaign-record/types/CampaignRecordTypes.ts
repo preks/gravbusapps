@@ -171,6 +171,11 @@ export interface CampaignKPIsProps {
 export interface CampaignChartProps extends BusinessAppContextProps {
   campaignId: string
   campaign: CampaignRecord | null
+  allEntities: CampaignEntity[]
+}
+
+export interface CampaignEntitiesSectionProps extends BusinessAppContextProps, UseCampaignEntitiesReturn {
+  campaignId: string
 }
 
 export interface CampaignEntitiesTableProps extends BusinessAppContextProps {

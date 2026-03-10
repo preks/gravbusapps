@@ -20,10 +20,10 @@ export const AccountImportView: React.FC<AccountImportViewProps> = ({
   return (
     <EntityImportView
       config={investmentAccountImportConfig}
-      headerTitle={t('page-title')}
-      headerDescription={t('page-description')}
-      entityType={t('entity-type')}
-      entityTypeSingular={t('entity-type-singular')}
+      headerTitle={t('account-page-title')}
+      headerDescription={t('account-page-description')}
+      entityType={t('account-entity-type')}
+      entityTypeSingular={t('account-entity-type-singular')}
       onBack={onBack}
       data-testid={testId}
       {...context}

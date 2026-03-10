@@ -5,19 +5,20 @@
 
 import React from 'react'
 import { cn } from '@newwork/nw-design-system'
-import { Monitor, Database, Code2, Bot, Workflow, Info, ClipboardList, Layers } from 'lucide-react'
-import type { CanvasTab } from '../../types/chat'
+import { Monitor, Database, Code2, Bot, Workflow, Info, ClipboardList } from 'lucide-react'
+import type { CanvasTab, CanvasTabInfo } from '../../types/chat'
 import { CANVAS_TABS } from '../../types/chat'
 
 interface CanvasTabHeaderProps {
   activeTab: CanvasTab
   onTabChange: (tab: CanvasTab) => void
+  /** When provided, only these tabs are shown; otherwise all CANVAS_TABS are shown. */
+  tabs?: CanvasTabInfo[]
   testId?: string
 }
 
 const TAB_ICONS: Record<CanvasTab, React.ElementType> = {
   'build-plan': ClipboardList,
-  'data-flow': Layers,
   screen: Monitor,
   'data-model': Database,
   functions: Code2,
@@ -29,14 +30,16 @@ const TAB_ICONS: Record<CanvasTab, React.ElementType> = {
 export const CanvasTabHeader: React.FC<CanvasTabHeaderProps> = ({
   activeTab,
   onTabChange,
+  tabs,
   testId = 'canvas-tab-header'
 }) => {
+  const tabsToRender = tabs ?? CANVAS_TABS
   return (
     <div
       className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-background gba:shrink-0"
       data-testid={testId}
     >
-      {CANVAS_TABS.map(tab => {
+      {tabsToRender.map(tab => {
         const Icon = TAB_ICONS[tab.id]
         const isActive = activeTab === tab.id
         return (

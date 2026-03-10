@@ -57,9 +57,9 @@ export const accountSchema = z.object({
         contact: z
           .object({
             id: z.string(),
-            fullName: z.string().optional(),
-            firstName: z.string().optional(),
-            lastName: z.string().optional(),
+            fullName: z.string().nullish(),
+            firstName: z.string().nullish(),
+            lastName: z.string().nullish(),
             pictureThumbnail: z.string().nullable().optional(),
             jobPosition: z.string().nullable().optional(),
             department: z.string().nullable().optional()

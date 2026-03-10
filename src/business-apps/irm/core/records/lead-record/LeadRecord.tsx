@@ -93,7 +93,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   }, [refetch])
 
   // Always call useAiSummary hook, but conditionally use its result
-  const aiSummary = useAiSummary(leadId, props.accessToken)
+  const aiSummary = useAiSummary(leadId, props.accessToken, leadData)
 
   // Use leadData for lead reference (for compatibility)
   const lead = leadData

@@ -3,6 +3,8 @@
  * Used by useCreateChat hook and chat UI components.
  */
 
+import type { ComponentSpec } from './components'
+
 export type ChatMessageRole = 'user' | 'assistant' | 'system'
 
 export type ChatMessageType = 'prompt' | 'refinement' | 'build-command' | 'fix' | 'system' | 'general'
@@ -47,15 +49,7 @@ export interface CreateChatMessage {
   serverCreatedAt?: string
 }
 
-export type CanvasTab =
-  | 'build-plan'
-  | 'data-flow'
-  | 'screen'
-  | 'data-model'
-  | 'functions'
-  | 'task-expert'
-  | 'flow'
-  | 'about'
+export type CanvasTab = 'build-plan' | 'screen' | 'data-model' | 'functions' | 'task-expert' | 'flow' | 'about'
 
 export interface CanvasTabInfo {
   id: CanvasTab
@@ -63,12 +57,43 @@ export interface CanvasTabInfo {
 }
 
 export const CANVAS_TABS: CanvasTabInfo[] = [
-  { id: 'build-plan', label: 'Build Plan' },
+  { id: 'build-plan', label: 'Overview' },
   { id: 'screen', label: 'Screen' },
   { id: 'data-model', label: 'Data Model' },
   { id: 'functions', label: 'Functions' },
   { id: 'task-expert', label: 'Task Expert' },
   { id: 'flow', label: 'Flow' },
-  { id: 'data-flow', label: 'Architecture' },
   { id: 'about', label: 'About' }
 ]
+
+/**
+ * Returns which canvas tabs should be visible based on the plan's components.
+ * Hides tabs that have no corresponding component type (e.g. no data model → hide Data Model tab).
+ */
+export function getVisibleCanvasTabs(components: ComponentSpec[]): CanvasTabInfo[] {
+  const hasScreen = components.some(c => c.type === 'screen')
+  const hasDataModel = components.some(c => c.type === 'data_model')
+  const hasFunction = components.some(c => c.type === 'function')
+  const hasAgent = components.some(c => c.type === 'agent')
+  const hasFlow = components.some(c => c.type === 'flow')
+
+  return CANVAS_TABS.filter(tab => {
+    switch (tab.id) {
+      case 'build-plan':
+      case 'about':
+        return true
+      case 'screen':
+        return hasScreen
+      case 'data-model':
+        return hasDataModel
+      case 'functions':
+        return hasFunction
+      case 'task-expert':
+        return hasAgent
+      case 'flow':
+        return hasFlow
+      default:
+        return true
+    }
+  })
+}

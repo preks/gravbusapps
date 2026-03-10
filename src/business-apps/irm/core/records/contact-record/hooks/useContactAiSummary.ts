@@ -6,7 +6,7 @@ import {
   useGetInvestmentNotesByContactId,
   useGetInvestmentTasksByContactId
 } from '@/common/data/investment/hooks/useInvestmentContacts'
-import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
+import { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 import {
   getEmailChannel,
   getPhoneChannel,
@@ -35,8 +35,11 @@ const summarySchema = z.object({
 type SummarySchema = z.infer<typeof summarySchema>
 type UseContactAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
-export function useContactAiSummary(contactId: string, accessToken: string): UseContactAiSummaryReturn {
-  const { contact } = useInvestmentContact(accessToken, contactId)
+export function useContactAiSummary(
+  contactId: string,
+  accessToken: string,
+  contact: InvestmentContact | null
+): UseContactAiSummaryReturn {
   const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId({ accessToken })
   const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId({ accessToken })
   const { fetchInvestmentNotesByContactId } = useGetInvestmentNotesByContactId({ accessToken })
@@ -51,9 +54,6 @@ export function useContactAiSummary(contactId: string, accessToken: string): Use
     }
 
     try {
-      // Get contact data using new declarative hook
-      // contact is already available from the hook
-
       if (!contact) {
         throw new Error(`Investment contact with ID ${contactId} not found`)
       }

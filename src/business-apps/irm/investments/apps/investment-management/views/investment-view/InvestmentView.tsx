@@ -1,13 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react'
-import {
-  DataDisplay,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-  Label
-} from '@newwork/nw-design-system'
+import { DataDisplay } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action/AppAction'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
@@ -36,6 +28,7 @@ import { getGroupConfiguration } from './config/groupConfigurations'
 import { aggregateDynamicKPIs, aggregateDynamicStates } from './utils/kpiAggregation'
 import { findCurrencyByCode, buildFilterWithCurrency, buildCurrencyFilter } from './utils/filterHandlers'
 import { useInvestmentAccountFilter } from './hooks/useInvestmentAccountFilter'
+import { CurrencyFilter } from '../analytics-view/shared/components/CurrencyFilter'
 
 // Stable empty object to prevent infinite loops
 const EMPTY_FILTERS = {}
@@ -501,26 +494,17 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     }
   })
 
-  // Currency Filter UI
+  const currencyCodes = useMemo(
+    () =>
+      (Array.isArray(availableCurrencies) ? availableCurrencies : [])
+        .filter(c => c && typeof c !== 'string')
+        .map((c: any) => c.code as string)
+        .filter(Boolean),
+    [availableCurrencies]
+  )
+
   const currencyFilterUI = (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
-      <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
-        <SelectTrigger className="gba:w-24">
-          <SelectValue placeholder="Currency" />
-        </SelectTrigger>
-        <SelectContent>
-          {(Array.isArray(availableCurrencies) ? availableCurrencies : []).map(currency => {
-            if (typeof currency === 'string') return null
-            return (
-              <SelectItem key={currency.code} value={currency.code}>
-                {currency.code}
-              </SelectItem>
-            )
-          })}
-        </SelectContent>
-      </Select>
-    </div>
+    <CurrencyFilter value={selectedCurrency} currencies={currencyCodes} onChange={handleCurrencyChange} />
   )
 
   // Primary action for current section

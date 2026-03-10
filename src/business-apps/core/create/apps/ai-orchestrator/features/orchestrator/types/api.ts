@@ -11,6 +11,17 @@ export interface AnalyzeRequest {
   prompt: string
   context?: Record<string, unknown>
   answers?: Record<string, string>
+  /** Builder identity (user who initiated the build) */
+  createdBy?: {
+    id: string
+    employeeId?: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+    email?: string
+    pictureThumbnail?: string
+    consentToStorePii?: boolean
+  }
 }
 
 // Response from analyze endpoint
@@ -39,6 +50,17 @@ export interface ExecuteRequest {
   sessionId?: string
   /** Reuse existing repo when refining / executing again; omit on first run */
   repoId?: string
+  /** Builder identity (user who initiated the build) */
+  createdBy?: {
+    id: string
+    employeeId?: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+    email?: string
+    pictureThumbnail?: string
+    consentToStorePii?: boolean
+  }
 }
 
 // Request to update an existing build plan

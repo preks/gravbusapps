@@ -8,6 +8,7 @@
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import type {
   FlowTemplateSummary,
+  FlowTemplateDefinition,
   FlowSummaryRecord,
   FlowTaskRecord,
   FlowProgressComplete,
@@ -110,6 +111,26 @@ export async function listAllTemplates(opts?: {
   }
 
   return all
+}
+
+export async function getTemplate(templateId: string): Promise<FlowTemplateDefinition | null> {
+  try {
+    const raw = await feRequest<any>(`/templates/${templateId}`)
+    const data = raw.data ?? raw
+    const steps = (data.steps ?? []).map((s: any) => ({
+      name: s.name ?? s.title,
+      title: s.title ?? s.name,
+      type: s.type,
+      nextStep: s.nextStep ?? null,
+      defaultNextStep: s.defaultNextStep ?? null,
+      branches: Array.isArray(s.branches)
+        ? s.branches.map((b: any) => ({ condition: b.condition ?? '', nextStep: b.nextStep }))
+        : undefined
+    }))
+    return { id: data.id ?? data.name ?? templateId, name: data.name ?? templateId, steps }
+  } catch {
+    return null
+  }
 }
 
 function mapTemplate(t: any): FlowTemplateSummary {

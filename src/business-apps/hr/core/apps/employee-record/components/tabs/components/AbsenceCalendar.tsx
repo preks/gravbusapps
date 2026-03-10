@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
-import { Button, Spinner, Tooltip, TooltipContent, TooltipTrigger, useTranslation } from '@newwork/nw-design-system'
+import {
+  Badge,
+  Button,
+  Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { CalendarProps } from '../../../queries/types'
 
@@ -12,6 +20,7 @@ import {
   getAbsenceStatusBackgroundClass,
   getAbsenceStatusTextClass
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { getPrevalidateErrorLabel } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import translations from './_i18n'
 import { calculateContextMenuPosition } from './utils/contextMenuPositioning'
 import { hasHolidayInRange, isHoliday } from './utils/holidayUtils'
@@ -150,7 +159,8 @@ const AbsenceCalendar: React.FC<
   onAbsenceTypeSelect,
   effectiveDates,
   allowWeekendPaintingInFallback,
-  nonWorkingDates
+  nonWorkingDates,
+  prevalidateResult
 }) => {
   const { t } = useTranslation(translations)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -317,6 +327,39 @@ const AbsenceCalendar: React.FC<
     }
 
     setContextMenuOpen(false)
+  }
+
+  const renderPrevalidateFooterContent = () => {
+    if (!selectedStartDate || !selectedEndDate || !prevalidateResult) {
+      return null
+    }
+
+    if (prevalidateResult.isLoading) {
+      return <Spinner size="sm" data-testid="prevalidate-loading" />
+    }
+
+    if (prevalidateResult.errorCode) {
+      return (
+        <Badge variant="destructive" data-testid="prevalidate-error">
+          {getPrevalidateErrorLabel(prevalidateResult.errorCode)}
+        </Badge>
+      )
+    }
+
+    if (prevalidateResult.effectiveDays === null) {
+      return null
+    }
+
+    const dayLabel =
+      prevalidateResult.effectiveDays === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.day', 'effective day')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.days', 'effective days')
+
+    return (
+      <Badge variant="info" data-testid="prevalidate-effective-days">
+        {prevalidateResult.effectiveDays} {dayLabel}
+      </Badge>
+    )
   }
 
   if (loading) {
@@ -723,25 +766,36 @@ const AbsenceCalendar: React.FC<
         </div>
 
         {showFooter && (
-          <div className="gba:calendar-footer gba:p-4 gba:border-t gba:border-border gba:text-center gba:text-sm gba:text-muted-foreground">
-            {selectedStartDate && selectedEndDate ? (
-              <span data-testid="selected-range">
-                {(() => {
-                  const locale = getCurrentActiveUserLocale()
-                  const startFormatted = selectedStartDate.locale(locale).format('MMM D, YYYY')
-                  const endFormatted = selectedEndDate.locale(locale).format('MMM D, YYYY')
-                  return `${startFormatted} - ${endFormatted}`
-                })()}
-              </span>
-            ) : selectedStartDate ? (
-              <span data-testid="select-end-prompt">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.select_end_date', 'Select an end date')}
-              </span>
-            ) : (
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_hub.calendar_note',
-                'Click on a day to view or add absences'
-              )
+          <div
+            className="gba:calendar-footer gba:p-4 gba:border-t gba:border-border gba:text-sm gba:text-muted-foreground gba:flex gba:flex-col gba:items-center gba:gap-2"
+            data-testid="calendar-footer"
+          >
+            <div className="gba:text-center">
+              {selectedStartDate && selectedEndDate ? (
+                <span data-testid="selected-range">
+                  {(() => {
+                    const locale = getCurrentActiveUserLocale()
+                    const startFormatted = selectedStartDate.locale(locale).format('MMM D, YYYY')
+                    const endFormatted = selectedEndDate.locale(locale).format('MMM D, YYYY')
+                    return `${startFormatted} - ${endFormatted}`
+                  })()}
+                </span>
+              ) : selectedStartDate ? (
+                <span data-testid="select-end-prompt">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.select_end_date', 'Select an end date')}
+                </span>
+              ) : (
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_hub.calendar_note',
+                  'Click on a day to view or add absences'
+                )
+              )}
+            </div>
+
+            {selectedStartDate && selectedEndDate && prevalidateResult && (
+              <div className="gba:flex gba:items-center gba:gap-2" data-testid="prevalidate-result">
+                {renderPrevalidateFooterContent()}
+              </div>
             )}
           </div>
         )}

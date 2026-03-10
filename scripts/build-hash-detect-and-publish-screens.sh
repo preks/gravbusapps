@@ -25,7 +25,7 @@ fi
 log_phase "DETECT CHANGED SCREENS BY HASH"
 echo "Fetching latest develop hashes baseline..."
 git fetch origin develop || echo "WARNING: Failed to fetch origin/develop, detector will fallback to local hash file."
-if ! node scripts/detect-changed-screens-by-hash.js; then
+if ! HASH_DETECT_STRICT_MISSING_OUTPUT="true" node scripts/detect-changed-screens-by-hash.js; then
   echo "Hash-based detection failed."
   exit 1
 fi

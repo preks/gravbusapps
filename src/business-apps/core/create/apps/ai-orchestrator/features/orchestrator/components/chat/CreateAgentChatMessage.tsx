@@ -3,8 +3,9 @@
  * User messages right-aligned with primary style, assistant messages left-aligned.
  */
 
-import React, { useMemo, useState } from 'react'
-import { Bot, User, Loader2, Brain, ChevronDown, ChevronRight } from 'lucide-react'
+import React, { useMemo, useState, useCallback } from 'react'
+import { Bot, User, Loader2, Brain, ChevronDown, ChevronRight, UserCircle2, Copy } from 'lucide-react'
+import { AvatarImage } from '../ui/AvatarImage'
 import type { CreateChatMessage } from '../../types/chat'
 
 /** Block or tool call types used for timeline rendering */
@@ -38,21 +39,47 @@ export interface UserAvatar {
   pictureBase64?: string
   pictureMimeType?: string
   initials: string
+  showIncognito?: boolean
+  /** Show placeholder (gray circle + icon) while picture loads to avoid initials→photo flash */
+  showPlaceholder?: boolean
+}
+
+export interface AuthorDisplay {
+  name: string
+  avatar?: string
+  initials: string
 }
 
 interface CreateAgentChatMessageProps {
   message: CreateChatMessage
   isStreaming?: boolean
   userAvatar?: UserAvatar
+  authorDisplay?: AuthorDisplay
   testId?: string
 }
 
-function renderUserAvatarContent(userAvatar?: UserAvatar): React.ReactNode {
+function renderUserAvatarContent(userAvatar?: UserAvatar, authorDisplay?: AuthorDisplay): React.ReactNode {
+  if (authorDisplay) {
+    if (authorDisplay.avatar) {
+      return (
+        <AvatarImage
+          src={authorDisplay.avatar}
+          alt={authorDisplay.name}
+          className="gba:w-full gba:h-full gba:object-cover"
+        />
+      )
+    }
+    return <span className="gba:text-xs gba:font-semibold gba:text-primary-foreground">{authorDisplay.initials}</span>
+  }
+  if (userAvatar?.showIncognito || userAvatar?.showPlaceholder) {
+    return <UserCircle2 className="gba:w-4 gba:h-4 gba:text-foreground" aria-hidden />
+  }
   if (userAvatar?.pictureBase64) {
     return (
-      <img
-        src={`data:${userAvatar.pictureMimeType ?? 'image/jpeg'};base64,${userAvatar.pictureBase64}`}
+      <AvatarImage
+        src={userAvatar.pictureBase64}
         alt="You"
+        mimeType={userAvatar.pictureMimeType}
         className="gba:w-full gba:h-full gba:object-cover"
       />
     )
@@ -63,17 +90,66 @@ function renderUserAvatarContent(userAvatar?: UserAvatar): React.ReactNode {
   return <User className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" />
 }
 
+function getAvatarBackgroundClass(
+  effectiveUserAvatar: UserAvatar | undefined,
+  isUser: boolean,
+  authorDisplay?: AuthorDisplay
+): string {
+  const base =
+    'gba:shrink-0 gba:w-7 gba:h-7 gba:rounded-full gba:overflow-hidden gba:flex gba:items-center gba:justify-center gba:relative'
+  if (effectiveUserAvatar?.showIncognito || effectiveUserAvatar?.showPlaceholder) return `${base} gba:bg-muted`
+  if (isUser && !(effectiveUserAvatar?.pictureBase64 ?? authorDisplay?.avatar)) return `${base} gba:bg-primary`
+  return `${base} gba:bg-muted`
+}
+
+function formatMessageTimestamp(createdAt?: string, serverCreatedAt?: string): string {
+  const raw = serverCreatedAt ?? createdAt
+  if (!raw) return ''
+  const d = new Date(raw)
+  const now = new Date()
+  const isToday =
+    d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+  return isToday
+    ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
 export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
   message,
   isStreaming = false,
   userAvatar,
+  authorDisplay,
   testId = 'create-chat-message'
 }) => {
   const [thinkingState, setThinkingState] = useState<Record<string, boolean>>({})
   const [toolProgressState, setToolProgressState] = useState<Record<string, boolean>>({})
+  const [copyFeedback, setCopyFeedback] = useState(false)
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system' || message.messageType === 'system'
   const timeline = useMemo(() => buildTimelineEntries(message), [message])
+
+  const effectiveUserAvatar = useMemo((): UserAvatar | undefined => {
+    if (isUser && authorDisplay) {
+      return {
+        pictureBase64: authorDisplay.avatar,
+        initials: authorDisplay.initials,
+        showIncognito: false,
+        showPlaceholder: false
+      }
+    }
+    return userAvatar
+  }, [isUser, authorDisplay, userAvatar])
+
+  const handleCopy = useCallback(() => {
+    if (typeof navigator?.clipboard?.writeText !== 'function') return
+    navigator.clipboard.writeText(message.content || '').then(
+      () => {
+        setCopyFeedback(true)
+        globalThis.setTimeout(() => setCopyFeedback(false), 1500)
+      },
+      () => {}
+    )
+  }, [message.content])
 
   if (isSystem) {
     return (
@@ -91,47 +167,75 @@ export const CreateAgentChatMessage: React.FC<CreateAgentChatMessageProps> = ({
       data-testid={`${testId}-${message.role}`}
     >
       {/* Avatar */}
-      <div
-        className={`gba:shrink-0 gba:w-7 gba:h-7 gba:rounded-full gba:overflow-hidden gba:flex gba:items-center gba:justify-center ${
-          isUser && !userAvatar?.pictureBase64 ? 'gba:bg-primary' : 'gba:bg-muted'
-        }`}
-      >
+      <div className={getAvatarBackgroundClass(effectiveUserAvatar, isUser, authorDisplay)}>
         {isUser ? (
-          renderUserAvatarContent(userAvatar)
+          renderUserAvatarContent(effectiveUserAvatar, authorDisplay)
         ) : (
           <Bot className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
         )}
       </div>
 
-      {/* Bubble */}
+      {/* Bubble + meta */}
       <div
-        className={`gba:max-w-[80%] gba:rounded-2xl gba:px-3.5 gba:py-2.5 gba:text-sm gba:leading-relaxed ${
-          isUser
-            ? 'gba:bg-primary gba:text-primary-foreground gba:rounded-tr-md'
-            : 'gba:bg-muted gba:text-foreground gba:rounded-tl-md'
-        }`}
+        className={`gba:flex-1 gba:min-w-0 gba:max-w-[80%] gba:flex gba:flex-col ${isUser ? 'gba:items-end' : 'gba:items-start'}`}
       >
-        {isUser ? (
-          <>
-            {message.content || (isStreaming && <StreamingDots />)}
-            {isStreaming && message.content && <StreamingCursor />}
-          </>
-        ) : (
-          <div className="gba:space-y-2">
-            {timeline.map(entry =>
-              renderTimelineEntry(
-                entry,
-                message,
-                toolProgressState,
-                setToolProgressState,
-                thinkingState,
-                setThinkingState
-              )
-            )}
-            {timeline.length === 0 && (message.content || (isStreaming && <StreamingDots />))}
-            {isStreaming && message.content && <StreamingCursor />}
-          </div>
-        )}
+        <div
+          className={`gba:w-full gba:rounded-2xl gba:px-3.5 gba:py-2.5 gba:text-sm gba:leading-relaxed ${
+            isUser
+              ? 'gba:bg-primary gba:text-primary-foreground gba:rounded-tr-md'
+              : 'gba:bg-muted gba:text-foreground gba:rounded-tl-md'
+          }`}
+        >
+          {isUser ? (
+            <>
+              {message.content || (isStreaming && <StreamingDots />)}
+              {isStreaming && message.content && <StreamingCursor />}
+            </>
+          ) : (
+            <div className="gba:space-y-2">
+              {timeline.map(entry =>
+                renderTimelineEntry(
+                  entry,
+                  message,
+                  toolProgressState,
+                  setToolProgressState,
+                  thinkingState,
+                  setThinkingState
+                )
+              )}
+              {timeline.length === 0 && (message.content || (isStreaming && <StreamingDots />))}
+              {isStreaming && message.content && <StreamingCursor />}
+            </div>
+          )}
+        </div>
+        {/* Author name (user messages with authorDisplay) + timestamp + copy */}
+        <div
+          className={`gba:flex gba:items-center gba:gap-2 gba:mt-1 gba:min-h-5 ${
+            isUser ? 'gba:flex-row-reverse' : 'gba:flex-row'
+          }`}
+        >
+          {isUser && authorDisplay && (
+            <span className="gba:text-xs gba:text-muted-foreground" title={authorDisplay.name}>
+              {authorDisplay.name}
+            </span>
+          )}
+          {!isSystem && (message.serverCreatedAt ?? message.createdAt) && (
+            <span className="gba:text-[11px] gba:text-muted-foreground">
+              {formatMessageTimestamp(message.createdAt, message.serverCreatedAt)}
+            </span>
+          )}
+          {isUser && message.content && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="gba:p-0.5 gba:rounded gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground gba:transition-colors"
+              title="Copy message"
+              aria-label="Copy message"
+            >
+              <Copy className={`gba:w-3.5 gba:h-3.5 ${copyFeedback ? 'gba:text-success' : ''}`} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

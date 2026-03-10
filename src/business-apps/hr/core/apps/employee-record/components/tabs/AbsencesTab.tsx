@@ -35,6 +35,7 @@ import { fetchHolidayDates } from './utils/fetchHolidayDates'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useAbsenceEffectiveDates } from '../../hooks/useAbsenceEffectiveDates'
 import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule'
+import { useAbsencePrevalidate } from '../../hooks/useAbsencePrevalidate'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -329,6 +330,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   )
   const nonWorkingDates = useEmployeeWeeklySchedule(accessToken, employee?.id, currentDate)
 
+  const prevalidateResult = useAbsencePrevalidate(
+    accessToken,
+    employee?.id,
+    selectedStartDate?.format('YYYY-MM-DD') ?? null,
+    selectedEndDate?.format('YYYY-MM-DD') ?? null
+  )
+
   const tabsItems = [
     {
       key: 'calendar',
@@ -353,6 +361,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             effectiveDates={effectiveDates ?? undefined}
             allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
             nonWorkingDates={!effectiveDates ? (nonWorkingDates ?? undefined) : undefined}
+            prevalidateResult={prevalidateResult}
           />
         </div>
       )
@@ -558,7 +567,11 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             accessToken={accessToken}
             additionalData={{ employeeId: employee?.id }}
             onCancel={() => setIsEntitlementsModalOpen(false)}
-            onSubmit={() => setIsEntitlementsModalOpen(false)}
+            onSubmit={() => {
+              setIsEntitlementsModalOpen(false)
+              refetch?.()
+              setRefreshTick(t => t + 1)
+            }}
           />
         </DialogContent>
       </Dialog>

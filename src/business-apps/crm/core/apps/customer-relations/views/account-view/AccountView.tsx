@@ -67,7 +67,6 @@ const copyNonDateFilters = (
 export type AccountViewProps = BusinessAppContextProps
 
 export const AccountView: React.FC<AccountViewProps> = context => {
-  const { accessToken } = context
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
 
   const handleQuickFilterChange = useCallback(
@@ -108,11 +107,10 @@ export const AccountView: React.FC<AccountViewProps> = context => {
   const { fetchCustomerAccounts } = useCustomerAccounts(context)
   const accountStatistics = useCustomerAccountStatistics(context)
 
-  // Statistics - Transform hook data to AccountStatisticsData format
-  // Statistics - Hook already returns the correct format
-  const accountStatisticsData = accountStatistics
-
-  // Config
+  // Config — accountStatistics is intentionally excluded so that statistics state
+  // updates (isLoading, recentAccounts, etc.) do not recreate config, which would
+  // cascade into new queryVariables/loadData references and re-fire GetAccounts.
+  // accountStatistics is passed as a separate prop to AccountLayout instead.
   const config: AccountViewConfig<Account, CustomerAccountQueryVariables> = useMemo(
     () => ({
       fetchAccounts: fetchCustomerAccounts,
@@ -189,7 +187,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         createContext: FlowContextName.customerAccountCreate
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/account-record', { accountId: id }),
-      accountStatistics: accountStatisticsData,
       variant: 'customer',
       rowActionsContextArray: [FlowContextName.customerAccountEntity],
       buildRowActionsExternalContextData: (row: { original: Account }) => ({
@@ -206,13 +203,14 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         addAccount: { key: 'crm:account.addAccount', default: 'Add Account' }
       }
     }),
-    [fetchCustomerAccounts, accountStatisticsData, accessToken]
+    [fetchCustomerAccounts]
   )
 
   return (
     <AccountLayout
       context={context}
       config={config}
+      accountStatistics={accountStatistics}
       dataTestId="customer-account-view"
       renderQuickFilters={renderQuickFilters}
     />

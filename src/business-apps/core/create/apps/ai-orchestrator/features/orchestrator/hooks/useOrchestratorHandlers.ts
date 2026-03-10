@@ -33,10 +33,56 @@ function mapThinkingStepsWithProgress(
   })
 }
 
+/** Build createdBy payload from userInfo for build API */
+function buildCreatedByFromUserInfo(userInfo: any):
+  | undefined
+  | {
+      id: string
+      employeeId?: string
+      firstName?: string
+      lastName?: string
+      displayName?: string
+      email?: string
+      pictureThumbnail?: string
+      consentToStorePii: boolean
+    } {
+  if (!userInfo) return undefined
+  return {
+    id: userInfo.id || userInfo.employeeDetails?.employeeId || 'unknown',
+    employeeId: userInfo.employeeDetails?.employeeId,
+    firstName: userInfo.givenName || userInfo.employeeDetails?.firstName,
+    lastName: userInfo.familyName || userInfo.employeeDetails?.lastName,
+    displayName:
+      [userInfo.givenName, userInfo.familyName].filter(Boolean).join(' ') ||
+      userInfo.userName ||
+      userInfo.employeeDetails?.displayName,
+    email: userInfo.email || userInfo.employeeDetails?.email,
+    pictureThumbnail: userInfo.pictureThumbnail || userInfo.employeeDetails?.pictureThumbnail,
+    consentToStorePii: true
+  }
+}
+
+/** Set building state, clear refs, and initial log entry */
+function prepareBuildRun(state: OrchestratorState, logMessage: string): void {
+  state.setViewState('building')
+  state.setBuildStartTime(Date.now())
+  state.setCapturedBuildError(null)
+  state.setBuildLogs([
+    {
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      type: 'info',
+      message: logMessage
+    }
+  ])
+  state.loggedPhasesRef.current.clear()
+  state.lastCompletedCountRef.current = 0
+}
+
 export interface OrchestratorHandlerDeps {
   state: OrchestratorState
   orchestratorClient: UseOrchestratorClientResult
   buildProgress: UseBuildProgressResult
+  userInfo?: any
   onComplete?: (success: boolean) => void
   onBack?: () => void
 }
@@ -56,6 +102,7 @@ export const useOrchestratorHandlers = ({
   state,
   orchestratorClient,
   buildProgress,
+  userInfo,
   onBack
 }: OrchestratorHandlerDeps): OrchestratorHandlers => {
   // Handle analyze prompt (from idle state input)
@@ -71,7 +118,21 @@ export const useOrchestratorHandlers = ({
       state.setViewState('analyzing')
       state.setCapturedBuildError(null)
 
-      const response = await orchestratorClient.analyzeStream(prompt, undefined, event => {
+      // Build createdBy from userInfo
+      const createdBy = userInfo?.id
+        ? {
+            id: userInfo.id,
+            employeeId: userInfo.employeeDetails?.employeeId,
+            firstName: userInfo.givenName || userInfo.employeeDetails?.firstName,
+            lastName: userInfo.familyName || userInfo.employeeDetails?.lastName,
+            displayName: [userInfo.givenName, userInfo.familyName].filter(Boolean).join(' ') || userInfo.userName,
+            email: userInfo.email || userInfo.employeeDetails?.email,
+            pictureThumbnail: userInfo.pictureThumbnail || userInfo.employeeDetails?.pictureThumbnail,
+            consentToStorePii: true
+          }
+        : undefined
+
+      const response = await orchestratorClient.analyzeStream(prompt, { createdBy }, event => {
         bumpAnalysisProgress(event.progress)
 
         const detail = typeof event.content === 'string' ? event.content : undefined
@@ -96,6 +157,15 @@ export const useOrchestratorHandlers = ({
           case 'plan_ready':
             stepIndex = 3
             break
+          case 'session_created':
+            // Extract session info immediately so chat can be saved
+            if (event.metadata && typeof event.metadata === 'object') {
+              const meta = event.metadata as { sessionId?: string; repoId?: string }
+              if (meta.sessionId && meta.repoId) {
+                orchestratorClient.setSessionFromBuild(meta.sessionId, meta.repoId)
+              }
+            }
+            return
           case 'error':
             if (detail) {
               state.setCapturedBuildError(detail)
@@ -194,60 +264,24 @@ export const useOrchestratorHandlers = ({
   // Handle start build
   const handleStartBuild = useCallback(
     async (skipComponents?: string[]) => {
-      state.setViewState('building')
-      state.setBuildStartTime(Date.now())
-      state.setCapturedBuildError(null)
-      state.setBuildLogs([
-        {
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-          type: 'info',
-          message: 'Build started...'
-        }
-      ])
-
-      // Reset log tracking refs
-      state.loggedPhasesRef.current.clear()
-      state.lastCompletedCountRef.current = 0
-
-      // Use session/repo from last build (lastSessionId/lastRepoId)
+      prepareBuildRun(state, 'Build started...')
       const sessionId = orchestratorClient.lastSessionId
       const repoId = orchestratorClient.lastRepoId
-
-      await buildProgress.startBuild(skipComponents, sessionId ?? undefined, repoId ?? undefined)
+      const createdBy = buildCreatedByFromUserInfo(userInfo)
+      await buildProgress.startBuild(skipComponents, sessionId ?? undefined, repoId ?? undefined, createdBy)
     },
-    [buildProgress.startBuild, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state]
+    [buildProgress.startBuild, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state, userInfo]
   )
 
   // Handle retry - Re-execute the same build plan
   const handleRetry = useCallback(async () => {
-    console.log('[useOrchestratorHandlers] Retrying build...')
-
-    // Reset progress state but keep the plan
     buildProgress.resetProgress()
-
-    // Transition to building state
-    state.setViewState('building')
-    state.setBuildStartTime(Date.now())
-    state.setCapturedBuildError(null)
-    state.setBuildLogs([
-      {
-        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-        type: 'info',
-        message: 'Retrying build...'
-      }
-    ])
-
-    // Reset log tracking refs
-    state.loggedPhasesRef.current.clear()
-    state.lastCompletedCountRef.current = 0
-
-    // Use session/repo from last build (lastSessionId/lastRepoId)
+    prepareBuildRun(state, 'Retrying build...')
     const sessionId = orchestratorClient.lastSessionId
     const repoId = orchestratorClient.lastRepoId
-
-    // Re-execute the build with the same plan; pass stored session for execute-again
-    await buildProgress.startBuild(undefined, sessionId ?? undefined, repoId ?? undefined)
-  }, [buildProgress, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state])
+    const createdBy = buildCreatedByFromUserInfo(userInfo)
+    await buildProgress.startBuild(undefined, sessionId ?? undefined, repoId ?? undefined, createdBy)
+  }, [buildProgress, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state, userInfo])
 
   // Handle cancel
   const handleCancel = useCallback(() => {

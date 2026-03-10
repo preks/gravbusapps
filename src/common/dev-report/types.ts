@@ -35,6 +35,7 @@ export interface CreateGravityIssueRequest {
   title: string
   description: string
   pageUrl?: string
+  reportedEnvironment?: string
   reporter?: GravityIssueReporter
   buildInfo?: GravityIssueBuildInfo | null
   evidence?: GravityIssueEvidence | null
