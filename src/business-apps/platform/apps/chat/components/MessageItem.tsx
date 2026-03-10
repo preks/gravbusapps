@@ -472,7 +472,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
           {/* Sender name (for group chats, other users only) - but not for AI/Expert responses */}
           {!isOwnMessage && isGroupChat && showSender && sender && !isAIResponse && !isExpertResponse && (
             <div className={`gba:flex gba:items-baseline gba:gap-2 ${compact ? 'gba:mb-0.5' : 'gba:mb-1'}`}>
-              <span className={`${compact ? 'gba:text-sm gba:font-medium' : 'gba:text-xs'} gba:text-foreground`}>
+              <span className={`${compact ? 'gba:text-sm gba:font-medium' : 'gba:text-xs'} gba:text-primary`}>
                 {sender.displayName || sender.username || 'Unknown User'}
               </span>
               {compact && <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>}
@@ -665,7 +665,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                                 <span
                                   className={
                                     isOwnMessage
-                                      ? 'gba:font-medium gba:text-primary-foreground'
+                                      ? 'gba:font-medium gba:text-foreground/90'
                                       : 'gba:font-medium gba:text-foreground/90'
                                   }
                                 >
