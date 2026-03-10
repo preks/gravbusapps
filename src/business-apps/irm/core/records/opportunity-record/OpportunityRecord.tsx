@@ -184,8 +184,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     await refetch()
   }, [refetch])
 
-  // AI Summary hook for HeaderSection
-  const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
+  // AI Summary hook - pass already-fetched opportunityData to avoid a duplicate GetInvestmentOpportunityById query
+  const aiSummaryHook = useAiSummary(opportunityId, props.accessToken, opportunityData ?? null)
 
   // Build reference URLs for IRM context
   const buildReferenceUrl = (reference: TaskReference): string => {
@@ -321,7 +321,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadActivities()
     loadNotes()
     loadTasksAndApprovals()
-    loadDocuments()
     loadRejectionReasons() // Refresh rejection reasons after process completion
   }, [refetchOpportunityData, fetchOpportunityStages, loadRejectionReasons])
 

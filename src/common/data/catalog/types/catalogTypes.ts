@@ -181,7 +181,7 @@ export interface CatalogEntryQueryVariables {
   parentEntryId?: string
   includeChildEntries?: boolean
   // Additional precise filters
-  entryId?: string // fetch a single entry by id
+  entryId?: string | string[] // fetch one or multiple entries by id
   typeEquals?: string // filter by exact type equality
   excludeCodes?: string[] // Exclude entries with codes matching these patterns (case-insensitive substring)
   includeCodes?: string[] // Include only entries with codes matching these patterns (case-insensitive substring)

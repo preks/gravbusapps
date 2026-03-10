@@ -217,6 +217,11 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
             userInfo={userInfo}
             employeeFeedback={feedback}
             isSelfView={isSelfView}
+            canViewAiInsights={
+              isSelfView ||
+              hasManagerEmployeeGrowthPermission ||
+              employeeRecordAllHrBackoffice?.hasPermission === true
+            }
           />
         </TabsContent>
 

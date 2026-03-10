@@ -29,6 +29,8 @@ interface FeedbackListSectionProps {
   publicBadgeLabel: string
   showMoreLabel: string
   showLessLabel: string
+  /** Label used for unknown senders (e.g. "Unknown user"); when sender matches this, name is not clickable. */
+  unknownSenderLabel?: string
   /** Optional action (e.g. AI Insights button) shown next to the section title */
   headerAction?: React.ReactNode
   /** Optional content (e.g. AI analysis panel) shown as the "back" of the card when flipped */
@@ -44,7 +46,8 @@ function getListContent(
   privateBadgeLabel: string,
   publicBadgeLabel: string,
   showMoreLabel: string,
-  showLessLabel: string
+  showLessLabel: string,
+  unknownSenderLabel?: string
 ): React.ReactNode {
   if (loading) {
     return (
@@ -61,6 +64,7 @@ function getListContent(
         publicBadgeLabel={publicBadgeLabel}
         showMoreLabel={showMoreLabel}
         showLessLabel={showLessLabel}
+        unknownSenderLabel={unknownSenderLabel}
       />
     )
   }
@@ -125,6 +129,7 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
   publicBadgeLabel,
   showMoreLabel,
   showLessLabel,
+  unknownSenderLabel,
   headerAction,
   footerContent,
   showBackContent = false
@@ -136,7 +141,8 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
     privateBadgeLabel,
     publicBadgeLabel,
     showMoreLabel,
-    showLessLabel
+    showLessLabel,
+    unknownSenderLabel
   )
   const hasFlip = footerContent != null
   const isFlipped = hasFlip && showBackContent
