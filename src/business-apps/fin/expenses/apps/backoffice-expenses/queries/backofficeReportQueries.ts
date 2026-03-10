@@ -31,6 +31,16 @@ export const GET_EMPLOYEES_BY_IDS = `
   }
 `
 
+export const GET_ALL_EMPLOYEE_NAMES = `
+  query GetAllEmployeeNames {
+    Employee(where: { isDeleted: { _eq: false } }, orderBy: [{ firstName: ASC }, { lastName: ASC }]) {
+      fullName
+      firstName
+      lastName
+    }
+  }
+`
+
 export const GET_EXPENSES_SLA_POLICY = `
   query GetExpensesSlaPolicy($searchTerm: String!) {
     ContentEntry(

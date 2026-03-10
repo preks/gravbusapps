@@ -55,7 +55,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     reportDataType,
     setSelectedReportType,
     fetchAllForExport,
-    fetchAllForFilterOptions,
+    allEmployeeNames,
     slaKpiCounts
   } = useBackofficeExpenseReportData(contextProps, filtersByReportType, sorting)
 
@@ -96,7 +96,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     selectedReportType,
     reportRowsWithGroupedStatuses,
     organizationalUnits,
-    fetchAllForFilterOptions,
+    allEmployeeNames,
     filtersByReportType,
     setFiltersByReportType,
     setCurrentPage,

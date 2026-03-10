@@ -197,12 +197,14 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
       }
     }
 
-    # 5. Transfer Required (BOOKED status - no department filter)
+    # 5. Transfer Required (BOOKED status)
     transferRequired: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "BOOKED" },
-        isDeleted: { _eq: false },
-        currencyRef: { _eq: $selectedCurrency }
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { isDeleted: { _eq: false } },
+          { currencyRef: { _eq: $selectedCurrency } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -212,11 +214,13 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
       }
     }
 
-    # 6. Pending Requests (PENDING status - no department or currency filter)
+    # 6. Pending Requests (PENDING status)
     pendingRequests: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "PENDING" },
-        isDeleted: { _eq: false }
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { isDeleted: { _eq: false } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -515,9 +519,11 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
 
     transferRequired: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "BOOKED" },
-        isDeleted: { _eq: false },
-        currencyRef: { _eq: $selectedCurrency }
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { isDeleted: { _eq: false } },
+          { currencyRef: { _eq: $selectedCurrency } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -529,8 +535,10 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
 
     pendingRequests: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "PENDING" },
-        isDeleted: { _eq: false }
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { isDeleted: { _eq: false } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -763,9 +771,11 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
 
     transferRequired: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "BOOKED" },
-        isDeleted: { _eq: false },
-        currencyRef: { _eq: $selectedCurrency }
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { isDeleted: { _eq: false } },
+          { currencyRef: { _eq: $selectedCurrency } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -777,8 +787,10 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
 
     pendingRequests: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "PENDING" },
-        isDeleted: { _eq: false }
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { isDeleted: { _eq: false } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {

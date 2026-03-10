@@ -4,8 +4,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export type ReportFilters = { status: string[]; employeeName: string[]; departmentName: string[] }
 export type ReportSnapshot = { rows: ReportItem[]; totalCount: number }
-export type ReportFilterOptionSnapshot = { employees: string[]; departments: string[] }
-
 export const EMPTY_REPORT_FILTERS: ReportFilters = { status: [], employeeName: [], departmentName: [] }
 
 export const TRANSFER_REQUIRED_LABEL = 'Transfer Required'

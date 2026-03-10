@@ -10,7 +10,8 @@ import {
   GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE,
   GET_EXPENSES_SLA_POLICY,
   GET_SLA_KPI_COMMENTS,
-  GET_SLA_KPI_PAYMENTS
+  GET_SLA_KPI_PAYMENTS,
+  GET_ALL_EMPLOYEE_NAMES
 } from '../queries/backofficeReportQueries'
 import { useBackofficeExpensesOverview } from './useBackofficeExpensesOverview'
 import {
@@ -544,19 +545,32 @@ export const useBackofficeExpenseReportData = (
     }
   }, [graphqlClient, selectedReportType, fetchBatched])
 
-  const fetchAllForFilterOptions = useCallback(async (): Promise<ReportItem[]> => {
-    if (!graphqlClient || !selectedReportType) return []
-    try {
-      return await fetchBatched(selectedReportType, {
-        searchTerm: '',
-        statusFilters: [],
-        employeeFilters: [],
-        departmentFilters: []
-      })
-    } catch {
-      return []
+  const [allEmployeeNames, setAllEmployeeNames] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!graphqlClient) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const result = await graphqlClient.request(GET_ALL_EMPLOYEE_NAMES, {})
+        if (cancelled) return
+        const names = (result?.Employee || [])
+          .map((e: any) => {
+            const full = (e.fullName || '').trim()
+            if (full) return full
+            return [e.firstName, e.lastName].filter(Boolean).join(' ').trim()
+          })
+          .filter(Boolean) as string[]
+        setAllEmployeeNames(Array.from(new Set(names)).sort((a, b) => a.localeCompare(b)))
+      } catch {
+        /* ignore */
+      }
     }
-  }, [graphqlClient, selectedReportType, fetchBatched])
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [graphqlClient])
 
   const [slaKpiCounts, setSlaKpiCounts] = useState<SlaKpiCounts | null>(null)
 
@@ -714,7 +728,7 @@ export const useBackofficeExpenseReportData = (
       await fetchPageData(selectedReportType, token, sig)
     }, [selectedReportType, currentPage, pageSize, searchTerm, reportOrderBy, fetchPageData]),
     fetchAllForExport,
-    fetchAllForFilterOptions,
+    allEmployeeNames,
     slaKpiCounts
   }
 }

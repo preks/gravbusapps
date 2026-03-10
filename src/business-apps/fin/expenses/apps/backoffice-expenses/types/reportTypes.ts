@@ -121,7 +121,7 @@ export interface UseBackofficeExpenseReportDataReturn {
   setSearchTerm: (term: string) => void
   fetchReportData: () => Promise<void>
   fetchAllForExport: () => Promise<ReportItem[]>
-  fetchAllForFilterOptions: () => Promise<ReportItem[]>
+  allEmployeeNames: string[]
   slaKpiCounts: SlaKpiCounts | null
 }
 
