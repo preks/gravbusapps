@@ -131,20 +131,23 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     ]
     const groups: FilterConfiguration['groups'] = [
       {
-        id: 'status-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        id: 'effectiveDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
         collapsible: true,
-        defaultExpanded: true,
+        defaultExpanded: false,
         filters: [
           {
-            id: 'statusIds',
-            field: 'statusIds',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.status',
-              'Status'
-            ),
-            type: 'multi-select',
-            config: { options: statusOptions }
+            id: 'effectiveDateRange',
+            field: 'effectiveDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
           }
         ]
       },
@@ -159,35 +162,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
             field: 'planDateRange',
             label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
             type: 'date',
-            config: {
-              dateType: 'date',
-              mode: 'range',
-              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
-              showClearButton: true
-            }
-          }
-        ]
-      },
-      {
-        id: 'effectiveDate-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.effective_date_info',
-          'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
-        ),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'effectiveDateRange',
-            field: 'effectiveDateRange',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-            type: 'date',
-            description: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.effective_date_info',
-              'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
-            ),
             config: {
               dateType: 'date',
               mode: 'range',
@@ -237,6 +211,24 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
               placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
               showClearButton: true
             }
+          }
+        ]
+      },
+      {
+        id: 'status-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'statusIds',
+            field: 'statusIds',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.status',
+              'Status'
+            ),
+            type: 'multi-select',
+            config: { options: statusOptions }
           }
         ]
       },

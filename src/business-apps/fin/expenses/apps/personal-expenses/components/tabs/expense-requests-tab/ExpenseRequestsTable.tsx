@@ -170,45 +170,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     ]
     const groups: FilterConfiguration['groups'] = [
       {
-        id: 'status-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        collapsible: true,
-        defaultExpanded: true,
-        filters: [
-          {
-            id: 'statusIds',
-            field: 'statusIds',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.status',
-              'Status'
-            ),
-            type: 'multi-select',
-            config: { options: statusOptions }
-          }
-        ]
-      },
-      {
-        id: 'requestType-group',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-          'Request Type'
-        ),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'requestTypeIds',
-            field: 'requestTypeIds',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-              'Request Type'
-            ),
-            type: 'multi-select',
-            config: { options: requestTypeOptions }
-          }
-        ]
-      },
-      {
         id: 'effectiveDate-group',
         label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
         collapsible: true,
@@ -226,25 +187,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
               placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
               showClearButton: true
             }
-          }
-        ]
-      },
-      // Info group: BooleanFilter is the only filter type in the design system that renders description in the UI
-      {
-        id: 'effectiveDate-info',
-        label: '', // Description is shown via the filter's description prop below
-        collapsible: false,
-        filters: [
-          {
-            id: '_effectiveDateInfo',
-            field: '_effectiveDateInfo',
-            type: 'boolean',
-            label: '',
-            description: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.effective_date_info',
-              'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
-            ),
-            config: { trueLabel: '', falseLabel: '' }
           }
         ]
       },
@@ -314,6 +256,45 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
               placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
               showClearButton: true
             }
+          }
+        ]
+      },
+      {
+        id: 'status-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'statusIds',
+            field: 'statusIds',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.status',
+              'Status'
+            ),
+            type: 'multi-select',
+            config: { options: statusOptions }
+          }
+        ]
+      },
+      {
+        id: 'requestType-group',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
+          'Request Type'
+        ),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'requestTypeIds',
+            field: 'requestTypeIds',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
+              'Request Type'
+            ),
+            type: 'multi-select',
+            config: { options: requestTypeOptions }
           }
         ]
       }
