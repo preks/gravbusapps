@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { DataTable } from '@newwork/nw-design-system'
+import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
@@ -11,10 +11,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  useTranslation
+  useTranslation,
+  Button,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
 import { Badge } from '@newwork/nw-design-system'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
@@ -22,6 +29,7 @@ import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/wi
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { startProcess } from '@/common/utils/start-process'
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService'
+import { ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import translations from '../../../_i18n'
@@ -60,6 +68,15 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   tableRefreshTrigger?: number
   addFilter?: (filterId: string) => void
   removeFilter?: (filterId: string) => void
+  requestDateRange?: [Date | null, Date | null] | null
+  setRequestDateRange?: (range: [Date | null, Date | null] | null) => void
+  startDateRange?: [Date | null, Date | null] | null
+  setStartDateRange?: (range: [Date | null, Date | null] | null) => void
+  endDateRange?: [Date | null, Date | null] | null
+  setEndDateRange?: (range: [Date | null, Date | null] | null) => void
+  effectiveDateRange?: [Date | null, Date | null] | null
+  setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
+  currencyStats?: Array<{ ref: string; code: string; count: number }>
 }
 
 const DEFAULT_PAGE_SIZE = 20
@@ -89,10 +106,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     search = '',
     onSearchChange,
     selectedFilters = [],
-    setFilters,
-    filterGroups = [],
-    // handleFilterChange not used locally; provided to DataContainer via wrapper
-    // clearFilters not used locally
     filterLabelMap = {},
     onAddExpenseRequest,
     tableRefreshTrigger
@@ -128,6 +141,391 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     const trimmedSearch = (search || '').trim()
     return trimmedSearch !== '' || selectedFilters.length > 0
   }, [search, selectedFilters])
+
+  const requestDateRange = props.requestDateRange ?? null
+  const startDateRange = props.startDateRange ?? null
+  const endDateRange = props.endDateRange ?? null
+  const effectiveDateRange = props.effectiveDateRange ?? null
+  const currencyStats = props.currencyStats ?? []
+
+  // FilterConfiguration for DataDisplay filter sheet (same pattern as plans/advance payments)
+  const expenseRequestsFilterConfig: FilterConfiguration = useMemo(() => {
+    const statusOptions = Object.values(ExpenseRequestStatus).map(s => ({
+      id: s,
+      label: filterLabelMap[s] || s
+    }))
+    const requestTypeOptions = [
+      {
+        id: 'ExpenseRequestType:v1:EXPENSES',
+        label:
+          filterLabelMap['ExpenseRequestType:v1:EXPENSES'] ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      },
+      {
+        id: 'ExpenseRequestType:v1:TRIP',
+        label:
+          filterLabelMap['ExpenseRequestType:v1:TRIP'] ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      }
+    ]
+    const groups: FilterConfiguration['groups'] = [
+      {
+        id: 'status-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'statusIds',
+            field: 'statusIds',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.status',
+              'Status'
+            ),
+            type: 'multi-select',
+            config: { options: statusOptions }
+          }
+        ]
+      },
+      {
+        id: 'requestType-group',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
+          'Request Type'
+        ),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'requestTypeIds',
+            field: 'requestTypeIds',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
+              'Request Type'
+            ),
+            type: 'multi-select',
+            config: { options: requestTypeOptions }
+          }
+        ]
+      },
+      {
+        id: 'effectiveDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'effectiveDateRange',
+            field: 'effectiveDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      // Info group: BooleanFilter is the only filter type in the design system that renders description in the UI
+      {
+        id: 'effectiveDate-info',
+        label: '', // Description is shown via the filter's description prop below
+        collapsible: false,
+        filters: [
+          {
+            id: '_effectiveDateInfo',
+            field: '_effectiveDateInfo',
+            type: 'boolean',
+            label: '',
+            description: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_expenses.effective_date_info',
+              'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
+            ),
+            config: { trueLabel: '', falseLabel: '' }
+          }
+        ]
+      },
+      {
+        id: 'requestDate-group',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:confirm_transfer_advance_payment.request_date_label',
+          'Request Date'
+        ),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'requestDateRange',
+            field: 'requestDateRange',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:confirm_transfer_advance_payment.request_date_label',
+              'Request Date'
+            ),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'startDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'startDateRange',
+            field: 'startDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'endDate-group',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+        collapsible: true,
+        defaultExpanded: false,
+        filters: [
+          {
+            id: 'endDateRange',
+            field: 'endDateRange',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+              showClearButton: true
+            }
+          }
+        ]
+      }
+    ]
+    return { id: 'expense-requests-filters', name: 'Expense Requests Filters', groups }
+  }, [filterLabelMap])
+
+  const formatDateRangeForChip = useCallback((range: [Date | null, Date | null] | null | undefined) => {
+    if (!range?.[0] && !range?.[1]) return null
+    const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
+    const fmt = (d: Date | null | undefined) => (d ? d.toLocaleDateString('en-GB', opts) : '')
+    return range[0] && range[1] ? `${fmt(range[0])} – ${fmt(range[1])}` : fmt(range[0]) || fmt(range[1])
+  }, [])
+
+  const filtersObject = useMemo((): Record<string, unknown> => {
+    const statusIds = (selectedFilters || []).filter(f => Object.values(ExpenseRequestStatus).includes(f as any))
+    const requestTypeIds = (selectedFilters || []).filter(f =>
+      ['ExpenseRequestType:v1:EXPENSES', 'ExpenseRequestType:v1:TRIP'].includes(f)
+    )
+    const obj: Record<string, unknown> = {}
+    if (statusIds.length > 0) obj.statusIds = statusIds
+    if (requestTypeIds.length > 0) obj.requestTypeIds = requestTypeIds
+    const requestDateStr = formatDateRangeForChip(requestDateRange)
+    if (requestDateStr) obj.requestDateRange = requestDateStr
+    const effectiveDateStr = formatDateRangeForChip(effectiveDateRange)
+    if (effectiveDateStr) obj.effectiveDateRange = effectiveDateStr
+    const startDateStr = formatDateRangeForChip(startDateRange)
+    if (startDateStr) obj.startDateRange = startDateStr
+    const endDateStr = formatDateRangeForChip(endDateRange)
+    if (endDateStr) obj.endDateRange = endDateStr
+    return obj
+  }, [selectedFilters, requestDateRange, effectiveDateRange, startDateRange, endDateRange, formatDateRangeForChip])
+
+  const applyDateRangeFromFilter = useCallback(
+    (raw: unknown, setter: ((r: [Date | null, Date | null] | null) => void) | undefined): boolean => {
+      if (!setter) return false
+      const isDisplayString =
+        typeof raw === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(raw as string) && !(raw as string).includes(',')
+      if (isDisplayString) return false
+      const fromTo =
+        typeof raw === 'object' &&
+        raw != null &&
+        !Array.isArray(raw) &&
+        ((raw as any).from != null || (raw as any).to != null)
+          ? [(raw as any).from, (raw as any).to].filter(Boolean).join(',')
+          : (raw as string)
+      const normalized = normalizeDateRange(raw == null ? undefined : fromTo)
+      if (normalized && (normalized.from || normalized.to)) {
+        setter([normalized.from ? new Date(normalized.from) : null, normalized.to ? new Date(normalized.to) : null])
+        return true
+      }
+      setter(null)
+      return false
+    },
+    []
+  )
+
+  const handleFilterChangeFromDisplay = useCallback(
+    (filters: Record<string, unknown>) => {
+      const statusIds = (filters.statusIds as string[] | undefined) || []
+      const requestTypeIds = (filters.requestTypeIds as string[] | undefined) || []
+      const currencyTokens = (selectedFilters || []).filter(f => f.startsWith('currency:'))
+      const dateRangeTokens: string[] = []
+      if (applyDateRangeFromFilter(filters.requestDateRange, props.setRequestDateRange))
+        dateRangeTokens.push('requestDateRange')
+      if (applyDateRangeFromFilter(filters.effectiveDateRange, props.setEffectiveDateRange))
+        dateRangeTokens.push('effectiveDateRange')
+      if (applyDateRangeFromFilter(filters.startDateRange, props.setStartDateRange))
+        dateRangeTokens.push('startDateRange')
+      if (applyDateRangeFromFilter(filters.endDateRange, props.setEndDateRange)) dateRangeTokens.push('endDateRange')
+      // _effectiveDateInfo is a display-only boolean used to show the effective date description; ignore it
+      if (props.setFilters) {
+        props.setFilters([...statusIds, ...requestTypeIds, ...currencyTokens, ...dateRangeTokens])
+      }
+      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
+    },
+    [
+      selectedFilters,
+      props.setFilters,
+      props.setRequestDateRange,
+      props.setEffectiveDateRange,
+      props.setStartDateRange,
+      props.setEndDateRange,
+      applyDateRangeFromFilter,
+      onTableChange,
+      pageSize,
+      sortField,
+      sortOrder
+    ]
+  )
+
+  const sortableColumns = useMemo(
+    () => [
+      {
+        id: 'code',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+          'Request Number'
+        )
+      },
+      {
+        id: 'title',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
+      },
+      {
+        id: 'requestDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:confirm_transfer_advance_payment.request_date_label',
+          'Request Date'
+        )
+      },
+      {
+        id: 'startDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_table.start_date',
+          'Start Date'
+        )
+      },
+      {
+        id: 'endDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      },
+      {
+        id: 'reimbursableAmount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      }
+    ],
+    []
+  )
+
+  const baseVisibleColumnIds = useMemo(
+    () => ['code', 'title', 'requestDate', 'startDate', 'endDate', 'status', 'reimbursableAmount', 'advance'],
+    []
+  )
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
+
+  const availableColumnsForDisplay = useMemo(
+    () => [
+      {
+        id: 'code',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+          'Request Number'
+        )
+      },
+      {
+        id: 'title',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
+      },
+      {
+        id: 'requestDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:confirm_transfer_advance_payment.request_date_label',
+          'Request Date'
+        )
+      },
+      {
+        id: 'startDate',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_table.start_date',
+          'Start Date'
+        )
+      },
+      {
+        id: 'endDate',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+      },
+      {
+        id: 'status',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+      },
+      {
+        id: 'reimbursableAmount',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+      },
+      {
+        id: 'advance',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:manager_expense_request_list.expense_table.advance',
+          'Advance'
+        )
+      }
+    ],
+    []
+  )
+
+  const selectedCurrencyCode = useMemo(() => {
+    const token = (selectedFilters || []).find(f => f.startsWith('currency:'))
+    if (!token) return 'ALL'
+    const ref = token.substring('currency:'.length)
+    return currencyStats.find(cs => cs.ref === ref)?.code ?? 'ALL'
+  }, [selectedFilters, currencyStats])
+
+  const handleCurrencyChange = useCallback(
+    (code: string) => {
+      const current = selectedFilters || []
+      if (code === 'ALL') {
+        props.setFilters?.(current.filter(f => !f.startsWith('currency:')))
+      } else {
+        const cs = currencyStats.find(c => c.code === code)
+        if (cs) {
+          props.setFilters?.([...current.filter(f => !f.startsWith('currency:')), `currency:${cs.ref}`])
+        }
+      }
+      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
+    },
+    [selectedFilters, currencyStats, props.setFilters, onTableChange, pageSize, sortField, sortOrder]
+  )
 
   useEffect(() => {
     if (!isLoading && totalCount > 0 && currentPage > 1 && onTableChange) {
@@ -193,24 +591,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     setSearchInput(value)
   }, [])
 
-  // Handle filter changes
-  const handleFilterChangeCallback = useCallback(
-    (filterId: string, selected: boolean) => {
-      // Delegate to parent handler (align with ExpensePlansTable pattern)
-      if (props.handleFilterChange) {
-        props.handleFilterChange(filterId, selected)
-        return
-      }
-      // Fallback: simple add/remove
-      if (selected) {
-        props.addFilter?.(filterId)
-      } else {
-        props.removeFilter?.(filterId)
-      }
-    },
-    [props.handleFilterChange, props.addFilter, props.removeFilter]
-  )
-
   // Enhanced server-side sorting handler
   const sorting = useMemo(
     () => (sortOrder ? [{ id: sortField || 'requestDate', desc: sortOrder === 'descend' }] : []),
@@ -220,17 +600,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       const entry = newSorting[0]
       const field = entry?.id || 'requestDate'
-      const order = entry ? (entry.desc ? 'descend' : 'ascend') : undefined
-      if (entry) {
-        setSortField(field)
-        setSortOrder(order)
-      } else {
-        setSortField('requestDate')
-        setSortOrder('descend')
-      }
+      const order = entry ? (entry.desc ? 'descend' : 'ascend') : 'descend'
+      if (field === sortField && order === sortOrder) return
+      setSortField(field)
+      setSortOrder(order)
       if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field, order })
     },
-    [onTableChange, pageSize]
+    [onTableChange, pageSize, sortField, sortOrder]
   )
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
   const handlePaginationChange = useCallback(
@@ -350,6 +726,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           'Advance'
         ),
         size: 120,
+        enableSorting: false, // Aggregated from relation; ExpenseRequestOrderBy has no 'advance' field
         meta: { align: 'right' as const },
         cell: ({ row }) => {
           const v = row.original.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount
@@ -499,91 +876,123 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     [tPersonal, contextProps.accessToken, handleEditExpenseRequest, handlePrintRequest, handleViewExpenseRequestDetails]
   )
 
+  const primaryAction = useMemo(
+    () => (
+      <Button
+        onClick={onAddExpenseRequest || (() => {})}
+        size="sm"
+        variant="default"
+        data-testid="add-expense-request-button"
+        type="button"
+      >
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
+          'Add'
+        )}
+      </Button>
+    ),
+    [onAddExpenseRequest]
+  )
+
+  const secondaryActions = useMemo(
+    () =>
+      currencyStats.length > 0 ? (
+        <div className="gba:flex gba:items-center gba:gap-2" key="currency-dropdown">
+          <Label className="gba:font-medium gba:shrink-0">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+              'Currency'
+            )}
+            :
+          </Label>
+          <Select value={selectedCurrencyCode} onValueChange={handleCurrencyChange}>
+            <SelectTrigger className="gba:w-[140px]" data-testid="expense-requests-currency-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
+              </SelectItem>
+              {currencyStats.map(cs => (
+                <SelectItem key={cs.ref} value={cs.code}>
+                  {cs.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : undefined,
+    [currencyStats, selectedCurrencyCode, handleCurrencyChange]
+  )
+
   return (
     <>
-      <DataContainer
-        dataControllerProps={{
-          listTitle: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.flows_button.expense_requests',
-            'Expense Requests'
-          ),
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          search: searchInput,
-          setSearch: handleSearchChange,
-          placeholder:
-            getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
-            '...',
-          filter: selectedFilters,
-          setFilter: setFilters || (() => {}),
-          filterLabelMap: useMemo(() => {
-            const currencyLabelMap: Record<string, string> = {}
-            ;((props as any).currencyStats || []).forEach((cs: any) => {
-              currencyLabelMap[`currency:${cs.ref}`] = cs.code
-            })
-            return { ...filterLabelMap, ...currencyLabelMap }
-          }, [filterLabelMap, (props as any).currencyStats]),
-          addButton: {
-            onClick: onAddExpenseRequest || (() => {}),
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'list',
             label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
-              'Add'
+              'lowcoder:employee_list.flows_button.expense_requests',
+              'Expense Requests'
             ),
-            'data-testid': 'add-expense-plan-button'
+            metadata: { count: totalCount, isLoading }
           }
-        }}
-        dataFilterProps={{
-          filterGroups: useMemo(() => {
-            const currencyFilters =
-              (props as any).currencyStats?.map((cs: any) => ({
-                id: `currency:${cs.ref}`,
-                label: cs.code,
-                selected: (selectedFilters || []).includes(`currency:${cs.ref}`)
-              })) || []
-            const currencyGroup =
-              currencyFilters.length > 0
-                ? [
-                    {
-                      id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                        'Currency'
-                      ),
-                      filters: currencyFilters
-                    }
-                  ]
-                : []
-            return [...currencyGroup, ...filterGroups]
-          }, [filterGroups, selectedFilters, (props as any).currencyStats]),
-          onFilterChange: handleFilterChangeCallback
-        }}
-        dataBody={
-          <DataTable<ExpenseRequestRow>
-            data={items}
-            columns={columns}
-            loading={isLoading}
-            error={error || undefined}
-            totalCount={totalCount}
-            sorting={sorting}
-            onSortingChange={handleSortingChange}
-            pagination={pagination}
-            onPaginationChange={handlePaginationChange}
-            enablePagination
-            enableSorting
-            enableSelection={false}
-            enableColumnPinning
-            enableResizing={false}
-            tableLayout="fixed"
-            rowsPerPageOptions={[10, 20, 50, 100]}
-            showPageNumbers
-            maxVisiblePages={7}
-            emptyMessage={emptyMessage}
-            actions={rowActions}
-            onRowClick={handleSelectItem}
-            data-testid={DATA_TEST_ID_PREFIX}
-          />
+        ]}
+        currentSection="list"
+        searchValue={searchInput}
+        searchPlaceholder={
+          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
+          '...'
         }
-        addLeftPaddingWhenNoFilter={true}
-      />
+        onSearchChange={handleSearchChange}
+        filters={filtersObject}
+        filterConfiguration={expenseRequestsFilterConfig}
+        onFilterChange={handleFilterChangeFromDisplay}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={handleSortingChange}
+        primaryAction={primaryAction}
+        secondaryActions={secondaryActions}
+        availableColumns={availableColumnsForDisplay}
+        visibleColumns={visibleColumns}
+        onVisibleColumnsChange={setVisibleColumns}
+        toolbarDensity="default"
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_list.flows_button.expense_requests',
+          'Filter Expense Requests'
+        )}
+        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.filter_expense_requests_description',
+          'Apply filters to narrow down the expense requests list.'
+        )}
+      >
+        <DataTable<ExpenseRequestRow>
+          data={items}
+          columns={columns.filter(col =>
+            visibleColumns.includes((col as ColumnDef<ExpenseRequestRow> & { id?: string }).id ?? '')
+          )}
+          loading={isLoading}
+          error={error || undefined}
+          totalCount={totalCount}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          tableLayout="fixed"
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage={emptyMessage}
+          actions={rowActions}
+          onRowClick={handleSelectItem}
+          data-testid={DATA_TEST_ID_PREFIX}
+        />
+      </DataDisplay>
 
       {/* Expense Request Details Sheet */}
       <Sheet

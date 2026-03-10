@@ -41,9 +41,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     search,
     setSearch,
     getFilters,
-    setStartDateRange,
-    setEndDateRange,
+    requestDateRange,
     setRequestDateRange,
+    startDateRange,
+    setStartDateRange,
+    endDateRange,
+    setEndDateRange,
+    effectiveDateRange,
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
@@ -266,18 +270,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     }
   }, [])
 
-  const handleSetFilter = useCallback(
+  const setFiltersForTable = useCallback(
     (filters: string[]) => {
-      if (filters.length === 0) {
-        clearFilters()
-        setActiveWidget(null)
-      } else {
-        const removedFilters = selectedFilters.filter(f => !filters.includes(f))
-        removedFilters.forEach(filterId => removeFilter(filterId))
-      }
+      setFilters(filters)
+      if (filters.length === 0) setActiveWidget(null)
       setCurrentPage(1)
     },
-    [clearFilters, selectedFilters, removeFilter]
+    [setFilters]
   )
 
   const handleFilterChangeCallback = useCallback(
@@ -304,7 +303,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       search={search}
       onSearchChange={setSearch}
       selectedFilters={selectedFilters}
-      setFilters={handleSetFilter}
+      setFilters={setFiltersForTable}
       filterGroups={filterGroups}
       handleFilterChange={(filterId: string, selected: boolean) => {
         if (filterId.startsWith('currency:')) {
@@ -320,7 +319,15 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       tableRefreshTrigger={tableRefreshTrigger}
       addFilter={addFilter}
       removeFilter={removeFilter}
-      {...({ currencyStats } as any)}
+      requestDateRange={requestDateRange}
+      setRequestDateRange={setRequestDateRange}
+      startDateRange={startDateRange}
+      setStartDateRange={setStartDateRange}
+      endDateRange={endDateRange}
+      setEndDateRange={setEndDateRange}
+      effectiveDateRange={effectiveDateRange}
+      setEffectiveDateRange={setEffectiveDateRange}
+      currencyStats={currencyStats}
     />
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_REQUESTS_BY_EMPLOYEE } from '../queries/expenseRequests'
 import { CatalogEntry } from './useGetExpensePlans'
@@ -69,6 +69,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   const abortControllerRef = useRef<AbortController | null>(null)
   const pageCacheRef = useRef<Map<string, { items: ExpenseRequest[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
+  const itemsRef = useRef<ExpenseRequest[]>([]) // Avoid loading flash on sort/pagination (same as items/advance payments)
 
   const accessToken = context?.accessToken || ''
   const client = useGraphqlClient(accessToken)
@@ -182,9 +183,13 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         currencyRef: 'currencyRef',
         nonReimbursableAmount: 'nonReimbursableAmount'
       }
-      const gqlField = fieldMap[sortField] || sortField
-      const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
-      variables.orderBy = [{ [gqlField]: direction }]
+      const gqlField = fieldMap[sortField]
+      if (gqlField) {
+        const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
+        variables.orderBy = [{ [gqlField]: direction }]
+      } else {
+        variables.orderBy = [{ requestDate: 'DESC' }]
+      }
     } else {
       variables.orderBy = [{ requestDate: 'DESC' }]
     }
@@ -236,7 +241,10 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         return
       }
 
-      setIsLoading(true)
+      // Only show loading when we have no data yet (initial load); skip for sort/pagination to avoid table rerender/flash (same as items/advance payments)
+      if (itemsRef.current.length === 0) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {
@@ -284,6 +292,10 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       setTotalCount
     ]
   )
+
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   const invalidateAllCache = useCallback(() => {
     pageCacheRef.current.clear()
