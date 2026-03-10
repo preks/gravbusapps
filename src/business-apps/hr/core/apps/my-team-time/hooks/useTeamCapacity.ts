@@ -78,6 +78,7 @@ export const useTeamCapacity = (
         : (results[1]?.EmployeeAttendance ?? [])
 
       const today = new Date()
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
       const isFetchingCurrentMonth =
         today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth()
       const endDate = isFetchingCurrentMonth ? today : monthEnd
@@ -92,6 +93,14 @@ export const useTeamCapacity = (
         }
 
         const empAttendance = attendanceRows.filter((r: any) => r.employeeId === member.id)
+        const empAbsenceNet = absenceNetRows.filter((r: any) => r.employeeId === member.id)
+        const timeOffByDay = new Map<string, number>()
+        empAbsenceNet.forEach((r: any) => {
+          const value = Number(r.netSignedEps ?? r.netConsumed) || 0
+          if (value <= 0) return
+          timeOffByDay.set(r.dayDate, Math.min(1, (timeOffByDay.get(r.dayDate) ?? 0) + value))
+        })
+
         let workedMinutes = 0
         let missingEntries = 0
         empAttendance.forEach((r: any) => {
@@ -101,12 +110,15 @@ export const useTeamCapacity = (
         let targetUpToNow = 0
         const targetCursor = new Date(monthStart)
         while (targetCursor <= endDate) {
-          const planned = getPlannedMinutesForDate(toLocalDateKey(targetCursor), member.workingHours)
-          targetUpToNow += planned
-          if (planned > 0) {
-            const dateStr = toLocalDateKey(targetCursor)
+          const dateStr = toLocalDateKey(targetCursor)
+          const planned = getPlannedMinutesForDate(dateStr, member.workingHours)
+          const timeOffFraction = Math.min(timeOffByDay.get(dateStr) ?? 0, 1)
+          const expectedMinutes = planned * (1 - timeOffFraction)
+
+          targetUpToNow += expectedMinutes
+          if (planned > 0 && timeOffFraction < 1) {
             const hasEntry = empAttendance.some((r: any) => r.attendanceDate === dateStr)
-            if (!hasEntry && targetCursor < today) missingEntries++
+            if (!hasEntry && targetCursor < startOfToday) missingEntries++
           }
           targetCursor.setDate(targetCursor.getDate() + 1)
         }
@@ -114,7 +126,6 @@ export const useTeamCapacity = (
         const overtimeMinutes = Math.max(0, workedMinutes - targetUpToNow)
         const deficitMinutes = Math.max(0, targetUpToNow - workedMinutes)
 
-        const empAbsenceNet = absenceNetRows.filter((r: any) => r.employeeId === member.id)
         let ptoUsedDays = 0
         let sickDays = 0
         empAbsenceNet.forEach((r: any) => {

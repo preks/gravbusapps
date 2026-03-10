@@ -1,23 +1,41 @@
 import { WeeklyWorkingHours } from '../types/types'
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
+
+const parseDateInput = (dateInput: string): Date => {
+  const match = DATE_ONLY_PATTERN.exec(dateInput)
+  if (match) {
+    const [, year, month, day] = match
+    return new Date(Number(year), Number(month) - 1, Number(day))
+  }
+  return new Date(dateInput)
+}
+
 export const parseDurationToMinutes = (duration?: string | null): number => {
   if (!duration) return 0
   const str = String(duration).trim()
-  const negative = str.startsWith('-')
-  const cleaned = negative ? str.slice(1) : str
+  if (!str) return 0
+
+  let cleaned = str
+  const negative = cleaned.startsWith('-')
+  if (negative) cleaned = cleaned.slice(1).trim()
+
+  if (/^\d{1,2}:\d{2}$/.test(cleaned)) {
+    const [hours, minutes] = cleaned.split(':').map(Number)
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      const total = hours * 60 + minutes
+      return negative ? -total : total
+    }
+  }
 
   let total = 0
-  const hIdx = cleaned.indexOf('h')
-  const mIdx = cleaned.indexOf('m')
-
-  if (hIdx > 0) {
-    const hours = Number.parseInt(cleaned.slice(0, hIdx), 10)
-    if (!Number.isNaN(hours)) total += hours * 60
-  }
-  if (mIdx > 0) {
-    const mStart = hIdx >= 0 ? hIdx + 1 : 0
-    const mins = Number.parseInt(cleaned.slice(mStart, mIdx), 10)
-    if (!Number.isNaN(mins)) total += mins
+  const tokens = cleaned.split(/\s+/)
+  for (const token of tokens) {
+    if (/^\d+h$/i.test(token)) {
+      total += (Number.parseInt(token.slice(0, -1), 10) || 0) * 60
+    } else if (/^\d+m$/i.test(token)) {
+      total += Number.parseInt(token.slice(0, -1), 10) || 0
+    }
   }
 
   return negative ? -total : total
@@ -41,11 +59,11 @@ export const formatHoursDecimal = (minutes: number): string => {
 export const toLocalDateKey = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-export const toDateString = (d: Date): string => d.toISOString().slice(0, 10)
+export const toDateString = (d: Date): string => toLocalDateKey(d)
 
 export const getPlannedMinutesForDate = (dateIso: string, workingHours?: WeeklyWorkingHours): number => {
   if (!workingHours) return 0
-  const d = new Date(dateIso)
+  const d = parseDateInput(dateIso)
   const day = d.getDay()
   const hoursByDay = [
     workingHours.sundayHours,

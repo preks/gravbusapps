@@ -32,13 +32,9 @@ import {
   OrgUnitCoverage,
   CoverageOverview
 } from '../../types/types'
-import { formatMinutes, toDateString, getPlannedMinutesForDate } from '../../utils/timeUtils'
+import { formatMinutes, toDateString, toLocalDateKey, getPlannedMinutesForDate } from '../../utils/timeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AbsenceDistributionSection } from '../../../../../absences/apps/manager-absences/components/tabs/statistics-tab/AbsenceDistributionSection'
-import { UsagePatternsSection } from '../../../../../absences/apps/manager-absences/components/tabs/statistics-tab/UsagePatternsSection'
-import { AbsenceTrendsSection } from '../../../../../absences/apps/manager-absences/components/tabs/statistics-tab/AbsenceTrendsSection'
-import { YearComparisonSection } from '../../../../../absences/apps/manager-absences/components/tabs/statistics-tab/YearComparisonSection'
-import { useAbsenceStatisticsSimple } from '../../../../../absences/apps/manager-absences/hooks/useAbsenceStatisticsSimple'
+import { InsightsAbsenceAnalytics } from './InsightsAbsenceAnalytics'
 
 const t = (key: string, fallback: string, vars?: Record<string, unknown>) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:my_team_time.insights.${key}`, fallback, vars)
@@ -74,7 +70,7 @@ const countWorkingDaysSoFar = (workingHours?: WeeklyWorkingHours): number => {
   let count = 0
   const cursor = new Date(monthStart)
   while (cursor <= today) {
-    if (getPlannedMinutesForDate(toDateString(cursor), workingHours) > 0) count++
+    if (getPlannedMinutesForDate(toLocalDateKey(cursor), workingHours) > 0) count++
     cursor.setDate(cursor.getDate() + 1)
   }
   return Math.max(1, count)
@@ -593,7 +589,8 @@ const computeComplianceAlerts = (rows: CapacityRow[], workingDaysMap: Map<string
     }
 
     const schedule = getEmployeeSchedule(row.employee.workingHours)
-    const expectedWorkingDays = workingDaysMap.get(row.employee.id) ?? countWorkingDaysSoFar(row.employee.workingHours)
+    const scheduledWorkingDays = workingDaysMap.get(row.employee.id) ?? countWorkingDaysSoFar(row.employee.workingHours)
+    const expectedWorkingDays = Math.max(0, scheduledWorkingDays - row.ptoUsedDays - row.sickDays)
     const missingWarningThreshold = Math.max(3, Math.round(expectedWorkingDays * MISSING_ENTRIES_WARNING_RATIO))
     const missingCriticalThreshold = Math.max(5, Math.round(expectedWorkingDays * MISSING_ENTRIES_CRITICAL_RATIO))
 
@@ -605,10 +602,10 @@ const computeComplianceAlerts = (rows: CapacityRow[], workingDaysMap: Map<string
         severity: row.missingEntries > missingCriticalThreshold ? 'critical' : 'warning',
         description: t(
           'missing_days_detail',
-          '{{missing}} of {{expected}} working days without time entry (contract: {{contract}}/week)',
+          'This month: {{missing}} of {{expected}} working days without time entry (contract: {{contract}}/week)',
           {
             missing: row.missingEntries,
-            expected: expectedWorkingDays,
+            expected: Number.isInteger(expectedWorkingDays) ? expectedWorkingDays : expectedWorkingDays.toFixed(1),
             contract: formatMinutes(schedule.weeklyMinutes)
           }
         ),
@@ -631,7 +628,6 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
   const graphqlClient = useGraphQLClient(props.accessToken)
   const { rows, isLoading: capacityLoading, error } = useTeamCapacity(props.accessToken, members, memberIds)
-  const { statistics: absenceStatistics } = useAbsenceStatisticsSimple(props)
 
   const [entitlements, setEntitlements] = useState<
     { employeeId: string; typeRef: string; totalEntitlement: number; usedApproved: number }[]
@@ -639,6 +635,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   const [coverageData, setCoverageData] = useState<CoverageOverview | null>(null)
   const [coverageLoading, setCoverageLoading] = useState(true)
   const [activeDrawer, setActiveDrawer] = useState<DrawerPanel>(null)
+  const [showAbsenceAnalytics, setShowAbsenceAnalytics] = useState(false)
 
   const memberIdsRef = useRef<string[]>([])
   if (memberIds.length > 0 && memberIds.join(',') !== memberIdsRef.current.join(',')) {
@@ -678,6 +675,25 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       .catch(() => setCoverageData(null))
       .finally(() => setCoverageLoading(false))
   }, [graphqlClient, supervisorId])
+
+  useEffect(() => {
+    type IdleHandle = number
+    type IdleWindow = Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => IdleHandle
+      cancelIdleCallback?: (handle: IdleHandle) => void
+    }
+
+    const idleWindow = window as IdleWindow
+    if (showAbsenceAnalytics) return
+
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(() => setShowAbsenceAnalytics(true), { timeout: 300 })
+      return () => idleWindow.cancelIdleCallback?.(handle)
+    }
+
+    const timeoutId = window.setTimeout(() => setShowAbsenceAnalytics(true), 150)
+    return () => window.clearTimeout(timeoutId)
+  }, [showAbsenceAnalytics])
 
   const isLoading = membersLoading || capacityLoading
 
@@ -1025,12 +1041,13 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       </div>
 
       {/* Absence Analytics Charts */}
-      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
-        <AbsenceDistributionSection {...props} />
-        <UsagePatternsSection data={absenceStatistics} />
-      </div>
-      <AbsenceTrendsSection {...props} />
-      <YearComparisonSection data={absenceStatistics} />
+      {showAbsenceAnalytics ? (
+        <InsightsAbsenceAnalytics {...props} />
+      ) : (
+        <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:py-10 gba:text-center gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+        </div>
+      )}
 
       {/* Side drawer for details */}
       <DataDetailsDrawer
