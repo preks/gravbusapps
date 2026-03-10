@@ -1,9 +1,38 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { flowbotClient, type EvalsDashboardQueryParams } from '@/common/network/flowbot/FlowbotClient'
-import type { BucketGranularity, DashboardResponse } from '../types'
+import type { BucketGranularity, DashboardResponse, RunRow, RunTokenScope } from '../types'
 
 const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
+
+const TOKEN_SCOPE_NAMES = ['monolith', 'controller', 'prechat'] as const
+const TOKEN_FIELDS = ['total_tokens', 'input_tokens', 'output_tokens', 'cached_input_tokens'] as const
+
+const extractTokenScopes = (raw: Record<string, unknown>): Record<string, RunTokenScope> | undefined => {
+  const scopes: Record<string, RunTokenScope> = {}
+  let found = false
+  for (const scope of TOKEN_SCOPE_NAMES) {
+    const vals = TOKEN_FIELDS.map(f => raw[`${scope}_${f}`])
+    if (vals.every(v => v == null)) continue
+    found = true
+    scopes[scope] = {
+      total_tokens: typeof vals[0] === 'number' ? vals[0] : null,
+      input_tokens: typeof vals[1] === 'number' ? vals[1] : null,
+      output_tokens: typeof vals[2] === 'number' ? vals[2] : null,
+      cached_input_tokens: typeof vals[3] === 'number' ? vals[3] : null
+    }
+  }
+  return found ? scopes : undefined
+}
+
+const normalizeRunRows = (rows: unknown[]): RunRow[] =>
+  rows.map(r => {
+    const raw = (r ?? {}) as Record<string, unknown>
+    const tokenScopes = extractTokenScopes(raw)
+    const run = raw as unknown as RunRow
+    if (!tokenScopes) return run
+    return { ...run, token_scopes: tokenScopes }
+  })
 
 const normalizeDashboardResponse = (raw: unknown): DashboardResponse => {
   const obj = (raw ?? {}) as Record<string, unknown>
@@ -42,10 +71,10 @@ const normalizeDashboardResponse = (raw: unknown): DashboardResponse => {
     model_breakdown: asArray(obj['model_breakdown']),
     provider_breakdown: asArray(obj['provider_breakdown']),
     token_breakdown: (obj['token_breakdown'] as any) ?? undefined,
-    token_breakdown_by_model: asArray(obj['token_breakdown_by_model']),
+    available_filters: (obj['available_filters'] as any) ?? undefined,
     tool_token_stats: (obj['tool_token_stats'] as any) ?? undefined,
-    top_cost_runs: asArray(obj['top_cost_runs']),
-    recent_runs: asArray(obj['recent_runs'])
+    top_cost_runs: normalizeRunRows(asArray(obj['top_cost_runs'])),
+    recent_runs: normalizeRunRows(asArray(obj['recent_runs']))
   }
 }
 

@@ -13,7 +13,7 @@ export interface DashboardResponse {
   model_breakdown: BreakdownItem[]
   provider_breakdown: BreakdownItem[]
   token_breakdown?: TokenBreakdownBlock
-  token_breakdown_by_model?: TokenBreakdownByModelEntry[]
+  available_filters?: AvailableFilters
   tool_token_stats?: ToolTokenStat[]
   top_cost_runs: RunRow[]
   recent_runs: RunRow[]
@@ -82,6 +82,7 @@ export interface TokenBreakdownBlock {
   overall?: TokenTotals
   monolith?: TokenTotals
   controller?: TokenTotals
+  prechat?: TokenTotals
 }
 
 export interface RunRow {
@@ -107,15 +108,17 @@ export interface RunRow {
   error_type: string | null
   llm_provider?: string | null
   llm_model?: string | null
+  token_scopes?: Record<string, RunTokenScope>
 }
 
-export interface TokenBreakdownByModelEntry {
-  key: string
-  provider: string
-  runs: number
-  avg_total_tokens: number | null
-  sum_total_tokens: number | null
-  avg_total_ms: number | null
-  p50_total_ms: number | null
-  p95_total_ms: number | null
+export interface RunTokenScope {
+  total_tokens: number | null
+  input_tokens: number | null
+  output_tokens: number | null
+  cached_input_tokens: number | null
+}
+
+export interface AvailableFilters {
+  providers: string[]
+  models_by_provider: Record<string, string[]>
 }

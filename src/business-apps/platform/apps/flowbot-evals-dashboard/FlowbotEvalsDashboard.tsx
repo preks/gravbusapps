@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { BreakdownItem } from './types'
 import { Alert, Badge, Button } from '@newwork/nw-design-system'
 import { ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { useEvalsDashboard, type DashboardFilters } from './hooks/useEvalsDashboard'
@@ -45,7 +44,7 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       fromLocal: daysAgoDateInputValue(6),
       toLocal: todayDateInputValue(),
       bucket: 'day',
-      includeSplitView: false,
+      includeSplitView: true,
       llmProvider: '',
       llmModel: ''
     }),
@@ -72,40 +71,18 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       .slice(0, 30)
   }, [data])
 
-  // Keep dropdown options stable: only update from responses where that filter is not active.
-  const stableProviderRef = useRef<BreakdownItem[]>([])
-  useEffect(() => {
-    if (!filters.llmProvider && data?.provider_breakdown?.length) {
-      stableProviderRef.current = data.provider_breakdown
+  const providerOptions = useMemo(() => data?.available_filters?.providers ?? [], [data?.available_filters?.providers])
+
+  const modelOptions = useMemo(() => {
+    const byProvider = data?.available_filters?.models_by_provider
+    if (!byProvider) return []
+    if (filters.llmProvider && byProvider[filters.llmProvider]) {
+      return byProvider[filters.llmProvider]
     }
-  }, [filters.llmProvider, data?.provider_breakdown])
-  const stableProviderBreakdown = filters.llmProvider ? stableProviderRef.current : (data?.provider_breakdown ?? [])
-
-  const stableModelRef = useRef<BreakdownItem[]>([])
-  useEffect(() => {
-    if (!filters.llmModel && data?.model_breakdown?.length) {
-      stableModelRef.current = data.model_breakdown
-    }
-  }, [filters.llmModel, data?.model_breakdown])
-  const stableModelBreakdown = filters.llmModel ? stableModelRef.current : (data?.model_breakdown ?? [])
-
-  // Derive provider→models mapping from token_breakdown_by_model to scope models by provider.
-  const providerModelsMap = useMemo(() => {
-    const map = new Map<string, Set<string>>()
-    data?.token_breakdown_by_model?.forEach(entry => {
-      if (!entry.provider || !entry.key) return
-      if (!map.has(entry.provider)) map.set(entry.provider, new Set())
-      map.get(entry.provider)!.add(entry.key)
-    })
-    return map
-  }, [data?.token_breakdown_by_model])
-
-  const scopedModelBreakdown = useMemo(() => {
-    if (!filters.llmProvider) return stableModelBreakdown
-    const allowed = providerModelsMap.get(filters.llmProvider)
-    if (!allowed?.size) return stableModelBreakdown
-    return stableModelBreakdown.filter(m => allowed.has(m.key))
-  }, [filters.llmProvider, stableModelBreakdown, providerModelsMap])
+    const all = new Set<string>()
+    Object.values(byProvider).forEach(models => models.forEach(m => all.add(m)))
+    return Array.from(all).sort()
+  }, [data?.available_filters?.models_by_provider, filters.llmProvider])
 
   const showData = data && !error
 
@@ -185,8 +162,8 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
         setFilters={setFilters}
         onReset={resetFilters}
         workflowSuggestions={derivedWorkflowSuggestions}
-        providerBreakdown={stableProviderBreakdown}
-        modelBreakdown={scopedModelBreakdown}
+        providerOptions={providerOptions}
+        modelOptions={modelOptions}
         onQuick24h={() =>
           setFilters(prev => ({
             ...prev,
