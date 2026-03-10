@@ -365,8 +365,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         {/* Tax Information Card */}
         <Card data-testid="employment-section-tax">
           <CardContent className="gba:p-4">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-lg gba:font-semibold">{t('employment-tax-information')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="employee-tax-information-edit-button"
+                contexts={[{ context: FlowContextName.changeTaxDetails, contextData: { employeeId: employee?.id } }]}
+                prefixDataTestId="employee-tax-information-edit"
+                accessToken={accessToken}
+              />
             </div>
             {renderDataItems(taxInformationData)}
           </CardContent>
