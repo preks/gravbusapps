@@ -954,6 +954,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
+        enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:employee_list.flows_button.expense_requests',
           'Filter Expense Requests'

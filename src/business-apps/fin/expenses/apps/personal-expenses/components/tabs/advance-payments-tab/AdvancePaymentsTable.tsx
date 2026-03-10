@@ -1102,6 +1102,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
+        enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:advance_lists.my_advance_payments.title',
           'Filter Advance Payments'

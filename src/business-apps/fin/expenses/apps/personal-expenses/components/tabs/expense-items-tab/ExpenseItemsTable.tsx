@@ -909,6 +909,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
+        enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:employee_list.flows_button.expense_items',
           'Filter Expense Items'

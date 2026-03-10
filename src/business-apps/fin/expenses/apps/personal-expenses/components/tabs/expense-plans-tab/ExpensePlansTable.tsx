@@ -986,6 +986,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
+        enableLiveFiltering={true}
         filterSheetTitle={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.title', 'Filter Expense Plans')}
         filterSheetDescription={getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.filter_expense_plans_description',
