@@ -598,10 +598,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   )
   const handleSortingChange = useCallback(
     (newSorting: Array<{ id: string; desc: boolean }>) => {
-      const entry = newSorting[0]
-      const field = entry?.id || 'requestDate'
-      const order = entry ? (entry.desc ? 'descend' : 'ascend') : 'descend'
-      if (field === sortField && order === sortOrder) return
+      const entry = newSorting?.[0]
+      // When table "clears" sort (empty array), it means user clicked the already-sorted column:
+      // TanStack Table cycles asc -> desc -> clear. Treat clear as toggle direction so Request Date (and any column) responds on first click.
+      let field: string
+      let order: 'ascend' | 'descend'
+      if (entry) {
+        field = entry.id || 'requestDate'
+        order = entry.desc ? 'descend' : 'ascend'
+      } else {
+        field = sortField || 'requestDate'
+        order = sortOrder === 'descend' ? 'ascend' : 'descend'
+      }
       setSortField(field)
       setSortOrder(order)
       if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field, order })

@@ -257,18 +257,31 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     })
   }, [contextProps.userInfo?.employeeDetails?.employeeId])
 
-  const handleTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
-    setCurrentPage(pagination.current)
-    setPageSize(pagination.pageSize)
+  const handleTableChange = useCallback(
+    (pagination: any, _filters: any, sorter: any) => {
+      setCurrentPage(pagination.current)
+      setPageSize(pagination.pageSize)
 
-    if (sorter && sorter.field) {
-      setSortField(sorter.field)
-      setSortOrder(sorter.order)
-    } else {
-      setSortField('requestDate')
-      setSortOrder('descend')
-    }
-  }, [])
+      const nextField = sorter?.field ?? 'requestDate'
+      const nextOrder = sorter?.order ?? 'descend'
+      setSortField(nextField)
+      setSortOrder(nextOrder)
+
+      // Refetch immediately when sort or pagination changes so request date (and other columns) sorting updates
+      if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId && currenciesInitialized) {
+        const filters = getFilters()
+        fetchItems(filters, pagination.current, pagination.pageSize ?? pageSize, nextField, nextOrder)
+      }
+    },
+    [
+      getFilters,
+      fetchItems,
+      pageSize,
+      contextProps.accessToken,
+      contextProps.userInfo?.employeeDetails?.employeeId,
+      currenciesInitialized
+    ]
+  )
 
   const setFiltersForTable = useCallback(
     (filters: string[]) => {
