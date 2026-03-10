@@ -4,15 +4,14 @@
  * Tabs: Screen (default), Data Model, Functions, Task Expert, Flow.
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
-import { BuildPlanTab } from './BuildPlanTab'
-import { DataFlowDiagram } from './DataFlowDiagram'
+import { OverviewTab } from './OverviewTab'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import { AppAboutView } from './AppAboutView'
 import { DataModelPreview } from '@/common/components/ai-builder/data-model-preview/DataModelPreview'
@@ -22,6 +21,7 @@ import { AgentPreview } from '@/common/components/ai-builder/agent-preview/Agent
 import { PreviewTemplate } from '@/common/components/ai-builder/preview-template/PreviewTemplate'
 import { mapDataModelSpec, mapFunctionSpec, mapFlowSpec, mapAgentSpec } from './componentSpecPreviewMappers'
 import type { ComponentSpec, CanvasTab } from '../../types'
+import { getVisibleCanvasTabs } from '../../types'
 import type { AppMetadata, BuildAnalysis, UserSummary } from '../../types/build'
 
 export interface CompleteViewProps {
@@ -31,6 +31,8 @@ export interface CompleteViewProps {
   prompt?: string
   accessToken?: string
   userInfo?: any
+  builtBy?: any
+  builtByLoading?: boolean
   /** Incremented by the chat panel when an AI fix modifies screen code */
   previewRefreshToken?: number
   appMetadata?: AppMetadata
@@ -53,6 +55,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   components,
   accessToken,
   userInfo,
+  builtBy,
+  builtByLoading,
   previewRefreshToken,
   appMetadata,
   analysis,
@@ -66,15 +70,20 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   isRestoringSession = false
 }) => {
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
+  const visibleTabs = useMemo(() => getVisibleCanvasTabs(components), [components])
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
+
+  useEffect(() => {
+    const visibleIds = visibleTabs.map(t => t.id)
+    if (visibleIds.length > 0 && !visibleIds.includes(activeTab)) {
+      setActiveTab(visibleTabs[0].id)
+    }
+  }, [visibleTabs, activeTab])
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'build-plan':
-        return <BuildPlanTab components={components} userSummary={userSummary} prompt={prompt} />
-
-      case 'data-flow':
-        return <DataFlowDiagram components={components} />
+        return <OverviewTab components={components} userSummary={userSummary} prompt={prompt} />
 
       case 'screen':
         if (previewComponent && accessToken) {
@@ -234,6 +243,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             originalPrompt={prompt}
             createdAt={createdAt}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             accessToken={accessToken}
           />
         )
@@ -318,7 +329,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
 
       {/* Tab Header */}
       <div className="gba:bg-background gba:border-b gba:border-border">
-        <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} />
+        <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} tabs={visibleTabs} />
       </div>
 
       {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0 */}

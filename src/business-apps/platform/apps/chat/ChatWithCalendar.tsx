@@ -158,16 +158,21 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   }, [rawExternalEvents])
 
   const isInSidepanel = useMemo(() => {
-    if (typeof window === 'undefined') return false
+    if (globalThis.window === undefined) return false
 
-    if (window.location.pathname === '/platform/chat') return false
+    let normalizedPath = globalThis.window.location.pathname
+    while (normalizedPath.length > 1 && normalizedPath.endsWith('/')) {
+      normalizedPath = normalizedPath.slice(0, -1)
+    }
+    // Fullscreen Chat can be mounted as canonical (/platform/chat) or as the app path (/platform/apps/chat) in local/dev.
+    if (normalizedPath === '/platform/chat' || normalizedPath === '/platform/apps/chat') return false
 
     return true
   }, [])
 
   const isNarrowViewport = useMemo(() => {
-    if (typeof window === 'undefined') return false
-    return window.innerWidth < 768
+    if (globalThis.window === undefined) return false
+    return globalThis.window.innerWidth < 768
   }, [])
 
   const isCompactMode = isInSidepanel || isNarrowViewport
@@ -179,7 +184,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     pending: { userId: string; userName?: string; prefilledMessage?: string; metadata?: Record<string, unknown> } | null
   }>(() => {
     try {
-      if (typeof window === 'undefined') return { tab: effectiveDefaultTab, pending: null }
+      if (globalThis.window === undefined) return { tab: effectiveDefaultTab, pending: null }
       const raw = sessionStorage.getItem('chatPendingOpenWithUser')
       if (raw) {
         sessionStorage.removeItem('chatPendingOpenWithUser')
@@ -191,6 +196,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         }
         return { tab: 'chat', pending }
       }
+      // On load with URL params (e.g. ?app=...&view=calendar&meetingId=... on localhost), open on the correct tab immediately
+      const viewParam = new URLSearchParams(globalThis.window.location.search).get('view')
+      if (viewParam === 'calendar' || viewParam === 'chat' || viewParam === 'reminders' || viewParam === 'everyai') {
+        const tab: TabValue = viewParam === 'everyai' ? 'everyai' : viewParam
+        return { tab, pending: null }
+      }
+      if (viewParam === 'dashboard') {
+        return { tab: 'dashboard', pending: null }
+      }
     } catch {
       // ignore
     }
@@ -201,9 +215,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
   useEffect(() => {
     if (pendingOpenWithUser) {
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.set('view', 'chat')
-      window.history.replaceState({}, '', url.toString())
+      globalThis.window.history.replaceState({}, '', url.toString())
     }
   }, [pendingOpenWithUser])
 
@@ -216,7 +230,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   // Handle URL parameter for initial tab
   useEffect(() => {
     if (pendingOpenWithUser) return
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewParam = urlParams.get('view')
 
     // In sidepanel mode, don't allow dashboard tab - redirect to everyai
@@ -238,13 +252,27 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     }
   }, [isCompactMode, isInSidepanel, pendingOpenWithUser])
 
+  // Sync tab from URL on popstate (e.g. user clicks Back to calendar link so calendar + meeting open correctly)
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      const viewParam = new URLSearchParams(globalThis.window.location.search).get('view')
+      if (viewParam === 'calendar') setActiveTab('calendar')
+      else if (viewParam === 'chat') setActiveTab('chat')
+      else if (viewParam === 'reminders') setActiveTab('reminders')
+      else if (viewParam === 'dashboard') setActiveTab(isCompactMode ? 'everyai' : 'dashboard')
+      else if (viewParam === 'everyai') setActiveTab('everyai')
+    }
+    globalThis.window.addEventListener('popstate', syncTabFromUrl)
+    return () => globalThis.window.removeEventListener('popstate', syncTabFromUrl)
+  }, [isCompactMode])
+
   // In fullscreen, EveryAI tab is not available; ensure we never stay on it
   useEffect(() => {
     if (!isInSidepanel && activeTab === 'everyai') {
       setActiveTab('dashboard')
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.set('view', 'dashboard')
-      window.history.replaceState({}, '', url.toString())
+      globalThis.window.history.replaceState({}, '', url.toString())
     }
   }, [isInSidepanel, activeTab])
 
@@ -257,9 +285,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       }
     }
 
-    window.addEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
+    globalThis.window.addEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
     return () => {
-      window.removeEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
+      globalThis.window.removeEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
     }
   }, [])
 
@@ -269,10 +297,10 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       setActiveTab('chat')
     }
 
-    window.addEventListener('switchToChat', handleSwitchToChat as EventListener)
+    globalThis.window.addEventListener('switchToChat', handleSwitchToChat as EventListener)
 
     return () => {
-      window.removeEventListener('switchToChat', handleSwitchToChat as EventListener)
+      globalThis.window.removeEventListener('switchToChat', handleSwitchToChat as EventListener)
     }
   }, [activeTab])
 
@@ -283,9 +311,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       // The Calendar component will handle the date/meetingId from URL params
     }
 
-    window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+    globalThis.window.addEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
     return () => {
-      window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
+      globalThis.window.removeEventListener('switchToCalendar', handleSwitchToCalendar as EventListener)
     }
   }, [])
 
@@ -294,9 +322,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     setActiveTab(value as TabValue)
 
     // Update URL without page reload
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.window.location.href)
     url.searchParams.set('view', value)
-    window.history.replaceState({}, '', url.toString())
+    globalThis.window.history.replaceState({}, '', url.toString())
   }
 
   return (
@@ -387,35 +415,94 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           >
             <EveryOneDashboard
               accessToken={accessToken}
-              userInfo={userInfo}
+              userInfo={userInfo as { displayName?: string; firstName?: string; lastName?: string; email?: string }}
               isActive={activeTab === 'dashboard'}
               presenceMap={presenceMap}
               onOpenChat={userId => {
                 setActiveTab('chat')
                 setTimeout(() => {
-                  window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
+                  globalThis.window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
                 }, 100)
               }}
               onStartCall={(userId, displayName, callType, avatarUrl) => {
-                setActiveTab('chat')
+                // Do not switch to Chat tab; PreCall dialog is global and works from any tab
                 setTimeout(() => {
-                  window.dispatchEvent(
+                  globalThis.window.dispatchEvent(
                     new CustomEvent('chat:start-call-with-user', {
                       detail: { userId, displayName, avatarUrl, callType }
                     })
                   )
                 }, 100)
               }}
-              onJoinMeeting={meeting => {
-                // Switch to chat tab and dispatch join meeting event
-                setActiveTab('chat')
+              onJoinMeeting={async meeting => {
+                const conversationId = meeting.conversationId ?? meeting.id
+                const callId = meeting.conversationId || meeting.id
+                const isStarting = meeting.isOrganizer && !activeCalls[callId]
+                // Only pass participants when starting (organizer, no active call) so invites are sent; when joining existing call, pass empty
+                let participants: { id: string; odId: string; odName: string; avatarUrl?: string }[] = []
+                if (isStarting && calendarApiClient) {
+                  try {
+                    const fullMeeting = await calendarApiClient.getMeeting(meeting.id)
+                    const list =
+                      fullMeeting.participants
+                        ?.filter(p => p.status !== InvitationStatus.DECLINED)
+                        .map(p => ({
+                          id: p.userId,
+                          odId: p.userId,
+                          odName:
+                            p.user?.displayName ||
+                            `${p.user?.firstName ?? ''} ${p.user?.lastName ?? ''}`.trim() ||
+                            p.user?.email ||
+                            'Unknown',
+                          avatarUrl: p.user?.avatarUrl
+                        })) ?? []
+                    if (fullMeeting.organizer && !list.some(p => p.id === fullMeeting.organizer?.id)) {
+                      list.push({
+                        id: fullMeeting.organizer.id,
+                        odId: fullMeeting.organizer.id,
+                        odName:
+                          fullMeeting.organizer.displayName ||
+                          `${fullMeeting.organizer.firstName ?? ''} ${fullMeeting.organizer.lastName ?? ''}`.trim() ||
+                          fullMeeting.organizer.email ||
+                          'Unknown',
+                        avatarUrl: fullMeeting.organizer.avatarUrl
+                      })
+                    }
+                    participants = list
+                  } catch {
+                    participants =
+                      meeting.participants
+                        ?.filter(p => p.status !== InvitationStatus.DECLINED)
+                        .map(p => ({
+                          id: p.id,
+                          odId: p.id,
+                          odName:
+                            p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
+                          avatarUrl: p.avatarUrl
+                        })) ?? []
+                    if (meeting.organizer && !participants.some(p => p.id === meeting.organizer?.id)) {
+                      participants.push({
+                        id: meeting.organizer.id,
+                        odId: meeting.organizer.id,
+                        odName:
+                          meeting.organizer.displayName ||
+                          `${meeting.organizer.firstName || ''} ${meeting.organizer.lastName || ''}`.trim() ||
+                          meeting.organizer.email ||
+                          'Unknown',
+                        avatarUrl: meeting.organizer.avatarUrl
+                      })
+                    }
+                  }
+                }
+                // Do not switch to Chat tab; PreCall dialog is global and works from any tab
                 setTimeout(() => {
-                  window.dispatchEvent(
+                  globalThis.window.dispatchEvent(
                     new CustomEvent('chat:join-meeting', {
                       detail: {
                         meetingId: meeting.id,
-                        conversationId: meeting.conversationId,
-                        title: meeting.title
+                        conversationId,
+                        title: meeting.title,
+                        participants
                       }
                     })
                   )

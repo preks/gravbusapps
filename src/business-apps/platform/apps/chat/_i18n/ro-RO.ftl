@@ -437,6 +437,10 @@ chat-transcript-generating-minutes = Se generează notițele de întâlnire...
 chat-transcript-generating-minutes-status = Se generează notițele de întâlnire...
 chat-transcript-failed-create-minutes = Eroare la crearea notițelor de întâlnire
 chat-transcript-retry = Reîncearcă
+chat-meeting-started-at = Început: { $startedAt }
+chat-call-recordingTranscriptNotice = Înregistrare și transcriere. Prin participare, acceptați includerea.
+chat-call-recordingTranscriptActive = Audio-ul este înregistrat pentru a crea o transcriere și notițe de întâlnire.
+chat-call-transcriptRecordingHeader = Transcrierea apelului este înregistrată
 
 # Notifications
 notifications-title = Notificări
@@ -559,6 +563,7 @@ calendar-no-events = Nu există evenimente programate
 calendar-all-day = Toată ziua
 calendar-loading = Se încarcă calendarul...
 calendar-error = Nu s-a putut încărca calendarul
+calendar-retry = Reîncearcă
 calendar-event-details = Detalii eveniment
 calendar-pending-invitations = Invitații în așteptare
 calendar-accept = Acceptă

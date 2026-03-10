@@ -1,6 +1,6 @@
 import React from 'react'
 import { Select, Space, Button } from 'antd'
-import { SearchOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons'
+import { MagnifyingGlassIcon, FunnelIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { SalaryType, PaymentFrequency } from '../types/salaryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -50,7 +50,7 @@ const SalarySearch: React.FC<SalarySearchProps> = ({ onSearch, onFilterChange, o
     >
       <div className="gba:w-full gba:sm:w-64 gba:relative">
         <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:text-muted-foreground">
-          <SearchOutlined />
+          <MagnifyingGlassIcon size={16} />
         </div>
         <DebouncedInput
           value={searchValue}
@@ -113,7 +113,7 @@ const SalarySearch: React.FC<SalarySearchProps> = ({ onSearch, onFilterChange, o
         </Select>
 
         <Button
-          icon={<FilterOutlined />}
+          icon={<FunnelIcon />}
           onClick={() => onFilterChange(filters)}
           data-testid="salary-apply-filters-button"
           disabled={loading}
@@ -122,7 +122,7 @@ const SalarySearch: React.FC<SalarySearchProps> = ({ onSearch, onFilterChange, o
         </Button>
 
         <Button
-          icon={<ReloadOutlined />}
+          icon={<ArrowsClockwiseIcon size={16} />}
           onClick={handleReset}
           data-testid="salary-reset-filters-button"
           disabled={loading}

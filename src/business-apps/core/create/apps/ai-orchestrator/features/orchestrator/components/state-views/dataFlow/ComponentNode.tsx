@@ -28,16 +28,16 @@ const STATUS_ICONS: Record<string, React.ElementType> = {
   wiring: Clock
 }
 const STATUS_COLORS: Record<string, string> = {
-  completed: '#10b981',
-  reused: '#6366f1',
-  error: '#ef4444',
-  pending: '#9ca3af',
-  building: '#f59e0b',
-  cancelled: '#9ca3af',
-  skipped: '#9ca3af',
-  analyzing: '#f59e0b',
-  discovering: '#f59e0b',
-  wiring: '#f59e0b'
+  completed: 'var(--nw-success)',
+  reused: 'var(--nw-info)',
+  error: 'var(--nw-destructive)',
+  pending: 'var(--nw-muted-foreground)',
+  building: 'var(--nw-warning)',
+  cancelled: 'var(--nw-muted-foreground)',
+  skipped: 'var(--nw-muted-foreground)',
+  analyzing: 'var(--nw-warning)',
+  discovering: 'var(--nw-warning)',
+  wiring: 'var(--nw-warning)'
 }
 
 export const ComponentNodeCard: React.FC<ComponentNodeProps> = memo(({ node, selected, onClick }) => {
@@ -46,10 +46,10 @@ export const ComponentNodeCard: React.FC<ComponentNodeProps> = memo(({ node, sel
   const StatusIcon = STATUS_ICONS[component.status] ?? Clock
   const accent = TYPE_COLORS[component.type]
   const bg = TYPE_BG_COLORS[component.type]
-  const statusColor = STATUS_COLORS[component.status] ?? '#9ca3af'
+  const statusColor = STATUS_COLORS[component.status] ?? 'var(--nw-muted-foreground)'
   const description = component.userFriendlyDescription || component.description
 
-  const borderColor = selected ? accent : `${accent}45`
+  const borderColor = selected ? accent : `color-mix(in srgb, ${accent} 50%, transparent)`
 
   return (
     <button
@@ -64,11 +64,11 @@ export const ComponentNodeCard: React.FC<ComponentNodeProps> = memo(({ node, sel
         height: NODE_H,
         // Solid opaque background — critical so SVG paths beneath don't show through
         backgroundColor: 'hsl(var(--background))',
-        backgroundImage: `linear-gradient(135deg, ${accent}0a 0%, transparent 60%)`,
+        backgroundImage: `linear-gradient(135deg, color-mix(in srgb, ${accent} 4%, transparent) 0%, transparent 60%)`,
         border: `1.5px solid ${borderColor}`,
         borderRadius: 12,
         padding: '0 12px 10px',
-        boxShadow: selected ? `0 0 0 3px ${accent}28, 0 4px 20px ${accent}22` : '0 1px 4px rgba(0,0,0,0.07)',
+        boxShadow: selected ? `0 0 0 3px color-mix(in srgb, ${accent} 16%, transparent)` : undefined,
         cursor: 'pointer',
         transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
         display: 'flex',
@@ -114,7 +114,7 @@ export const ComponentNodeCard: React.FC<ComponentNodeProps> = memo(({ node, sel
         </div>
         <span
           style={{
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 700,
             color: accent,
             textTransform: 'uppercase',

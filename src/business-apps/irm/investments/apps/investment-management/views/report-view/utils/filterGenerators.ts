@@ -15,6 +15,10 @@ import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/in
  * @param filterGroups - Filter groups from useFilterGroups hook (for populating options)
  * @returns FilterConfiguration with dynamically generated filters
  */
+function emptyFilterConfig(entityPrefix: string): FilterConfiguration {
+  return { id: `${entityPrefix}-filters-empty`, name: 'Report Filters', groups: [] }
+}
+
 export const generateReportFiltersFromCatalog = (
   catalogData: any,
   catalogSource: 'GROUP' | 'TYPE',
@@ -23,35 +27,14 @@ export const generateReportFiltersFromCatalog = (
   entityPrefix: 'equity' | 'realEstate' | 'liquidFund',
   filterGroups: any
 ): FilterConfiguration => {
-  // Return empty configuration if no catalog data
-  if (!catalogData?.[catalogKey]) {
-    return {
-      id: `${entityPrefix}-filters-empty`,
-      name: 'Report Filters',
-      groups: []
-    }
-  }
+  if (!catalogData?.[catalogKey]) return emptyFilterConfig(entityPrefix)
 
-  // Find the entry in catalog
   const entry = catalogData[catalogKey].find((item: any) => item.code === groupOrTypeCode)
-  if (!entry?.objectValue) {
-    return {
-      id: `${entityPrefix}-filters-empty`,
-      name: 'Report Filters',
-      groups: []
-    }
-  }
+  if (!entry?.objectValue) return emptyFilterConfig(entityPrefix)
 
-  // Parse objectValue if it's a string
   const parsed = typeof entry.objectValue === 'string' ? JSON.parse(entry.objectValue) : entry.objectValue
 
-  if (!parsed?.formFields) {
-    return {
-      id: `${entityPrefix}-filters-empty`,
-      name: 'Report Filters',
-      groups: []
-    }
-  }
+  if (!parsed?.formFields) return emptyFilterConfig(entityPrefix)
 
   // Generate filters from catalog formFields
   const catalogGeneratedConfig = generateFiltersFromCatalog(

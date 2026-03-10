@@ -1,17 +1,47 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { EmailApiService } from '../services/EmailApiService'
-import type { EmailMessageSummary, EmailMessage } from '../types'
+import { normalizeLabels, normalizeLabelObjects } from '../utils/labelUtils'
+import type { EmailMessageSummary, EmailMessage, EmailLabel } from '../types'
 
 interface UseEmailsOptions {
   accessToken: string
   folderId?: string
   accountId?: string
   search?: string
+  labels?: string[]
   starredOnly?: boolean
   /** When true, emails sharing a threadId are collapsed to the latest per thread */
   threadView?: boolean
   /** Auto-refresh interval in milliseconds (default: 15000 = 15 seconds) */
   autoRefreshInterval?: number
+}
+
+interface ListMessagesParamsBuilderOptions {
+  folderId?: string
+  accountId?: string
+  search?: string
+  labels: string[]
+  starredOnly?: boolean
+  page: number
+}
+
+function buildListMessagesParams({
+  folderId,
+  accountId,
+  search,
+  labels,
+  starredOnly,
+  page
+}: ListMessagesParamsBuilderOptions) {
+  return {
+    folderId: starredOnly ? undefined : folderId,
+    accountId,
+    search: search || undefined,
+    labels: labels.length ? labels : undefined,
+    starredOnly: starredOnly || undefined,
+    page,
+    limit: 100
+  }
 }
 
 /**
@@ -56,10 +86,13 @@ export function useEmails({
   folderId,
   accountId,
   search,
+  labels,
   starredOnly,
   threadView = false,
   autoRefreshInterval = 15000
 }: UseEmailsOptions) {
+  const normalizedLabels = useMemo(() => normalizeLabels(labels || []), [labels])
+
   const [messages, setMessages] = useState<EmailMessageSummary[]>([])
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -131,21 +164,23 @@ export function useEmails({
       if (!accessToken) return
       // Don't fetch until we have a folder (or an explicit starred/search filter)
       // Otherwise we'd briefly show ALL emails from every folder on first render
-      if (!folderId && !starredOnly && !search) return
+      if (!folderId && !starredOnly && !search && normalizedLabels.length === 0) return
       if (loadingRef.current) return
 
       loadingRef.current = true
       if (!silent) setIsLoading(true)
 
       try {
-        const result = await EmailApiService.listMessages({
-          folderId: starredOnly ? undefined : folderId,
-          accountId,
-          search: search || undefined,
-          starredOnly: starredOnly || undefined,
-          page: pageNum,
-          limit: 100
-        })
+        const result = await EmailApiService.listMessages(
+          buildListMessagesParams({
+            folderId,
+            accountId,
+            search,
+            labels: normalizedLabels,
+            starredOnly,
+            page: pageNum
+          })
+        )
 
         const deduplicated = threadView ? deduplicateThreads(result.items) : result.items
 
@@ -183,7 +218,7 @@ export function useEmails({
         if (!silent) setIsLoading(false)
       }
     },
-    [accessToken, folderId, accountId, search, starredOnly, threadView, applyOverrides]
+    [accessToken, folderId, accountId, search, normalizedLabels, starredOnly, threadView, applyOverrides]
   )
 
   /** Load one additional page (100) */
@@ -195,14 +230,16 @@ export function useEmails({
 
     try {
       const nextPage = pageRef.current + 1
-      const result = await EmailApiService.listMessages({
-        folderId: starredOnly ? undefined : folderId,
-        accountId,
-        search: search || undefined,
-        starredOnly: starredOnly || undefined,
-        page: nextPage,
-        limit: 100
-      })
+      const result = await EmailApiService.listMessages(
+        buildListMessagesParams({
+          folderId,
+          accountId,
+          search,
+          labels: normalizedLabels,
+          starredOnly,
+          page: nextPage
+        })
+      )
 
       if (result.items.length > 0) {
         const newItems = threadView ? deduplicateThreads(result.items) : result.items
@@ -226,7 +263,7 @@ export function useEmails({
       loadingMoreRef.current = false
       setIsLoadingMore(false)
     }
-  }, [accessToken, folderId, accountId, search, starredOnly, threadView])
+  }, [accessToken, folderId, accountId, search, normalizedLabels, starredOnly, threadView])
 
   // Initial load on mount or when dependencies change
   useEffect(() => {
@@ -310,6 +347,12 @@ export function useEmails({
     [selectedMessage]
   )
 
+  const updateMessageLabels = useCallback((id: string, labels: EmailLabel[]) => {
+    const normalized = normalizeLabelObjects(labels)
+    setMessages(prev => prev.map(m => (m.id === id ? { ...m, labels: normalized } : m)))
+    setSelectedMessage(prev => (prev?.id === id ? { ...prev, labels: normalized } : prev))
+  }, [])
+
   return {
     messages,
     selectedMessage,
@@ -323,6 +366,7 @@ export function useEmails({
     toggleStar,
     deleteMessage,
     moveToFolder,
+    updateMessageLabels,
     loadMore,
     refreshMessages: () => loadMessages(1, false)
   }

@@ -6,7 +6,7 @@ import {
   useGetInvestmentNotesByLeadId,
   useGetInvestmentTasksByLeadId
 } from '@/common/data/investment/hooks/useInvestmentLeads'
-import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
+import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
 
 const taskDescription = `You are an investment lead qualification assistant analyzing a potential investment prospect.
 
@@ -28,8 +28,7 @@ const summarySchema = z.object({
 type SummarySchema = z.infer<typeof summarySchema>
 type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
-export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryReturn {
-  const { lead } = useInvestmentLead(accessToken, leadId)
+export function useAiSummary(leadId: string, accessToken: string, lead?: InvestmentLead | null): UseAiSummaryReturn {
   const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId({ accessToken })
   const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId({ accessToken })
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId({ accessToken })

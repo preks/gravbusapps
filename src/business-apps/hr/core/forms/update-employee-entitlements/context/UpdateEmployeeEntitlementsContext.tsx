@@ -96,8 +96,10 @@ export function UpdateEmployeeEntitlementsProvider({
       setLoading(true)
       setError(null)
       const now = new Date()
-      const firstDay = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
-      const lastDay = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
+      const currentYear = now.getFullYear()
+      // Build yearly bounds in UTC to keep filtering consistent across user timezones.
+      const firstDay = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0))
+      const lastDay = new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999))
       const res: any = await graphql.request(EMPLOYEE_DATA_QUERY as any, {
         employeeId: activeEmployeeId,
         activeUserLocale: getCurrentActiveUserLocale(),

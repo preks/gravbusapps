@@ -168,6 +168,31 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
     }
     startDurationTimer()
 
+    // Resolve transcriptionEnabled so the "transcript is being recorded" message shows for all participants
+    let transcriptionEnabled = false
+    if (calendarMeetingIdForJoin && options?.calendarApiClient) {
+      try {
+        const meetingDetails = await options.calendarApiClient.getMeeting(calendarMeetingIdForJoin)
+        if (
+          meetingDetails?.transcriptionEnabled === true ||
+          (meetingDetails as { metadata?: { aiTranscriptionEnabled?: boolean } })?.metadata?.aiTranscriptionEnabled ===
+            true
+        ) {
+          transcriptionEnabled = true
+        }
+      } catch {
+        // Best-effort
+      }
+    } else if (apiClient && typeof apiClient.getMeetingDetails === 'function') {
+      try {
+        const details = await apiClient.getMeetingDetails(finalMeetingId)
+        const data = details?.data ?? details
+        if ((data as { transcriptionEnabled?: boolean })?.transcriptionEnabled === true) transcriptionEnabled = true
+      } catch {
+        // Best-effort
+      }
+    }
+
     setCallState((prev: any) => ({
       ...prev,
       status: 'joining',
@@ -178,7 +203,8 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
       conversationType,
       callStartTime: refs.startTimeRef.current,
       startTime: refs.startTimeRef.current,
-      calendarMeetingId: calendarMeetingIdForJoin
+      calendarMeetingId: calendarMeetingIdForJoin,
+      transcriptionEnabled
     }))
 
     callPreferences.saveActiveCall(currentUser.id, roomId)
@@ -187,12 +213,22 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
     let sessionIdToEmit = refs.sessionIdRef.current ?? resolvedSessionId
     if (!sessionIdToEmit && calendarMeetingIdForJoin && options?.calendarApiClient) {
       try {
-        const { sessionId: linkedSessionId } =
+        const { sessionId: linkedSessionId, meeting: linkedMeeting } =
           await options.calendarApiClient.resolveAndLinkSession(calendarMeetingIdForJoin)
         if (linkedSessionId) {
           refs.sessionIdRef.current = linkedSessionId
           sessionIdToEmit = linkedSessionId
           setCallState((prev: any) => ({ ...prev, sessionId: linkedSessionId }))
+        }
+        // Use meeting from resolveAndLinkSession so transcript message shows in in-call dialog for joiners
+        if (linkedMeeting && !transcriptionEnabled) {
+          const fromLinked =
+            (linkedMeeting as { transcriptionEnabled?: boolean }).transcriptionEnabled === true ||
+            (linkedMeeting as { metadata?: { aiTranscriptionEnabled?: boolean } })?.metadata?.aiTranscriptionEnabled ===
+              true
+          if (fromLinked) {
+            setCallState((prev: any) => ({ ...prev, transcriptionEnabled: true }))
+          }
         }
       } catch {
         // Best-effort; backend may still resolve by meetingId in some paths

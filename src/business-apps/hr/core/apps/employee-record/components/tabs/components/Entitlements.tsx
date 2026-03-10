@@ -64,7 +64,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
                 {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')}
               </span>
               <span className="gba:font-medium">
-                {entitlement.used} / {entitlement.total}
+                {Math.round(entitlement.used)} / {Math.round(entitlement.total)}
               </span>
             </div>
 
@@ -82,14 +82,16 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
               <span className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
               </span>
-              <span className="gba:font-medium gba:text-lg gba:text-card-foreground">{entitlement.available}</span>
+              <span className="gba:font-medium gba:text-lg gba:text-card-foreground">
+                {Math.round(entitlement.available)}
+              </span>
             </div>
 
             {entitlement.pending > 0 && (
               <div className="gba:flex gba:justify-between gba:mt-2 gba:items-center">
                 <span className="gba:text-warning">{getAbsenceStatusLabel('PENDING')}</span>
                 <div className="gba:flex gba:items-center gba:gap-1">
-                  <span className="gba:text-warning gba:font-medium">{entitlement.pending}</span>
+                  <span className="gba:text-warning gba:font-medium">{Math.round(entitlement.pending)}</span>
                   <span className="gba:text-xs gba:text-muted-foreground">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.status_in_approval', 'days in approval')}
                   </span>

@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Typography } from 'antd'
-import { RiSearchLine } from '@remixicon/react'
-import { UsersThreeIcon } from '@phosphor-icons/react'
+import { MagnifyingGlassIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { HrSettingsCard, HrSettingsCardProps } from './components/HrSettingsCard'
 import { useHrSettingsCards } from './hooks/useHrSettingsCards'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
@@ -46,7 +45,7 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
       className={`${className ?? ''} gba:!overflow-y-visible`}
       pageHeaderRight={
         <Input
-          prefix={<RiSearchLine className="gba:text-muted-foreground" />}
+          prefix={<MagnifyingGlassIcon size={16} className="gba:text-muted-foreground" />}
           placeholder={getTranslationFromI18nKeyAndLabel('translation:actions.search', 'Search')}
           style={{ maxWidth: '320px' }}
           allowClear

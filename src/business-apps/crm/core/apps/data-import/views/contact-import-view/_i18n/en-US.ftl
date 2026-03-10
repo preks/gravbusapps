@@ -1,9 +1,9 @@
 # Contact Import View Translations (English - US)
 
 # Page Header
-page-title = Contact Import with AI Mapping
-page-description = Upload a CSV file, let AI analyze and map the fields, then convert to Contact format
+contact-page-title = Contact Import with AI Mapping
+contact-page-description = Upload a CSV file, let AI analyze and map the fields, then convert to Contact format
 
 # Entity Type Labels
-entity-type = contacts
-entity-type-singular = contact
+contact-entity-type = contacts
+contact-entity-type-singular = contact

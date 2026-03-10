@@ -1,6 +1,18 @@
 import React, { useCallback, useState } from 'react'
-import { Card, Spinner, toast } from '@newwork/nw-design-system'
-import { Kanban, Users, Zap, FileText, Bug, CalendarDays, UserCheck, Rocket, Package, Printer } from 'lucide-react'
+import { Spinner, toast } from '@newwork/nw-design-system'
+import {
+  Kanban,
+  Users,
+  Zap,
+  FileText,
+  Bug,
+  CalendarDays,
+  UserCheck,
+  Rocket,
+  Package,
+  Printer,
+  Plus
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Board, BoardRow, BoardSheet, BoardView } from '../../types'
 import { ALL_TEMPLATES, buildBoardFromTemplate } from '../../templates'
@@ -90,33 +102,31 @@ export const BoardsHomeTemplates: React.FC<BoardsHomeTemplatesProps> = ({
 
   return (
     <section data-testid={testId}>
-      <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-        Quick start
-      </h3>
-      <div className="gba:space-y-2">
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+        <Plus className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+        <h3 className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider">
+          Quick start from template
+        </h3>
+      </div>
+      <div className="gba:grid gba:grid-cols-2 gba:gap-2">
         {ALL_TEMPLATES.map(tpl => {
           const IconComponent = ICON_MAP[tpl.iconName] || Kanban
+          const isCreating = creating === tpl.id
           return (
-            <Card
+            <button
               key={tpl.id}
-              className="gba:cursor-pointer gba:hover:bg-muted/30 gba:transition-colors"
-              onClick={() => !creating && handleCreate(tpl)}
+              disabled={!!creating}
+              onClick={() => handleCreate(tpl)}
+              className="gba:flex gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:px-3 gba:py-2 gba:text-left gba:transition-colors gba:hover:bg-accent/50 gba:disabled:opacity-50"
               data-testid={`${testId}-${tpl.id}`}
             >
-              <div className="gba:flex gba:items-center gba:gap-3 gba:p-3">
-                <div className="gba:w-9 gba:h-9 gba:rounded-lg gba:bg-accent/50 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:text-accent-foreground">
-                  {creating === tpl.id ? (
-                    <Spinner className="gba:w-4 gba:h-4" />
-                  ) : (
-                    <IconComponent className="gba:w-5 gba:h-5" />
-                  )}
-                </div>
-                <div className="gba:flex-1 gba:min-w-0">
-                  <p className="gba:text-sm gba:font-medium gba:text-foreground">{tpl.name}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">{tpl.description}</p>
-                </div>
-              </div>
-            </Card>
+              {isCreating ? (
+                <Spinner className="gba:w-3.5 gba:h-3.5 gba:shrink-0" />
+              ) : (
+                <IconComponent className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:shrink-0" />
+              )}
+              <span className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">{tpl.name}</span>
+            </button>
           )
         })}
       </div>

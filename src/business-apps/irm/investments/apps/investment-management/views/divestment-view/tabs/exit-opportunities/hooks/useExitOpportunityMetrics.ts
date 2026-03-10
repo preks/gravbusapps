@@ -1,10 +1,16 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentOpportunityAggregates } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildWhere } from '@/common/network/graphql/queryHelpers'
+import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { createTTLCache, createCacheUtils } from '@/common/utils/ttlCache'
+import {
+  WON_STATUS_CONDITION,
+  HISTORICAL_DAYS,
+  type InvestmentOpportunityAggregateBlock
+} from '../../../config/divestmentOpportunityConditions'
 
-// Metrics interface for exit opportunities
 export interface ExitOpportunityMetrics {
   totalCount: number
   totalValue: number
@@ -12,19 +18,65 @@ export interface ExitOpportunityMetrics {
   averageWinRate: number
   wonCount: number
   totalWonValue: number
-  countChange: number
-  totalValueChange: number
-  averageValueChange: number
-  winRateChange: number
+  prevTotalCount: number
+  prevTotalValue: number
+  prevAverageValue: number
+  prevAverageWinRate: number
 }
 
-const HISTORICAL_DAYS = 91
+const metricsCache = createTTLCache<ExitOpportunityMetrics>()
 
-// Global cache instance with TTL management - typed for metrics
-const metricsCache = createTTLCache<Partial<ExitOpportunityMetrics>>()
+const COMBINED_AGGREGATES_QUERY = `
+  query GetExitOpportunityMetrics(
+    $currentWhere: InvestmentOpportunityBoolExp
+    $currentWonWhere: InvestmentOpportunityBoolExp
+    $historicalWhere: InvestmentOpportunityBoolExp
+    $historicalWonWhere: InvestmentOpportunityBoolExp
+  ) {
+    currentAll: InvestmentOpportunityAggregate(where: $currentWhere) {
+      aggregate { count sum { estimatedAmount } avg { estimatedAmount } }
+    }
+    currentWon: InvestmentOpportunityAggregate(where: $currentWonWhere) {
+      aggregate { count sum { estimatedAmount } }
+    }
+    historicalAll: InvestmentOpportunityAggregate(where: $historicalWhere) {
+      aggregate { count sum { estimatedAmount } avg { estimatedAmount } }
+    }
+    historicalWon: InvestmentOpportunityAggregate(where: $historicalWonWhere) {
+      aggregate { count sum { estimatedAmount } }
+    }
+  }
+`
+
+interface CombinedAggregatesResponse {
+  currentAll: InvestmentOpportunityAggregateBlock
+  currentWon: InvestmentOpportunityAggregateBlock
+  historicalAll: InvestmentOpportunityAggregateBlock
+  historicalWon: InvestmentOpportunityAggregateBlock
+}
 
 export interface UseExitOpportunityMetricsProps extends BusinessAppContextProps {
   filters?: any
+}
+
+function buildWhereConditions(
+  variables: InvestmentOpportunityQueryVariables,
+  extraConditions: Record<string, any>[] = []
+) {
+  const customConditions: Record<string, any>[] = [{ divestmentId: { _isNull: false } }, ...extraConditions]
+
+  if (variables.dealType) {
+    customConditions.push({ dealType: { _eq: variables.dealType } })
+  }
+  if (variables.currencyCode?.trim()) {
+    customConditions.push({ currency: { code: { _eq: variables.currencyCode.trim() } } })
+  }
+
+  return buildWhere({
+    variables,
+    descriptors: INVESTMENT_OPPORTUNITY_DESCRIPTORS,
+    customConditions
+  })
 }
 
 export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOpportunityMetricsProps) => {
@@ -32,208 +84,105 @@ export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOppor
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunityAggregates({ accessToken })
-
-  // Race condition protection: track request IDs to ignore stale responses
+  const graphqlClient = useGraphQLClient(accessToken)
   const requestIdRef = useRef(0)
 
-  // Register hook with cache and setup cleanup on unmount
   useEffect(() => {
     const unregister = metricsCache.registerHook()
-
-    // Cleanup on unmount
     return () => {
       unregister()
     }
   }, [])
 
-  // Generate cache key based on filters
-  const getCacheKey = useCallback((filters: any, dateRange: { from: string; to: string }) => {
-    return `exit-metrics-${JSON.stringify(filters)}-${dateRange.from}-${dateRange.to}`
-  }, [])
-
-  // Check if cached data is still valid using TTL cache
-  const getCachedMetrics = useCallback((cacheKey: string): Partial<ExitOpportunityMetrics> | null => {
-    return metricsCache.get(cacheKey)
-  }, [])
-
-  // Store metrics in cache using TTL cache
-  const setCachedMetrics = useCallback(
-    (cacheKey: string, metrics: Partial<ExitOpportunityMetrics>, customTtlMs?: number) => {
-      metricsCache.set(cacheKey, metrics, customTtlMs)
-    },
-    []
-  )
-
-  // Create targeted GraphQL query for metrics aggregation
-  const buildMetricsQuery = useCallback(
-    (variables: InvestmentOpportunityQueryVariables, dateRange?: { from: string; to: string }) => {
-      const baseVariables = {
-        ...variables,
-        dealType: 'DIVESTMENT_DEAL', // Fixed filter for divestment opportunities
-        limit: 100, // Smaller limit for metrics calculation
-        offset: 0
-      }
-
-      // Add date range filtering at query level instead of client-side
-      if (dateRange) {
-        baseVariables.createdAtFrom = dateRange.from
-        baseVariables.createdAtTo = dateRange.to
-      }
-
-      return baseVariables
-    },
-    []
-  )
-
-  // Calculate metrics using purely server-side aggregates
-  const calculateMetricsFromAggregates = useCallback(
-    async (variables: InvestmentOpportunityQueryVariables): Promise<Partial<ExitOpportunityMetrics>> => {
-      try {
-        // Get aggregates for all opportunities and won opportunities from server
-        const aggregateResult = await fetchInvestmentOpportunityAggregates(variables)
-        const allAggregate = aggregateResult.InvestmentOpportunityAggregate?.aggregate
-        const wonAggregate = aggregateResult.InvestmentOpportunityWonAggregate?.aggregate
-
-        if (!allAggregate) {
-          return {
-            totalCount: 0,
-            totalValue: 0,
-            averageValue: 0,
-            averageWinRate: 0,
-            wonCount: 0,
-            totalWonValue: 0
-          }
-        }
-
-        const totalCount = allAggregate.count || 0
-        const wonCount = wonAggregate?.count || 0
-
-        // Calculate win rate as percentage: won opportunities / total opportunities * 100
-        const averageWinRate = totalCount > 0 ? (wonCount / totalCount) * 100 : 0
-
-        return {
-          totalCount,
-          totalValue: allAggregate.sum?.estimatedAmount || 0,
-          averageValue: allAggregate.avg?.estimatedAmount || 0,
-          averageWinRate,
-          wonCount,
-          totalWonValue: wonAggregate?.sum?.estimatedAmount || 0
-        }
-      } catch (error) {
-        console.error('Error calculating metrics from aggregates:', error)
-        throw error
-      }
-    },
-    [fetchInvestmentOpportunityAggregates]
-  )
-
-  // Calculate percentage change between current and historical
-  const calculatePercentageChange = useCallback((current: number, previous: number): number => {
-    if (previous === 0) return current > 0 ? 100 : 0
-    return ((current - previous) / previous) * 100
-  }, [])
-
-  // Load current and historical metrics with optimized queries
   const loadMetrics = useCallback(
     async (baseFilters: any = {}) => {
       if (!accessToken) return
 
-      // Increment request ID to track this specific request
       const currentRequestId = ++requestIdRef.current
-
       setIsLoading(true)
       setError(null)
 
       try {
+        const cacheKey = `exit-metrics-${JSON.stringify(baseFilters)}`
+        const cached = metricsCache.get(cacheKey)
+        if (cached) {
+          if (requestIdRef.current === currentRequestId) {
+            setMetrics(cached)
+            setIsLoading(false)
+          }
+          return
+        }
+
         const currentDate = new Date()
         const historicalDate = new Date()
         historicalDate.setDate(currentDate.getDate() - HISTORICAL_DAYS)
 
-        // Create a proper historical range spanning from 91 days ago to now
-        const historicalDateRange = {
-          from: historicalDate.toISOString(),
-          to: currentDate.toISOString()
+        const baseVars: InvestmentOpportunityQueryVariables = {
+          dealType: 'DIVESTMENT_DEAL',
+          ...baseFilters
         }
 
-        // Check cache for historical metrics first
-        const historicalCacheKey = getCacheKey(baseFilters, historicalDateRange)
-        let historicalMetrics = getCachedMetrics(historicalCacheKey)
-
-        // Calculate metrics using server-side aggregates
-        const currentVariables = buildMetricsQuery(baseFilters)
-        const currentMetricsData = await calculateMetricsFromAggregates(currentVariables)
-
-        // Get or calculate historical metrics
-        if (!historicalMetrics) {
-          const historicalVariables = buildMetricsQuery(baseFilters, historicalDateRange)
-          historicalMetrics = await calculateMetricsFromAggregates(historicalVariables)
-          // Cache the historical metrics
-          setCachedMetrics(historicalCacheKey, historicalMetrics)
+        const historicalVars: InvestmentOpportunityQueryVariables = {
+          ...baseVars,
+          createdAtFrom: historicalDate.toISOString(),
+          createdAtTo: currentDate.toISOString()
         }
 
-        // Race condition guard: only update state if this is still the latest request
-        if (requestIdRef.current !== currentRequestId) {
-          // This response is stale, ignore it
-          return
-        }
+        const currentWhere = buildWhereConditions(baseVars)
+        const currentWonWhere = buildWhereConditions(baseVars, [WON_STATUS_CONDITION])
+        const historicalWhere = buildWhereConditions(historicalVars)
+        const historicalWonWhere = buildWhereConditions(historicalVars, [WON_STATUS_CONDITION])
 
-        // Ensure historical metrics have default values
-        const safeHistoricalMetrics = {
-          totalCount: 0,
-          totalValue: 0,
-          averageValue: 0,
-          averageWinRate: 0,
-          wonCount: 0,
-          totalWonValue: 0,
-          ...historicalMetrics
-        }
+        const result = await graphqlClient.request<CombinedAggregatesResponse>(COMBINED_AGGREGATES_QUERY, {
+          currentWhere,
+          currentWonWhere,
+          historicalWhere,
+          historicalWonWhere
+        })
 
-        // Calculate percentage changes
+        if (requestIdRef.current !== currentRequestId) return
+
+        const cur = result.currentAll.aggregate
+        const curWon = result.currentWon.aggregate
+        const hist = result.historicalAll.aggregate
+        const histWon = result.historicalWon.aggregate
+
+        const totalCount = cur?.count || 0
+        const wonCount = curWon?.count || 0
+        const histTotalCount = hist?.count || 0
+        const histWonCount = histWon?.count || 0
+
+        const averageWinRate = totalCount > 0 ? (wonCount / totalCount) * 100 : 0
+        const histWinRate = histTotalCount > 0 ? (histWonCount / histTotalCount) * 100 : 0
+
         const finalMetrics: ExitOpportunityMetrics = {
-          ...currentMetricsData,
-          countChange: calculatePercentageChange(currentMetricsData.totalCount || 0, safeHistoricalMetrics.totalCount),
-          totalValueChange: calculatePercentageChange(
-            currentMetricsData.totalValue || 0,
-            safeHistoricalMetrics.totalValue
-          ),
-          averageValueChange: calculatePercentageChange(
-            currentMetricsData.averageValue || 0,
-            safeHistoricalMetrics.averageValue
-          ),
-          winRateChange: calculatePercentageChange(
-            currentMetricsData.averageWinRate || 0,
-            safeHistoricalMetrics.averageWinRate
-          )
-        } as ExitOpportunityMetrics
+          totalCount,
+          totalValue: cur?.sum?.estimatedAmount || 0,
+          averageValue: cur?.avg?.estimatedAmount || 0,
+          averageWinRate,
+          wonCount,
+          totalWonValue: curWon?.sum?.estimatedAmount || 0,
+          prevTotalCount: histTotalCount,
+          prevTotalValue: hist?.sum?.estimatedAmount || 0,
+          prevAverageValue: hist?.avg?.estimatedAmount || 0,
+          prevAverageWinRate: histWinRate
+        }
 
+        metricsCache.set(cacheKey, finalMetrics)
         setMetrics(finalMetrics)
       } catch (err) {
-        console.error('Error loading exit opportunity metrics:', err)
-
-        // Race condition guard: only update error state if this is still the latest request
         if (requestIdRef.current === currentRequestId) {
           setError(err instanceof Error ? err.message : 'Unknown error occurred')
         }
       } finally {
-        // Race condition guard: only update loading state if this is still the latest request
         if (requestIdRef.current === currentRequestId) {
           setIsLoading(false)
         }
       }
     },
-    [
-      accessToken,
-      buildMetricsQuery,
-      calculateMetricsFromAggregates,
-      calculatePercentageChange,
-      getCacheKey,
-      getCachedMetrics,
-      setCachedMetrics
-    ]
+    [accessToken, graphqlClient]
   )
 
-  // Memoized return values with enhanced cache management
   const returnValues = useMemo(
     () => ({
       metrics,
@@ -241,7 +190,6 @@ export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOppor
       error,
       loadMetrics,
       refreshMetrics: () => loadMetrics(filters),
-      // Enhanced cache utilities with TTL support
       cache: createCacheUtils(metricsCache)
     }),
     [metrics, isLoading, error, loadMetrics, filters]
@@ -250,7 +198,6 @@ export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOppor
   return returnValues
 }
 
-// Export cache utilities for testing and debugging
 export const cacheUtils = createCacheUtils(metricsCache)
 
 export default useExitOpportunityMetrics

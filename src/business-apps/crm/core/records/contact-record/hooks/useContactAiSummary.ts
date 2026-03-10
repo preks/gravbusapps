@@ -1,11 +1,11 @@
 import { useCallback } from 'react'
 import * as z from 'zod'
 import useInformationExtraction, { UseInformationExtractionReturn } from '@/common/hooks/useInformationExtraction'
-import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerContact'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
 import {
   getEmailChannel,
   getPhoneChannel,
@@ -61,8 +61,11 @@ async function fetchPaginatedData<T>(
   return allData
 }
 
-export function useContactAiSummary(contactId: string, accessToken: string): UseContactAiSummaryReturn {
-  const { contact } = useCustomerContact(accessToken, contactId)
+export function useContactAiSummary(
+  contactId: string,
+  accessToken: string,
+  contact: CustomerContact | null
+): UseContactAiSummaryReturn {
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities({ accessToken } as BusinessAppContextProps)
   const { fetchCustomerNotesByContactId } = useCustomerNotes({ accessToken } as BusinessAppContextProps)
   const { fetchCustomerTasksByContactId } = useCustomerTasks({ accessToken } as BusinessAppContextProps)
@@ -77,7 +80,6 @@ export function useContactAiSummary(contactId: string, accessToken: string): Use
     }
 
     try {
-      // Contact data is already available from the hook
       if (!contact) {
         throw new Error(`Customer contact with ID ${contactId} not found`)
       }

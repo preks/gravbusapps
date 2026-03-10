@@ -114,6 +114,7 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
     return columns.filter(c => c.type === 'text' || c.type === 'multiselect')
   }, [columns])
   const dateCandidates = useMemo(() => columns.filter(c => c.type === 'date' || c.type === 'datetime'), [columns])
+  const relationCandidates = useMemo(() => columns.filter(c => c.type === 'relation'), [columns])
 
   const [kanbanStatus, setKanbanStatus] = useState('')
   const [kanbanTitle, setKanbanTitle] = useState('')
@@ -122,6 +123,7 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
   const [timelineStart, setTimelineStart] = useState('')
   const [timelineEnd, setTimelineEnd] = useState('')
   const [timelineTitle, setTimelineTitle] = useState('')
+  const [timelineDeps, setTimelineDeps] = useState('')
 
   const canCreate = useMemo(() => Boolean(name.trim()), [name])
 
@@ -135,6 +137,7 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
     setTimelineStart('')
     setTimelineEnd('')
     setTimelineTitle('')
+    setTimelineDeps('')
   }, [])
 
   const handleOpenChange = useCallback(
@@ -206,7 +209,8 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
         type: 'timeline',
         startDateColumn: timelineStart || fd,
         endDateColumn: timelineEnd || fd,
-        titleColumn: timelineTitle || primaryName
+        titleColumn: timelineTitle || primaryName,
+        dependencyColumn: timelineDeps || undefined
       }
     } else if (type === 'form') {
       config = { type: 'form', fields: [], layout: 'single', submitLabel: 'Add row' }
@@ -458,6 +462,27 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
+                  {relationCandidates.length > 0 && (
+                    <div>
+                      <Label className="gba:text-[11px] gba:text-muted-foreground">Dependencies</Label>
+                      <Select value={timelineDeps} onValueChange={setTimelineDeps}>
+                        <SelectTrigger
+                          className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
+                          data-testid={`${testId}-timeline-deps`}
+                        >
+                          <SelectValue placeholder="None (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {relationCandidates.map(c => (
+                            <SelectItem key={c.id} value={c.name}>
+                              {c.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

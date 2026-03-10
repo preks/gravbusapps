@@ -56,8 +56,8 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
 
       const newUrl = buildPlatformUrl(window.location.pathname, params)
 
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState({}, '', newUrl)
+      if (globalThis.window?.history?.replaceState) {
+        globalThis.window.history.replaceState({}, '', newUrl)
       }
     } catch (error) {
       console.warn('Failed to update URL in divestment view:', error)
@@ -87,8 +87,8 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
       setActiveTab(newTab)
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.window?.addEventListener('popstate', handlePopState)
+    return () => globalThis.window?.removeEventListener('popstate', handlePopState)
   }, [])
 
   return (
@@ -121,7 +121,7 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
           data-testid="planned-exits-tab-content"
         >
           <div className="gba:p-6">
-            <PlannedExits {...context} />
+            <PlannedExits {...context} enabled={activeTab === 'planned-exits'} />
           </div>
         </TabsContent>
 
@@ -131,13 +131,13 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
           data-testid="exit-opportunities-tab-content"
         >
           <div className="gba:p-6">
-            <ExitOpportunitiesTab {...context} />
+            <ExitOpportunitiesTab {...context} enabled={activeTab === 'exit-opportunities'} />
           </div>
         </TabsContent>
 
         <TabsContent value="exits" className="gba:flex-1 gba:overflow-auto gba:mt-0" data-testid="exits-tab-content">
           <div className="gba:p-6">
-            <ExitsTab {...context} />
+            <ExitsTab {...context} enabled={activeTab === 'exits'} />
           </div>
         </TabsContent>
       </Tabs>
