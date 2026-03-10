@@ -6,7 +6,9 @@ export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uu
     additionalProperties
     healthInsuranceName
     healthInsuranceTypeRef
-    healthInsuranceDocument
+    healthInsuranceDocument {
+      id
+    }
     taxNumber
     taxBracketRef
     taxIdentificationNumber
@@ -28,12 +30,7 @@ export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uu
       }
     }
   }
-}
-`
-
-/** Employee country from working condition: region.parentEntry = Country (id, code). */
-export const GET_EMPLOYEE_COUNTRY = `query GetEmployeeCountry($employeeId: uuid!) {
-  EmployeeWorkingCondition(where: {employeeId: {_eq: $employeeId}}) {
+  EmployeeWorkingCondition(where: {employeeId: {_eq: $idEmployee}}) {
     region {
       parentEntry {
         id

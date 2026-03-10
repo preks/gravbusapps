@@ -35,7 +35,12 @@ export function buildEmployeeTaxDetailPayload(
     taxableChurchAffiliationRef: values.taxableChurchAffiliationRef || '',
     healthInsuranceTypeRef: values.healthInsuranceTypeRef || '',
     healthInsuranceName: values.healthInsuranceName || '',
-    healthInsuranceDocument: values.uploadedHealthInsuranceDocumentId ?? data?.healthInsuranceDocument ?? null,
+    healthInsuranceDocument:
+      values.uploadedHealthInsuranceDocumentId ??
+      (typeof data?.healthInsuranceDocument === 'object' && data?.healthInsuranceDocument != null
+        ? (data.healthInsuranceDocument as { id?: string }).id
+        : data?.healthInsuranceDocument) ??
+      null,
     childTaxAllowance: Number.isNaN(childTaxAllowanceNum) ? 0 : childTaxAllowanceNum,
     religionRef: values.taxableChurchAffiliationRef || data?.religionRef || '',
     additionalProperties

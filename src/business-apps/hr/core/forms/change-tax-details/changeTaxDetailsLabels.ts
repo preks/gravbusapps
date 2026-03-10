@@ -30,6 +30,10 @@ export function getChangeTaxDetailsLabels(getMessage: GetMessage) {
       'Upload document'
     ),
     documentType: getMessage('lowcoder:change_tax_information.document_type', 'Document Type'),
+    requiredDocumentType: getMessage(
+      'lowcoder:change_tax_information.required_document_type_text',
+      'Document type is required when uploading a new health insurance document.'
+    ),
     validTo: getMessage('lowcoder:change_tax_information.document_valid_to', 'Valid to'),
     uploadNewHealthInsuranceDocument: getMessage(
       'lowcoder:change_tax_information.upload_new_health_insurance_document',

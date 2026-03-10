@@ -79,19 +79,36 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   )
 
   const watchedValues = form.watch()
-  const isUnchangedNow = useMemo(() => {
-    const normalize = (v: TaxInfoFormValues) => ({
-      ...v,
-      taxBracketRef: v.taxBracketRef || null,
-      taxableChurchAffiliationRef: v.taxableChurchAffiliationRef || null,
-      healthInsuranceDocumentTypeId: v.healthInsuranceDocumentTypeId || null,
-      uploadNewHealthInsuranceDocument: Boolean(v.uploadNewHealthInsuranceDocument)
-    })
-    return JSON.stringify(normalize(watchedValues as any)) === JSON.stringify(normalize(initialRef.current))
-  }, [watchedValues])
 
-  const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
-  const isSubmitDisabledFinal = hasValidationErrors || isUnchangedNow
+  const normalizeForCompare = useCallback((v: TaxInfoFormValues) => {
+    const s = (x: unknown) => (x == null ? '' : String(x).trim())
+    return {
+      taxNumber: s(v.taxNumber),
+      taxBracketRef: v.taxBracketRef || null,
+      healthInsuranceName: s(v.healthInsuranceName),
+      healthInsuranceTypeRef: v.healthInsuranceTypeRef || null,
+      taxIdentificationNumber: s(v.taxIdentificationNumber),
+      taxableChurchAffiliationRef: v.taxableChurchAffiliationRef || null,
+      socialSecurityNumber: s(v.socialSecurityNumber),
+      childTaxAllowance: s(v.childTaxAllowance),
+      requestAtTaxOffice: Boolean(v.requestAtTaxOffice),
+      employeeTaxOffice: s(v.employeeTaxOffice),
+      individualFreeAmount: s(v.individualFreeAmount),
+      healthInsuranceDocumentTypeId: v.healthInsuranceDocumentTypeId || null,
+      healthInsuranceDocumentValidTo: s(v.healthInsuranceDocumentValidTo),
+      uploadNewHealthInsuranceDocument: Boolean(v.uploadNewHealthInsuranceDocument)
+    }
+  }, [])
+
+  const isUnchangedNow = useMemo(() => {
+    const current = normalizeForCompare(watchedValues as TaxInfoFormValues)
+    const initial = normalizeForCompare(initialRef.current)
+    return JSON.stringify(current) === JSON.stringify(initial)
+  }, [watchedValues, normalizeForCompare])
+
+  const { formState } = form
+  const { isValid } = formState
+  const isSubmitDisabledFinal = !isValid || isUnchangedNow
 
   const handlePreSubmit =
     healthInsuranceFileList.length > 0 && healthInsuranceFileList[0]?.originFileObj

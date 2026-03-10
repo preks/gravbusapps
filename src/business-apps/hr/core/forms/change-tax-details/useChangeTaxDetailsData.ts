@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { GET_TAX_DETAILS_EMPLOYEE, GET_TAX_DETAILS_CATALOG, GET_EMPLOYEE_COUNTRY } from './ChangeTaxDetailsQueries'
+import { GET_TAX_DETAILS_EMPLOYEE, GET_TAX_DETAILS_CATALOG } from './ChangeTaxDetailsQueries'
 import { isEmployeeInGermany } from './validationScope'
 import type { TaxInfoFormValues, TaxDetailsCatalogs, CatalogEntry } from './types'
 
@@ -13,6 +13,18 @@ const defaultCatalogs: TaxDetailsCatalogs = {
   documentType: []
 }
 
+function getEmployeeIdFromContext(additionalData: unknown, userInfo: unknown): string {
+  const ad = additionalData as any
+  return (
+    ad?.psi_taskPayload?.employeeId ||
+    ad?.psi_taskPayload?.initialParameters?.employeeId ||
+    ad?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+    (typeof ad?.contextData === 'object' && ad?.contextData?.employeeId) ||
+    (userInfo as any)?.employeeDetails?.employeeId ||
+    ''
+  )
+}
+
 export function useChangeTaxDetailsData(
   accessToken: string | undefined,
   additionalData: unknown,
@@ -21,6 +33,7 @@ export function useChangeTaxDetailsData(
   initialRef: React.MutableRefObject<TaxInfoFormValues>
 ) {
   const graphqlClient = useGraphQLClient(accessToken)
+  const employeeId = getEmployeeIdFromContext(additionalData, userInfo)
   const [data, setData] = useState<unknown>(null)
   const [catalogs, setCatalogs] = useState<TaxDetailsCatalogs>(defaultCatalogs)
   const [isReady, setIsReady] = useState(false)
@@ -31,15 +44,6 @@ export function useChangeTaxDetailsData(
     const fetchData = async () => {
       try {
         setIsReady(false)
-        const employeeId =
-          (additionalData as any)?.psi_taskPayload?.employeeId ||
-          (additionalData as any)?.psi_taskPayload?.initialParameters?.employeeId ||
-          (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-          (typeof (additionalData as any)?.contextData === 'object' &&
-            (additionalData as any)?.contextData?.employeeId) ||
-          (userInfo as any)?.employeeDetails?.employeeId ||
-          ''
-
         const locale = getCurrentActiveUserLocale() || 'en-US'
         const catalogsRes = await graphqlClient.request<Record<string, unknown>>(GET_TAX_DETAILS_CATALOG, {
           activeUserLocale: locale
@@ -61,13 +65,8 @@ export function useChangeTaxDetailsData(
           setData(employeeDetails)
           const g = employeeRes?.EmployeeByPk?.gender?.value
           setEmployeeGender(typeof g === 'string' ? g.toLowerCase() : null)
-          try {
-            const countryRes = await graphqlClient.request<any>(GET_EMPLOYEE_COUNTRY, { employeeId })
-            const entry = countryRes?.EmployeeWorkingCondition?.[0]?.region?.parentEntry
-            setEmployeeCountryCode(entry?.code ?? null)
-          } catch {
-            setEmployeeCountryCode(null)
-          }
+          const entry = employeeRes?.EmployeeWorkingCondition?.[0]?.region?.parentEntry
+          setEmployeeCountryCode(entry?.code ?? null)
         } else {
           setEmployeeCountryCode(null)
         }
@@ -91,6 +90,7 @@ export function useChangeTaxDetailsData(
         }
         form.reset(defaults)
         initialRef.current = defaults
+        void form.trigger()
       } catch {
         // no-op
       } finally {
@@ -98,7 +98,7 @@ export function useChangeTaxDetailsData(
       }
     }
     fetchData()
-  }, [(additionalData as any)?.psi_taskPayload, graphqlClient, form, userInfo])
+  }, [employeeId, graphqlClient])
 
   const isEmployeeInGermanyFlag = isEmployeeInGermany(employeeCountryCode)
 

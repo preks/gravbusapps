@@ -185,10 +185,19 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
               <FormField
                 control={form.control as any}
                 name={'healthInsuranceDocumentTypeId' as any}
+                rules={{
+                  validate: (value: string | null) => {
+                    if (!form.getValues('uploadNewHealthInsuranceDocument')) return true
+                    return value && String(value).trim() ? true : L.requiredDocumentType
+                  }
+                }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel data-testid="change-tax-details-health-insurance-document-type-label">
                       {L.documentType}
+                      {form.watch('uploadNewHealthInsuranceDocument') && (
+                        <span className="gba:text-destructive">*</span>
+                      )}
                     </FormLabel>
                     <FormControl>
                       <Combobox
