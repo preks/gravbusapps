@@ -223,6 +223,8 @@ logic-field-placeholder = Select value
 logic-field-search = Search step data...
 logic-field-empty = No matching values
 logic-field-group-steps = Step data
+flow-context-search = Search flow context...
+flow-context-group = Flow context
 logic-operator-label = Operator
 
 # User decisions (USER mode)

@@ -179,13 +179,19 @@ decisions-flow-instances-description = Eindeutige Workflow-Instanzen mit Entsche
 decisions-entries = Einträge
 decisions-time = Zeit
 decisions-step = Schritt
+decisions-decision = Entscheidung
 decisions-mode = Modus
 decisions-selected-branch = Gewählter Pfad
+decisions-branch-id = Pfad-ID
 decisions-decided-by = Entschieden von
 decisions-escalation = Eskalation
 decisions-flow-status = Flow-Status
 decisions-duration = Dauer
 decisions-direct = Direkt
+decisions-reasoning = Begründung
+decisions-no-reasoning = Für diese Entscheidung wurde keine Begründung gespeichert.
+decisions-input = Entscheidungsinput
+decisions-output = Entscheidungsoutput
 decisions-no-entries = Für die aktuellen Filter wurden keine Entscheidungseinträge gefunden.
 
 # Audit

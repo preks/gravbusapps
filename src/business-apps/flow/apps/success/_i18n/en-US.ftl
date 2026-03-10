@@ -179,13 +179,19 @@ decisions-flow-instances-description = Distinct workflow instances with decision
 decisions-entries = Entries
 decisions-time = Time
 decisions-step = Step
+decisions-decision = Decision
 decisions-mode = Mode
 decisions-selected-branch = Selected branch
+decisions-branch-id = Branch ID
 decisions-decided-by = Decided by
 decisions-escalation = Escalation
 decisions-flow-status = Flow status
 decisions-duration = Duration
 decisions-direct = Direct
+decisions-reasoning = Reasoning
+decisions-no-reasoning = No reasoning was captured for this decision.
+decisions-input = Decision input
+decisions-output = Decision output
 decisions-no-entries = No decision log entries found for the current filters.
 
 # Audit

@@ -18,10 +18,11 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
 import { formatDisplayText } from '@/common/utils/displayText'
 import translations from '../../_i18n'
-import { DecisionTimeframe, useDecisionLogs } from '../../hooks/useDecisionData'
+import { DecisionLogEntry, DecisionTimeframe, useDecisionLogs } from '../../hooks/useDecisionData'
 import { SuccessEmptyState, SuccessErrorState, SuccessKpiGrid, SuccessTabPage, SuccessTimeframeSelect } from '../shared'
 import { formatDateTime, formatMillisecondsDuration, formatStatusLabel } from '../../utils/formatters'
 import { getSuccessTimeframeOptions } from '../../utils/timeframe'
+import { DecisionDetailsDialog } from './DecisionDetailsDialog'
 
 interface DecisionTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -32,6 +33,7 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
   const [timeframe, setTimeframe] = useState<DecisionTimeframe>('mtd')
   const [selectedFlowName, setSelectedFlowName] = useState<string>('ALL')
   const [actorNames, setActorNames] = useState<Record<string, string>>({})
+  const [selectedEntry, setSelectedEntry] = useState<DecisionLogEntry | null>(null)
 
   const {
     data: decisionData,
@@ -204,15 +206,12 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
                   <tr className="gba:border-b gba:border-border">
                     <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('decisions-time')}</th>
                     <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('label-flow')}</th>
-                    <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('decisions-step')}</th>
+                    <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('decisions-decision')}</th>
                     <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('decisions-decided-by')}</th>
                     <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">
                       {t('decisions-selected-branch')}
                     </th>
                     <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('decisions-escalation')}</th>
-                    <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">
-                      {t('decisions-flow-status')}
-                    </th>
                     <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('decisions-duration')}</th>
                   </tr>
                 </thead>
@@ -220,8 +219,9 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
                   {decisionData.decisions.map((entry, index) => (
                     <tr
                       key={entry.id || `${entry.stepReference}-${entry.createdAt || index}`}
-                      className="gba:border-b gba:border-border"
+                      className="gba:cursor-pointer gba:border-b gba:border-border gba:hover:bg-muted/40"
                       data-testid={`${prefixDataTestId}-row-${index}`}
+                      onClick={() => setSelectedEntry(entry)}
                     >
                       <td className="gba:p-3 gba:text-sm">{formatDateTime(entry.createdAt)}</td>
                       <td className="gba:p-3 gba:text-sm">
@@ -236,7 +236,9 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
                       </td>
                       <td className="gba:p-3 gba:text-sm">
                         <div className="gba:flex gba:flex-col gba:gap-1">
-                          <span className="gba:font-medium">{entry.stepReference || 'n/a'}</span>
+                          <span className="gba:font-medium">
+                            {entry.decisionTitle || entry.stepReference || t('value-not-available')}
+                          </span>
                           <span className="gba:text-xs gba:text-muted-foreground">
                             {formatStatusLabel(entry.decisionMode)}
                           </span>
@@ -250,7 +252,18 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
                           ) : null}
                         </div>
                       </td>
-                      <td className="gba:p-3 gba:text-sm">{entry.selectedBranch || 'n/a'}</td>
+                      <td className="gba:p-3 gba:text-sm">
+                        <div className="gba:flex gba:flex-col gba:gap-1">
+                          <span className="gba:font-medium">
+                            {entry.selectedBranchLabel || entry.selectedBranch || t('value-not-available')}
+                          </span>
+                          {entry.selectedBranch &&
+                          entry.selectedBranchLabel &&
+                          entry.selectedBranch !== entry.selectedBranchLabel ? (
+                            <span className="gba:text-xs gba:text-muted-foreground">{entry.selectedBranch}</span>
+                          ) : null}
+                        </div>
+                      </td>
                       <td className="gba:p-3 gba:text-sm">
                         {entry.escalated ? (
                           <div className="gba:flex gba:flex-col gba:gap-1">
@@ -265,7 +278,6 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
                           t('decisions-direct')
                         )}
                       </td>
-                      <td className="gba:p-3 gba:text-sm">{formatStatusLabel(entry.flowStatus)}</td>
                       <td className="gba:p-3 gba:text-sm">{formatMillisecondsDuration(entry.durationMs)}</td>
                     </tr>
                   ))}
@@ -281,6 +293,16 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
           )}
         </CardContent>
       </Card>
+
+      <DecisionDetailsDialog
+        entry={selectedEntry}
+        actorName={selectedEntry?.decidedBy ? getActorName(selectedEntry.decidedBy) : undefined}
+        open={Boolean(selectedEntry)}
+        onOpenChange={open => {
+          if (!open) setSelectedEntry(null)
+        }}
+        data-testid={`${prefixDataTestId}-details`}
+      />
     </SuccessTabPage>
   )
 }

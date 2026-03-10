@@ -1,14 +1,59 @@
 import { useMemo } from 'react'
-import { InputType, type InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType, InputType, type InputBlock } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import { useExpressionSuggestions } from '@/common/components/flow/expression-editor'
 import type { ExpressionSuggestionItem, ExpressionValueType } from '@/common/components/flow/expression-editor'
 import { useFlowStudioStore } from './useFlowStudioStore'
 import { buildStepIndexByNodeId } from '../utils/studioStepOrder'
+import { collectJsonSchemaPaths } from '../components/config-panels/decision/decisionConfigUtils'
 
 function labelForField(field: InputBlock): string {
   const label = String(field.label ?? '').trim()
   if (label) return label
   return String(field.name || '').trim() || 'Field'
+}
+
+function getObjectProperty(node: any, key: string): any {
+  if (node?.type === 'object' && node?.properties && typeof node.properties === 'object') {
+    return node.properties[key]
+  }
+  return undefined
+}
+
+function getSchemaNodeAtPath(root: any, path: string): any {
+  if (!root || typeof root !== 'object') return null
+  const raw = String(path || '').trim()
+  if (!raw) return root
+
+  const parts = raw.split('.').filter(Boolean)
+  let cur: any = root
+  for (const part0 of parts) {
+    if (!cur || typeof cur !== 'object') return null
+    const part = String(part0)
+
+    if (part.endsWith('[]')) {
+      const key = part.slice(0, -2)
+      if (key) cur = getObjectProperty(cur, key)
+      cur = cur?.items
+      continue
+    }
+
+    cur = getObjectProperty(cur, part)
+  }
+
+  return cur
+}
+
+function inferSchemaValueType(node: any): ExpressionValueType {
+  const type = String(node?.type || '').trim()
+  const format = String(node?.format || '').trim()
+  if (type === 'boolean') return 'boolean'
+  if (type === 'number' || type === 'integer') return 'number'
+  if (type === 'string') {
+    if (format === 'date') return 'date'
+    if (format === 'date-time' || format === 'datetime') return 'datetime'
+    return 'string'
+  }
+  return 'unknown'
 }
 
 /**
@@ -49,13 +94,14 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
       id: string
       label: string
       path: string
-      kind?: 'formData'
+      kind?: 'inputValues'
       dataType?: ExpressionValueType
     }> = []
     const steps: Array<{
       reference: string
       label: string
       fields?: Array<{ name: string; label?: string; dataType?: ExpressionValueType }>
+      outputs?: Array<{ path: string; label?: string; dataType?: ExpressionValueType }>
     }> = []
     const catalogFields: Array<{ id: string; label: string; path: string }> = []
     const entityFields: Array<{ id: string; label: string; path: string }> = []
@@ -97,10 +143,25 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
             })
             .filter(Boolean)
         : []
+      const outputSchema =
+        cfg.stepType === FlowStepType.FUNCTION
+          ? cfg.functionConfig?.outputSchema
+          : cfg.stepType === FlowStepType.AI_AGENT || cfg.stepType === FlowStepType.AI_TASK_EXPERT
+            ? cfg.agentConfig?.outputSchema
+            : null
+      const outputs = collectJsonSchemaPaths(outputSchema).map(path => {
+        const outputSegments = path.split('.').filter(Boolean)
+        return {
+          path,
+          label: outputSegments[outputSegments.length - 1] || path,
+          dataType: inferSchemaValueType(getSchemaNodeAtPath(outputSchema, path))
+        }
+      })
       steps.push({
         reference: `step_${stepIndex}`,
         label: cfg.title || task.label || `Step ${stepIndex + 1}`,
-        fields
+        fields,
+        outputs
       })
     }
 

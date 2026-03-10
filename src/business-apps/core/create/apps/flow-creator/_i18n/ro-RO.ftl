@@ -223,6 +223,8 @@ logic-field-placeholder = Selectați valoarea
 logic-field-search = Căutați în datele pașilor...
 logic-field-empty = Nicio valoare găsită
 logic-field-group-steps = Datele pașilor
+flow-context-search = Căutați în contextul flow-ului...
+flow-context-group = Context flow
 logic-operator-label = Operator
 
 # User decisions (USER mode)

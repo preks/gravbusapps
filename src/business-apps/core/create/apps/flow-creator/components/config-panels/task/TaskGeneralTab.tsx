@@ -85,6 +85,7 @@ export const TaskGeneralTab: React.FC<TaskGeneralTabProps> = ({
     const val = Math.round(mins / per)
     return String(val > 0 ? val : '')
   })()
+  const showLinksSection = ![FlowStepType.AI_TASK_EXPERT, FlowStepType.FUNCTION].includes(config.stepType)
 
   const applyStepType = (nextType: FlowStepType) => {
     const isAutomation = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(nextType)
@@ -180,13 +181,15 @@ export const TaskGeneralTab: React.FC<TaskGeneralTabProps> = ({
         </div>
       )}
 
-      <TaskLinksSection
-        nodeId={nodeId}
-        value={config.links ?? []}
-        onChange={next => update({ links: next })}
-        t={t}
-        data-testid={`${testId}-links`}
-      />
+      {showLinksSection && (
+        <TaskLinksSection
+          nodeId={nodeId}
+          value={config.links ?? []}
+          onChange={next => update({ links: next })}
+          t={t}
+          data-testid={`${testId}-links`}
+        />
+      )}
 
       {config.kind === 'USER' && (
         <div className="gba:flex gba:flex-col gba:gap-2">

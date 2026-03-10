@@ -179,13 +179,19 @@ decisions-flow-instances-description = Instante unice de workflow cu decizii
 decisions-entries = Intrari
 decisions-time = Timp
 decisions-step = Pas
+decisions-decision = Decizie
 decisions-mode = Mod
 decisions-selected-branch = Ramura selectata
+decisions-branch-id = ID ramura
 decisions-decided-by = Decis de
 decisions-escalation = Escaladare
 decisions-flow-status = Stare flow
 decisions-duration = Durata
 decisions-direct = Direct
+decisions-reasoning = Rationament
+decisions-no-reasoning = Nu a fost salvat niciun rationament pentru aceasta decizie.
+decisions-input = Input decizie
+decisions-output = Output decizie
 decisions-no-entries = Nu au fost gasite intrari de decizie pentru filtrele curente.
 
 # Audit

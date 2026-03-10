@@ -10,7 +10,7 @@ import { InputType, type InputBlock } from '@/business-apps/flow/apps/creator/ty
 import type { DesignerMode } from '../../types/studioTypes'
 import { FormFieldEditor } from './FormFieldEditor'
 
-function slugifyKey(raw: string): string {
+export function slugifyKey(raw: string): string {
   const s = String(raw ?? '')
     .trim()
     .toLowerCase()
@@ -34,7 +34,19 @@ function toInitialism(raw: string): string {
     .join('')
 }
 
-function shouldNormalizeHiddenName(name: string, label: string): boolean {
+function isShortAbbreviatedName(name: string, label: string): boolean {
+  const normalizedName = String(name || '')
+    .trim()
+    .toLowerCase()
+  const slugifiedLabel = slugifyKey(label)
+
+  if (!normalizedName || !slugifiedLabel || normalizedName === slugifiedLabel) return false
+  if (!/^[a-z][a-z0-9_]*$/i.test(normalizedName)) return false
+
+  return normalizedName.length <= 3 && slugifiedLabel.length > normalizedName.length
+}
+
+export function shouldNormalizeHiddenName(name: string, label: string): boolean {
   const normalizedName = String(name || '')
     .trim()
     .toLowerCase()
@@ -49,7 +61,27 @@ function shouldNormalizeHiddenName(name: string, label: string): boolean {
     return true
   }
 
+  if (isShortAbbreviatedName(normalizedName, normalizedLabel)) {
+    return true
+  }
+
   return false
+}
+
+export function deriveReadableFieldName(currentName: string, label: string, existing: Set<string>): string {
+  const nextCurrentName = String(currentName || '').trim()
+  const normalizedLabel = String(label || '').trim()
+  const base = slugifyKey(normalizedLabel)
+
+  if (base && shouldNormalizeHiddenName(nextCurrentName, normalizedLabel)) {
+    return uniqueName(base, existing, undefined)
+  }
+
+  if (!nextCurrentName && normalizedLabel) {
+    return uniqueName(base || nextAutoFieldName(existing), existing, undefined)
+  }
+
+  return nextCurrentName
 }
 
 function uniqueName(base: string, existing: Set<string>, current?: string): string {
@@ -179,14 +211,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
     const normalizedFields = fields.map(field => {
       const currentName = String(field?.name || '').trim()
       const label = String(field?.label || '').trim()
-      const base = slugifyKey(label)
-
-      let nextName = currentName
-      if (base && shouldNormalizeHiddenName(currentName, label)) {
-        nextName = uniqueName(base, usedNames, undefined)
-      } else if (!nextName && label) {
-        nextName = uniqueName(base || nextAutoFieldName(usedNames), usedNames, undefined)
-      }
+      const nextName = deriveReadableFieldName(currentName, label, usedNames)
 
       if (nextName) {
         usedNames.add(nextName)
@@ -228,10 +253,10 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
 
       // Hidden technical keys should stay human-readable. When a field still has an
       // auto/opaque key, derive a semantic one from the latest label.
-      if (oldLabel !== newLabel && shouldNormalizeHiddenName(oldName, newLabel)) {
-        const base = slugifyKey(newLabel)
-        if (base) {
-          updated = { ...updated, name: uniqueName(base, nextExisting, oldName) }
+      if (oldLabel !== newLabel) {
+        const nextName = deriveReadableFieldName(oldName, newLabel, nextExisting)
+        if (nextName && nextName !== oldName) {
+          updated = { ...updated, name: nextName }
         }
       }
 

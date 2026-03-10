@@ -10,6 +10,7 @@ interface StepInfo {
   reference: string
   label: string
   fields?: Array<{ name: string; label?: string; dataType?: ExpressionValueType }>
+  outputs?: Array<{ path: string; label?: string; dataType?: ExpressionValueType }>
 }
 
 interface UseExpressionSuggestionsOptions {
@@ -34,46 +35,53 @@ interface UseExpressionSuggestionsOptions {
 /** Standard workflow-level expressions available in every flow */
 const WORKFLOW_SUGGESTIONS: ExpressionSuggestionItem[] = [
   {
+    id: 'wf-initiator-id',
+    label: 'Initiator ID',
+    expression: '$workflow.initiator',
+    source: 'workflow',
+    description: 'User ID of the person who started the flow'
+  },
+  {
     id: 'wf-initiator-name',
     label: 'Initiator Name',
     expression: '$workflow.initiator.name',
     source: 'workflow',
-    description: 'Name of the person who started the flow'
+    description: 'Display name of the person who started the flow'
   },
   {
-    id: 'wf-initiator-email',
-    label: 'Initiator Email',
-    expression: '$workflow.initiator.email',
+    id: 'wf-initiator-display-name',
+    label: 'Initiator Display Name',
+    expression: '$workflow.initiatorDisplayName',
     source: 'workflow',
-    description: 'Email of the person who started the flow'
+    description: 'Display name alias for the flow initiator'
   },
   {
-    id: 'wf-initiator-id',
-    label: 'Initiator ID',
-    expression: '$workflow.initiator.id',
+    id: 'wf-name',
+    label: 'Workflow Name',
+    expression: '$workflow.name',
     source: 'workflow',
-    description: 'User ID of the flow initiator'
+    description: 'Name of the current workflow instance'
   },
   {
-    id: 'wf-started-at',
-    label: 'Started At',
-    expression: '$workflow.startedAt',
-    source: 'workflow',
-    description: 'Timestamp when the flow was started'
-  },
-  {
-    id: 'wf-flow-id',
+    id: 'wf-id',
     label: 'Flow ID',
-    expression: '$workflow.flowId',
+    expression: '$workflow.id',
     source: 'workflow',
     description: 'Unique identifier for this flow instance'
   },
   {
-    id: 'wf-template-id',
-    label: 'Template ID',
-    expression: '$workflow.templateId',
+    id: 'wf-status',
+    label: 'Workflow Status',
+    expression: '$workflow.status',
     source: 'workflow',
-    description: 'Template identifier for this flow'
+    description: 'Current workflow execution status'
+  },
+  {
+    id: 'wf-correlation-id',
+    label: 'Correlation ID',
+    expression: '$workflow.correlationId',
+    source: 'workflow',
+    description: 'Correlation ID of this workflow instance'
   }
 ]
 
@@ -111,6 +119,23 @@ function buildStepSuggestions(steps: StepInfo[]): ExpressionSuggestionItem[] {
           source: 'steps',
           dataType: field.dataType ?? 'unknown',
           description: `Field "${field.label || fieldName}" from "${step.label}"`
+        })
+      }
+    }
+
+    if (step.outputs) {
+      for (const output of step.outputs) {
+        const outputPath = String(output.path || '').trim()
+        if (!outputPath) continue
+        const outputSegments = outputPath.split('.').filter(Boolean)
+        const label = String(output.label || '').trim() || outputSegments[outputSegments.length - 1] || outputPath
+        items.push({
+          id: `step-${step.reference}-result-${outputPath}`,
+          label: `${step.label} - ${label}`,
+          expression: `$steps.${step.reference}.resultData.${outputPath}`,
+          source: 'steps',
+          dataType: output.dataType ?? 'unknown',
+          description: `Output "${outputPath}" from "${step.label}"`
         })
       }
     }

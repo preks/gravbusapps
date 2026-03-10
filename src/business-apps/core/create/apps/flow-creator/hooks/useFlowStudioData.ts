@@ -67,7 +67,7 @@ export interface FlowStudioData {
   fetchCustomDataKeys: (namespace: string) => Promise<void>
 
   /** Load versions for a specific agent */
-  loadAgentVersions: (agentId: string) => Promise<number[]>
+  loadAgentVersions: (agentId: string) => Promise<PromptODM[]>
   /** Load parameters for a specific agent */
   loadAgentParameters: (agentId: string) => Promise<{ system: string[]; user: string[] }>
 
@@ -103,13 +103,10 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
   }, [accessToken, fetchAgents])
 
   const loadAgentVersions = useCallback(
-    async (agentId: string): Promise<number[]> => {
+    async (agentId: string): Promise<PromptODM[]> => {
       try {
         const res = await promptClient.getPromptVersions(agentId, { limit: 100, offset: 0 })
-        return (res.data || [])
-          .map(v => Number(v.version))
-          .filter(v => !Number.isNaN(v))
-          .sort((a, b) => b - a)
+        return (res.data || []).sort((a, b) => Number(b.version || 0) - Number(a.version || 0))
       } catch {
         return []
       }

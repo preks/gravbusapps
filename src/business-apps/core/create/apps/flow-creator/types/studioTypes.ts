@@ -67,6 +67,11 @@ export interface TaskNodeConfig {
     version?: number
     inputExpressionMap?: Record<string, string>
     outputExpressionMap?: Record<string, string>
+    /**
+     * Derived from the selected function version so downstream steps can map structured resultData.
+     * This is studio-only state and is intentionally not persisted to the saved flow template.
+     */
+    outputSchema?: unknown
   }
   agentConfig?: {
     promptId: string

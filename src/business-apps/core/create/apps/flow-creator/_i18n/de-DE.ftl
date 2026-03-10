@@ -223,6 +223,8 @@ logic-field-placeholder = Wert auswählen
 logic-field-search = Schrittdaten durchsuchen...
 logic-field-empty = Keine passenden Werte
 logic-field-group-steps = Schrittdaten
+flow-context-search = Flow-Kontext durchsuchen...
+flow-context-group = Flow-Kontext
 logic-operator-label = Operator
 
 # User decisions (USER mode)

@@ -8,11 +8,14 @@ export interface DecisionLogEntry {
   flowId: string
   templateId: string
   stepReference: string
+  decisionTitle?: string
   decisionMode: string
   decidedBy: string
   decisionInput: Record<string, unknown>
   decisionOutput: Record<string, unknown>
   selectedBranch: string
+  selectedBranchLabel?: string
+  decisionReasoning?: string
   escalated: boolean
   escalationReason?: string
   durationMs: number

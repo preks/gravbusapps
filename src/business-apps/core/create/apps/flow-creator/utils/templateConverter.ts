@@ -215,6 +215,12 @@ export function studioGraphToTemplate(
     if (!cfg || typeof cfg !== 'object') continue
 
     if (cfg.nodeType === 'task') {
+      const persistedOutputSchema =
+        cfg.stepType === 'FUNCTION'
+          ? cfg.functionConfig?.outputSchema
+          : cfg.stepType === 'AI_AGENT' || cfg.stepType === 'AI_TASK_EXPERT'
+            ? cfg.agentConfig?.outputSchema
+            : undefined
       const step: any = {
         id: node.id,
         reference: node.id,
@@ -250,7 +256,7 @@ export function studioGraphToTemplate(
               modelSettings: cfg.agentConfig.modelSettings
             }
           : undefined,
-        aiAgentConfig: cfg.agentConfig?.outputSchema ? { resultSchema: cfg.agentConfig.outputSchema } : undefined
+        aiAgentConfig: persistedOutputSchema ? { resultSchema: persistedOutputSchema } : undefined
       }
 
       steps.push(step as FlowStep)
@@ -526,7 +532,12 @@ export function templateToStudioGraph(template: FlowTemplate): {
         dueInMinutes: step.dueInMinutes,
         defaultPriority: step.defaultPriority,
         customStates: step.customStates,
-        functionConfig: step.functionConfig,
+        functionConfig: step.functionConfig
+          ? {
+              ...step.functionConfig,
+              ...(step.aiAgentConfig?.resultSchema ? { outputSchema: step.aiAgentConfig.resultSchema } : {})
+            }
+          : undefined,
         agentConfig: step.agentConfig
           ? {
               ...step.agentConfig,
