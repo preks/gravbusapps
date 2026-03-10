@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { cn } from '@newwork/nw-design-system'
-import { Monitor, Database, Code2, Bot, Workflow, Info, ClipboardList } from 'lucide-react'
+import { Monitor, Database, Code2, Bot, Workflow, Info, ClipboardList, Layers, Network } from 'lucide-react'
 import type { CanvasTab, CanvasTabInfo } from '../../types/chat'
 import { CANVAS_TABS } from '../../types/chat'
 
@@ -24,6 +24,8 @@ const TAB_ICONS: Record<CanvasTab, React.ElementType> = {
   functions: Code2,
   'task-expert': Bot,
   flow: Workflow,
+  'agent-mesh': Network,
+  'data-flow': Layers,
   about: Info
 }
 

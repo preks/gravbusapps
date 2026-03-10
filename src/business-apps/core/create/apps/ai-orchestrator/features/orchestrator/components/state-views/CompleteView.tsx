@@ -18,6 +18,7 @@ import { DataModelPreview } from '@/common/components/ai-builder/data-model-prev
 import { FunctionPreview } from '@/common/components/ai-builder/function-preview/FunctionPreview'
 import { FlowPreview } from '@/common/components/ai-builder/flow-preview/FlowPreview'
 import { AgentPreview } from '@/common/components/ai-builder/agent-preview/AgentPreview'
+import { AgentMeshPreview } from '@/common/components/ai-builder/agent-mesh-preview/AgentMeshPreview'
 import { PreviewTemplate } from '@/common/components/ai-builder/preview-template/PreviewTemplate'
 import { mapDataModelSpec, mapFunctionSpec, mapFlowSpec, mapAgentSpec } from './componentSpecPreviewMappers'
 import type { ComponentSpec, CanvasTab } from '../../types'
@@ -230,6 +231,21 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
               }}
             </PreviewTemplate>
           </div>
+        )
+      }
+
+      case 'agent-mesh': {
+        const builtAgents = components.filter(
+          c =>
+            c.type === 'agent' && (c.status === 'completed' || c.status === 'reused') && (c.createdId || c.existingId)
+        )
+        const agentIds = builtAgents.map(c => c.createdId ?? c.existingId ?? c.id)
+        return (
+          <AgentMeshPreview
+            accessToken={accessToken ?? ''}
+            agentIds={agentIds}
+            data-testid="complete-view-agent-mesh-preview"
+          />
         )
       }
 
