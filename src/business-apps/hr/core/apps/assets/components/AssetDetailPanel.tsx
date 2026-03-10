@@ -53,6 +53,8 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
   switch (status) {
     case AssetStatus.AVAILABLE:
       return 'success'
+    case AssetStatus.PENDING:
+      return 'info'
     case AssetStatus.ALLOCATED:
       return 'info'
     case AssetStatus.UNDER_REPAIR:
@@ -67,6 +69,9 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
 const formatStatus = (status: AssetStatus | string): string => {
   if (status === AssetStatus.AVAILABLE) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')
+  }
+  if (status === AssetStatus.PENDING) {
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_pending', 'Pending')
   }
   if (status === AssetStatus.ALLOCATED) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')
