@@ -54,7 +54,7 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
     case AssetStatus.AVAILABLE:
       return 'success'
     case AssetStatus.PENDING:
-      return 'warning'
+      return 'default'
     case AssetStatus.ALLOCATED:
       return 'info'
     case AssetStatus.UNDER_REPAIR:

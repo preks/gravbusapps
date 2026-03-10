@@ -4,8 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { Asset } from '../../../apps/assets/types'
-import { AssetAllocation } from '../../../apps/assets/types'
+import { Asset, AssetAllocation } from '../../../apps/assets/types'
 import { useAssetService } from '../../../apps/assets/services/useAssetService'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
