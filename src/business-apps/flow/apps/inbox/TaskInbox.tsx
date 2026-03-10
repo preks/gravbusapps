@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { message } from 'antd'
 import {
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  FileTextOutlined,
-  InfoCircleOutlined,
-  OrderedListOutlined,
-  EyeOutlined
-} from '@ant-design/icons'
+  ClockIcon,
+  CheckCircleIcon,
+  FileTextIcon,
+  InfoIcon,
+  ListBulletsIcon,
+  EyeIcon
+} from '@phosphor-icons/react'
 import {
   Button,
   Card,
@@ -545,15 +545,15 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
   const getTaskTypeIcon = (task: Task) => {
     switch (task.type) {
       case 'APPROVAL':
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />
+        return <CheckCircleIcon size={16} style={{ color: '#52c41a' }} />
       case 'ACKNOWLEDGE':
-        return <EyeOutlined style={{ color: '#1890ff' }} />
+        return <EyeIcon style={{ color: '#1890ff' }} />
       case 'TASK':
-        return <OrderedListOutlined style={{ color: '#722ed1' }} />
+        return <ListBulletsIcon size={16} style={{ color: '#722ed1' }} />
       case 'INFORMATION':
-        return <InfoCircleOutlined style={{ color: '#faad14' }} />
+        return <InfoIcon style={{ color: '#faad14' }} />
       default:
-        return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
+        return <ClockIcon size={16} style={{ color: '#8c8c8c' }} />
     }
   }
   /* eslint-enable newwork-local/no-hardcoded-colors */
@@ -828,7 +828,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
                 <div className="gba:bg-gray-50/50 gba:rounded-lg gba:p-4">
                   {filteredOpenTasks.length === 0 ? (
                     <div className="gba:text-center gba:py-12">
-                      <FileTextOutlined className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
+                      <FileTextIcon size={48} className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
                       <h3 className="gba:text-lg gba:font-medium gba:mb-2 gba:text-gray-900">No tasks found</h3>
                       <p className="gba:text-gray-600">No open tasks available at the moment</p>
                     </div>
@@ -1026,7 +1026,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
 
                   {filteredCompletedTasks.length === 0 ? (
                     <div className="gba:text-center gba:py-12">
-                      <CheckCircleOutlined className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
+                      <CheckCircleIcon size={48} className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
                       <h3 className="gba:text-lg gba:font-medium gba:mb-2 gba:text-gray-900">No completed tasks</h3>
                       <p className="gba:text-gray-600">Completed tasks will appear here</p>
                     </div>

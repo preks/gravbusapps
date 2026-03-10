@@ -66,15 +66,16 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     // CallDialog (GroupCallModalRtk) only renders when globalCallManager has realtimeKitMeeting.
     // Keep PreCallSetup visible until then so there is no frame with neither UI.
     const isCallUiReady = !!globalCallData.realtimeKitMeeting
+    // When user ends call, globalCallManager is set to 'ended' before local state updates.
+    // Only hide for "connected but UI not ready" when global is ended/idle (teardown).
+    // Do NOT block setup/joining: when starting a new call, global may still be ended from previous.
+    const globalStatus = globalCallData.callState?.status
+    const isEndedOrIdle = globalStatus === 'ended' || globalStatus === 'idle'
+    const connectedButNotReady = groupCallState.status === 'connected' && !isCallUiReady && !isEndedOrIdle
 
     // Show during setup/joining, or when connected but call UI not yet ready (avoids blank frame).
-    // Avoid "connected but not joined" for teardown: meeting can be undefined while status is
-    // still 'connected', which could incorrectly re-open the dialog after ending a call.
     const shouldShow =
-      isOutboundHost &&
-      (isSetup || isJoining || (groupCallState.status === 'connected' && !isCallUiReady)) &&
-      !isMinimized &&
-      !hasIncomingInvite
+      isOutboundHost && (isSetup || isJoining || connectedButNotReady) && !isMinimized && !hasIncomingInvite
 
     const currentSourceOwner = globalPreCallSetupManager.getSourceOwnerId()
     const isSourceOwner = currentSourceOwner === instanceId
@@ -88,7 +89,9 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         }
       }
 
-      // Update callbacks FIRST so the subsequent state notify causes UI to read latest callbacks
+      // Update callbacks FIRST so the subsequent state notify causes UI to read latest callbacks.
+      // On cancel: close and release in the manager first so the dialog stays closed even if
+      // the sync effect runs again before React has applied the idle state (avoids modal reopening).
       globalPreCallSetupManager.setCallbacksFrom(
         instanceId,
         preferences => {
@@ -97,6 +100,11 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
           }
         },
         () => {
+          if (globalPreCallSetupManager.getSourceOwnerId() === instanceId) {
+            globalPreCallSetupManager.setCallbacksFrom(instanceId, null, null)
+            globalPreCallSetupManager.setStateFrom(instanceId, { isOpen: false })
+            globalPreCallSetupManager.releaseSourceOwner(instanceId)
+          }
           if (realtimeKitGroupCall.cancelSetup) {
             realtimeKitGroupCall.cancelSetup()
           }
@@ -124,14 +132,21 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
             getOtherParticipantDisplayName(activeConversation, currentUser?.id))
           : undefined
 
+      // Use call state value only (initiateCall already awaits getMeeting, so we have the final value)
+      const transcriptionEnabled = groupCallState.transcriptionEnabled === true
+
+      // For meetings started from dashboard/calendar, call state has meeting title; use it instead of activeConversation name
+      const displayName = groupCallState.conversationName ?? activeConversation?.name
+
       globalPreCallSetupManager.setStateFrom(instanceId, {
         isOpen: true,
         callType: groupCallState.callType,
-        conversationName: activeConversation?.name,
+        conversationName: displayName,
         participantCount: groupParticipants.length,
         userName,
         userAvatarUrl,
         conversationType,
+        transcriptionEnabled,
         otherParticipantName
       })
 
@@ -149,9 +164,11 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     instanceId,
     groupCallState.status,
     groupCallState.callType,
+    groupCallState.conversationName,
     groupCallState.hostId,
     groupCallState.hasBeenMinimized,
     groupCallState.isMinimized,
+    groupCallState.transcriptionEnabled,
     realtimeKitGroupCall.meeting,
     realtimeKitGroupCall.meeting?.self?.roomState,
     realtimeKitGroupCall.confirmStartCall,
@@ -162,6 +179,16 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     groupParticipants.length,
     incomingGroupCallInvite
   ])
+
+  // When call state gets transcriptionEnabled true (e.g. from initiateCall getMeeting callback or runConfirmStartCall), push to manager. Do not push false so we don't overwrite a direct setState from initiateCall.
+  useEffect(() => {
+    const isSetupOrJoining = groupCallState.status === 'setup' || groupCallState.status === 'joining'
+    if (!isSetupOrJoining) return
+    if (globalPreCallSetupManager.getSourceOwnerId() !== instanceId) return
+    if (!globalPreCallSetupManager.isDialogOpen()) return
+    if (groupCallState.transcriptionEnabled !== true) return
+    globalPreCallSetupManager.setStateFrom(instanceId, { transcriptionEnabled: true })
+  }, [instanceId, groupCallState.status, groupCallState.transcriptionEnabled])
 
   // Cleanup: if this instance owns SOURCE ownership, close and release to avoid stale callbacks
   useEffect(() => {

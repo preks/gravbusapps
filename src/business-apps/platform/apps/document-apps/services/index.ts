@@ -8,3 +8,4 @@ export { DocumentDataSyncService, type SharedDocumentEntry, type DocumentSyncDat
 
 // New API-based service (document-service backend)
 export { DocumentApiService } from './DocumentApiService'
+export { uploadDocumentImage, type UploadDocumentImageResult } from './DocumentImageUploadService'

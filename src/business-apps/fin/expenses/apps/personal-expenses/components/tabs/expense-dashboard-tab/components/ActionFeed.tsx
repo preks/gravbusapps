@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Badge } from '@newwork/nw-design-system'
-import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
+import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import { DashboardStats, RecentActivity } from '../types'
 // import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -68,12 +68,12 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
             >
               {showAll ? (
                 <>
-                  <EyeInvisibleOutlined className="gba:mr-1" />
+                  <EyeSlashIcon size={16} className="gba:mr-1" />
                   {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_less', 'View Less')}
                 </>
               ) : (
                 <>
-                  <EyeOutlined className="gba:mr-1" />
+                  <EyeIcon size={16} className="gba:mr-1" />
                   {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all', 'View All')}
                 </>
               )}

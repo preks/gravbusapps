@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, List, Typography, Button } from 'antd'
-import { ReloadOutlined } from '@ant-design/icons'
+import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AIActionItem } from '../../../types'
 
@@ -91,7 +91,7 @@ const SalesOrderAnalyticsTab: React.FC<SalesOrderAnalyticsTabProps> = ({
         extra={
           <Button
             type="text"
-            icon={<ReloadOutlined />}
+            icon={<ArrowsClockwiseIcon size={16} />}
             loading={aiActionsLoading}
             onClick={handleRefreshAI}
             data-testid="refresh-ai-btn"

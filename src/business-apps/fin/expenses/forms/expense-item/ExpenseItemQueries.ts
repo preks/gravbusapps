@@ -386,3 +386,12 @@ export const GET_EXPENSE_REQUESTS = `
     }
   }
 `
+
+/** Fetches the expense rule currency (id). Used only when expenseRuleId is present; variable is uuid! to satisfy schema. */
+export const getExpenseRuleCurrencyQuery = `query getExpenseRuleCurrency($expenseRuleId: uuid!) {
+  ExpenseRuleByPk(id: $expenseRuleId) {
+    currency {
+      id
+    }
+  }
+}`

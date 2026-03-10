@@ -89,9 +89,17 @@ export const useFeedbackHubData = ({
     (mode: FeedbackStream) => {
       const andClauses: any[] = [{ isDeleted: { _neq: true } }]
 
-      if (mode === 'received') andClauses.push({ employeeId: { _eq: employee?.id } })
-      else andClauses.push({ senderEmployeeId: { _eq: currentUserEmployeeId } })
+      if (mode === 'received') {
+        andClauses.push({ employeeId: { _eq: employee?.id } })
+      } else {
+        // Given: when self-view show feedback I sent; when viewing another profile show feedback that employee sent.
+        const givenSenderId = isSelfView ? currentUserEmployeeId : employee?.id
+        if (givenSenderId) andClauses.push({ senderEmployeeId: { _eq: givenSenderId } })
+      }
 
+      // When viewing another profile, only public feedback is visible. When viewing own profile, filter by selection.
+      // Private feedback: only giver and receiver can see it. Receiver = profile owner (received list when isSelfView).
+      // Giver: given list uses sender = current user when isSelfView, or profile employee when !isSelfView (section is hidden in UI for !isSelfView).
       if (!isSelfView || filterType === 'public') andClauses.push({ feedbackPublic: { _eq: true } })
       else if (filterType === 'private') andClauses.push({ feedbackPublic: { _eq: false } })
 

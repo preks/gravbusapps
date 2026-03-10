@@ -10,9 +10,16 @@ export interface OrchestratorEffectsDeps {
   }
   buildProgress: UseBuildProgressResult
   initialPrompt?: string
+  isAnalyzeStreaming?: boolean
 }
 
-export const useOrchestratorEffects = ({ state, handlers, buildProgress, initialPrompt }: OrchestratorEffectsDeps) => {
+export const useOrchestratorEffects = ({
+  state,
+  handlers,
+  buildProgress,
+  initialPrompt,
+  isAnalyzeStreaming = false
+}: OrchestratorEffectsDeps) => {
   // Helper to update thinking steps
   const updateThinkingSteps = (prev: any[]) => {
     const nextPending = prev.findIndex(s => s.status === 'pending')
@@ -22,8 +29,7 @@ export const useOrchestratorEffects = ({ state, handlers, buildProgress, initial
     if (currentActive !== -1) {
       updated[currentActive] = {
         ...updated[currentActive],
-        status: 'complete',
-        duration: Math.floor(Math.random() * 500 + 200)
+        status: 'complete'
       }
     }
     updated[nextPending] = { ...updated[nextPending], status: 'active' }
@@ -47,6 +53,10 @@ export const useOrchestratorEffects = ({ state, handlers, buildProgress, initial
       ])
       state.setAnalysisProgress(25)
 
+      if (isAnalyzeStreaming) {
+        return
+      }
+
       const progressInterval = setInterval(() => {
         state.setAnalysisProgress(updateAnalysisProgress)
         state.setThinkingSteps(updateThinkingSteps)
@@ -54,49 +64,7 @@ export const useOrchestratorEffects = ({ state, handlers, buildProgress, initial
 
       return () => clearInterval(progressInterval)
     }
-  }, [state.viewState, state.setThinkingSteps, state.setAnalysisProgress])
-
-  // Build log tracking
-  useEffect(() => {
-    if (!buildProgress.isBuilding && !buildProgress.currentPhase) return
-
-    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false })
-
-    // Log phase transitions (only once per phase)
-    if (buildProgress.currentPhase && !state.loggedPhasesRef.current.has(buildProgress.currentPhase)) {
-      state.loggedPhasesRef.current.add(buildProgress.currentPhase)
-
-      if (buildProgress.currentPhase === 'discovery') {
-        state.setBuildLogs(prev => [
-          ...prev,
-          { timestamp, type: 'info', message: 'Starting resource discovery phase...' }
-        ])
-      } else if (buildProgress.currentPhase === 'building') {
-        state.setBuildLogs(prev => [
-          ...prev,
-          { timestamp, type: 'info', message: 'Starting component building phase...' }
-        ])
-      } else if (buildProgress.currentPhase === 'wiring') {
-        state.setBuildLogs(prev => [
-          ...prev,
-          { timestamp, type: 'info', message: 'Starting component wiring phase...' }
-        ])
-      }
-    }
-
-    // Log component completions (only when count increases)
-    if (buildProgress.completedCount > state.lastCompletedCountRef.current) {
-      state.lastCompletedCountRef.current = buildProgress.completedCount
-      state.setBuildLogs(prev => [...prev, { timestamp, type: 'success', message: 'Component completed successfully' }])
-    }
-  }, [
-    buildProgress.currentPhase,
-    buildProgress.completedCount,
-    buildProgress.isBuilding,
-    state.setBuildLogs,
-    state.loggedPhasesRef,
-    state.lastCompletedCountRef
-  ])
+  }, [state.viewState, state.setThinkingSteps, state.setAnalysisProgress, isAnalyzeStreaming])
 
   // Handle initial prompt on mount
   useEffect(() => {

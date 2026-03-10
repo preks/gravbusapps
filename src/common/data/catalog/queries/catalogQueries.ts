@@ -72,7 +72,14 @@ const buildCatalogEntryWhereCondition = (variables: CatalogEntryQueryVariables):
 
   // Filter by a specific entry id
   if (variables.entryId) {
-    conditions.push(`{ id: { _eq: "${variables.entryId}" } }`)
+    if (Array.isArray(variables.entryId)) {
+      const entryIds = variables.entryId.filter(entryId => typeof entryId === 'string' && entryId.length > 0)
+      if (entryIds.length > 0) {
+        conditions.push(`{ id: { _in: [${entryIds.map(entryId => `"${entryId}"`).join(', ')}] } }`)
+      }
+    } else {
+      conditions.push(`{ id: { _eq: "${variables.entryId}" } }`)
+    }
   }
 
   // Filter by parent entry

@@ -7,7 +7,7 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
-import { PiCircle, PiCheckCircle, PiList, PiWarning } from 'react-icons/pi'
+import { CircleIcon, CheckCircleIcon, ListIcon, WarningIcon } from '@phosphor-icons/react'
 import { VacancyFilter } from '../hooks/useJobPositionListData'
 import translations from '../_i18n'
 
@@ -36,25 +36,25 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
     {
       key: 'vacant' as ExtendedVacancyFilter,
       label: t('hr-positions-vacant'),
-      icon: <PiCircle size={16} />,
+      icon: <CircleIcon size={16} />,
       color: 'warning'
     },
     {
       key: 'filled' as ExtendedVacancyFilter,
       label: t('hr-positions-filled'),
-      icon: <PiCheckCircle size={16} />,
+      icon: <CheckCircleIcon size={16} />,
       color: 'success'
     },
     {
       key: 'all' as ExtendedVacancyFilter,
       label: t('hr-positions-all'),
-      icon: <PiList size={16} />,
+      icon: <ListIcon size={16} />,
       color: 'info'
     },
     {
       key: 'missing-profile' as ExtendedVacancyFilter,
       label: `${t('hr-positions-missing-profile')} (${missingJobProfileCount})`,
-      icon: <PiWarning size={16} />,
+      icon: <WarningIcon size={16} />,
       color: 'destructive'
     }
   ]

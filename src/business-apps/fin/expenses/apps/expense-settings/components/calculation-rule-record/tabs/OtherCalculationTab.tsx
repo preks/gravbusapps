@@ -42,16 +42,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog } from '../shared'
-import {
-  PiPlus,
-  PiCalendar,
-  PiCode,
-  PiBuilding,
-  PiPencil,
-  PiDotsThreeVertical,
-  PiTrash,
-  PiWarning
-} from 'react-icons/pi'
+import { PlusIcon, CalendarIcon, CodeIcon, BuildingIcon, PencilIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -665,7 +656,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
               <Badge variant="default">{otherCalculations.length} calculations</Badge>
             </div>
             <Button onClick={handleAdd} data-testid="add-other-calculation-button">
-              <PiPlus className="gba:mr-2" />
+              <PlusIcon className="gba:mr-2" />
               Add Other Calculation
             </Button>
           </div>
@@ -746,7 +737,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                                 {isCheckingUsage ? (
                                   <Spinner className="gba:h-4 gba:w-4" />
                                 ) : (
-                                  <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                  <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                                 )}
                               </Button>
                             </DropdownMenuTrigger>
@@ -758,7 +749,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                                 }}
                                 data-testid={`other-calculation-edit-${record.id}`}
                               >
-                                <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                                <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                 Update
                               </DropdownMenuItem>
                               {/* Only show delete option if calculation is not used */}
@@ -773,7 +764,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                                     className="gba:text-destructive"
                                     data-testid={`other-calculation-delete-${record.id}`}
                                   >
-                                    <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                    <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                     Delete
                                   </DropdownMenuItem>
                                 </>
@@ -800,7 +791,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       <TableCell>
                         {record.relatedCode ? (
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <PiCode className="gba:text-muted-foreground" />
+                            <CodeIcon className="gba:text-muted-foreground" />
                             <div>
                               <div className="gba:font-mono gba:font-medium gba:text-sm">{record.relatedCode}</div>
                               <div className="gba:text-muted-foreground gba:text-xs">{record.relatedName}</div>
@@ -813,7 +804,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       <TableCell>
                         {record.costCenter ? (
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <PiBuilding className="gba:text-primary" />
+                            <BuildingIcon className="gba:text-primary" />
                             <div>
                               <div className="gba:font-mono gba:font-medium gba:text-sm">{record.costCenter.code}</div>
                               <div className="gba:text-muted-foreground gba:text-xs">{record.costCenter.name}</div>
@@ -832,7 +823,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       </TableCell>
                       <TableCell>
                         <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiCalendar className="gba:text-muted-foreground" />
+                          <CalendarIcon className="gba:text-muted-foreground" />
                           <span className="gba:text-sm">
                             {formatDate(record.activeFrom)} - {record.activeTo ? formatDate(record.activeTo) : '∞'}
                           </span>
@@ -869,7 +860,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
               className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
               data-testid="other-calculation-restricted-alert"
             >
-              <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+              <WarningIcon className="gba:h-4 gba:w-4 gba:text-warning" />
               <AlertDescription>{currentUsageInfo.message}</AlertDescription>
             </Alert>
           )}

@@ -2,11 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
-import {
-  PiPaperPlaneRight,
-  PiX,
-  PiStar as PiSparkle // Using PiStar as replacement for PiSparkle
-} from 'react-icons/pi'
+import { PaperPlaneRightIcon, XIcon, StarIcon } from '@phosphor-icons/react'
 import { UserInfo } from '../types/employee.types'
 
 // AI suggestions - keeping existing predefined prompts
@@ -237,7 +233,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       <div className="gba:flex gba:items-start gba:max-w-[85%]">
         <div className="gba:mr-2 gba:mt-1">
           <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center">
-            <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
+            <StarIcon className="gba:h-3 gba:w-3 gba:text-primary" />
           </div>
         </div>
         <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:border gba:border-border">
@@ -268,7 +264,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       <div className="gba:flex gba:items-start">
         <div className="gba:mr-2 gba:mt-1">
           <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center">
-            <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
+            <StarIcon className="gba:h-3 gba:w-3 gba:text-primary" />
           </div>
         </div>
         <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:border gba:border-border">
@@ -288,7 +284,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <div className="gba:flex gba:items-center">
             <div className="gba:h-6 gba:w-6 gba:bg-primary-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mr-2">
-              <PiSparkle className="gba:h-3 gba:w-3 gba:text-primary" />
+              <StarIcon className="gba:h-3 gba:w-3 gba:text-primary" />
             </div>
             <div>
               <h3 className="gba:text-sm gba:font-medium gba:text-foreground">Manager Assistant</h3>
@@ -301,7 +297,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
               onClick={clearConversation}
               data-testid="manager-dashboard-ai-clear-button"
             >
-              <PiX size={14} />
+              <XIcon size={14} />
             </button>
           )}
         </div>
@@ -339,7 +335,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
             disabled={isLoading}
             data-testid="manager-dashboard-ai-submit-button"
           >
-            {isLoading ? '...' : <PiPaperPlaneRight size={14} />}
+            {isLoading ? '...' : <PaperPlaneRightIcon size={14} />}
           </Button>
         </form>
 

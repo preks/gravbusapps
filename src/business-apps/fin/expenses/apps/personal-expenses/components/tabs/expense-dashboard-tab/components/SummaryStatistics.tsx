@@ -1,7 +1,6 @@
 import React from 'react'
 import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
-import { ArrowUpOutlined, GlobalOutlined } from '@ant-design/icons'
-import { PiCurrencyCircleDollar } from 'react-icons/pi'
+import { ArrowUpIcon, GlobeIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { calculatePercentChange } from '../utils/formatters'
 import { DashboardStats } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -82,7 +81,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
                 'Current Month Expenses'
               ),
       value: formatCurrencyDisplay(currentTotal, currencyCode),
-      prefix: <PiCurrencyCircleDollar />,
+      prefix: <CurrencyCircleDollarIcon />,
       color: isPositiveChange ? '#cf1322' : '#3f8600',
       valueIsString: true,
       description: `${stats.currentMonthExpenses?.count || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`,
@@ -102,7 +101,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       key: 'pending-payouts',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts', 'Pending Payouts'),
       value: formatCurrencyDisplay(stats.pendingPayouts || 0, currencyCode),
-      prefix: <PiCurrencyCircleDollar />,
+      prefix: <CurrencyCircleDollarIcon />,
       color: '#1890ff',
       valueIsString: true,
       footer: [
@@ -115,7 +114,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       key: 'upcoming-trips',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips', 'Upcoming Trips'),
       value: stats.upcomingTrips || 0,
-      prefix: <GlobalOutlined />,
+      prefix: <GlobeIcon size={16} />,
       color: '#722ed1',
       footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.planned_business_trips',
@@ -130,7 +129,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
         'Unallocated Expenses'
       ),
       value: stats.pendingItems || 0,
-      prefix: <ArrowUpOutlined />,
+      prefix: <ArrowUpIcon size={16} />,
       color: '#8c8c8c',
       valueIsString: true,
       footer: getTranslationFromI18nKeyAndLabel(

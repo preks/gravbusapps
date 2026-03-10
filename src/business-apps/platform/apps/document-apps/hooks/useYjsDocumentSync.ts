@@ -19,6 +19,7 @@ export interface UseYjsDocumentSyncParams {
   ydoc: import('yjs').Doc
   awareness: import('y-protocols/awareness').Awareness
   editorRef: React.MutableRefObject<unknown>
+  suppressSnapshotSaveRef?: React.MutableRefObject<boolean>
   isReadOnly: boolean
   title: string
   setLastSaved: (date: Date | null) => void
@@ -36,6 +37,7 @@ export function useYjsDocumentSync({
   ydoc,
   awareness,
   editorRef,
+  suppressSnapshotSaveRef,
   isReadOnly,
   title,
   setLastSaved,
@@ -74,6 +76,25 @@ export function useYjsDocumentSync({
     scheduleSnapshotSaveRef.current = scheduleSnapshotSave
   }, [scheduleSnapshotSave])
 
+  const getEditorReadyPromise = useCallback((): Promise<void> => {
+    return new Promise(resolve => {
+      const deadline = Date.now() + 5000
+      const check = () => {
+        const ed = editorRef.current as { view?: unknown } | null
+        if (ed?.view) {
+          resolve()
+          return
+        }
+        if (Date.now() > deadline) {
+          resolve()
+          return
+        }
+        setTimeout(check, 50)
+      }
+      check()
+    })
+  }, [editorRef])
+
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup
   useEffect(() => {
     if (!documentId || !collaborationSocket) return
@@ -83,6 +104,7 @@ export function useYjsDocumentSync({
       documentId,
       ydoc,
       awareness,
+      onBeforeFirstSync: getEditorReadyPromise,
       onSyncedChange: setIsYjsSynced,
       onBootstrapRequired: async (html: string) => {
         const start = Date.now()
@@ -105,6 +127,9 @@ export function useYjsDocumentSync({
         await new Promise(resolve => setTimeout(resolve, 100))
       },
       onLocalDocumentChange: () => {
+        if (suppressSnapshotSaveRef?.current) {
+          return
+        }
         const ed = editorRef.current
         if (ed) scheduleSnapshotSaveRef.current(ed as { getHTML?: () => string })
       }
@@ -118,7 +143,7 @@ export function useYjsDocumentSync({
       providerRef.current = null
       setIsYjsSynced(false)
     }
-  }, [documentId, collaborationSocket, ydoc, awareness, editorRef])
+  }, [documentId, collaborationSocket, ydoc, awareness, editorRef, suppressSnapshotSaveRef, getEditorReadyPromise])
 
   // Cleanup snapshot timeout on unmount
   useEffect(() => {

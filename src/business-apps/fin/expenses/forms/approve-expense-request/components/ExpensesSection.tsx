@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { PiReceipt, PiFileText } from 'react-icons/pi'
+import { ReceiptIcon, FileTextIcon } from '@phosphor-icons/react'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -172,7 +172,7 @@ const ExpensesSection: React.FC<ExpensesSectionProps> = ({
       <Card data-testid="approve-expense-plan-expenses">
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <PiReceipt className="gba:h-5 gba:w-5" />
+            <ReceiptIcon className="gba:h-5 gba:w-5" />
             {t('section-expenses')}
             <Badge variant="secondary" className="gba:ml-2">
               {expenseItems.length}
@@ -200,7 +200,7 @@ const ExpensesSection: React.FC<ExpensesSectionProps> = ({
                                 className="gba:p-1 gba:rounded gba:hover:bg-muted gba:transition-colors gba:border-none gba:bg-transparent gba:cursor-pointer"
                                 data-testid={`expense-receipt-button-${index}`}
                               >
-                                <PiFileText className="gba:h-4 gba:w-4 gba:text-primary" />
+                                <FileTextIcon className="gba:h-4 gba:w-4 gba:text-primary" />
                               </button>
                             </TooltipTrigger>
                             <TooltipContent>

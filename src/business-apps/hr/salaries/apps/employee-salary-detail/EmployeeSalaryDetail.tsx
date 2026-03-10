@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Card, Row, Col, Descriptions, Button, Divider, Spin, Alert, Empty, Tabs } from 'antd'
-import { EditOutlined, HistoryOutlined, PlusOutlined } from '@ant-design/icons'
+import { PencilIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react'
 import { useFeature } from '@/common/hooks/useFeature'
 import SalaryHistoryChart from '../../components/SalaryHistoryChart'
 import CompensationComponentsTable from '../../components/CompensationComponentsTable'
@@ -115,7 +115,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
           {isAdvancedSalaryEnabled && (
-            <Button type="primary" icon={<PlusOutlined />} data-testid="add-salary-button-empty">
+            <Button type="primary" icon={<PlusIcon />} data-testid="add-salary-button-empty">
               {getTranslationFromI18nKeyAndLabel('salary.button.add', 'Add Salary')}
             </Button>
           )}
@@ -140,7 +140,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
         </div>
 
         {isAdvancedSalaryEnabled && (
-          <Button type="primary" icon={<EditOutlined />} data-testid="edit-salary-button">
+          <Button type="primary" icon={<PencilIcon size={16} />} data-testid="edit-salary-button">
             {getTranslationFromI18nKeyAndLabel('salary.button.edit', 'Edit Salary')}
           </Button>
         )}
@@ -232,7 +232,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
                     </h3>
 
                     {isAdvancedSalaryEnabled && (
-                      <Button icon={<PlusOutlined />} data-testid="add-component-button">
+                      <Button icon={<PlusIcon />} data-testid="add-component-button">
                         {getTranslationFromI18nKeyAndLabel('salary.components.add', 'Add Component')}
                       </Button>
                     )}
@@ -252,7 +252,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
             key: 'history',
             label: (
               <span>
-                <HistoryOutlined />
+                <ClockCounterClockwiseIcon size={16} />
                 {getTranslationFromI18nKeyAndLabel('salary.tabs.history', 'Salary History')}
               </span>
             ),

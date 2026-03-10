@@ -152,6 +152,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                   <TableHead className="gba:w-[24px]"></TableHead>
                   <TableHead>{t('table-name')}</TableHead>
                   <TableHead>{t('table-dates')}</TableHead>
+                  <TableHead>{t('table-evaluation-period')}</TableHead>
                   <TableHead>{t('table-type')}</TableHead>
                   <TableHead>{t('table-scale')}</TableHead>
                   <TableHead>{t('table-values')}</TableHead>
@@ -163,13 +164,13 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
               <TableBody>
                 {cyclesLoading && cycles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="gba:py-8 gba:text-center">
+                    <TableCell colSpan={10} className="gba:py-8 gba:text-center">
                       <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
                     </TableCell>
                   </TableRow>
                 ) : cycles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="gba:text-center gba:text-muted-foreground">
+                    <TableCell colSpan={10} className="gba:text-center gba:text-muted-foreground">
                       {t('empty-no-cycles')}
                     </TableCell>
                   </TableRow>
@@ -177,6 +178,10 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                   cycles.map((c, i) => {
                     const participants = c.participants.join(', ')
                     const dates = `${c.startDate} → ${c.endDate}`
+                    const evalPeriod =
+                      c.evaluationPeriodStartDate && c.evaluationPeriodEndDate
+                        ? `${c.evaluationPeriodStartDate} → ${c.evaluationPeriodEndDate}`
+                        : '-'
                     const valueTitles =
                       (c.valueIds ?? [])
                         .map(id => valuesStore.find(v => v.id === id)?.title)
@@ -187,6 +192,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                         <TableCell>{i + 1}</TableCell>
                         <TableCell className="gba:font-medium">{c.name}</TableCell>
                         <TableCell>{dates}</TableCell>
+                        <TableCell>{evalPeriod}</TableCell>
                         <TableCell>{c.frequency}</TableCell>
                         <TableCell>
                           {c.ratingScaleId ? ratingScales.find(s => s.id === c.ratingScaleId)?.name || '-' : '-'}
@@ -273,6 +279,8 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                 name: editing.name,
                 startDate: editing.startDate,
                 endDate: editing.endDate,
+                evaluationPeriodStartDate: editing.evaluationPeriodStartDate,
+                evaluationPeriodEndDate: editing.evaluationPeriodEndDate,
                 frequency:
                   (String(editing.frequency).toUpperCase().includes('QUARTERLY')
                     ? 'Quarterly'

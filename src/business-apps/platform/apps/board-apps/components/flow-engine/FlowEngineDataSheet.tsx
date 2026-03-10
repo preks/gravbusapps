@@ -3,11 +3,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, toast, Spinner } from '@n
 import { GitBranch } from 'lucide-react'
 import type { FlowEntityKind, FlowEngineTagFilter } from '../../services/flowEngine'
 import { BoardApiService } from '../../services/BoardApiService'
+import { getFlowFieldDefs, getDefaultSelectedKeys } from '../../services/flowEngine/flowFieldDefinitions'
 import { FlowEntityPicker } from './FlowEntityPicker'
 import { FlowTemplatePicker } from './FlowTemplatePicker'
 import { FlowScopeConfig } from './FlowScopeConfig'
+import { FlowFieldSelector } from './FlowFieldSelector'
 
-type Step = 'entity' | 'templates' | 'scope'
+type Step = 'entity' | 'templates' | 'scope' | 'fields'
 
 export interface FlowEngineDataSheetProps {
   open: boolean
@@ -34,7 +36,6 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
   const [flowEntity, setFlowEntity] = useState<FlowEntityKind>('flows')
   const [templateIds, setTemplateIds] = useState<string[]>([])
   const [tags, setTags] = useState<FlowEngineTagFilter[]>([])
-
   const [scope, setScope] = useState<'all' | 'byUser'>('all')
   const [participationType, setParticipationType] = useState<'initiated' | 'participated'>('initiated')
   const [includeAssigned, setIncludeAssigned] = useState(true)
@@ -43,8 +44,11 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
   const [priority, setPriority] = useState('')
   const [limit, setLimit] = useState(200)
   const [refreshMode, setRefreshMode] = useState<'manual' | 'onOpen' | 'periodic'>('onOpen')
-
+  const [selectedFieldKeys, setSelectedFieldKeys] = useState<string[]>([])
+  const [previewRecords, setPreviewRecords] = useState<Record<string, unknown>[]>([])
+  const [previewTotal, setPreviewTotal] = useState(0)
   const [isImporting, setIsImporting] = useState(false)
+  const [isFetchingPreview, setIsFetchingPreview] = useState(false)
 
   const resetState = useCallback(() => {
     setStep('entity')
@@ -59,6 +63,9 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
     setPriority('')
     setLimit(200)
     setRefreshMode('onOpen')
+    setSelectedFieldKeys([])
+    setPreviewRecords([])
+    setPreviewTotal(0)
   }, [])
 
   const handleOpenChange = useCallback(
@@ -68,6 +75,51 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
     },
     [onOpenChange, resetState]
   )
+
+  const handleScopeNext = useCallback(async () => {
+    setSelectedFieldKeys(getDefaultSelectedKeys(flowEntity))
+    setIsFetchingPreview(true)
+    try {
+      const result = await BoardApiService.syncFromFlowEngine(boardId, sheetId, {
+        flowEntity,
+        templateIds: templateIds.length > 0 ? templateIds : undefined,
+        tags: tags.length > 0 ? tags : undefined,
+        scope,
+        userId: scope === 'byUser' ? userId : undefined,
+        participationType: scope === 'byUser' ? participationType : undefined,
+        includeAssigned: flowEntity === 'tasks' && scope === 'byUser' ? includeAssigned : undefined,
+        includeClaimable: flowEntity === 'tasks' && scope === 'byUser' ? includeClaimable : undefined,
+        status: status || undefined,
+        priority: priority || undefined,
+        limit: Math.min(limit, 20),
+        mode: 'replace',
+        autoColumns: false,
+        dryRun: true
+      })
+      if (result?.previewRecords) {
+        setPreviewRecords(result.previewRecords)
+        setPreviewTotal(result.fetched)
+      }
+    } catch {
+      /* preview failure is non-fatal */
+    }
+    setIsFetchingPreview(false)
+    setStep('fields')
+  }, [
+    boardId,
+    sheetId,
+    flowEntity,
+    templateIds,
+    tags,
+    scope,
+    userId,
+    participationType,
+    includeAssigned,
+    includeClaimable,
+    status,
+    priority,
+    limit
+  ])
 
   const handleImport = useCallback(async () => {
     setIsImporting(true)
@@ -85,7 +137,8 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
         priority: priority || undefined,
         limit,
         mode: 'replace',
-        autoColumns: true
+        autoColumns: true,
+        selectedFields: selectedFieldKeys
       })
 
       if (!result) {
@@ -94,7 +147,6 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
       }
 
       const displayName = flowEntity === 'flows' ? 'Flow instances' : 'Flow tasks'
-
       if (onSheetUpdate) {
         const dsConfig: Record<string, unknown> = {
           id: `ds-fe-${flowEntity}-${Date.now()}`,
@@ -119,7 +171,7 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
           lastSyncCount: result.fetched,
           filters: { id: 'root', logic: 'AND', conditions: [] },
           orderBy: [],
-          fieldMappings: []
+          fieldMappings: selectedFieldKeys.map(k => ({ sourceField: k, targetField: k }))
         }
         await onSheetUpdate(boardId, sheetId, { entityDataSource: dsConfig })
       }
@@ -148,6 +200,7 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
     priority,
     limit,
     refreshMode,
+    selectedFieldKeys,
     onSheetUpdate,
     onAfterImport,
     onOpenChange,
@@ -165,10 +218,12 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
         </SheetHeader>
 
         <div className="gba:overflow-y-auto gba:flex-1 gba:px-4 gba:pb-4">
-          {isImporting ? (
+          {isImporting || isFetchingPreview ? (
             <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:py-12">
               <Spinner />
-              <p className="gba:text-sm gba:text-muted-foreground">Importing {flowEntity}...</p>
+              <p className="gba:text-sm gba:text-muted-foreground">
+                {isImporting ? `Importing ${flowEntity}...` : 'Loading preview...'}
+              </p>
             </div>
           ) : (
             <>
@@ -180,7 +235,6 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
                   data-testid={`${testId}-entity-picker`}
                 />
               )}
-
               {step === 'templates' && (
                 <FlowTemplatePicker
                   selectedTemplateIds={templateIds}
@@ -192,7 +246,6 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
                   data-testid={`${testId}-template-picker`}
                 />
               )}
-
               {step === 'scope' && (
                 <FlowScopeConfig
                   flowEntity={flowEntity}
@@ -213,8 +266,21 @@ export const FlowEngineDataSheet: React.FC<FlowEngineDataSheetProps> = ({
                   refreshMode={refreshMode}
                   onRefreshModeChange={setRefreshMode}
                   onBack={() => setStep('templates')}
-                  onNext={() => void handleImport()}
+                  onNext={() => void handleScopeNext()}
                   data-testid={`${testId}-scope-config`}
+                />
+              )}
+              {step === 'fields' && (
+                <FlowFieldSelector
+                  entityLabel={flowEntity === 'flows' ? 'flows' : 'tasks'}
+                  fields={getFlowFieldDefs(flowEntity)}
+                  selectedKeys={selectedFieldKeys}
+                  onSelectedKeysChange={setSelectedFieldKeys}
+                  previewRecords={previewRecords}
+                  previewTotal={previewTotal}
+                  onBack={() => setStep('scope')}
+                  onNext={() => void handleImport()}
+                  data-testid={`${testId}-field-selector`}
                 />
               )}
             </>

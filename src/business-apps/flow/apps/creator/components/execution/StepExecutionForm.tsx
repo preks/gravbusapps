@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
 import { Card, Input, Button, Switch, Tooltip, Typography, Divider, Tag } from 'antd'
 import {
-  EditOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  UserOutlined,
-  FormOutlined,
-  PaperClipOutlined
-} from '@ant-design/icons'
+  PencilIcon,
+  CheckIcon,
+  XIcon,
+  UserIcon,
+  NotePencilIcon,
+  PaperclipIcon
+} from '@phosphor-icons/react'
 import { FlowStep, AssignmentTarget } from '../../types/flowTemplate'
 import { AssignmentSelector } from '../shared/AssignmentSelector'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -78,7 +78,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
         style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
         title={
           <div className="gba:flex gba:items-center gba:gap-2">
-            <UserOutlined />
+            <UserIcon size={16} />
             <span className="gba:font-semibold">Title & Message</span>
           </div>
         }
@@ -95,7 +95,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
             </div>
             <Tooltip title="Edit title and message">
               <Button
-                icon={<EditOutlined />}
+                icon={<PencilIcon />}
                 size="small"
                 className="gba:ml-4"
                 onClick={() => setEditTitleMessage(true)}
@@ -123,7 +123,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                 />
                 <div className="gba:flex gba:gap-2">
                   <Button
-                    icon={<CheckOutlined />}
+                    icon={<CheckIcon size={16} />}
                     size="small"
                     type="primary"
                     onClick={() => {
@@ -138,7 +138,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                     Save
                   </Button>
                   <Button
-                    icon={<CloseOutlined />}
+                    icon={<XIcon />}
                     size="small"
                     onClick={() => {
                       setEditTitleMessage(false)
@@ -165,7 +165,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
-                <UserOutlined />
+                <UserIcon size={16} />
                 <span className="gba:font-semibold">
                   {getTranslationFromI18nKeyAndLabel('flow.execution.assignment', 'Assignment')}
                 </span>
@@ -199,7 +199,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
-                <UserOutlined />
+                <UserIcon size={16} />
                 <span className="gba:font-semibold">Assignment</span>
               </div>
             }
@@ -247,7 +247,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
           style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
           title={
             <div className="gba:flex gba:items-center gba:gap-2">
-              <PaperClipOutlined />
+              <PaperclipIcon size={16} />
               <span className="gba:font-semibold">Links</span>
             </div>
           }
@@ -255,7 +255,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
           <div className="gba:space-y-2 gba:p-2">
             {step.links.map((link, idx) => (
               <div key={idx} className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-gray-50 gba:rounded-md">
-                <PaperClipOutlined className="gba:text-gray-500" />
+                <PaperclipIcon size={16} className="gba:text-gray-500" />
                 {link.url ? (
                   <a
                     href={link.url}

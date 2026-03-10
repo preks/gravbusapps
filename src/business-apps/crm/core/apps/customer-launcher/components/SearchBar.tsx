@@ -1,7 +1,7 @@
 import React from 'react'
 import { Input } from '@newwork/nw-design-system'
 import { Button } from '@newwork/nw-design-system'
-import { RiSearchLine, RiCloseLine } from '@remixicon/react'
+import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { SearchBarProps } from '../types'
 
@@ -37,7 +37,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onChange, onClear, placeho
   return (
     <div className="gba:relative gba:w-full" data-testid="search-bar-container">
       <div className="gba:relative">
-        <RiSearchLine
+        <MagnifyingGlassIcon
+          size={16}
           className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-gray-400"
           data-testid="search-icon"
         />
@@ -60,7 +61,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onChange, onClear, placeho
             data-testid="search-clear-button"
             aria-label="Clear search"
           >
-            <RiCloseLine className="gba:h-3 gba:w-3 gba:text-gray-400" />
+            <XIcon size={12} className="gba:h-3 gba:w-3 gba:text-gray-400" />
           </Button>
         )}
       </div>

@@ -14,7 +14,7 @@ import {
   ChartLegendContent
 } from '@newwork/nw-design-system'
 import { PieChart, Pie, BarChart, XAxis, YAxis, Bar } from 'recharts'
-import { ExclamationCircleOutlined, WarningOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { WarningCircleIcon, WarningIcon, InfoIcon } from '@phosphor-icons/react'
 import { CheckCircleIcon } from '@phosphor-icons/react'
 
 export interface ContactQualityData {
@@ -124,28 +124,28 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-4 gba:gap-4">
             <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-red-50 gba:border-red-200">
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <ExclamationCircleOutlined className="gba:text-red-600" />
+                <WarningCircleIcon size={16} className="gba:text-red-600" />
                 <span className="gba:text-sm gba:font-medium gba:text-red-600">Missing Emails</span>
               </div>
               <div className="gba:text-2xl gba:font-bold gba:text-red-900">{data.issuesSummary.missingEmails}</div>
             </div>
             <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-orange-50 gba:border-orange-200">
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <WarningOutlined className="gba:text-orange-600" />
+                <WarningIcon size={16} className="gba:text-orange-600" />
                 <span className="gba:text-sm gba:font-medium gba:text-orange-600">Missing Phones</span>
               </div>
               <div className="gba:text-2xl gba:font-bold gba:text-orange-900">{data.issuesSummary.missingPhones}</div>
             </div>
             <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-yellow-50 gba:border-yellow-200">
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <InfoCircleOutlined className="gba:text-yellow-600" />
+                <InfoIcon className="gba:text-yellow-600" />
                 <span className="gba:text-sm gba:font-medium gba:text-yellow-600">Missing Accounts</span>
               </div>
               <div className="gba:text-2xl gba:font-bold gba:text-yellow-900">{data.issuesSummary.missingAccounts}</div>
             </div>
             <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-purple-50 gba:border-purple-200">
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <ExclamationCircleOutlined className="gba:text-purple-600" />
+                <WarningCircleIcon size={16} className="gba:text-purple-600" />
                 <span className="gba:text-sm gba:font-medium gba:text-purple-600">Potential Duplicates</span>
               </div>
               <div className="gba:text-2xl gba:font-bold gba:text-purple-900">

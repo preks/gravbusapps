@@ -36,6 +36,15 @@ content_link_copied = Link in Zwischenablage kopiert
 no_image = Kein Bild
 content_image = Inhaltsbild
 
+# AI Translation button (shared by portal and content record)
+ai-translation-language = Sprache
+ai-translation-detecting = Wird erkannt...
+ai-translation-translating = Wird übersetzt...
+ai-translation-select-target = Zielsprache wählen
+ai-translation-search-placeholder = Sprachen suchen...
+ai-translation-no-languages-found = Keine Sprachen gefunden
+ai-translation-no-languages-available = Keine Sprachen verfügbar
+
 # Comments & Interactions
 comment = Kommentar
 comments = Kommentare

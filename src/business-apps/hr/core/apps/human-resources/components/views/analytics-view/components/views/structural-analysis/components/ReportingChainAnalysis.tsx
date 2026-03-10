@@ -1,7 +1,7 @@
 import React from 'react'
 import { Typography, Table, Tag, List, Avatar } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
-import { UserOutlined, AlertOutlined } from '@ant-design/icons'
+import { UserIcon, SirenIcon } from '@phosphor-icons/react'
 import { ReportingChainData, ReportingChainSummary } from '../types/structuralTypes'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
@@ -171,7 +171,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       {/* Bottlenecks Analysis */}
       <div>
         <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
-          <AlertOutlined className="gba:mr-2 gba:text-warning" />
+          <SirenIcon size={16} className="gba:mr-2 gba:text-warning" />
           {t('hr-analytics-bottleneck-managers')}
         </h3>
         <List
@@ -179,7 +179,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
           renderItem={bottleneck => (
             <List.Item>
               <List.Item.Meta
-                avatar={<Avatar icon={<UserOutlined />} />}
+                avatar={<Avatar icon={<UserIcon size={16} />} />}
                 title={bottleneck.managerName}
                 description={
                   <div>

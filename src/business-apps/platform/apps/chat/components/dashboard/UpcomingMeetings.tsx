@@ -1,10 +1,21 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
-import { Avatar, AvatarFallback, AvatarImage, Button, Skeleton } from '@newwork/nw-design-system'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  Skeleton,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider
+} from '@newwork/nw-design-system'
 import { Calendar, Video, Users, ExternalLink, ListTodo } from 'lucide-react'
 import { createCalendarApiClient } from '../../calendar/calendarApiClient'
 import type { CalendarEvent } from '../../calendar/types'
 import { getAgendaFromMetadata } from '../../calendar/utils/agendaUtils'
 import { useEmployeeAvatarsCache, EmployeeAvatarInfo } from '../../hooks/useEmployeeAvatarsCache'
+import { useChatTranslation } from '../../contexts/TranslationContext'
 import { env } from '@/common/env/EnvUtils'
 
 interface UpcomingMeetingsProps {
@@ -107,11 +118,13 @@ interface MeetingCardProps {
  * MeetingCard - Individual meeting item
  */
 const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, 'data-testid': testId }) => {
+  const t = useChatTranslation()
   const timeInfo = formatRelativeTime(meeting.start)
   const joinable = canJoinMeeting(meeting)
   const hasExternalLink = meeting.meetingLink && meeting.meetingLink !== 'auto-generate'
   const agendaItems = getAgendaFromMetadata(meeting.metadata)
   const hasAgenda = agendaItems.length > 0
+  const hasTranscription = meeting.transcriptionEnabled === true || meeting.metadata?.aiTranscriptionEnabled === true
 
   // Get resolved avatar URL for a participant
   const getParticipantAvatar = (participant: { id: string; avatarUrl?: string }): string | undefined => {
@@ -141,7 +154,25 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, '
 
       {/* Meeting info */}
       <div className="gba:flex-1 gba:min-w-0">
-        <h4 className="gba:font-medium gba:text-foreground gba:truncate">{meeting.title}</h4>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+          <h4 className="gba:font-medium gba:text-foreground gba:truncate">{meeting.title}</h4>
+          {hasTranscription && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                    aria-label={t('chat-call-recordingTranscriptNotice')}
+                    data-testid={testId ? `${testId}-recording-dot` : undefined}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="gba:max-w-xs gba:z-50">
+                  {t('chat-call-recordingTranscriptNotice')}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
           {meeting.organizer && (
             <span className="gba:truncate">

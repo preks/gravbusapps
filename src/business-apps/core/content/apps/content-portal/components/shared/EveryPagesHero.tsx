@@ -1,5 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import translations from '../../_i18n'
 
 interface EveryPagesHeroProps {
   activeTab: string
@@ -12,32 +14,15 @@ const localVideoUrl = '/space-hero-background.mp4'
 const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
 const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
-// Tab-specific content configuration
-const tabContent: Record<string, { title: string; subtitle: string }> = {
-  home: {
-    title: 'Welcome to Your Intranet',
-    subtitle: 'Stay informed with company news, updates, and resources'
-  },
-  news: {
-    title: 'Company News',
-    subtitle: 'Latest updates and announcements from across the organization'
-  },
-  knowledge: {
-    title: 'Knowledge Base',
-    subtitle: 'Access articles, guides, and resources to help you succeed'
-  },
-  documents: {
-    title: 'Documents',
-    subtitle: 'Browse and manage important company documents'
-  },
-  questions: {
-    title: 'Questions & Answers',
-    subtitle: 'Get answers to your questions from the community'
-  },
-  engagement: {
-    title: 'Engagement Dashboard',
-    subtitle: 'Track your contributions and community impact'
-  }
+// Tab -> FTL keys for hero title/subtitle (EveryPages and NEWWORK stay untranslated as marketing/brand names)
+const tabContentKeys: Record<string, { titleKey: string; subtitleKey: string }> = {
+  home: { titleKey: 'intranet-welcome-title', subtitleKey: 'intranet-welcome-subtitle' },
+  news: { titleKey: 'news-welcome-title', subtitleKey: 'news-welcome-subtitle' },
+  knowledge: { titleKey: 'knowledge-welcome-title', subtitleKey: 'knowledge-welcome-subtitle' },
+  documents: { titleKey: 'document-welcome-title', subtitleKey: 'document-welcome-subtitle' },
+  questions: { titleKey: 'question-welcome-title', subtitleKey: 'question-welcome-subtitle' },
+  policies: { titleKey: 'policies-welcome-title', subtitleKey: 'policies-welcome-subtitle' },
+  engagement: { titleKey: 'engagement-dashboard-title', subtitleKey: 'engagement-dashboard-subtitle' }
 }
 
 /**
@@ -49,7 +34,8 @@ export const EveryPagesHero: React.FC<EveryPagesHeroProps> = ({
   activeTab,
   'data-testid': testId = 'everypages-hero'
 }) => {
-  const content = tabContent[activeTab] || tabContent.home
+  const { t } = useTranslation(translations)
+  const keys = tabContentKeys[activeTab] || tabContentKeys.home
 
   return (
     <div data-testid={testId} className="gba:w-full gba:h-[200px] gba:shrink-0">
@@ -104,7 +90,7 @@ export const EveryPagesHero: React.FC<EveryPagesHeroProps> = ({
             className="gba:text-lg gba:text-white/90 gba:max-w-2xl gba:mb-1"
             data-testid={`${testId}-subtitle-primary`}
           >
-            {content.title}
+            {t(keys.titleKey)}
           </p>
 
           {/* Secondary description */}
@@ -112,7 +98,7 @@ export const EveryPagesHero: React.FC<EveryPagesHeroProps> = ({
             className="gba:text-sm gba:text-white/60 gba:max-w-xl gba:transition-opacity gba:duration-300"
             data-testid={`${testId}-subtitle-secondary`}
           >
-            {content.subtitle}
+            {t(keys.subtitleKey)}
           </p>
         </div>
       </div>

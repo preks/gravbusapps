@@ -1,6 +1,6 @@
-import React, { ReactNode } from 'react'
+import React, { ReactNode, useEffect, useRef } from 'react'
 import { SectionKpiCards, KpiCardData, Button, Icon } from '@newwork/nw-design-system'
-import { PiWarning, PiArrowClockwise } from 'react-icons/pi'
+import { WarningIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UsersIcon, CalendarIcon, EnvelopeIcon, PhoneIcon } from '@phosphor-icons/react'
 
@@ -87,7 +87,7 @@ export interface WidgetGroupProps {
   onRetry?: () => void
 
   /**
-   * Optional click handler for legacy callers; no-op in current implementation to keep tree static
+   * Function to call when a widget card is clicked (makes cards clickable when provided)
    */
   onWidgetClick?: (widgetKey: string) => void
 
@@ -265,6 +265,63 @@ const transformWidgetToKpiCard = (widget: WidgetItem): KpiCardData => {
 }
 
 /**
+ * Applies widget metadata and interactivity to card DOM elements (used when onWidgetClick is provided).
+ * Makes each card a proper interactive element (role, tabIndex, click, keyboard) for accessibility.
+ * Returns a cleanup function to remove event listeners.
+ */
+function applyWidgetInteractivityToCards(
+  container: HTMLDivElement,
+  widgets: WidgetItem[],
+  onWidgetClick: (widgetKey: string) => void
+): () => void {
+  const controller = new AbortController()
+  const { signal } = controller
+
+  const cards = container.querySelectorAll('div[class*="card"], div[class*="Card"]')
+  const count = widgets.length
+  const cardsPerWidget = count > 0 ? Math.ceil(cards.length / count) : 0
+  for (let widgetIndex = 0; widgetIndex < count; widgetIndex++) {
+    const widget = widgets[widgetIndex]
+    const startIndex = widgetIndex * cardsPerWidget
+    const endIndex = Math.min(startIndex + cardsPerWidget, cards.length)
+    for (let i = startIndex; i < endIndex; i++) {
+      const card = cards[i] as HTMLElement
+      card.dataset.widgetKey = widget.key
+      if (widget.onClick) {
+        card.classList.add('clickable')
+      } else {
+        card.classList.remove('clickable')
+      }
+
+      card.setAttribute('role', 'button')
+      card.tabIndex = 0
+      if (widget.title) {
+        card.setAttribute('aria-label', widget.title)
+      }
+
+      const activate = (): void => {
+        onWidgetClick(widget.key)
+        widget.onClick?.()
+      }
+
+      card.addEventListener('click', activate, { signal })
+      card.addEventListener(
+        'keydown',
+        (e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            activate()
+          }
+        },
+        { signal }
+      )
+    }
+  }
+
+  return () => controller.abort()
+}
+
+/**
  * A component that displays a group of widgets with consistent height
  */
 export const WidgetGroup: React.FC<WidgetGroupProps> = ({
@@ -272,6 +329,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   isLoading = false,
   error = null,
   onRetry,
+  onWidgetClick,
   cardsClassName,
   className = 'gba:py-2',
   skeletonCount = 4,
@@ -279,6 +337,24 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   useWidgetStructureForLoading = false,
   'data-testid': dataTestId = 'widget-group'
 }) => {
+  const cardsRef = useRef<HTMLDivElement>(null)
+
+  // When onWidgetClick is used, make each card an accessible interactive element (role, tabIndex, click, keyboard)
+  useEffect(() => {
+    if (!onWidgetClick || !cardsRef.current) return
+    let cleanup: () => void = () => {}
+    const run = (): void => {
+      cleanup()
+      if (cardsRef.current) cleanup = applyWidgetInteractivityToCards(cardsRef.current, widgets, onWidgetClick)
+    }
+    run()
+    const timeoutId = setTimeout(run, 100)
+    return () => {
+      clearTimeout(timeoutId)
+      cleanup()
+    }
+  }, [onWidgetClick, widgets])
+
   // Transform widgets to KPI cards (declare before content usage)
   const kpiCards: KpiCardData[] = widgets.map(widget => transformWidgetToKpiCard(widget))
   // Build cards for each state but keep a single return to avoid tree shape churn
@@ -309,7 +385,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg"
         data-testid={`${dataTestId}-error-container`}
       >
-        <PiWarning className="gba:text-red-500 gba:text-4xl gba:mb-4" data-testid={`${dataTestId}-error-icon`} />
+        <WarningIcon className="gba:text-red-500 gba:text-4xl gba:mb-4" data-testid={`${dataTestId}-error-icon`} />
         <h3 className="gba:text-lg gba:font-medium gba:text-red-900 gba:mb-2" data-testid={`${dataTestId}-error-title`}>
           Error Loading Data
         </h3>
@@ -323,7 +399,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             className="gba:flex gba:items-center gba:gap-2"
             data-testid={`${dataTestId}-error-retry-button`}
           >
-            <PiArrowClockwise />
+            <ArrowClockwiseIcon />
             Retry
           </Button>
         )}
@@ -342,18 +418,24 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             className="gba:flex gba:items-center gba:gap-2 gba:mx-auto"
             data-testid={`${dataTestId}-empty-load-button`}
           >
-            <PiArrowClockwise />
+            <ArrowClockwiseIcon />
             Load Data
           </Button>
         )}
       </div>
     )
+  } else if (onWidgetClick) {
+    content = (
+      <div className="gba:relative" style={{ cursor: 'default' }} data-testid={`${dataTestId}-clickable-container`}>
+        <div ref={cardsRef} className="widget-group-cards">
+          <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
+        </div>
+      </div>
+    )
   } else {
     content = <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
   }
-  // No DOM post-mutations; keep the tree static/stable
 
-  // Stable wrapper with a single return path
   return (
     <div className={className} data-testid={dataTestId}>
       {content}

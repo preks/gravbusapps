@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import type { AgentRegistryEntry, Connection } from '../types/agentMesh'
 import { useAgentMeshClient } from './useAgentMeshClient'
-import type { MergedEdge } from './useMeshDashboardData'
+import type { MergedEdge } from '../utils/meshGraphUtils'
 
 interface UseMeshConnectionsParams {
   accessToken: string

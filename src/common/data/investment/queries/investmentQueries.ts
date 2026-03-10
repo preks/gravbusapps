@@ -238,6 +238,28 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
   return whereClause
 }
 
+/**
+ * Build Investments query body for a given account ID (to be combined with a main query).
+ * Returns a GraphQL selection body (without `query` wrapper) that can be injected alongside
+ * another root-level selection — e.g. alongside InvestmentAccountByPk.
+ *
+ * The alias `accountInvestments` avoids collisions with other Investment selections.
+ */
+export const buildInvestmentsByAccountIdQueryBody = (accountId: string): string => {
+  return `
+    accountInvestments: Investment(
+      limit: 100
+      orderBy: [{ createdAt: DESC_NULLS_LAST }]
+      where: {
+        isDeleted: { _eq: false }
+        investmentAccounts: { investmentAccountId: { _in: ["${accountId}"] } }
+      }
+    ) {
+      ${INVESTMENT}
+    }
+  `
+}
+
 // Get Investments with all specializations
 export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): string => {
   const limit = Math.min(variables.limit || 50, 100)

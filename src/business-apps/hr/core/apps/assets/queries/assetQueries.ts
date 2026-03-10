@@ -48,6 +48,37 @@ export const ASSET_FIELDS = `
     id
     name
   }
+  disposalStatus
+  disposalOutcomeRef
+  disposalDate
+  disposalReason
+  responsibleEmployeeId
+  performerEmployeeId
+  requireSanitization
+  sanitizationMethodRef
+  sanitizationExecutionDate
+  disposalOutcome {
+    id
+    code
+    value
+  }
+  sanitizationMethod {
+    id
+    code
+    value
+  }
+  responsibleEmployee {
+    id
+    displayName
+    firstName
+    lastName
+  }
+  performerEmployee {
+    id
+    displayName
+    firstName
+    lastName
+  }
 `
 
 export const EMPLOYEE_ASSET_FIELDS = `
@@ -225,6 +256,21 @@ export const GET_CURRENT_ALLOCATION = `
   }
 `
 
+/** Asset IDs that have a current allocation to one of the given employee IDs (for filter by employee). */
+export const GET_ASSET_IDS_BY_EMPLOYEE_IDS = `
+  query GetAssetIdsByEmployeeIds($employeeIds: [uuid!]!) {
+    EmployeeAsset(
+      where: {
+        employeeId: { _in: $employeeIds }
+        endDate: { _isNull: true }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      assetId
+    }
+  }
+`
+
 export const ALLOCATE_ASSET = `
   mutation AllocateAsset($allocation: EmployeeAssetInsertInput!) {
     insert_EmployeeAsset_one(object: $allocation) {
@@ -255,6 +301,8 @@ export interface AssetQueryVariables {
   offset?: number
   where?: any
   orderBy?: any
+  /** When set, only return assets whose id is in this list (e.g. from employee filter). Applied in addition to where. */
+  assetIds?: string[]
 }
 
 export interface AssetByIdVariables {

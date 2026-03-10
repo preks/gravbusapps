@@ -254,7 +254,19 @@ export function useEntityImport<T = ConvertedEntity>(
       })
       setStep('mapping')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred')
+      const isFileError =
+        err instanceof Error &&
+        (err.name === 'AbortError' ||
+          /rest request failed: 40[04]/i.test(err.message) ||
+          /timeout|timed out|failed to fetch/i.test(err.message))
+
+      setError(
+        isFileError
+          ? 'Try to upload a file that does not contain corrupted data!'
+          : err instanceof Error
+            ? err.message
+            : 'Unknown error occurred'
+      )
     } finally {
       setIsLoading(false)
     }
@@ -328,7 +340,7 @@ export function useEntityImport<T = ConvertedEntity>(
         const base = {
           ...entity,
           ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId,
-          ...(campaignId ? { salesCampaignId: campaignId } : {})
+          ...(campaignId ? { salesCampaign: campaignId } : {})
         }
 
         // Align with createLead defaulting: ensure a status is present for leads.

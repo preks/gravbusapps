@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { PiClock, PiUsers, PiCalendar, PiFirstAid } from 'react-icons/pi'
+import { ClockIcon, UsersIcon, CalendarIcon, FirstAidIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAbsenceStatisticsSimple } from '../../../hooks/useAbsenceStatisticsSimple'
@@ -21,7 +21,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
         'Team Members Away'
       ),
       value: statistics.teamMembersAway,
-      prefix: <PiUsers />,
+      prefix: <UsersIcon />,
       color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -50,7 +50,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
         'Pending Requests'
       ),
       value: statistics.pendingRequests,
-      prefix: <PiClock />,
+      prefix: <ClockIcon />,
       color: 'var(--nw-warning)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -79,7 +79,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
         'Sick Leaves'
       ),
       value: statistics.sickAbsencesByMonth.count,
-      prefix: <PiFirstAid />,
+      prefix: <FirstAidIcon />,
       color: 'var(--nw-destructive)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
@@ -115,7 +115,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
         'Upcoming Absences'
       ),
       value: statistics.upcomingAbsences,
-      prefix: <PiCalendar />,
+      prefix: <CalendarIcon />,
       color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(

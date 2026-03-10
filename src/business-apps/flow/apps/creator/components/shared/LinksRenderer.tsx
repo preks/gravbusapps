@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, Tag } from 'antd'
-import { PaperClipOutlined } from '@ant-design/icons'
+import { PaperclipIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface LinksRendererProps {
@@ -18,7 +18,7 @@ export const LinksRenderer: React.FC<LinksRendererProps> = ({ links, testId = 'l
       size="small"
       title={
         <div className="gba:flex gba:items-center gba:gap-2">
-          <PaperClipOutlined />
+          <PaperclipIcon />
           <span>{getTranslationFromI18nKeyAndLabel('flow.step.links', 'Links')}</span>
         </div>
       }
@@ -31,7 +31,7 @@ export const LinksRenderer: React.FC<LinksRendererProps> = ({ links, testId = 'l
             className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:bg-gray-50 gba:rounded"
             data-testid={`${testId}-link-${index}`}
           >
-            <PaperClipOutlined className="gba:text-gray-500" />
+            <PaperclipIcon size={16} className="gba:text-gray-500" />
             <div className="gba:flex gba:items-center gba:justify-between">
               <span className="gba:text-sm">{link.name || link.url}</span>
             </div>

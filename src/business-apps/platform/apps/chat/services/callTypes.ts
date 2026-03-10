@@ -14,6 +14,7 @@ export interface GroupCallInvite {
   conversationName?: string
   conversationId?: string
   conversationType?: CallConversationType
+  transcriptionEnabled?: boolean
 }
 
 export interface GroupCallUIState {
@@ -38,6 +39,7 @@ export interface GroupCallUIState {
   duration: number
   callImplementation: 'realtime-kit'
   calendarMeetingId?: string | null
+  transcriptionEnabled?: boolean
 }
 
 export interface ActiveConversationCall {

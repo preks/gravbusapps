@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react'
+import React, { useMemo, useState, useCallback, useRef } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
@@ -49,17 +49,24 @@ export type OpportunityViewProps = BusinessAppContextProps
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
 
-  // State to trigger statistics refresh
+  // State to trigger statistics refresh (re-mounts CustomerOpportunityStatistics via key prop)
   const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
+
+  // Refs so that renderStatistics in config always reads the latest values without
+  // causing config to rebuild (which would cascade to listQueryVariables → loadListData → query).
+  const statisticsRefreshKeyRef = useRef(statisticsRefreshKey)
+  statisticsRefreshKeyRef.current = statisticsRefreshKey
+  const contextRef = useRef(context)
+  contextRef.current = context
 
   // Create a refetch callback for statistics
   const refetchStatistics = useCallback(() => {
     setStatisticsRefreshKey(prev => prev + 1)
   }, [])
 
-  // Statistics data with refetch callback
-  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(() => {
-    return {
+  // Statistics data with refetch callback — stable because refetchStatistics is stable
+  const opportunityStatisticsData: OpportunityStatisticsData | undefined = useMemo(
+    () => ({
       recentOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
       totalOpportunities: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
       opportunitiesThisQuarter: { current: 0, previous: 0, change: 0, changePercent: 0, isPositive: false },
@@ -67,9 +74,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       isLoading: false,
       error: null,
       refetch: refetchStatistics
-    }
-  }, [refetchStatistics])
+    }),
+    [refetchStatistics]
+  )
 
+  // Config — context and statisticsRefreshKey are intentionally excluded from deps.
+  // They are accessed via refs so that statistics refreshes and context reference changes
+  // do not recreate config, which would cascade into new listQueryVariables / loadListData
+  // references and re-fire GetOpportunities.
   const config = useMemo(() => {
     const baseConfig = createOpportunityConfig<CustomerOpportunity, CustomerOpportunityQueryVariables>({
       contextType: 'customer',
@@ -110,14 +122,13 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       extractBoardOpportunities: result => result.opportunities || [],
       extractBoardTotalCount: result => result.total || 0,
 
-      // Provide statistics data for refetch in handleProcessComplete
       opportunityStatistics: opportunityStatisticsData,
 
-      // Use renderStatistics to support currency filtering
+      // Reads latest context/key from refs so config stays stable
       renderStatistics: (selectedCurrency?: string) => (
         <CustomerOpportunityStatistics
-          key={statisticsRefreshKey}
-          context={context}
+          key={statisticsRefreshKeyRef.current}
+          context={contextRef.current}
           selectedCurrency={selectedCurrency}
         />
       ),
@@ -137,14 +148,13 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       },
       createSortableColumns: (availableColumnIds?: string[]) => {
         const baseSortable = baseConfig.createSortableColumns(availableColumnIds)
-        // Add CRM-specific sortable columns
         const additionalSortable = CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS.filter(
           col => !availableColumnIds || availableColumnIds.includes(col.id)
         )
         return [...baseSortable, ...additionalSortable]
       }
     } as typeof baseConfig
-  }, [context, fetchCustomerOpportunities, opportunityStatisticsData, statisticsRefreshKey])
+  }, [fetchCustomerOpportunities, opportunityStatisticsData])
 
   return (
     <OpportunityLayout
