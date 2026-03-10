@@ -11,7 +11,7 @@ import {
   employmentRegionHolidaysQuery,
   employeeAttendanceMonthlyAllQuery as allQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
-import { getEmployeeAbsences } from '@/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences'
+import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
@@ -318,19 +318,15 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     setHolidayNamesByDate(namesByDate)
     setHolidayDates(Array.from(holidayDateSet))
 
-    // Fetch personal absences for the month (Vacation, Relocation, Health Cure, etc.) — same as Personal Absences calendar
+    // Fetch personal absences (Vacation, Relocation, Health Cure, etc.) — same query as Personal Absences calendar
     const absenceLabelsByDateMap: Record<string, string> = {}
     try {
-      const startTs = new Date(
-        Date.UTC(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate(), 0, 0, 0)
-      ).toISOString()
-      const endTs = new Date(
-        Date.UTC(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
-      ).toISOString()
-      const absRes = await graphqlClient.request<any>(getEmployeeAbsences, {
-        employeeId,
-        startDate: startTs,
-        endDate: endTs
+      const absRes = await graphqlClient.request<any>(GET_EMPLOYEE_ABSENCES, {
+        where: { employee: { id: { _eq: employeeId } }, isDeleted: { _eq: false } },
+        orderBy: [{ createdAt: 'DESC' }],
+        limit: 1000,
+        offset: 0,
+        activeUserLocale: activeLocale
       })
       const absences: any[] = absRes?.EmployeeAbsence || []
       const addAbsenceRange = (fromIso: string, toIso: string, label: string) => {
