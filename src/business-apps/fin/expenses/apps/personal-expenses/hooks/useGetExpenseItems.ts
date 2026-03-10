@@ -97,7 +97,7 @@ export const useGetExpenseItems = (
   const [totalCount, setTotalCount] = useState<number>(0)
   const abortControllerRef = useRef<AbortController | null>(null) // For request cancellation
   const itemsRef = useRef<ExpenseItem[]>([]) // For checking existing data inside fetchItems (avoid loading flash on sort/pagination)
-  const lastDisplayedCacheKeyRef = useRef<string>('') // When filters/card change, clear stale data so correct data shows directly
+  const lastDisplayedCacheKeyRef = useRef<string>('')
   // Page cache: stores results by cache key (search, filters, page, pageSize, sortField, sortOrder)
   const pageCacheRef = useRef<Map<string, { items: ExpenseItem[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
@@ -138,7 +138,7 @@ export const useGetExpenseItems = (
     return where
   }, [])
 
-  // Helper function to add search filters to where clause
+  // Helper function to add search filters to where clause (status excluded – use Status filter for that)
   const addSearchFilters = useCallback((where: Record<string, any>, searchTerm: string): void => {
     const trimmedSearch = (searchTerm || '').trim()
     // Only add search filter if there's an actual search term (not '%' which means "all items")
@@ -147,7 +147,6 @@ export const useGetExpenseItems = (
       where._or = [
         { title: { _ilike: pattern } },
         { code: { _ilike: pattern } },
-        { status: { _ilike: pattern } },
         { expenseClass: { value: { _ilike: pattern } } },
         { expenseClass: { translations: { value: { _ilike: pattern } } } },
         { costCenter: { name: { _ilike: pattern } } }
@@ -311,10 +310,9 @@ export const useGetExpenseItems = (
         return
       }
 
-      // When filters/card changed (different cache key), clear stale data and show loading so correct data appears directly
-      if (cacheKey !== lastDisplayedCacheKeyRef.current && itemsRef.current.length > 0) {
-        setItems([])
-        setTotalCount(0)
+      // Only show table loading when we have no data yet (initial load); skip for sort/pagination so the table doesn't rerender/flash (same as plans tab)
+      const hasExistingListData = (itemsRef.current?.length ?? 0) > 0
+      if (!hasExistingListData) {
         setIsLoading(true)
       }
 
@@ -351,10 +349,6 @@ export const useGetExpenseItems = (
         }
       }
 
-      // Only show loading when we have no data yet (initial load); skip for sort/pagination to avoid table rerender/flash
-      if (itemsRef.current.length === 0) {
-        setIsLoading(true)
-      }
       setError(null)
 
       try {

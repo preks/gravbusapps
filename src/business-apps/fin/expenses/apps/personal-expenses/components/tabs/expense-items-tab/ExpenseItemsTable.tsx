@@ -142,7 +142,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
             field: 'statusIds',
             label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status'),
             type: 'multi-select',
-            config: { options: statusOptions }
+            config: { options: statusOptions, showSearch: false }
           }
         ]
       },
