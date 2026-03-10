@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { PageLayout, Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
+import { PageLayout, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
@@ -68,18 +68,26 @@ export const RealEstateInvestmentImportView: React.FC<RealEstateInvestmentImport
   return (
     <PageLayout
       headerIcon={SparkleIcon}
-      headerTitle={t('page-title')}
-      headerDescription={t('page-description')}
+      headerTitle={t('real-estate-page-title')}
+      headerDescription={t('real-estate-page-description')}
       // @ts-expect-error - onBack is supported at runtime but not in type definitions
       onBack={onBack}
       data-testid={testId}
     >
-      {/* Error Alert */}
       {error && (
-        <Alert variant="destructive" className="gba:mb-4" data-testid={`${testId}-error`}>
-          <XCircleIcon className="gba:w-4 gba:h-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <Card className="gba:mb-6 gba:border-destructive-ring" data-testid={`${testId}-error`}>
+          <CardContent className="gba:py-10">
+            <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-16 gba:h-16 gba:rounded-full gba:bg-destructive-secondary">
+                <XCircleIcon className="gba:w-8 gba:h-8 gba:text-destructive" weight="fill" />
+              </div>
+              <div className="gba:space-y-2">
+                <p className="gba:font-semibold gba:text-base gba:text-destructive">Analysis Failed</p>
+                <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Step 1: Upload */}
@@ -99,7 +107,7 @@ export const RealEstateInvestmentImportView: React.FC<RealEstateInvestmentImport
           agentResponse={agentResponse}
           mappings={mappings}
           targetFieldsConfig={realEstateInvestmentImportConfig.targetFields}
-          entityType={t('entity-type')}
+          entityType={t('real-estate-entity-type')}
           isLoading={isLoading}
           onUpdateMapping={updateMapping}
           onRemoveMapping={removeMapping}
@@ -115,7 +123,7 @@ export const RealEstateInvestmentImportView: React.FC<RealEstateInvestmentImport
         <ConversionResultStep<ConvertedRealEstateInvestment>
           convertedEntities={convertedRealEstateInvestments}
           targetFieldsConfig={realEstateInvestmentImportConfig.targetFields}
-          entityType={t('entity-type-singular')}
+          entityType={t('real-estate-entity-type-singular')}
           isLoading={isLoading}
           importResult={importResult}
           onDownloadJSON={downloadJSON}

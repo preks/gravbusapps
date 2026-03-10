@@ -8,9 +8,9 @@ import {
   Button,
   Textarea,
   Label,
-  Alert,
-  DateInput
+  Alert
 } from '@newwork/nw-design-system'
+import { AbsenceDateRangePicker } from './components/AbsenceDateRangePicker'
 import { AlertCircle } from 'lucide-react'
 import { Upload } from 'antd'
 import type { UploadFile } from 'antd'
@@ -471,40 +471,16 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
                   <span className="gba:text-destructive gba:ml-1">*</span>
                 </Label>
-                <DateInput
-                  mode="range"
-                  type="date"
-                  value={
-                    formValuesState.startDate && formValuesState.endDate
-                      ? ([
-                          formValuesState.startDate.toISOString().split('T')[0],
-                          formValuesState.endDate.toISOString().split('T')[0]
-                        ] as any)
-                      : formValuesState.startDate
-                        ? ([formValuesState.startDate.toISOString().split('T')[0], null] as any)
-                        : undefined
-                  }
-                  onChange={(value: string | [string | null, string | null] | null) => {
-                    if (Array.isArray(value)) {
-                      const startDateStr = value[0]
-                      const endDateStr = value[1]
-                      form.setValue('startDate', startDateStr ? new Date(startDateStr) : undefined)
-                      form.setValue('endDate', endDateStr ? new Date(endDateStr) : undefined)
-                    } else if (value) {
-                      form.setValue('startDate', new Date(value))
-                      form.setValue('endDate', undefined)
-                    } else {
-                      form.setValue('startDate', undefined)
-                      form.setValue('endDate', undefined)
-                    }
+                <AbsenceDateRangePicker
+                  startDate={formValuesState.startDate}
+                  endDate={formValuesState.endDate}
+                  onChange={(start, end) => {
+                    form.setValue('startDate', start)
+                    form.setValue('endDate', end)
                   }}
-                  outputFormat="iso"
-                  placeholder={
-                    getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_start_date', 'Select start date') +
-                    ' / ' +
-                    getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_end_date', 'Select end date')
-                  }
-                  className="gba:w-full"
+                  accessToken={accessToken}
+                  employeeId={employeeId}
+                  selectedTypeRef={formValuesState.selectedType}
                   data-testid="absence-date-range-input"
                 />
               </div>

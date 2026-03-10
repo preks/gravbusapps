@@ -1,19 +1,13 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { DataDisplay, DataTable } from '@newwork/nw-design-system'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCampaignEntities } from '../hooks/useCampaignEntities'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { createCampaignEntityColumns, createCampaignEntitySortableColumns } from '../config/campaignEntityColumns'
 import { campaignEntityFilterConfig } from '../config/campaignEntityFilters'
-import { CampaignEntity } from '../types/CampaignRecordTypes'
+import { CampaignEntity, CampaignEntitiesSectionProps } from '../types/CampaignRecordTypes'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-
-export interface CampaignEntitiesSectionProps extends BusinessAppContextProps {
-  campaignId: string
-}
 
 /**
  * Entity row actions component (matching Campaign Management pattern)
@@ -144,9 +138,6 @@ const matchesDateRangeFilter = (entity: CampaignEntity, dateRange: { from?: stri
  * Campaign Entities Section component using DataDisplay + DataTable (matching Campaign Management)
  */
 export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = props => {
-  const { campaignId } = props
-
-  // Use the campaign entities hook
   const {
     entities,
     isLoading,
@@ -159,7 +150,7 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = p
     setPageSize,
     setSorting: setSortingInHook,
     refetch
-  } = useCampaignEntities(props, campaignId)
+  } = props
 
   // State for DataDisplay
   const [searchTerm, setSearchTerm] = useState(search || '')

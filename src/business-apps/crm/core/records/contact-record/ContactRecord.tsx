@@ -48,7 +48,8 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   } = useCustomerContact(props.accessToken, contactId)
 
   // AI Summary hook - must be called before any conditional returns
-  const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
+  // Pass already-fetched contactData to avoid a duplicate GetContactById query
+  const aiSummaryHook = useContactAiSummary(contactId, props.accessToken, contactData)
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)

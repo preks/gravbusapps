@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { RecordLayout, Badge, Spinner, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { MegaphoneIcon, CalendarIcon, TagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics } from './hooks'
+import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics, useCampaignEntities } from './hooks'
 import { CampaignKPIs, CampaignChart, CampaignEntitiesSection } from './components'
 import CampaignAnalyticsStatistics from './components/analytics/CampaignAnalyticsStatistics'
 import CampaignConversionFunnel from './components/analytics/CampaignConversionFunnel'
@@ -80,6 +80,9 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     error: analyticsError,
     refetch: refetchAnalytics
   } = useCampaignAnalytics(stableContext, campaignId)
+
+  // Fetch campaign entities once — shared between CampaignChart and CampaignEntitiesSection
+  const campaignEntities = useCampaignEntities(stableContext, campaignId)
 
   // Helper functions for campaign status - MUST be before any early returns (Rules of Hooks)
   const getCampaignStatus = useCallback((startDate?: string, endDate?: string) => {
@@ -209,12 +212,17 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
 
               {/* Chart - Full width */}
               <div data-testid="campaign-chart-section">
-                <CampaignChart campaignId={campaignId} campaign={campaign} {...stableContext} />
+                <CampaignChart
+                  campaignId={campaignId}
+                  campaign={campaign}
+                  allEntities={campaignEntities.entities}
+                  {...stableContext}
+                />
               </div>
 
               {/* Campaign Entities - Full width */}
               <div data-testid="campaign-entities-section" className="gba:min-h-[600px]">
-                <CampaignEntitiesSection campaignId={campaignId} {...stableContext} />
+                <CampaignEntitiesSection campaignId={campaignId} {...campaignEntities} {...stableContext} />
               </div>
             </div>
           )

@@ -19,11 +19,26 @@ export function extractSessionContextFromPlan(plan: BuildPlan): { sessionId: str
       component.metadata.repoId.length > 0
   )
 
-  if (!componentWithSession) return null
-  return {
-    sessionId: componentWithSession.metadata?.sessionId as string,
-    repoId: componentWithSession.metadata?.repoId as string
+  if (componentWithSession) {
+    return {
+      sessionId: componentWithSession.metadata?.sessionId as string,
+      repoId: componentWithSession.metadata?.repoId as string
+    }
   }
+
+  if (
+    typeof plan.sessionId === 'string' &&
+    plan.sessionId.length > 0 &&
+    typeof plan.repoId === 'string' &&
+    plan.repoId.length > 0
+  ) {
+    return {
+      sessionId: plan.sessionId,
+      repoId: plan.repoId
+    }
+  }
+
+  return null
 }
 
 export function isValidOrchestratorViewState(value: unknown): value is OrchestratorViewState {

@@ -57,6 +57,7 @@ export type CanvasTab =
   | 'functions'
   | 'task-expert'
   | 'flow'
+  | 'agent-mesh'
   | 'about'
 
 export interface CanvasTabInfo {
@@ -65,12 +66,13 @@ export interface CanvasTabInfo {
 }
 
 export const CANVAS_TABS: CanvasTabInfo[] = [
-  { id: 'build-plan', label: 'Build Plan' },
+  { id: 'build-plan', label: 'Overview' },
   { id: 'screen', label: 'Screen' },
   { id: 'data-model', label: 'Data Model' },
   { id: 'functions', label: 'Functions' },
   { id: 'task-expert', label: 'Task Expert' },
   { id: 'flow', label: 'Flow' },
+  { id: 'agent-mesh', label: 'Agent Mesh' },
   { id: 'data-flow', label: 'Architecture' },
   { id: 'about', label: 'About' }
 ]
@@ -85,7 +87,6 @@ export function getVisibleCanvasTabs(components: ComponentSpec[]): CanvasTabInfo
   const hasFunction = components.some(c => c.type === 'function')
   const hasAgent = components.some(c => c.type === 'agent')
   const hasFlow = components.some(c => c.type === 'flow')
-  const hasAnyComponent = components.length > 0
 
   return CANVAS_TABS.filter(tab => {
     switch (tab.id) {
@@ -102,8 +103,10 @@ export function getVisibleCanvasTabs(components: ComponentSpec[]): CanvasTabInfo
         return hasAgent
       case 'flow':
         return hasFlow
+      case 'agent-mesh':
+        return hasAgent
       case 'data-flow':
-        return hasAnyComponent
+        return hasFlow || hasAgent
       default:
         return true
     }

@@ -1,11 +1,11 @@
 import { useCallback } from 'react'
 import * as z from 'zod'
 import useInformationExtraction, { UseInformationExtractionReturn } from '@/common/hooks/useInformationExtraction'
-import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 
 const taskDescription = `You are a customer relationship management assistant analyzing a customer account.
 
@@ -55,8 +55,11 @@ async function fetchPaginatedData<T>(
   return allData
 }
 
-export function useAccountAiSummary(accountId: string, accessToken: string): UseAccountAiSummaryReturn {
-  const { account } = useCustomerAccount(accessToken, accountId)
+export function useAccountAiSummary(
+  accountId: string,
+  accessToken: string,
+  account: CustomerAccount | null
+): UseAccountAiSummaryReturn {
   const { fetchCustomerActivitiesByAccountId } = useCustomerActivities({ accessToken } as BusinessAppContextProps)
   const { fetchCustomerNotesByAccountId } = useCustomerNotes({ accessToken } as BusinessAppContextProps)
   const { fetchCustomerTasksByAccountId } = useCustomerTasks({ accessToken } as BusinessAppContextProps)
@@ -71,7 +74,6 @@ export function useAccountAiSummary(accountId: string, accessToken: string): Use
     }
 
     try {
-      // Account data is already available from the hook
       if (!account) {
         throw new Error(`Customer account with ID ${accountId} not found`)
       }
