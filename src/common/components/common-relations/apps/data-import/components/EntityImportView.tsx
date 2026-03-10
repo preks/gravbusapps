@@ -5,7 +5,7 @@
  */
 
 import React from 'react'
-import { PageLayout, Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
+import { PageLayout, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
@@ -127,10 +127,19 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
       data-testid={testId}
     >
       {error && (
-        <Alert variant="destructive" className="gba:mb-4" data-testid={`${testId}-error`}>
-          <XCircleIcon className="gba:w-4 gba:h-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <Card className="gba:mb-6 gba:border-destructive-ring" data-testid={`${testId}-error`}>
+          <CardContent className="gba:py-10">
+            <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-16 gba:h-16 gba:rounded-full gba:bg-destructive-secondary">
+                <XCircleIcon className="gba:w-8 gba:h-8 gba:text-destructive" weight="fill" />
+              </div>
+              <div className="gba:space-y-2">
+                <p className="gba:font-semibold gba:text-base gba:text-destructive">Analysis Failed</p>
+                <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {step === 'upload' && (

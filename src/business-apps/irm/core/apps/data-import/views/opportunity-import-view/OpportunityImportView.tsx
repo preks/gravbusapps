@@ -20,10 +20,10 @@ export const OpportunityImportView: React.FC<OpportunityImportViewProps> = ({
   return (
     <EntityImportView
       config={investmentOpportunityImportConfig}
-      headerTitle={t('page-title')}
-      headerDescription={t('page-description')}
-      entityType={t('entity-type')}
-      entityTypeSingular={t('entity-type-singular')}
+      headerTitle={t('opportunity-page-title')}
+      headerDescription={t('opportunity-page-description')}
+      entityType={t('opportunity-entity-type')}
+      entityTypeSingular={t('opportunity-entity-type-singular')}
       onBack={onBack}
       data-testid={testId}
       {...context}
