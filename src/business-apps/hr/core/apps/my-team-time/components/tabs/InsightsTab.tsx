@@ -16,6 +16,7 @@ import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamCapacity } from '../../hooks/useTeamCapacity'
+import { useDeferredInsightsAnalytics } from '../../hooks/useDeferredInsightsAnalytics'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_TEAM_ENTITLEMENTS, GET_TEAM_COVERAGE } from '../../queries/queries'
 import {
@@ -263,6 +264,114 @@ const getCoverageRiskColor = (risk: CoverageRisk): string => {
   if (risk === 'high') return 'var(--nw-destructive)'
   if (risk === 'medium') return 'var(--nw-warning)'
   return 'var(--nw-success)'
+}
+
+const renderCoverageCardContent = (
+  coverageLoading: boolean,
+  coverageData: CoverageOverview | null,
+  atRiskCapabilities: CapabilityCoverage[]
+): React.ReactNode => {
+  if (coverageLoading) {
+    return (
+      <div className="gba:text-center gba:py-4 gba:text-muted-foreground gba:text-sm">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+      </div>
+    )
+  }
+
+  if (!coverageData || coverageData.totalCapabilities === 0) {
+    return (
+      <div className="gba:text-center gba:py-4">
+        <div className="gba:text-2xl gba:font-bold gba:text-muted-foreground">{t('na', 'N/A')}</div>
+        <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+          {t('no_capabilities', 'No capabilities configured')}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:space-y-2">
+      <div className="gba:flex gba:items-baseline gba:gap-3">
+        <span className="gba:text-2xl gba:font-bold" style={{ color: getCoverageRiskColor(coverageData.overallRisk) }}>
+          {coverageData.avgCoverage}%
+        </span>
+        <span className="gba:text-xs gba:text-muted-foreground">{t('avg_coverage', 'avg coverage')}</span>
+      </div>
+      <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+        {coverageData.atRiskCapabilities > 0 ? (
+          <Badge variant="destructive">
+            {coverageData.atRiskCapabilities} {t('at_risk', 'at risk')}
+          </Badge>
+        ) : (
+          <Badge variant="success">{t('all_covered', 'All covered')}</Badge>
+        )}
+        <Badge variant="outline">
+          {coverageData.totalCapabilities} {t('capabilities', 'capabilities')}
+        </Badge>
+      </div>
+      {atRiskCapabilities.map(c => (
+        <div
+          key={c.capabilityId}
+          className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate"
+        >
+          <PiWarning
+            className={
+              c.risk === 'high' ? 'gba:text-destructive gba:flex-shrink-0' : 'gba:text-warning gba:flex-shrink-0'
+            }
+            size={12}
+          />
+          <span className="gba:font-medium gba:text-foreground">{c.capabilityName}</span>
+          <span>
+            – {c.coverage}% ({c.absentMembers} {t('off', 'off')})
+          </span>
+        </div>
+      ))}
+      {coverageData.highImpactCount > 0 && (
+        <div className="gba:text-xs gba:text-info gba:flex gba:items-center gba:gap-1 gba:mt-1">
+          <PiArrowRight size={12} />
+          {coverageData.highImpactCount} {t('high_impact_scenarios', 'high-impact scenarios')}
+        </div>
+      )}
+      {coverageData.matrixTeams.length > 0 && (
+        <div className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
+          {t('org_units_matrix', '{{orgUnits}} org units · {{matrixTeams}} matrix teams', {
+            orgUnits: coverageData.orgUnits.length,
+            matrixTeams: coverageData.matrixTeams.length
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const CapabilityCoverageRow: React.FC<{ cap: CapabilityCoverage }> = ({ cap }) => {
+  const capabilityRiskColor = getCoverageRiskColor(cap.risk)
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <div className="gba:flex-1 gba:flex gba:items-center gba:gap-2">
+        <span className="gba:text-xs">{cap.capabilityName}</span>
+        {cap.absentMembers > 0 && (
+          <span className="gba:text-[10px] gba:text-destructive">
+            {cap.absentMembers} {t('off', 'off')}
+          </span>
+        )}
+      </div>
+      <div className="gba:w-16 gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+        <div
+          className="gba:h-full gba:rounded-full"
+          style={{
+            width: `${cap.coverage}%`,
+            backgroundColor: capabilityRiskColor
+          }}
+        />
+      </div>
+      <span className="gba:text-[11px] gba:w-8 gba:text-right gba:font-medium" style={{ color: capabilityRiskColor }}>
+        {cap.coverage}%
+      </span>
+    </div>
+  )
 }
 
 type CapEntry = { id: string; name: string; holders: string[]; absentHolders: string[] }
@@ -628,6 +737,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
   const graphqlClient = useGraphQLClient(props.accessToken)
   const { rows, isLoading: capacityLoading, error } = useTeamCapacity(props.accessToken, members, memberIds)
+  const showAbsenceAnalytics = useDeferredInsightsAnalytics()
 
   const [entitlements, setEntitlements] = useState<
     { employeeId: string; typeRef: string; totalEntitlement: number; usedApproved: number }[]
@@ -635,7 +745,6 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   const [coverageData, setCoverageData] = useState<CoverageOverview | null>(null)
   const [coverageLoading, setCoverageLoading] = useState(true)
   const [activeDrawer, setActiveDrawer] = useState<DrawerPanel>(null)
-  const [showAbsenceAnalytics, setShowAbsenceAnalytics] = useState(false)
 
   const memberIdsRef = useRef<string[]>([])
   if (memberIds.length > 0 && memberIds.join(',') !== memberIdsRef.current.join(',')) {
@@ -675,25 +784,6 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       .catch(() => setCoverageData(null))
       .finally(() => setCoverageLoading(false))
   }, [graphqlClient, supervisorId])
-
-  useEffect(() => {
-    type IdleHandle = number
-    type IdleWindow = Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => IdleHandle
-      cancelIdleCallback?: (handle: IdleHandle) => void
-    }
-
-    const idleWindow = window as IdleWindow
-    if (showAbsenceAnalytics) return
-
-    if (idleWindow.requestIdleCallback) {
-      const handle = idleWindow.requestIdleCallback(() => setShowAbsenceAnalytics(true), { timeout: 300 })
-      return () => idleWindow.cancelIdleCallback?.(handle)
-    }
-
-    const timeoutId = window.setTimeout(() => setShowAbsenceAnalytics(true), 150)
-    return () => window.clearTimeout(timeoutId)
-  }, [showAbsenceAnalytics])
 
   const isLoading = membersLoading || capacityLoading
 
@@ -967,75 +1057,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
             </CardTitle>
           </CardHeader>
           <CardContent className="gba:pt-0">
-            {coverageLoading ? (
-              <div className="gba:text-center gba:py-4 gba:text-muted-foreground gba:text-sm">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
-              </div>
-            ) : !coverageData || coverageData.totalCapabilities === 0 ? (
-              <div className="gba:text-center gba:py-4">
-                <div className="gba:text-2xl gba:font-bold gba:text-muted-foreground">{t('na', 'N/A')}</div>
-                <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                  {t('no_capabilities', 'No capabilities configured')}
-                </div>
-              </div>
-            ) : (
-              <div className="gba:space-y-2">
-                <div className="gba:flex gba:items-baseline gba:gap-3">
-                  <span
-                    className="gba:text-2xl gba:font-bold"
-                    style={{ color: getCoverageRiskColor(coverageData.overallRisk) }}
-                  >
-                    {coverageData.avgCoverage}%
-                  </span>
-                  <span className="gba:text-xs gba:text-muted-foreground">{t('avg_coverage', 'avg coverage')}</span>
-                </div>
-                <div className="gba:flex gba:flex-wrap gba:gap-1.5">
-                  {coverageData.atRiskCapabilities > 0 ? (
-                    <Badge variant="destructive">
-                      {coverageData.atRiskCapabilities} {t('at_risk', 'at risk')}
-                    </Badge>
-                  ) : (
-                    <Badge variant="success">{t('all_covered', 'All covered')}</Badge>
-                  )}
-                  <Badge variant="outline">
-                    {coverageData.totalCapabilities} {t('capabilities', 'capabilities')}
-                  </Badge>
-                </div>
-                {atRiskCapabilities.map(c => (
-                  <div
-                    key={c.capabilityId}
-                    className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate"
-                  >
-                    <PiWarning
-                      className={
-                        c.risk === 'high'
-                          ? 'gba:text-destructive gba:flex-shrink-0'
-                          : 'gba:text-warning gba:flex-shrink-0'
-                      }
-                      size={12}
-                    />
-                    <span className="gba:font-medium gba:text-foreground">{c.capabilityName}</span>
-                    <span>
-                      – {c.coverage}% ({c.absentMembers} {t('off', 'off')})
-                    </span>
-                  </div>
-                ))}
-                {coverageData.highImpactCount > 0 && (
-                  <div className="gba:text-xs gba:text-info gba:flex gba:items-center gba:gap-1 gba:mt-1">
-                    <PiArrowRight size={12} />
-                    {coverageData.highImpactCount} {t('high_impact_scenarios', 'high-impact scenarios')}
-                  </div>
-                )}
-                {coverageData.matrixTeams.length > 0 && (
-                  <div className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
-                    {t('org_units_matrix', '{{orgUnits}} org units · {{matrixTeams}} matrix teams', {
-                      orgUnits: coverageData.orgUnits.length,
-                      matrixTeams: coverageData.matrixTeams.length
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+            {renderCoverageCardContent(coverageLoading, coverageData, atRiskCapabilities)}
           </CardContent>
         </Card>
       </div>
@@ -1272,43 +1294,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                     {mt.capabilities.length > 0 && (
                       <div className="gba:space-y-1.5 gba:mb-2">
                         {mt.capabilities.map(cap => (
-                          <div key={cap.capabilityId} className="gba:flex gba:items-center gba:gap-2">
-                            <div className="gba:flex-1 gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:text-xs">{cap.capabilityName}</span>
-                              {cap.absentMembers > 0 && (
-                                <span className="gba:text-[10px] gba:text-destructive">
-                                  {cap.absentMembers} {t('off', 'off')}
-                                </span>
-                              )}
-                            </div>
-                            <div className="gba:w-16 gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                              <div
-                                className="gba:h-full gba:rounded-full"
-                                style={{
-                                  width: `${cap.coverage}%`,
-                                  backgroundColor:
-                                    cap.risk === 'high'
-                                      ? 'var(--nw-destructive)'
-                                      : cap.risk === 'medium'
-                                        ? 'var(--nw-warning)'
-                                        : 'var(--nw-success)'
-                                }}
-                              />
-                            </div>
-                            <span
-                              className="gba:text-[11px] gba:w-8 gba:text-right gba:font-medium"
-                              style={{
-                                color:
-                                  cap.risk === 'high'
-                                    ? 'var(--nw-destructive)'
-                                    : cap.risk === 'medium'
-                                      ? 'var(--nw-warning)'
-                                      : 'var(--nw-success)'
-                              }}
-                            >
-                              {cap.coverage}%
-                            </span>
-                          </div>
+                          <CapabilityCoverageRow key={cap.capabilityId} cap={cap} />
                         ))}
                       </div>
                     )}
