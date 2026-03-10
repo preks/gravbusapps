@@ -25,19 +25,6 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
 
   return [
     {
-      id: 'type',
-      accessorKey: 'contentTypeRef',
-      header: 'Type',
-      size: 120,
-      enableSorting: true,
-      cell: ({ row }) => {
-        const typeRef = row.original.contentTypeRef
-        const typeValue = typeof typeRef === 'string' ? typeRef.split(':').pop() : (typeRef as any)?.value || 'Unknown'
-
-        return <Badge variant="outline">{typeValue}</Badge>
-      }
-    },
-    {
       id: 'group',
       accessorKey: 'contentGroupRef',
       header: 'Group',
@@ -51,6 +38,7 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
         const variantMap: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
           News: 'default',
           Knowledge: 'secondary',
+          Policies: 'outline',
           Document: 'outline',
           Question: 'default'
         }
@@ -60,6 +48,19 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
             {groupValue}
           </Badge>
         )
+      }
+    },
+    {
+      id: 'type',
+      accessorKey: 'contentTypeRef',
+      header: 'Type',
+      size: 120,
+      enableSorting: true,
+      cell: ({ row }) => {
+        const typeRef = row.original.contentTypeRef
+        const typeValue = typeof typeRef === 'string' ? typeRef.split(':').pop() : (typeRef as any)?.value || 'Unknown'
+
+        return <Badge variant="outline">{typeValue}</Badge>
       }
     },
     {
@@ -227,8 +228,8 @@ export const createContentSortableColumns = () => [
   { id: 'title', label: 'Title' },
   { id: 'createdAt', label: 'Created' },
   { id: 'updatedAt', label: 'Updated' },
-  { id: 'type', label: 'Type' },
   { id: 'group', label: 'Group' },
+  { id: 'type', label: 'Type' },
   { id: 'author', label: 'Author' },
   { id: 'status', label: 'Status' },
   { id: 'reactions', label: 'Reactions' },
@@ -237,20 +238,24 @@ export const createContentSortableColumns = () => [
 ]
 
 // Column visibility configs for different content types
-export const getDefaultVisibleColumns = (type: 'all' | 'news' | 'knowledge' | 'document' | 'question'): string[] => {
+export const getDefaultVisibleColumns = (
+  type: 'all' | 'news' | 'knowledge' | 'policy' | 'document' | 'question'
+): string[] => {
   const baseColumns = ['title', 'author', 'createdAt', 'status', 'actions']
 
   switch (type) {
     case 'all':
-      return ['type', 'group', ...baseColumns, 'tags', 'reactions', 'comments']
+      return ['group', 'type', ...baseColumns, 'tags', 'reactions', 'comments']
     case 'news':
-      return ['type', ...baseColumns, 'tags', 'reactions', 'comments']
+      return ['group', 'type', ...baseColumns, 'tags', 'reactions', 'comments']
     case 'knowledge':
-      return ['type', ...baseColumns, 'tags', 'reactions', 'comments']
+      return ['group', 'type', ...baseColumns, 'tags', 'reactions', 'comments']
+    case 'policy':
+      return ['group', 'type', ...baseColumns, 'tags', 'reactions', 'comments']
     case 'document':
-      return ['type', ...baseColumns, 'tags']
+      return ['group', 'type', ...baseColumns, 'tags']
     case 'question':
-      return ['type', ...baseColumns, 'tags', 'reactions', 'comments']
+      return ['group', 'type', ...baseColumns, 'tags', 'reactions', 'comments']
     default:
       return baseColumns
   }
