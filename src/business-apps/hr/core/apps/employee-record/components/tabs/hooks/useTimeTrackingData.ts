@@ -307,7 +307,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           if (date.getMonth() !== monthIndex || date.getFullYear() !== year) return
           const dateKey = toLocalDateKey(date)
           holidayDateSet.add(dateKey)
-          const label = (h.translations && h.translations[0]?.value) || h.value || ''
+          const label = h.translations?.[0]?.value || h.value || ''
           namesByDate[dateKey] = (label && String(label).trim()) || 'Holiday'
         })
       }
@@ -344,7 +344,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         }
       }
       for (const a of absences) {
-        const label = (a.type?.translations && a.type.translations[0]?.value) || a.type?.objectValue || ''
+        const label = a.type?.translations?.[0]?.value || a.type?.objectValue || ''
         const trimmed = (label && String(label).trim()) || 'Absence'
         if (a.startDate && a.endDate) {
           addAbsenceRange(String(a.startDate), String(a.endDate), trimmed)
