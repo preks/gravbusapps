@@ -26,6 +26,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
       $endDate: timestamp!,
       $previousStartDate: timestamp!,
       $previousEndDate: timestamp!,
+      $currentDate: timestamp!,
       $selectedDepartment: uuid
     )`
     : `query GetCombinedPlanVsRequestData(
@@ -33,7 +34,8 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
       $startDate: timestamp!,
       $endDate: timestamp!,
       $previousStartDate: timestamp!,
-      $previousEndDate: timestamp!
+      $previousEndDate: timestamp!,
+      $currentDate: timestamp!
     )`
 
   // Build request type conditions for ExpenseItem filtering
@@ -104,7 +106,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
       requestTotal: ExpenseItemAggregate(
         where: {
           _and: [
-            { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+            { status: { _in: ["PAID", "CLOSED"] } },
             { currencyRef: { _eq: $currency } },
             ${departmentCondition}
             { isDeleted: { _eq: false } },
@@ -121,7 +123,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
           _and: [
             { isDeleted: { _eq: false } },
             { expenseItem: {
-              status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+              status: { _in: ["PAID", "CLOSED"] },
               currencyRef: { _eq: $currency },
               ${nestedDepartmentCondition}
               isDeleted: { _eq: false },
@@ -142,7 +144,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
           _and: [
             { isDeleted: { _eq: false } },
             { expenseItem: {
-              status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+              status: { _in: ["PAID", "CLOSED"] },
               currencyRef: { _eq: $currency },
               ${nestedDepartmentCondition}
               isDeleted: { _eq: false },
@@ -158,17 +160,18 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
       }
 
       # 5. Overdue Plans Count
-      overduePlans: ExpensePlan(
+      overduePlans: ExpensePlanAggregate(
         where: {
           _and: [
-            { status: { _in: ["PENDING_APPROVAL", "APPROVED"] } },
+            { status: { _in: ["PENDING", "APPROVED"] } },
             ${departmentCondition}
             { isDeleted: { _eq: false } },
-            { endDate: { _lt: "now()" } }
+            { endDate: { _lt: $currentDate } },
+            { _not: { expenseRequest: { id: { _isNull: false } } } }
           ]
         }
       ) {
-        id
+        aggregate { count }
       }
 
       # 6. Most Used Currency Detection (lightweight)

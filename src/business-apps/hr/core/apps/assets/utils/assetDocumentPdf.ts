@@ -68,6 +68,8 @@ function statusDisplayName(status: AssetStatus): string {
   switch (status) {
     case AssetStatus.AVAILABLE:
       return 'Available'
+    case AssetStatus.PENDING:
+      return 'Pending'
     case AssetStatus.ALLOCATED:
       return 'Allocated'
     case AssetStatus.UNDER_REPAIR:

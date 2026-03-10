@@ -102,6 +102,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/apps/board-apps': 'platform/apps/board-apps',
   '/platform/slides': 'platform/apps/slide-apps',
   '/platform/nexus': 'platform/apps/nexus',
+  '/platform/apps/agent-mesh': 'platform/apps/agent-mesh',
 
   // Email
   '/platform/apps/email-apps': 'platform/apps/email-apps',

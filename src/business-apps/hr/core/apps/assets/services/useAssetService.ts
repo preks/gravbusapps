@@ -17,6 +17,7 @@ import {
   DELETE_ASSET,
   GET_EMPLOYEE_ASSETS_BY_ASSET,
   GET_CURRENT_ALLOCATION,
+  GET_EMPLOYEE_ASSET_BY_ID,
   GET_ASSET_IDS_BY_EMPLOYEE_IDS,
   ALLOCATE_ASSET,
   AssetQueryVariables,
@@ -376,6 +377,40 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
+  const getEmployeeAssetById = useCallback(
+    async (allocationId: string): Promise<AssetAllocation | null> => {
+      try {
+        const result = await graphQLClient.request<{ EmployeeAsset: any[] }>(GET_EMPLOYEE_ASSET_BY_ID, {
+          id: allocationId
+        })
+        if (!result.EmployeeAsset || result.EmployeeAsset.length === 0) return null
+        const alloc = result.EmployeeAsset[0]
+        return {
+          id: alloc.id,
+          assetId: alloc.assetId,
+          employeeId: alloc.employeeId,
+          startDate: alloc.startDate,
+          expectedEndDate: alloc.expectedEndDate,
+          endDate: alloc.endDate,
+          notes: alloc.notes,
+          version: alloc.version,
+          isDeleted: alloc.isDeleted,
+          startAssetConditionRef: alloc.startAssetConditionRef,
+          endAssetConditionRef: alloc.endAssetConditionRef,
+          employee: alloc.employee,
+          startAssetCondition: alloc.startAssetCondition,
+          endAssetCondition: alloc.endAssetCondition,
+          createdAt: alloc.createdAt,
+          updatedAt: alloc.updatedAt
+        } as AssetAllocation
+      } catch (error) {
+        console.error('Error fetching allocation by id:', error)
+        throw error
+      }
+    },
+    [graphQLClient]
+  )
+
   /** Returns asset IDs that have a current allocation to one of the given employee IDs. */
   const getAssetIdsByEmployeeIds = useCallback(
     async (employeeIds: string[]): Promise<string[]> => {
@@ -467,6 +502,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
       deleteAsset,
       getAllocationsForAsset,
       getCurrentAllocation,
+      getEmployeeAssetById,
       getAssetIdsByEmployeeIds,
       allocateAsset,
       deallocateAsset
@@ -480,6 +516,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
       deleteAsset,
       getAllocationsForAsset,
       getCurrentAllocation,
+      getEmployeeAssetById,
       getAssetIdsByEmployeeIds,
       allocateAsset,
       deallocateAsset
