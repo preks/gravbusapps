@@ -10,12 +10,10 @@ interface AllowanceRegionDetailsSectionProps {
   travelRegions: CatalogOption[]
   currencies: CatalogOption[]
   isLoadingMoreRegions: boolean
-  hasMore: boolean
   onAddGroup: () => void
   onUpdateGroupDetail: (groupKey: string, field: string, value: any) => void
   onUpdateAmount: (groupKey: string, amountIndex: number, value: string) => void
   onRemoveGroup: (groupKey: string) => void
-  onScroll: (e: React.UIEvent<HTMLDivElement>) => void
   isUsedInTransactions?: boolean
   showValidation?: boolean
 }
@@ -26,12 +24,10 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
   travelRegions,
   currencies,
   isLoadingMoreRegions,
-  hasMore,
   onAddGroup,
   onUpdateGroupDetail,
   onUpdateAmount,
   onRemoveGroup,
-  onScroll,
   isUsedInTransactions = false,
   showValidation = false
 }) => {
@@ -58,11 +54,9 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
                 travelRegions={travelRegions}
                 currencies={currencies}
                 isLoadingMoreRegions={isLoadingMoreRegions}
-                hasMore={hasMore}
                 onUpdateField={(field, value) => onUpdateGroupDetail(group.key, field, value)}
                 onUpdateAmount={(amountIndex, value) => onUpdateAmount(group.key, amountIndex, value)}
                 onRemoveGroup={() => onRemoveGroup(group.key)}
-                onScroll={onScroll}
                 isUsedInTransactions={isUsedInTransactions}
                 showValidation={showValidation}
               />

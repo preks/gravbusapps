@@ -23,11 +23,9 @@ interface RegionGroupCardProps {
   travelRegions: CatalogOption[]
   currencies: CatalogOption[]
   isLoadingMoreRegions: boolean
-  hasMore: boolean
   onUpdateField: (field: string, value: any) => void
   onUpdateAmount: (amountIndex: number, value: string) => void
   onRemoveGroup: () => void
-  onScroll: (e: React.UIEvent<HTMLDivElement>) => void
   isUsedInTransactions?: boolean
   showValidation?: boolean
 }
@@ -39,11 +37,9 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
   travelRegions,
   currencies,
   isLoadingMoreRegions,
-  hasMore,
   onUpdateField,
   onUpdateAmount,
   onRemoveGroup,
-  onScroll,
   isUsedInTransactions = false,
   showValidation = false
 }) => {
@@ -52,8 +48,8 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
   // Only restrict editing for EXISTING details when the rule is used in transactions
   const isEditRestricted = isUsedInTransactions && isExistingDetail
 
-  // Check if any amounts are invalid (0 or empty)
-  const hasInvalidAmounts = showValidation && group.amounts.every(amt => !amt || amt <= 0)
+  const hasInvalidAmounts =
+    showValidation && (group.amounts.length === 0 || group.amounts.some(a => a === null || a === undefined))
   return (
     <div className="gba:border gba:rounded-lg gba:p-3 gba:space-y-3 gba:bg-card">
       {/* Group Header */}
@@ -109,25 +105,17 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
               <SelectValue placeholder="Select region" />
             </SelectTrigger>
-            <SelectContent onScroll={onScroll} className="gba:max-h-48">
+            <SelectContent className="gba:max-h-48">
               {travelRegions.map(region => (
                 <SelectItem key={region.id} value={region.id}>
                   {region.value}
                 </SelectItem>
               ))}
 
-              {/* Loading indicator */}
               {isLoadingMoreRegions && (
                 <div className="gba:p-2 gba:text-center gba:border-t">
                   <Spinner size="sm" className="gba:mr-2" />
-                  <span className="gba:text-muted-foreground gba:text-xs">Loading...</span>
-                </div>
-              )}
-
-              {/* Has more indicator */}
-              {hasMore && !isLoadingMoreRegions && (
-                <div className="gba:p-2 gba:text-center gba:text-muted-foreground gba:text-xs gba:border-t">
-                  Scroll down to load more...
+                  <span className="gba:text-muted-foreground gba:text-xs">Loading regions...</span>
                 </div>
               )}
             </SelectContent>
@@ -208,7 +196,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <Input
             type="number"
             step="0.01"
-            value={group.amounts[0] || ''}
+            value={group.amounts[0] !== null && group.amounts[0] !== undefined ? group.amounts[0] : ''}
             onChange={e => onUpdateAmount(0, e.target.value)}
             placeholder="0.00"
             className={`gba:h-8 gba:text-sm ${hasInvalidAmounts ? 'gba:border-destructive focus:gba:border-destructive' : ''}`}
