@@ -125,7 +125,14 @@ const processCatalogEntries = ({
 
     setFor(config.id, previousState => {
       if (previousState.lastFiltersSig) {
-        return previousState
+        // A filtered fetch (from handleInitialLoad) is already in progress — don't
+        // override the filtered options or loading state. However, still store
+        // prefetchedOptions from the batch so that handleParentCleared can use
+        // resetToPrefetchedOptions instead of making a network request.
+        if (previousState.prefetchedOptions && previousState.prefetchedOptions.length > 0) {
+          return previousState
+        }
+        return { ...previousState, prefetchedOptions }
       }
 
       const nextOptions = hasParentWithValue ? [] : prefetchedOptions

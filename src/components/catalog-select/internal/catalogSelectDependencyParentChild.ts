@@ -266,6 +266,7 @@ const autoSelectParentFromChild = async ({
   defaultPageSize,
   locale,
   autoSelectedParentsRef,
+  lastParentValuesRef,
   nextVersion,
   isCurrentVersion
 }: CaseHandlerParams & { childMeta?: { parentEntryId?: string; type?: string } }) => {
@@ -281,6 +282,13 @@ const autoSelectParentFromChild = async ({
         }).catch(() => childMeta)
 
   if (!resolvedChildMeta?.parentEntryId) return undefined
+
+  // Commit the resolved parent value synchronously before setParentValueAndFetchOptions
+  // triggers a state update (setFor → re-render). Without this, the dependency effect
+  // re-fires while the async work is still in progress and sees lastParentValue===undefined,
+  // causing determineCase to return 'initial-load' and firing a duplicate
+  // fetchFilteredOptionsWithParent call.
+  lastParentValuesRef.current.set(parentField, resolvedChildMeta.parentEntryId)
 
   await setParentValueAndFetchOptions({
     parentField,
@@ -301,6 +309,12 @@ const autoSelectParentFromChild = async ({
 }
 
 export const handleChildSelectedBi = async (params: CaseHandlerParams) => {
+  // Commit synchronously before any async work to prevent the dependency effect from
+  // re-firing with lastChildValue===undefined while autoSelectParentFromChild is still
+  // running. Without this, a mid-async re-render sees the unchanged lastChildValue and
+  // determineCase can return 'child-selected-bi' again, causing duplicate requests.
+  params.lastChildValuesRef.current.set(params.id, params.childValue)
+
   const childMeta = params.stateById[params.id]?.metaByValue?.[params.childValue]
 
   if (!childMeta && params.childValue) {
@@ -308,8 +322,6 @@ export const handleChildSelectedBi = async (params: CaseHandlerParams) => {
   } else if (childMeta?.parentEntryId) {
     await autoSelectParentFromChild({ ...params, childMeta })
   }
-
-  params.lastChildValuesRef.current.set(params.id, params.childValue)
 }
 
 export const handleChildSelectedUni = ({ childValue, id, lastChildValuesRef }: CaseHandlerParams) => {
