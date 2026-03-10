@@ -1,23 +1,68 @@
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
 import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
-import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
+import {
+  buildInvestmentOpportunityQuery,
+  buildInvestmentOpportunityWhereCondition,
+  buildInvestmentOpportunityOrderBy
+} from '@/common/data/investment/queries/investmentOpportunityQueries'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useInvestmentOpportunityFilters } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view/hooks/useInvestmentOpportunityFilters'
+import { useDivestmentOpportunityFilters } from './hooks/useDivestmentOpportunityFilters'
 import { ExitOpportunityStatistics } from './components/ExitOpportunityStatistics'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { TrendDownIcon } from '@phosphor-icons/react'
-import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
-import type { ColumnDef } from '@tanstack/react-table'
+import { DIVESTMENT_OPPORTUNITY_DESCRIPTORS } from '../../config/divestmentOpportunityDescriptors'
+import { divestmentOpportunityFilterConfig } from '../../config/defaultDivestmentFilters'
+import { insertDivestmentColumn } from '../../config/divestmentColumns'
+import { buildOpportunityCustomConditions } from '../../config/divestmentOpportunityConditions'
+import {
+  type InvestmentOpportunity,
+  toInvestmentOpportunity
+} from '@/common/data/investment/types/investmentOpportunityTypes'
 
-export type ExitOpportunitiesTabProps = BusinessAppContextProps
+export interface ExitOpportunitiesTabProps extends BusinessAppContextProps {
+  enabled?: boolean
+}
 
-export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context => {
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+const createEnabledFilterHook = (isEnabled: boolean) => {
+  return (ctx: BusinessAppContextProps) =>
+    useDivestmentOpportunityFilters(isEnabled ? ctx : { ...ctx, accessToken: '' })
+}
+
+export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = ({ enabled = true, ...context }) => {
+  const { accessToken } = context
+
+  const graphqlClient = useGraphQLClient(enabled ? accessToken : '')
+
+  const fetchInvestmentOpportunities = useCallback(
+    async (variables: InvestmentOpportunityQueryVariables = {}) => {
+      const query = buildInvestmentOpportunityQuery()
+      const customConditions = buildOpportunityCustomConditions(variables, [{ divestmentId: { _isNull: false } }])
+      const whereCondition = buildInvestmentOpportunityWhereCondition(variables, [], customConditions)
+      const orderBy = buildInvestmentOpportunityOrderBy(variables.orderBy || [])
+
+      const result = await graphqlClient.request<{
+        InvestmentOpportunity: InvestmentOpportunity[]
+        InvestmentOpportunityAggregate: { aggregate: { count: number } }
+      }>(query, {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy
+      })
+
+      return {
+        InvestmentOpportunity: result.InvestmentOpportunity.map(toInvestmentOpportunity),
+        InvestmentOpportunityAggregate: result.InvestmentOpportunityAggregate
+      }
+    },
+    [graphqlClient]
+  )
+
+  const filterDataHook = useMemo(() => createEnabledFilterHook(enabled), [enabled])
+
   const prefilledInvestmentId = useMemo(() => {
     const fromAdditionalData = context.additionalData?.investmentId
     if (typeof fromAdditionalData === 'string' && fromAdditionalData.trim()) {
@@ -43,6 +88,10 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
       }),
 
       fetchOpportunities: async variables => {
+        if (!enabled) {
+          return { opportunities: [], total: 0 }
+        }
+
         const result = await fetchInvestmentOpportunities(variables)
         return {
           opportunities: result.InvestmentOpportunity.filter(
@@ -52,7 +101,9 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
         }
       },
 
-      filterDataHook: useInvestmentOpportunityFilters,
+      filterDataHook,
+
+      viewDescriptors: DIVESTMENT_OPPORTUNITY_DESCRIPTORS,
 
       columnMappings: {
         pipeline: 'opportunityPipeline',
@@ -87,7 +138,7 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
       extractBoardOpportunities: result => result.InvestmentOpportunity || [],
       extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
       renderStatistics: (selectedCurrency?: string) => (
-        <ExitOpportunityStatistics {...context} currencyCode={selectedCurrency} />
+        <ExitOpportunityStatistics accessToken={accessToken} currencyCode={selectedCurrency} enabled={enabled} />
       ),
       rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
       buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity & { id: string } }) => ({
@@ -95,77 +146,19 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
       })
     })
 
-    // Override createColumns to add divestment column
     return {
       ...baseConfig,
-      createColumns: () => {
-        const baseColumns = createOpportunityColumns()
-
-        // Add divestment column after closeDate column
-        const closeDateColumnIndex = baseColumns.findIndex(col => col.id === 'closeDate')
-        const divestmentColumn = {
-          id: 'divestment',
-          accessorFn: (row: any) => (row.divestment?.name || '') as string,
-          header: 'Divestment',
-          size: 200,
-          minSize: 180,
-          maxSize: 280,
-          cell: ({ row }: any) => {
-            const opportunity = row.original as InvestmentOpportunity & { id: string }
-            if (!opportunity.divestment) {
-              return <span className="gba:text-sm gba:text-muted-foreground">No divestment</span>
-            }
-
-            const divestment = opportunity.divestment
-            const investmentRecordUrl = buildPlatformUrl('/platform/irm/investment-record', {
-              investmentId: divestment.id
-            })
-
-            return (
-              <button
-                type="button"
-                onClick={e => {
-                  e.stopPropagation()
-                  navigateTo(investmentRecordUrl)
-                }}
-                className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
-                data-testid={`opportunity-divestment-link-${opportunity.id}`}
-              >
-                <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
-                  <AvatarFallback>
-                    <TrendDownIcon className="gba:h-4 gba:w-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="gba:min-w-0 gba:flex-1">
-                  <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
-                    {divestment.name}
-                  </div>
-                </div>
-              </button>
-            )
-          }
-        } as ColumnDef<InvestmentOpportunity & { id: string }>
-
-        // Insert divestment column after closeDate column, or at the end if closeDate column not found
-        if (closeDateColumnIndex >= 0) {
-          return [
-            ...baseColumns.slice(0, closeDateColumnIndex + 1),
-            divestmentColumn,
-            ...baseColumns.slice(closeDateColumnIndex + 1)
-          ]
-        }
-        return [...baseColumns, divestmentColumn]
-      },
+      baseFilterConfig: divestmentOpportunityFilterConfig,
+      createColumns: () => insertDivestmentColumn(createOpportunityColumns(), 'closeDate'),
       createSortableColumns: (availableColumnIds?: string[]) => {
         const baseSortable = baseConfig.createSortableColumns(availableColumnIds)
-        // Add divestment to sortable columns if it's in available columns
         if (!availableColumnIds || availableColumnIds.includes('divestment')) {
           return [...baseSortable, { id: 'divestment', label: 'Divestment' }]
         }
         return baseSortable
       }
     } as typeof baseConfig
-  }, [context, fetchInvestmentOpportunities, prefilledInvestmentId])
+  }, [enabled, accessToken, fetchInvestmentOpportunities, filterDataHook, prefilledInvestmentId])
 
   return (
     <OpportunityLayout

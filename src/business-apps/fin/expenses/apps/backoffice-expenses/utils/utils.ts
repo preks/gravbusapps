@@ -74,15 +74,15 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
         badgeVariant: 'warning'
       }
 
-    case ExpenseStatus.VERIFIED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required'),
-        badgeVariant: 'warning'
-      }
-
     case ExpenseStatus.BOOKED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transfer_required', 'Transfer Required'),
+        badgeVariant: 'warning'
+      }
+
+    case ExpenseStatus.VERIFIED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required'),
         badgeVariant: 'warning'
       }
 
@@ -100,7 +100,7 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        badgeVariant: 'warning'
+        badgeVariant: 'destructive'
       }
 
     case ExpenseStatus.DISCARDED:
@@ -179,52 +179,9 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
 }
 
 /**
- * Determines the fiscal year date range based on current date
- * Assumes fiscal year is calendar year (Jan 1 - Dec 31)
- *
- * @returns Object with start and end dates of the current fiscal year
+ * Backoffice report hook expects plan/request/advance status mappers.
+ * For plan reports we keep the same label mapping as request statuses.
  */
-export const getCurrentFiscalYearRange = () => {
-  const today = new Date()
-  const currentYear = today.getFullYear()
-
-  const fiscalYearStart = new Date(`${currentYear}-01-01T00:00:00.000Z`)
-  const fiscalYearEnd = new Date(`${currentYear}-12-31T23:59:59.999Z`)
-
-  return {
-    start: fiscalYearStart,
-    end: fiscalYearEnd,
-    startISOString: fiscalYearStart.toISOString(),
-    endISOString: fiscalYearEnd.toISOString(),
-    year: currentYear
-  }
-}
-
-/**
- * Formats a date string to YYYY-MM-DD format
- *
- * @param dateString - ISO date string
- * @returns Formatted date string
- */
-export const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  return dateString.split('T')[0]
-}
-
-/**
- * Determines if an expense request is part of the YTD calculation
- *
- * @param expense - Expense data object
- * @returns Boolean indicating if expense is part of YTD
- */
-export const isExpenseInYTD = (expense: any) => {
-  const fiscalYear = getCurrentFiscalYearRange()
-  const expenseDate = new Date(expense.date)
-
-  return (
-    expenseDate >= fiscalYear.start &&
-    expenseDate <= fiscalYear.end &&
-    expense.status.toLowerCase() === 'paid' &&
-    expense.currency === 'EUR'
-  )
+export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig => {
+  return getExpenseRequestStatusDisplay(status)
 }

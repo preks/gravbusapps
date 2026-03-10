@@ -26,6 +26,8 @@ interface EmailListProps {
   onReply?: (messageId: string) => void
   onReplyAll?: (messageId: string) => void
   onForward?: (messageId: string) => void
+  onChatWithUser?: (message: EmailMessageSummary) => void
+  canChatWithUser?: (message: EmailMessageSummary) => boolean
   onToggleRead?: (messageId: string, isRead: boolean) => void
   onArchive?: (messageId: string) => void
   onDelete?: (messageId: string) => void
@@ -52,6 +54,8 @@ export const EmailList: React.FC<EmailListProps> = ({
   onReply,
   onReplyAll,
   onForward,
+  onChatWithUser,
+  canChatWithUser,
   onToggleRead,
   onArchive,
   onDelete,
@@ -367,6 +371,8 @@ export const EmailList: React.FC<EmailListProps> = ({
               onReply={() => onReply?.(msg.id)}
               onReplyAll={() => onReplyAll?.(msg.id)}
               onForward={() => onForward?.(msg.id)}
+              onChatWithUser={() => onChatWithUser?.(msg)}
+              canChatWithUser={canChatWithUser?.(msg) ?? false}
               onToggleRead={() => onToggleRead?.(msg.id, !msg.isRead)}
               onArchive={() => onArchive?.(msg.id)}
               onDelete={() => onDelete?.(msg.id)}

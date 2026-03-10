@@ -20,10 +20,10 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
   return (
     <EntityImportView
       config={customerLeadImportConfig}
-      headerTitle={t('page-title')}
-      headerDescription={t('page-description')}
-      entityType={t('entity-type')}
-      entityTypeSingular={t('entity-type-singular')}
+      headerTitle={t('lead-page-title')}
+      headerDescription={t('lead-page-description')}
+      entityType={t('lead-entity-type')}
+      entityTypeSingular={t('lead-entity-type-singular')}
       enableCampaignSelection
       onBack={onBack}
       data-testid={testId}

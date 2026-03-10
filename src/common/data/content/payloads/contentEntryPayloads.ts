@@ -121,29 +121,23 @@ export const buildCreateContentEntryPayload = (params: BuildContentEntryPayloadP
 
   // Add bulk operations if provided
   if (params.categories) {
-    payload.contentEntryCategories = {
+    payload.contentEntry.contentEntryCategories = {
       changeMode: params.categories.changeMode,
-      categories: {
-        Items: params.categories.items
-      }
+      categories: params.categories.items
     }
   }
 
   if (params.documents) {
-    payload.contentDocuments = {
+    payload.contentEntry.contentDocuments = {
       changeMode: params.documents.changeMode,
-      documents: {
-        Items: params.documents.items
-      }
+      documents: params.documents.items
     }
   }
 
   if (params.tags) {
-    payload.contentEntryTags = {
+    payload.contentEntry.contentEntryTags = {
       changeMode: params.tags.changeMode,
-      tags: {
-        Items: params.tags.items
-      }
+      tags: params.tags.items
     }
   }
 
@@ -205,29 +199,23 @@ export const buildUpdateContentEntryPayload = (params: BuildContentEntryPayloadP
 
   // Add bulk operations if provided
   if (params.categories) {
-    payload.contentEntryCategories = {
+    payload.contentEntry.contentEntryCategories = {
       changeMode: params.categories.changeMode,
-      categories: {
-        Items: params.categories.items
-      }
+      categories: params.categories.items
     }
   }
 
   if (params.documents) {
-    payload.contentDocuments = {
+    payload.contentEntry.contentDocuments = {
       changeMode: params.documents.changeMode,
-      documents: {
-        Items: params.documents.items
-      }
+      documents: params.documents.items
     }
   }
 
   if (params.tags) {
-    payload.contentEntryTags = {
+    payload.contentEntry.contentEntryTags = {
       changeMode: params.tags.changeMode,
-      tags: {
-        Items: params.tags.items
-      }
+      tags: params.tags.items
     }
   }
 

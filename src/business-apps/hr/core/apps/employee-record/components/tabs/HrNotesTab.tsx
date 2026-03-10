@@ -24,6 +24,7 @@ import { useEmployeeNoteApi } from '../../hooks/useEmployeeNoteApi'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 const toAvatarSrc = (thumb?: string | null): string | undefined => {
   if (!thumb) return undefined
@@ -98,6 +99,12 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
   useEffect(() => {
     loadNotes()
   }, [loadNotes])
+
+  useProcessCompletion({
+    onSuccess: () => {
+      void loadNotes()
+    }
+  })
 
   const filteredNotes = React.useMemo(() => {
     if (!searchQuery.trim()) {
@@ -212,35 +219,6 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
       </div>
     )
   }, [filteredNotes, searchQuery, deletingNoteId, employeeId])
-
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      const response = event.detail?.response
-
-      if (response?.hrNote || response?.HrNote || response?.employeeNote || response?.EmployeeNote) {
-        loadNotes().catch(err => {
-          console.error('Error loading notes after process completion:', err)
-        })
-      }
-    }
-
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'processCompletion',
-      'taskCompletion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-    }
-  }, [loadNotes])
 
   return (
     <div data-testid="hr-notes-tab-container" className="gba:space-y-6">

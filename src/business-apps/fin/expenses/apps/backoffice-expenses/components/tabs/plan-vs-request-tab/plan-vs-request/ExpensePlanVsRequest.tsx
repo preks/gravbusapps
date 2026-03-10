@@ -59,6 +59,13 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
   }, [combinedData.mostUsedCurrency, hasUserSelectedCurrency])
 
   const isLoading = loadingCatalogData || isLoadingCombined
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading) {
+      setHasLoadedOnce(true)
+    }
+  }, [isLoading])
 
   // Extract data from combined result
   const totalExpensePlan = combinedData.periodStats.expensePlanTotal
@@ -176,23 +183,25 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
     return []
   }, [selectedPeriod, periodStats])
 
-  // Generate KPI cards
-  const kpiCards = usePlanVsRequestKpiCards({
+  const kpiCardInputs = {
+    selectedPeriod,
+    currentMonth,
+    currentQuarter,
+    currentYear,
+    selectedCurrencyCode,
     totalExpensePlan,
     totalExpenseRequest,
-    overduePlansCount,
     overBudgetCount,
-    loadingOverduePlans,
+    overduePlansCount,
     loadingCategoryStats,
-    selectedPeriod,
-    currentYear,
-    currentQuarter,
-    currentMonth,
-    selectedCurrencyCode,
+    loadingOverduePlans,
     formatCurrency
-  })
+  }
 
-  if (isLoading) {
+  // Generate KPI cards
+  const kpiCards = usePlanVsRequestKpiCards(kpiCardInputs)
+
+  if (isLoading && !hasLoadedOnce) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner size="lg" />
@@ -201,7 +210,15 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
   }
 
   return (
-    <div className="gba:space-y-6" data-testid="expense-plan-vs-request">
+    <div className="gba:space-y-6 gba:relative" data-testid="expense-plan-vs-request">
+      {isLoading && hasLoadedOnce && (
+        <div
+          className="gba:absolute gba:inset-0 gba:z-10 gba:flex gba:items-center gba:justify-center gba:bg-background/60"
+          data-testid="plan-vs-request-loading-overlay"
+        >
+          <Spinner size="md" />
+        </div>
+      )}
       <ExpenseFilterBar
         accessToken={accessToken}
         onFiltersChange={handleFiltersChange}
@@ -215,28 +232,36 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
       </div>
 
       <div
-        className="gba:text-sm gba:text-muted-foreground gba:bg-muted gba:p-3 gba:rounded-md gba:border gba:border-border"
+        className="gba:text-sm gba:text-muted-foreground gba:bg-muted gba:p-3 gba:rounded-md gba:border gba:border-border gba:space-y-1"
         data-testid="plan-vs-request-active-filters"
       >
-        <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:
-        </span>{' '}
-        {selectedPeriod}
-        {' · '}
-        <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')}:
-        </span>{' '}
-        {selectedCurrencyCode}
-        {' · '}
-        <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')}:
-        </span>{' '}
-        {selectedDepartmentName}
-        {' · '}
-        <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.last_updated', 'Last updated')}:
-        </span>{' '}
-        {dayjs().format('YYYY-MM-DD HH:mm')}
+        <div>
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:
+          </span>{' '}
+          {selectedPeriod}
+          {' · '}
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')}:
+          </span>{' '}
+          {selectedCurrencyCode}
+          {' · '}
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')}:
+          </span>{' '}
+          {selectedDepartmentName}
+          {' · '}
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.last_updated', 'Last updated')}:
+          </span>{' '}
+          {dayjs().format('YYYY-MM-DD HH:mm')}
+        </div>
+        <div className="gba:text-xs gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:plan_vs_request.data_scope_note',
+            'Data scope: Planned amounts include all active plans (excludes drafts, rejected, discarded). Actual amounts include paid expenses.'
+          )}
+        </div>
       </div>
 
       <PlanVsRequestChart chartData={chartData} selectedCurrencyCode={selectedCurrencyCode} />

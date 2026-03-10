@@ -35,16 +35,13 @@ const processCommunicationChannels = (
 }
 
 export const ContactView: React.FC<ContactViewProps> = context => {
-  const { accessToken } = context
-
   // Data Hooks
   const { fetchInvestmentContacts } = useInvestmentContacts(context)
   const contactStatistics = useInvestmentContactStatistics(context)
 
-  // Statistics - Hook already returns the correct format
-  const contactStatisticsData = contactStatistics
-
-  // Config
+  // Config — contactStatistics is intentionally excluded so that statistics state
+  // updates do not recreate config, which would cascade into new queryVariables/
+  // loadData references and re-fire GetContacts. Passed as a direct prop instead.
   const config: ContactViewConfig<Contact, InvestmentContactQueryVariables> = useMemo(
     () => ({
       fetchContacts: fetchInvestmentContacts,
@@ -128,7 +125,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         createContext: FlowContextName.investmentContactCreate
       },
       buildRecordUrl: (id: string) => buildPlatformUrl('/platform/irm/contact-record', { contactId: id }),
-      contactStatistics: contactStatisticsData,
       rowActionsContextArray: [FlowContextName.investmentContactEntity],
       buildRowActionsExternalContextData: (row: { original: Contact }) => ({
         contactId: row.original.id
@@ -144,10 +140,17 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         addContact: { key: 'irm:contact.addContact', default: 'Add Contact' }
       }
     }),
-    [fetchInvestmentContacts, contactStatisticsData, accessToken]
+    [fetchInvestmentContacts]
   )
 
-  return <ContactLayout context={context} config={config} dataTestId="investment-contact-view" />
+  return (
+    <ContactLayout
+      context={context}
+      config={config}
+      contactStatistics={contactStatistics}
+      dataTestId="investment-contact-view"
+    />
+  )
 }
 
 export default ContactView

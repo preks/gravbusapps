@@ -6,6 +6,7 @@
  * - Explicit registration tracking (no fragile setTimeout)
  * - Self-registration pattern with late-registration support
  * - Automatic external value tracking from form
+ * - Per-field subscription via useSyncExternalStore to prevent cross-field rerenders
  *
  * Usage:
  * ```tsx
@@ -18,17 +19,48 @@
  * initial components are mounted, or it will auto-finalize after layout for
  * backwards compatibility.
  */
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useSyncExternalStore,
+  useLayoutEffect
+} from 'react'
 import { UseFormReturn, FieldValues } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { CatalogSelectConfig, CatalogSelectController } from './internal/useCatalogSelect'
+import { getChangedDebugKeys, logCatalogSelectDebug } from './internal/catalogSelectDebug'
+import type { CatalogSelectExternalValue } from './internal/catalogSelectUtils'
 import useCatalogSelect from './internal/useCatalogSelect'
 
+type ControllerListener = () => void
+
+const getValueAtPath = (value: unknown, path: string): unknown =>
+  path.split('.').reduce<unknown>((currentValue, pathSegment) => {
+    if (currentValue == null) return undefined
+    if (typeof currentValue !== 'object') return undefined
+    return (currentValue as Record<string, unknown>)[pathSegment]
+  }, value)
+
+const normalizeTrackedValue = (value: unknown): CatalogSelectExternalValue => {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+  }
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
 export interface CatalogSelectContextValue {
-  controllers: Record<string, CatalogSelectController>
+  // Stable functions — never change identity after mount
   registerCatalog: (config: CatalogSelectConfig) => void
   finalizeRegistration: () => void
   registerForm?: <TFormValues extends FieldValues>(form: UseFormReturn<TFormValues>) => void
+  // Per-field subscription API (replaces putting controllers in context value)
+  subscribeToController: (id: string, listener: ControllerListener) => () => void
+  getController: (id: string) => CatalogSelectController | null
 }
 
 export const CatalogSelectContext = createContext<CatalogSelectContextValue | null>(null)
@@ -48,7 +80,7 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   // Registration tracking
   const [registeredConfigs, setRegisteredConfigs] = useState<CatalogSelectConfig[]>([])
   const [isRegistrationComplete, setIsRegistrationComplete] = useState(false)
-  const registrationMapRef = React.useRef(new Map<string, CatalogSelectConfig>())
+  const registrationMapRef = useRef(new Map<string, CatalogSelectConfig>())
 
   // Track form internally if passed via onFormReady
   const [internalForm, setInternalForm] = useState<UseFormReturn<TFormValues> | undefined>(form)
@@ -59,7 +91,7 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   }, [])
 
   // Expose setInternalForm via onFormReady callback
-  React.useEffect(() => {
+  useEffect(() => {
     if (onFormReady && internalForm) {
       onFormReady(internalForm)
     }
@@ -75,6 +107,7 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   const externalKeys = useMemo(() => {
     const keys = new Set<string>()
     for (const cfg of allConfigs) {
+      keys.add(cfg.id)
       if (cfg.filterField) {
         for (const filter of cfg.filterField) {
           keys.add(filter.from)
@@ -90,54 +123,99 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
 
   // Auto-watch form fields if form is provided (type-safe via TFormValues generic)
   // Note: form.watch with array is not reactive, so we need to subscribe manually
-  const [externalValues, setExternalValues] = useState<Record<string, string | null> | undefined>(undefined)
+  const [externalValues, setExternalValues] = useState<Record<string, CatalogSelectExternalValue> | undefined>(
+    undefined
+  )
+  const prevExternalValuesRef = useRef<Record<string, CatalogSelectExternalValue> | undefined>(undefined)
+
+  const setExternalValuesIfChanged = useCallback(
+    (newValues: Record<string, CatalogSelectExternalValue> | undefined) => {
+      const prev = prevExternalValuesRef.current
+      if (!newValues) {
+        if (prev !== undefined) {
+          logCatalogSelectDebug('provider:externalValuesCleared', {
+            changedKeys: Object.keys(prev)
+          })
+          prevExternalValuesRef.current = undefined
+          setExternalValues(undefined)
+        }
+        return
+      }
+      const keys = Object.keys(newValues)
+      const hasChanged =
+        !prev || keys.length !== Object.keys(prev).length || keys.some(key => newValues[key] !== prev[key])
+      if (!hasChanged) return
+      logCatalogSelectDebug('provider:externalValuesChanged', {
+        changedKeys: getChangedDebugKeys(prev, newValues)
+      })
+      prevExternalValuesRef.current = newValues
+      setExternalValues(newValues)
+    },
+    []
+  )
 
   useEffect(() => {
     if (!activeForm || externalKeys.length === 0) {
-      setExternalValues(undefined)
+      setExternalValuesIfChanged(undefined)
       return
     }
 
     // Performance: Track subscription creation
     const subscriptionStartTime = performance.now()
+    const trackedExternalKeys = new Set(externalKeys)
 
     // Subscribe to form changes for external keys
-    const subscription = activeForm.watch(values => {
-      const callbackStartTime = performance.now()
+    const subscription = activeForm.watch((values, info) => {
+      const changedFieldName = info?.name
+      if (changedFieldName && trackedExternalKeys.has(changedFieldName)) {
+        const nextTrackedValue = normalizeTrackedValue(getValueAtPath(values, changedFieldName))
+        const previousValues = prevExternalValuesRef.current
 
-      const newValues: Record<string, string | null> = {}
-      for (const key of externalKeys) {
-        newValues[key] = ((values as any)[key] as string) || null
-      }
-
-      const callbackDuration = performance.now() - callbackStartTime
-      if (callbackDuration > 5) {
-        // Only log if > 5ms
-        console.warn(`[PERF] CatalogSelectProvider: form.watch() callback took ${callbackDuration.toFixed(2)}ms`, {
-          externalKeys,
-          externalKeysLength: externalKeys.length,
-          valuesSize: JSON.stringify(values).length,
-          timestamp: new Date().toISOString()
+        logCatalogSelectDebug('provider:watchChange', {
+          changedFieldName,
+          previousValue: previousValues?.[changedFieldName] || null,
+          nextValue: nextTrackedValue,
+          strategy: previousValues ? 'incremental' : 'fallback'
         })
+
+        if (previousValues?.[changedFieldName] === nextTrackedValue) {
+          return
+        }
+
+        if (previousValues) {
+          setExternalValuesIfChanged({ ...previousValues, [changedFieldName]: nextTrackedValue })
+          return
+        }
+      } else if (changedFieldName) {
+        return
       }
 
-      setExternalValues(newValues)
+      const nextValues: Record<string, CatalogSelectExternalValue> = {}
+      for (const key of externalKeys) {
+        nextValues[key] = normalizeTrackedValue(getValueAtPath(values, key))
+      }
+      setExternalValuesIfChanged(nextValues)
     })
 
     // Initialize with current values
-    const initStartTime = performance.now()
     const currentValues = activeForm.getValues()
-    const initialValues: Record<string, string | null> = {}
+    const initialValues: Record<string, CatalogSelectExternalValue> = {}
+    let hasAnyInitialValue = false
     for (const key of externalKeys) {
-      initialValues[key] = ((currentValues as any)[key] as string) || null
+      const v = normalizeTrackedValue(getValueAtPath(currentValues, key))
+      initialValues[key] = v
+      if (v !== null) hasAnyInitialValue = true
     }
-    setExternalValues(initialValues)
+    // Only update state if there are actual values to track
+    if (hasAnyInitialValue) {
+      setExternalValuesIfChanged(initialValues)
+    } else {
+      prevExternalValuesRef.current = initialValues
+    }
 
-    const initDuration = performance.now() - initStartTime
     const subscriptionDuration = performance.now() - subscriptionStartTime
     if (subscriptionDuration > 10) {
       console.warn(`[PERF] CatalogSelectProvider: Subscription setup took ${subscriptionDuration.toFixed(2)}ms`, {
-        initDuration: initDuration.toFixed(2),
         externalKeysLength: externalKeys.length,
         timestamp: new Date().toISOString()
       })
@@ -146,7 +224,7 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
     return () => {
       subscription.unsubscribe()
     }
-  }, [activeForm, externalKeys])
+  }, [activeForm, externalKeys, setExternalValuesIfChanged])
 
   // Registration API - handles both initial and late registrations
   const registerCatalog = useCallback((config: CatalogSelectConfig) => {
@@ -167,21 +245,65 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
     setIsRegistrationComplete(true)
   }, [])
 
-  // Auto-finalize after all components have had a chance to register
-  // Wait until registration count stabilizes (no new registrations for 50ms)
+  // Auto-finalize after all components have had a chance to register.
+  // useLayoutEffect of all children runs before useEffect of the parent,
+  // so by the time this fires all initial CatalogSelect registrations are complete.
   useEffect(() => {
-    if (!isRegistrationComplete && registeredConfigs.length > 0) {
-      const timer = setTimeout(() => {
-        finalizeRegistration()
-      }, 50) // Wait 50ms after last registration
-      return () => clearTimeout(timer)
+    if (!isRegistrationComplete) {
+      finalizeRegistration()
     }
-  }, [isRegistrationComplete, finalizeRegistration, registeredConfigs.length])
+  }, [])
 
   const { controllers, preload } = useCatalogSelect(context, allConfigs, externalValues)
 
+  // --- Per-field subscription store ---
+  // controllers is stored in a ref so it doesn't flow into context value.
+  // Per-field listeners are notified only when their specific controller changes.
+  const controllersRef = useRef<Record<string, CatalogSelectController>>(controllers)
+  const prevControllersRef = useRef<Record<string, CatalogSelectController>>(controllers)
+  // listeners: fieldId -> Set of listener callbacks
+  const listenersRef = useRef<Map<string, Set<ControllerListener>>>(new Map())
+
+  // Sync controllers into ref and notify only listeners whose controller changed
+  useLayoutEffect(() => {
+    controllersRef.current = controllers
+    const prev = prevControllersRef.current
+    prevControllersRef.current = controllers
+    const notifiedControllerIds: string[] = []
+
+    // Notify only listeners for fields whose controller reference changed
+    for (const [id, listenerSet] of listenersRef.current) {
+      if (controllers[id] !== prev[id]) {
+        notifiedControllerIds.push(id)
+        for (const listener of listenerSet) {
+          listener()
+        }
+      }
+    }
+
+    if (notifiedControllerIds.length > 0) {
+      logCatalogSelectDebug('provider:controllerNotifications', {
+        notifiedControllerIds
+      })
+    }
+  }, [controllers])
+
+  const subscribeToController = useCallback((id: string, listener: ControllerListener) => {
+    if (!listenersRef.current.has(id)) {
+      listenersRef.current.set(id, new Set())
+    }
+    listenersRef.current.get(id)!.add(listener)
+    return () => {
+      listenersRef.current.get(id)?.delete(listener)
+    }
+  }, [])
+
+  const getController = useCallback((id: string): CatalogSelectController | null => {
+    return controllersRef.current[id] ?? null
+  }, [])
+
   // Track which configs have been preloaded
-  const preloadedConfigIdsRef = React.useRef<Set<string>>(new Set())
+  const preloadedConfigIdsRef = useRef<Set<string>>(new Set())
 
   // Preload when registration is complete - only once for all configs
   useEffect(() => {
@@ -208,17 +330,37 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
     preload()
   }, [isRegistrationComplete, allConfigs, preload])
 
+  // Context value only contains stable functions — never changes identity after mount,
+  // so useContext(CatalogSelectContext) subscribers do NOT rerender on controller updates.
   const value = useMemo(
-    () => ({ controllers, registerCatalog, finalizeRegistration, registerForm }),
-    [controllers, registerCatalog, finalizeRegistration, registerForm]
+    () => ({ registerCatalog, finalizeRegistration, registerForm, subscribeToController, getController }),
+    [registerCatalog, finalizeRegistration, registerForm]
+    // subscribeToController and getController are stable useCallback refs, safe to omit
   )
 
   return <CatalogSelectContext.Provider value={value}>{children}</CatalogSelectContext.Provider>
 }
 
+/**
+ * Returns the controller for a single catalog field.
+ * Uses useSyncExternalStore so only this field's consumers rerender when its controller changes.
+ */
 export const useCatalogSelectController = (catalogIdentifier: string): CatalogSelectController | null => {
   const ctx = useContext(CatalogSelectContext)
-  return ctx?.controllers[catalogIdentifier] || null
+
+  const subscribe = useCallback(
+    (listener: ControllerListener) => {
+      if (!ctx) return () => {}
+      return ctx.subscribeToController(catalogIdentifier, listener)
+    },
+    [ctx, catalogIdentifier]
+  )
+
+  const getSnapshot = useCallback(() => {
+    return ctx?.getController(catalogIdentifier) ?? null
+  }, [ctx, catalogIdentifier])
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
 
 /**
@@ -230,7 +372,7 @@ export const useCatalogValidation = () => {
 
   const validateField = useCallback(
     (fieldName: string): boolean => {
-      const controller = ctx?.controllers[fieldName]
+      const controller = ctx?.getController(fieldName)
       return !!(controller?.hasOptions && !controller?.disabled)
     },
     [ctx]
