@@ -47,10 +47,22 @@ import type {
   VideoElement,
   ChartElement,
   ChartType,
-  GradientConfig
+  GradientConfig,
+  SlideTransition,
+  SlideTransitionType,
+  TransitionTrigger
 } from './slideElements'
-import { FONT_FAMILIES, FONT_SIZES, COLOR_PRESETS, PRESET_GRADIENTS, CHART_TYPES, gradientToCss } from './slideElements'
+import {
+  FONT_FAMILIES,
+  FONT_SIZES,
+  COLOR_PRESETS,
+  PRESET_GRADIENTS,
+  CHART_TYPES,
+  gradientToCss,
+  DEFAULT_TRANSITION
+} from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
+import { TransitionPreview } from './TransitionPreview'
 import translations from '../_i18n'
 
 /**
@@ -95,6 +107,22 @@ function sanitizeImageUrl(url: string | undefined): string {
   return ''
 }
 
+const TRANSITION_TYPES: { value: SlideTransitionType; label: string }[] = [
+  { value: 'none', label: 'transition-none' },
+  { value: 'fade', label: 'transition-fade' },
+  { value: 'slide-left', label: 'transition-slide-left' },
+  { value: 'slide-right', label: 'transition-slide-right' },
+  { value: 'slide-up', label: 'transition-slide-up' },
+  { value: 'slide-down', label: 'transition-slide-down' },
+  { value: 'push-left', label: 'transition-push-left' },
+  { value: 'push-right', label: 'transition-push-right' },
+  { value: 'zoom-in', label: 'transition-zoom-in' },
+  { value: 'zoom-out', label: 'transition-zoom-out' },
+  { value: 'flip', label: 'transition-flip' },
+  { value: 'cube', label: 'transition-cube' },
+  { value: 'dissolve', label: 'transition-dissolve' }
+]
+
 interface PropertyPanelProps {
   element: AnySlideElement | null
   onUpdate: (updates: Partial<AnySlideElement>) => void
@@ -102,6 +130,8 @@ interface PropertyPanelProps {
   onDuplicate: () => void
   onBringForward: () => void
   onSendBackward: () => void
+  slideTransition?: SlideTransition
+  onSlideTransitionChange?: (transition: SlideTransition) => void
 }
 
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -110,11 +140,21 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onDelete,
   onDuplicate,
   onBringForward,
-  onSendBackward
+  onSendBackward,
+  slideTransition,
+  onSlideTransitionChange
 }) => {
   const { t } = useTranslation(translations)
   const [showGradientBuilder, setShowGradientBuilder] = useState(false)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
+
+  const currentTransition = slideTransition || DEFAULT_TRANSITION
+
+  const handleTransitionChange = (updates: Partial<SlideTransition>) => {
+    if (onSlideTransitionChange) {
+      onSlideTransitionChange({ ...currentTransition, ...updates })
+    }
+  }
 
   const handleReplaceImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -133,8 +173,102 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
   if (!element) {
     return (
-      <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-        <p className="gba:text-sm">{t('props-select-element')}</p>
+      <div className="gba:p-4 gba:space-y-4">
+        <div className="gba:text-center gba:text-muted-foreground gba:mb-4">
+          <p className="gba:text-sm">{t('props-select-element')}</p>
+        </div>
+
+        {onSlideTransitionChange && (
+          <>
+            <Separator />
+
+            <Collapsible defaultOpen>
+              <CollapsibleTrigger className="gba:flex gba:w-full gba:items-center gba:justify-between gba:py-2">
+                <Label className="gba:text-xs gba:font-semibold">{t('transition-title')}</Label>
+                <ChevronDown className="gba:h-4 gba:w-4" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="gba:space-y-4 gba:pt-2">
+                {/* Transition Type */}
+                <div>
+                  <Label className="gba:text-xs gba:mb-1 gba:block">{t('transition-type')}</Label>
+                  <Select
+                    value={currentTransition.type}
+                    onValueChange={(value: SlideTransitionType) => handleTransitionChange({ type: value })}
+                  >
+                    <SelectTrigger className="gba:text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRANSITION_TYPES.map(tt => (
+                        <SelectItem key={tt.value} value={tt.value}>
+                          {t(tt.label)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                    <Label className="gba:text-xs">{t('transition-duration')}</Label>
+                    <span className="gba:text-xs gba:text-muted-foreground">{currentTransition.duration}ms</span>
+                  </div>
+                  <Slider
+                    value={[currentTransition.duration]}
+                    min={300}
+                    max={3000}
+                    step={100}
+                    onValueChange={([value]) => handleTransitionChange({ duration: value })}
+                    disabled={currentTransition.type === 'none'}
+                  />
+                </div>
+
+                {/* Trigger */}
+                <div>
+                  <Label className="gba:text-xs gba:mb-1 gba:block">{t('transition-trigger')}</Label>
+                  <Select
+                    value={currentTransition.trigger}
+                    onValueChange={(value: TransitionTrigger) => handleTransitionChange({ trigger: value })}
+                    disabled={currentTransition.type === 'none'}
+                  >
+                    <SelectTrigger className="gba:text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="on-click">{t('transition-trigger-click')}</SelectItem>
+                      <SelectItem value="auto">{t('transition-trigger-auto')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Delay (only for auto trigger) */}
+                {currentTransition.trigger === 'auto' && (
+                  <div>
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                      <Label className="gba:text-xs">{t('transition-delay')}</Label>
+                      <span className="gba:text-xs gba:text-muted-foreground">{currentTransition.delay}ms</span>
+                    </div>
+                    <Slider
+                      value={[currentTransition.delay]}
+                      min={0}
+                      max={5000}
+                      step={100}
+                      onValueChange={([value]) => handleTransitionChange({ delay: value })}
+                      disabled={currentTransition.type === 'none'}
+                    />
+                  </div>
+                )}
+
+                {/* Preview */}
+                <div>
+                  <Label className="gba:text-xs gba:mb-2 gba:block">{t('transition-preview')}</Label>
+                  <TransitionPreview transition={currentTransition} />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </>
+        )}
       </div>
     )
   }

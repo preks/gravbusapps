@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@newwork/nw-design-system'
 import type { SlideData, ElementEffect } from './slideElements'
+import { DEFAULT_TRANSITION } from './slideElements'
 import type { SlideTheme } from './slideThemes'
 import { SlideCanvas } from './SlideCanvas'
+import { SlideTransitionPlayer } from './SlideTransitionPlayer'
 import type { CastSlideData } from '../hooks/usePresentationCast'
 import type { PresentationConnection, PresentationConnectionAvailableEvent } from '../types/presentationApi'
 import '../types/presentationApi'
@@ -26,6 +28,8 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
   const [connectionSource, setConnectionSource] = useState<'api' | 'window' | null>(null)
   const [showControls, setShowControls] = useState(true)
   const [activeEffects, setActiveEffects] = useState<Map<string, ElementEffect>>(new Map())
+  const [previousSlide, setPreviousSlide] = useState<SlideData | null>(null)
+  const [, setIsTransitioning] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const connectionRef = useRef<PresentationConnection | null>(null)
@@ -37,6 +41,28 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
   const effectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   const currentSlide = slides[currentIndex]
+  const currentTransition = currentSlide?.transition || DEFAULT_TRANSITION
+
+  // Handle transition completion
+  const handleTransitionComplete = useCallback(() => {
+    setIsTransitioning(false)
+    setPreviousSlide(null)
+  }, [])
+
+  // Track slide changes for transitions
+  useEffect(() => {
+    const prevIdx = prevIndexRef.current
+    if (slides.length > 0 && prevIdx !== currentIndex && slides[prevIdx]) {
+      const targetSlide = slides[currentIndex]
+      const transition = targetSlide?.transition || DEFAULT_TRANSITION
+
+      if (transition.type !== 'none') {
+        setPreviousSlide(slides[prevIdx])
+        setIsTransitioning(true)
+      }
+    }
+    prevIndexRef.current = currentIndex
+  }, [currentIndex, slides])
 
   // Apply effect CSS classes to an element
   const applyEffect = useCallback((effect: ElementEffect) => {
@@ -590,19 +616,47 @@ export const CastReceiver: React.FC<CastReceiverProps> = ({ 'data-testid': testI
       style={{ backgroundColor: theme?.preview.background || '#000000' }}
       data-testid={testId}
     >
-      {/* Slide container */}
-      <div className="gba:relative">
-        <SlideCanvas
-          elements={currentSlide.elements}
-          selectedIds={new Set()}
-          background={currentSlide.background}
-          onSelectElements={() => {}}
-          onUpdateElement={() => {}}
-          onUpdateMultipleElements={() => {}}
-          onEditText={() => {}}
-          scale={scale}
-          isPresenting={true}
-        />
+      {/* Slide container with transitions */}
+      <div
+        className="gba:relative gba:overflow-hidden"
+        style={{
+          width: 1280 * scale,
+          height: 720 * scale
+        }}
+      >
+        <SlideTransitionPlayer
+          currentSlideId={currentSlide.id}
+          previousSlideId={previousSlide?.id || null}
+          transition={currentTransition}
+          onTransitionComplete={handleTransitionComplete}
+          previousContent={
+            previousSlide && (
+              <SlideCanvas
+                elements={previousSlide.elements}
+                selectedIds={new Set()}
+                background={previousSlide.background}
+                onSelectElements={() => {}}
+                onUpdateElement={() => {}}
+                onUpdateMultipleElements={() => {}}
+                onEditText={() => {}}
+                scale={scale}
+                isPresenting={true}
+              />
+            )
+          }
+        >
+          <SlideCanvas
+            elements={currentSlide.elements}
+            selectedIds={new Set()}
+            background={currentSlide.background}
+            onSelectElements={() => {}}
+            onUpdateElement={() => {}}
+            onUpdateMultipleElements={() => {}}
+            onEditText={() => {}}
+            scale={scale}
+            isPresenting={true}
+          />
+        </SlideTransitionPlayer>
       </div>
 
       {/* Connection status indicator */}

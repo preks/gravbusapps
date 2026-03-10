@@ -615,3 +615,26 @@ link-selected-text = Ausgewählter Text
 link-cancel = Abbrechen
 link-update = Aktualisieren
 link-add-btn = Link hinzufügen
+
+# Folienübergänge
+transition-title = Folienübergang
+transition-type = Typ
+transition-none = Keiner
+transition-fade = Ausblenden
+transition-slide-left = Nach links schieben
+transition-slide-right = Nach rechts schieben
+transition-slide-up = Nach oben schieben
+transition-slide-down = Nach unten schieben
+transition-push-left = Nach links drücken
+transition-push-right = Nach rechts drücken
+transition-zoom-in = Vergrößern
+transition-zoom-out = Verkleinern
+transition-flip = Umdrehen
+transition-cube = Würfel
+transition-dissolve = Auflösen
+transition-duration = Dauer
+transition-trigger = Auslöser
+transition-trigger-click = Bei Klick
+transition-trigger-auto = Automatisch
+transition-delay = Verzögerung
+transition-preview = Vorschau

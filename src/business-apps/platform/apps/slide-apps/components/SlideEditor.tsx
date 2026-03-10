@@ -97,6 +97,7 @@ import type { AIAssistStatus } from './PresenterView'
 import {
   type AnySlideElement,
   type SlideData,
+  type SlideTransition,
   type ChartElement,
   createTextElement,
   createImageElement,
@@ -118,9 +119,11 @@ import { LinkDialog } from './LinkDialog'
 import { PdfExportDialog } from './PdfExportDialog'
 import { SpeakerNotesPanel } from './SpeakerNotesPanel'
 import { PresenterView } from './PresenterView'
+import { SlideTransitionPlayer } from './SlideTransitionPlayer'
 import { SpellCheckPanel } from './SpellCheckPanel'
 import { useVoiceInput } from '../../shared'
 import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
+import { useSlideTransition } from '../hooks/useSlideTransition'
 import type { SlideAnnotation } from '../types/slideSpellCheck'
 import { exportToPptx } from '../utils/exportUtils'
 import { adjustLinksAfterEdit, detectUrls, mergeLinks, findEditPosition, createLink } from '../utils/linkUtils'
@@ -388,6 +391,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [isSaving, setIsSaving] = useState(false)
   const [isPresentMode, setIsPresentMode] = useState(false)
   const [presentScale, setPresentScale] = useState(1)
+
   const [canvasScale, setCanvasScale] = useState(0.65)
   const [showImageDialog, setShowImageDialog] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
@@ -673,6 +677,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
   const selectedElements = currentSlide.elements.filter(e => selectedElementIds.has(e.id))
 
+  // Presentation mode transitions using shared hook
+  const {
+    previousSlide: presentPreviousSlide,
+    currentTransition: presentTransition,
+    navigateToSlide: navigateToPresentSlide,
+    handleTransitionComplete: handlePresentTransitionComplete,
+    canNavigatePrev,
+    canNavigateNext
+  } = useSlideTransition({
+    slides,
+    currentIndex: currentSlideIndex,
+    onIndexChange: setCurrentSlideIndex,
+    enabled: isPresentMode
+  })
+
   // Note: Initialization is handled by the collaboration hook's onBootstrapRequired callback
   // No need for manual initialization here
 
@@ -814,6 +833,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const updateCurrentSlideNotes = useCallback(
     (notes: string) => {
       updateSlide({ notes })
+    },
+    [updateSlide]
+  )
+
+  const updateCurrentSlideTransition = useCallback(
+    (transition: SlideTransition) => {
+      updateSlide({ transition })
     },
     [updateSlide]
   )
@@ -1602,21 +1628,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         case ' ':
         case 'PageDown':
           e.preventDefault()
-          setCurrentSlideIndex(prev => Math.min(slides.length - 1, prev + 1))
+          navigateToPresentSlide(currentSlideIndex + 1)
           break
         case 'ArrowLeft':
         case 'ArrowUp':
         case 'PageUp':
           e.preventDefault()
-          setCurrentSlideIndex(prev => Math.max(0, prev - 1))
+          navigateToPresentSlide(currentSlideIndex - 1)
           break
         case 'Home':
           e.preventDefault()
-          setCurrentSlideIndex(0)
+          navigateToPresentSlide(0)
           break
         case 'End':
           e.preventDefault()
-          setCurrentSlideIndex(slides.length - 1)
+          navigateToPresentSlide(slides.length - 1)
           break
         case 'Escape':
           exitPresentMode()
@@ -1626,7 +1652,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isPresentMode, slides.length, exitPresentMode])
+  }, [isPresentMode, slides.length, exitPresentMode, navigateToPresentSlide, currentSlideIndex])
 
   // Keyboard navigation for editor mode (up/down arrows to change slides, Delete to remove elements)
   useEffect(() => {
@@ -1786,10 +1812,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Present Mode (true fullscreen)
   if (isPresentMode) {
-    const goToPrevSlide = () => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))
-    const goToNextSlide = () => setCurrentSlideIndex(Math.min(slides.length - 1, currentSlideIndex + 1))
-    const canGoPrev = currentSlideIndex > 0
-    const canGoNext = currentSlideIndex < slides.length - 1
+    const goToPrevSlide = () => navigateToPresentSlide(currentSlideIndex - 1)
+    const goToNextSlide = () => navigateToPresentSlide(currentSlideIndex + 1)
 
     return (
       <div
@@ -1798,22 +1822,53 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       >
         {/* Slide content */}
         <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center">
-          <SlideCanvas
-            elements={currentSlide.elements}
-            selectedIds={new Set()}
-            background={currentSlide.background}
-            onSelectElements={() => {}}
-            onUpdateElement={() => {}}
-            onUpdateMultipleElements={() => {}}
-            onEditText={() => {}}
-            scale={presentScale}
-          />
+          <div
+            className="gba:relative gba:overflow-hidden gba:flex-shrink-0"
+            style={{
+              width: 1280 * presentScale,
+              height: 720 * presentScale
+            }}
+          >
+            <SlideTransitionPlayer
+              currentSlideId={currentSlide.id}
+              previousSlideId={presentPreviousSlide?.id || null}
+              transition={presentTransition}
+              onTransitionComplete={handlePresentTransitionComplete}
+              previousContent={
+                presentPreviousSlide && (
+                  <SlideCanvas
+                    elements={presentPreviousSlide.elements}
+                    selectedIds={new Set()}
+                    background={presentPreviousSlide.background}
+                    onSelectElements={() => {}}
+                    onUpdateElement={() => {}}
+                    onUpdateMultipleElements={() => {}}
+                    onEditText={() => {}}
+                    scale={presentScale}
+                    isPresenting={true}
+                  />
+                )
+              }
+            >
+              <SlideCanvas
+                elements={currentSlide.elements}
+                selectedIds={new Set()}
+                background={currentSlide.background}
+                onSelectElements={() => {}}
+                onUpdateElement={() => {}}
+                onUpdateMultipleElements={() => {}}
+                onEditText={() => {}}
+                scale={presentScale}
+                isPresenting={true}
+              />
+            </SlideTransitionPlayer>
+          </div>
         </div>
 
         {/* Left navigation arrow */}
         <button
           onClick={goToPrevSlide}
-          disabled={!canGoPrev}
+          disabled={!canNavigatePrev}
           className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:z-[10000] gba:w-12 gba:h-12 gba:rounded-full gba:bg-white/10 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:flex gba:items-center gba:justify-center gba:text-white/90 gba:transition-all gba:duration-200 hover:gba:bg-white/20 hover:gba:scale-110 disabled:gba:opacity-30 disabled:gba:cursor-not-allowed disabled:hover:gba:scale-100 disabled:hover:gba:bg-white/10"
           data-testid={`${testId}-present-prev`}
         >
@@ -1823,7 +1878,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         {/* Right navigation arrow */}
         <button
           onClick={goToNextSlide}
-          disabled={!canGoNext}
+          disabled={!canNavigateNext}
           className="gba:absolute gba:right-4 gba:top-1/2 gba:-translate-y-1/2 gba:z-[10000] gba:w-12 gba:h-12 gba:rounded-full gba:bg-white/10 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:flex gba:items-center gba:justify-center gba:text-white/90 gba:transition-all gba:duration-200 hover:gba:bg-white/20 hover:gba:scale-110 disabled:gba:opacity-30 disabled:gba:cursor-not-allowed disabled:hover:gba:scale-100 disabled:hover:gba:bg-white/10"
           data-testid={`${testId}-present-next`}
         >
@@ -1845,7 +1900,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               variant="ghost"
               size="sm"
               onClick={goToPrevSlide}
-              disabled={!canGoPrev}
+              disabled={!canNavigatePrev}
               className="gba:text-white gba:bg-white/10 gba:backdrop-blur-sm hover:gba:bg-white/20 gba:disabled:opacity-30"
             >
               <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
@@ -1855,7 +1910,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               variant="ghost"
               size="sm"
               onClick={goToNextSlide}
-              disabled={!canGoNext}
+              disabled={!canNavigateNext}
               className="gba:text-white gba:bg-white/10 gba:backdrop-blur-sm hover:gba:bg-white/20 gba:disabled:opacity-30"
             >
               {t('editor-next')}
@@ -2553,7 +2608,6 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                                 element={el as ChartElement}
                                 width={el.size.width}
                                 height={el.size.height}
-                                disableAnimations
                               />
                             )}
                           </div>
@@ -2765,6 +2819,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               onDuplicate={duplicateElement}
               onBringForward={bringForward}
               onSendBackward={sendBackward}
+              slideTransition={currentSlide.transition}
+              onSlideTransitionChange={canEdit ? updateCurrentSlideTransition : undefined}
             />
           </div>
         )}

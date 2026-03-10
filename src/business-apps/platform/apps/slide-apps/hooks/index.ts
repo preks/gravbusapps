@@ -24,3 +24,4 @@ export {
   type UseSpeechMatcherReturn
 } from './useSpeechMatcher'
 export { useSlideSpellCheck } from './useSlideSpellCheck'
+export { useSlideTransition, type UseSlideTransitionOptions, type UseSlideTransitionReturn } from './useSlideTransition'

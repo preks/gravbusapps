@@ -174,6 +174,37 @@ export type AnySlideElement =
   | TableElement
   | ChartElement
 
+export type SlideTransitionType =
+  | 'none'
+  | 'fade'
+  | 'slide-left'
+  | 'slide-right'
+  | 'slide-up'
+  | 'slide-down'
+  | 'push-left'
+  | 'push-right'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'flip'
+  | 'cube'
+  | 'dissolve'
+
+export type TransitionTrigger = 'on-click' | 'auto'
+
+export interface SlideTransition {
+  type: SlideTransitionType
+  duration: number
+  trigger: TransitionTrigger
+  delay: number
+}
+
+export const DEFAULT_TRANSITION: SlideTransition = {
+  type: 'none',
+  duration: 500,
+  trigger: 'on-click',
+  delay: 0
+}
+
 export interface SlideData {
   id: string
   elements: AnySlideElement[]
@@ -187,6 +218,7 @@ export interface SlideData {
     videoLoop?: boolean
   }
   notes?: string
+  transition?: SlideTransition
 }
 
 // Default element factories

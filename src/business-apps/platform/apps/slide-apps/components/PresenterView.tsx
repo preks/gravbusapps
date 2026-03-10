@@ -25,7 +25,9 @@ import {
 import type { SlideData } from './slideElements'
 import type { SlideTheme } from './slideThemes'
 import { SlideCanvas } from './SlideCanvas'
+import { SlideTransitionPlayer } from './SlideTransitionPlayer'
 import type { ConnectionState } from '../hooks/usePresentationCast'
+import { useSlideTransition } from '../hooks/useSlideTransition'
 import type { MatchResult } from '../hooks/useSpeechMatcher'
 
 export interface AIAssistStatus {
@@ -110,6 +112,22 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
   const currentSlide = slides[currentSlideIndex]
   const nextSlide = currentSlideIndex < slides.length - 1 ? slides[currentSlideIndex + 1] : null
 
+  // Use shared transition hook
+  const {
+    isTransitioning,
+    previousSlide,
+    currentTransition,
+    navigateToSlide,
+    handleTransitionComplete,
+    canNavigatePrev,
+    canNavigateNext
+  } = useSlideTransition({
+    slides,
+    currentIndex: currentSlideIndex,
+    onIndexChange: onSlideChange,
+    enabled: true
+  })
+
   // Timer
   useEffect(() => {
     const interval = setInterval(() => {
@@ -149,18 +167,9 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
     return () => window.removeEventListener('resize', calculateScales)
   }, [notesExpanded])
 
-  // Navigation
-  const goToPrev = useCallback(() => {
-    if (currentSlideIndex > 0) {
-      onSlideChange(currentSlideIndex - 1)
-    }
-  }, [currentSlideIndex, onSlideChange])
-
-  const goToNext = useCallback(() => {
-    if (currentSlideIndex < slides.length - 1) {
-      onSlideChange(currentSlideIndex + 1)
-    }
-  }, [currentSlideIndex, slides.length, onSlideChange])
+  // Navigation helpers
+  const goToPrev = useCallback(() => navigateToSlide(currentSlideIndex - 1), [currentSlideIndex, navigateToSlide])
+  const goToNext = useCallback(() => navigateToSlide(currentSlideIndex + 1), [currentSlideIndex, navigateToSlide])
 
   // Keyboard navigation
   useEffect(() => {
@@ -181,11 +190,11 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
           break
         case 'Home':
           e.preventDefault()
-          onSlideChange(0)
+          navigateToSlide(0)
           break
         case 'End':
           e.preventDefault()
-          onSlideChange(slides.length - 1)
+          navigateToSlide(slides.length - 1)
           break
         case 'Escape':
           e.preventDefault()
@@ -196,10 +205,10 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [goToPrev, goToNext, onSlideChange, slides.length, onExit])
+  }, [goToPrev, goToNext, navigateToSlide, slides.length, onExit])
 
-  const canGoPrev = currentSlideIndex > 0
-  const canGoNext = currentSlideIndex < slides.length - 1
+  const canGoPrev = canNavigatePrev
+  const canGoNext = canNavigateNext
 
   return (
     <div className="gba:fixed gba:inset-0 gba:z-40 gba:bg-zinc-900 gba:flex gba:flex-col" data-testid={testId}>
@@ -370,18 +379,40 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
                 height: 720 * mainSlideScale
               }}
             >
-              <SlideCanvas
-                elements={currentSlide.elements}
-                selectedIds={new Set()}
-                background={currentSlide.background}
-                onSelectElements={() => {}}
-                onUpdateElement={() => {}}
-                onUpdateMultipleElements={() => {}}
-                onEditText={() => {}}
-                onElementClick={onElementClick}
-                scale={mainSlideScale}
-                isPresenting={true}
-              />
+              <SlideTransitionPlayer
+                currentSlideId={currentSlide.id}
+                previousSlideId={previousSlide?.id || null}
+                transition={currentTransition}
+                onTransitionComplete={handleTransitionComplete}
+                previousContent={
+                  previousSlide && (
+                    <SlideCanvas
+                      elements={previousSlide.elements}
+                      selectedIds={new Set()}
+                      background={previousSlide.background}
+                      onSelectElements={() => {}}
+                      onUpdateElement={() => {}}
+                      onUpdateMultipleElements={() => {}}
+                      onEditText={() => {}}
+                      scale={mainSlideScale}
+                      isPresenting={true}
+                    />
+                  )
+                }
+              >
+                <SlideCanvas
+                  elements={currentSlide.elements}
+                  selectedIds={new Set()}
+                  background={currentSlide.background}
+                  onSelectElements={() => {}}
+                  onUpdateElement={() => {}}
+                  onUpdateMultipleElements={() => {}}
+                  onEditText={() => {}}
+                  onElementClick={onElementClick}
+                  scale={mainSlideScale}
+                  isPresenting={true}
+                />
+              </SlideTransitionPlayer>
             </div>
           </div>
         </div>
@@ -545,10 +576,12 @@ export const PresenterView: React.FC<PresenterViewProps> = ({
           {slides.map((_, idx) => (
             <button
               key={idx}
-              onClick={() => onSlideChange(idx)}
+              onClick={() => navigateToSlide(idx)}
+              disabled={isTransitioning}
               className={cn(
                 'gba:w-2 gba:h-2 gba:rounded-full gba:transition-colors',
-                idx === currentSlideIndex ? 'gba:bg-primary' : 'gba:bg-zinc-600 hover:gba:bg-zinc-500'
+                idx === currentSlideIndex ? 'gba:bg-primary' : 'gba:bg-zinc-600 hover:gba:bg-zinc-500',
+                isTransitioning && 'gba:cursor-not-allowed'
               )}
               data-testid={`${testId}-dot-${idx}`}
             />

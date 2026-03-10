@@ -698,3 +698,26 @@ link-selected-text = Selected text
 link-cancel = Cancel
 link-update = Update
 link-add-btn = Add Link
+
+# Slide Transitions
+transition-title = Slide Transition
+transition-type = Type
+transition-none = None
+transition-fade = Fade
+transition-slide-left = Slide Left
+transition-slide-right = Slide Right
+transition-slide-up = Slide Up
+transition-slide-down = Slide Down
+transition-push-left = Push Left
+transition-push-right = Push Right
+transition-zoom-in = Zoom In
+transition-zoom-out = Zoom Out
+transition-flip = Flip
+transition-cube = Cube
+transition-dissolve = Dissolve
+transition-duration = Duration
+transition-trigger = Trigger
+transition-trigger-click = On Click
+transition-trigger-auto = Automatic
+transition-delay = Delay
+transition-preview = Preview

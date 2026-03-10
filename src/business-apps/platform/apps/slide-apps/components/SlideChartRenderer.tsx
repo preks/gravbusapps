@@ -35,7 +35,6 @@ export interface SlideChartRendererProps {
   element: ChartElement
   width: number
   height: number
-  disableAnimations?: boolean
 }
 
 const CHART_COLORS = [
@@ -49,9 +48,11 @@ const CHART_COLORS = [
   'var(--nw-chart-8)'
 ]
 
-export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element, disableAnimations = false }) => {
+export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element }) => {
   const { chartType, data, series, showLegend, showGrid, showTooltip, title, backgroundColor, borderRadius } = element
-  const isAnimationActive = !disableAnimations
+
+  // Pie charts have animation disabled due to Recharts bugs (invisible chart, blinking labels)
+  const isAnimationActive = chartType !== 'pie'
 
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {}
@@ -77,6 +78,7 @@ export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element,
           fill={`var(--color-${s.key})`}
           radius={4}
           isAnimationActive={isAnimationActive}
+          animationDuration={800}
         />
       ))}
       {showLegend && <ChartLegend content={<ChartLegendContent />} />}
@@ -98,6 +100,7 @@ export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element,
           strokeWidth={2}
           dot={false}
           isAnimationActive={isAnimationActive}
+          animationDuration={800}
         />
       ))}
       {showLegend && <ChartLegend content={<ChartLegendContent />} />}
@@ -120,6 +123,7 @@ export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element,
           stroke={`var(--color-${s.key})`}
           stackId="a"
           isAnimationActive={isAnimationActive}
+          animationDuration={800}
         />
       ))}
       {showLegend && <ChartLegend content={<ChartLegendContent />} />}
@@ -144,6 +148,7 @@ export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element,
           outerRadius="80%"
           label
           isAnimationActive={isAnimationActive}
+          animationDuration={800}
         >
           {pieData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
@@ -167,6 +172,7 @@ export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element,
           fillOpacity={0.6}
           stroke={`var(--color-${s.key})`}
           isAnimationActive={isAnimationActive}
+          animationDuration={800}
         />
       ))}
       {showLegend && <ChartLegend content={<ChartLegendContent />} />}
@@ -183,7 +189,7 @@ export const SlideChartRenderer: React.FC<SlideChartRendererProps> = ({ element,
     return (
       <RadialBarChart data={radialData} innerRadius={30} outerRadius="90%" margin={{ top: 12, bottom: 12 }}>
         {showTooltip && <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="label" />} />}
-        <RadialBar dataKey={dataKey} background isAnimationActive={isAnimationActive} />
+        <RadialBar dataKey={dataKey} background isAnimationActive={isAnimationActive} animationDuration={800} />
         {showLegend && <ChartLegend content={<ChartLegendContent nameKey="label" />} />}
       </RadialBarChart>
     )

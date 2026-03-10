@@ -570,3 +570,26 @@ link-selected-text = Text selectat
 link-cancel = Anulează
 link-update = Actualizează
 link-add-btn = Adaugă link
+
+# Tranziții Slide
+transition-title = Tranziție Slide
+transition-type = Tip
+transition-none = Fără
+transition-fade = Estompare
+transition-slide-left = Glisare stânga
+transition-slide-right = Glisare dreapta
+transition-slide-up = Glisare sus
+transition-slide-down = Glisare jos
+transition-push-left = Împinge stânga
+transition-push-right = Împinge dreapta
+transition-zoom-in = Mărire
+transition-zoom-out = Micșorare
+transition-flip = Întoarcere
+transition-cube = Cub
+transition-dissolve = Dizolvare
+transition-duration = Durată
+transition-trigger = Declanșator
+transition-trigger-click = La click
+transition-trigger-auto = Automat
+transition-delay = Întârziere
+transition-preview = Previzualizare
