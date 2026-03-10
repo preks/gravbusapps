@@ -120,7 +120,8 @@ export const CatalogSelectView = React.memo(
         !hasAutoSelectedRef.current &&
         !effectiveValue &&
         mergedOptions.length > 0 &&
-        !wiredLoading
+        !wiredLoading &&
+        !wiredDisabled
       ) {
         hasAutoSelectedRef.current = true
         const firstOption = mergedOptions[0]
@@ -134,7 +135,17 @@ export const CatalogSelectView = React.memo(
           }
         }
       }
-    }, [mode, autoSelectFirst, effectiveValue, mergedOptions, wiredLoading, controller, isControlled, onValueChange])
+    }, [
+      mode,
+      autoSelectFirst,
+      effectiveValue,
+      mergedOptions,
+      wiredLoading,
+      wiredDisabled,
+      controller,
+      isControlled,
+      onValueChange
+    ])
 
     const lastControllerValueRef = React.useRef<string>(wiredControllerValue)
     React.useEffect(() => {
@@ -184,6 +195,17 @@ export const CatalogSelectView = React.memo(
       [mergedOptions]
     )
 
+    const selectedLabelCacheRef = React.useRef<Record<string, string>>({})
+    React.useEffect(() => {
+      if (mergedOptions.length === 0) return
+
+      for (const option of mergedOptions) {
+        const optionValue = String(option.value)
+        const optionLabel = typeof option.label === 'string' ? option.label : String(option.label || option.value)
+        selectedLabelCacheRef.current[optionValue] = optionLabel
+      }
+    }, [mergedOptions])
+
     const selectedLabelsSignature = React.useMemo(() => {
       const selectedValues =
         mode !== 'default'
@@ -200,7 +222,11 @@ export const CatalogSelectView = React.memo(
       )
 
       return selectedValues
-        .map(selectedValue => `${selectedValue}:${labelByValue.get(selectedValue) || selectedValue}`)
+        .map(selectedValue => {
+          const resolvedLabel =
+            labelByValue.get(selectedValue) || selectedLabelCacheRef.current[selectedValue] || selectedValue
+          return `${selectedValue}:${resolvedLabel}`
+        })
         .join('|')
     }, [effectiveValue, mergedOptions, mode])
 

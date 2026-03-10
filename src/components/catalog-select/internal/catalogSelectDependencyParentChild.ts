@@ -157,6 +157,14 @@ export const handleInitialLoad = async ({
   nextVersion,
   isCurrentVersion
 }: CaseHandlerParams) => {
+  // Set refs synchronously first to prevent re-entrant calls.
+  // The effect that calls this handler depends on handleParentChildDependency which
+  // changes reference on every stateById update. Without this early commit, the effect
+  // re-runs while this async function is still running, sees lastParentValue===undefined,
+  // and calls handleInitialLoad again causing duplicate fetches.
+  if (parentValue) lastParentValuesRef.current.set(parentField, parentValue)
+  if (childValue) lastChildValuesRef.current.set(id, childValue)
+
   if (parentValue) {
     const currentParentValue = stateById[parentField]?.value
     if (!currentParentValue || currentParentValue !== parentValue) {
@@ -176,25 +184,9 @@ export const handleInitialLoad = async ({
       )
     }
 
-    const parentHasOption = stateById[parentField]?.options?.some(option => option.value === parentValue)
-    if (!parentHasOption) {
-      const resolvedOption = await fetchSingleOptionLabel({
-        id: parentField,
-        optionValue: parentValue,
-        locale,
-        fetchCatalogEntriesByIdentifier
-      }).catch(() => undefined)
-
-      if (resolvedOption) {
-        appendResolvedOptionIfMissing({
-          id: parentField,
-          optionValue: resolvedOption.value,
-          optionLabel: resolvedOption.label,
-          setFor
-        })
-      }
-    }
-
+    // Parent label (if missing from options) is handled by fetchMissingCatalogOptions,
+    // which runs after all configs finish loading. Fetching it here would duplicate that
+    // request and also delay fetchFilteredOptionsWithParent (which was awaiting it).
     fetchFilteredOptionsWithParent({
       id,
       parentValue,
@@ -207,9 +199,6 @@ export const handleInitialLoad = async ({
       isCurrentVersion
     })
   }
-
-  if (parentValue) lastParentValuesRef.current.set(parentField, parentValue)
-  if (childValue) lastChildValuesRef.current.set(id, childValue)
 }
 
 export const handleParentSelected = async ({
@@ -229,6 +218,10 @@ export const handleParentSelected = async ({
   nextVersion,
   isCurrentVersion
 }: CaseHandlerParams) => {
+  // Commit the new parent value synchronously before any async work to prevent
+  // re-entrant calls from the dependency effect that fires on every stateById update.
+  lastParentValuesRef.current.set(parentField, parentValue)
+
   const childMeta = childValue
     ? await resolveChildMeta({
         id,
@@ -243,6 +236,7 @@ export const handleParentSelected = async ({
 
   if (childValue && !shouldKeepChild) {
     clearChildValue({ id, setFor })
+    lastChildValuesRef.current.set(id, '')
   }
 
   if (parentValue) {
@@ -258,11 +252,6 @@ export const handleParentSelected = async ({
       isCurrentVersion
     })
   }
-
-  lastParentValuesRef.current.set(parentField, parentValue)
-  if (childValue && !shouldKeepChild) {
-    lastChildValuesRef.current.set(id, '')
-  }
 }
 
 const autoSelectParentFromChild = async ({
@@ -277,6 +266,7 @@ const autoSelectParentFromChild = async ({
   defaultPageSize,
   locale,
   autoSelectedParentsRef,
+  lastParentValuesRef,
   nextVersion,
   isCurrentVersion
 }: CaseHandlerParams & { childMeta?: { parentEntryId?: string; type?: string } }) => {
@@ -292,6 +282,13 @@ const autoSelectParentFromChild = async ({
         }).catch(() => childMeta)
 
   if (!resolvedChildMeta?.parentEntryId) return undefined
+
+  // Commit the resolved parent value synchronously before setParentValueAndFetchOptions
+  // triggers a state update (setFor → re-render). Without this, the dependency effect
+  // re-fires while the async work is still in progress and sees lastParentValue===undefined,
+  // causing determineCase to return 'initial-load' and firing a duplicate
+  // fetchFilteredOptionsWithParent call.
+  lastParentValuesRef.current.set(parentField, resolvedChildMeta.parentEntryId)
 
   await setParentValueAndFetchOptions({
     parentField,
@@ -312,6 +309,12 @@ const autoSelectParentFromChild = async ({
 }
 
 export const handleChildSelectedBi = async (params: CaseHandlerParams) => {
+  // Commit synchronously before any async work to prevent the dependency effect from
+  // re-firing with lastChildValue===undefined while autoSelectParentFromChild is still
+  // running. Without this, a mid-async re-render sees the unchanged lastChildValue and
+  // determineCase can return 'child-selected-bi' again, causing duplicate requests.
+  params.lastChildValuesRef.current.set(params.id, params.childValue)
+
   const childMeta = params.stateById[params.id]?.metaByValue?.[params.childValue]
 
   if (!childMeta && params.childValue) {
@@ -319,8 +322,6 @@ export const handleChildSelectedBi = async (params: CaseHandlerParams) => {
   } else if (childMeta?.parentEntryId) {
     await autoSelectParentFromChild({ ...params, childMeta })
   }
-
-  params.lastChildValuesRef.current.set(params.id, params.childValue)
 }
 
 export const handleChildSelectedUni = ({ childValue, id, lastChildValuesRef }: CaseHandlerParams) => {

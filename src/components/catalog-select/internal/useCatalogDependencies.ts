@@ -11,8 +11,8 @@ import {
   handleParentCleared,
   handleParentSelected
 } from './catalogSelectDependencyParentChild'
-import { fetchFilteredOptionsWithParent, getFieldValue } from './catalogSelectDependencyShared'
-import { buildFiltersSignature, CatalogSelectExternalValue } from './catalogSelectUtils'
+import { getFieldValue } from './catalogSelectDependencyShared'
+import { CatalogSelectExternalValue } from './catalogSelectUtils'
 import type {
   CatalogSelectDependencyFetcher,
   CatalogSelectDependencySetter,
@@ -101,62 +101,20 @@ export const useCatalogDependencies = ({
     [configById, setFor, defaultPageSize]
   )
 
-  const shouldFetchChild = useCallback(
-    (childState: CatalogSelectDependencyState | undefined, expectedFiltersSig: string) => {
-      if (!childState) return true
-      if (childState.loading) return false
-      if ((childState.options?.length || 0) > 0) return false
-      if (childState.total > 0) return false
-      return childState.lastFiltersSig !== expectedFiltersSig
-    },
-    []
-  )
-
-  const triggerChildFetchIfNeeded = useCallback(
-    (parentField: string, effectiveParentValue: string) => {
-      if (!parentField || !effectiveParentValue) return
-
-      const childConfigs = childConfigsByParentField.get(parentField) ?? []
-      const expectedFiltersSig = buildFiltersSignature({ parentEntryId: effectiveParentValue })
-
-      for (const childConfig of childConfigs) {
-        const childState = stateByIdRef.current[childConfig.id]
-        if (!shouldFetchChild(childState, expectedFiltersSig)) continue
-
-        fetchFilteredOptionsWithParent({
-          id: childConfig.id,
-          parentValue: effectiveParentValue,
-          config: childConfig,
-          defaultPageSize,
-          setFor,
-          fetchCatalogEntriesByIdentifier,
-          locale,
-          nextVersion,
-          isCurrentVersion
-        })
-      }
-    },
-    [
-      childConfigsByParentField,
-      shouldFetchChild,
-      defaultPageSize,
-      setFor,
-      fetchCatalogEntriesByIdentifier,
-      locale,
-      nextVersion,
-      isCurrentVersion
-    ]
-  )
-
+  // Sync parent field values into catalog state when external form values change.
+  // Child fetches are NOT triggered here — the parentDependencySignature effect below
+  // handles those via handleInitialLoad / handleParentSelected.
+  // Triggering child fetches from both places caused duplicate CountryRegion queries:
+  // both effects fire in the same render cycle and React-batched setFor updates aren't
+  // yet reflected in stateByIdRef, so the loading guard in shouldFetchChild is bypassed.
   useEffect(() => {
     if (!externalValues) return
 
     for (const parentField of parentFieldIds) {
       const parentValueFromForm = getParentValue(parentField, dependencyExternalValues, stateByIdRef.current)
       updateParentStateFromForm(parentField, parentValueFromForm)
-      triggerChildFetchIfNeeded(parentField, parentValueFromForm)
     }
-  }, [dependencyExternalValues, externalValues, parentFieldIds, triggerChildFetchIfNeeded, updateParentStateFromForm])
+  }, [dependencyExternalValues, externalValues, parentFieldIds, updateParentStateFromForm])
 
   const parentDependencySignature = useMemo(
     () =>
@@ -200,6 +158,34 @@ export const useCatalogDependencies = ({
       const parentState = stateById[parentField]
       const wasAutoSelected = autoSelectedParentsRef.current.has(parentField)
       const parentManuallyCleared = Boolean(parentState?.manuallyCleared)
+      const internalParentValue = parentState?.value || ''
+      const internalChildValue = stateById[id]?.value || ''
+      const isPendingAutoSelectedParentSync =
+        isBiDirectional &&
+        wasAutoSelected &&
+        !parentValue &&
+        Boolean(childValue) &&
+        Boolean(internalParentValue) &&
+        internalParentValue === lastParentValue
+
+      // While the parent auto-select is propagating back into RHF, externalValues can still
+      // be empty for one render even though the internal parent state is already set.
+      // Treat that window as "in sync" instead of misclassifying it as parent-cleared.
+      if (isPendingAutoSelectedParentSync) {
+        lastParentValuesRef.current.set(parentField, internalParentValue)
+        lastChildValuesRef.current.set(id, childValue)
+        return
+      }
+
+      const isPendingParentClearedChildSync =
+        isBiDirectional && parentManuallyCleared && !parentValue && Boolean(childValue) && !internalChildValue
+
+      // After parent-clear we first clear the child internally, then RHF catches up on the next
+      // controlled render. Ignore that short stale-child window so the old child value cannot
+      // suppress the next real child selection.
+      if (isPendingParentClearedChildSync) {
+        return
+      }
 
       const handlerParams = {
         id,
@@ -265,8 +251,10 @@ export const useCatalogDependencies = ({
         autoSelectedToCleanup.add(parentField)
       }
 
-      if (childValue && parentState?.manuallyCleared && !wasAutoSelected) {
-        setFor(parentField, previousState => ({ ...previousState, manuallyCleared: false }))
+      if (!parentValue && !childValue && parentState?.manuallyCleared) {
+        setFor(parentField, previousState =>
+          previousState.manuallyCleared ? { ...previousState, manuallyCleared: false } : previousState
+        )
       }
     },
     [
