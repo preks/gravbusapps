@@ -180,10 +180,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         dateFrom: variables.dateFrom,
         dateTo: variables.dateTo
       })
+      const terminalStatuses = new Set(['APPROVED_CORRECTION_REQUEST', 'REJECTED_CORRECTION_REQUEST'])
       const correctionDates: Set<string> = new Set(
         (corRes?.EmployeeAttendanceCorrectionRequest ?? [])
-          // Ignore approved requests; treat all other active requests as pending overlays
-          .filter((r: any) => String(r?.status) !== 'APPROVED_CORRECTION_REQUEST')
+          .filter((r: any) => !terminalStatuses.has(String(r?.status)))
           .map((r: any) => String(r.attendanceDate))
       )
       // Mark entries as pending if there's an active correction for the same date
