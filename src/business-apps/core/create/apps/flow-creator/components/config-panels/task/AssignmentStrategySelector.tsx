@@ -10,8 +10,9 @@ import {
   SelectValue,
   Textarea
 } from '@newwork/nw-design-system'
+import type { AssignmentPersonFieldOption } from '../../../utils/assignmentPersonFieldUtils'
 
-type AssignmentModeValue = 'CLAIM' | 'ASSIGN' | 'ASSIGN_DEFERRED' | (string & {})
+type AssignmentModeValue = 'CLAIM' | 'ASSIGN_SINGLE' | 'ASSIGN' | 'ASSIGN_DEFERRED' | (string & {})
 
 type AssignmentTargetShape = {
   users?: string[]
@@ -38,12 +39,10 @@ export type AssignmentStrategyId =
   | 'START_FIELD_MANAGER'
   | 'CUSTOM_EXPRESSION'
 
-type StartField = { name: string; label: string }
-
 interface AssignmentStrategySelectorProps {
   value: TaskAssignmentShape
   onChange: (next: TaskAssignmentShape) => void
-  availableStartFields: StartField[]
+  availableStartFields: AssignmentPersonFieldOption[]
   defaultStrategyId?: AssignmentStrategyId
   mode?: 'simple' | 'advanced'
   variant?: 'select' | 'cards'
@@ -51,39 +50,17 @@ interface AssignmentStrategySelectorProps {
   'data-testid'?: string
 }
 
-type ParsedStrategy = { strategyId: AssignmentStrategyId; fieldName?: string; rawExpression?: string }
+type ParsedStrategy = { strategyId: AssignmentStrategyId; fieldId?: string; rawExpression?: string }
 
 function normalizeExpr(value: string): string {
   return value.replace(/\s+/g, '').trim()
 }
 
-function parseStrategyFromAssignment(assignment: TaskAssignmentShape, fallback: AssignmentStrategyId): ParsedStrategy {
-  const users = assignment.targets?.users
-  const raw = Array.isArray(users) && users.length > 0 ? String(users[0] ?? '') : ''
-  const rawExpression = raw.trim()
-  const expr = normalizeExpr(raw)
-
-  if (expr === '{{$workflow.initiator}}') return { strategyId: 'REQUESTER', rawExpression }
-  if (expr === '{{$orgchart.managerByUserId[$workflow.initiator]}}')
-    return { strategyId: 'REQUESTER_MANAGER', rawExpression }
-  if (expr === '{{$orgchart.skipLevelManagerByUserId[$workflow.initiator]}}') {
-    return { strategyId: 'REQUESTER_SKIP_LEVEL_MANAGER', rawExpression }
-  }
-  if (expr === '{{$orgchart.directReportsByUserId[$workflow.initiator]}}') {
-    return { strategyId: 'REQUESTER_DIRECT_REPORTS', rawExpression }
-  }
-
-  const userFromField = expr.match(/^\{\{\$orgchart\.userIdByEmployeeId\[\$workflow\.input\.([a-zA-Z0-9_]+)\]\}\}$/)
-  if (userFromField?.[1]) return { strategyId: 'START_FIELD_USER', fieldName: userFromField[1], rawExpression }
-
-  const managerFromField = expr.match(/^\{\{\$orgchart\.manager\[\$workflow\.input\.([a-zA-Z0-9_]+)\]\}\}$/)
-  if (managerFromField?.[1]) return { strategyId: 'START_FIELD_MANAGER', fieldName: managerFromField[1], rawExpression }
-
-  if (rawExpression) return { strategyId: 'CUSTOM_EXPRESSION', rawExpression }
-  return { strategyId: fallback, rawExpression }
+function getFieldOptionId(field: AssignmentPersonFieldOption): string {
+  return String(field.id || field.name)
 }
 
-function buildExpression(strategyId: AssignmentStrategyId, fieldName?: string): string {
+function buildLegacyFieldExpression(strategyId: AssignmentStrategyId, fieldName?: string): string {
   switch (strategyId) {
     case 'REQUESTER':
       return '{{$workflow.initiator}}'
@@ -104,6 +81,133 @@ function buildExpression(strategyId: AssignmentStrategyId, fieldName?: string): 
   }
 }
 
+function buildFieldExpression(strategyId: AssignmentStrategyId, field?: AssignmentPersonFieldOption): string {
+  if (strategyId === 'START_FIELD_USER') {
+    return field?.userExpression || buildLegacyFieldExpression(strategyId, field?.name)
+  }
+  if (strategyId === 'START_FIELD_MANAGER') {
+    return field?.managerExpression || buildLegacyFieldExpression(strategyId, field?.name)
+  }
+  return buildLegacyFieldExpression(strategyId)
+}
+
+function inferAssignmentModeForExpression(
+  rawExpression: string,
+  fallback: AssignmentModeValue = 'ASSIGN'
+): AssignmentModeValue {
+  const expr = normalizeExpr(rawExpression)
+  if (!expr) return fallback
+  if (expr.includes('$steps.')) return 'ASSIGN_DEFERRED'
+  if (expr === normalizeExpr(buildLegacyFieldExpression('REQUESTER_DIRECT_REPORTS'))) return 'ASSIGN'
+  return fallback
+}
+
+function inferAssignmentModeForStrategy(
+  strategyId: AssignmentStrategyId,
+  field?: AssignmentPersonFieldOption
+): AssignmentModeValue {
+  if (strategyId === 'CUSTOM_EXPRESSION') return 'ASSIGN_DEFERRED'
+  if (strategyId === 'REQUESTER_DIRECT_REPORTS') return 'ASSIGN'
+
+  const expression = buildFieldExpression(strategyId, field)
+  if (strategyId === 'START_FIELD_USER' || strategyId === 'START_FIELD_MANAGER') {
+    return inferAssignmentModeForExpression(expression, 'ASSIGN_SINGLE')
+  }
+
+  return inferAssignmentModeForExpression(expression, 'ASSIGN_SINGLE')
+}
+
+export function inferAssignmentModeForTargets(targets: AssignmentTargetShape | null): AssignmentModeValue {
+  if (!targets) return 'ASSIGN_SINGLE'
+
+  const users = Array.isArray(targets.users) ? targets.users.filter(Boolean).map(value => String(value)) : []
+  if (users.length === 0) return 'ASSIGN'
+
+  if (users.some(expression => normalizeExpr(expression).includes('$steps.'))) return 'ASSIGN_DEFERRED'
+  if (
+    users.some(
+      expression => normalizeExpr(expression) === normalizeExpr(buildLegacyFieldExpression('REQUESTER_DIRECT_REPORTS'))
+    )
+  ) {
+    return 'ASSIGN'
+  }
+
+  return users.length === 1 ? 'ASSIGN_SINGLE' : 'ASSIGN'
+}
+
+function findFieldOptionByName(
+  fields: AssignmentPersonFieldOption[],
+  fieldName?: string
+): AssignmentPersonFieldOption | undefined {
+  if (!fieldName) return undefined
+  return fields.find(field => field.name === fieldName)
+}
+
+function parseStrategyFromAssignment(
+  assignment: TaskAssignmentShape,
+  fallback: AssignmentStrategyId,
+  fieldOptions: AssignmentPersonFieldOption[]
+): ParsedStrategy {
+  const users = assignment.targets?.users
+  const raw = Array.isArray(users) && users.length > 0 ? String(users[0] ?? '') : ''
+  const rawExpression = raw.trim()
+  const expr = normalizeExpr(raw)
+
+  if (expr === '{{$workflow.initiator}}') return { strategyId: 'REQUESTER', rawExpression }
+  if (expr === '{{$orgchart.managerByUserId[$workflow.initiator]}}') {
+    return { strategyId: 'REQUESTER_MANAGER', rawExpression }
+  }
+  if (expr === '{{$orgchart.skipLevelManagerByUserId[$workflow.initiator]}}') {
+    return { strategyId: 'REQUESTER_SKIP_LEVEL_MANAGER', rawExpression }
+  }
+  if (expr === '{{$orgchart.directReportsByUserId[$workflow.initiator]}}') {
+    return { strategyId: 'REQUESTER_DIRECT_REPORTS', rawExpression }
+  }
+
+  const matchedUserField = fieldOptions.find(
+    field => normalizeExpr(buildFieldExpression('START_FIELD_USER', field)) === expr
+  )
+  if (matchedUserField) {
+    return { strategyId: 'START_FIELD_USER', fieldId: getFieldOptionId(matchedUserField), rawExpression }
+  }
+
+  const matchedManagerField = fieldOptions.find(
+    field => normalizeExpr(buildFieldExpression('START_FIELD_MANAGER', field)) === expr
+  )
+  if (matchedManagerField) {
+    return { strategyId: 'START_FIELD_MANAGER', fieldId: getFieldOptionId(matchedManagerField), rawExpression }
+  }
+
+  const legacyStartUserField =
+    expr.match(/^\{\{\$orgchart\.userIdByEmployeeId\[\$workflow\.input(?:\.formData)?\.([a-zA-Z0-9_]+)\]\}\}$/)?.[1] ||
+    expr.match(/^\{\{\$workflow\.input(?:\.formData)?\.([a-zA-Z0-9_]+)\}\}$/)?.[1]
+  if (legacyStartUserField) {
+    return {
+      strategyId: 'START_FIELD_USER',
+      fieldId: getFieldOptionId(
+        findFieldOptionByName(fieldOptions, legacyStartUserField) || { name: legacyStartUserField, label: '' }
+      ),
+      rawExpression
+    }
+  }
+
+  const legacyStartManagerField =
+    expr.match(/^\{\{\$orgchart\.manager\[\$workflow\.input(?:\.formData)?\.([a-zA-Z0-9_]+)\]\}\}$/)?.[1] ||
+    expr.match(/^\{\{\$orgchart\.managerByUserId\[\$workflow\.input(?:\.formData)?\.([a-zA-Z0-9_]+)\]\}\}$/)?.[1]
+  if (legacyStartManagerField) {
+    return {
+      strategyId: 'START_FIELD_MANAGER',
+      fieldId: getFieldOptionId(
+        findFieldOptionByName(fieldOptions, legacyStartManagerField) || { name: legacyStartManagerField, label: '' }
+      ),
+      rawExpression
+    }
+  }
+
+  if (rawExpression) return { strategyId: 'CUSTOM_EXPRESSION', rawExpression }
+  return { strategyId: fallback, rawExpression }
+}
+
 export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProps> = ({
   value,
   onChange,
@@ -114,111 +218,31 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
   disallowedStrategyIds,
   'data-testid': testId = 'assignment-strategy-selector'
 }) => {
-  const derived = useMemo(() => parseStrategyFromAssignment(value, defaultStrategyId), [value, defaultStrategyId])
-
-  const disallowed = useMemo(() => new Set<AssignmentStrategyId>(disallowedStrategyIds ?? []), [disallowedStrategyIds])
-
-  const [selectedStrategyId, setSelectedStrategyId] = useState<AssignmentStrategyId>(
-    disallowed.has(derived.strategyId) ? defaultStrategyId : derived.strategyId
-  )
-  const [selectedFieldName, setSelectedFieldName] = useState<string | undefined>(derived.fieldName)
-  const lastUserEditAtRef = useRef<number>(0)
-  const didNormalizeDisallowedRef = useRef<boolean>(false)
-
-  useEffect(() => {
-    if (Date.now() - lastUserEditAtRef.current < 250) return
-    if (selectedStrategyId === 'CUSTOM_EXPRESSION') return
-    setSelectedStrategyId(disallowed.has(derived.strategyId) ? defaultStrategyId : derived.strategyId)
-    setSelectedFieldName(derived.fieldName)
-  }, [defaultStrategyId, derived.fieldName, derived.strategyId, disallowed, selectedStrategyId])
-
-  const needsField = selectedStrategyId === 'START_FIELD_USER' || selectedStrategyId === 'START_FIELD_MANAGER'
-  const isCustomExpression = selectedStrategyId === 'CUSTOM_EXPRESSION'
-
   const fieldOptions = useMemo(
     () => availableStartFields.slice().sort((a, b) => a.label.localeCompare(b.label)),
     [availableStartFields]
   )
 
-  const setStrategy = useCallback(
-    (strategyId: string) => {
-      const nextStrategyId = strategyId as AssignmentStrategyId
-      lastUserEditAtRef.current = Date.now()
-      setSelectedStrategyId(nextStrategyId)
-
-      const nextField = nextStrategyId.startsWith('START_FIELD_')
-        ? (selectedFieldName ?? fieldOptions[0]?.name)
-        : undefined
-
-      if (nextStrategyId.startsWith('START_FIELD_')) {
-        setSelectedFieldName(nextField)
-      } else if (nextStrategyId !== 'CUSTOM_EXPRESSION') {
-        setSelectedFieldName(undefined)
+  const fieldOptionMap = useMemo(() => {
+    const map = new Map<string, AssignmentPersonFieldOption>()
+    fieldOptions.forEach(field => {
+      map.set(getFieldOptionId(field), field)
+      if (!map.has(field.name)) {
+        map.set(field.name, field)
       }
+    })
+    return map
+  }, [fieldOptions])
 
-      const current =
-        Array.isArray(value.targets?.users) && value.targets?.users?.[0] ? String(value.targets.users[0]) : ''
-      const expr = nextStrategyId === 'CUSTOM_EXPRESSION' ? current : buildExpression(nextStrategyId, nextField)
-
-      onChange({
-        ...value,
-        assignmentMode: 'ASSIGN_DEFERRED',
-        targets: {
-          users: [expr]
-        }
-      })
-    },
-    [fieldOptions, onChange, selectedFieldName, value]
+  const derived = useMemo(
+    () => parseStrategyFromAssignment(value, defaultStrategyId, fieldOptions),
+    [defaultStrategyId, fieldOptions, value]
   )
 
-  const setField = useCallback(
-    (fieldName: string) => {
-      lastUserEditAtRef.current = Date.now()
-      setSelectedFieldName(fieldName)
-      const expr = buildExpression(selectedStrategyId, fieldName)
-      onChange({
-        ...value,
-        assignmentMode: 'ASSIGN_DEFERRED',
-        targets: {
-          users: [expr]
-        }
-      })
-    },
-    [onChange, selectedStrategyId, value]
-  )
-
-  const setCustomExpression = useCallback(
-    (raw: string) => {
-      lastUserEditAtRef.current = Date.now()
-      setSelectedStrategyId('CUSTOM_EXPRESSION')
-      onChange({
-        ...value,
-        assignmentMode: 'ASSIGN_DEFERRED',
-        targets: {
-          users: [raw]
-        }
-      })
-    },
-    [onChange, value]
-  )
-
-  const customExpressionValue = useMemo(() => {
-    const users = value.targets?.users
-    const raw = Array.isArray(users) && users.length > 0 ? String(users[0] ?? '') : ''
-    return raw
-  }, [value.targets?.users])
-
-  const expressionPreview = useMemo(
-    () =>
-      selectedStrategyId === 'CUSTOM_EXPRESSION'
-        ? customExpressionValue.trim()
-        : buildExpression(selectedStrategyId, selectedFieldName),
-    [customExpressionValue, selectedFieldName, selectedStrategyId]
-  )
+  const disallowed = useMemo(() => new Set<AssignmentStrategyId>(disallowedStrategyIds ?? []), [disallowedStrategyIds])
 
   const strategyOptions = useMemo(() => {
     const showSkipLevel = mode === 'advanced' || derived.strategyId === 'REQUESTER_SKIP_LEVEL_MANAGER'
-    const showCustom = mode === 'advanced' || derived.strategyId === 'CUSTOM_EXPRESSION'
 
     const opts: Array<{
       id: AssignmentStrategyId
@@ -254,52 +278,203 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
       {
         id: 'START_FIELD_USER',
         title: 'Selected person',
-        description: 'Assign to a person selected in the start form.',
+        description: 'Assign to a person selected earlier in the flow.',
         disabled: fieldOptions.length === 0
       },
       {
         id: 'START_FIELD_MANAGER',
         title: 'Selected person’s manager',
-        description: 'Assign to the manager of a person selected in the start form.',
+        description: 'Assign to the manager of a person selected earlier in the flow.',
         disabled: fieldOptions.length === 0
       },
-      ...(showCustom
+      ...(mode === 'advanced'
         ? [
             {
               id: 'CUSTOM_EXPRESSION' as const,
               title: 'Custom rule',
-              description: 'Use a custom org chart rule.',
-              disabled: mode !== 'advanced'
+              description: 'Use a custom org chart rule.'
             }
           ]
         : [])
     ]
 
-    const filtered = disallowed.size > 0 ? opts.filter(o => !disallowed.has(o.id)) : opts
+    const filtered = disallowed.size > 0 ? opts.filter(option => !disallowed.has(option.id)) : opts
     return filtered.length > 0 ? filtered : opts
   }, [derived.strategyId, disallowed, fieldOptions.length, mode])
 
+  const fallbackStrategyId = useMemo(() => {
+    const preferred = strategyOptions.find(option => option.id === defaultStrategyId && !option.disabled)
+    if (preferred) return preferred.id
+    return strategyOptions.find(option => !option.disabled)?.id ?? defaultStrategyId
+  }, [defaultStrategyId, strategyOptions])
+
+  const normalizedDerivedStrategyId = useMemo(() => {
+    const option = strategyOptions.find(candidate => candidate.id === derived.strategyId)
+    if (!option || option.disabled) return fallbackStrategyId
+    return option.id
+  }, [derived.strategyId, fallbackStrategyId, strategyOptions])
+
+  const derivedFieldId = useMemo(() => {
+    if (!derived.fieldId) return undefined
+    const field = fieldOptionMap.get(derived.fieldId)
+    return field ? getFieldOptionId(field) : undefined
+  }, [derived.fieldId, fieldOptionMap])
+
+  const [selectedStrategyId, setSelectedStrategyId] = useState<AssignmentStrategyId>(normalizedDerivedStrategyId)
+  const [selectedFieldId, setSelectedFieldId] = useState<string | undefined>(derivedFieldId)
+  const lastUserEditAtRef = useRef<number>(0)
+  const didNormalizeUnsupportedRef = useRef<boolean>(false)
+
+  useEffect(() => {
+    if (Date.now() - lastUserEditAtRef.current < 250) return
+    if (selectedStrategyId === 'CUSTOM_EXPRESSION') return
+    setSelectedStrategyId(normalizedDerivedStrategyId)
+    setSelectedFieldId(derivedFieldId)
+  }, [derivedFieldId, normalizedDerivedStrategyId, selectedStrategyId])
+
+  const needsField = selectedStrategyId === 'START_FIELD_USER' || selectedStrategyId === 'START_FIELD_MANAGER'
+  const isCustomExpression = selectedStrategyId === 'CUSTOM_EXPRESSION'
+
+  const resolveFieldOption = useCallback(
+    (fieldId?: string) => {
+      if (!fieldId) return undefined
+      return fieldOptionMap.get(fieldId)
+    },
+    [fieldOptionMap]
+  )
+
+  const derivedExpression = useMemo(() => {
+    if (derived.strategyId === 'CUSTOM_EXPRESSION') {
+      return derived.rawExpression?.trim() ?? ''
+    }
+    return buildFieldExpression(derived.strategyId, resolveFieldOption(derivedFieldId))
+  }, [derived.rawExpression, derived.strategyId, derivedFieldId, resolveFieldOption])
+
+  const requiresDeferredMode = useMemo(() => {
+    if (!derivedExpression) return false
+    if (derived.strategyId === 'CUSTOM_EXPRESSION') return true
+    return normalizeExpr(derivedExpression).includes('$steps.')
+  }, [derived.strategyId, derivedExpression])
+
+  const setStrategy = useCallback(
+    (strategyId: string) => {
+      const nextStrategyId = strategyId as AssignmentStrategyId
+      lastUserEditAtRef.current = Date.now()
+      setSelectedStrategyId(nextStrategyId)
+
+      const nextField = nextStrategyId.startsWith('START_FIELD_')
+        ? resolveFieldOption(selectedFieldId) || resolveFieldOption(derivedFieldId) || fieldOptions[0]
+        : undefined
+      const nextFieldId = nextField ? getFieldOptionId(nextField) : undefined
+
+      if (nextStrategyId.startsWith('START_FIELD_')) {
+        setSelectedFieldId(nextFieldId)
+      } else if (nextStrategyId !== 'CUSTOM_EXPRESSION') {
+        setSelectedFieldId(undefined)
+      }
+
+      const current =
+        Array.isArray(value.targets?.users) && value.targets?.users?.[0] ? String(value.targets.users[0]) : ''
+      const expr = nextStrategyId === 'CUSTOM_EXPRESSION' ? current : buildFieldExpression(nextStrategyId, nextField)
+      const nextAssignmentMode =
+        nextStrategyId === 'CUSTOM_EXPRESSION'
+          ? 'ASSIGN_DEFERRED'
+          : inferAssignmentModeForStrategy(nextStrategyId, nextField)
+
+      onChange({
+        ...value,
+        assignmentMode: nextAssignmentMode,
+        targets: {
+          users: [expr]
+        }
+      })
+    },
+    [derivedFieldId, fieldOptions, onChange, resolveFieldOption, selectedFieldId, value]
+  )
+
+  const setField = useCallback(
+    (fieldId: string) => {
+      lastUserEditAtRef.current = Date.now()
+      const field = resolveFieldOption(fieldId)
+      const normalizedFieldId = field ? getFieldOptionId(field) : fieldId
+      setSelectedFieldId(normalizedFieldId)
+      const nextExpression = buildFieldExpression(selectedStrategyId, field)
+
+      onChange({
+        ...value,
+        assignmentMode: inferAssignmentModeForStrategy(selectedStrategyId, field),
+        targets: {
+          users: [nextExpression]
+        }
+      })
+    },
+    [onChange, resolveFieldOption, selectedStrategyId, value]
+  )
+
+  const setCustomExpression = useCallback(
+    (raw: string) => {
+      lastUserEditAtRef.current = Date.now()
+      setSelectedStrategyId('CUSTOM_EXPRESSION')
+      onChange({
+        ...value,
+        assignmentMode: 'ASSIGN_DEFERRED',
+        targets: {
+          users: [raw]
+        }
+      })
+    },
+    [onChange, value]
+  )
+
+  const customExpressionValue = useMemo(() => {
+    const users = value.targets?.users
+    return Array.isArray(users) && users.length > 0 ? String(users[0] ?? '') : ''
+  }, [value.targets?.users])
+
+  const expressionPreview = useMemo(() => {
+    if (selectedStrategyId === 'CUSTOM_EXPRESSION') {
+      return customExpressionValue.trim()
+    }
+    return buildFieldExpression(selectedStrategyId, resolveFieldOption(selectedFieldId))
+  }, [customExpressionValue, resolveFieldOption, selectedFieldId, selectedStrategyId])
+
   const selectedOption = useMemo(
-    () => strategyOptions.find(o => o.id === selectedStrategyId) ?? strategyOptions[0],
+    () => strategyOptions.find(option => option.id === selectedStrategyId) ?? strategyOptions[0],
     [selectedStrategyId, strategyOptions]
   )
 
   useEffect(() => {
-    if (disallowed.size === 0) return
-    if (!disallowed.has(derived.strategyId)) {
-      didNormalizeDisallowedRef.current = false
+    const derivedNeedsField = derived.strategyId === 'START_FIELD_USER' || derived.strategyId === 'START_FIELD_MANAGER'
+    const needsNormalization =
+      normalizedDerivedStrategyId !== derived.strategyId ||
+      (derivedNeedsField && fieldOptions.length > 0 && !derivedFieldId)
+
+    if (!needsNormalization) {
+      didNormalizeUnsupportedRef.current = false
       return
     }
-    if (didNormalizeDisallowedRef.current) return
-    didNormalizeDisallowedRef.current = true
+    if (didNormalizeUnsupportedRef.current) return
 
-    const next =
-      (!disallowed.has(defaultStrategyId) && strategyOptions.some(o => o.id === defaultStrategyId)
-        ? defaultStrategyId
-        : strategyOptions[0]?.id) ?? defaultStrategyId
+    didNormalizeUnsupportedRef.current = true
+    setStrategy(normalizedDerivedStrategyId)
+  }, [
+    derived.fieldId,
+    derived.strategyId,
+    derivedFieldId,
+    fieldOptions.length,
+    normalizedDerivedStrategyId,
+    setStrategy
+  ])
 
-    setStrategy(next)
-  }, [defaultStrategyId, derived.strategyId, disallowed, setStrategy, strategyOptions])
+  useEffect(() => {
+    if (!requiresDeferredMode) return
+    if (value.assignmentMode === 'ASSIGN_DEFERRED') return
+
+    onChange({
+      ...value,
+      assignmentMode: 'ASSIGN_DEFERRED'
+    })
+  }, [onChange, requiresDeferredMode, value])
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-2" data-testid={testId}>
@@ -312,26 +487,26 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
             className="gba:flex gba:flex-col gba:gap-2"
             data-testid={`${testId}-strategy`}
           >
-            {strategyOptions.map(opt => {
-              const id = `${testId}-strategy-${opt.id}`
-              const selected = selectedStrategyId === opt.id
-              const disabled = Boolean(opt.disabled)
+            {strategyOptions.map(option => {
+              const id = `${testId}-strategy-${option.id}`
+              const selected = selectedStrategyId === option.id
+              const disabled = Boolean(option.disabled)
 
               return (
                 <Label
-                  key={opt.id}
+                  key={option.id}
                   htmlFor={id}
                   className={[
                     'gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:border gba:p-3 gba:cursor-pointer gba:transition-colors',
                     selected ? 'gba:border-primary gba:bg-muted' : 'gba:border-border gba:bg-background',
                     disabled ? 'gba:opacity-50 gba:pointer-events-none' : 'gba:hover:bg-muted'
                   ].join(' ')}
-                  data-testid={`${testId}-strategy-option-${opt.id}`}
+                  data-testid={`${testId}-strategy-option-${option.id}`}
                 >
-                  <RadioGroupItem id={id} value={opt.id} disabled={disabled} />
+                  <RadioGroupItem id={id} value={option.id} disabled={disabled} />
                   <div className="gba:flex gba:flex-col gba:gap-0.5">
-                    <span className="gba:text-xs gba:font-semibold gba:text-foreground">{opt.title}</span>
-                    <span className="gba:text-xs gba:text-muted-foreground">{opt.description}</span>
+                    <span className="gba:text-xs gba:font-semibold gba:text-foreground">{option.title}</span>
+                    <span className="gba:text-xs gba:text-muted-foreground">{option.description}</span>
                   </div>
                 </Label>
               )
@@ -347,9 +522,9 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {strategyOptions.map(opt => (
-                  <SelectItem key={opt.id} value={opt.id} disabled={Boolean(opt.disabled)}>
-                    {opt.title}
+                {strategyOptions.map(option => (
+                  <SelectItem key={option.id} value={option.id} disabled={Boolean(option.disabled)}>
+                    {option.title}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -363,30 +538,30 @@ export const AssignmentStrategySelector: React.FC<AssignmentStrategySelectorProp
         )}
       </div>
 
-      {needsField && (
+      {needsField ? (
         <div className="gba:flex gba:flex-col gba:gap-1.5">
-          <Label className="gba:text-xs gba:font-medium">Start field</Label>
-          <Select value={selectedFieldName ?? ''} onValueChange={setField}>
+          <Label className="gba:text-xs gba:font-medium">Person field</Label>
+          <Select value={selectedFieldId ?? ''} onValueChange={setField}>
             <SelectTrigger className="gba:h-8 gba:text-xs gba:bg-background" data-testid={`${testId}-field`}>
               <SelectValue placeholder={fieldOptions.length ? 'Select a field…' : 'No eligible fields'} />
             </SelectTrigger>
             <SelectContent>
-              {fieldOptions.map(f => (
-                <SelectItem key={f.name} value={f.name}>
-                  {f.label}
+              {fieldOptions.map(field => (
+                <SelectItem key={getFieldOptionId(field)} value={getFieldOptionId(field)}>
+                  {field.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-      )}
+      ) : null}
 
       {isCustomExpression && mode === 'advanced' ? (
         <div className="gba:flex gba:flex-col gba:gap-1.5">
           <Label className="gba:text-xs gba:font-medium">Assignment rule</Label>
           <Textarea
             value={customExpressionValue}
-            onChange={e => setCustomExpression(e.target.value)}
+            onChange={event => setCustomExpression(event.target.value)}
             placeholder="{{$orgchart.managerByUserId[$workflow.initiator]}}"
             className="gba:min-h-20 gba:text-xs"
             data-testid={`${testId}-custom-expression`}
