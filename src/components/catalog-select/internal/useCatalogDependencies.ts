@@ -158,6 +158,34 @@ export const useCatalogDependencies = ({
       const parentState = stateById[parentField]
       const wasAutoSelected = autoSelectedParentsRef.current.has(parentField)
       const parentManuallyCleared = Boolean(parentState?.manuallyCleared)
+      const internalParentValue = parentState?.value || ''
+      const internalChildValue = stateById[id]?.value || ''
+      const isPendingAutoSelectedParentSync =
+        isBiDirectional &&
+        wasAutoSelected &&
+        !parentValue &&
+        Boolean(childValue) &&
+        Boolean(internalParentValue) &&
+        internalParentValue === lastParentValue
+
+      // While the parent auto-select is propagating back into RHF, externalValues can still
+      // be empty for one render even though the internal parent state is already set.
+      // Treat that window as "in sync" instead of misclassifying it as parent-cleared.
+      if (isPendingAutoSelectedParentSync) {
+        lastParentValuesRef.current.set(parentField, internalParentValue)
+        lastChildValuesRef.current.set(id, childValue)
+        return
+      }
+
+      const isPendingParentClearedChildSync =
+        isBiDirectional && parentManuallyCleared && !parentValue && Boolean(childValue) && !internalChildValue
+
+      // After parent-clear we first clear the child internally, then RHF catches up on the next
+      // controlled render. Ignore that short stale-child window so the old child value cannot
+      // suppress the next real child selection.
+      if (isPendingParentClearedChildSync) {
+        return
+      }
 
       const handlerParams = {
         id,
@@ -223,8 +251,10 @@ export const useCatalogDependencies = ({
         autoSelectedToCleanup.add(parentField)
       }
 
-      if (childValue && parentState?.manuallyCleared && !wasAutoSelected) {
-        setFor(parentField, previousState => ({ ...previousState, manuallyCleared: false }))
+      if (!parentValue && !childValue && parentState?.manuallyCleared) {
+        setFor(parentField, previousState =>
+          previousState.manuallyCleared ? { ...previousState, manuallyCleared: false } : previousState
+        )
       }
     },
     [
