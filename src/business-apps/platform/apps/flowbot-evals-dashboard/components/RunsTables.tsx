@@ -37,7 +37,7 @@ function RunsTable({ title, rows, dataTestId }: Readonly<RunsTableProps>) {
   const scopeNames = useMemo(() => {
     const set = new Set<string>()
     rows.forEach(r => Object.keys(r.token_scopes ?? {}).forEach(s => set.add(s)))
-    return Array.from(set).sort()
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [rows])
 
   const baseCols = 10

@@ -45,6 +45,21 @@ const average = (values: Array<number | null | undefined>): number | null => {
   return nums.reduce((a, b) => a + b, 0) / nums.length
 }
 
+const buildWorkflowStats = (workflow: string, runs: RunRow[], scopes: string[]): WorkflowStats => {
+  const avgScopeTokens: Record<string, number | null> = {}
+  scopes.forEach(scope => {
+    avgScopeTokens[scope] = average(runs.map(r => r.token_scopes?.[scope]?.total_tokens ?? null))
+  })
+  return {
+    workflow,
+    runs: runs.length,
+    avgTotalMs: average(runs.map(r => r.total_ms)),
+    avgTokens: average(runs.map(r => r.total_tokens)),
+    avgToolCalls: average(runs.map(r => r.num_tool_calls)),
+    avgScopeTokens
+  }
+}
+
 export interface WorkflowComparisonProps {
   recentRuns: RunRow[]
   topCostRuns: RunRow[]
@@ -63,7 +78,7 @@ export function WorkflowComparison({
 
     const allScopes = new Set<string>()
     merged.forEach(r => Object.keys(r.token_scopes ?? {}).forEach(s => allScopes.add(s)))
-    const sortedScopes = Array.from(allScopes).sort()
+    const sortedScopes = Array.from(allScopes).sort((a, b) => a.localeCompare(b))
 
     const grouped = new Map<string, RunRow[]>()
     merged.forEach(run => {
@@ -73,22 +88,11 @@ export function WorkflowComparison({
       grouped.set(key, arr)
     })
 
-    const rows: WorkflowStats[] = Array.from(grouped.entries()).map(([workflow, runs]) => {
-      const avgScopeTokens: Record<string, number | null> = {}
-      sortedScopes.forEach(scope => {
-        avgScopeTokens[scope] = average(runs.map(r => r.token_scopes?.[scope]?.total_tokens ?? null))
-      })
-      return {
-        workflow,
-        runs: runs.length,
-        avgTotalMs: average(runs.map(r => r.total_ms)),
-        avgTokens: average(runs.map(r => r.total_tokens)),
-        avgToolCalls: average(runs.map(r => r.num_tool_calls)),
-        avgScopeTokens
-      }
-    })
+    const rows: WorkflowStats[] = Array.from(grouped.entries()).map(([workflow, runs]) =>
+      buildWorkflowStats(workflow, runs, sortedScopes)
+    )
 
-    return { workflowStats: rows.sort((a, b) => b.runs - a.runs), scopeNames: sortedScopes }
+    return { workflowStats: [...rows].sort((a, b) => b.runs - a.runs), scopeNames: sortedScopes }
   }, [recentRuns, topCostRuns])
 
   const chartConfig = useMemo<ChartConfig>(() => ({ runs: { label: 'Runs' } }), [])

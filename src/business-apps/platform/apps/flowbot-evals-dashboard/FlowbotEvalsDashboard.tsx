@@ -81,7 +81,7 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
     }
     const all = new Set<string>()
     Object.values(byProvider).forEach(models => models.forEach(m => all.add(m)))
-    return Array.from(all).sort()
+    return Array.from(all).sort((a, b) => a.localeCompare(b))
   }, [data?.available_filters?.models_by_provider, filters.llmProvider])
 
   const showData = data && !error
