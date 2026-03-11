@@ -31,7 +31,10 @@ export const useAssetProcessEvents = (handlers: ProcessEventHandlers) => {
 
       const isAssetProcess = domain === 'employee' && processName.includes('asset')
       const isAllocationProcess =
-        domain === 'employee' && (processName.includes('allocate') || processName.includes('employeeasset'))
+        domain === 'employee' &&
+        (processName.includes('allocate') ||
+          processName.includes('employeeasset') ||
+          processName.includes('allocateassettoemployee'))
       const isReturnProcess =
         domain === 'employee' &&
         (processName.includes('return') || processName.includes('deallocate') || processName.includes('retrieve'))

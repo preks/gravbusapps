@@ -455,6 +455,8 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             refreshMode: ds.refreshMode as string | undefined
           })
         } else if (ds.provider === 'flowEngine') {
+          const fmRaw = ds.fieldMappings as Array<{ sourceField: string }> | undefined
+          const selFields = fmRaw?.length ? fmRaw.map(m => m.sourceField) : undefined
           await BoardApiService.syncFromFlowEngine(board.id, activeSheet.id, {
             flowEntity: (ds.flowEntity as 'flows' | 'tasks') || 'flows',
             templateIds: ds.templateIds as string[] | undefined,
@@ -467,7 +469,8 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             priority: ds.priority as string | undefined,
             limit: dsLimit,
             mode: 'replace',
-            autoColumns: true
+            autoColumns: true,
+            selectedFields: selFields
           })
         } else {
           await BoardApiService.syncFromGraphQL(board.id, activeSheet.id, {

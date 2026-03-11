@@ -14,9 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  toast
 } from '@newwork/nw-design-system'
-import { Workflow, Play, X, CheckCircle2, Loader2 } from 'lucide-react'
+import { Workflow, Play, X, CheckCircle2, Loader2, ExternalLink } from 'lucide-react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import { templateToFlowGraphDefinition, flowNodeIdToStepIndex } from '@/common/data/flow/templateToFlowGraph'
@@ -43,6 +45,8 @@ export interface FlowPreviewItem {
 
 export interface FlowPreviewProps {
   accessToken: string
+  /** Current user info for initiator and runtime assignments. */
+  userInfo?: { id?: string; email?: string; userName?: string; employeeDetails?: { employeeId?: string } } | null
   /** Multiple preloaded templates with switcher. */
   items?: FlowPreviewItem[]
   /** Single preloaded template (no switcher). */
@@ -93,6 +97,7 @@ const StartFormField: React.FC<StartFormFieldProps> = ({ field, value, onValueCh
 
 export const FlowPreview: React.FC<FlowPreviewProps> = ({
   accessToken,
+  userInfo,
   items,
   template: templateProp,
   flowId,
@@ -104,25 +109,91 @@ export const FlowPreview: React.FC<FlowPreviewProps> = ({
         {selectedId => {
           const active = items.find(i => i.id === selectedId) ?? items[0]
           return (
-            <FlowPreviewSingle accessToken={accessToken} template={active.template} testId={`${testId}-${active.id}`} />
+            <FlowPreviewSingle
+              accessToken={accessToken}
+              userInfo={userInfo}
+              template={active.template}
+              testId={`${testId}-${active.id}`}
+            />
           )
         }}
       </PreviewTemplate>
     )
   }
-  return <FlowPreviewSingle accessToken={accessToken} templateProp={templateProp} flowId={flowId} testId={testId} />
+  return (
+    <FlowPreviewSingle
+      accessToken={accessToken}
+      userInfo={userInfo}
+      templateProp={templateProp}
+      flowId={flowId}
+      testId={testId}
+    />
+  )
 }
 
 interface FlowPreviewSingleProps {
   accessToken: string
+  userInfo?: { id?: string; email?: string; userName?: string; employeeDetails?: { employeeId?: string } } | null
   template?: FlowPreviewTemplate | null
   templateProp?: FlowPreviewTemplate | null
   flowId?: string
   testId: string
 }
 
+const SYSTEM_TASK_TYPES = new Set<string>(['FUNCTION', 'AI_AGENT', 'AI_TASK_EXPERT'])
+
+function buildRuntimeAssignments(
+  steps: FlowPreviewTemplate['steps'],
+  currentUserId: string
+): Record<string, { targets: { users: string[] }; assignmentMode: string; allowReassignment: boolean }> {
+  const runtimeAssignments: Record<
+    string,
+    { targets: { users: string[] }; assignmentMode: string; allowReassignment: boolean }
+  > = {}
+  const stepList = steps ?? []
+  for (let i = 0; i < stepList.length; i++) {
+    const step = stepList[i]
+    if (SYSTEM_TASK_TYPES.has(step.type)) continue
+    const assignment = step.assignment
+    const needsAssignment =
+      assignment &&
+      (assignment.targets === null ||
+        assignment.targets === undefined ||
+        (typeof assignment.targets === 'object' && Object.keys(assignment.targets || {}).length === 0))
+    if (needsAssignment) {
+      runtimeAssignments[`step_${i}`] = {
+        targets: { users: [currentUserId] },
+        assignmentMode: 'ASSIGN',
+        allowReassignment: true
+      }
+    }
+  }
+  return runtimeAssignments
+}
+
+function formatExecutionError(err: unknown): string {
+  const e = err as {
+    message?: string
+    response?: { data?: { validationErrors?: string[]; requiredAssignments?: string[] } }
+    validationErrors?: string[]
+    requiredAssignments?: string[]
+  }
+  const errMsg = e?.message || (err instanceof Error ? (err as Error).message : 'Failed to start workflow')
+  const validationErrors = e?.validationErrors ?? e?.response?.data?.validationErrors ?? []
+  const requiredAssignments = e?.requiredAssignments ?? e?.response?.data?.requiredAssignments ?? []
+  const details: string[] = []
+  if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+    details.push(...validationErrors.map(String))
+  }
+  if (Array.isArray(requiredAssignments) && requiredAssignments.length > 0) {
+    details.push(`Required assignments: ${requiredAssignments.join(', ')}`)
+  }
+  return details.length > 0 ? `${errMsg}\n${details.join('\n')}` : errMsg
+}
+
 const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
   accessToken,
+  userInfo,
   template: templateDirect,
   templateProp,
   flowId,
@@ -195,17 +266,25 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
     setExecutionError(null)
     setExecutionResult(null)
     try {
+      const currentUserId =
+        userInfo?.id || userInfo?.email || userInfo?.userName || userInfo?.employeeDetails?.employeeId || 'preview'
+      const runtimeAssignments = buildRuntimeAssignments(template.steps, currentUserId)
+
       const result = await client.executeWorkflow(template.id, {
-        initiator: 'preview',
-        inputValues: Object.keys(startFormValues).length > 0 ? startFormValues : undefined
+        initiator: currentUserId,
+        inputValues: Object.keys(startFormValues).length > 0 ? startFormValues : undefined,
+        runtimeAssignments: Object.keys(runtimeAssignments).length > 0 ? runtimeAssignments : undefined
       })
       setExecutionResult(result.workflowId)
-    } catch (e) {
-      setExecutionError(e instanceof Error ? e.message : 'Failed to start workflow')
+      toast.success('Flow started', { description: result.workflowId })
+    } catch (e: unknown) {
+      const fullMsg = formatExecutionError(e)
+      setExecutionError(fullMsg)
+      toast.error('Failed to start flow', { description: fullMsg })
     } finally {
       setExecuting(false)
     }
-  }, [client, template?.id, startFormValues])
+  }, [client, template?.id, template?.steps, startFormValues, userInfo])
 
   const resetExecution = useCallback(() => {
     setExecutionResult(null)
@@ -257,6 +336,20 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
                 </div>
               ) : null}
             </div>
+            {template.id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigateTo(buildPlatformUrl('/platform/apps/flow/apps/launcher', { templateId: template.id! }))
+                }
+                className="gba:shrink-0"
+                data-testid={`${testId}-open-flow-launcher`}
+              >
+                <ExternalLink className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
+                Open in Flow Launcher
+              </Button>
+            )}
           </div>
         </CardHeader>
       </Card>
@@ -336,9 +429,29 @@ const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
                       )}
 
                       {executionError && (
-                        <Alert variant="destructive" className="gba:py-2">
-                          <AlertDescription className="gba:text-xs">{executionError}</AlertDescription>
-                        </Alert>
+                        <div className="gba:space-y-2">
+                          <Alert variant="destructive" className="gba:py-2">
+                            <AlertDescription className="gba:text-xs gba:whitespace-pre-wrap">
+                              {executionError}
+                            </AlertDescription>
+                          </Alert>
+                          {template?.id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gba:w-full"
+                              onClick={() =>
+                                navigateTo(
+                                  buildPlatformUrl('/platform/apps/flow/apps/launcher', { templateId: template.id! })
+                                )
+                              }
+                              data-testid={`${testId}-open-flow-launcher-fallback`}
+                            >
+                              <ExternalLink className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
+                              Open in Flow Launcher to configure assignments
+                            </Button>
+                          )}
+                        </div>
                       )}
 
                       {canExecute && (

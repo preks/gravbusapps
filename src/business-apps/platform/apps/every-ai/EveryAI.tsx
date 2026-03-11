@@ -503,10 +503,14 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     window.dispatchEvent(new CustomEvent('chat-history-refresh'))
   }, [clearConversation])
 
-  const handleSend = (text: string, files: File[], isThinking: boolean, isSearching: boolean) => {
-    // Keep passing files for backwards compatibility.
-    // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
-    sendMessage(text, files, isThinking, isSearching)
+  const handleSend = (
+    text: string,
+    files: File[],
+    isThinking: boolean,
+    isSearching: boolean,
+    mentions?: Array<{ id: string; type: string; display: string }>
+  ) => {
+    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions)
   }
 
   const isEmptyState = conversation.length === 0 && !isLoading

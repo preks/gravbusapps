@@ -49,7 +49,9 @@ const ENTITY_ICONS: Record<EntityType, React.ElementType> = {
   // Other
   employee: UserCircle,
   campaign: Megaphone,
-  expense_request: Receipt
+  expense_request: Receipt,
+  // Every Office documents
+  document: FileText
 }
 
 const ENTITY_COLORS: Record<EntityType, string> = {
@@ -75,7 +77,9 @@ const ENTITY_COLORS: Record<EntityType, string> = {
   // Other
   employee: 'gba:bg-muted gba:text-muted-foreground',
   campaign: 'gba:bg-secondary gba:text-secondary-foreground',
-  expense_request: 'gba:bg-warning-secondary gba:text-warning-secondary-foreground'
+  expense_request: 'gba:bg-warning-secondary gba:text-warning-secondary-foreground',
+  // Every Office documents
+  document: 'gba:bg-info-secondary gba:text-info-secondary-foreground'
 }
 
 const ENTITY_LABELS: Record<EntityType, string> = {
@@ -101,7 +105,9 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   // Other
   employee: 'Employee',
   campaign: 'Campaign',
-  expense_request: 'Expense'
+  expense_request: 'Expense',
+  // Every Office documents
+  document: 'Document'
 }
 
 /**

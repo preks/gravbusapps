@@ -20,10 +20,10 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
   return (
     <EntityImportView
       config={customerContactImportConfig}
-      headerTitle={t('page-title')}
-      headerDescription={t('page-description')}
-      entityType={t('entity-type')}
-      entityTypeSingular={t('entity-type-singular')}
+      headerTitle={t('contact-page-title')}
+      headerDescription={t('contact-page-description')}
+      entityType={t('contact-entity-type')}
+      entityTypeSingular={t('contact-entity-type-singular')}
       enableCampaignSelection
       onBack={onBack}
       data-testid={testId}

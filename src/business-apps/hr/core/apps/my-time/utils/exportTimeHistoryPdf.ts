@@ -97,6 +97,17 @@ export const exportTimeHistoryPdf = async (params: {
   const vacationSet = new Set<string>((params.vacationDates || []).map(d => String(d)))
   const bankHolidayText = translate('absence_hub_holiday', 'Bank Holiday')
   const vacationText = translate('absence_group_vacation', 'Vacation')
+  const weekendText = translate('time_tracking_day_type_weekend', 'Weekend')
+  const notWorkingText = translate('time_tracking_day_type_not_working', 'Not a working day')
+  const workDayText = translate('time_tracking_day_type_work_day', 'Work day')
+
+  const getDayTypeText = (e: TimeEntry): string => {
+    if (e.absenceLabel) return e.absenceLabel
+    if (e.dayType === 'holiday') return bankHolidayText
+    if (e.dayType === 'weekend') return weekendText
+    if (e.dayType === 'non_working') return notWorkingText
+    return workDayText
+  }
 
   // Date formatting helper: ensure dd.MM.yyyy for de/ro
   const formatDateForReport = (d: Date): string => {
@@ -157,7 +168,13 @@ export const exportTimeHistoryPdf = async (params: {
     const key = toLocalDateKey(cursor)
     const e = entryByDay.get(key)
     const weekday = cursor.toLocaleDateString(locale || 'en-US', { weekday: 'short' })
-    const workdayNote = holidaySet.has(key) ? bankHolidayText : vacationSet.has(key) ? vacationText : ''
+    const dayTypeText = e
+      ? getDayTypeText(e)
+      : holidaySet.has(key)
+        ? bankHolidayText
+        : vacationSet.has(key)
+          ? vacationText
+          : ''
     if (holidaySet.has(key)) bankHolidayDays.add(key)
     if (vacationSet.has(key)) vacationDays.add(key)
     if (e) {
@@ -169,7 +186,7 @@ export const exportTimeHistoryPdf = async (params: {
       rows.push([
         weekday,
         formatDateForReport(cursor),
-        workdayNote,
+        dayTypeText,
         toTime(e.startTimeISO),
         toTime(e.endTimeISO),
         e.recordedTime ?? '-',
@@ -189,7 +206,7 @@ export const exportTimeHistoryPdf = async (params: {
       rows.push([
         weekday,
         formatDateForReport(cursor),
-        workdayNote,
+        dayTypeText,
         '-',
         '-',
         '0h', // recorded
