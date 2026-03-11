@@ -35,11 +35,11 @@ jest.mock('../SpreadsheetActionsMenu', () => ({
   SpreadsheetActionsMenu: () => <div data-testid="spreadsheet-actions-menu" />
 }))
 
-jest.mock('../../../shared/components/AutoSaveIndicator', () => ({
+jest.mock('@/business-apps/platform/apps/shared/components/AutoSaveIndicator', () => ({
   AutoSaveIndicator: () => <div data-testid="autosave-indicator" />
 }))
 
-jest.mock('../../../shared/components/StatusBadge', () => ({
+jest.mock('@/business-apps/platform/apps/shared/components/StatusBadge', () => ({
   StatusBadge: () => <div data-testid="status-badge" />
 }))
 
@@ -69,9 +69,6 @@ describe('SpreadsheetHeader lock badge', () => {
           releaseLock: jest.fn()
         }}
         onOpenAICapability={jest.fn()}
-        onShowPublishDialog={jest.fn()}
-        onAddColumn={jest.fn()}
-        onManageColumns={jest.fn()}
         onOpenAnalytics={jest.fn()}
         onOpenAutomations={jest.fn()}
         testId="spreadsheet-header-test"

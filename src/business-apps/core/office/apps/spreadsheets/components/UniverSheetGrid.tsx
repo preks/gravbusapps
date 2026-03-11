@@ -10,7 +10,7 @@ import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
-import type { DocumentParticipant, DocumentOperation } from '../../shared/services/CollaborationClient'
+import type { DocumentParticipant, DocumentOperation } from '../../../../../platform/apps/shared/services/CollaborationClient'
 import {
   buildWorkbookSnapshot,
   createUniverConversionContext,

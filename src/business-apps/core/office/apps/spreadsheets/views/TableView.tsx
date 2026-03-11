@@ -7,7 +7,7 @@
 import React, { useCallback, memo } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types'
-import type { DocumentParticipant, DocumentOperation } from '../../shared/services/CollaborationClient'
+import type { DocumentParticipant, DocumentOperation } from '../../../../../platform/apps/shared/services/CollaborationClient'
 import { UniverSheetGrid, type UniverSheetGridHandle } from '../components/UniverSheetGrid'
 
 export interface TableViewProps {

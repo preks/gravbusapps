@@ -47,8 +47,19 @@ import {
 } from 'lucide-react'
 import { ColumnTypeEditor } from './components/ColumnTypeEditor'
 import { EntityDataSourceDialog } from './components/EntityDataSourceDialog'
-import { APP_ICONS, getIconByName, DEFAULT_APP_ICON, getIconCategories, getIconsByCategory } from './utils/appIcons'
-import type { EntityDataSource } from './types/entityDataSource'
+import {
+  APP_ICONS,
+  getIconByName,
+  DEFAULT_APP_ICON,
+  getIconCategories,
+  getIconsByCategory,
+  type AppIconConfig
+} from './utils/appIcons'
+import type {
+  EntityDataSource,
+  EntityFilterCondition,
+  EntityFieldMapping
+} from './types/entityDataSource'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn, SheetView, ViewType } from './types'
 import translations from './_i18n'
 
@@ -83,21 +94,21 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
   // Get active sheet
   const activeSheet = useMemo(
-    () => app.sheets.find(s => s.id === activeSheetId) || app.sheets[0],
+    () => app.sheets.find((s: SpreadsheetSheet) => s.id === activeSheetId) || app.sheets[0],
     [app.sheets, activeSheetId]
   )
 
   const AppIconComponent = useMemo(() => (app.icon ? getIconByName(app.icon) : null), [app.icon])
   const iconButtonLabel = useMemo(() => {
     if (!app.icon) return t('settings-select-icon')
-    return APP_ICONS.find(i => i.name === app.icon)?.name ?? t('settings-select-icon')
+    return APP_ICONS.find((i: AppIconConfig) => i.name === app.icon)?.name ?? t('settings-select-icon')
   }, [app.icon, t])
 
   /**
    * Update app property
    */
   const updateApp = useCallback(<K extends keyof SpreadsheetApp>(key: K, value: SpreadsheetApp[K]) => {
-    setApp(prev => ({ ...prev, [key]: value }))
+    setApp((prev: SpreadsheetApp) => ({ ...prev, [key]: value }))
   }, [])
 
   /**
@@ -105,9 +116,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
    */
   const updateSheet = useCallback(
     <K extends keyof SpreadsheetSheet>(sheetId: string, key: K, value: SpreadsheetSheet[K]) => {
-      setApp(prev => ({
+      setApp((prev: SpreadsheetApp) => ({
         ...prev,
-        sheets: prev.sheets.map(sheet => (sheet.id === sheetId ? { ...sheet, [key]: value } : sheet))
+        sheets: prev.sheets.map((sheet: SpreadsheetSheet) => (sheet.id === sheetId ? { ...sheet, [key]: value } : sheet))
       }))
     },
     []
@@ -117,13 +128,13 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
    * Update column
    */
   const updateColumn = useCallback((sheetId: string, column: SpreadsheetColumn) => {
-    setApp(prev => ({
+    setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map(sheet =>
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
         sheet.id === sheetId
           ? {
               ...sheet,
-              columns: sheet.columns.map(col => (col.id === column.id ? column : col))
+              columns: sheet.columns.map((col: SpreadsheetColumn) => (col.id === column.id ? column : col))
             }
           : sheet
       )
@@ -135,13 +146,13 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
    * Move column up/down
    */
   const moveColumn = useCallback((sheetId: string, columnId: string, direction: 'up' | 'down') => {
-    setApp(prev => ({
+    setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map(sheet => {
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) => {
         if (sheet.id !== sheetId) return sheet
 
         const columns = [...sheet.columns]
-        const index = columns.findIndex(c => c.id === columnId)
+        const index = columns.findIndex((c: SpreadsheetColumn) => c.id === columnId)
 
         if ((direction === 'up' && index <= 0) || (direction === 'down' && index >= columns.length - 1)) {
           return sheet
@@ -165,13 +176,15 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
    * Toggle column visibility
    */
   const toggleColumnVisibility = useCallback((sheetId: string, columnId: string) => {
-    setApp(prev => ({
+    setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map(sheet =>
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
         sheet.id === sheetId
           ? {
               ...sheet,
-              columns: sheet.columns.map(col => (col.id === columnId ? { ...col, isVisible: !col.isVisible } : col))
+              columns: sheet.columns.map((col: SpreadsheetColumn) =>
+                col.id === columnId ? { ...col, isVisible: !col.isVisible } : col
+              )
             }
           : sheet
       )
@@ -195,9 +208,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
         order: activeSheet?.columns.length || 0
       }
 
-      setApp(prev => ({
+      setApp((prev: SpreadsheetApp) => ({
         ...prev,
-        sheets: prev.sheets.map(sheet =>
+        sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
           sheet.id === sheetId ? { ...sheet, columns: [...sheet.columns, newColumn] } : sheet
         )
       }))
@@ -211,10 +224,10 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
    * Delete column
    */
   const deleteColumn = useCallback((sheetId: string, columnId: string) => {
-    setApp(prev => ({
+    setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map(sheet =>
-        sheet.id === sheetId ? { ...sheet, columns: sheet.columns.filter(col => col.id !== columnId) } : sheet
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
+        sheet.id === sheetId ? { ...sheet, columns: sheet.columns.filter((col: SpreadsheetColumn) => col.id !== columnId) } : sheet
       )
     }))
   }, [])
@@ -232,9 +245,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
         config: getDefaultViewConfig(viewType, activeSheet?.columns || [])
       }
 
-      setApp(prev => ({
+      setApp((prev: SpreadsheetApp) => ({
         ...prev,
-        sheets: prev.sheets.map(sheet =>
+        sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
           sheet.id === sheetId ? { ...sheet, views: [...sheet.views, newView] } : sheet
         )
       }))
@@ -248,13 +261,13 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
    * Delete view
    */
   const deleteView = useCallback((sheetId: string, viewId: string) => {
-    setApp(prev => ({
+    setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map(sheet => {
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) => {
         if (sheet.id !== sheetId) return sheet
-        const views = sheet.views.filter(v => v.id !== viewId)
+        const views = sheet.views.filter((v: SheetView) => v.id !== viewId)
         // Ensure at least one default view
-        if (views.length > 0 && !views.some(v => v.isDefault)) {
+        if (views.length > 0 && !views.some((v: SheetView) => v.isDefault)) {
           views[0].isDefault = true
         }
         return { ...sheet, views }
@@ -266,13 +279,13 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
    * Set default view
    */
   const setDefaultView = useCallback((sheetId: string, viewId: string) => {
-    setApp(prev => ({
+    setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map(sheet =>
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) =>
         sheet.id === sheetId
           ? {
               ...sheet,
-              views: sheet.views.map(view => ({
+              views: sheet.views.map((view: SheetView) => ({
                 ...view,
                 isDefault: view.id === viewId
               }))
@@ -286,9 +299,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
    * Update entity data source for a sheet
    */
   const updateEntityDataSource = useCallback((sheetId: string, dataSource: EntityDataSource | undefined) => {
-    setApp(prev => ({
+    setApp((prev: SpreadsheetApp) => ({
       ...prev,
-      sheets: prev.sheets.map(sheet => (sheet.id === sheetId ? { ...sheet, entityDataSource: dataSource } : sheet))
+      sheets: prev.sheets.map((sheet: SpreadsheetSheet) => (sheet.id === sheetId ? { ...sheet, entityDataSource: dataSource } : sheet))
     }))
   }, [])
 
@@ -359,7 +372,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
           </div>
 
           <div className="gba:space-y-2">
-            {app.sheets.map(sheet => (
+            {app.sheets.map((sheet: SpreadsheetSheet) => (
               <button
                 key={sheet.id}
                 type="button"
@@ -477,8 +490,8 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                     </thead>
                     <tbody>
                       {activeSheet.columns
-                        .sort((a, b) => a.order - b.order)
-                        .map((column, index) => (
+                        .sort((a: SpreadsheetColumn, b: SpreadsheetColumn) => a.order - b.order)
+                        .map((column: SpreadsheetColumn, index: number) => (
                           <tr key={column.id} className="gba:border-t gba:border-border">
                             <td className="gba:px-4 gba:py-3">
                               <div className="gba:flex gba:flex-col gba:items-center gba:gap-1">
@@ -609,13 +622,13 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                       <div>
                         <p className="gba:text-sm gba:text-muted-foreground">Filters</p>
                         <p className="gba:font-medium gba:text-foreground">
-                          {activeSheet.entityDataSource.filters.conditions.filter(c => c.isActive).length} active
+                          {activeSheet.entityDataSource.filters.conditions.filter((c: EntityFilterCondition) => c.isActive).length} active
                         </p>
                       </div>
                       <div>
                         <p className="gba:text-sm gba:text-muted-foreground">Fields</p>
                         <p className="gba:font-medium gba:text-foreground">
-                          {activeSheet.entityDataSource.fieldMappings.filter(f => f.include).length} selected
+                          {activeSheet.entityDataSource.fieldMappings.filter((f: EntityFieldMapping) => f.include).length} selected
                         </p>
                       </div>
                       <div>
@@ -655,7 +668,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                     )}
 
                     {/* Filter conditions preview */}
-                    {activeSheet.entityDataSource.filters.conditions.filter(c => c.isActive).length > 0 && (
+                    {activeSheet.entityDataSource.filters.conditions.filter((c: EntityFilterCondition) => c.isActive).length > 0 && (
                       <>
                         <Separator className="gba:my-4" />
                         <div>
@@ -665,8 +678,8 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                           </h4>
                           <div className="gba:flex gba:flex-wrap gba:gap-2">
                             {activeSheet.entityDataSource.filters.conditions
-                              .filter(c => c.isActive)
-                              .map(condition => (
+                              .filter((c: EntityFilterCondition) => c.isActive)
+                              .map((condition: EntityFilterCondition) => (
                                 <Badge key={condition.id} variant="outline" className="gba:font-normal">
                                   {condition.fieldLabel} {condition.operator} {String(condition.value)}
                                 </Badge>
@@ -706,7 +719,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 </div>
 
                 <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4">
-                  {activeSheet.views.map(view => (
+                  {activeSheet.views.map((view: SheetView) => (
                     <Card key={view.id} className="gba:p-4">
                       <div className="gba:flex gba:items-start gba:justify-between gba:mb-3">
                         <div className="gba:flex gba:items-center gba:gap-2">
@@ -845,12 +858,12 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
           <DialogContent className="gba:max-w-2xl">
             <ColumnTypeEditor
               column={editingColumn}
-              availableSheets={app.sheets.map(s => ({
+              availableSheets={app.sheets.map((s: SpreadsheetSheet) => ({
                 id: s.id,
                 name: s.name,
-                columns: s.columns.map(c => ({ id: c.id, name: c.name }))
+                columns: s.columns.map((c: SpreadsheetColumn) => ({ id: c.id, name: c.name }))
               }))}
-              onSave={column => updateColumn(activeSheet!.id, column)}
+              onSave={(column: SpreadsheetColumn) => updateColumn(activeSheet!.id, column)}
               onCancel={() => setEditingColumn(null)}
             />
           </DialogContent>
@@ -869,7 +882,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
         isOpen={isDataSourceDialogOpen}
         onClose={() => setIsDataSourceDialogOpen(false)}
         dataSource={activeSheet?.entityDataSource || null}
-        onSave={dataSource => {
+        onSave={(dataSource: EntityDataSource) => {
           if (activeSheet) {
             updateEntityDataSource(activeSheet.id, dataSource)
           }
@@ -889,11 +902,11 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
           <div className="gba:flex-1 gba:overflow-y-auto gba:py-4">
             {/* Group icons by category */}
-            {getIconCategories().map(category => (
+            {getIconCategories().map((category: string) => (
               <div key={category} className="gba:mb-6">
                 <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-3">{category}</h4>
                 <div className="gba:grid gba:grid-cols-8 gba:gap-2">
-                  {getIconsByCategory(category).map(iconConfig => {
+                  {getIconsByCategory(category).map((iconConfig: AppIconConfig) => {
                     const IconComponent = iconConfig.icon
                     const isSelected = app.icon === iconConfig.name
                     return (

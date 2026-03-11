@@ -7,8 +7,8 @@
 import React from 'react'
 import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
 import { Signal, Database, RefreshCw, Loader2 } from 'lucide-react'
-import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
-import type { CollaborationParticipant } from '../../shared/hooks/useCollaboration'
+import { PresenceIndicator } from '../../../../../platform/apps/shared/components/PresenceIndicator'
+import type { CollaborationParticipant } from '../../../../../platform/apps/shared/hooks/useCollaboration'
 
 export interface StatusIndicatorsProps {
   // Collaboration

@@ -18,10 +18,10 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { Presentation } from 'lucide-react'
-import { SlidesApiService } from '../../slide-apps/services/SlidesApiService'
-import { createImageElement } from '../../slide-apps/components/slideElements'
-import type { SlideSummary } from '../../slide-apps/types'
-import type { SlideData } from '../../slide-apps/components/slideElements'
+import { SlidesApiService } from '../../../../../platform/apps/slide-apps/services/SlidesApiService'
+import { createImageElement } from '../../../../../platform/apps/slide-apps/components/slideElements'
+import type { SlideSummary } from '../../../../../platform/apps/slide-apps/types'
+import type { SlideData } from '../../../../../platform/apps/slide-apps/components/slideElements'
 
 const SLIDE_WIDTH = 1280
 const SLIDE_HEIGHT = 720

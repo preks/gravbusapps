@@ -126,7 +126,8 @@ export function useSpreadsheetAppsHubUrlState(
       }
 
       if (!app) {
-        loadAttemptedRef.current = null
+        // Keep loadAttemptedRef as appId to prevent infinite retries when backend is unreachable.
+        // User can call resetLoadAttempt() then reload to retry.
         onLoadFailed?.(appId)
         return
       }

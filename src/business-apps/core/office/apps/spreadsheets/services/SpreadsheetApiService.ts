@@ -19,7 +19,7 @@ import type {
   CommentQueryOptions,
   LockFileInput,
   PublishInput
-} from '../../shared/types/versioning'
+} from '../../../../../platform/apps/shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 const API_URL = getDocumentServiceApiUrl()

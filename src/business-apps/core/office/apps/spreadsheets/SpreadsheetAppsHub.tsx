@@ -89,8 +89,8 @@ import { useSpreadsheetAppsHubFavorites } from './hooks/useSpreadsheetAppsHubFav
 import { useSpreadsheetAppsHubFiltering } from './hooks/useSpreadsheetAppsHubFiltering'
 import { useSpreadsheetAppsHubUrlState } from './hooks/useSpreadsheetAppsHubUrlState'
 import { useSpreadsheetAppsHubUserLookup } from './hooks/useSpreadsheetAppsHubUserLookup'
-import { useHubPagination } from '../shared/hooks/useHubPagination'
-import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
+import { useHubPagination } from '@/business-apps/platform/apps/shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
 
 // Services
 import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -1470,7 +1470,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 <div className="gba:p-6">
                   <Card className="gba:p-6 gba:text-center">
                     <AlertCircle className="gba:w-12 gba:h-12 gba:text-destructive gba:mx-auto gba:mb-4" />
-                    <p className="gba:text-destructive">{appsError}</p>
+                    <p className="gba:text-destructive gba:mb-4">{appsError}</p>
+                    <Button variant="outline" onClick={() => refreshApps()} data-testid="spreadsheet-apps-hub-retry">
+                      <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Retry
+                    </Button>
                   </Card>
                 </div>
               )}

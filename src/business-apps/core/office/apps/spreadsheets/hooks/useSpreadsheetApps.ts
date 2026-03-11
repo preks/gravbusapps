@@ -82,6 +82,13 @@ const isValidUUID = (str: string): boolean => {
   return uuidRegex.test(str)
 }
 
+/** Detect connection/network errors (backend unreachable) for user-friendly messaging */
+const isConnectionError = (error: unknown): boolean =>
+  error instanceof TypeError && (error.message === 'Failed to fetch' || error.message.includes('NetworkError'))
+
+const CONNECTION_ERROR_MSG =
+  'Document service is unavailable. Start the backend (npm run dev in document-service) to use spreadsheets.'
+
 async function persistSheetRows(appId: string, sheetId: string, data: Record<string, unknown>[]): Promise<void> {
   for (const row of data) {
     const rowId = row._id as string | undefined
@@ -151,11 +158,12 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         storageMode: 'database'
       }))
     } catch (error) {
-      console.error('[useSpreadsheetApps] Failed to load apps:', error)
+      const isConn = isConnectionError(error)
+      if (!isConn) console.error('[useSpreadsheetApps] Failed to load apps:', error)
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to load apps'
+        error: isConn ? CONNECTION_ERROR_MSG : error instanceof Error ? error.message : 'Failed to load apps'
       }))
     }
   }, [accessToken])
@@ -209,11 +217,12 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         }))
         return app
       } catch (error) {
-        console.error('[useSpreadsheetApps] Failed to load app:', error)
+        const isConn = isConnectionError(error)
+        if (!isConn) console.error('[useSpreadsheetApps] Failed to load app:', error)
         setState(prev => ({
           ...prev,
           isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to load app'
+          error: isConn ? CONNECTION_ERROR_MSG : error instanceof Error ? error.message : 'Failed to load app'
         }))
         return null
       }

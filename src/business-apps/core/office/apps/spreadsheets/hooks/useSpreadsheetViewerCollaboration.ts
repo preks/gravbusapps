@@ -6,9 +6,9 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useCollaboration } from '../../shared/hooks/useCollaboration'
+import { useCollaboration } from '../../../../../platform/apps/shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { DocumentParticipant, CollaborationOperation } from '../../shared/services/CollaborationClient'
+import type { DocumentParticipant, CollaborationOperation } from '../../../../../platform/apps/shared/services/CollaborationClient'
 
 function sameBaseParticipant(a: DocumentParticipant, b: DocumentParticipant): boolean {
   return (

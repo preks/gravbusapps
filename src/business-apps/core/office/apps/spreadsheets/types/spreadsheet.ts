@@ -7,7 +7,7 @@
  */
 
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
-import type { Version, Comment, FileLock, PublishStatus, PublishMetadata } from '../../shared/types/versioning'
+import type { Version, Comment, FileLock, PublishStatus, PublishMetadata } from '../../../../../platform/apps/shared/types/versioning'
 import type { EntityDataSource } from './entityDataSource'
 import type { SpreadsheetAutomation, WorkflowRowLink, WorkflowStatusColumnConfig } from './automation'
 

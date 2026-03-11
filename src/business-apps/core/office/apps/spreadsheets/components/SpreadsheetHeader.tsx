@@ -33,10 +33,10 @@ import {
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
 import { SpreadsheetActionsMenu } from './SpreadsheetActionsMenu'
-import { AutoSaveIndicator } from '../../shared/components/AutoSaveIndicator'
-import { StatusBadge } from '../../shared/components/StatusBadge'
+import { AutoSaveIndicator } from '../../../../../platform/apps/shared/components/AutoSaveIndicator'
+import { StatusBadge } from '../../../../../platform/apps/shared/components/StatusBadge'
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
-import type { PublishStatus } from '../../shared/types/versioning'
+import type { PublishStatus } from '../../../../../platform/apps/shared/types/versioning'
 import type { CursorParticipant } from '../hooks/useSpreadsheetCellSelection'
 
 export interface SpreadsheetHeaderProps {

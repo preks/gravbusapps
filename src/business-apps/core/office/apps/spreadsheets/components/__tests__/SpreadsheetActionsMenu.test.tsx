@@ -21,13 +21,10 @@ describe('SpreadsheetActionsMenu', () => {
       <SpreadsheetActionsMenu
         onShowVersionHistory={jest.fn()}
         onShowCheckpointDialog={jest.fn()}
-        onShowPublishDialog={jest.fn()}
         isLockedByMe={false}
         onAcquireLock={jest.fn()}
         onReleaseLock={jest.fn()}
         canEdit={true}
-        onAddColumn={jest.fn()}
-        onManageColumns={jest.fn()}
         onOpenAnalytics={onOpenAnalytics}
         onOpenAutomations={jest.fn()}
         onEdit={jest.fn()}

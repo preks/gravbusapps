@@ -11,11 +11,11 @@ import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicForm
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
 import type { SpreadsheetColumn } from '../types'
 import { ManageColumnsDialog } from './ManageColumnsDialog'
-import { VersionHistory, type VersionUserDisplay } from '../../shared/components/VersionHistory'
+import { VersionHistory, type VersionUserDisplay } from '../../../../../platform/apps/shared/components/VersionHistory'
 import translations from '../_i18n'
-import { CheckpointDialog } from '../../shared/components/CheckpointDialog'
-import { PublishDialog } from '../../shared/components/PublishDialog'
-import { CommentPanel } from '../../shared/components/CommentPanel'
+import { CheckpointDialog } from '../../../../../platform/apps/shared/components/CheckpointDialog'
+import { PublishDialog } from '../../../../../platform/apps/shared/components/PublishDialog'
+import { CommentPanel } from '../../../../../platform/apps/shared/components/CommentPanel'
 
 export interface SpreadsheetDialogsSectionProps {
   // Edit Row Dialog
