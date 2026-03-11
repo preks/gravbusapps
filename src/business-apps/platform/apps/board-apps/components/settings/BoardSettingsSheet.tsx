@@ -13,7 +13,7 @@ import {
   Badge,
   toast
 } from '@newwork/nw-design-system'
-import { Database, RefreshCw, Unlink, Plus, GitBranch } from 'lucide-react'
+import { Database, RefreshCw, Unlink, Plus, GitBranch, Plug } from 'lucide-react'
 import type { Board, BoardSheet, EntityDataSource } from '../../types'
 import { BoardApiService } from '../../services/BoardApiService'
 
@@ -26,6 +26,7 @@ export interface BoardSettingsSheetProps {
   onSheetUpdate?: (boardId: string, sheetId: string, updates: Record<string, unknown>) => Promise<unknown>
   onOpenImport?: () => void
   onOpenFlowImport?: () => void
+  onOpenExternalImport?: () => void
   'data-testid'?: string
 }
 
@@ -38,6 +39,7 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
   onSheetUpdate,
   onOpenImport,
   onOpenFlowImport,
+  onOpenExternalImport,
   'data-testid': testId = 'board-settings-sheet'
 }) => {
   const [name, setName] = useState(board.name)
@@ -99,8 +101,30 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
         toast.success(
           `Updated ${syncCount} options for "${dsAny.populateTargetCol}" from ${dataSource.entityDisplayName || dataSource.entityType}`
         )
+      } else if (dsAny.provider === 'functionManager') {
+        const syncLimit = dataSource.limit != null ? dataSource.limit : 500
+        const result = await BoardApiService.startExternalSync(board.id, activeSheet.id, {
+          connectorId: dsAny.connectorId as string,
+          connectorName: dsAny.connectorName as string,
+          query: dsAny.query as Record<string, unknown> | undefined,
+          selectedFields: dsAny.selectedFields as string[] | undefined,
+          limit: syncLimit,
+          mode: (dsAny.syncMode as 'replace' | 'append' | 'merge') || 'replace',
+          mergeKey: dsAny.mergeKey as string | undefined,
+          autoColumns: true,
+          keepConnected: true,
+          refreshMode: dsAny.refreshMode as string | undefined
+        })
+        if (!result) {
+          toast.error('Sync failed')
+          return
+        }
+        toast.success('External sync started in background')
+        syncCount = 0
       } else if (dsAny.provider === 'flowEngine') {
         const syncLimit = dataSource.limit != null ? dataSource.limit : 200
+        const fmRaw = dsAny.fieldMappings as Array<{ sourceField: string }> | undefined
+        const selFields = fmRaw?.length ? fmRaw.map((m: { sourceField: string }) => m.sourceField) : undefined
         const result = await BoardApiService.syncFromFlowEngine(board.id, activeSheet.id, {
           flowEntity: (dsAny.flowEntity as 'flows' | 'tasks') || 'flows',
           templateIds: dsAny.templateIds as string[] | undefined,
@@ -113,7 +137,8 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
           priority: dsAny.priority as string | undefined,
           limit: syncLimit,
           mode: 'replace',
-          autoColumns: true
+          autoColumns: true,
+          selectedFields: selFields
         })
         if (!result) {
           toast.error('Sync failed')
@@ -235,6 +260,20 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
                     data-testid={`${testId}-add-flow-source`}
                   >
                     <GitBranch className="gba:w-3 gba:h-3" /> Flow data
+                  </Button>
+                )}
+                {onOpenExternalImport && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gba:h-7 gba:text-xs gba:gap-1"
+                    onClick={() => {
+                      onOpenChange(false)
+                      onOpenExternalImport()
+                    }}
+                    data-testid={`${testId}-add-external-source`}
+                  >
+                    <Plug className="gba:w-3 gba:h-3" /> External
                   </Button>
                 )}
               </div>

@@ -20,6 +20,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import translations from '../_i18n'
+import { parseDurationToMinutes, minutesToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 // Query to fetch employee header info
 const GET_EMPLOYEE_HEADER_INFO = `
@@ -119,15 +120,25 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return `${hh}:${mm}`
   }
 
+  // Track the original values so we can detect whether the user changed anything
+  const [initialValues, setInitialValues] = useState<{
+    date: string
+    clockIn: string
+    clockOut: string
+    notes: string
+  } | null>(null)
+
   // Initialize/Reset form values from platform params
   React.useEffect(() => {
     if (!platformParams) return
-    form.reset({
+    const vals = {
       date: platformParams.attendanceDateISO || '',
       clockIn: formatIsoToHHMM(platformParams.startTimeISO),
       clockOut: formatIsoToHHMM(platformParams.endTimeISO),
       notes: platformParams.notes || ''
-    })
+    }
+    form.reset(vals)
+    setInitialValues(vals)
   }, [platformParams, form])
 
   const [dateVal, clockInVal, clockOutVal, notesVal] = form.watch(['date', 'clockIn', 'clockOut', 'notes']) as [
@@ -143,17 +154,23 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     if (Number.isNaN(hh) || Number.isNaN(mm)) return null
     return hh * 60 + mm
   }
+  const hasChanges = useMemo(() => {
+    if (!initialValues) return true
+    return (
+      dateVal !== initialValues.date ||
+      clockInVal !== initialValues.clockIn ||
+      clockOutVal !== initialValues.clockOut ||
+      notesVal !== initialValues.notes
+    )
+  }, [dateVal, clockInVal, clockOutVal, notesVal, initialValues])
+
   const isValid = useMemo(() => {
     const hasNotes = typeof notesVal === 'string' && notesVal.trim().length > 0
     const startMins = hhmmToMinutes(clockInVal)
     const endMins = hhmmToMinutes(clockOutVal)
-    const timeOrderOk =
-      startMins === null ||
-      endMins === null ||
-      // Allow equal, only invalidate when start is strictly after end
-      startMins <= endMins
-    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes && timeOrderOk)
-  }, [dateVal, clockInVal, clockOutVal, notesVal])
+    const timeOrderOk = startMins === null || endMins === null || startMins <= endMins
+    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes && timeOrderOk && hasChanges)
+  }, [dateVal, clockInVal, clockOutVal, notesVal, hasChanges])
 
   // Normalize any date (ISO with time or YYYY-MM-DD) to UTC midnight ISO
   const toUtcMidnightIso = (input: string): string => {
@@ -215,30 +232,13 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return m ? m[1] : ''
   }
 
-  // Parse duration strings like "7h 30m" / "8h" / "30m" into minutes
-  const parseDurationToMinutes = (text?: string): number => {
-    if (!text) return 0
-    let hours = 0
-    let minutes = 0
-    const tokens = String(text).trim().split(/\s+/)
-    for (const token of tokens) {
-      if (/^\d+h$/i.test(token)) {
-        hours = Number.parseInt(token.slice(0, -1), 10) || 0
-      } else if (/^\d+m$/i.test(token)) {
-        minutes = Number.parseInt(token.slice(0, -1), 10) || 0
-      }
-    }
-    return hours * 60 + minutes
-  }
-
-  // Format minutes as "Xh Ym" or "Xh" and keep minus sign for negative values
-  const formatMinutes = (minutes: number): string => {
-    const sign = minutes < 0 ? '-' : ''
-    const abs = Math.abs(minutes)
+  // Format minutes as HH:MM for BE; negative difference as "-HH:MM"
+  const minutesToHHMMPayload = (minutes: number): string => {
+    const abs = Math.abs(Math.floor(minutes))
     const h = Math.floor(abs / 60)
     const m = abs % 60
-    if (m === 0) return `${sign}${h}h`
-    return `${sign}${h}h ${m}m`
+    const str = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+    return minutes < 0 ? `-${str}` : str
   }
 
   // Render the calendar with a preselected date, constrained behavior, and selection handling
@@ -325,11 +325,11 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           correctionDescription: notes,
           employee: requestEmployeeId,
           employeeAttendance: payloadObject?.timeEntryId,
-          recordedTime: formatMinutes(recordedMinutes),
-          breakTime: payloadObject?.breakTime,
-          effectiveTime: formatMinutes(effectiveMinutes),
-          plannedTime: payloadObject?.plannedTime,
-          differenceTime: formatMinutes(differenceMinutes)
+          recordedTime: minutesToHHMM(recordedMinutes),
+          breakTime: minutesToHHMM(breakMinutes),
+          effectiveTime: minutesToHHMM(effectiveMinutes),
+          plannedTime: minutesToHHMM(plannedMinutes),
+          differenceTime: minutesToHHMMPayload(differenceMinutes)
         },
         employeeInfo: {
           userId: payloadObject?.userId,

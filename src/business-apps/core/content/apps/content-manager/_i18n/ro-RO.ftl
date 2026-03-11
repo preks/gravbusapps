@@ -11,6 +11,8 @@ news_content = Știri
 news_content_subtitle = Articole de știri
 knowledge_content = Cunoștințe
 knowledge_content_subtitle = Bază de cunoștințe
+policies_content = Politici
+policies_content_subtitle = Politici
 documents_content = Documente
 documents_content_subtitle = Bibliotecă de documente
 questions_content = Întrebări
@@ -56,6 +58,7 @@ created_date = Data Creării
 ## Content Groups
 group_news = Știri
 group_knowledge = Cunoștințe
+group_policies = Politici
 group_document = Document
 group_question = Întrebare
 

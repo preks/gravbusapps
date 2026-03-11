@@ -1,8 +1,8 @@
 /**
  * useTableFilterSort - hybrid server/client filtering and sorting for board table rows.
  *
- * Server-driven: filters + sorts are serialized for the backend API. The server returns
- * already-filtered/sorted rows. Quick search runs client-side for instant feedback.
+ * Server-driven: filters + sorts (+ search) are serialized for the backend API.
+ * The server returns already-filtered/sorted/searched rows.
  *
  * Filter/sort state is persisted to URL parameters so it survives page refreshes.
  * Quick filters (saved per-sheet) are toggled via the `qf` URL param.
@@ -11,15 +11,11 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react'
 import type { BoardRow, BoardColumn, ViewFilter, ViewSort, FilterConnector, BoardQuickFilter } from '../types'
 
-function normalizeStr(v: unknown): string {
-  if (v == null) return ''
-  return String(v).toLowerCase()
-}
-
 export interface ServerFilterParams {
   filters?: string
   filterConnector?: 'and' | 'or'
   sorts?: string
+  search?: string
 }
 
 export interface UseTableFilterSortOptions {
@@ -196,8 +192,10 @@ export function useTableFilterSort(
     if (sorts.length > 0) {
       params.sorts = JSON.stringify(sorts.map(s => ({ column: s.column, direction: s.direction })))
     }
+    const q = quickSearch.trim()
+    if (q) params.search = q
     return params
-  }, [combinedFilters, effectiveConnector, sorts])
+  }, [combinedFilters, effectiveConnector, sorts, quickSearch])
 
   const onServerParamsChangeRef = useRef(options?.onServerParamsChange)
   onServerParamsChangeRef.current = options?.onServerParamsChange
@@ -233,19 +231,10 @@ export function useTableFilterSort(
   }, [serverParams])
 
   const filteredRows = useMemo(() => {
-    if (!quickSearch.trim()) return rows
-    const q = quickSearch.trim().toLowerCase()
-    return rows.filter(row =>
-      columns.some(col => {
-        if (normalizeStr(row.data[col.name]).includes(q)) return true
-        if (col.type === 'relation') {
-          const labels = row.data[`_rel_${col.name}`]
-          if (Array.isArray(labels)) return labels.some(l => normalizeStr(l).includes(q))
-        }
-        return false
-      })
-    )
-  }, [rows, quickSearch, columns])
+    // Search is handled server-side (via serverParams.search) so we don't attempt
+    // to filter large row sets client-side (which becomes slow for big boards).
+    return rows
+  }, [rows])
 
   const addFilter = useCallback((f: ViewFilter) => setFiltersRaw(prev => [...prev, f]), [])
   const updateFilter = useCallback(

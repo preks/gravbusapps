@@ -15,7 +15,7 @@ import {
   DialogDescription,
   DialogFooter
 } from '@newwork/nw-design-system'
-import { PiPlus, PiMapPin, PiTable, PiTrash, PiPencil } from 'react-icons/pi'
+import { PlusIcon, MapPinIcon, TableIcon, TrashIcon, PencilIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -434,7 +434,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
               onClick={onViewUnassigned}
               data-testid={`${prefixDataTestId}-view-unassigned-button`}
             >
-              <PiTable className="gba:w-4 gba:h-4 gba:mr-2" />
+              <TableIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               View Unassigned Rules
             </Button>
             <Button
@@ -442,7 +442,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
               onClick={handleCreateTravelRegionSet}
               data-testid={`${prefixDataTestId}-add-travel-region-set-button`}
             >
-              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+              <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               Add Travel Region Set
             </Button>
           </div>
@@ -459,7 +459,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
           >
             <CardHeader className="gba:flex gba:flex-row gba:items-center gba:space-y-0 gba:pb-3">
               <div className="gba:w-12 gba:h-12 gba:bg-blue-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mr-4">
-                <PiMapPin className="gba:text-blue-600 gba:text-xl" />
+                <MapPinIcon className="gba:text-blue-600 gba:text-xl" />
               </div>
               <div className="gba:flex-1">
                 <CardTitle className="gba:text-lg gba:font-semibold">{set.value}</CardTitle>
@@ -483,7 +483,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                       }}
                       data-testid={`${prefixDataTestId}-view-matrix-button-${set.id}`}
                     >
-                      <PiMapPin className="gba:w-4 gba:h-4 gba:mr-1" />
+                      <MapPinIcon className="gba:w-4 gba:h-4 gba:mr-1" />
                       View Matrix
                     </Button>
                     <Button
@@ -494,7 +494,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                       className="hover:gba:bg-accent"
                       title="Edit travel region set"
                     >
-                      <PiPencil className="gba:w-4 gba:h-4" />
+                      <PencilIcon className="gba:w-4 gba:h-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -513,7 +513,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                           : 'Delete travel region set'
                       }
                     >
-                      <PiTrash className="gba:w-4 gba:h-4" />
+                      <TrashIcon className="gba:w-4 gba:h-4" />
                     </Button>
                   </div>
                 </div>
@@ -532,13 +532,13 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
 
       {travelRegionSets.length === 0 && (
         <div className="gba:text-center gba:py-12">
-          <PiMapPin className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
+          <MapPinIcon className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
           <h4 className="gba:text-lg gba:font-medium gba:text-gray-600 gba:mb-2">No Travel Region Sets Found</h4>
           <p className="gba:text-gray-500 gba:mb-4">
             Create your first travel region set to start organizing your travel allowance rules.
           </p>
           <Button variant="default" onClick={handleCreateTravelRegionSet}>
-            <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+            <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             Create Travel Region Set
           </Button>
         </div>

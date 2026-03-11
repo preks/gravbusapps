@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Card, PageLayout, IconAvatar } from '@newwork/nw-design-system'
-import { PiCaretRight } from 'react-icons/pi'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { cn } from '@/common/utils/cn'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -192,7 +192,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
                           >
                             {entry.label}
                           </span>
-                          <PiCaretRight
+                          <CaretRightIcon
                             size={16}
                             className={cn(entry.disabled ? 'gba:text-slate-300' : 'gba:text-slate-500')}
                           />

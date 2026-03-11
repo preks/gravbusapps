@@ -26,7 +26,7 @@ import {
 } from '@newwork/nw-design-system'
 import { toast, Toaster } from 'sonner'
 import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
-import { PiArrowLeft, PiWarning, PiCheckCircle, PiCalendar } from 'react-icons/pi'
+import { ArrowLeftIcon, WarningIcon, CheckCircleIcon, CalendarIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -527,7 +527,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
     return (
       <div data-testid="calculation-rule-record-error" className="gba:p-6">
         <Alert variant="destructive">
-          <PiWarning className="gba:h-4 gba:w-4" />
+          <WarningIcon className="gba:h-4 gba:w-4" />
           <AlertDescription>
             <div className="gba:flex gba:flex-col gba:gap-4">
               <div>
@@ -557,7 +557,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
       <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
           <Button variant="outline" onClick={onNavigateBack} data-testid="calculation-rule-record-back-button">
-            <PiArrowLeft className="gba:mr-2 gba:h-4 gba:w-4" />
+            <ArrowLeftIcon className="gba:mr-2 gba:h-4 gba:w-4" />
             Back{page && ` to ${page}`}
           </Button>
           <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground">
@@ -643,7 +643,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                   <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-6 gba:mb-6">
                     <div>
                       <Label htmlFor="activeFrom" className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar className="gba:h-4 gba:w-4" />
+                        <CalendarIcon className="gba:h-4 gba:w-4" />
                         Valid From *
                       </Label>
                       <DateInput
@@ -655,7 +655,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                     </div>
                     <div>
                       <Label htmlFor="activeTo" className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar className="gba:h-4 gba:w-4" />
+                        <CalendarIcon className="gba:h-4 gba:w-4" />
                         Valid To
                       </Label>
                       <DateInput
@@ -870,7 +870,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                       </>
                     ) : (
                       <>
-                        <PiCheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
+                        <CheckCircleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                         Save
                       </>
                     )}

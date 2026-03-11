@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { PreviewTemplate } from '../preview-template'
 import {
   Card,
@@ -12,7 +14,6 @@ import {
   Textarea,
   Input,
   Label,
-  ScrollArea,
   Badge,
   Separator,
   Select,
@@ -107,6 +108,222 @@ function SchemaProperties({ schema }: Readonly<{ schema: Record<string, unknown>
   )
 }
 
+interface AgentPreviewDetailsCardsProps {
+  prompt: PromptODM
+  openSection: string | null
+  setOpenSection: React.Dispatch<React.SetStateAction<string | null>>
+  effectiveParamKeys: string[]
+  toolList: string[]
+  knowledgeSources: Array<{ id?: string; type: string; name: string; description?: string }>
+}
+
+function AgentPreviewDetailsCards({
+  prompt,
+  openSection,
+  setOpenSection,
+  effectiveParamKeys,
+  toolList,
+  knowledgeSources
+}: AgentPreviewDetailsCardsProps) {
+  const hasTools = toolList.length > 0
+  const hasKnowledge = knowledgeSources.length > 0
+  const hasSystemContent = !!prompt.system_content?.template
+  const hasUserContent = !!prompt.user_content?.template
+  const hasResponseSchema = !!prompt.response_schema && Object.keys(prompt.response_schema).length > 0
+  const hasBehaviorSection = hasSystemContent || hasUserContent || hasResponseSchema
+
+  if (!hasBehaviorSection && !hasTools && !hasKnowledge) return null
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-1">
+      {hasBehaviorSection && (
+        <Card className="gba:border-border gba:overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setOpenSection(prev => (prev === 'behavior' ? null : 'behavior'))}
+            className="gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:text-xs gba:font-medium gba:text-foreground hover:gba:bg-muted/50 gba:transition-colors"
+          >
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Brain className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+              How it works
+            </div>
+            {openSection === 'behavior' ? (
+              <ChevronDown className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            ) : (
+              <ChevronRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            )}
+          </button>
+          {openSection === 'behavior' && (
+            <div className="gba:px-3 gba:pb-3 gba:flex gba:flex-col gba:gap-3 gba:border-t gba:border-border gba:pt-3">
+              {hasSystemContent && (
+                <div>
+                  <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wide">
+                    System Instructions
+                  </p>
+                  <pre className="gba:text-xs gba:bg-muted gba:rounded-md gba:p-3 gba:whitespace-pre-wrap gba:break-words gba:font-mono gba:text-foreground gba:leading-relaxed">
+                    {prompt.system_content!.template}
+                  </pre>
+                </div>
+              )}
+              {hasSystemContent && hasUserContent && <Separator />}
+              {hasUserContent && (
+                <div>
+                  <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wide">
+                    Goal / User Template
+                  </p>
+                  <pre className="gba:text-xs gba:bg-muted gba:rounded-md gba:p-3 gba:whitespace-pre-wrap gba:break-words gba:font-mono gba:text-foreground gba:leading-relaxed">
+                    {prompt.user_content.template}
+                  </pre>
+                  {effectiveParamKeys.length > 0 && effectiveParamKeys[0] !== 'message' && (
+                    <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-2">
+                      <span className="gba:text-xs gba:text-muted-foreground">Variables:</span>
+                      {effectiveParamKeys.map(k => (
+                        <Badge key={k} variant="secondary" className="gba:text-xs gba:font-mono">
+                          {`{${k}}`}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {hasResponseSchema && (
+                <>
+                  {(hasSystemContent || hasUserContent) && <Separator />}
+                  <div>
+                    <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wide">
+                      Output Schema
+                    </p>
+                    <SchemaProperties schema={prompt.response_schema!} />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+      {hasTools && (
+        <Card className="gba:border-border gba:overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setOpenSection(prev => (prev === 'tools' ? null : 'tools'))}
+            className="gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:text-xs gba:font-medium gba:text-foreground hover:gba:bg-muted/50 gba:transition-colors"
+          >
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Wrench className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+              Tools
+              <Badge variant="secondary" className="gba:text-xs">
+                {toolList.length}
+              </Badge>
+            </div>
+            {openSection === 'tools' ? (
+              <ChevronDown className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            ) : (
+              <ChevronRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            )}
+          </button>
+          {openSection === 'tools' && (
+            <div className="gba:px-3 gba:pb-3 gba:flex gba:flex-wrap gba:gap-2 gba:border-t gba:border-border gba:pt-3">
+              {toolList.map(tool => (
+                <Badge key={tool} variant="outline" className="gba:text-xs gba:font-mono">
+                  {tool}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+      {hasKnowledge && (
+        <Card className="gba:border-border gba:overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setOpenSection(prev => (prev === 'knowledge' ? null : 'knowledge'))}
+            className="gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:text-xs gba:font-medium gba:text-foreground hover:gba:bg-muted/50 gba:transition-colors"
+          >
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <BookOpen className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+              Knowledge Sources
+              <Badge variant="secondary" className="gba:text-xs">
+                {knowledgeSources.length}
+              </Badge>
+            </div>
+            {openSection === 'knowledge' ? (
+              <ChevronDown className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            ) : (
+              <ChevronRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            )}
+          </button>
+          {openSection === 'knowledge' && (
+            <div className="gba:px-3 gba:pb-3 gba:flex gba:flex-col gba:gap-2 gba:border-t gba:border-border gba:pt-3">
+              {knowledgeSources.map((src, i) => (
+                <div key={src.id ?? i} className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
+                  <Badge variant="outline" className="gba:text-xs gba:shrink-0">
+                    {src.type}
+                  </Badge>
+                  <span className="gba:text-foreground gba:truncate">{src.name}</span>
+                  {src.description && (
+                    <span className="gba:text-muted-foreground gba:text-xs gba:truncate">{src.description}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  )
+}
+
+const markdownComponents: Record<
+  string,
+  React.ComponentType<{ children?: React.ReactNode; [key: string]: unknown }>
+> = {
+  h1: ({ children, ...props }) => (
+    <h1 className="gba:text-base gba:font-semibold gba:mb-2 gba:mt-2 gba:text-foreground first:gba:mt-0" {...props}>
+      {children}
+    </h1>
+  ),
+  h2: ({ children, ...props }) => (
+    <h2 className="gba:text-sm gba:font-semibold gba:mb-1.5 gba:mt-2 gba:text-foreground first:gba:mt-0" {...props}>
+      {children}
+    </h2>
+  ),
+  h3: ({ children, ...props }) => (
+    <h3 className="gba:text-sm gba:font-semibold gba:mb-1 gba:mt-2 gba:text-foreground first:gba:mt-0" {...props}>
+      {children}
+    </h3>
+  ),
+  h4: ({ children, ...props }) => (
+    <h4 className="gba:text-xs gba:font-semibold gba:mb-1 gba:mt-1.5 gba:text-foreground first:gba:mt-0" {...props}>
+      {children}
+    </h4>
+  ),
+  ul: ({ children, ...props }) => (
+    <ul className="gba:list-disc gba:ml-4 gba:mb-2 gba:space-y-0.5" {...props}>
+      {children}
+    </ul>
+  ),
+  ol: ({ children, ...props }) => (
+    <ol className="gba:list-decimal gba:ml-4 gba:mb-2 gba:space-y-0.5" {...props}>
+      {children}
+    </ol>
+  ),
+  p: ({ children, ...props }) => (
+    <p className="gba:mb-2 gba:last:mb-0" {...props}>
+      {children}
+    </p>
+  ),
+  strong: ({ children, ...props }) => (
+    <strong className="gba:font-semibold" {...props}>
+      {children}
+    </strong>
+  ),
+  code: ({ children, ...props }) => (
+    <code className="gba:bg-background/50 gba:px-1 gba:py-0.5 gba:rounded gba:text-xs gba:font-mono" {...props}>
+      {children}
+    </code>
+  )
+}
+
 function buildRequestFormData(
   userParams: Record<string, string>,
   promptProp: PromptODM | null | undefined,
@@ -141,6 +358,17 @@ interface AgentPromptLoaderSetters {
   setError: (e: string | null) => void
 }
 
+function extractParametersFromTemplate(content: string): string[] {
+  if (!content) return []
+  const params = new Set<string>()
+  const pattern = /\{(\w+)\}/g
+  let match
+  while ((match = pattern.exec(content)) !== null) {
+    params.add(match[1])
+  }
+  return Array.from(params).sort((a, b) => a.localeCompare(b))
+}
+
 function useAgentPromptLoader(
   client: ReturnType<typeof usePromptManagerClient>,
   promptProp: PromptODM | null | undefined,
@@ -153,7 +381,18 @@ function useAgentPromptLoader(
   useEffect(() => {
     if (promptProp != null) {
       setPrompt(promptProp)
-      setParamKeys(paramKeysProp ?? [])
+
+      // If paramKeys not provided, extract from template
+      let effectiveKeys = paramKeysProp ?? []
+      if (effectiveKeys.length === 0 && promptProp.user_content?.template) {
+        const userParams = extractParametersFromTemplate(promptProp.user_content.template)
+        const systemParams = promptProp.system_content?.template
+          ? extractParametersFromTemplate(promptProp.system_content.template)
+          : []
+        effectiveKeys = [...new Set([...userParams, ...systemParams])]
+      }
+
+      setParamKeys(effectiveKeys)
       setLoading(false)
       setError(null)
       return
@@ -405,25 +644,19 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
         .filter(Boolean)
     : []
   const knowledgeSources = prompt.knowledge_sources ?? []
-  const hasTools = toolList.length > 0
-  const hasKnowledge = knowledgeSources.length > 0
-  const hasSystemContent = !!prompt.system_content?.template
-  const hasUserContent = !!prompt.user_content?.template
-  const hasResponseSchema = !!prompt.response_schema && Object.keys(prompt.response_schema).length > 0
-  const hasBehaviorSection = hasSystemContent || hasUserContent || hasResponseSchema
 
   return (
-    <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full gba:min-h-0" data-testid={testId}>
-      {/* Header */}
+    <div className="gba:flex gba:flex-col gba:gap-2 gba:h-full gba:min-h-0" data-testid={testId}>
+      {/* Header - compact */}
       <Card className="gba:shrink-0 gba:border-border">
-        <CardContent className="gba:pt-4 gba:pb-4">
-          <div className="gba:flex gba:items-start gba:gap-4">
-            <div className="gba:p-3 gba:rounded-xl gba:bg-primary/10 gba:shrink-0">
-              <Bot className="gba:h-7 gba:w-7 gba:text-primary" />
+        <CardContent className="gba:pt-2 gba:pb-2 gba:px-4">
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-1.5 gba:rounded-lg gba:bg-primary/10 gba:shrink-0">
+              <Bot className="gba:h-5 gba:w-5 gba:text-primary" />
             </div>
             <div className="gba:flex-1 gba:min-w-0">
               <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-                <span className="gba:text-lg gba:font-semibold gba:text-foreground">{prompt.name}</span>
+                <span className="gba:text-base gba:font-semibold gba:text-foreground">{prompt.name}</span>
                 {prompt.agent_type && (
                   <Badge variant="secondary" className="gba:text-xs">
                     {AGENT_TYPE_LABELS[prompt.agent_type] ?? prompt.agent_type}
@@ -431,12 +664,14 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
                 )}
               </div>
               {prompt.description && (
-                <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{prompt.description}</p>
+                <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:line-clamp-1">
+                  {prompt.description}
+                </p>
               )}
               {prompt.specialty && (
-                <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mt-1">{prompt.specialty}</p>
+                <p className="gba:text-xs gba:font-medium gba:text-foreground gba:mt-0.5">{prompt.specialty}</p>
               )}
-              <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-3">
+              <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-1.5">
                 {prompt.response_style && (
                   <Badge variant="outline" className="gba:text-xs">
                     {RESPONSE_STYLE_LABELS[prompt.response_style] ?? prompt.response_style}
@@ -458,146 +693,15 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
         </CardContent>
       </Card>
 
-      {/* Details sections */}
-      {(hasBehaviorSection || hasTools || hasKnowledge) && (
-        <div className="gba:flex gba:flex-col gba:gap-2">
-          {hasBehaviorSection && (
-            <Card className="gba:border-border gba:overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setOpenSection(prev => (prev === 'behavior' ? null : 'behavior'))}
-                className="gba:w-full gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:text-sm gba:font-medium gba:text-foreground hover:gba:bg-muted/50 gba:transition-colors"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Brain className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  How it works
-                </div>
-                {openSection === 'behavior' ? (
-                  <ChevronDown className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                )}
-              </button>
-              {openSection === 'behavior' && (
-                <div className="gba:px-4 gba:pb-4 gba:flex gba:flex-col gba:gap-4 gba:border-t gba:border-border gba:pt-4">
-                  {hasSystemContent && (
-                    <div>
-                      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wide">
-                        System Instructions
-                      </p>
-                      <pre className="gba:text-xs gba:bg-muted gba:rounded-md gba:p-3 gba:whitespace-pre-wrap gba:break-words gba:font-mono gba:text-foreground gba:leading-relaxed">
-                        {prompt.system_content!.template}
-                      </pre>
-                    </div>
-                  )}
-                  {hasSystemContent && hasUserContent && <Separator />}
-                  {hasUserContent && (
-                    <div>
-                      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wide">
-                        Goal / User Template
-                      </p>
-                      <pre className="gba:text-xs gba:bg-muted gba:rounded-md gba:p-3 gba:whitespace-pre-wrap gba:break-words gba:font-mono gba:text-foreground gba:leading-relaxed">
-                        {prompt.user_content.template}
-                      </pre>
-                      {effectiveParamKeys.length > 0 && effectiveParamKeys[0] !== 'message' && (
-                        <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-2">
-                          <span className="gba:text-xs gba:text-muted-foreground">Variables:</span>
-                          {effectiveParamKeys.map(k => (
-                            <Badge key={k} variant="secondary" className="gba:text-xs gba:font-mono">
-                              {`{${k}}`}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {hasResponseSchema && (
-                    <>
-                      {(hasSystemContent || hasUserContent) && <Separator />}
-                      <div>
-                        <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wide">
-                          Output Schema
-                        </p>
-                        <SchemaProperties schema={prompt.response_schema!} />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </Card>
-          )}
-
-          {hasTools && (
-            <Card className="gba:border-border gba:overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setOpenSection(prev => (prev === 'tools' ? null : 'tools'))}
-                className="gba:w-full gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:text-sm gba:font-medium gba:text-foreground hover:gba:bg-muted/50 gba:transition-colors"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Wrench className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  Tools
-                  <Badge variant="secondary" className="gba:text-xs">
-                    {toolList.length}
-                  </Badge>
-                </div>
-                {openSection === 'tools' ? (
-                  <ChevronDown className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                )}
-              </button>
-              {openSection === 'tools' && (
-                <div className="gba:px-4 gba:pb-4 gba:flex gba:flex-wrap gba:gap-2 gba:border-t gba:border-border gba:pt-4">
-                  {toolList.map(tool => (
-                    <Badge key={tool} variant="outline" className="gba:text-xs gba:font-mono">
-                      {tool}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </Card>
-          )}
-
-          {hasKnowledge && (
-            <Card className="gba:border-border gba:overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setOpenSection(prev => (prev === 'knowledge' ? null : 'knowledge'))}
-                className="gba:w-full gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:text-sm gba:font-medium gba:text-foreground hover:gba:bg-muted/50 gba:transition-colors"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <BookOpen className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  Knowledge Sources
-                  <Badge variant="secondary" className="gba:text-xs">
-                    {knowledgeSources.length}
-                  </Badge>
-                </div>
-                {openSection === 'knowledge' ? (
-                  <ChevronDown className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                )}
-              </button>
-              {openSection === 'knowledge' && (
-                <div className="gba:px-4 gba:pb-4 gba:flex gba:flex-col gba:gap-2 gba:border-t gba:border-border gba:pt-4">
-                  {knowledgeSources.map((src, i) => (
-                    <div key={src.id ?? i} className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                      <Badge variant="outline" className="gba:text-xs gba:shrink-0">
-                        {src.type}
-                      </Badge>
-                      <span className="gba:text-foreground gba:truncate">{src.name}</span>
-                      {src.description && (
-                        <span className="gba:text-muted-foreground gba:text-xs gba:truncate">{src.description}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          )}
-        </div>
-      )}
+      {/* Details sections - compact */}
+      <AgentPreviewDetailsCards
+        prompt={prompt}
+        openSection={openSection}
+        setOpenSection={setOpenSection}
+        effectiveParamKeys={effectiveParamKeys}
+        toolList={toolList}
+        knowledgeSources={knowledgeSources}
+      />
 
       {/* Try it out */}
       <Card className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:border-border">
@@ -624,42 +728,8 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
               </Select>
             </div>
           )}
-          <ScrollArea className="gba:flex-1 gba:min-h-[100px] gba:rounded-md gba:border gba:border-border gba:p-3">
-            <div className="gba:space-y-3">
-              {messages.length === 0 ? (
-                <p className="gba:text-sm gba:text-muted-foreground">
-                  Fill in the fields below and run the agent to see the response.
-                </p>
-              ) : (
-                messages.map((m, i) => (
-                  <div
-                    key={`${m.role}-${i}`}
-                    className={`gba:flex ${m.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
-                    data-testid={`${testId}-msg-${i}`}
-                  >
-                    <div
-                      className={`gba:max-w-[85%] gba:rounded-lg gba:px-3 gba:py-2 gba:text-sm gba:whitespace-pre-wrap ${m.role === 'user' ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted gba:text-foreground'}`}
-                    >
-                      {m.content}
-                    </div>
-                  </div>
-                ))
-              )}
-              {sending && (
-                <div className="gba:flex gba:justify-start">
-                  <span className="gba:text-sm gba:text-muted-foreground">Thinking...</span>
-                </div>
-              )}
-              <div ref={scrollRef} />
-            </div>
-          </ScrollArea>
 
-          {sendError && (
-            <Alert variant="destructive">
-              <AlertDescription>{sendError}</AlertDescription>
-            </Alert>
-          )}
-
+          {/* Input section - above results, more visible */}
           <div className="gba:shrink-0 gba:flex gba:flex-col gba:gap-3">
             {isMultiParam ? (
               <>
@@ -680,6 +750,7 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
                         }}
                         placeholder={friendlyLabel(key)}
                         disabled={sending}
+                        className="gba:border-2 gba:border-muted-foreground/40 focus-within:gba:ring-2 focus-within:gba:ring-ring"
                         data-testid={`${testId}-input-${key}`}
                       />
                     </div>
@@ -689,21 +760,21 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
                   variant="default"
                   onClick={sendMessage}
                   disabled={!canSend}
-                  className="gba:self-end"
+                  className="gba:self-end gba:h-10 gba:px-4"
                   data-testid={`${testId}-send`}
                 >
-                  <Send className="gba:h-4 gba:w-4 gba:mr-2" />
+                  <Send className="gba:h-5 gba:w-5 gba:mr-2" />
                   Run
                 </Button>
               </>
             ) : (
-              <div className="gba:flex gba:gap-2">
-                <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
-                  {effectiveParamKeys[0] !== 'message' && (
-                    <Label className="gba:text-xs gba:font-medium gba:text-muted-foreground">
-                      {friendlyLabel(effectiveParamKeys[0])}
-                    </Label>
-                  )}
+              <div className="gba:flex gba:flex-col gba:gap-1">
+                {effectiveParamKeys[0] !== 'message' && (
+                  <Label className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                    {friendlyLabel(effectiveParamKeys[0])}
+                  </Label>
+                )}
+                <div className="gba:relative gba:rounded-md gba:border-2 gba:border-muted-foreground/40 focus-within:gba:ring-2 focus-within:gba:ring-ring focus-within:gba:border-primary/50">
                   <Textarea
                     value={paramValues[effectiveParamKeys[0]] ?? ''}
                     onChange={e => setParamValue(effectiveParamKeys[0], e.target.value)}
@@ -714,24 +785,69 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
                       }
                     }}
                     placeholder="Type your message..."
-                    rows={2}
-                    className="gba:resize-none"
+                    rows={3}
+                    className="gba:resize-none gba:border-0 gba:focus-visible:ring-0 gba:focus-visible:ring-offset-0 gba:pr-14 gba:pb-1"
                     disabled={sending}
                     data-testid={`${testId}-chat-input`}
                   />
+                  <Button
+                    variant="default"
+                    size="icon"
+                    onClick={sendMessage}
+                    disabled={!canSend}
+                    className="gba:absolute gba:bottom-2 gba:right-2 gba:h-10 gba:w-10 gba:shrink-0"
+                    data-testid={`${testId}-send`}
+                  >
+                    <Send className="gba:h-5 gba:w-5" />
+                  </Button>
                 </div>
-                <Button
-                  variant="default"
-                  size="icon"
-                  onClick={sendMessage}
-                  disabled={!canSend}
-                  className="gba:self-end"
-                  data-testid={`${testId}-send`}
-                >
-                  <Send className="gba:h-4 gba:w-4" />
-                </Button>
               </div>
             )}
+          </div>
+
+          {sendError && (
+            <Alert variant="destructive">
+              <AlertDescription>{sendError}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Results area - below input, compact when empty, grows with content */}
+          <div
+            className={`gba:rounded-md gba:border gba:border-border/60 gba:p-3 gba:bg-muted/10 gba:overflow-y-auto gba:max-h-[400px] ${messages.length === 0 ? 'gba:min-h-[48px]' : ''}`}
+          >
+            <div className="gba:space-y-3">
+              {messages.length === 0 ? (
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  Results will appear here after you run the agent.
+                </p>
+              ) : (
+                messages.map((m, i) => (
+                  <div
+                    key={`${m.role}-${i}`}
+                    className={`gba:flex ${m.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
+                    data-testid={`${testId}-msg-${i}`}
+                  >
+                    <div
+                      className={`gba:rounded-lg gba:px-3 gba:py-2 gba:text-sm gba:break-words ${m.role === 'user' ? 'gba:max-w-[85%] gba:bg-primary gba:text-primary-foreground gba:whitespace-pre-wrap' : 'gba:max-w-full gba:min-w-0 gba:bg-muted gba:text-foreground gba:prose gba:prose-sm gba:max-w-none'}`}
+                    >
+                      {m.role === 'assistant' ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {m.content}
+                        </ReactMarkdown>
+                      ) : (
+                        m.content
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+              {sending && (
+                <div className="gba:flex gba:justify-start">
+                  <span className="gba:text-sm gba:text-muted-foreground">Thinking...</span>
+                </div>
+              )}
+              <div ref={scrollRef} />
+            </div>
           </div>
         </CardContent>
       </Card>

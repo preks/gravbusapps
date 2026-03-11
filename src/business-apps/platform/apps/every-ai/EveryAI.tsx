@@ -9,10 +9,15 @@ import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
 import { VoiceOverlay } from './components/voice/VoiceOverlay'
+import { ChatHistory } from './components/ChatHistory'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 import { FlowProposalFileUploadProvider } from './context/FlowProposalFileUploadContext'
 import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
+import { ChatsCircle } from '@phosphor-icons/react'
+import { Button } from '@newwork/nw-design-system'
+import { UserPreferencesProvider, useUserPreferencesContext } from './context/UserPreferencesContext'
+import { UserPreferences } from './components/UserPreferences'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -28,9 +33,11 @@ export interface EveryAIProps extends BusinessAppContextProps {
  */
 export const EveryAI: React.FC<EveryAIProps> = props => {
   return (
-    <VoiceFormProvider>
-      <EveryAIInner {...props} />
-    </VoiceFormProvider>
+    <UserPreferencesProvider accessToken={props.accessToken}>
+      <VoiceFormProvider>
+        <EveryAIInner {...props} />
+      </VoiceFormProvider>
+    </UserPreferencesProvider>
   )
 }
 
@@ -41,12 +48,16 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   const { accessToken, className, userInfo, isActive = true, compactSuggestions = false } = props
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
   const lastNavigatedTurnIndexRef = useRef<number>(-1)
 
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
+
+  // User preferences context for personalization
+  const userPreferences = useUserPreferencesContext()
 
   const {
     conversation,
@@ -61,7 +72,8 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     attachFilesForFlowProposalField,
     cancelGeneration,
     cancelledMessageText,
-    clearCancelledMessage
+    clearCancelledMessage,
+    loadSession
   } = useFlowBot(accessToken, { isActive })
 
   // Fetch current user's picture
@@ -392,12 +404,32 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
 
     try {
-      const initialPrompt = sessionStorage.getItem('everyAIInitialPrompt')
+      const memoryPayload = window.__everyAIInitialPayload
+      const initialPrompt = memoryPayload?.prompt ?? sessionStorage.getItem('everyAIInitialPrompt')
+      const initialAdditionInfo = memoryPayload?.additionInfo ?? sessionStorage.getItem('everyAIInitialAdditionInfo')
+      const initialSkills =
+        memoryPayload?.skills ??
+        (() => {
+          try {
+            const rawSkills = sessionStorage.getItem('everyAIInitialSkills')
+            if (!rawSkills) return undefined
+            const parsedSkills = JSON.parse(rawSkills)
+            return Array.isArray(parsedSkills) ? parsedSkills : undefined
+          } catch {
+            return undefined
+          }
+        })()
+
       if (initialPrompt && initialPrompt !== promptProcessedRef.current) {
         promptProcessedRef.current = initialPrompt
+        window.__everyAIInitialPayload = undefined
         sessionStorage.removeItem('everyAIInitialPrompt')
+        sessionStorage.removeItem('everyAIInitialAdditionInfo')
+        sessionStorage.removeItem('everyAIInitialSkills')
         setTimeout(() => {
-          sendMessage(initialPrompt, [], false, false)
+          // Pass through exactly as resolved so empty string can still force
+          // `addition_info` multipart field inclusion.
+          sendMessage(initialPrompt, [], false, false, initialAdditionInfo ?? undefined, initialSkills)
         }, 300)
       }
     } catch (error) {
@@ -450,10 +482,35 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [sendMessage])
 
-  const handleSend = (text: string, files: File[], isThinking: boolean, isSearching: boolean) => {
-    // Keep passing files for backwards compatibility.
-    // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
-    sendMessage(text, files, isThinking, isSearching)
+  const handleSessionSelect = useCallback(
+    async (sessionIdToLoad: string) => {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('newwork_every_ai', JSON.stringify({ sessionId: sessionIdToLoad }))
+        } catch (error) {
+          console.warn('Failed to save session ID:', error)
+        }
+      }
+      setShowHistory(false)
+      await loadSession(sessionIdToLoad)
+    },
+    [loadSession]
+  )
+
+  const handleNewChat = useCallback(() => {
+    clearConversation()
+    setShowHistory(false)
+    window.dispatchEvent(new CustomEvent('chat-history-refresh'))
+  }, [clearConversation])
+
+  const handleSend = (
+    text: string,
+    files: File[],
+    isThinking: boolean,
+    isSearching: boolean,
+    mentions?: Array<{ id: string; type: string; display: string }>
+  ) => {
+    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions)
   }
 
   const isEmptyState = conversation.length === 0 && !isLoading
@@ -477,6 +534,37 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           <DeepBlueNeuralBackground />
         </div>
       )}
+
+      {/* History toggle button - visible when panel is closed */}
+      {!showHistory && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowHistory(true)}
+          className="gba:absolute gba:top-4 gba:left-4 gba:z-20 gba:h-10 gba:w-10 gba:rounded-full gba:bg-background/80 gba:backdrop-blur-sm gba:shadow-md hover:gba:bg-muted gba:border gba:border-border/50"
+          aria-label="Open chat history"
+          title="Chat history"
+          data-testid="every-ai-open-history"
+        >
+          <ChatsCircle className="gba:w-5 gba:h-5" weight="fill" />
+        </Button>
+      )}
+
+      {/* History Sidebar */}
+      <div
+        className={`
+          gba:absolute gba:inset-y-0 gba:left-0 gba:z-30 gba:transform gba:transition-transform gba:duration-300
+          gba:w-80 gba:bg-white gba:shadow-lg gba:border-r gba:border-gray-200
+          ${showHistory ? 'gba:translate-x-0' : 'gba:-translate-x-full'}
+        `}
+      >
+        <ChatHistory
+          accessToken={accessToken}
+          onSessionSelect={handleSessionSelect}
+          onNewChat={handleNewChat}
+          currentSessionId={sessionId}
+        />
+      </div>
 
       {/* Voice Mode Overlay */}
       <VoiceOverlay
@@ -629,12 +717,34 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   compactSuggestions={compactSuggestions}
                   // Access token for entity mentions
                   accessToken={accessToken}
+                  // User preferences
+                  onOpenPreferences={userPreferences.openModal}
                 />
               </div>
             </div>
           </div>
         </FlowProposalFileUploadProvider>
       </FormSubmissionProvider>
+
+      {/* Overlay for sidebar - click to close */}
+      {showHistory && (
+        <div
+          className="gba:absolute gba:inset-0 gba:bg-black gba:bg-opacity-50 gba:z-20 gba:cursor-pointer"
+          onClick={() => setShowHistory(false)}
+          onKeyDown={e => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setShowHistory(false)
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Close chat history sidebar"
+          data-testid="every-ai-history-overlay"
+        />
+      )}
+      {/* User Preferences Modal */}
+      <UserPreferences darkMode={isEmptyState} />
     </div>
   )
 }

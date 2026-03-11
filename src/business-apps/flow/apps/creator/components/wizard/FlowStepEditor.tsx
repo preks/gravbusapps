@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Input, Button, Switch, Space, Tag, Tooltip, Select, Divider, Upload, message, Popover } from 'antd'
 import {
-  PlusOutlined,
-  DeleteOutlined,
-  FileTextOutlined,
-  LinkOutlined,
-  FileImageOutlined,
-  MessageOutlined,
-  UserOutlined,
-  SettingOutlined,
-  DownOutlined,
-  RightOutlined,
-  InboxOutlined,
-  UploadOutlined,
-  PaperClipOutlined,
-  InfoCircleOutlined,
-  CheckCircleOutlined,
-  EditOutlined,
-  CheckOutlined,
-  CloseOutlined
-} from '@ant-design/icons'
+  PlusIcon,
+  TrashIcon,
+  FileTextIcon,
+  LinkSimpleIcon,
+  ImageIcon,
+  ChatCircleIcon,
+  UserIcon,
+  GearIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+  TrayIcon,
+  UploadIcon,
+  PaperclipIcon,
+  InfoIcon,
+  CheckCircleIcon,
+  PencilIcon,
+  CheckIcon,
+  XIcon
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   FlowStep,
@@ -46,31 +46,31 @@ interface FlowStepEditorProps {
 // Configuration for input block types
 const INPUT_BLOCK_CONFIG = {
   [InputType.TEXT]: {
-    icon: <FileTextOutlined />,
+    icon: <FileTextIcon size={16} />,
     color: '#1890ff',
     label: 'Text Input',
     description: 'Single line text input'
   },
   [InputType.TEXTAREA]: {
-    icon: <MessageOutlined />,
+    icon: <ChatCircleIcon size={16} />,
     color: '#52c41a',
     label: 'Long Text',
     description: 'Multi-line text input'
   },
   [InputType.NUMBER]: {
-    icon: <FileTextOutlined />,
+    icon: <FileTextIcon size={16} />,
     color: '#fa8c16',
     label: 'Number',
     description: 'Numeric input'
   },
   [InputType.SELECT]: {
-    icon: <SettingOutlined />,
+    icon: <GearIcon size={16} />,
     color: '#722ed1',
     label: 'Dropdown',
     description: 'Select from predefined options'
   },
   [InputType.FILE]: {
-    icon: <FileImageOutlined />,
+    icon: <ImageIcon size={16} />,
     color: '#eb2f96',
     label: 'File Upload',
     description: 'File attachment input'
@@ -182,7 +182,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
             <Button
               type="text"
               size="small"
-              icon={isExpanded ? <DownOutlined /> : <RightOutlined />}
+              icon={isExpanded ? <CaretDownIcon size={16} /> : <CaretRightIcon size={16} />}
               onClick={() => setIsExpanded(!isExpanded)}
               data-testid={`${testId}-expand-button`}
             />
@@ -209,25 +209,25 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
             >
               <Select.Option value={FlowStepType.TASK}>
                 <Space>
-                  <UserOutlined />
+                  <UserIcon size={16} />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.stepType.task', 'Task')}
                 </Space>
               </Select.Option>
               <Select.Option value={FlowStepType.APPROVAL}>
                 <Space>
-                  <SettingOutlined />
+                  <GearIcon size={16} />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.stepType.approval', 'Approval')}
                 </Space>
               </Select.Option>
               <Select.Option value={FlowStepType.INFORMATION}>
                 <Space>
-                  <MessageOutlined />
+                  <ChatCircleIcon size={16} />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.stepType.information', 'Information')}
                 </Space>
               </Select.Option>
               <Select.Option value={FlowStepType.ACKNOWLEDGE}>
                 <Space>
-                  <CheckCircleOutlined />
+                  <CheckCircleIcon size={16} />
                   {getTranslationFromI18nKeyAndLabel('flow.creator.stepType.acknowledge', 'Acknowledge')}
                 </Space>
               </Select.Option>
@@ -281,7 +281,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                 {editMode ? (
                   <Space>
                     <Button
-                      icon={<CheckOutlined />}
+                      icon={<CheckIcon />}
                       type="primary"
                       size="small"
                       onClick={() => {
@@ -293,7 +293,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                       Save
                     </Button>
                     <Button
-                      icon={<CloseOutlined />}
+                      icon={<XIcon size={16} />}
                       size="small"
                       onClick={() => {
                         setLocalTitle(step.title || '')
@@ -307,7 +307,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                   </Space>
                 ) : (
                   <Button
-                    icon={<EditOutlined />}
+                    icon={<PencilIcon size={16} />}
                     size="small"
                     onClick={() => setEditMode(true)}
                     data-testid={`${testId}-edit-toggle`}
@@ -338,7 +338,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                   <Button
                     type="dashed"
                     size="small"
-                    icon={<PlusOutlined />}
+                    icon={<PlusIcon size={16} />}
                     onClick={addLink}
                     data-testid={`${testId}-add-link`}
                   >
@@ -355,7 +355,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                   className="gba:border-dashed gba:border-gray-300 gba:bg-gray-50"
                 >
                   <p className="gba:mb-2">
-                    <InboxOutlined className="gba:text-2xl gba:text-gray-400" />
+                    <TrayIcon size={24} className="gba:text-2xl gba:text-gray-400" />
                   </p>
                   <p className="gba:text-sm gba:text-gray-600">
                     {getTranslationFromI18nKeyAndLabel(
@@ -390,7 +390,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                             type="text"
                             danger
                             size="small"
-                            icon={<DeleteOutlined />}
+                            icon={<TrashIcon size={16} />}
                             onClick={() => removeLink(index)}
                             data-testid={`${testId}-remove-link-${index}`}
                           />
@@ -428,7 +428,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                 <Button
                   type="dashed"
                   size="small"
-                  icon={<PlusOutlined />}
+                  icon={<PlusIcon size={16} />}
                   onClick={addInputBlock}
                   data-testid={`${testId}-add-input`}
                 >
@@ -479,7 +479,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                           type="text"
                           danger
                           size="small"
-                          icon={<DeleteOutlined />}
+                          icon={<TrashIcon size={16} />}
                           onClick={() => removeInputBlock(index)}
                           data-testid={`${testId}-remove-input-${index}`}
                         />
@@ -518,7 +518,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                   root: { zIndex: 9999 }
                 }}
               >
-                <InfoCircleOutlined className="gba:text-gray-400 gba:cursor-help" />
+                <InfoIcon size={16} className="gba:text-gray-400 gba:cursor-help" />
               </Popover>
             </div>
 

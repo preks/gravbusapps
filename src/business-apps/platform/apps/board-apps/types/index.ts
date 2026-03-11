@@ -43,6 +43,8 @@ export type {
   KanbanViewConfig,
   CalendarViewConfig,
   TimelineViewConfig,
+  DependencyType,
+  DependencyMeta,
   FormViewConfig,
   DashboardViewConfig,
   DashboardWidget,
@@ -59,6 +61,21 @@ export type {
   ViewFilterGroup,
   ViewSort
 } from './views'
+
+export type {
+  ConnectorSummary,
+  ConnectorAction,
+  ConnectorInvokePayload,
+  ConnectorField,
+  ConnectorSchemaResult,
+  ConnectorPageResult,
+  ExternalDataSourceConfig,
+  SyncRunStatus,
+  SyncRun,
+  ExternalPreviewRequest,
+  ExternalPreviewResponse,
+  ExternalStartSyncRequest
+} from './externalConnector'
 
 export type {
   AggregationFn,

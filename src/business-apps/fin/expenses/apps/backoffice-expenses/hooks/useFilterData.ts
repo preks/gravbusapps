@@ -6,7 +6,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
-import { GET_ORGANIZATIONAL_UNITS, GET_EXPENSE_CURRENCIES } from '../queries/filterData.queries'
+import { GET_EXPENSE_CURRENCIES, GET_ORGANIZATIONAL_UNITS } from '../queries/filterData.queries'
+import { extractCurrencyCode } from '../utils/sharedUtils'
 
 // ⚡ SECURITY: Hash function for sensitive data in cache keys
 const createHash = (input: string): string => {
@@ -94,7 +95,7 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     if (currenciesResponse?.ExpenseRequest) {
       currenciesResponse.ExpenseRequest.forEach((item: any) => {
         if (item.currency && item.currencyRef) {
-          const currencyCode = item.currency.code || item.currencyRef.split(':').pop() || 'EUR'
+          const currencyCode = item.currency.code || extractCurrencyCode(item.currencyRef)
           allCurrencies.set(item.currencyRef, {
             code: currencyCode,
             value: item.currency.value || currencyCode,
@@ -132,10 +133,28 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     return { currencies: finalCurrencies, mostUsedCurrency: mostUsed }
   }, [])
 
+  const hasValidAccessToken = useCallback(
+    (token: string | null | undefined): token is string =>
+      Boolean(token && typeof token === 'string' && token.trim() !== ''),
+    []
+  )
+
+  const fetchOrganizationalUnits = useCallback(
+    async (structureId: string | null) => {
+      if (!structureId) return { OrganizationalUnit: [] }
+      try {
+        return await client.request(GET_ORGANIZATIONAL_UNITS, { structureId })
+      } catch {
+        return { OrganizationalUnit: [] }
+      }
+    },
+    [client]
+  )
+
   const fetchFilterData = useCallback(async () => {
     // ⚡ CRITICAL: Early return when accessToken is invalid (prevents 401 errors)
     // Dashboard mounts before auth completes - must validate token before ANY requests
-    if (!accessToken || typeof accessToken !== 'string' || accessToken.trim() === '') {
+    if (!hasValidAccessToken(accessToken)) {
       setLoading(false)
       return
     }
@@ -163,15 +182,10 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     setError(null)
 
     try {
-      // Fetch organizational units and currencies in parallel
-      const [orgUnitsResponse, currenciesResponse] = await Promise.all([
-        structureId
-          ? client.request(GET_ORGANIZATIONAL_UNITS, { structureId })
-          : Promise.resolve({ OrganizationalUnit: [] }),
-        client.request(GET_EXPENSE_CURRENCIES, {})
-      ])
+      const orgUnitsResponse = await fetchOrganizationalUnits(structureId)
+      const currenciesResponse = await client.request(GET_EXPENSE_CURRENCIES, {})
 
-      // Process organizational units using helper function
+      // Process organizational units using helper function (empty fallback)
       const orgUnits = processOrganizationalUnits(orgUnitsResponse, structureId)
       setOrganizationalUnits(orgUnits)
 
@@ -201,7 +215,14 @@ export const useFilterData = ({ accessToken }: { accessToken: string | null | un
     } finally {
       setLoading(false)
     }
-  }, [accessToken, client, processOrganizationalUnits, processCurrencies])
+  }, [
+    accessToken,
+    client,
+    fetchOrganizationalUnits,
+    hasValidAccessToken,
+    processOrganizationalUnits,
+    processCurrencies
+  ])
 
   useEffect(() => {
     // ⚡ CRITICAL: Only fetch if accessToken is valid (prevents 401 errors)

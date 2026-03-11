@@ -4,23 +4,25 @@
  * Tabs: Screen (default), Data Model, Functions, Task Expert, Flow.
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Upload, Loader2, CheckCircle2 } from 'lucide-react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
-import { BuildPlanTab } from './BuildPlanTab'
-import { DataFlowDiagram } from './DataFlowDiagram'
+import { OverviewTab } from './OverviewTab'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import { AppAboutView } from './AppAboutView'
 import { DataModelPreview } from '@/common/components/ai-builder/data-model-preview/DataModelPreview'
 import { FunctionPreview } from '@/common/components/ai-builder/function-preview/FunctionPreview'
 import { FlowPreview } from '@/common/components/ai-builder/flow-preview/FlowPreview'
 import { AgentPreview } from '@/common/components/ai-builder/agent-preview/AgentPreview'
+import { AgentMeshPreview } from '@/common/components/ai-builder/agent-mesh-preview/AgentMeshPreview'
 import { PreviewTemplate } from '@/common/components/ai-builder/preview-template/PreviewTemplate'
 import { mapDataModelSpec, mapFunctionSpec, mapFlowSpec, mapAgentSpec } from './componentSpecPreviewMappers'
 import type { ComponentSpec, CanvasTab } from '../../types'
+import { getVisibleCanvasTabs } from '../../types'
 import type { AppMetadata, BuildAnalysis, UserSummary } from '../../types/build'
 
 export interface CompleteViewProps {
@@ -30,6 +32,8 @@ export interface CompleteViewProps {
   prompt?: string
   accessToken?: string
   userInfo?: any
+  builtBy?: any
+  builtByLoading?: boolean
   /** Incremented by the chat panel when an AI fix modifies screen code */
   previewRefreshToken?: number
   appMetadata?: AppMetadata
@@ -41,6 +45,7 @@ export interface CompleteViewProps {
   publishError?: string | null
   onPublish?: () => void
   onReset?: () => void
+  isRestoringSession?: boolean
 }
 
 function firstScreenWithSession(components: ComponentSpec[]): ComponentSpec | null {
@@ -51,6 +56,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   components,
   accessToken,
   userInfo,
+  builtBy,
+  builtByLoading,
   previewRefreshToken,
   appMetadata,
   analysis,
@@ -60,18 +67,24 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   isPublishing,
   publishSuccess,
   publishError,
-  onPublish
+  onPublish,
+  isRestoringSession = false
 }) => {
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
+  const visibleTabs = useMemo(() => getVisibleCanvasTabs(components), [components])
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
+
+  useEffect(() => {
+    const visibleIds = visibleTabs.map(t => t.id)
+    if (visibleIds.length > 0 && !visibleIds.includes(activeTab)) {
+      setActiveTab(visibleTabs[0].id)
+    }
+  }, [visibleTabs, activeTab])
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'build-plan':
-        return <BuildPlanTab components={components} userSummary={userSummary} prompt={prompt} />
-
-      case 'data-flow':
-        return <DataFlowDiagram components={components} />
+        return <OverviewTab components={components} userSummary={userSummary} prompt={prompt} />
 
       case 'screen':
         if (previewComponent && accessToken) {
@@ -81,6 +94,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
               refreshToken={previewRefreshToken}
+              isRestoringSession={isRestoringSession}
             />
           )
         }
@@ -211,12 +225,36 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
                 const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
                 if (comp.flowSpec) {
                   const specTemplate = { ...mapFlowSpec(comp.flowSpec), id: effectiveId }
-                  return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} template={specTemplate} />
+                  return (
+                    <FlowPreview
+                      key={comp.id}
+                      accessToken={accessToken ?? ''}
+                      userInfo={userInfo}
+                      template={specTemplate}
+                    />
+                  )
                 }
-                return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} flowId={effectiveId} />
+                return (
+                  <FlowPreview key={comp.id} accessToken={accessToken ?? ''} userInfo={userInfo} flowId={effectiveId} />
+                )
               }}
             </PreviewTemplate>
           </div>
+        )
+      }
+
+      case 'agent-mesh': {
+        const builtAgents = components.filter(
+          c =>
+            c.type === 'agent' && (c.status === 'completed' || c.status === 'reused') && (c.createdId || c.existingId)
+        )
+        const agentIds = builtAgents.map(c => c.createdId ?? c.existingId ?? c.id)
+        return (
+          <AgentMeshPreview
+            accessToken={accessToken ?? ''}
+            agentIds={agentIds}
+            data-testid="complete-view-agent-mesh-preview"
+          />
         )
       }
 
@@ -230,6 +268,8 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             originalPrompt={prompt}
             createdAt={createdAt}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             accessToken={accessToken}
           />
         )
@@ -249,37 +289,72 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             <p className="gba:font-semibold gba:text-foreground gba:text-base gba:leading-tight">{appMetadata.name}</p>
             <p className="gba:text-sm gba:text-muted-foreground gba:truncate">{appMetadata.description}</p>
           </div>
-          {publishSuccess ? (
-            <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-success gba:font-medium gba:shrink-0">
-              <CheckCircle2 className="gba:w-4 gba:h-4" />
-              Published!
-            </span>
-          ) : (
-            <Button
-              onClick={onPublish}
-              disabled={isPublishing}
-              title={publishError ?? undefined}
-              className="gba:shrink-0 gba:gap-2 gba:rounded-2xl gba:bg-linear-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white gba:border-0 gba:px-5 gba:font-semibold gba:shadow-none gba:hover:opacity-90"
-            >
-              {isPublishing ? (
-                <>
-                  <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-                  Publishing...
-                </>
-              ) : (
-                <>
-                  <Upload className="gba:w-4 gba:h-4" />
-                  Publish App
-                </>
-              )}
-            </Button>
-          )}
+          {(() => {
+            if (publishSuccess) {
+              return (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+                  <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-success gba:font-medium">
+                    <CheckCircle2 className="gba:w-4 gba:h-4" />
+                    Published!
+                  </span>
+                  {previewComponent?.resourceUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigateTo(buildPlatformUrl(previewComponent.resourceUrl!))}
+                    >
+                      <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                      Open App
+                    </Button>
+                  )}
+                </div>
+              )
+            }
+            if (publishError) {
+              return (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+                  <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-destructive gba:font-medium">
+                    <XCircle className="gba:w-4 gba:h-4 gba:shrink-0" />
+                    Publish failed
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onPublish}
+                    disabled={isPublishing}
+                    aria-label={isPublishing ? 'Retry publishing' : undefined}
+                  >
+                    {isPublishing ? <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin" /> : 'Retry'}
+                  </Button>
+                </div>
+              )
+            }
+            return (
+              <Button
+                onClick={onPublish}
+                disabled={isPublishing}
+                className="gba:shrink-0 gba:gap-2 gba:rounded-2xl gba:bg-linear-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white gba:border-0 gba:px-5 gba:font-semibold gba:shadow-none gba:hover:opacity-90"
+              >
+                {isPublishing ? (
+                  <>
+                    <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="gba:w-4 gba:h-4" />
+                    Publish App
+                  </>
+                )}
+              </Button>
+            )
+          })()}
         </div>
       )}
 
       {/* Tab Header */}
       <div className="gba:bg-background gba:border-b gba:border-border">
-        <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} />
+        <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} tabs={visibleTabs} />
       </div>
 
       {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0 */}

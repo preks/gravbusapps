@@ -28,6 +28,7 @@ import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record
 import HeroLiveClock from './HeroLiveClock'
 import timeTrackingTranslations from '../_i18n'
 import { useEmployeeWorkingHours } from '../utils/useEmployeeWorkingHours'
+import { minutesToHHMM } from '../utils/duration'
 
 interface TimeTrackingProps {
   employee: any
@@ -58,15 +59,11 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
 
   const { t } = useTranslation(timeTrackingTranslations)
 
-  const formatHm = (minutes: number) => {
-    const abs = Math.max(0, Math.floor(minutes))
-    const h = Math.floor(abs / 60)
-    const m = abs % 60
-    return `${h}:${String(m).padStart(2, '0')}`
-  }
+  // Format minutes as HH:MM (e.g. 480 -> "08:00") for display
+  const formatMinutesToHHMM = (minutes: number) => minutesToHHMM(Math.max(0, Math.floor(minutes)))
 
-  const workedHm = `${formatHm(todayRecordedMinutes)}h`
-  const plannedHm = `${formatHm(todaysPlannedMinutes)}h`
+  const workedHHMM = formatMinutesToHHMM(todayRecordedMinutes)
+  const plannedHHMM = formatMinutesToHHMM(todaysPlannedMinutes)
   const workProgressPct = React.useMemo(() => {
     if (!todaysPlannedMinutes || todaysPlannedMinutes <= 0) return 0
     const pct = (todaysWorkedMinutes / todaysPlannedMinutes) * 100
@@ -215,7 +212,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
                 <div className="gba:flex gba:flex-col">
                   <div className="gba:text-sm gba:text-muted-foreground">{t('worked_today')}</div>
                   <div className="gba:text-base gba:font-medium">
-                    {formatHm(todaysWorkedMinutes)} ({t('recorded')} {formatHm(todayRecordedMinutes)})
+                    {`${formatMinutesToHHMM(todaysWorkedMinutes)} (${t('recorded')} ${formatMinutesToHHMM(todayRecordedMinutes)})`}
                   </div>
                   <div className="gba:text-sm gba:text-muted-foreground">
                     {(() => {
@@ -275,9 +272,9 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
               <Icon icon={ClockIcon} />
             </div>
             <div className="gba:mt-2 gba:text-xl gba:font-semibold">
-              {workedHm}{' '}
+              {workedHHMM}{' '}
               <span className="gba:text-muted-foreground gba:text-base">
-                / {plannedHm} {t('planned')}
+                / {plannedHHMM} {t('planned')}
               </span>
             </div>
             <div className="gba:mt-2 gba:h-2 gba:bg-muted gba:rounded-full">

@@ -112,3 +112,23 @@ export interface FlowProgressComplete {
   progressPercentage: number
   steps: FlowProgressStep[]
 }
+
+export interface FlowTemplateBranch {
+  condition: string
+  nextStep: number
+}
+
+export interface FlowTemplateStep {
+  name?: string
+  title?: string
+  type?: string
+  nextStep?: number | null
+  defaultNextStep?: number | null
+  branches?: FlowTemplateBranch[]
+}
+
+export interface FlowTemplateDefinition {
+  id: string
+  name: string
+  steps: FlowTemplateStep[]
+}

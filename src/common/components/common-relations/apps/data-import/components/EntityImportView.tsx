@@ -5,11 +5,15 @@
  */
 
 import React from 'react'
-import { PageLayout, Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
+import { PageLayout, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
-import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
+import {
+  useEntityImport,
+  useEntityMappings,
+  useLeadImportDefaults
+} from '@/common/components/common-relations/apps/data-import/hooks'
 import { FileUploadStep } from './FileUploadStep'
 import { MappingReviewStep } from './MappingReviewStep'
 import { ConversionResultStep } from './ConversionResultStep'
@@ -68,19 +72,50 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     reset
   } = useEntityImport(context, config)
 
-  const { mappings, setMappings, updateMapping, removeMapping, addMapping } = useEntityMappings(
+  const {
+    mappings,
+    setMappings,
+    updateTargetFromUnmapped,
+    removeMapping,
+    addMapping,
+    unmappedSourceFields,
+    setUnmappedSourceFields
+  } = useEntityMappings(
     config.targetFields,
-    agentResponse?.fieldMappings || []
+    agentResponse?.fieldMappings || [],
+    agentResponse?.unmappedSourceFields || []
   )
 
   React.useEffect(() => {
     if (agentResponse) {
       setMappings(agentResponse.fieldMappings)
+      setUnmappedSourceFields(agentResponse.unmappedSourceFields)
     }
-  }, [agentResponse, setMappings])
+  }, [agentResponse, setMappings, setUnmappedSourceFields])
+
+  // Lead-specific defaults (Status, Source, Rating) — only for lead entity type
+  const isLeadImport = config.entityType === 'lead'
+  const leadDefaults = useLeadImportDefaults(context.accessToken, config.domain)
+
+  const handleAnalyze = React.useCallback(async () => {
+    await analyzeWithAgent()
+  }, [analyzeWithAgent])
 
   const handleConvert = async () => {
-    await convertData(mappings)
+    let enforcedFieldsJson: string | undefined
+
+    if (isLeadImport) {
+      const enforced: Record<string, string> = {}
+      if (leadDefaults.selectedStatus) enforced.leadStatusRef = leadDefaults.selectedStatus
+      if (leadDefaults.selectedSource) enforced.leadSourceRef = leadDefaults.selectedSource
+      if (leadDefaults.selectedRating) enforced.leadRatingRef = leadDefaults.selectedRating
+
+      if (Object.keys(enforced).length > 0) {
+        enforcedFieldsJson = JSON.stringify(enforced)
+      }
+    }
+
+    await convertData(mappings, enforcedFieldsJson)
   }
 
   return (
@@ -92,10 +127,19 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
       data-testid={testId}
     >
       {error && (
-        <Alert variant="destructive" className="gba:mb-4" data-testid={`${testId}-error`}>
-          <XCircleIcon className="gba:w-4 gba:h-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <Card className="gba:mb-6 gba:border-destructive-ring" data-testid={`${testId}-error`}>
+          <CardContent className="gba:py-10">
+            <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-16 gba:h-16 gba:rounded-full gba:bg-destructive-secondary">
+                <XCircleIcon className="gba:w-8 gba:h-8 gba:text-destructive" weight="fill" />
+              </div>
+              <div className="gba:space-y-2">
+                <p className="gba:font-semibold gba:text-base gba:text-destructive">Analysis Failed</p>
+                <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {step === 'upload' && (
@@ -103,13 +147,14 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           file={file}
           isLoading={isLoading}
           onFileChange={handleFileChange}
-          onAnalyze={analyzeWithAgent}
+          onAnalyze={handleAnalyze}
           {...(enableCampaignSelection && {
             campaignId,
             onCampaignChange: (campaign: { id: string; name: string } | null) =>
               setCampaign(campaign?.id ?? null, campaign?.name),
             businessAppContext: context
           })}
+          {...(isLeadImport && { leadDefaults })}
           data-testid={`${testId}-upload-step`}
         />
       )}
@@ -118,10 +163,11 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
         <MappingReviewStep
           agentResponse={agentResponse}
           mappings={mappings}
+          unmappedSourceFields={unmappedSourceFields}
           targetFieldsConfig={config.targetFields}
           entityType={entityType}
           isLoading={isLoading}
-          onUpdateMapping={updateMapping}
+          onUpdateTargetFromUnmapped={updateTargetFromUnmapped}
           onRemoveMapping={removeMapping}
           onAddMapping={addMapping}
           onConvert={handleConvert}

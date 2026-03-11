@@ -5,6 +5,7 @@ import { Loader2, AlertCircle, Upload, Download, CheckCircle, X } from 'lucide-r
 import { Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getSafeHref } from '@/business-apps/core/create/apps/ai-builder/utils/helpers'
+import { ScreenBuildingLoader } from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/components/widgets/ScreenBuildingLoader'
 
 interface UniqueFileSummary {
   totalUniqueFiles: number
@@ -38,6 +39,21 @@ interface PreviewSandboxProps {
   allowLoad?: boolean
 }
 
+interface PreviewNamespaceContext {
+  sessionNamespace: string
+  namespace: string
+}
+
+function derivePreviewNamespaceContext(sessionNamespaceOrId: string): PreviewNamespaceContext {
+  const seed = (sessionNamespaceOrId || '').trim()
+  const normalized = seed.replace(/[^a-zA-Z0-9_]/g, '_')
+  const draftNamespace = `draft_${normalized}`
+  return {
+    sessionNamespace: seed,
+    namespace: draftNamespace
+  }
+}
+
 export interface PreviewSandboxHandle {
   reload: (opts?: { cacheOnly?: boolean }) => void
 }
@@ -62,15 +78,17 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   ref
 ) {
   const [loading, setLoading] = useState(true)
-  const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [previewReady, setPreviewReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bundleVersion, setBundleVersion] = useState<string | null>(null)
+  const [namespaceContext, setNamespaceContext] = useState<PreviewNamespaceContext | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
 
   const createPreviewUrl = (cacheBust: string, cacheOnly?: boolean) => {
     const query: Record<string, string | boolean> = { v: cacheBust }
+    const resolvedNamespaceContext = namespaceContext ?? derivePreviewNamespaceContext(sessionId)
     const app = previewAppName?.trim()
     if (app) {
       query.app = app
@@ -78,26 +96,59 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     if (cacheOnly) {
       query.bundle = false
     }
-    return builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
+    const baseUrl = builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
+    // Use hash for initial context so backend query validation is not affected.
+    const hashParams = new URLSearchParams({
+      namespace: resolvedNamespaceContext.namespace,
+      publishState: 'draft'
+    })
+    return `${baseUrl}#${hashParams.toString()}`
   }
 
   useImperativeHandle(
     ref,
     () => ({
       reload(opts?: { cacheOnly?: boolean }) {
-        setIframeLoaded(false)
+        setPreviewReady(false)
         const cacheBust = Date.now().toString()
         const nextUrl = createPreviewUrl(cacheBust, opts?.cacheOnly)
         setBundleVersion(cacheBust)
         setPreviewUrl(nextUrl)
       }
     }),
-    [builderClient, sessionId, previewAppName]
+    [builderClient, sessionId, previewAppName, namespaceContext]
   )
 
   useEffect(() => {
     let mounted = true
-    setIframeLoaded(false)
+    const fallback = derivePreviewNamespaceContext(sessionId)
+    setNamespaceContext(fallback)
+
+    const loadSessionNamespace = async () => {
+      try {
+        const response = await builderClient.getSession(sessionId)
+        const sessionNamespace = response.session?.namespace?.trim() || sessionId
+        const derived = derivePreviewNamespaceContext(sessionNamespace)
+        if (!mounted) return
+        setNamespaceContext(derived)
+      } catch {
+        if (!mounted) return
+        setNamespaceContext(fallback)
+      }
+    }
+
+    if (sessionId) {
+      void loadSessionNamespace()
+    }
+
+    return () => {
+      mounted = false
+    }
+  }, [builderClient, sessionId])
+
+  useEffect(() => {
+    let mounted = true
+    setPreviewReady(false)
 
     const loadPreview = async () => {
       if (!allowLoad) {
@@ -145,7 +196,6 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   }, [repoId, sessionId, accessToken, allowLoad, previewAppName])
 
   const handleIframeLoad = () => {
-    setIframeLoaded(true)
     console.log('[PreviewSandbox] Iframe loaded successfully', { bundleVersion })
     if (onReady) {
       onReady()
@@ -159,7 +209,10 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
       if (!source || source === globalThis.window || typeof (source as Window).postMessage !== 'function') return
       if (iframeRef.current?.contentWindow && source !== iframeRef.current.contentWindow) return
 
+      setPreviewReady(true)
+
       const nwEnvs = getRuntimeEnvsForIframe()
+      const resolvedNamespaceContext = namespaceContext ?? derivePreviewNamespaceContext(sessionId)
       const targetOrigin = typeof event.origin === 'string' ? event.origin : '*'
       ;(source as Window).postMessage(
         {
@@ -167,6 +220,11 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
           context: {
             accessToken: accessToken,
             userInfo: userInfo,
+            additionalData: {
+              namespace: resolvedNamespaceContext.namespace,
+              publishState: 'draft',
+              sessionNamespace: resolvedNamespaceContext.sessionNamespace
+            },
             nwEnvs,
             sentAt: Date.now()
           }
@@ -176,12 +234,13 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
       console.log('[PreviewSandbox] Sent BUSINESS_APP_CONTEXT to iframe', {
         hasAccessToken: !!accessToken,
         hasUserInfo: !!userInfo,
+        hasAdditionalDataNamespace: !!resolvedNamespaceContext.namespace,
         nwEnvsKeys: Object.keys(nwEnvs || {})
       })
     }
     globalThis.addEventListener('message', handleMessage)
     return () => globalThis.removeEventListener('message', handleMessage)
-  }, [accessToken, userInfo])
+  }, [accessToken, userInfo, previewReady, namespaceContext, sessionId])
 
   const handleIframeError = () => {
     const errorMsg = 'Failed to load preview iframe'
@@ -195,9 +254,8 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
 
   if (loading && !buildStatus?.active) {
     return (
-      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:gap-3">
-        <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-primary" />
-        <p className="gba:text-sm">Building preview...</p>
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full">
+        <ScreenBuildingLoader />
       </div>
     )
   }
@@ -294,19 +352,31 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
       <div className="gba:flex-1 gba:relative">
         {previewUrl && (
           <iframe
+            key={previewUrl}
             ref={iframeRef}
             src={previewUrl}
-            className="gba:w-full gba:h-full gba:border-0"
+            className="gba:w-full gba:h-full gba:border-0 gba:transition-[opacity,filter] gba:duration-300 gba:ease-out"
             sandbox="allow-scripts allow-same-origin allow-forms"
             title="Preview Sandbox"
             onLoad={handleIframeLoad}
             onError={handleIframeError}
+            style={{
+              visibility: previewReady ? 'visible' : 'hidden',
+              position: previewReady ? 'relative' : 'absolute',
+              opacity: previewReady ? 1 : 0,
+              filter: previewReady ? 'blur(0)' : 'blur(4px)',
+              colorScheme: 'normal',
+              background: 'transparent',
+              pointerEvents: previewReady ? 'auto' : 'none'
+            }}
           />
         )}
-        {!iframeLoaded && previewUrl && !buildStatus?.active && (
-          <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-background/80 gba:text-muted-foreground gba:gap-3">
-            <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-primary" />
-            <p className="gba:text-sm">Loading preview...</p>
+        {previewUrl && !buildStatus?.active && (
+          <div
+            className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-background gba:z-9999 gba:transition-opacity gba:duration-300 gba:ease-out"
+            style={{ opacity: previewReady ? 0 : 1, pointerEvents: previewReady ? 'none' : 'auto' }}
+          >
+            <ScreenBuildingLoader />
           </div>
         )}
         {buildStatus?.active && (

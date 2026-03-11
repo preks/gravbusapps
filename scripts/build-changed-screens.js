@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { exec } from 'node:child_process'
 import dotenv from '@dotenvx/dotenvx'
+import { logPhase } from './utils/logPhase.js'
 
 const execAsync = promisify(exec)
 
@@ -28,11 +29,11 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 // Use a simple build version for validation
 const BUILD_VERSION = 'validation'
 
-console.log('🔍 Starting build validation for changed screens...')
-console.log(`🎯 Build version: ${BUILD_VERSION}`)
+console.log('Starting build validation for changed screens...')
+console.log(`Build version: ${BUILD_VERSION}`)
 
 async function buildScreenOnly(screenPath) {
-  console.log(`🔨 Building screen for validation: ${screenPath}`)
+  console.log(`Building screen for validation: ${screenPath}`)
 
   const projectRootDir = path.resolve(__dirname, '..')
   console.log(`   Project Root Dir: ${projectRootDir}`)
@@ -51,14 +52,14 @@ async function buildScreenOnly(screenPath) {
     throw new Error(`Source file not found: ${sourceEntryFile}`)
   }
 
-  console.log('\n⚙️  Building screen with Vite (validation only)...')
+  console.log('\nBuilding screen with Vite (validation only)...')
 
   if (fs.existsSync(buildOutputDir)) {
-    console.log(`🗑️  Deleting existing output directory: ${buildOutputDir}`)
+    console.log(`Deleting existing output directory: ${buildOutputDir}`)
     fs.rmSync(buildOutputDir, { recursive: true, force: true })
-    console.log('✅ Directory deleted successfully.')
+    console.log('Directory deleted successfully.')
   } else {
-    console.log(`ℹ️  Output directory ${buildOutputDir} does not exist, no need to delete.`)
+    console.log(`INFO: Output directory ${buildOutputDir} does not exist, no need to delete.`)
   }
 
   // Create a temporary directory for build files
@@ -74,7 +75,7 @@ async function buildScreenOnly(screenPath) {
   const tempIndexCssPath = path.join(tempDir, 'index.css')
 
   // Create a modified index.css
-  console.log('📝 Creating screen-specific index.css...')
+  console.log('Creating screen-specific index.css...')
 
   const indexCssContent = fs.readFileSync(originalIndexCssPath, 'utf8')
   const modifiedIndexCss = indexCssContent
@@ -140,16 +141,16 @@ async function buildScreenOnly(screenPath) {
       cwd: projectRootDir,
       env: buildEnv
     })
-    console.log('✅ Screen built successfully.')
+    console.log('Screen built successfully.')
 
     // Clean up temporary directory
-    console.log('🧹 Cleaning up temporary build files...')
+    console.log('Cleaning up temporary build files...')
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
 
     // Clean up build output since this is validation only
-    console.log('🧹 Cleaning up build output (validation only)...')
+    console.log('Cleaning up build output (validation only)...')
     if (fs.existsSync(buildOutputDir)) {
       fs.rmSync(buildOutputDir, { recursive: true, force: true })
     }
@@ -159,10 +160,10 @@ async function buildScreenOnly(screenPath) {
       screen: screenPath
     }
   } catch (error) {
-    console.error('❌ Build validation failed:', error.message)
+    console.error('Build validation failed:', error.message)
 
     // Clean up temporary directory even on failure
-    console.log('🧹 Cleaning up temporary build files...')
+    console.log('Cleaning up temporary build files...')
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
@@ -172,21 +173,21 @@ async function buildScreenOnly(screenPath) {
 }
 
 async function main() {
-  console.log('🔍 Starting build screens...')
+  console.log('Starting build screens...')
 
   // Check if manual screen list file is provided as command line argument
   const manualScreensFile = process.argv[2]
 
   if (!manualScreensFile) {
-    console.log('ℹ️  No specific screens file provided.')
-    console.log('🚀 Building all screens with batched multi-build...')
+    console.log('INFO: No specific screens file provided.')
+    console.log('Building all screens with batched multi-build...')
 
     try {
       execSync('npm run build:batched', { stdio: 'inherit' })
-      console.log('✅ All screens built successfully with batched build.')
+      console.log('All screens built successfully with batched build.')
       return
     } catch (error) {
-      console.error('❌ Batched build failed:', error.message)
+      console.error('Batched build failed:', error.message)
       process.exit(1)
     }
   }
@@ -195,16 +196,16 @@ async function main() {
   const screensFile = manualScreensFile
 
   if (!fs.existsSync(screensFile)) {
-    console.error(`❌ Screens file not found: ${screensFile}`)
+    console.error(`Screens file not found: ${screensFile}`)
     process.exit(1)
   }
 
   if (!fs.statSync(screensFile).size) {
-    console.log('✅ Screens file is empty. Nothing to build.')
+    console.log('Screens file is empty. Nothing to build.')
     return
   }
 
-  console.log(`📋 Building screens from: ${screensFile}`)
+  console.log(`Building screens from: ${screensFile}`)
 
   // Read the screens to build
   const specifiedScreens = fs
@@ -214,7 +215,7 @@ async function main() {
     .filter(line => line.length > 0)
     .map(line => line.replace(/^src\/business-apps\//, ''))
 
-  console.log(`📋 Found ${specifiedScreens.length} screen(s) in file:`)
+  console.log(`Found ${specifiedScreens.length} screen(s) in file:`)
   specifiedScreens.forEach(screen => console.log(`   - ${screen}`))
 
   // Filter out screens that don't exist
@@ -223,25 +224,23 @@ async function main() {
     const sourceEntryFile = path.join(projectRootDir, 'src', 'business-apps', screen, 'index.ts')
     const exists = fs.existsSync(sourceEntryFile)
     if (!exists) {
-      console.log(`   ⚠️  Skipping non-existent screen: ${screen} (${sourceEntryFile} not found)`)
+      console.log(`   WARNING: Skipping non-existent screen: ${screen} (${sourceEntryFile} not found)`)
     }
     return exists
   })
 
   const skippedCount = specifiedScreens.length - existingScreens.length
   if (skippedCount > 0) {
-    console.log(`📋 Filtered out ${skippedCount} non-existent screen(s).`)
+    console.log(`Filtered out ${skippedCount} non-existent screen(s).`)
   }
 
-  console.log(`📋 Building ${existingScreens.length} screen(s):`)
+  console.log(`Building ${existingScreens.length} screen(s):`)
   existingScreens.forEach(screen => console.log(`   - ${screen}`))
 
   const screensToBuild = existingScreens
 
   // Validate each screen by building it
-  console.log(`\n${'='.repeat(80)}`)
-  console.log(`🔨 SCREEN BUILD`)
-  console.log(`${'='.repeat(80)}`)
+  logPhase('SCREEN BUILD')
 
   const buildResults = []
   let successCount = 0
@@ -256,10 +255,8 @@ async function main() {
     const chunkNum = Math.floor(i / CHUNK_SIZE) + 1
     const totalChunks = Math.ceil(screensToBuild.length / CHUNK_SIZE)
 
-    console.log(`\n${'─'.repeat(60)}`)
-    console.log(`🔨 Building chunk ${chunkNum}/${totalChunks} (${chunk.length} screen${chunk.length > 1 ? 's' : ''})`)
+    console.log(`\nBUILD CHUNK ${chunkNum}/${totalChunks} (${chunk.length} screen${chunk.length > 1 ? 's' : ''})`)
     chunk.forEach(s => console.log(`   - ${s}`))
-    console.log(`${'─'.repeat(60)}`)
 
     // Build all screens in this chunk in parallel
     const chunkResults = await Promise.all(
@@ -276,7 +273,7 @@ async function main() {
     // Process results and check for failures
     for (const result of chunkResults) {
       if (result.success) {
-        console.log(`   ✅ ${result.screen}: Build successful`)
+        console.log(`   OK ${result.screen}: Build successful`)
         buildResults.push({
           screen: result.screen,
           success: true,
@@ -284,7 +281,7 @@ async function main() {
         })
         successCount++
       } else {
-        console.error(`   ❌ ${result.screen}: Build failed - ${result.error}`)
+        console.error(`   FAIL ${result.screen}: Build failed - ${result.error}`)
         failedScreens.push({
           screen: result.screen,
           error: result.error,
@@ -296,46 +293,42 @@ async function main() {
     // If any screen in this chunk failed, abort the build
     const chunkHasFailure = chunkResults.some(r => !r.success)
     if (chunkHasFailure) {
-      console.error(`\n🛑 Chunk ${chunkNum} had failures - aborting build`)
+      console.error(`\nChunk ${chunkNum} had failures - aborting build`)
       buildAborted = true
     }
   }
 
   // Print final summary
-  console.log(`\n${'='.repeat(80)}`)
-  console.log(`📊 BUILD SUMMARY`)
-  console.log(`${'='.repeat(80)}`)
-  console.log(`🎯 Build version: ${BUILD_VERSION}`)
-  console.log(`📈 Total screens: ${screensToBuild.length}`)
-  console.log(`✅ Successfully built: ${successCount}`)
-  console.log(`❌ Failed: ${failedScreens.length}`)
+  logPhase('BUILD SUMMARY')
+  console.log(`Build version: ${BUILD_VERSION}`)
+  console.log(`Total screens: ${screensToBuild.length}`)
+  console.log(`Successfully built: ${successCount}`)
+  console.log(`Failed: ${failedScreens.length}`)
 
   if (failedScreens.length > 0) {
-    console.log(`\n❌ FAILED SCREEN BUILD:`)
-    console.log(`${'='.repeat(50)}`)
+    logPhase('FAILED SCREEN BUILD DETAILS')
 
     failedScreens.forEach((failure, index) => {
       console.log(`\n${index + 1}. Screen: ${failure.screen}`)
       console.log(`   Stage: ${failure.stage}`)
       console.log(`   Error: ${failure.error}`)
-      console.log(`   ${'─'.repeat(40)}`)
     })
 
-    console.log(`\n💥 Build completed with ${failedScreens.length} failure(s)!`)
-    console.log(`🚨 Please fix the build errors.`)
-    console.log(`⚠️  The following screen(s) failed to compile:`)
+    console.log(`\nBuild completed with ${failedScreens.length} failure(s)!`)
+    console.log(`Please fix the build errors.`)
+    console.log(`WARNING: The following screen(s) failed to compile:`)
     failedScreens.forEach(f => console.log(`     - ${f.screen}`))
 
     // Exit with error code to fail the pipeline
     process.exit(1)
   } else {
-    console.log(`\n🎉 Build completed successfully!`)
-    console.log(`✨ All ${successCount} screen(s) compiled without errors.`)
-    console.log(`🚀 Screens are ready for deployment after merge.`)
+    console.log(`\nBuild completed successfully!`)
+    console.log(`All ${successCount} screen(s) compiled without errors.`)
+    console.log(`Screens are ready for deployment after merge.`)
   }
 }
 
 main().catch(error => {
-  console.error('❌ An unexpected error occurred during build:', error)
+  console.error('An unexpected error occurred during build:', error)
   process.exit(1)
 })

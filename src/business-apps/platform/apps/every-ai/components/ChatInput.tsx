@@ -1,10 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At } from '@phosphor-icons/react'
+import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At, UserCircle } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
 
 // Detect if running on a mobile device with camera capabilities
 function useIsMobileWithCamera(): boolean {
@@ -43,8 +44,14 @@ function shouldSendMessage(params: { disabled?: boolean; value: string; fileCoun
   return { canSend: true, trimmed }
 }
 
+interface MentionPayload {
+  id: string
+  type: string
+  display: string
+}
+
 interface ChatInputProps {
-  onSend: (text: string, files: File[], isThinking: boolean, isSearching: boolean) => void
+  onSend: (text: string, files: File[], isThinking: boolean, isSearching: boolean, mentions?: MentionPayload[]) => void
   onClear: () => void
   disabled?: boolean
   className?: string
@@ -73,6 +80,8 @@ interface ChatInputProps {
   darkMode?: boolean
   /** When true, show fewer suggestions (e.g. in sidebar) so they fit in one row */
   compactSuggestions?: boolean
+  /** Callback to open the user preferences modal */
+  onOpenPreferences?: () => void
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -96,7 +105,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onClearCancelledMessage,
   accessToken = '',
   darkMode = false,
-  compactSuggestions = false
+  compactSuggestions = false,
+  onOpenPreferences
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -109,6 +119,29 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const isTypingInContentEditableRef = useRef(false)
   const isMobileWithCamera = useIsMobileWithCamera()
 
+  // Document search for @mentions
+  const searchDocuments = useCallback(
+    async (query: string): Promise<EntityReference[]> => {
+      if (!accessToken) return []
+      DocumentApiService.setAccessToken(accessToken)
+      const docs = await DocumentApiService.listDocuments({
+        search: query || undefined,
+        limit: 5,
+        includeShared: true
+      })
+      const lowerQuery = query.toLowerCase()
+      return docs
+        .filter(doc => !query || (doc.title || '').toLowerCase().includes(lowerQuery))
+        .map(doc => ({
+          id: doc.id,
+          type: 'document' as const,
+          name: doc.title || 'Untitled Document',
+          subtitle: `Document${doc.status ? ` • ${doc.status}` : ''}`
+        }))
+    },
+    [accessToken]
+  )
+
   // Entity mentions hook
   const {
     entities,
@@ -120,22 +153,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     clearMentions,
     closeMention,
     removeMention
-  } = useEntityMentions(accessToken, { insertionMode: 'markdown_link' })
+  } = useEntityMentions(accessToken, { insertionMode: 'markdown_link', searchDocuments })
 
   const handleSend = useCallback(() => {
     const { canSend, trimmed } = shouldSendMessage({ disabled, value, fileCount: files.length })
     if (!canSend) return
+    const mentionPayloads: MentionPayload[] = selectedEntities.map(e => ({
+      id: e.id,
+      type: e.type,
+      display: e.name
+    }))
     onSend(
       trimmed,
       files.map(f => f.file),
       false,
-      isSearching
+      isSearching,
+      mentionPayloads.length > 0 ? mentionPayloads : undefined
     )
     setValue('')
     clearFiles()
     setIsSearching(false)
     clearMentions()
-  }, [value, files, onSend, clearFiles, disabled, isSearching, clearMentions])
+  }, [value, files, onSend, clearFiles, disabled, isSearching, clearMentions, selectedEntities])
 
   const pickFiles = useCallback(
     (list: FileList | null) => {
@@ -827,6 +866,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             ON
                           </span>
                         )}
+                      </button>
+
+                      {/* My Preferences */}
+                      <button
+                        onClick={() => {
+                          onOpenPreferences?.()
+                        }}
+                        className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
+                        onMouseEnter={e => {
+                          if (!darkMode) {
+                            ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (!darkMode) {
+                            ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                          }
+                        }}
+                        disabled={disabled}
+                      >
+                        <div
+                          className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
+                          style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
+                        >
+                          <UserCircle
+                            className="gba:h-4 gba:w-4"
+                            style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
+                            weight="bold"
+                          />
+                        </div>
+                        <span className="gba:font-medium">My preferences</span>
                       </button>
 
                       {/* Divider */}

@@ -53,6 +53,8 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'contentDocuments',
     'createdAt',
     'updatedAt',
+    'activeFrom',
+    'activeTo',
     'descendantContentEntriesAggregate',
     'contentEntryReactionCounts'
   ],
@@ -82,6 +84,8 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'createdBy',
     'updatedAt',
     'updatedBy',
+    'activeFrom',
+    'activeTo',
     'allowComment',
     'allowReaction',
     'accepted',

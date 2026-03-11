@@ -5,7 +5,7 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import translations from '../../_i18n'
-import { PiStar, PiCheckCircle } from 'react-icons/pi'
+import { StarIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { calculateSkillStats, getLevelInfo, getSkillCategory, getTimeSince } from '../../utils/utils'
 
 const LEVEL_TOKEN_CLASSES: Record<number, { bg: string; text: string }> = {
@@ -81,7 +81,7 @@ const SkillsTabOld: React.FC<SkillsTabOldProps> = ({ employee, accessToken }) =>
                     <div className="gba:text-2xl gba:font-bold">{skillStats.total}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">{t('skills-total')}</div>
                   </div>
-                  <PiStar className="gba:h-8 gba:w-8" />
+                  <StarIcon className="gba:h-8 gba:w-8" />
                 </div>
               </CardContent>
             </Card>
@@ -97,7 +97,7 @@ const SkillsTabOld: React.FC<SkillsTabOldProps> = ({ employee, accessToken }) =>
                     </div>
                     <div className="gba:text-sm gba:text-muted-foreground">{t('skills-highest')}</div>
                   </div>
-                  <PiCheckCircle className="gba:h-8 gba:w-8 gba:text-primary" />
+                  <CheckCircleIcon className="gba:h-8 gba:w-8 gba:text-primary" />
                 </div>
               </CardContent>
             </Card>

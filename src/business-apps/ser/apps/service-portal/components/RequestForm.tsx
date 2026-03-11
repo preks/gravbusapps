@@ -44,7 +44,7 @@ import {
   TargetIcon,
   ShieldCheckIcon
 } from '@phosphor-icons/react'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { getCategoryIcon } from '../../../utils/iconMapping'
 import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData'
 import { parseMarkdownForReact } from '@/common/utils/markdownUtils'
@@ -628,7 +628,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
           data-testid="back-button"
         >
-          <ArrowLeftOutlined className="gba:mr-2" />
+          <ArrowLeftIcon size={16} className="gba:mr-2" />
           <span>Cancel Request</span>
         </button>
       </div>

@@ -25,6 +25,7 @@ export interface SessionUser {
 export interface SessionMetadata {
   sessionId: string
   repoId: string | null
+  namespace?: string | null
   targetPath: string | null
   resourceUrl: string | null
   createdAt: string
@@ -79,14 +80,39 @@ export interface ToolCall {
   result?: string
   status: 'running' | 'complete'
   id: string
+  order?: number
+  displayTitle?: string
+  displayDetail?: string
+  displayKind?: 'info' | 'success' | 'warning' | 'error'
+  displayStep?: 'call' | 'progress' | 'result'
+  progressLines?: string[]
 }
 
+export interface ChatMessageBlock {
+  type: 'thinking' | 'response'
+  content: string
+  collapsed?: boolean
+  order?: number
+}
+
+/**
+ * Chat message contract aligned with backend ChatHistoryMessageDto.
+ * Required persisted metadata for author identity and round-trip:
+ * - createdBy: user id for user messages; 'orchestrator-system' for system messages
+ * - messageId, createdAt/serverCreatedAt for restore/version flows
+ * - editHistory for collaboration attribution
+ * Adapters MUST preserve these fields when persisting; do not strip on save.
+ */
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   toolCalls?: ToolCall[]
   thinkingLog?: string
+  thinkingCollapsed?: boolean
+  blocks?: ChatMessageBlock[]
+  /** Author user id (user messages) or 'orchestrator-system' (system messages). Required for identity round-trip. */
   createdBy?: string
+  /** Edit history for collaboration attribution. Preserve on save. */
   editHistory?: Array<{
     userId: string
     editedAt: string
@@ -174,6 +200,142 @@ export interface PublishResponse {
   error?: string
 }
 
+export interface LatestPublishedResourceVersion {
+  repoId: string
+  targetPath: string | null
+  sessionId: string | null
+  versionMajor: number
+  versionMinor: number
+  resourceUrl: string
+  azureUrl: string | null
+  publishedAt: string | null
+  firstPublishedAt: string | null
+}
+
+export type BuilderMetricsTimeframe = 'last24h' | 'last7d' | 'last30d' | 'mtd' | 'all'
+
+export interface SessionUsageMetric {
+  sessionId: string
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeTokens: number
+  timeframeCalls: number
+  lastUsedAt: string | null
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface SessionUsageMetricsResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  sessions: SessionUsageMetric[]
+}
+
+export interface AiModelUsageMetric {
+  model: string
+  provider: string
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeCalls: number
+  priceInputUsdPerMillion: number
+  priceOutputUsdPerMillion: number
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface AiTotalsMetric {
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCalls: number
+  timeframeInputTokens: number
+  timeframeOutputTokens: number
+  timeframeCalls: number
+  timeframeCostUsd: number
+  totalCostUsd: number
+}
+
+export interface LlmPricingConfigEntry {
+  id: string
+  provider: string
+  model: string
+  inputUsdPerMillion: number
+  outputUsdPerMillion: number
+  source: string
+  updatedAt: string | null
+}
+
+export interface LlmPricingConfigResponse {
+  generatedAt: string
+  note: string
+  entries: LlmPricingConfigEntry[]
+}
+
+export interface UpdateLlmPricingConfigRequest {
+  entries: Array<{
+    id?: string
+    provider: string
+    model?: string
+    inputUsdPerMillion: number
+    outputUsdPerMillion: number
+  }>
+}
+
+export interface MetricsTimeseriesPoint {
+  bucketStart: string
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  calls: number
+  totalCostUsd: number
+}
+
+export interface MetricsTimeseriesResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  points: MetricsTimeseriesPoint[]
+}
+
+export interface BuilderServiceMetricsResponse {
+  generatedAt: string
+  timeframe: BuilderMetricsTimeframe
+  sessions: {
+    total: number
+    withinTimeframe: number
+  }
+  screens: {
+    versionsCreated: number
+    versionsPublished: number
+    createdWithinTimeframe: number
+    publishedWithinTimeframe: number
+  }
+  builds: {
+    total: number
+    completed: number
+    failed: number
+    successRate: number
+    avgDurationSeconds: number
+    withinTimeframe: number
+  }
+  ai: {
+    byModel: AiModelUsageMetric[]
+    totals: AiTotalsMetric
+  }
+  orchestration: {
+    total: number
+    completed: number
+    failed: number
+    running: number
+    withinTimeframe: number
+  }
+}
+
 // ============================================================================
 // Client
 // ============================================================================
@@ -253,10 +415,50 @@ export class BuilderClient {
                 tool: String(call.tool || 'unknown'),
                 status: call.status === 'running' ? 'running' : 'complete',
                 id: String(call.id || ''),
+                order: typeof call.order === 'number' && Number.isFinite(call.order) ? call.order : undefined,
                 args: this.truncateText(call.args, maxToolArgsChars),
-                result: this.truncateText(call.result, maxToolResultChars)
+                result: this.truncateText(call.result, maxToolResultChars),
+                displayTitle: this.truncateText(call.displayTitle, 240),
+                displayDetail: this.truncateText(call.displayDetail, 700),
+                displayKind:
+                  call.displayKind === 'info' ||
+                  call.displayKind === 'success' ||
+                  call.displayKind === 'warning' ||
+                  call.displayKind === 'error'
+                    ? call.displayKind
+                    : undefined,
+                displayStep:
+                  call.displayStep === 'call' || call.displayStep === 'progress' || call.displayStep === 'result'
+                    ? call.displayStep
+                    : undefined,
+                progressLines: Array.isArray(call.progressLines)
+                  ? call.progressLines
+                      .filter((line: unknown): line is string => typeof line === 'string' && line.trim().length > 0)
+                      .slice(-30)
+                      .map(line => this.truncateText(line, 240) || '')
+                      .filter(Boolean)
+                  : undefined
               })
             )
+          : undefined
+      const compactBlocks =
+        Array.isArray(message.blocks) && message.blocks.length > 0
+          ? message.blocks
+              .slice(-50)
+              .map((block): ChatMessageBlock | undefined => {
+                const type = block?.type === 'thinking' ? 'thinking' : block?.type === 'response' ? 'response' : null
+                if (!type) return undefined
+                const maxBlockChars = type === 'thinking' ? maxThinkingChars : maxContentChars
+                const content = this.truncateText(block.content, maxBlockChars)
+                if (!content) return undefined
+                return {
+                  type,
+                  content,
+                  collapsed: type === 'thinking' ? block.collapsed !== false : undefined,
+                  order: typeof block.order === 'number' && Number.isFinite(block.order) ? block.order : undefined
+                }
+              })
+              .filter((block): block is ChatMessageBlock => !!block)
           : undefined
 
       return {
@@ -264,6 +466,16 @@ export class BuilderClient {
         content: this.truncateText(message.content, maxContentChars) ?? '',
         toolCalls: compactToolCalls,
         thinkingLog: this.truncateText(message.thinkingLog, maxThinkingChars),
+        thinkingCollapsed: typeof message.thinkingCollapsed === 'boolean' ? message.thinkingCollapsed : undefined,
+        blocks: compactBlocks,
+        createdBy: typeof message.createdBy === 'string' ? message.createdBy : undefined,
+        editHistory: Array.isArray(message.editHistory)
+          ? message.editHistory
+              .map((entry: { userId?: string; editedAt?: string }) =>
+                entry?.userId && entry?.editedAt ? { userId: entry.userId, editedAt: entry.editedAt } : null
+              )
+              .filter((e): e is { userId: string; editedAt: string } => e !== null)
+          : undefined,
         messageId: message.messageId,
         createdAt: message.createdAt,
         serverCreatedAt: message.serverCreatedAt
@@ -276,7 +488,8 @@ export class BuilderClient {
       const message = compacted[i]
       const toolChars =
         message.toolCalls?.reduce((acc, call) => acc + (call.args?.length ?? 0) + (call.result?.length ?? 0), 0) ?? 0
-      const messageChars = (message.content?.length ?? 0) + (message.thinkingLog?.length ?? 0) + toolChars
+      const blockChars = message.blocks?.reduce((acc, block) => acc + (block.content?.length ?? 0), 0) ?? 0
+      const messageChars = (message.content?.length ?? 0) + (message.thinkingLog?.length ?? 0) + blockChars + toolChars
       if (bounded.length > 0 && totalChars + messageChars > maxTotalChars) break
       bounded.unshift(message)
       totalChars += messageChars
@@ -749,6 +962,121 @@ export class BuilderClient {
     return response.body
   }
 
+  async listLatestPublishedResources(params?: {
+    prefix?: string
+    search?: string
+    limit?: number
+    offset?: number
+  }): Promise<{ data: LatestPublishedResourceVersion[]; totalCount: number }> {
+    const query = new URLSearchParams()
+    if (params?.prefix) query.set('prefix', params.prefix)
+    if (params?.search) query.set('search', params.search)
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit))
+    if (typeof params?.offset === 'number') query.set('offset', String(params.offset))
+
+    const url = query.toString()
+      ? `${this.baseUrl}/versions/published/latest?${query.toString()}`
+      : `${this.baseUrl}/versions/published/latest`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load latest published resources')
+    }
+
+    return {
+      data: Array.isArray(payload?.data) ? payload.data : [],
+      totalCount: Number(payload?.totalCount ?? payload?.paging?.totalRecords ?? 0)
+    }
+  }
+
+  async getSessionUsageMetrics(params?: {
+    timeframe?: BuilderMetricsTimeframe
+    sessionIds?: string[]
+    limit?: number
+  }): Promise<SessionUsageMetricsResponse> {
+    const query = new URLSearchParams()
+    if (params?.timeframe) query.set('timeframe', params.timeframe)
+    if (Array.isArray(params?.sessionIds) && params.sessionIds.length > 0) {
+      query.set('sessionIds', params.sessionIds.join(','))
+    }
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit))
+
+    const url = query.toString()
+      ? `${this.baseUrl}/metrics/sessions?${query.toString()}`
+      : `${this.baseUrl}/metrics/sessions`
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load session usage metrics')
+    }
+
+    return {
+      generatedAt: typeof payload?.generatedAt === 'string' ? payload.generatedAt : new Date().toISOString(),
+      timeframe: (payload?.timeframe || params?.timeframe || 'last7d') as BuilderMetricsTimeframe,
+      sessions: Array.isArray(payload?.sessions) ? payload.sessions : []
+    }
+  }
+
+  async getServiceMetrics(timeframe: BuilderMetricsTimeframe = 'last7d'): Promise<BuilderServiceMetricsResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics?timeframe=${encodeURIComponent(timeframe)}`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load AI Builder metrics')
+    }
+
+    return payload as BuilderServiceMetricsResponse
+  }
+
+  async getMetricsTimeseries(timeframe: BuilderMetricsTimeframe = 'last7d'): Promise<MetricsTimeseriesResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/timeseries?timeframe=${encodeURIComponent(timeframe)}`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load AI Builder timeseries metrics')
+    }
+    return payload as MetricsTimeseriesResponse
+  }
+
+  async getLlmPricingConfig(): Promise<LlmPricingConfigResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/pricing`, {
+      method: 'GET',
+      headers: this.getHeaders(true)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to load LLM pricing configuration')
+    }
+    return payload as LlmPricingConfigResponse
+  }
+
+  async updateLlmPricingConfig(request: UpdateLlmPricingConfigRequest): Promise<LlmPricingConfigResponse> {
+    const response = await fetch(`${this.baseUrl}/metrics/pricing`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(request)
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || 'Failed to update LLM pricing configuration')
+    }
+    return payload as LlmPricingConfigResponse
+  }
+
   /**
    * Build preview bundle with SSE progress.
    */
@@ -947,6 +1275,8 @@ export class BuilderClient {
         id: string
       }>
       thinkingLog?: string
+      thinkingCollapsed?: boolean
+      blocks?: ChatMessageBlock[]
       messageId?: string
       createdAt?: string
     }> = [],

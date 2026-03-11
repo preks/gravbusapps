@@ -1,5 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import React, { useEffect } from 'react'
+import React from 'react'
+import useCloseDropdownOnOutsideClick from '../../common/useCloseDropdownOnOutsideClick'
 
 interface Employee {
   id: string
@@ -33,19 +34,10 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
   handleEmployeeFilter,
   debouncedSearchEmployees
 }) => {
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.employee-search-container')) {
-        setShowEmployeeDropdown(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [setShowEmployeeDropdown])
+  useCloseDropdownOnOutsideClick({
+    containerClassName: 'employee-search-container',
+    onOutsideClick: () => setShowEmployeeDropdown(false)
+  })
 
   return (
     <div className="employee-search-container gba:relative gba:p-2">

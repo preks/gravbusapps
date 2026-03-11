@@ -19,8 +19,8 @@ import {
   Badge
 } from '@newwork/nw-design-system'
 import { CaretLeftIcon, CaretRightIcon, WarningCircleIcon } from '@phosphor-icons/react'
-import dayjs from 'dayjs'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import { statusVariant } from '../utils/statusUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
 
@@ -95,9 +95,9 @@ export function AbsenceHistoryCard({
               {paginatedAbsences.map(a => (
                 <TableRow key={a.id}>
                   <TableCell className="gba:whitespace-nowrap">
-                    {dayjs(a.startDate).format('MMM D')}
-                    {a.startDate !== a.endDate && ` – ${dayjs(a.endDate).format('MMM D, YYYY')}`}
-                    {a.startDate === a.endDate && `, ${dayjs(a.startDate).format('YYYY')}`}
+                    {a.startDate === a.endDate
+                      ? (formatDate(a.startDate, 'date.medium') ?? '—')
+                      : `${formatDate(a.startDate, 'date.monthDay') ?? '—'} – ${formatDate(a.endDate, 'date.medium') ?? '—'}`}
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">

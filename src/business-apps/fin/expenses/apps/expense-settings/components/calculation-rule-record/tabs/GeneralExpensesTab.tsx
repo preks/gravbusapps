@@ -22,7 +22,7 @@ import {
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog, AdditionalPropertiesDisplay } from '../shared'
 import { GeneralExpenseForm, GeneralExpenseFormData, UsageInfo } from '../../../forms/general-expense-form'
-import { PiPlus, PiCalendar, PiReceipt, PiPercent, PiDotsThreeVertical, PiPencil, PiTrash } from 'react-icons/pi'
+import { PlusIcon, CalendarIcon, ReceiptIcon, PercentIcon, DotsThreeVerticalIcon, PencilIcon, TrashIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -486,7 +486,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
           </p>
         </div>
         <Button onClick={handleAdd} data-testid="add-general-expense-button">
-          <PiPlus className="gba:mr-2" />
+          <PlusIcon className="gba:mr-2" />
           Add General Expense
         </Button>
       </div>
@@ -581,7 +581,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                               {isCheckingUsage ? (
                                 <Spinner className="gba:h-4 gba:w-4" />
                               ) : (
-                                <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                                <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                               )}
                             </Button>
                           </DropdownMenuTrigger>
@@ -593,7 +593,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                               }}
                               data-testid={`general-expense-edit-${record.id}`}
                             >
-                              <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                              <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                               Update
                             </DropdownMenuItem>
                             {/* Only show delete option if expense is not used */}
@@ -608,7 +608,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
                                   className="gba:text-destructive"
                                   data-testid={`general-expense-delete-${record.id}`}
                                 >
-                                  <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                  <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                   Delete
                                 </DropdownMenuItem>
                               </>
@@ -620,7 +620,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
                     <TableCell data-testid={`general-expense-code-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiReceipt
+                        <ReceiptIcon
                           className="gba:text-muted-foreground"
                           data-testid={`general-expense-code-icon-${record.id}`}
                         />
@@ -650,7 +650,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
                     <TableCell data-testid={`general-expense-tax-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiPercent
+                        <PercentIcon
                           className="gba:text-muted-foreground"
                           data-testid={`general-expense-tax-icon-${record.id}`}
                         />
@@ -665,7 +665,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
                     <TableCell data-testid={`general-expense-validity-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiCalendar
+                        <CalendarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`general-expense-validity-icon-${record.id}`}
                         />

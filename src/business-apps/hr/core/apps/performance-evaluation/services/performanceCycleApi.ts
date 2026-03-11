@@ -36,6 +36,8 @@ export interface SavePerformanceCyclePayload {
     name: string
     startDate: string
     endDate: string
+    evaluationPeriodStartDate?: string
+    evaluationPeriodEndDate?: string
     frequency: string
     /** API expects key "ratingScale" with id value (not ratingScaleId). */
     ratingScale?: string | null

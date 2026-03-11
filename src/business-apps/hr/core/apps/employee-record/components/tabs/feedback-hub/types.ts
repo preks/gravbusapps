@@ -42,6 +42,8 @@ export interface PendingRequestRow {
   createdAt?: string | null
   employeeId?: string | null
   requesterEmployeeId?: string | null
+  endpoint?: string | null
+  processInstanceId?: string | null
   requestedOn?: string | null
   dueDate?: string | null
   message?: string | null
@@ -92,10 +94,4 @@ export interface FeedbackHubKpiResponse {
   contributorsPrev30?: CountAggregate | null
   lastReceived?: LatestFeedbackRow[]
   lastGiven?: LatestFeedbackRow[]
-  pendingRequests?: PendingRequestRow[]
-  pendingRequestsAggregate?: {
-    aggregate?: {
-      count?: number | null
-    } | null
-  } | null
 }

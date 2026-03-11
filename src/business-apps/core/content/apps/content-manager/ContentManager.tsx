@@ -16,23 +16,26 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
   const { accessToken } = context
 
   // Section state
-  const [currentSection, setCurrentSection] = useState<'all' | 'news' | 'knowledge' | 'document' | 'question'>('all')
+  const [currentSection, setCurrentSection] = useState<
+    'all' | 'news' | 'knowledge' | 'policy' | 'document' | 'question'
+  >('all')
   const [selectedContent, setSelectedContent] = useState<ContentEntry | null>(null)
 
   // Data hooks for each section - each maintains its own state
   const allContent = useContentData({ type: 'all', accessToken: accessToken || '' })
   const newsContent = useContentData({ type: 'news', accessToken: accessToken || '' })
   const knowledgeContent = useContentData({ type: 'knowledge', accessToken: accessToken || '' })
+  const policyContent = useContentData({ type: 'policy', accessToken: accessToken || '' })
   const documentContent = useContentData({ type: 'document', accessToken: accessToken || '' })
   const questionContent = useContentData({ type: 'question', accessToken: accessToken || '' })
 
   // Listen for process completion and refresh all sections
   useProcessCompletion({
     onSuccess: () => {
-      // Refresh all sections when content is created/updated
       allContent.refetch()
       newsContent.refetch()
       knowledgeContent.refetch()
+      policyContent.refetch()
       documentContent.refetch()
       questionContent.refetch()
     }
@@ -43,6 +46,7 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
     if (currentSection === 'all') return allContent
     if (currentSection === 'news') return newsContent
     if (currentSection === 'knowledge') return knowledgeContent
+    if (currentSection === 'policy') return policyContent
     if (currentSection === 'document') return documentContent
     return questionContent
   }
@@ -53,7 +57,7 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
 
   // Handle section change
   const handleSectionChange = useCallback((section: string) => {
-    setCurrentSection(section as 'all' | 'news' | 'knowledge' | 'document' | 'question')
+    setCurrentSection(section as 'all' | 'news' | 'knowledge' | 'policy' | 'document' | 'question')
   }, [])
 
   // Handle content selection
@@ -108,6 +112,14 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
             metadata: {
               count: knowledgeContent.total,
               subtitle: 'Knowledge base'
+            }
+          },
+          {
+            id: 'policy',
+            label: 'Policies',
+            metadata: {
+              count: policyContent.total,
+              subtitle: 'Policies'
             }
           },
           {

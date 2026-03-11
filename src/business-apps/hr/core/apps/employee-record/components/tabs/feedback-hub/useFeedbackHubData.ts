@@ -3,12 +3,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
 import {
   employeeFeedbackHubKpiQuery,
   employeeFeedbackListQuery,
-  FEEDBACK_LIST_LIMIT
+  FEEDBACK_LIST_LIMIT,
+  pendingFeedbackRequesterEmployeesQuery
 } from '../../../queries/feedbackQueries'
-import { ExtendedEmployeeFeedback, FeedbackHubKpiResponse, FeedbackHubKpis, PendingRequestRow } from './types'
+import {
+  ExtendedEmployeeFeedback,
+  FeedbackHubKpiResponse,
+  FeedbackHubKpis,
+  LatestFeedbackRow,
+  PendingRequestRow
+} from './types'
 import { formatFeedbackList } from './feedbackHubFormatters'
 
 type FeedbackStream = 'received' | 'given'
@@ -17,18 +25,22 @@ interface UseFeedbackHubDataProps {
   employee: Employee
   currentUserEmployeeId: string
   isSelfView: boolean
+  accessToken: string
+  userInfo?: { id?: string }
   graphQLClient: {
     request: <T = any>(query: string, variables?: Record<string, unknown>) => Promise<T>
   }
   t: (key: string, options?: Record<string, unknown>) => string
 }
 
-export const PENDING_REQUESTS_PAGE_SIZE = 20
+export const PENDING_REQUESTS_PAGE_SIZE = 10
 
 export const useFeedbackHubData = ({
   employee,
   currentUserEmployeeId,
   isSelfView,
+  accessToken,
+  userInfo,
   graphQLClient,
   t
 }: UseFeedbackHubDataProps) => {
@@ -62,14 +74,32 @@ export const useFeedbackHubData = ({
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const [pendingRequestsPage, setPendingRequestsPage] = useState(1)
   const [showPendingPanel, setShowPendingPanel] = useState(false)
+  const {
+    tasks: pendingFeedbackTasks,
+    totalCount: pendingFeedbackTotalCount,
+    refresh: refreshPendingFeedbackTasks
+  } = useFlowExecutionTasks({ accessToken, userInfo } as any, {
+    currentPage: pendingRequestsPage,
+    pageSize: PENDING_REQUESTS_PAGE_SIZE,
+    searchTerm: '',
+    filterTaskName: 'enterRequestedFeedback'
+  })
 
   const buildFeedbackWhere = useCallback(
     (mode: FeedbackStream) => {
       const andClauses: any[] = [{ isDeleted: { _neq: true } }]
 
-      if (mode === 'received') andClauses.push({ employeeId: { _eq: employee?.id } })
-      else andClauses.push({ senderEmployeeId: { _eq: currentUserEmployeeId } })
+      if (mode === 'received') {
+        andClauses.push({ employeeId: { _eq: employee?.id } })
+      } else {
+        // Given: when self-view show feedback I sent; when viewing another profile show feedback that employee sent.
+        const givenSenderId = isSelfView ? currentUserEmployeeId : employee?.id
+        if (givenSenderId) andClauses.push({ senderEmployeeId: { _eq: givenSenderId } })
+      }
 
+      // When viewing another profile, only public feedback is visible. When viewing own profile, filter by selection.
+      // Private feedback: only giver and receiver can see it. Receiver = profile owner (received list when isSelfView).
+      // Giver: given list uses sender = current user when isSelfView, or profile employee when !isSelfView (section is hidden in UI for !isSelfView).
       if (!isSelfView || filterType === 'public') andClauses.push({ feedbackPublic: { _eq: true } })
       else if (filterType === 'private') andClauses.push({ feedbackPublic: { _eq: false } })
 
@@ -164,9 +194,7 @@ export const useFeedbackHubData = ({
         last30Start,
         prev30Start,
         last30StartTz: last30Start,
-        prev30StartTz: prev30Start,
-        pendingLimit: PENDING_REQUESTS_PAGE_SIZE,
-        pendingOffset: (pendingRequestsPage - 1) * PENDING_REQUESTS_PAGE_SIZE
+        prev30StartTz: prev30Start
       })
 
       const receivedTotal = response?.receivedTotal?.aggregate?.count ?? 0
@@ -201,14 +229,106 @@ export const useFeedbackHubData = ({
         daysSinceReceived,
         daysSinceGiven
       })
-
-      const rows = response?.pendingRequests ?? []
-      setPendingRequests(rows)
-      setPendingRequestsCount(response?.pendingRequestsAggregate?.aggregate?.count ?? rows.length)
     } finally {
       setKpiLoading(false)
     }
-  }, [employee?.id, currentUserEmployeeId, graphQLClient, pendingRequestsPage])
+  }, [employee?.id, currentUserEmployeeId, graphQLClient])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const hydratePendingRequestRows = async () => {
+      const tasks = pendingFeedbackTasks ?? []
+      if (!tasks.length) {
+        if (!cancelled) {
+          setPendingRequests([])
+          setPendingRequestsCount(0)
+        }
+        return
+      }
+
+      const requesterUserIds = Array.from(
+        new Set(
+          tasks
+            .map((task: any) => task?.creatorUserId || task?.inputs?.creatorUserId)
+            .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+        )
+      )
+
+      let employeeByUserId = new Map<string, any>()
+      if (requesterUserIds.length) {
+        try {
+          const employeeResponse = await graphQLClient.request<{ Employee?: any[] }>(
+            pendingFeedbackRequesterEmployeesQuery,
+            {
+              userIds: requesterUserIds
+            }
+          )
+          employeeByUserId = new Map(
+            (employeeResponse?.Employee ?? [])
+              .filter(emp => typeof emp?.userId === 'string' && emp.userId.length > 0)
+              .map(emp => [emp.userId, emp])
+          )
+        } catch {
+          employeeByUserId = new Map()
+        }
+      }
+
+      const mappedRows: PendingRequestRow[] = tasks.map((task: any) => {
+        const requesterUserId = task?.creatorUserId || task?.inputs?.creatorUserId || null
+        const resolvedEmployee = requesterUserId ? employeeByUserId.get(requesterUserId) : null
+
+        const fallbackName = task?.creatorName || ''
+        const fallbackParts = fallbackName.trim().split(/\s+/)
+        const fallbackFirstName = fallbackParts[0] || null
+        const fallbackLastName = fallbackParts.length > 1 ? fallbackParts.slice(1).join(' ') : null
+
+        const rawMessage = task?.inputs?.feedback?.feedback || task?.description || task?.referenceName || null
+        const message = rawMessage
+          ? rawMessage
+              .replaceAll(/Enter Requested Employee Feedback/gi, '')
+              .replaceAll(/\s+/g, ' ')
+              .trim() || null
+          : null
+
+        return {
+          id: String(task?.id ?? ''),
+          createdAt: task?.started || task?.createdAt || null,
+          requestedOn: task?.started || task?.createdAt || null,
+          dueDate: task?.dueDate || null,
+          message,
+          employeeId: employee?.id ?? null,
+          requesterEmployeeId: requesterUserId || task?.inputs?.receiverId || null,
+          endpoint: task?.endpoint || null,
+          processInstanceId: task?.processInstanceId || null,
+          requesterEmployee: {
+            id: resolvedEmployee?.id ?? null,
+            displayName: resolvedEmployee?.displayName || fallbackName || null,
+            firstName: resolvedEmployee?.firstName || fallbackFirstName,
+            lastName: resolvedEmployee?.lastName || fallbackLastName,
+            employeePosition: {
+              employee: {
+                pictureThumbnail: resolvedEmployee?.pictureThumbnail ?? null
+              }
+            }
+          }
+        }
+      })
+
+      if (!cancelled) {
+        setPendingRequests(mappedRows)
+        setPendingRequestsCount(
+          typeof pendingFeedbackTotalCount === 'number' ? pendingFeedbackTotalCount : mappedRows.length
+        )
+      }
+    }
+
+    void hydratePendingRequestRows()
+
+    return () => {
+      cancelled = true
+    }
+  }, [pendingFeedbackTasks, pendingFeedbackTotalCount, employee?.id, graphQLClient])
 
   useEffect(() => {
     fetchList('received', receivedPage)
@@ -245,6 +365,13 @@ export const useFeedbackHubData = ({
     [receivedList, givenList]
   )
 
+  const reloadAllData = useCallback(() => {
+    refreshPendingFeedbackTasks()
+    fetchList('received', receivedPage)
+    fetchList('given', givenPage)
+    fetchKpiData()
+  }, [refreshPendingFeedbackTasks, fetchList, receivedPage, givenPage, fetchKpiData])
+
   return {
     searchTerm,
     setSearchTerm,
@@ -274,6 +401,7 @@ export const useFeedbackHubData = ({
     setPendingRequestsPage,
     showPendingPanel,
     setShowPendingPanel,
-    typeOptions
+    typeOptions,
+    reloadAllData
   }
 }

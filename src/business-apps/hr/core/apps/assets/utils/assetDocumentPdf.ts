@@ -11,12 +11,25 @@ import PDFKitModule from 'pdfkit/js/pdfkit.standalone.js'
 /** Fixed English labels for PDF export (no i18n to avoid font/character issues). */
 const LABELS = {
   assetsReport: 'Assets Report',
+  disposalCertificate: 'Disposal Certificate',
   assetInformation: 'Asset Information',
+  assetIdentifiers: 'Asset Identifiers',
+  assetId: 'Asset ID',
   serialNumber: 'Serial Number',
+  model: 'Model',
+  category: 'Category',
   status: 'Status',
   location: 'Location',
   inventoryValue: 'Inventory Value',
   acquisitionDate: 'Acquisition Date',
+  disposalMethod: 'Disposal Method',
+  disposalDate: 'Disposal Date',
+  disposalSection: 'Disposal',
+  responsiblePerson: 'Responsible Person',
+  sanitizationMethod: 'Sanitization Method',
+  sanitizationExecutionDate: 'Sanitization Execution Date',
+  sanitizationSection: 'Sanitization',
+  performedBy: 'Performed by',
   warranty: 'Warranty',
   warrantyPeriod: 'Warranty Period',
   months: 'months',
@@ -55,6 +68,8 @@ function statusDisplayName(status: AssetStatus): string {
   switch (status) {
     case AssetStatus.AVAILABLE:
       return 'Available'
+    case AssetStatus.PENDING:
+      return 'Pending'
     case AssetStatus.ALLOCATED:
       return 'Allocated'
     case AssetStatus.UNDER_REPAIR:
@@ -64,6 +79,20 @@ function statusDisplayName(status: AssetStatus): string {
     default:
       return 'N/A'
   }
+}
+
+function responsiblePersonDisplay(asset: Asset, notAvailable: string): string {
+  const r = asset.responsibleEmployee
+  if (r?.displayName) return r.displayName
+  if (r?.firstName || r?.lastName) return `${r?.firstName ?? ''} ${r?.lastName ?? ''}`.trim()
+  return notAvailable
+}
+
+function performerDisplay(asset: Asset, notAvailable: string): string {
+  const p = asset.performerEmployee
+  if (p?.displayName) return p.displayName
+  if (p?.firstName || p?.lastName) return `${p?.firstName ?? ''} ${p?.lastName ?? ''}`.trim()
+  return notAvailable
 }
 
 const ROW_PADDING = 4
@@ -142,80 +171,143 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
   const pageWidth = doc.page.width - margin * 2
   let y = margin
 
-  // Centered title
-  doc.fontSize(18).font('Helvetica-Bold').text(labels.assetsReport, margin, y, {
+  const isDisposalCertificate = asset.assetStatus === AssetStatus.RETIRED
+
+  const titleText = isDisposalCertificate ? labels.disposalCertificate : labels.assetsReport
+  doc.fontSize(18).font('Helvetica-Bold').text(titleText, margin, y, {
     width: pageWidth,
     align: 'center'
   })
   y += 36
-
-  // Spacing before content
   y += 24
 
-  const title = [getCatalogValue(asset.assetBrand), asset.model].filter(Boolean).join(' ') || labels.asset
   const category = getCatalogValue(asset.assetCategory) || labels.notAvailable
+  const modelDisplay = asset.model || labels.notAvailable
+  const serialDisplay = asset.serialNumber ?? labels.notAvailable
 
-  doc.fontSize(14).font('Helvetica-Bold').text(title, margin, y, { width: pageWidth })
-  y += 20
-  doc.fontSize(10).font('Helvetica').text(category, margin, y, { width: pageWidth })
-  y += 20
-
-  doc.fontSize(12).font('Helvetica-Bold').text(labels.assetInformation, margin, y)
-  y += 18
-  doc.fontSize(10).font('Helvetica')
-  const serial = asset.serialNumber ?? labels.notAvailable
-  const statusStr = statusDisplayName(asset.assetStatus)
-  const location = asset.siteLocation?.name ?? labels.notAvailable
-  const value = formatCurrency(asset.inventoryValue, asset.currency?.code)
-  const acquisition = asset.acquisitionDate
-    ? formatDate(asset.acquisitionDate) || asset.acquisitionDate
-    : labels.notAvailable
-  doc.text(`${labels.serialNumber}: ${serial}`, margin, y, { width: pageWidth })
-  y += 14
-  doc.text(`${labels.status}: ${statusStr}`, margin, y, { width: pageWidth })
-  y += 14
-  doc.text(`${labels.location}: ${location}`, margin, y, { width: pageWidth })
-  y += 14
-  doc.text(`${labels.inventoryValue}: ${value}`, margin, y, { width: pageWidth })
-  y += 14
-  doc.text(`${labels.acquisitionDate}: ${acquisition}`, margin, y, { width: pageWidth })
-  y += 24
-
-  doc.fontSize(12).font('Helvetica-Bold').text(labels.warranty, margin, y)
-  y += 18
-  doc.fontSize(10).font('Helvetica')
-  const hasWarranty =
-    asset.acquisitionDate && typeof asset.warrantyPeriodMonths === 'number' && !Number.isNaN(asset.warrantyPeriodMonths)
-  let warrantyExpiry: Date | null = null
-  if (hasWarranty && asset.acquisitionDate) {
-    const d = new Date(asset.acquisitionDate)
-    d.setMonth(d.getMonth() + (asset.warrantyPeriodMonths ?? 0))
-    warrantyExpiry = d
-  }
-  const warrantyExpired = warrantyExpiry != null && warrantyExpiry.getTime() < Date.now()
-  const warrantyPeriodStr =
-    typeof asset.warrantyPeriodMonths === 'number'
-      ? `${asset.warrantyPeriodMonths} ${labels.months}`
-      : labels.notAvailable
-  const warrantyStatusStr = !hasWarranty ? labels.notAvailable : warrantyExpired ? labels.expired : labels.valid
-  const warrantyEndStr =
-    warrantyExpiry != null
-      ? formatDate(warrantyExpiry.toISOString()) || warrantyExpiry.toISOString()
-      : labels.notAvailable
-  doc.text(`${labels.warrantyPeriod}: ${warrantyPeriodStr} (${warrantyStatusStr})`, margin, y, { width: pageWidth })
-  y += 14
-  doc.text(`${labels.endOfWarranty}: ${warrantyEndStr}`, margin, y, { width: pageWidth })
-  y += 24
-
-  if (asset.notes && asset.notes.trim()) {
-    doc.fontSize(12).font('Helvetica-Bold').text(labels.notes, margin, y)
+  if (isDisposalCertificate) {
+    // --- Asset Identifiers (kept as requested) ---
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.assetIdentifiers, margin, y)
     y += 18
-    doc.fontSize(10).font('Helvetica').text(asset.notes.trim(), margin, y, { width: pageWidth })
-    y += doc.heightOfString(asset.notes.trim(), { width: pageWidth }) + 24
-  }
+    doc.fontSize(10).font('Helvetica')
+    doc.text(`${labels.assetId}: ${asset.id}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.serialNumber}: ${serialDisplay}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.model}: ${modelDisplay}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.category}: ${category}`, margin, y, { width: pageWidth })
+    y += 24
 
-  doc.fontSize(12).font('Helvetica-Bold').text(labels.allocationHistory, margin, y)
-  y += 18
+    // --- Disposal method (disposal_outcome_ref) & disposal date (disposal_date) ---
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.disposalSection, margin, y)
+    y += 18
+    doc.fontSize(10).font('Helvetica')
+    const disposalMethodDisplay =
+      getCatalogValue(asset.disposalOutcome) || asset.disposalOutcomeRef || labels.notAvailable
+    doc.text(`${labels.disposalMethod}: ${disposalMethodDisplay}`, margin, y, { width: pageWidth })
+    y += 14
+    const disposalDateDisplay = asset.disposalDate
+      ? formatDate(asset.disposalDate) || asset.disposalDate
+      : labels.notAvailable
+    doc.text(`${labels.disposalDate}: ${disposalDateDisplay}`, margin, y, { width: pageWidth })
+    y += 24
+
+    // --- Responsible person (responsible_employee_id) ---
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.responsiblePerson, margin, y)
+    y += 18
+    doc.fontSize(10).font('Helvetica')
+    doc.text(responsiblePersonDisplay(asset, labels.notAvailable), margin, y, { width: pageWidth })
+    y += 24
+
+    // --- Sanitization: method (sanitization_method_ref), execution date (sanitization_execution_date), performed by (performer_employee_id) ---
+    if (asset.requireSanitization) {
+      doc.fontSize(12).font('Helvetica-Bold').text(labels.sanitizationSection, margin, y)
+      y += 18
+      doc.fontSize(10).font('Helvetica')
+      const sanitizationMethodDisplay =
+        getCatalogValue(asset.sanitizationMethod) || asset.sanitizationMethodRef || labels.notAvailable
+      doc.text(`${labels.sanitizationMethod}: ${sanitizationMethodDisplay}`, margin, y, { width: pageWidth })
+      y += 14
+      const sanitizationDateDisplay = asset.sanitizationExecutionDate
+        ? formatDate(asset.sanitizationExecutionDate) || asset.sanitizationExecutionDate
+        : labels.notAvailable
+      doc.text(`${labels.sanitizationExecutionDate}: ${sanitizationDateDisplay}`, margin, y, { width: pageWidth })
+      y += 14
+      doc.text(`${labels.performedBy}: ${performerDisplay(asset, labels.notAvailable)}`, margin, y, {
+        width: pageWidth
+      })
+      y += 24
+    }
+
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.allocationHistory, margin, y)
+    y += 18
+  } else {
+    const title = [getCatalogValue(asset.assetBrand), asset.model].filter(Boolean).join(' ') || labels.asset
+    doc.fontSize(14).font('Helvetica-Bold').text(title, margin, y, { width: pageWidth })
+    y += 20
+    doc.fontSize(10).font('Helvetica').text(category, margin, y, { width: pageWidth })
+    y += 20
+
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.assetInformation, margin, y)
+    y += 18
+    doc.fontSize(10).font('Helvetica')
+    const serial = asset.serialNumber ?? labels.notAvailable
+    const statusStr = statusDisplayName(asset.assetStatus)
+    const location = asset.siteLocation?.name ?? labels.notAvailable
+    const value = formatCurrency(asset.inventoryValue, asset.currency?.code)
+    const acquisition = asset.acquisitionDate
+      ? formatDate(asset.acquisitionDate) || asset.acquisitionDate
+      : labels.notAvailable
+    doc.text(`${labels.serialNumber}: ${serial}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.status}: ${statusStr}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.location}: ${location}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.inventoryValue}: ${value}`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.acquisitionDate}: ${acquisition}`, margin, y, { width: pageWidth })
+    y += 24
+
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.warranty, margin, y)
+    y += 18
+    doc.fontSize(10).font('Helvetica')
+    const hasWarranty =
+      asset.acquisitionDate &&
+      typeof asset.warrantyPeriodMonths === 'number' &&
+      !Number.isNaN(asset.warrantyPeriodMonths)
+    let warrantyExpiry: Date | null = null
+    if (hasWarranty && asset.acquisitionDate) {
+      const d = new Date(asset.acquisitionDate)
+      d.setMonth(d.getMonth() + (asset.warrantyPeriodMonths ?? 0))
+      warrantyExpiry = d
+    }
+    const warrantyExpired = warrantyExpiry != null && warrantyExpiry.getTime() < Date.now()
+    const warrantyPeriodStr =
+      typeof asset.warrantyPeriodMonths === 'number'
+        ? `${asset.warrantyPeriodMonths} ${labels.months}`
+        : labels.notAvailable
+    const warrantyStatusStr = !hasWarranty ? labels.notAvailable : warrantyExpired ? labels.expired : labels.valid
+    const warrantyEndStr =
+      warrantyExpiry != null
+        ? formatDate(warrantyExpiry.toISOString()) || warrantyExpiry.toISOString()
+        : labels.notAvailable
+    doc.text(`${labels.warrantyPeriod}: ${warrantyPeriodStr} (${warrantyStatusStr})`, margin, y, { width: pageWidth })
+    y += 14
+    doc.text(`${labels.endOfWarranty}: ${warrantyEndStr}`, margin, y, { width: pageWidth })
+    y += 24
+
+    if (asset.notes && asset.notes.trim()) {
+      doc.fontSize(12).font('Helvetica-Bold').text(labels.notes, margin, y)
+      y += 18
+      doc.fontSize(10).font('Helvetica').text(asset.notes.trim(), margin, y, { width: pageWidth })
+      y += doc.heightOfString(asset.notes.trim(), { width: pageWidth }) + 24
+    }
+
+    doc.fontSize(12).font('Helvetica-Bold').text(labels.allocationHistory, margin, y)
+    y += 18
+  }
 
   const sortedAllocations = [...allocations].sort(
     (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
@@ -277,9 +369,9 @@ export async function generateAssetDocumentPdf(asset: Asset, allocations: AssetA
   doc.end()
 
   const blob = await promise
-  const filename = buildFilename(
-    [getCatalogValue(asset.assetBrand), asset.model, asset.serialNumber].filter(Boolean).join('-') || 'asset',
-    'pdf'
-  )
+  const baseName = isDisposalCertificate
+    ? 'disposal-certificate'
+    : [getCatalogValue(asset.assetBrand), asset.model, asset.serialNumber].filter(Boolean).join('-') || 'asset'
+  const filename = buildFilename(baseName, 'pdf')
   triggerDownload(blob, filename)
 }

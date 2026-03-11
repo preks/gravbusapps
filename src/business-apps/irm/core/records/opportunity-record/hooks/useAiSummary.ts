@@ -6,7 +6,7 @@ import {
   useGetInvestmentNotesByOpportunityId,
   useGetInvestmentTasksByOpportunityId
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
-import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 const taskDescription = `You are an investment deal assistant analyzing an investment opportunity.
 
@@ -28,16 +28,16 @@ const summarySchema = z.object({
 type SummarySchema = z.infer<typeof summarySchema>
 type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
-export function useAiSummary(opportunityId: string, accessToken: string): UseAiSummaryReturn {
-  const { opportunity } = useInvestmentOpportunity(accessToken, opportunityId)
+export function useAiSummary(
+  opportunityId: string,
+  accessToken: string,
+  opportunity: InvestmentOpportunity | null
+): UseAiSummaryReturn {
   const { fetchInvestmentActivitiesByOpportunityId } = useGetInvestmentActivitiesByOpportunityId({ accessToken })
   const { fetchInvestmentNotesByOpportunityId } = useGetInvestmentNotesByOpportunityId({ accessToken })
   const { fetchInvestmentTasksByOpportunityId } = useGetInvestmentTasksByOpportunityId({ accessToken })
 
   const generateInputData = useCallback(async () => {
-    // get opportunity data using new declarative hook
-    // opportunity is already available from the hook
-
     // get activity data
     const activityResult = await fetchInvestmentActivitiesByOpportunityId(opportunityId)
     const sortedActivities = (activityResult || []).sort(

@@ -10,11 +10,31 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
+export type BoardRealtimeEventType =
+  | 'row.created'
+  | 'row.updated'
+  | 'row.deleted'
+  | 'column.updated'
+  | 'view.updated'
+  | 'group.updated'
+  | 'sheet.externalSync.progress'
+  | 'sheet.externalSync.completed'
+  | 'sheet.externalSync.failed'
+  | 'sheet.externalSync.cancelled'
+
 export interface BoardRealtimeEvent {
-  type: 'row.created' | 'row.updated' | 'row.deleted' | 'column.updated' | 'view.updated' | 'group.updated'
+  type: BoardRealtimeEventType
   boardId: string
   sheetId?: string
   rowId?: string
+  runId?: string
+  status?: string
+  totalFetched?: number
+  totalSynced?: number
+  estimatedTotal?: number | null
+  lastMessage?: string | null
+  syncedCount?: number
+  error?: string
   data?: Record<string, unknown>
   actorUserId?: string
   timestamp: string

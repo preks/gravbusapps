@@ -5,7 +5,12 @@
 
 import type { DataModelPreviewDefinition } from '@/common/components/ai-builder/data-model-preview/dataModelPreviewTypes'
 import type { FunctionDefinition } from '@/common/components/ai-builder/function-preview/FunctionPreview'
-import type { FlowPreviewTemplate, FlowPreviewStep } from '@/common/components/ai-builder/flow-preview/flowPreviewTypes'
+import type {
+  FlowPreviewTemplate,
+  FlowPreviewStep,
+  FlowPreviewTriggerType,
+  FlowPreviewInputBlock
+} from '@/common/components/ai-builder/flow-preview/flowPreviewTypes'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { DataModelSpec, FunctionSpec, FlowSpec, FlowStepSpec, AgentSpec } from '../../types/components'
 
@@ -13,26 +18,52 @@ const FIELD_TYPE_MAP: Record<string, string> = {
   text: 'TEXT',
   number: 'NUMBER',
   date: 'DATE',
+  datetime: 'DATETIME',
   boolean: 'CHECKBOX',
+  checkbox: 'CHECKBOX', // Support both 'boolean' and 'checkbox'
   select: 'SELECT',
   // REFERENCE is kept distinct so the preview knows to skip it in GraphQL scalar queries
   reference: 'REFERENCE'
 }
 
 export function mapDataModelSpec(spec: DataModelSpec): DataModelPreviewDefinition {
+  const mappedColumns = spec.fields.map(f => {
+    // Convert type to lowercase for case-insensitive lookup
+    const mappedType = FIELD_TYPE_MAP[f.type.toLowerCase()] ?? 'TEXT'
+
+    // Handle options: can be strings or objects
+    let mappedOptions: Array<{ value: string; label: string }> | undefined
+    if (f.options && Array.isArray(f.options)) {
+      mappedOptions = f.options.map((o: any) => {
+        // If option is a string, use it for both value and label
+        if (typeof o === 'string') {
+          return { value: o, label: o }
+        }
+        // If option is an object with code/value, map them
+        if (typeof o === 'object' && o !== null) {
+          return { value: o.code || o.value, label: o.value || o.label || o.code }
+        }
+        // Fallback
+        return { value: String(o), label: String(o) }
+      })
+    }
+
+    return {
+      name: f.name,
+      label: f.label,
+      type: mappedType,
+      required: f.required,
+      options: mappedOptions
+    }
+  })
+
   return {
     key: spec.identifier,
     namespace: spec.namespace,
     display_name: spec.name,
     description: spec.description,
     modelType: spec.modelType,
-    columns: spec.fields.map(f => ({
-      name: f.name,
-      label: f.label,
-      type: FIELD_TYPE_MAP[f.type] ?? 'TEXT',
-      required: f.required,
-      options: f.options?.map(o => ({ value: o.value, label: o.label }))
-    }))
+    columns: mappedColumns
   }
 }
 
@@ -61,13 +92,33 @@ function mapFlowStep(step: FlowStepSpec): FlowPreviewStep {
 }
 
 export function mapFlowSpec(spec: FlowSpec): FlowPreviewTemplate {
-  return {
+  const result: FlowPreviewTemplate = {
     type: spec.flowType ?? 'TEMPLATE',
     name: spec.name,
     description: spec.description,
     version: 1,
     steps: spec.steps.map(mapFlowStep)
   }
+  const start = (
+    spec as {
+      start?: {
+        triggers?: Array<{ id?: string; type: string; name: string; config?: Record<string, unknown> }>
+        form?: FlowPreviewInputBlock[]
+      }
+    }
+  ).start
+  if (start != null && (start.triggers?.length || start.form?.length)) {
+    result.start = {
+      triggers: (start.triggers ?? []).map(t => ({
+        id: t.id ?? t.type,
+        type: t.type as FlowPreviewTriggerType,
+        name: t.name ?? t.type,
+        config: t.config ?? {}
+      })),
+      form: start.form
+    }
+  }
+  return result
 }
 
 export function mapAgentSpec(spec: AgentSpec): PromptODM {

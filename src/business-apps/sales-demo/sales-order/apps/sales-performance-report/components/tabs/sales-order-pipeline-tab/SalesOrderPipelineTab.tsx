@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, Row, Col, Statistic, Alert, Typography, Spin, Progress, Table } from 'antd'
-import { FilterOutlined, ClockCircleOutlined, BarChartOutlined, RiseOutlined, WarningOutlined } from '@ant-design/icons'
+import { FunnelIcon, ClockIcon, ChartBarIcon, TrendUpIcon, WarningIcon } from '@phosphor-icons/react'
 import {
   BarChart,
   Bar,
@@ -141,7 +141,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
         }
         return (
           <div className="gba:flex gba:items-center gba:gap-1">
-            {status === 'critical' && <WarningOutlined style={{ color: colors[status] }} />}
+            {status === 'critical' && <WarningIcon size={16} style={{ color: colors[status] }} />}
             <Text style={{ color: colors[status] }}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
           </div>
         )
@@ -187,7 +187,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
             <Statistic
               title="Total Pipeline Value"
               value={pipelineMetrics.totalPipelineValue}
-              prefix={<FilterOutlined />}
+              prefix={<FunnelIcon size={16} />}
               valueStyle={{ fontSize: '24px' }}
               formatter={value => formatCurrency(Number(value))}
             />
@@ -202,7 +202,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
             <Statistic
               title="Average Deal Size"
               value={pipelineMetrics.averageDealSize}
-              prefix={<RiseOutlined />}
+              prefix={<TrendUpIcon size={16} />}
               valueStyle={{ fontSize: '24px' }}
               formatter={value => formatCurrency(Number(value))}
             />
@@ -217,7 +217,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
             <Statistic
               title="Overall Conversion Rate"
               value={pipelineMetrics.conversionRate}
-              prefix={<BarChartOutlined />}
+              prefix={<ChartBarIcon />}
               suffix="%"
               valueStyle={{
                 fontSize: '24px',
@@ -235,7 +235,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
             <Statistic
               title="Average Sales Cycle"
               value={pipelineMetrics.averageSalesCycle}
-              prefix={<ClockCircleOutlined />}
+              prefix={<ClockIcon size={16} />}
               suffix=" days"
               valueStyle={{ fontSize: '24px' }}
             />

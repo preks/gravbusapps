@@ -38,11 +38,13 @@ const logColors = {
   warning: 'gba:text-foreground'
 }
 
+const DEFAULT_MAX_HEIGHT_CLASS = 'gba:max-h-[160px] gba:md:max-h-[220px]'
+
 export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
   logs,
   currentOperation,
   isBuilding,
-  maxHeight = '320px',
+  maxHeight,
   className,
   'data-testid': testId = 'build-console-log'
 }) => {
@@ -55,6 +57,12 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
     }
   }, [logs.length])
 
+  const useResponsiveHeight = maxHeight === undefined
+  const logContentClassName = cn(
+    'gba:overflow-y-auto gba:bg-background gba:scrollbar-thin',
+    useResponsiveHeight ? DEFAULT_MAX_HEIGHT_CLASS : null
+  )
+
   return (
     <div
       className={cn('gba:font-mono gba:border gba:border-border gba:rounded-lg gba:overflow-hidden', className)}
@@ -66,16 +74,12 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
           <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-1.5 gba:w-1.5 gba:rounded-full gba:opacity-75 gba:bg-foreground"></span>
           <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-1.5 gba:w-1.5 gba:bg-foreground"></span>
         </span>
-        <span className="gba:text-xs gba:font-medium">Build Log</span>
+        <span className="gba:text-xs gba:font-medium">Build Events</span>
         {isBuilding && <span className="gba:text-[10px] gba:text-muted-foreground">(live)</span>}
       </div>
 
       {/* Log content */}
-      <div
-        ref={logContainerRef}
-        className="gba:overflow-y-auto gba:bg-background gba:scrollbar-thin"
-        style={{ maxHeight }}
-      >
+      <div ref={logContainerRef} className={logContentClassName} style={maxHeight != null ? { maxHeight } : undefined}>
         <div className="gba:p-2 gba:space-y-0.5">
           {logs.length === 0 && (
             <div className="gba:text-xs gba:text-muted-foreground gba:italic">Waiting for build to start...</div>

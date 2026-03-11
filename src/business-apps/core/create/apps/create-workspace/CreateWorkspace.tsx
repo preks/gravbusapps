@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles } from 'lucide-react'
+import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles, BarChart3 } from 'lucide-react'
 import { Button, cn } from '@newwork/nw-design-system'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
@@ -31,7 +31,7 @@ export interface NewworkCreateProps extends BusinessAppContextProps {
  *
  * Also includes AI Orchestrator for unified component building.
  */
-const AI_ORCHESTRATOR_URL = '/platform/create/ai-orchestrator'
+const AI_ORCHESTRATOR_URL = '/platform/create/ai-builder'
 
 export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': testId = 'create-workspace' }) => {
   // Feature flag for AI features
@@ -45,10 +45,21 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       description:
         'Design and build UI screens with AI assistance. Create forms, dashboards, lists, and custom layouts.',
       icon: Monitor,
-      href: buildPlatformUrl('/platform/ai-builder'),
+      href: buildPlatformUrl('/platform/create/screen-builder'),
       badge: 'AI-Powered',
       badgeVariant: 'info',
       accentColor: 'ai'
+    },
+    {
+      id: 'ai-builder-metrics',
+      title: 'AI Builder Metrics',
+      description:
+        'Track LLM token usage, model distribution, and session-level consumption for AI Builder.',
+      icon: BarChart3,
+      href: buildPlatformUrl('/platform/create/ai-builder-metrics'),
+      badge: 'Ops',
+      badgeVariant: 'warning',
+      accentColor: 'info'
     },
     {
       id: 'flow',

@@ -25,7 +25,7 @@ import {
   FormControl,
   FormMessage
 } from '@newwork/nw-design-system'
-import { PiWarning } from 'react-icons/pi'
+import { WarningIcon } from '@phosphor-icons/react'
 import { RuleSource, getRuleSourceOptions } from '../../types/ExpenseEnums'
 import { ExpenseRuleCustomField } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleOtherInfoById } from '../../queries/ExpenseRuleQueries'
@@ -171,7 +171,7 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
 
         {error && (
           <Alert variant="destructive" data-testid="custom-field-form-error">
-            <PiWarning className="gba:h-4 gba:w-4" />
+            <WarningIcon className="gba:h-4 gba:w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}

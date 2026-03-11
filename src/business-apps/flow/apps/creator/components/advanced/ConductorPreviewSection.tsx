@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
 import { Button, Alert, Spin } from 'antd'
-import { DownloadOutlined, EyeOutlined } from '@ant-design/icons'
+import { DownloadIcon, EyeIcon } from '@phosphor-icons/react'
 
 /**
  * Component for previewing and generating Conductor workflow definitions
@@ -81,7 +81,7 @@ export const ConductorPreviewSection: React.FC = () => {
           <div className="gba:flex gba:gap-3" data-testid="conductor-preview-actions">
             <Button
               type="primary"
-              icon={<EyeOutlined />}
+              icon={<EyeIcon size={16} />}
               onClick={generateConductorFlow}
               loading={isLoading}
               data-testid="generate-conductor-flow-button"
@@ -91,7 +91,7 @@ export const ConductorPreviewSection: React.FC = () => {
 
             {conductorFlow && (
               <Button
-                icon={<DownloadOutlined />}
+                icon={<DownloadIcon size={16} />}
                 onClick={downloadConductorFlow}
                 data-testid="download-conductor-flow-button"
               >

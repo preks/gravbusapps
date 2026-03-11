@@ -1,13 +1,88 @@
 import { useCallback } from 'react'
+import type { ThinkingStep } from '../components/widgets/ThinkingSteps'
 import type { OrchestratorState } from './useOrchestratorState'
 import type { UseOrchestratorClientResult } from './useOrchestratorClient'
 import type { UseBuildProgressResult } from './useBuildProgress'
 import type { ComponentSpec } from '../types'
 
+function createBumpAnalysisProgress(state: OrchestratorState) {
+  return (value: unknown) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return
+    const normalized = Math.max(0, Math.min(100, Math.floor(value)))
+    state.setAnalysisProgress(prev => Math.max(prev, normalized))
+  }
+}
+
+function mapThinkingStepsWithProgress(
+  prev: ThinkingStep[],
+  stepIndex: number,
+  stepStartTimes: Record<number, number>,
+  timestamp: number,
+  detail: string | undefined
+): ThinkingStep[] {
+  return prev.map((step, index) => {
+    if (index < stepIndex) {
+      const startTime = stepStartTimes[index]
+      const duration = startTime ? timestamp - startTime : undefined
+      return step.status === 'complete' ? step : { ...step, status: 'complete' as const, duration }
+    }
+    if (index === stepIndex) {
+      return { ...step, status: 'active' as const, detail: detail ?? step.detail }
+    }
+    return { ...step, status: 'pending' as const }
+  })
+}
+
+/** Build createdBy payload from userInfo for build API */
+function buildCreatedByFromUserInfo(userInfo: any):
+  | undefined
+  | {
+      id: string
+      employeeId?: string
+      firstName?: string
+      lastName?: string
+      displayName?: string
+      email?: string
+      pictureThumbnail?: string
+      consentToStorePii: boolean
+    } {
+  if (!userInfo) return undefined
+  return {
+    id: userInfo.id || userInfo.employeeDetails?.employeeId || 'unknown',
+    employeeId: userInfo.employeeDetails?.employeeId,
+    firstName: userInfo.givenName || userInfo.employeeDetails?.firstName,
+    lastName: userInfo.familyName || userInfo.employeeDetails?.lastName,
+    displayName:
+      [userInfo.givenName, userInfo.familyName].filter(Boolean).join(' ') ||
+      userInfo.userName ||
+      userInfo.employeeDetails?.displayName,
+    email: userInfo.email || userInfo.employeeDetails?.email,
+    pictureThumbnail: userInfo.pictureThumbnail || userInfo.employeeDetails?.pictureThumbnail,
+    consentToStorePii: true
+  }
+}
+
+/** Set building state, clear refs, and initial log entry */
+function prepareBuildRun(state: OrchestratorState, logMessage: string): void {
+  state.setViewState('building')
+  state.setBuildStartTime(Date.now())
+  state.setCapturedBuildError(null)
+  state.setBuildLogs([
+    {
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      type: 'info',
+      message: logMessage
+    }
+  ])
+  state.loggedPhasesRef.current.clear()
+  state.lastCompletedCountRef.current = 0
+}
+
 export interface OrchestratorHandlerDeps {
   state: OrchestratorState
   orchestratorClient: UseOrchestratorClientResult
   buildProgress: UseBuildProgressResult
+  userInfo?: any
   onComplete?: (success: boolean) => void
   onBack?: () => void
 }
@@ -27,28 +102,109 @@ export const useOrchestratorHandlers = ({
   state,
   orchestratorClient,
   buildProgress,
+  userInfo,
   onBack
 }: OrchestratorHandlerDeps): OrchestratorHandlers => {
   // Handle analyze prompt (from idle state input)
   const handleAnalyze = useCallback(
     async (prompt: string) => {
+      const bumpAnalysisProgress = createBumpAnalysisProgress(state)
+
+      // Track step start times for duration calculation
+      const stepStartTimes: Record<number, number> = {}
+
       state.setUserPrompt(prompt)
       state.setChatActive(true)
       state.setViewState('analyzing')
+      state.setCapturedBuildError(null)
 
-      const response = await orchestratorClient.analyze(prompt)
+      // Build createdBy from userInfo
+      const createdBy = userInfo?.id
+        ? {
+            id: userInfo.id,
+            employeeId: userInfo.employeeDetails?.employeeId,
+            firstName: userInfo.givenName || userInfo.employeeDetails?.firstName,
+            lastName: userInfo.familyName || userInfo.employeeDetails?.lastName,
+            displayName: [userInfo.givenName, userInfo.familyName].filter(Boolean).join(' ') || userInfo.userName,
+            email: userInfo.email || userInfo.employeeDetails?.email,
+            pictureThumbnail: userInfo.pictureThumbnail || userInfo.employeeDetails?.pictureThumbnail,
+            consentToStorePii: true
+          }
+        : undefined
+
+      const response = await orchestratorClient.analyzeStream(prompt, { createdBy }, event => {
+        bumpAnalysisProgress(event.progress)
+
+        const detail = typeof event.content === 'string' ? event.content : undefined
+        const timestamp = event.timestamp ? new Date(event.timestamp).getTime() : Date.now()
+
+        let stepIndex: number | null = null
+
+        switch (event.type) {
+          case 'analysis_started':
+            stepIndex = 0
+            break
+          case 'planning_started':
+            stepIndex = 1
+            break
+          case 'discovery_started':
+          case 'discovery_completed':
+            stepIndex = 2
+            break
+          case 'llm_started':
+          case 'llm_completed':
+          case 'plan_parsed':
+          case 'plan_ready':
+            stepIndex = 3
+            break
+          case 'session_created':
+            // Extract session info immediately so chat can be saved
+            if (event.metadata && typeof event.metadata === 'object') {
+              const meta = event.metadata as { sessionId?: string; repoId?: string }
+              if (meta.sessionId && meta.repoId) {
+                orchestratorClient.setSessionFromBuild(meta.sessionId, meta.repoId)
+              }
+            }
+            return
+          case 'error':
+            if (detail) {
+              state.setCapturedBuildError(detail)
+            }
+            return
+          default:
+            return
+        }
+
+        if (stepIndex !== null) {
+          const currentStepIndex = stepIndex
+          if (!stepStartTimes[currentStepIndex]) {
+            stepStartTimes[currentStepIndex] = timestamp
+          }
+          state.setThinkingSteps(prev =>
+            mapThinkingStepsWithProgress(prev, currentStepIndex, stepStartTimes, timestamp, detail)
+          )
+        }
+      })
 
       if (response.success && response.plan) {
         state.setAnalysisProgress(100)
+        // Mark all steps complete with final durations
         state.setThinkingSteps(prev =>
-          prev.map(s => ({ ...s, status: 'complete' as const, duration: Math.floor(Math.random() * 500 + 200) }))
+          prev.map((s, index) => {
+            const startTime = stepStartTimes[index]
+            const duration = startTime ? Date.now() - startTime : undefined
+            return { ...s, status: 'complete' as const, duration }
+          })
         )
-        setTimeout(() => state.setViewState('review'), 500)
+        setTimeout(() => state.setViewState('review'), 250)
       } else {
+        if (response.error) {
+          state.setCapturedBuildError(response.error)
+        }
         state.setViewState('error')
       }
     },
-    [orchestratorClient.analyze, state]
+    [orchestratorClient.analyzeStream, state]
   )
 
   // Handle re-analyze
@@ -63,7 +219,7 @@ export const useOrchestratorHandlers = ({
         state.setViewState('error')
       }
     },
-    [orchestratorClient.reanalyze, state]
+    [orchestratorClient, state]
   )
 
   // Handle edit plan
@@ -108,60 +264,24 @@ export const useOrchestratorHandlers = ({
   // Handle start build
   const handleStartBuild = useCallback(
     async (skipComponents?: string[]) => {
-      state.setViewState('building')
-      state.setBuildStartTime(Date.now())
-      state.setCapturedBuildError(null)
-      state.setBuildLogs([
-        {
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-          type: 'info',
-          message: 'Build started...'
-        }
-      ])
-
-      // Reset log tracking refs
-      state.loggedPhasesRef.current.clear()
-      state.lastCompletedCountRef.current = 0
-
-      await buildProgress.startBuild(
-        skipComponents,
-        orchestratorClient.lastSessionId ?? undefined,
-        orchestratorClient.lastRepoId ?? undefined
-      )
+      prepareBuildRun(state, 'Build started...')
+      const sessionId = orchestratorClient.lastSessionId
+      const repoId = orchestratorClient.lastRepoId
+      const createdBy = buildCreatedByFromUserInfo(userInfo)
+      await buildProgress.startBuild(skipComponents, sessionId ?? undefined, repoId ?? undefined, createdBy)
     },
-    [buildProgress.startBuild, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state]
+    [buildProgress.startBuild, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state, userInfo]
   )
 
   // Handle retry - Re-execute the same build plan
   const handleRetry = useCallback(async () => {
-    console.log('[useOrchestratorHandlers] Retrying build...')
-
-    // Reset progress state but keep the plan
     buildProgress.resetProgress()
-
-    // Transition to building state
-    state.setViewState('building')
-    state.setBuildStartTime(Date.now())
-    state.setCapturedBuildError(null)
-    state.setBuildLogs([
-      {
-        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-        type: 'info',
-        message: 'Retrying build...'
-      }
-    ])
-
-    // Reset log tracking refs
-    state.loggedPhasesRef.current.clear()
-    state.lastCompletedCountRef.current = 0
-
-    // Re-execute the build with the same plan; pass stored session for execute-again
-    await buildProgress.startBuild(
-      undefined,
-      orchestratorClient.lastSessionId ?? undefined,
-      orchestratorClient.lastRepoId ?? undefined
-    )
-  }, [buildProgress, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state])
+    prepareBuildRun(state, 'Retrying build...')
+    const sessionId = orchestratorClient.lastSessionId
+    const repoId = orchestratorClient.lastRepoId
+    const createdBy = buildCreatedByFromUserInfo(userInfo)
+    await buildProgress.startBuild(undefined, sessionId ?? undefined, repoId ?? undefined, createdBy)
+  }, [buildProgress, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state, userInfo])
 
   // Handle cancel
   const handleCancel = useCallback(() => {

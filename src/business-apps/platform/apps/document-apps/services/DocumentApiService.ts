@@ -113,7 +113,8 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     isShared: apiDoc.isShared as boolean | undefined,
     sharedBy: apiDoc.sharedBy as string | undefined,
     // Source file info for PDFs
-    sourceFile
+    sourceFile,
+    settings: apiDoc.settings as Document['settings']
   }
 }
 
@@ -216,7 +217,8 @@ export const DocumentApiService = {
         permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
         // Source file info for PDFs
         sourceFile,
-        isPdf
+        isPdf,
+        settings: doc.settings as DocumentSummary['settings']
       }
     })
   },
@@ -224,9 +226,19 @@ export const DocumentApiService = {
   /**
    * Get a single document by ID
    */
-  async getDocument(id: string, accessToken?: string | null): Promise<Document | null> {
+  async getDocument(
+    id: string,
+    optionsOrAccessToken?: { fresh?: boolean } | string | null
+  ): Promise<Document | null> {
     try {
-      const doc = await apiRequest<Record<string, unknown>>(`/documents/${id}`, {}, accessToken)
+      const fresh = typeof optionsOrAccessToken === 'object' && optionsOrAccessToken?.fresh === true
+      const accessToken = typeof optionsOrAccessToken === 'string' ? optionsOrAccessToken : undefined
+      const endpoint = fresh ? `/documents/${id}?_ts=${Date.now()}` : `/documents/${id}`
+      const doc = await apiRequest<Record<string, unknown>>(
+        endpoint,
+        fresh ? { cache: 'no-store' } : {},
+        accessToken
+      )
       return mapApiDocumentToDocument(doc)
     } catch (error) {
       console.error('Failed to get document:', error)

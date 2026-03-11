@@ -22,7 +22,10 @@ interface OrchestratorCanvasContentProps {
   completedPhases: BuildPhase[]
   accessToken: string
   userInfo?: any
+  builtBy?: any
+  builtByLoading?: boolean
   previewRefreshToken: number
+  isRestoringSession?: boolean
 }
 
 export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps> = ({
@@ -33,7 +36,10 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
   completedPhases,
   accessToken,
   userInfo,
-  previewRefreshToken
+  builtBy,
+  builtByLoading,
+  previewRefreshToken,
+  isRestoringSession = false
 }) => {
   // Determine title based on state
   const getTitle = () => {
@@ -114,10 +120,11 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             reusedCount={buildProgress.reusedCount}
             totalCount={buildProgress.totalCount}
             failedCount={buildProgress.failedCount}
-            buildLogs={state.buildLogs}
+            buildLogs={buildProgress.buildLogs}
             phaseMessage={buildProgress.phaseMessage}
             isBuilding={buildProgress.isBuilding}
             tiles={buildProgress.tiles}
+            isProgressEstimated={buildProgress.isProgressEstimated}
             appMetadata={orchestratorClient.currentPlan?.appMetadata}
           />
         )
@@ -132,6 +139,8 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             prompt={state.userPrompt}
             accessToken={accessToken}
             userInfo={userInfo}
+            builtBy={builtBy}
+            builtByLoading={builtByLoading}
             previewRefreshToken={previewRefreshToken}
             onReset={handlers.handleReset}
             appMetadata={orchestratorClient.currentPlan.appMetadata}
@@ -142,6 +151,7 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             publishSuccess={orchestratorClient.publishSuccess}
             publishError={orchestratorClient.publishError}
             onPublish={orchestratorClient.publishApp}
+            isRestoringSession={isRestoringSession}
           />
         )
 

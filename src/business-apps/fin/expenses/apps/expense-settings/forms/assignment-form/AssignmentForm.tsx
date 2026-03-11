@@ -26,7 +26,7 @@ import {
   FormControl,
   FormMessage
 } from '@newwork/nw-design-system'
-import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
+import { FloppyDiskIcon, XIcon, WarningIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -342,7 +342,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   if (catalogError) {
     return (
       <Alert data-testid="assignment-form-catalog-error" className="gba:mb-4">
-        <PiWarning className="gba:h-4 gba:w-4" />
+        <WarningIcon className="gba:h-4 gba:w-4" />
         <AlertDescription>{catalogError}</AlertDescription>
         <div className="gba:mt-2">
           <Button variant="outline" onClick={loadCatalogs}>
@@ -777,7 +777,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   data-testid="assignment-form-save-button"
                   className="gba:flex gba:items-center gba:gap-2"
                 >
-                  {isSubmitting || loading ? <Spinner size="sm" /> : <PiFloppyDisk className="gba:h-4 gba:w-4" />}
+                  {isSubmitting || loading ? <Spinner size="sm" /> : <FloppyDiskIcon className="gba:h-4 gba:w-4" />}
                   {isEditing
                     ? getTranslationFromI18nKeyAndLabel(
                         'expenseSettings.assignment.updateAssignment',
@@ -795,7 +795,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   data-testid="assignment-form-cancel-button"
                   className="gba:flex gba:items-center gba:gap-2"
                 >
-                  <PiX className="gba:h-4 gba:w-4" />
+                  <XIcon className="gba:h-4 gba:w-4" />
                   {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.cancel', 'Cancel')}
                 </Button>
               </div>

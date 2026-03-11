@@ -43,7 +43,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog } from '../shared'
-import { PiPlus, PiPencil, PiCalendar, PiCode, PiDotsThreeVertical, PiTrash, PiWarning } from 'react-icons/pi'
+import { PlusIcon, PencilIcon, CalendarIcon, CodeIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -608,7 +608,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
               </Badge>
             </div>
             <Button onClick={handleAdd} data-testid="add-custom-field-button">
-              <PiPlus className="gba:mr-2" />
+              <PlusIcon className="gba:mr-2" />
               Add Custom Field
             </Button>
           </div>
@@ -686,7 +686,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                             data-testid={`custom-field-action-${record.id}`}
                             onClick={e => e.stopPropagation()}
                           >
-                            <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                            <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -694,7 +694,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                             onClick={() => handleEdit(record)}
                             data-testid={`edit-custom-field-${record.id}`}
                           >
-                            <PiPencil className="gba:h-4 gba:w-4 gba:mr-2" />
+                            <PencilIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                             Update
                           </DropdownMenuItem>
                           {!fieldUsageMap[record.id] && (
@@ -705,7 +705,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                                 className="gba:text-destructive"
                                 data-testid={`delete-custom-field-${record.id}`}
                               >
-                                <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </>
@@ -726,7 +726,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                     <TableCell data-testid={`custom-field-linked-cell-${record.id}`}>
                       {record.relatedCode ? (
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <PiCode
+                          <CodeIcon
                             className="gba:text-muted-foreground"
                             data-testid={`custom-field-linked-icon-${record.id}`}
                           />
@@ -770,7 +770,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
 
                     <TableCell data-testid={`custom-field-validity-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-1">
-                        <PiCalendar
+                        <CalendarIcon
                           className="gba:text-muted-foreground"
                           data-testid={`custom-field-validity-icon-${record.id}`}
                         />
@@ -826,7 +826,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                   className="gba:border-warning gba:bg-warning-secondary"
                   data-testid="custom-field-restricted-alert"
                 >
-                  <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+                  <WarningIcon className="gba:h-4 gba:w-4 gba:text-warning" />
                   <AlertDescription>{currentUsageInfo.message}</AlertDescription>
                 </Alert>
               )}

@@ -5,7 +5,7 @@ import { createContentColumns, getDefaultVisibleColumns } from '../config/conten
 import type { ContentEntry } from '@/common/data/content/types/contentTypes'
 
 export interface ContentTableProps {
-  type: 'all' | 'news' | 'knowledge' | 'document' | 'question'
+  type: 'all' | 'news' | 'knowledge' | 'policy' | 'document' | 'question'
   accessToken: string
   onRowClick?: (entry: ContentEntry) => void
 }

@@ -8,6 +8,7 @@ absence-overview = Absences
 
 # My Balance
 my-balance = My Balance
+in-approval = In approval
 year-to-date = Year to Date
 absent-days = Absent
 working-days = Working Days

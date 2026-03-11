@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { StarFilled, StarOutlined, DownOutlined } from '@ant-design/icons'
+import { StarIcon, CaretDownIcon } from '@phosphor-icons/react'
 import { usePerformanceEvaluationForm } from '../context/PerformanceEvaluationFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { EmployeeSelect } from '@/components/employee-select'
@@ -128,9 +128,9 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
               title={scale.label}
             >
               {currentRating && scale.value <= currentRating ? (
-                <StarFilled className="gba:text-primary" />
+                <StarIcon size={16} weight="fill" className="gba:text-primary" />
               ) : (
-                <StarOutlined className="gba:text-muted-foreground" />
+                <StarIcon size={16} className="gba:text-muted-foreground" />
               )}
             </button>
           ))}
@@ -280,7 +280,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
                             t('text-tool', { defaultValue: 'Text Tool' })
                           )}
                         </span>
-                        <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
+                        <CaretDownIcon size={16} className="gba:h-4 gba:w-4 gba:opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
@@ -379,7 +379,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
                 <span>
                   {textTransformationLoading ? <Spinner size="sm" /> : t('text-tool', { defaultValue: 'Text Tool' })}
                 </span>
-                <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
+                <CaretDownIcon size={16} className="gba:h-4 gba:w-4 gba:opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { PiFunnelSimple, PiFunnelSimpleX, PiMagnifyingGlass, PiXCircle, PiX } from 'react-icons/pi'
+import { FunnelSimpleIcon, FunnelSimpleXIcon, MagnifyingGlassIcon, XCircleIcon, XIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DataControllerActions } from './DataControllerActions'
 
@@ -214,7 +214,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 data-testid="data-controller-filter-toggle-button"
               >
                 <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
-                  {showDataFilter ? <PiFunnelSimpleX fill="#fff" size={20} /> : <PiFunnelSimple size={20} />}
+                  {showDataFilter ? <FunnelSimpleXIcon fill="#fff" size={20} /> : <FunnelSimpleIcon size={20} />}
                 </div>
               </button>
             </>
@@ -228,7 +228,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               data-testid="data-controller-search-toggle-button"
             >
               <div className="gba:w-5 gba:h-5 gba:flex-none gba:order-0 gba:grow-0">
-                <PiMagnifyingGlass size={20} />
+                <MagnifyingGlassIcon size={20} />
               </div>
             </button>
           ) : (
@@ -237,7 +237,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               data-testid="data-controller-search-container"
             >
               <span className="gba:text-gray-500 gba:mr-2">
-                <PiMagnifyingGlass size={20} />
+                <MagnifyingGlassIcon size={20} />
               </span>
               <input
                 ref={inputRef}
@@ -316,7 +316,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 type="button"
                 data-testid="data-controller-date-range-clear-button"
               >
-                <PiX size={12} />
+                <XIcon size={12} />
               </button>
             </div>
           )}
@@ -342,7 +342,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                   type="button"
                   data-testid={`data-controller-filter-remove-button-${val}`}
                 >
-                  <PiX size={12} />
+                  <XIcon size={12} />
                 </button>
               </div>
             ))}
@@ -364,7 +364,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               )}
             </span>
             <span className="gba:flex gba:items-center gba:justify-center">
-              <PiXCircle size={16} />
+              <XCircleIcon size={16} />
             </span>
           </button>
         </div>
