@@ -43,6 +43,9 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  // Capture initial URL params at render time before any effects can clear them
+  const initialDocIdRef = useRef(getUrlParams().docId)
+  const initialViewRef = useRef(getUrlParams().view)
   // Track URL search params to detect changes
   const [urlSearch, setUrlSearch] = useState(window.location.search)
 
@@ -96,17 +99,25 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
   }, [urlSearch])
 
   // Load document from URL on mount or when URL changes.
+  // Uses initialDocIdRef as fallback since parent effects may clear URL params
+  // before this effect runs (race condition with section-sync effect).
   useEffect(() => {
-    const { docId, view } = getUrlParams()
+    const urlParams = getUrlParams()
+    const docId = urlParams.docId || initialDocIdRef.current
+    const view = urlParams.view || initialViewRef.current
     if (!docId) return
-    // Only skip if we're already viewing the requested document
     if (currentDocumentId === docId) return
     if (isLoadingDocument) return
     if (loadAttemptedRef.current === docId) return
 
     loadAttemptedRef.current = docId
+    initialDocIdRef.current = null
+    initialViewRef.current = null
     loadDocumentById(docId).then(doc => {
-      if (!doc) return
+      if (!doc) {
+        loadAttemptedRef.current = null
+        return
+      }
       setSelectedDocumentId(docId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })

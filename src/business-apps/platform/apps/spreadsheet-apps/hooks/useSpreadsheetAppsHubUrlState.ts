@@ -51,6 +51,8 @@ export function useSpreadsheetAppsHubUrlState(
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  const initialAppIdRef = useRef(getUrlParams().appId)
+  const initialViewRef = useRef(getUrlParams().view)
 
   const updateUrl = useCallback(
     (appId: string | null, view?: HubView, filePath?: string | null) => {
@@ -91,16 +93,25 @@ export function useSpreadsheetAppsHubUrlState(
   }, []) // Run only on mount
 
   // Load app from URL on mount.
+  // Uses initialAppIdRef as fallback since parent effects may clear URL params.
   useEffect(() => {
-    const { appId, filePath, view } = getUrlParams()
+    const urlParams = getUrlParams()
+    const appId = urlParams.appId || initialAppIdRef.current
+    const filePath = urlParams.filePath
+    const view = urlParams.view || initialViewRef.current
     if (!appId) return
     if (currentAppId) return
     if (isLoadingApps) return
     if (loadAttemptedRef.current === appId) return
 
     loadAttemptedRef.current = appId
+    initialAppIdRef.current = null
+    initialViewRef.current = null
     loadAppById(appId, filePath ? decodeURIComponent(filePath) : undefined).then(app => {
-      if (!app) return
+      if (!app) {
+        loadAttemptedRef.current = null
+        return
+      }
       setSelectedAppId(appId)
       setCurrentView(view === 'editor' ? 'editor' : 'viewer')
     })
