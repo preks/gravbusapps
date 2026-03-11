@@ -19,6 +19,18 @@ import { AllowanceRegionDetailsSection } from './components/AllowanceRegionDetai
 import { FormActions } from './components/FormActions'
 import { TravelRegionRuleFormData, AllowanceRegionDetailFormData } from './types'
 
+const dataSourceStyles: Record<string, string> = {
+  fresh: 'gba:bg-success-secondary gba:text-success-secondary-foreground gba:border-success-ring',
+  stale: 'gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning-ring',
+  new: 'gba:bg-muted gba:text-muted-foreground gba:border-border'
+}
+
+const dataSourceLabels: Record<string, string> = {
+  fresh: 'Fresh Data',
+  stale: 'Stale Data',
+  new: 'New Item'
+}
+
 interface TravelRegionRuleFormProps extends BusinessAppContextProps {
   initialData?: TravelRegionRuleFormData
   isEditing?: boolean
@@ -226,7 +238,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         const detailGroupKey = `${uniqueId}-${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         if (detailGroupKey === groupKey) {
           const newAmounts = [...(detail.amounts || [])]
-          newAmounts[amountIndex] = value === '' ? null : parseFloat(value)
+          newAmounts[amountIndex] = value === '' ? null : Number.parseFloat(value)
           return { ...detail, amounts: newAmounts }
         }
         return detail
@@ -280,7 +292,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       if (
         !detail.amounts ||
         detail.amounts.length === 0 ||
-        detail.amounts.some(a => a === null || a === undefined || isNaN(a))
+        detail.amounts.some(a => a === null || a === undefined || Number.isNaN(a))
       ) {
         errors.push(`Detail ${index + 1}: Amount is required`)
       }
@@ -355,16 +367,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     <div className="gba:space-y-6">
       {isEditing && (
         <div className="gba:flex gba:items-center gba:justify-end">
-          <span
-            className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded gba:border ${
-              dataSource === 'fresh'
-                ? 'gba:bg-success-secondary gba:text-success-secondary-foreground gba:border-success-ring'
-                : dataSource === 'stale'
-                  ? 'gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning-ring'
-                  : 'gba:bg-muted gba:text-muted-foreground gba:border-border'
-            }`}
-          >
-            {dataSource === 'fresh' ? 'Fresh Data' : dataSource === 'stale' ? 'Stale Data' : 'New Item'}
+          <span className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded gba:border ${dataSourceStyles[dataSource]}`}>
+            {dataSourceLabels[dataSource]}
           </span>
         </div>
       )}
