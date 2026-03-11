@@ -640,7 +640,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         cell: ({ row }) => (
           <Checkbox
             checked={selectedRowKeys.includes(row.original.id)}
-            onCheckedChange={checked => handleRowSelectionChange(row.original.id, checked as boolean)}
+            onCheckedChange={checked => handleRowSelectionChange(row.original.id, checked === true)}
             onClick={e => e.stopPropagation()}
             data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${row.original.id}`}
           />
@@ -735,6 +735,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         <div
           className="gba:flex gba:justify-end gba:gap-2"
           role="group"
+          tabIndex={0}
           onClick={e => e.stopPropagation()}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()

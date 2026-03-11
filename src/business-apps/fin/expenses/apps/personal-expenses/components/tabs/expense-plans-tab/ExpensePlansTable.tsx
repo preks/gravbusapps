@@ -286,8 +286,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
   const applyDateRangeFromFilter = useCallback(
     (raw: unknown, setter: ((r: [Date | null, Date | null] | null) => void) | undefined): boolean => {
       if (!setter) return false
-      const isDisplayString =
-        typeof raw === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(raw) && !(raw as string).includes(',')
+      const isDisplayString = typeof raw === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(raw) && !raw.includes(',')
       if (isDisplayString) return false
       const fromTo =
         typeof raw === 'object' &&
@@ -758,6 +757,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         <div
           className="gba:flex gba:justify-end gba:gap-2"
           role="group"
+          tabIndex={0}
           onClick={e => e.stopPropagation()}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()

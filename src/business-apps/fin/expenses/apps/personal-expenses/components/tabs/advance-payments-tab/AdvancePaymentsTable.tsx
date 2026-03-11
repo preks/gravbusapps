@@ -388,8 +388,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       if (props.onFilterChange) {
         props.onFilterChange([...statusIds, ...currencyTokens, ...rangeMarkers])
       }
-      props.setAmountRange?.(hasAmount ? amt! : null)
-      props.setAdvanceRange?.(hasAdvance ? adv! : null)
+      props.setAmountRange?.(hasAmount ? (amt ?? null) : null)
+      props.setAdvanceRange?.(hasAdvance ? (adv ?? null) : null)
       setCurrentPage(1)
     },
     [props.selectedFilters, props.onFilterChange, props.setAmountRange, props.setAdvanceRange]
@@ -937,6 +937,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         <div
           className="gba:flex gba:justify-end gba:gap-2"
           role="group"
+          tabIndex={0}
           onClick={e => e.stopPropagation()}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()

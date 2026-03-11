@@ -468,7 +468,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     (sorter: any): { nextField: string; nextOrder: 'ascend' | 'descend' } => {
       if (!sorter?.field) return { nextField: 'createdAt', nextOrder: 'ascend' }
       const isSameColumn = sortField === sorter.field
-      const orderFromTable = sorter.order !== undefined && sorter.order !== null ? sorter.order : null
+      const orderFromTable = sorter.order ?? null
       if (isSameColumn && orderFromTable !== null) {
         return { nextField: sorter.field, nextOrder: orderFromTable }
       }
