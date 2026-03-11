@@ -60,6 +60,15 @@ export interface CreateEmployeeAssetPayload {
   asset: string
 }
 
+/** Request body for POST /processes/employee/allocateAssetToEmployee */
+export interface AllocateAssetToEmployeePayload {
+  employeeAsset: CreateEmployeeAssetPayload
+  /** User id of the person performing the allocation (manager/HR). */
+  allocatorUserId: string
+  /** User id of the employee who will receive the "Acknowledge Asset Allocation" task. */
+  employeeUserId: string
+}
+
 export interface UpdateEmployeeAssetPayload {
   id: string
   version: number
@@ -180,6 +189,32 @@ export class AssetProcessClient extends RestClient {
       )
     } catch (error) {
       console.error('AssetProcessClient: Error creating employee asset:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Start the allocateAssetToEmployee process (includes Create Employee Asset + Acknowledge user task for employee).
+   * POST /processes/employee/allocateAssetToEmployee
+   * Body: { employeeAsset, allocatorUserId, employeeUserId }
+   */
+  public async startAllocateAssetToEmployee(payload: AllocateAssetToEmployeePayload): Promise<AssetProcessResponse> {
+    try {
+      return await this.post<AssetProcessResponse>(
+        '/processes/employee/allocateAssetToEmployee',
+        {
+          employeeAsset: payload.employeeAsset,
+          allocatorUserId: payload.allocatorUserId,
+          employeeUserId: payload.employeeUserId
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+    } catch (error) {
+      console.error('AssetProcessClient: Error starting allocateAssetToEmployee:', error)
       throw error
     }
   }

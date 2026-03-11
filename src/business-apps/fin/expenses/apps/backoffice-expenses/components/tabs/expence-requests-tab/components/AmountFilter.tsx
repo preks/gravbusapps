@@ -15,42 +15,55 @@ const AmountFilter: React.FC<AmountFilterProps> = ({
   setLocalAmountMax,
   debouncedAmountFilter
 }) => {
+  const renderAmountInputRow = (config: {
+    label: 'Min' | 'Max'
+    value: string
+    setValue: (value: string) => void
+    counterpartValue: string
+    isMin: boolean
+    testId: string
+  }) => (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <span className="gba:text-sm gba:text-gray-600 gba:w-8">{config.label}</span>
+      <input
+        type="number"
+        value={config.value}
+        onChange={e => {
+          e.stopPropagation()
+          const value = e.target.value
+          config.setValue(value)
+          if (config.isMin) {
+            debouncedAmountFilter(value, config.counterpartValue)
+          } else {
+            debouncedAmountFilter(config.counterpartValue, value)
+          }
+        }}
+        onFocus={e => e.stopPropagation()}
+        className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+        placeholder={config.label}
+        data-testid={config.testId}
+      />
+    </div>
+  )
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2" onClick={e => e.stopPropagation()}>
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
-        <input
-          type="number"
-          value={localAmountMin}
-          onChange={e => {
-            e.stopPropagation()
-            const value = e.target.value
-            setLocalAmountMin(value)
-            debouncedAmountFilter(value, localAmountMax)
-          }}
-          onFocus={e => e.stopPropagation()}
-          className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-          placeholder="Min"
-          data-testid="amount-min-filter-input"
-        />
-      </div>
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
-        <input
-          type="number"
-          value={localAmountMax}
-          onChange={e => {
-            e.stopPropagation()
-            const value = e.target.value
-            setLocalAmountMax(value)
-            debouncedAmountFilter(localAmountMin, value)
-          }}
-          onFocus={e => e.stopPropagation()}
-          className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-          placeholder="Max"
-          data-testid="amount-max-filter-input"
-        />
-      </div>
+      {renderAmountInputRow({
+        label: 'Min',
+        value: localAmountMin,
+        setValue: setLocalAmountMin,
+        counterpartValue: localAmountMax,
+        isMin: true,
+        testId: 'amount-min-filter-input'
+      })}
+      {renderAmountInputRow({
+        label: 'Max',
+        value: localAmountMax,
+        setValue: setLocalAmountMax,
+        counterpartValue: localAmountMin,
+        isMin: false,
+        testId: 'amount-max-filter-input'
+      })}
     </div>
   )
 }

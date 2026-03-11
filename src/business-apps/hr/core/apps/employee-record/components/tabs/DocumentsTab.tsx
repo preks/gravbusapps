@@ -36,6 +36,7 @@ import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { EmployeeDocumentClient } from '../../services/employeeDocumentApi'
 import documentsI18n from './_i18n'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface DocumentsTabProps {
   employee: Employee
@@ -226,6 +227,12 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
   useEffect(() => {
     fetchDocuments()
   }, [employee?.id])
+
+  useProcessCompletion({
+    onSuccess: () => {
+      void fetchDocuments()
+    }
+  })
 
   useEffect(() => {
     const loadDocumentPreviews = async () => {

@@ -11,6 +11,8 @@ news_content = News
 news_content_subtitle = News articles
 knowledge_content = Knowledge
 knowledge_content_subtitle = Knowledge base
+policies_content = Policies
+policies_content_subtitle = Policies
 documents_content = Documents
 documents_content_subtitle = Document library
 questions_content = Questions
@@ -56,6 +58,7 @@ created_date = Created Date
 ## Content Groups
 group_news = News
 group_knowledge = Knowledge
+group_policies = Policies
 group_document = Document
 group_question = Question
 

@@ -88,6 +88,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
 
   const createPreviewUrl = (cacheBust: string, cacheOnly?: boolean) => {
     const query: Record<string, string | boolean> = { v: cacheBust }
+    const resolvedNamespaceContext = namespaceContext ?? derivePreviewNamespaceContext(sessionId)
     const app = previewAppName?.trim()
     if (app) {
       query.app = app
@@ -95,7 +96,13 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     if (cacheOnly) {
       query.bundle = false
     }
-    return builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
+    const baseUrl = builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
+    // Use hash for initial context so backend query validation is not affected.
+    const hashParams = new URLSearchParams({
+      namespace: resolvedNamespaceContext.namespace,
+      publishState: 'draft'
+    })
+    return `${baseUrl}#${hashParams.toString()}`
   }
 
   useImperativeHandle(
@@ -109,7 +116,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
         setPreviewUrl(nextUrl)
       }
     }),
-    [builderClient, sessionId, previewAppName]
+    [builderClient, sessionId, previewAppName, namespaceContext]
   )
 
   useEffect(() => {

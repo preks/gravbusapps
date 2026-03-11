@@ -77,6 +77,7 @@ const contentGroupFilter = {
         options: [
           { id: ContentGroup.NEWS, label: 'News' },
           { id: ContentGroup.KNOWLEDGE, label: 'Knowledge' },
+          { id: ContentGroup.POLICY, label: 'Policies' },
           { id: ContentGroup.DOCUMENT, label: 'Document' },
           { id: ContentGroup.QUESTION, label: 'Question' }
         ]

@@ -14,7 +14,7 @@ export interface CampaignDataPageProps extends BusinessAppContextProps {
 const DATA_TEST_ID = 'CustomerCampaignDataPage'
 
 const CampaignDataPage: React.FC<CampaignDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const campaignTypes = useCatalogSettings(context, 'SalesCampaignType')
+  const campaignTypes = useCatalogSettings(context, 'CustomerCampaignType:v1')
 
   return (
     <PageLayout

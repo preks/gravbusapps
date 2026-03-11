@@ -46,10 +46,12 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   workingHours
 }) => {
   const locale = getCurrentActiveUserLocale()
-  const { currentMonth, prevMonth, nextMonth, entries, pageSize, setPageSize, error, refresh } = useTimeTrackingData({
-    employeeId,
-    accessToken
-  })
+  const { currentMonth, prevMonth, nextMonth, entries, entriesForReport, pageSize, setPageSize, error, refresh } =
+    useTimeTrackingData({
+      employeeId,
+      accessToken,
+      workingHours
+    })
 
   const { t } = useTranslation(timeTrackingTranslations)
   const graphqlClient = useGraphQLClient(accessToken)
@@ -160,7 +162,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
         holidayDates,
         vacationDates,
         workingHours,
-        entries,
+        entries: entriesForReport ?? entries,
         monthDate: currentMonth,
         locale,
         employeeId,

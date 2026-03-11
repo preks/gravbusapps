@@ -1,6 +1,6 @@
 import type { CatalogSelectConfig } from './useCatalogSelect'
 import { clearChildValue, resetToPrefetchedOptions } from './catalogSelectDependencyShared'
-import { CatalogSelectExternalValue, toOptions } from './catalogSelectUtils'
+import { buildFiltersSignature, CatalogSelectExternalValue, toOptions } from './catalogSelectUtils'
 import type {
   CatalogSelectDependencyFetcher,
   CatalogSelectDependencySetter,
@@ -32,15 +32,18 @@ const fetchFilteredEntries = async ({
   nextVersion,
   isCurrentVersion
 }: FetchFilteredEntriesOptions): Promise<void> => {
+  const filtersSig = buildFiltersSignature({
+    ...(filter.on === 'type' && externalValue ? { typeEquals: externalValue } : {})
+  })
   const version = nextVersion(id)
 
   setFor(id, previousState =>
     previousState.loading &&
     previousState.options.length === 0 &&
     previousState.offset === 0 &&
-    previousState.lastFiltersSig === undefined
+    previousState.lastFiltersSig === filtersSig
       ? previousState
-      : { ...previousState, options: [], loading: true, offset: 0, lastFiltersSig: undefined }
+      : { ...previousState, options: [], loading: true, offset: 0, lastFiltersSig: filtersSig }
   )
 
   try {
@@ -57,11 +60,16 @@ const fetchFilteredEntries = async ({
       loading: false,
       options: toOptions(result.entries, locale),
       total: result.totalCount,
-      offset: result.entries.length
+      offset: result.entries.length,
+      lastFiltersSig: filtersSig
     }))
   } catch {
     if (isCurrentVersion(id, version)) {
-      setFor(id, previousState => (previousState.loading ? { ...previousState, loading: false } : previousState))
+      setFor(id, previousState =>
+        previousState.loading || previousState.lastFiltersSig !== filtersSig
+          ? { ...previousState, loading: false, lastFiltersSig: filtersSig }
+          : previousState
+      )
     }
   }
 }
