@@ -25,5 +25,5 @@ export enum ContentGroup {
   QUESTION = 'ContentGroup:v1:QUESTION',
   INTRANET = 'ContentGroup:v1:INTRANET',
   GLOSSARY = 'ContentGroup:v1:GLOSSARY',
-  POLICY = 'ContentGroup:v1:POLICIES'
+  POLICY = 'ContentGroup:v1:POLICY'
 }

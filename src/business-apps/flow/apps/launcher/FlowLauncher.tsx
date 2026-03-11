@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { mockUsers } from '../../data/mockUsers'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -76,6 +76,7 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
+  const hasAppliedTemplateIdFromUrl = useRef(false)
 
   // Load published templates from API with pagination and search
   const loadPublishedTemplates = async (page: number = 1, search: string = '') => {
@@ -164,6 +165,42 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
       console.log('FlowLauncher: No accessToken, skipping API call')
     }
   }, [accessToken])
+
+  // Pre-select template from URL (e.g. from orchestrator "Open in Flow Launcher" link)
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined' || !accessToken || isLoading || hasAppliedTemplateIdFromUrl.current)
+      return
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const templateId = params.get('templateId') || params.get('template')
+    if (!templateId) return
+
+    const found = templates.find(t => t.id === templateId)
+    if (found) {
+      hasAppliedTemplateIdFromUrl.current = true
+      handleTemplateSelect(found)
+      return
+    }
+
+    // Template not in list (e.g. pagination) - fetch metadata by ID
+    const fetchAndSelect = async () => {
+      try {
+        const response = await fetchWithAuth(`${API_BASE}/templates/${templateId}/metadata`)
+        const data = response.data || response
+        const tpl = data.template || data
+        const synthetic: FlowTemplate = {
+          id: templateId,
+          name: tpl?.name || templateId,
+          description: tpl?.description || '',
+          steps: tpl?.steps || []
+        }
+        hasAppliedTemplateIdFromUrl.current = true
+        handleTemplateSelect(synthetic)
+      } catch {
+        // Template may not exist or not accessible - ignore
+      }
+    }
+    fetchAndSelect()
+  }, [accessToken, templates, isLoading])
 
   // Debounced server-side search
   useEffect(() => {
@@ -326,6 +363,160 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
     templateMetadata &&
     executionAssignments.every(assignment => assignment.assignedUsers.length > 0)
 
+  const renderMainContent = () => {
+    if (isLoading) {
+      return (
+        <Card className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl">
+          <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12">
+            <Spinner size="lg" />
+            <p className="gba:mt-4 gba:text-sm gba:text-gray-600">Loading templates...</p>
+          </CardContent>
+        </Card>
+      )
+    }
+    if (error) {
+      return (
+        <Card className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl">
+          <CardContent className="gba:p-6">
+            <Alert variant="destructive" data-testid={`${testId}-error`}>
+              <AlertTriangle className="gba:h-5 gba:w-5" />
+              <div className="gba:ml-3">
+                <h3 className="gba:font-semibold gba:mb-2">Error Loading Templates</h3>
+                <p className="gba:mb-4">{error}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => loadPublishedTemplates()}
+                  className="gba:gap-2"
+                  data-testid={`${testId}-retry`}
+                >
+                  <RefreshCw size={16} />
+                  Retry
+                </Button>
+              </div>
+            </Alert>
+          </CardContent>
+        </Card>
+      )
+    }
+    return (
+      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-6 gba:w-full">
+        {/* Template Selection - 2/3 width */}
+        <div className="gba:lg:col-span-2">
+          <Card
+            className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl gba:h-full"
+            data-testid={`${testId}-template-selection`}
+          >
+            <CardContent className="gba:p-6">
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+                <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                  {getTranslationFromI18nKeyAndLabel('flow.launcher.selectTemplate', 'Choose a Workflow Template')}
+                </h2>
+              </div>
+
+              {/* Search Input */}
+              <div className="gba:mb-4">
+                <input
+                  type="text"
+                  placeholder="Search templates..."
+                  className="gba:w-full gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-lg gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  data-testid={`${testId}-search-input`}
+                />
+              </div>
+
+              {templates.length === 0 ? (
+                <EmptyState
+                  title="No Published Templates"
+                  description={
+                    isSearching
+                      ? 'No templates match your search. Try different keywords.'
+                      : 'No published flow templates are available for launch. Create and publish templates to get started with workflow automation.'
+                  }
+                  actionLabel="Refresh Templates"
+                  onAction={() => loadPublishedTemplates(1, searchTerm)}
+                  data-testid={`${testId}-no-templates`}
+                />
+              ) : (
+                <>
+                  <div className="gba:space-y-1">
+                    {templates.map(template => (
+                      <TemplateCard
+                        key={template.id}
+                        template={template}
+                        isSelected={selectedTemplate?.id === template.id}
+                        onClick={handleTemplateSelect}
+                        data-testid={`${testId}-template-${template.id}`}
+                      />
+                    ))}
+                  </div>
+                  {/* Pagination Controls */}
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
+                    <div className="gba:text-sm gba:text-gray-600">
+                      {totalCount > 0 && (
+                        <span>
+                          {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)}-
+                          {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
+                        </span>
+                      )}
+                    </div>
+                    <div className="gba:flex gba:gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => loadPublishedTemplates(Math.max(1, currentPage - 1), searchTerm)}
+                        disabled={currentPage <= 1 || isLoading}
+                        data-testid={`${testId}-prev-page`}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => loadPublishedTemplates(currentPage + 1, searchTerm)}
+                        disabled={!hasMore || isLoading}
+                        data-testid={`${testId}-next-page`}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Launch Configuration - 1/3 width */}
+        <div className="gba:lg:col-span-1">
+          <Card
+            className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl gba:h-full"
+            data-testid={`${testId}-launch-config`}
+          >
+            <CardContent className="gba:p-6">
+              <h2 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-900">
+                {getTranslationFromI18nKeyAndLabel('flow.launcher.launchConfiguration', 'Launch Configuration')}
+              </h2>
+
+              <LaunchConfiguration
+                accessToken={accessToken}
+                selectedTemplate={selectedTemplate}
+                templateMetadata={templateMetadata}
+                executionAssignments={executionAssignments}
+                isLaunching={isLaunching}
+                canLaunch={canLaunch}
+                onAssignmentsChange={setExecutionAssignments}
+                onDirectLaunch={handleDirectLaunch}
+                onLaunchWithWizard={handleLaunchWithWizard}
+                data-testid={`${testId}-launch-configuration`}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <MockDataProvider>
       <div
@@ -379,156 +570,7 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
         </div>
 
         {/* Main Dashboard Content */}
-        <div className="gba:w-full gba:max-w-none">
-          {isLoading ? (
-            <Card className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl">
-              <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12">
-                <Spinner size="lg" />
-                <p className="gba:mt-4 gba:text-sm gba:text-gray-600">Loading templates...</p>
-              </CardContent>
-            </Card>
-          ) : error ? (
-            <Card className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl">
-              <CardContent className="gba:p-6">
-                <Alert variant="destructive" data-testid={`${testId}-error`}>
-                  <AlertTriangle className="gba:h-5 gba:w-5" />
-                  <div className="gba:ml-3">
-                    <h3 className="gba:font-semibold gba:mb-2">Error Loading Templates</h3>
-                    <p className="gba:mb-4">{error}</p>
-                    <Button
-                      variant="outline"
-                      onClick={loadPublishedTemplates}
-                      className="gba:gap-2"
-                      data-testid={`${testId}-retry`}
-                    >
-                      <RefreshCw size={16} />
-                      Retry
-                    </Button>
-                  </div>
-                </Alert>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-6 gba:w-full">
-              {/* Template Selection - 2/3 width */}
-              <div className="gba:lg:col-span-2">
-                <Card
-                  className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl gba:h-full"
-                  data-testid={`${testId}-template-selection`}
-                >
-                  <CardContent className="gba:p-6">
-                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-                      <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'flow.launcher.selectTemplate',
-                          'Choose a Workflow Template'
-                        )}
-                      </h2>
-                    </div>
-
-                    {/* Search Input */}
-                    <div className="gba:mb-4">
-                      <input
-                        type="text"
-                        placeholder="Search templates..."
-                        className="gba:w-full gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-lg gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        data-testid={`${testId}-search-input`}
-                      />
-                    </div>
-
-                    {templates.length === 0 ? (
-                      <EmptyState
-                        title="No Published Templates"
-                        description={
-                          isSearching
-                            ? 'No templates match your search. Try different keywords.'
-                            : 'No published flow templates are available for launch. Create and publish templates to get started with workflow automation.'
-                        }
-                        actionLabel="Refresh Templates"
-                        onAction={() => loadPublishedTemplates(1, searchTerm)}
-                        data-testid={`${testId}-no-templates`}
-                      />
-                    ) : (
-                      <>
-                        <div className="gba:space-y-1">
-                          {templates.map(template => (
-                            <TemplateCard
-                              key={template.id}
-                              template={template}
-                              isSelected={selectedTemplate?.id === template.id}
-                              onClick={handleTemplateSelect}
-                              data-testid={`${testId}-template-${template.id}`}
-                            />
-                          ))}
-                        </div>
-                        {/* Pagination Controls */}
-                        <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
-                          <div className="gba:text-sm gba:text-gray-600">
-                            {totalCount > 0 && (
-                              <span>
-                                {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)}-
-                                {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
-                              </span>
-                            )}
-                          </div>
-                          <div className="gba:flex gba:gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => loadPublishedTemplates(Math.max(1, currentPage - 1), searchTerm)}
-                              disabled={currentPage <= 1 || isLoading}
-                              data-testid={`${testId}-prev-page`}
-                            >
-                              Previous
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => loadPublishedTemplates(currentPage + 1, searchTerm)}
-                              disabled={!hasMore || isLoading}
-                              data-testid={`${testId}-next-page`}
-                            >
-                              Next
-                            </Button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Launch Configuration - 1/3 width */}
-              <div className="gba:lg:col-span-1">
-                <Card
-                  className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl gba:h-full"
-                  data-testid={`${testId}-launch-config`}
-                >
-                  <CardContent className="gba:p-6">
-                    <h2 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-900">
-                      {getTranslationFromI18nKeyAndLabel('flow.launcher.launchConfiguration', 'Launch Configuration')}
-                    </h2>
-
-                    <LaunchConfiguration
-                      accessToken={accessToken}
-                      selectedTemplate={selectedTemplate}
-                      templateMetadata={templateMetadata}
-                      executionAssignments={executionAssignments}
-                      isLaunching={isLaunching}
-                      canLaunch={canLaunch}
-                      onAssignmentsChange={setExecutionAssignments}
-                      onDirectLaunch={handleDirectLaunch}
-                      onLaunchWithWizard={handleLaunchWithWizard}
-                      data-testid={`${testId}-launch-configuration`}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-        </div>
+        <div className="gba:w-full gba:max-w-none">{renderMainContent()}</div>
 
         {/* Simulation Wizard Dialog */}
         {selectedTemplate && (

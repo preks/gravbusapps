@@ -1,13 +1,79 @@
 import { useCallback, useMemo, useRef } from 'react'
 import { getChangedDebugKeys, logCatalogSelectDebug, summarizeCatalogSelectState } from './catalogSelectDebug'
 import type { CatalogSelectConfig, CatalogSelectController, CatalogSelectState } from './useCatalogSelect'
-import { CatalogSelectExternalValue, resolveCatalogSelectFieldValue } from './catalogSelectUtils'
+import {
+  ActiveFilters,
+  buildFiltersSignature,
+  CatalogSelectExternalValue,
+  isValueValidForFilters,
+  resolveCatalogSelectFieldValue
+} from './catalogSelectUtils'
+
+const EMPTY_OPTIONS: CatalogSelectController['options'] = []
+
+const getActiveFilters = (
+  config: CatalogSelectConfig,
+  externalValues: Record<string, CatalogSelectExternalValue> | undefined,
+  stateById: Record<string, CatalogSelectState>
+): ActiveFilters => {
+  const activeFilters: ActiveFilters = {}
+
+  if (config.parentField) {
+    const parentValue = resolveCatalogSelectFieldValue(config.parentField, externalValues, stateById)
+    if (parentValue) {
+      activeFilters.parentEntryId = parentValue
+    }
+  }
+
+  if (config.filterField && externalValues) {
+    for (const filter of config.filterField) {
+      const rawExternalValue = externalValues[filter.from]
+      if (filter.on === 'type' && typeof rawExternalValue === 'string' && rawExternalValue.length > 0) {
+        activeFilters.typeEquals = rawExternalValue
+      }
+    }
+  }
+
+  return activeFilters
+}
+
+const resolveVisibleOptions = ({
+  currentState,
+  activeFilters,
+  hideOptionsUntilSourceSelected,
+  waitingForFilteredOptions
+}: {
+  currentState: CatalogSelectState | undefined
+  activeFilters: ActiveFilters
+  hideOptionsUntilSourceSelected: boolean
+  waitingForFilteredOptions: boolean
+}): CatalogSelectController['options'] => {
+  const storedOptions = currentState?.options ?? EMPTY_OPTIONS
+  if (storedOptions.length === 0) {
+    return storedOptions
+  }
+
+  if (hideOptionsUntilSourceSelected) {
+    return EMPTY_OPTIONS
+  }
+
+  if (!waitingForFilteredOptions) {
+    return storedOptions
+  }
+
+  const selectedValue = currentState?.value ?? ''
+  if (!selectedValue || !isValueValidForFilters(selectedValue, currentState?.metaByValue, activeFilters)) {
+    return EMPTY_OPTIONS
+  }
+
+  const selectedOption = storedOptions.find(option => option.value === selectedValue)
+  return selectedOption ? [selectedOption] : EMPTY_OPTIONS
+}
 
 export const useCatalogSelectControllers = ({
   configs,
   stateById,
   externalValues,
-  configById,
   defaultPageSize,
   createSetValue,
   createOnSearch,
@@ -16,7 +82,6 @@ export const useCatalogSelectControllers = ({
   configs: CatalogSelectConfig[]
   stateById: Record<string, CatalogSelectState>
   externalValues?: Record<string, CatalogSelectExternalValue>
-  configById: Map<string, CatalogSelectConfig>
   defaultPageSize: number
   createSetValue: (id: string) => CatalogSelectController['setValue']
   createOnSearch: (id: string, config: CatalogSelectConfig) => CatalogSelectController['onSearch']
@@ -70,13 +135,11 @@ export const useCatalogSelectControllers = ({
       searchImplByIdRef.current[id] = createOnSearch(id, config)
       loadMoreImplByIdRef.current[id] = createOnLoadMore(id, config)
 
-      const parentValue = config.parentField
-        ? resolveCatalogSelectFieldValue(config.parentField, externalValues, stateById)
-        : ''
-      const hasParentSelected = Boolean(config.parentField && parentValue)
-      const hasExternalFilterValue = Boolean(config.filterField?.some(filter => Boolean(externalValues?.[filter.from])))
-      const parentConfig = configById.get(config.parentField ?? '')
-      const isBiDirectional = parentConfig?.childField === id
+      const activeFilters = getActiveFilters(config, externalValues, stateById)
+      const hasParentSelected = Boolean(config.parentField && activeFilters.parentEntryId)
+      const hasExternalFilterValue = Boolean(
+        config.filterField?.some(filter => filter.on === 'type' && activeFilters.typeEquals)
+      )
       const hasAnyFilterActive = Boolean(
         (config.parentField && hasParentSelected) || (config.filterField && hasExternalFilterValue)
       )
@@ -85,35 +148,45 @@ export const useCatalogSelectControllers = ({
         config.requireSourceForEnable &&
           ((config.parentField && !hasParentSelected) || (config.filterField && !hasExternalFilterValue))
       )
-      const disabledWhileLoading = Boolean(hasAnyFilterActive && currentState?.loading && !isBiDirectional)
-      const disabledNoOptions = Boolean(
-        hasAnyFilterActive &&
-          currentState &&
-          !currentState.loading &&
-          (currentState.options?.length || 0) === 0 &&
-          currentState.total === 0
+      const expectedFilterSignature = hasAnyFilterActive ? buildFiltersSignature(activeFilters) : undefined
+      const waitingForFilteredOptions = Boolean(
+        hasAnyFilterActive && expectedFilterSignature && currentState?.lastFiltersSig !== expectedFilterSignature
       )
-      const disabled =
-        disabledRequire || Boolean(hasAnyFilterActive && !currentState) || disabledWhileLoading || disabledNoOptions
+      const visibleOptions = resolveVisibleOptions({
+        currentState,
+        activeFilters,
+        hideOptionsUntilSourceSelected: disabledRequire,
+        waitingForFilteredOptions
+      })
+      const visibleLoading = Boolean(currentState?.loading || waitingForFilteredOptions)
+      const visibleTotal =
+        waitingForFilteredOptions || disabledRequire ? visibleOptions.length : (currentState?.total ?? 0)
+      const visibleOffset =
+        waitingForFilteredOptions || disabledRequire ? visibleOptions.length : (currentState?.offset ?? 0)
+      const disabledNoOptions = Boolean(
+        hasAnyFilterActive && currentState && !visibleLoading && visibleOptions.length === 0 && visibleTotal === 0
+      )
+      const disabled = disabledRequire || Boolean(hasAnyFilterActive && !currentState) || disabledNoOptions
 
-      const hasOptionsInState = (currentState?.options?.length || 0) > 0
+      const hasOptionsInState = visibleOptions.length > 0
       const requiresParentForValidation = config.requireSourceForEnable && config.parentField && !hasParentSelected
       const nextController: CatalogSelectController = {
         value: currentState?.value ?? '',
         setValue: getStableSetValue(id),
-        options: currentState?.options ?? [],
-        loading: currentState?.loading ?? false,
-        total: currentState?.total ?? 0,
+        options: visibleOptions,
+        loading: visibleLoading,
+        total: visibleTotal,
         limit: currentState?.limit ?? config.pageSize ?? defaultPageSize,
-        offset: currentState?.offset ?? 0,
+        offset: visibleOffset,
         search: currentState?.search,
-        hasMore: (currentState?.offset ?? 0) < (currentState?.total ?? 0),
+        hasMore:
+          !waitingForFilteredOptions && !disabledRequire && (currentState?.offset ?? 0) < (currentState?.total ?? 0),
         variant: currentState?.variant ?? 'combobox',
         onSearch: getStableOnSearch(id),
         onLoadMore: getStableOnLoadMore(id),
         disabled,
         hasOptions: hasOptionsInState && !requiresParentForValidation,
-        filterSignature: currentState?.lastFiltersSig
+        filterSignature: expectedFilterSignature ?? currentState?.lastFiltersSig
       }
 
       const previousController = controllerCacheRef.current[id]
@@ -164,7 +237,6 @@ export const useCatalogSelectControllers = ({
     configs,
     stateById,
     externalValues,
-    configById,
     defaultPageSize,
     createSetValue,
     createOnSearch,

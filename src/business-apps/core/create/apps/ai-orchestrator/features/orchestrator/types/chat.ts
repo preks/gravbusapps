@@ -71,9 +71,8 @@ export const CANVAS_TABS: CanvasTabInfo[] = [
   { id: 'data-model', label: 'Data Model' },
   { id: 'functions', label: 'Functions' },
   { id: 'task-expert', label: 'Task Expert' },
-  { id: 'flow', label: 'Flow' },
   { id: 'agent-mesh', label: 'Agent Mesh' },
-  { id: 'data-flow', label: 'Architecture' },
+  { id: 'flow', label: 'Flow' },
   { id: 'about', label: 'About' }
 ]
 
