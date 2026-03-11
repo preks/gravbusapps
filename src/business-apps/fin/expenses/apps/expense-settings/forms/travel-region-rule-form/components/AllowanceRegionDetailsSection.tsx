@@ -9,7 +9,10 @@ interface AllowanceRegionDetailsSectionProps {
   countries: CatalogOption[]
   travelRegions: CatalogOption[]
   currencies: CatalogOption[]
-  isLoadingMoreRegions: boolean
+  isLoadingRegions: boolean
+  hasMoreRegions: boolean
+  onSearchRegions: (searchTerm: string) => void
+  onLoadMoreRegions: () => void
   onAddGroup: () => void
   onUpdateGroupDetail: (groupKey: string, field: string, value: any) => void
   onUpdateAmount: (groupKey: string, amountIndex: number, value: string) => void
@@ -23,7 +26,10 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
   countries,
   travelRegions,
   currencies,
-  isLoadingMoreRegions,
+  isLoadingRegions,
+  hasMoreRegions,
+  onSearchRegions,
+  onLoadMoreRegions,
   onAddGroup,
   onUpdateGroupDetail,
   onUpdateAmount,
@@ -53,7 +59,10 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
                 countries={countries}
                 travelRegions={travelRegions}
                 currencies={currencies}
-                isLoadingMoreRegions={isLoadingMoreRegions}
+                isLoadingRegions={isLoadingRegions}
+                hasMoreRegions={hasMoreRegions}
+                onSearchRegions={onSearchRegions}
+                onLoadMoreRegions={onLoadMoreRegions}
                 onUpdateField={(field, value) => onUpdateGroupDetail(group.key, field, value)}
                 onUpdateAmount={(amountIndex, value) => onUpdateAmount(group.key, amountIndex, value)}
                 onRemoveGroup={() => onRemoveGroup(group.key)}

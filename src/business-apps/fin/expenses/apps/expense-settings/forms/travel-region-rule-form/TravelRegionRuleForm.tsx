@@ -68,8 +68,11 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     travelRegions,
     catalogsLoading,
     error: catalogError,
-    isLoadingMoreRegions,
+    isLoadingRegions,
+    hasMoreRegions,
     loadTravelRegions,
+    loadMoreTravelRegions,
+    searchTravelRegions,
     resetPagination
   } = useCatalogData({ accessToken, travelRegionSetId })
 
@@ -353,15 +356,15 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       {isEditing && (
         <div className="gba:flex gba:items-center gba:justify-end">
           <span
-            className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded ${
+            className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded gba:border ${
               dataSource === 'fresh'
-                ? 'gba:bg-green-100 gba:text-green-800 gba:border gba:border-green-300'
+                ? 'gba:bg-success-secondary gba:text-success-secondary-foreground gba:border-success-ring'
                 : dataSource === 'stale'
-                  ? 'gba:bg-yellow-100 gba:text-yellow-800 gba:border gba:border-yellow-300'
-                  : 'gba:bg-gray-100 gba:text-gray-800 gba:border gba:border-gray-300'
+                  ? 'gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning-ring'
+                  : 'gba:bg-muted gba:text-muted-foreground gba:border-border'
             }`}
           >
-            {dataSource === 'fresh' ? '✅ Fresh Data' : dataSource === 'stale' ? '⚠️ Stale Data' : '📝 New Item'}
+            {dataSource === 'fresh' ? 'Fresh Data' : dataSource === 'stale' ? 'Stale Data' : 'New Item'}
           </span>
         </div>
       )}
@@ -401,7 +404,10 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         countries={countries}
         travelRegions={travelRegions}
         currencies={currencies}
-        isLoadingMoreRegions={isLoadingMoreRegions}
+        isLoadingRegions={isLoadingRegions}
+        hasMoreRegions={hasMoreRegions.current}
+        onSearchRegions={searchTravelRegions}
+        onLoadMoreRegions={loadMoreTravelRegions}
         onAddGroup={addColumnGroup}
         onUpdateGroupDetail={updateGroupDetail}
         onUpdateAmount={updateAmount}
