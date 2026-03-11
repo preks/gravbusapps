@@ -30,6 +30,27 @@ export interface ChatMessageToolCall {
   progressLines?: string[]
 }
 
+export interface DecisionOptionChoice {
+  id: string
+  title: string
+  description: string
+  riskLevel?: 'low' | 'medium' | 'high'
+  destructive?: boolean
+  requiresExplicitConsent?: boolean
+}
+
+export interface DecisionToolDescriptor {
+  name: string
+  description: string
+}
+
+export interface DecisionPromptState {
+  decisionId?: string
+  riskSummary?: string
+  options: DecisionOptionChoice[]
+  availableTools?: DecisionToolDescriptor[]
+}
+
 export interface CreateChatMessage {
   id: string
   role: ChatMessageRole
@@ -41,6 +62,7 @@ export interface CreateChatMessage {
   thinkingLog?: string
   thinkingCollapsed?: boolean
   blocks?: ChatMessageBlock[]
+  decisionPrompt?: DecisionPromptState
   createdBy?: string
   editHistory?: Array<{
     userId: string
