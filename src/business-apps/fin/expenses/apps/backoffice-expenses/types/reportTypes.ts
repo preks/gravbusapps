@@ -130,4 +130,5 @@ export type ExportFilterOverrides = {
   statusFilters?: string[]
   employeeFilters?: string[]
   departmentFilters?: string[]
+  dates?: import('../hooks/queryFilterUtils').DateRanges
 }

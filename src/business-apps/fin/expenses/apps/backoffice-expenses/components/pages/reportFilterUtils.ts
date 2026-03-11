@@ -1,19 +1,40 @@
 import { ReportType, type ReportItem } from '../../hooks/useBackofficeExpenseReportData'
 import { normalizeFilterValues } from '../../hooks/queryFilterUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export type ReportFilters = { status: string[]; employeeName: string[]; departmentName: string[] }
+export type ReportFilters = {
+  status: string[]
+  employeeName: string[]
+  departmentName: string[]
+  // Expense Items: expenseDate range
+  dateFrom?: string
+  dateTo?: string
+  // Plans & Requests: effective/request/plan date ranges
+  effectiveDateFrom?: string
+  effectiveDateTo?: string
+  requestDateFrom?: string
+  requestDateTo?: string
+  planDateFrom?: string
+  planDateTo?: string
+}
 export type ReportSnapshot = { rows: ReportItem[]; totalCount: number }
 export const EMPTY_REPORT_FILTERS: ReportFilters = { status: [], employeeName: [], departmentName: [] }
 
-export const TRANSFER_REQUIRED_LABEL = 'Transfer Required'
+const pickString = (raw: unknown): string | undefined => (typeof raw === 'string' && raw ? raw : undefined)
 
 export const normalizeReportFilters = (filters: Record<string, unknown> | undefined | null): ReportFilters => {
   const raw = filters ?? {}
   return {
     status: normalizeFilterValues(raw.status),
     employeeName: normalizeFilterValues(raw.employeeName),
-    departmentName: normalizeFilterValues(raw.departmentName)
+    departmentName: normalizeFilterValues(raw.departmentName),
+    dateFrom: pickString(raw.dateFrom),
+    dateTo: pickString(raw.dateTo),
+    effectiveDateFrom: pickString(raw.effectiveDateFrom),
+    effectiveDateTo: pickString(raw.effectiveDateTo),
+    requestDateFrom: pickString(raw.requestDateFrom),
+    requestDateTo: pickString(raw.requestDateTo),
+    planDateFrom: pickString(raw.planDateFrom),
+    planDateTo: pickString(raw.planDateTo)
   }
 }
 
@@ -21,40 +42,30 @@ export const areReportFiltersEqual = (left: ReportFilters, right: ReportFilters)
   left.status.length === right.status.length &&
   left.employeeName.length === right.employeeName.length &&
   left.departmentName.length === right.departmentName.length &&
+  left.dateFrom === right.dateFrom &&
+  left.dateTo === right.dateTo &&
+  left.effectiveDateFrom === right.effectiveDateFrom &&
+  left.effectiveDateTo === right.effectiveDateTo &&
+  left.requestDateFrom === right.requestDateFrom &&
+  left.requestDateTo === right.requestDateTo &&
+  left.planDateFrom === right.planDateFrom &&
+  left.planDateTo === right.planDateTo &&
   left.status.every((v, i) => v === right.status[i]) &&
   left.employeeName.every((v, i) => v === right.employeeName[i]) &&
   left.departmentName.every((v, i) => v === right.departmentName[i])
 
 export const hasAnyReportFilters = (filters: ReportFilters): boolean =>
-  filters.status.length > 0 || filters.employeeName.length > 0 || filters.departmentName.length > 0
-
-export const toFilterText = (value: unknown): string => {
-  if (value === null || value === undefined) return ''
-  if (typeof value === 'string') return value.trim()
-  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value).trim()
-  return ''
-}
-
-export const buildTransferRequiredAliases = (): Set<string> =>
-  new Set([
-    TRANSFER_REQUIRED_LABEL,
-    'VERIFIED',
-    'BOOKED',
-    'TRANSFERRED',
-    getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required')
-  ])
-
-export const normalizeStatusFilterValue = (value: unknown, aliases: Set<string>): string => {
-  const normalized = toFilterText(value)
-  if (!normalized) return ''
-  if (aliases.has(normalized) || aliases.has(normalized.toUpperCase())) {
-    return TRANSFER_REQUIRED_LABEL
-  }
-  return normalized
-}
+  filters.status.length > 0 ||
+  filters.employeeName.length > 0 ||
+  filters.departmentName.length > 0 ||
+  !!filters.dateFrom ||
+  !!filters.dateTo ||
+  !!filters.effectiveDateFrom ||
+  !!filters.effectiveDateTo ||
+  !!filters.requestDateFrom ||
+  !!filters.requestDateTo ||
+  !!filters.planDateFrom ||
+  !!filters.planDateTo
 
 export const REPORT_TYPE_DEFINITIONS: Array<{
   key: ReportType

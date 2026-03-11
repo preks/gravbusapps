@@ -20,25 +20,50 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { downloadCsvReport, downloadExcelReport } from './backofficeExpenseReportsPage.utils'
 import { getReportColumns, getExportColumns, getBackendSortableColumnKeys } from './reportColumnDefinitions'
 import ReportSlaKpiCards from './ReportSlaKpiCards'
-import {
-  type ReportSnapshot,
-  REPORT_TYPE_DEFINITIONS,
-  normalizeStatusFilterValue,
-  buildTransferRequiredAliases,
-  hasAnyReportFilters
-} from './reportFilterUtils'
+import { type ReportSnapshot, REPORT_TYPE_DEFINITIONS, hasAnyReportFilters } from './reportFilterUtils'
 import { useReportFilters } from './useReportFilters'
 import { renderReportTableCell } from './reportTableCells'
 import { useSlaKpiValues } from './useSlaKpiValues'
 
+const readUrlParams = () => {
+  const params = new URLSearchParams(globalThis.location?.search || '')
+  return {
+    reportType: (params.get('reportType') as ReportType) || null,
+    search: params.get('search') || '',
+    page: Math.max(1, Number(params.get('page')) || 1),
+    status: params.get('status')?.split(',').filter(Boolean) || [],
+    department: params.get('department')?.split(',').filter(Boolean) || []
+  }
+}
+
+const writeUrlParams = (values: Record<string, string | undefined>) => {
+  const params = new URLSearchParams(globalThis.location?.search || '')
+  for (const [key, value] of Object.entries(values)) {
+    if (value) params.set(key, value)
+    else params.delete(key)
+  }
+  const qs = params.toString()
+  const url = qs ? `${globalThis.location.pathname}?${qs}` : globalThis.location.pathname
+  globalThis.history?.replaceState(null, '', url)
+}
+
 const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+  const [initialUrlParams] = useState(readUrlParams)
   const [sorting, setSorting] = useState<SortingState>([])
   const [reportSnapshotsByType, setReportSnapshotsByType] = useState<Partial<Record<ReportType, ReportSnapshot>>>({})
-  const [localSearchText, setLocalSearchText] = useState('')
-  const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>({})
+  const [localSearchText, setLocalSearchText] = useState(initialUrlParams.search)
+  const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>(
+    () => {
+      const rt = initialUrlParams.reportType
+      if (!rt) return {}
+      const initial: Record<string, any> = {}
+      if (initialUrlParams.status.length > 0) initial.status = initialUrlParams.status
+      if (initialUrlParams.department.length > 0) initial.departmentName = initialUrlParams.department
+      return Object.keys(initial).length > 0 ? { [rt]: initial } : {}
+    }
+  )
 
   const contextProps = useMemo(() => ({ accessToken, userInfo }), [accessToken, userInfo])
-  const transferRequiredAliases = useMemo(() => buildTransferRequiredAliases(), [])
 
   const {
     reportData,
@@ -61,6 +86,14 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
 
   const { organizationalUnits } = useFilterData({ accessToken })
 
+  useEffect(() => {
+    if (initialUrlParams.reportType && initialUrlParams.reportType !== selectedReportType) {
+      setSelectedReportType(initialUrlParams.reportType)
+    }
+    if (initialUrlParams.search) setSearchTerm(initialUrlParams.search)
+    if (initialUrlParams.page > 1) setCurrentPage(initialUrlParams.page)
+  }, [])
+
   const isDataAlignedWithSelectedType = reportDataType === selectedReportType
   const selectedReportSnapshot = selectedReportType ? reportSnapshotsByType[selectedReportType] : undefined
   const baseReportRows = useMemo<any[]>(
@@ -77,12 +110,8 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   }, [selectedReportType, isDataAlignedWithSelectedType, reportData, totalCount])
 
   const reportRowsWithGroupedStatuses = useMemo(
-    () =>
-      (Array.isArray(baseReportRows) ? baseReportRows : []).map(row => ({
-        ...row,
-        status: normalizeStatusFilterValue(row?.status, transferRequiredAliases)
-      })),
-    [baseReportRows, transferRequiredAliases]
+    () => (Array.isArray(baseReportRows) ? baseReportRows : []),
+    [baseReportRows]
   )
 
   const {
@@ -108,12 +137,38 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   const hasActiveFilters = useMemo(() => hasAnyReportFilters(selectedFilters), [selectedFilters])
   const activeFiltersOnly = useMemo(() => {
     if (!hasActiveFilters) return undefined
-    const result: Record<string, string[]> = {}
-    for (const [key, values] of Object.entries(selectedFilters)) {
-      if (Array.isArray(values) && values.length > 0) result[key] = values
+    const result: Record<string, any> = {}
+    if (selectedFilters.status.length > 0) result['status'] = selectedFilters.status
+    if (selectedFilters.employeeName.length > 0) result['employeeName'] = selectedFilters.employeeName
+    if (selectedFilters.departmentName.length > 0) result['departmentName'] = selectedFilters.departmentName
+    if (selectedFilters.dateFrom || selectedFilters.dateTo) {
+      result['dateRange'] = [selectedFilters.dateFrom ?? null, selectedFilters.dateTo ?? null]
+    }
+    if (selectedFilters.effectiveDateFrom || selectedFilters.effectiveDateTo) {
+      result['effectiveDateRange'] = [
+        selectedFilters.effectiveDateFrom ?? null,
+        selectedFilters.effectiveDateTo ?? null
+      ]
+    }
+    if (selectedFilters.requestDateFrom || selectedFilters.requestDateTo) {
+      result['requestDateRange'] = [selectedFilters.requestDateFrom ?? null, selectedFilters.requestDateTo ?? null]
+    }
+    if (selectedFilters.planDateFrom || selectedFilters.planDateTo) {
+      result['planDateRange'] = [selectedFilters.planDateFrom ?? null, selectedFilters.planDateTo ?? null]
     }
     return result
   }, [selectedFilters, hasActiveFilters])
+
+  useEffect(() => {
+    writeUrlParams({
+      reportType: selectedReportType || undefined,
+      search: searchTerm || undefined,
+      page: currentPage > 1 ? String(currentPage) : undefined,
+      status: selectedFilters.status.length > 0 ? selectedFilters.status.join(',') : undefined,
+      department: selectedFilters.departmentName.length > 0 ? selectedFilters.departmentName.join(',') : undefined
+    })
+  }, [selectedReportType, searchTerm, currentPage, selectedFilters.status, selectedFilters.departmentName])
+
   const hasReportRows = Array.isArray(baseReportRows) && baseReportRows.length > 0
   const displayTotalCount = isDataAlignedWithSelectedType ? totalCount : (selectedReportSnapshot?.totalCount ?? 0)
   const tableLoading = isLoading && !hasReportRows
@@ -194,7 +249,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   }
   const dataDisplayStateKey = useMemo(
     () =>
-      `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${searchTerm || ''}`,
+      `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${selectedFilters.dateFrom || ''}::${selectedFilters.dateTo || ''}::${selectedFilters.effectiveDateFrom || ''}::${selectedFilters.effectiveDateTo || ''}::${selectedFilters.requestDateFrom || ''}::${selectedFilters.requestDateTo || ''}::${selectedFilters.planDateFrom || ''}::${selectedFilters.planDateTo || ''}::${searchTerm || ''}`,
     [selectedFilters, selectedReportType, searchTerm]
   )
 

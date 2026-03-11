@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import dayjs from 'dayjs'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -11,7 +12,7 @@ import {
   GET_EXPENSES_SLA_POLICY,
   GET_SLA_KPI_COMMENTS,
   GET_SLA_KPI_PAYMENTS,
-  GET_ALL_EMPLOYEE_NAMES
+  GET_EXPENSE_EMPLOYEE_NAMES
 } from '../queries/backofficeReportQueries'
 import { useBackofficeExpensesOverview } from './useBackofficeExpensesOverview'
 import {
@@ -28,7 +29,9 @@ import {
   getFilterValues,
   buildReportExpenseRequestWhere,
   buildExpensePlanWhereForExport,
-  buildAdvancePaymentWhereForExport
+  buildAdvancePaymentWhereForExport,
+  buildExpenseItemWhereForReport,
+  type DateRanges
 } from './queryFilterUtils'
 import { useEmployeeResolver } from './useEmployeeResolver'
 import {
@@ -116,6 +119,43 @@ export const useBackofficeExpenseReportData = (
   const reportQuerySignatureRef = useRef<Partial<Record<ReportType, string>>>({})
   const expensesSlaPolicyRef = useRef<ExpensesSlaPolicy>(DEFAULT_EXPENSES_SLA_POLICY)
   const reportOrderBy = useMemo(() => mapSortingToOrderBy(selectedReportType, sorting), [selectedReportType, sorting])
+  const activeFilters = selectedReportType ? (activeFiltersByReportType[selectedReportType] ?? {}) : {}
+
+  const selectedDateFrom = useMemo(() => {
+    const raw = (activeFilters as any)?.dateFrom
+    return typeof raw === 'string' && raw ? dayjs(raw).startOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined
+  }, [(activeFilters as any)?.dateFrom])
+
+  const selectedDateTo = useMemo(() => {
+    const raw = (activeFilters as any)?.dateTo
+    return typeof raw === 'string' && raw ? dayjs(raw).endOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined
+  }, [(activeFilters as any)?.dateTo])
+
+  const fmtStart = (v?: string) => (v ? dayjs(v).startOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined)
+  const fmtEnd = (v?: string) => (v ? dayjs(v).endOf('day').format('YYYY-MM-DD[T]HH:mm:ss') : undefined)
+
+  const selectedDates = useMemo(
+    () => ({
+      dateFrom: selectedDateFrom,
+      dateTo: selectedDateTo,
+      effectiveDateFrom: fmtStart((activeFilters as any)?.effectiveDateFrom),
+      effectiveDateTo: fmtEnd((activeFilters as any)?.effectiveDateTo),
+      requestDateFrom: fmtStart((activeFilters as any)?.requestDateFrom),
+      requestDateTo: fmtEnd((activeFilters as any)?.requestDateTo),
+      planDateFrom: fmtStart((activeFilters as any)?.planDateFrom),
+      planDateTo: fmtEnd((activeFilters as any)?.planDateTo)
+    }),
+    [
+      selectedDateFrom,
+      selectedDateTo,
+      (activeFilters as any)?.effectiveDateFrom,
+      (activeFilters as any)?.effectiveDateTo,
+      (activeFilters as any)?.requestDateFrom,
+      (activeFilters as any)?.requestDateTo,
+      (activeFilters as any)?.planDateFrom,
+      (activeFilters as any)?.planDateTo
+    ]
+  )
 
   const overview = useBackofficeExpensesOverview(
     { accessToken, userInfo },
@@ -137,6 +177,12 @@ export const useBackofficeExpenseReportData = (
         offset: (currentPage - 1) * pageSize,
         orderBy: selectedReportType === ReportType.ADVANCE_PAYMENT ? reportOrderBy : DEFAULT_ADVANCE_PAYMENT_ORDER
       },
+      requestsStatus: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.EXPENSE_REQUEST,
+        selectedReportType,
+        'status'
+      ),
       requestsEmployeeNames: getFilterValues(
         activeFiltersByReportType,
         ReportType.EXPENSE_REQUEST,
@@ -149,6 +195,7 @@ export const useBackofficeExpenseReportData = (
         selectedReportType,
         'departmentName'
       ),
+      plansStatus: getFilterValues(activeFiltersByReportType, ReportType.EXPENSE_PLAN, selectedReportType, 'status'),
       plansEmployeeNames: getFilterValues(
         activeFiltersByReportType,
         ReportType.EXPENSE_PLAN,
@@ -160,6 +207,12 @@ export const useBackofficeExpenseReportData = (
         ReportType.EXPENSE_PLAN,
         selectedReportType,
         'departmentName'
+      ),
+      paymentsStatus: getFilterValues(
+        activeFiltersByReportType,
+        ReportType.ADVANCE_PAYMENT,
+        selectedReportType,
+        'status'
       ),
       paymentsEmployeeNames: getFilterValues(
         activeFiltersByReportType,
@@ -173,6 +226,25 @@ export const useBackofficeExpenseReportData = (
         selectedReportType,
         'departmentName'
       ),
+      requestsRequestDateRange:
+        selectedReportType === ReportType.EXPENSE_REQUEST &&
+        (selectedDates.requestDateFrom || selectedDates.requestDateTo)
+          ? { from: selectedDates.requestDateFrom, to: selectedDates.requestDateTo }
+          : undefined,
+      requestsEffectiveDateRange:
+        selectedReportType === ReportType.EXPENSE_REQUEST &&
+        (selectedDates.effectiveDateFrom || selectedDates.effectiveDateTo)
+          ? { from: selectedDates.effectiveDateFrom, to: selectedDates.effectiveDateTo }
+          : undefined,
+      plansEffectiveDateRange:
+        selectedReportType === ReportType.EXPENSE_PLAN &&
+        (selectedDates.effectiveDateFrom || selectedDates.effectiveDateTo)
+          ? { from: selectedDates.effectiveDateFrom, to: selectedDates.effectiveDateTo }
+          : undefined,
+      plansPlanDateRange:
+        selectedReportType === ReportType.EXPENSE_PLAN && (selectedDates.planDateFrom || selectedDates.planDateTo)
+          ? { from: selectedDates.planDateFrom, to: selectedDates.planDateTo }
+          : undefined,
       includeRequests: selectedReportType === ReportType.EXPENSE_REQUEST,
       includePlans: selectedReportType === ReportType.EXPENSE_PLAN,
       includePayments: selectedReportType === ReportType.ADVANCE_PAYMENT,
@@ -193,7 +265,6 @@ export const useBackofficeExpenseReportData = (
     setSelectedReportType(nextType)
   }, [])
 
-  const activeFilters = selectedReportType ? (activeFiltersByReportType[selectedReportType] ?? {}) : {}
   const selectedStatusFilters = useMemo(
     () => (Array.isArray(activeFilters?.status) ? activeFilters.status : EMPTY_STRING_ARRAY),
     [activeFilters?.status]
@@ -207,34 +278,17 @@ export const useBackofficeExpenseReportData = (
     [activeFilters?.departmentName]
   )
 
-  const mapStatusLabelsToRaw = useCallback((statusFilters: readonly string[]): string[] => {
-    const labelMap: Record<string, string[]> = {
-      'IN APPROVAL': ['PENDING'],
-      'VERIFICATION REQUIRED': ['APPROVED'],
-      PAID: ['PAID'],
-      'PAYMENT REQUIRED': ['TRANSFERRED'],
-      PREPARED: ['PREPARED'],
-      'TRANSFER REQUIRED': ['VERIFIED', 'BOOKED', 'TRANSFERRED']
-    }
-    const directRaw = new Set(['PENDING', 'APPROVED', 'PAID', 'PREPARED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'])
-    const mapped = new Set<string>()
-    statusFilters.forEach(f => {
-      const norm = toUpperText(f).replaceAll(/[_-]+/g, ' ').replaceAll(/\s+/g, ' ').trim()
-      const vals = labelMap[norm]
-      if (vals) {
-        vals.forEach(v => mapped.add(v))
-        return
-      }
-      const upper = toUpperText(f)
-      if (directRaw.has(upper)) mapped.add(upper)
-    })
-    return Array.from(mapped)
-  }, [])
+  const passthrough = useCallback((filters: string[]) => filters, [])
 
   const buildRequestWhere = useCallback(
-    (search: string, statuses: string[] = [], employees: string[] = [], departments: string[] = []) =>
-      buildReportExpenseRequestWhere(search, statuses, employees, departments, mapStatusLabelsToRaw),
-    [mapStatusLabelsToRaw]
+    (
+      search: string,
+      statuses: string[] = [],
+      employees: string[] = [],
+      departments: string[] = [],
+      dates: DateRanges = {}
+    ) => buildReportExpenseRequestWhere(search, statuses, employees, departments, passthrough, dates),
+    [passthrough]
   )
 
   const applyRows = useCallback((type: ReportType, rows: ReportItem[], count: number) => {
@@ -375,29 +429,26 @@ export const useBackofficeExpenseReportData = (
 
       switch (type) {
         case ReportType.EXPENSE_ITEM: {
+          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
+          const dates = overrides?.dates ?? { dateFrom: selectedDates.dateFrom, dateTo: selectedDates.dateTo }
+          const where = buildExpenseItemWhereForReport(search, statuses, empFilters, deptFilters, dates)
           const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BACKOFFICE, {
             limit,
             offset,
-            searchTerm: search ? `%${search}%` : '%%',
-            orderBy: reportOrderBy
+            orderBy: reportOrderBy,
+            where
           })
           const nameById = await resolveEmployeeNamesByIds(
             extractIds(result?.ExpenseItem || [], ['employeeId', 'createdBy'])
           )
-          let rows: ReportItem[] = processExpenseItemsData(result, nameById, resolveDepartmentName)
-          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
-          if (statuses.length || empFilters.length || deptFilters.length) {
-            rows = rows.filter(
-              r =>
-                (!statuses.length || statuses.includes(String(r?.status || ''))) &&
-                (!empFilters.length || empFilters.includes(String(r?.employeeName || ''))) &&
-                (!deptFilters.length || deptFilters.includes(String(r?.departmentName || '')))
-            )
+          return {
+            rows: processExpenseItemsData(result, nameById, resolveDepartmentName),
+            totalCount: getCount(result)
           }
-          return { rows, totalCount: getCount(result) }
         }
         case ReportType.EXPENSE_PLAN: {
-          const where = buildExpensePlanWhereForExport(search, empFilters, deptFilters)
+          const dates = overrides?.dates ?? selectedDates
+          const where = buildExpensePlanWhereForExport(search, empFilters, deptFilters, dates)
           const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
             where,
             limit,
@@ -414,7 +465,8 @@ export const useBackofficeExpenseReportData = (
         }
         case ReportType.EXPENSE_REQUEST: {
           const statuses = resolveOverride(overrides?.statusFilters, [])
-          const where = buildRequestWhere(search, statuses, empFilters, deptFilters)
+          const dates = overrides?.dates ?? selectedDates
+          const where = buildRequestWhere(search, statuses, empFilters, deptFilters, dates)
           const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BACKOFFICE, {
             where,
             limit,
@@ -430,7 +482,8 @@ export const useBackofficeExpenseReportData = (
           }
         }
         case ReportType.ADVANCE_PAYMENT: {
-          const where = buildAdvancePaymentWhereForExport(search, empFilters, deptFilters)
+          const dates = overrides?.dates ?? selectedDates
+          const where = buildAdvancePaymentWhereForExport(search, empFilters, deptFilters, dates)
           const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
             where,
             limit,
@@ -449,7 +502,8 @@ export const useBackofficeExpenseReportData = (
         }
         case ReportType.APPROVAL_PAYOUT_CYCLE: {
           const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
-          const where = buildRequestWhere(search, statuses, empFilters, deptFilters)
+          const dates = overrides?.dates ?? selectedDates
+          const where = buildRequestWhere(search, statuses, empFilters, deptFilters, dates)
           const slaPolicyPromise = loadSlaPolicy()
           const result = await graphqlClient.request(GET_APPROVAL_PAYOUT_CYCLE_BACKOFFICE, {
             where,
@@ -483,6 +537,7 @@ export const useBackofficeExpenseReportData = (
       selectedStatusFilters,
       selectedEmployeeFilters,
       selectedDepartmentFilters,
+      selectedDates,
       buildRequestWhere,
       resolveEmployeeNamesByIds,
       resolveDisplayName,
@@ -552,15 +607,19 @@ export const useBackofficeExpenseReportData = (
     let cancelled = false
     const load = async () => {
       try {
-        const result = await graphqlClient.request(GET_ALL_EMPLOYEE_NAMES, {})
+        const result = await graphqlClient.request(GET_EXPENSE_EMPLOYEE_NAMES, {})
         if (cancelled) return
-        const names = (result?.Employee || [])
-          .map((e: any) => {
-            const full = (e.fullName || '').trim()
-            if (full) return full
-            return [e.firstName, e.lastName].filter(Boolean).join(' ').trim()
-          })
-          .filter(Boolean) as string[]
+        const extractNames = (rows: any[]) =>
+          rows
+            .map((r: any) => {
+              const e = r?.employee
+              if (!e) return ''
+              const full = (e.fullName || '').trim()
+              if (full) return full
+              return [e.firstName, e.lastName].filter(Boolean).join(' ').trim()
+            })
+            .filter(Boolean)
+        const names = [...extractNames(result?.requestEmployees || []), ...extractNames(result?.planEmployees || [])]
         setAllEmployeeNames(Array.from(new Set(names)).sort((a, b) => a.localeCompare(b)))
       } catch {
         /* ignore */
@@ -631,7 +690,11 @@ export const useBackofficeExpenseReportData = (
       selectedStatusFilters: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedStatusFilters : [],
       selectedEmployeeFilters: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedEmployeeFilters : [],
       selectedDepartmentFilters:
-        selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedDepartmentFilters : []
+        selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE ? selectedDepartmentFilters : [],
+      selectedDates:
+        selectedReportType === ReportType.EXPENSE_ITEM || selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
+          ? selectedDates
+          : {}
     })
     if (lastFetchSignatureRef.current === signature) return
     if (
@@ -651,6 +714,7 @@ export const useBackofficeExpenseReportData = (
     selectedStatusFilters,
     selectedEmployeeFilters,
     selectedDepartmentFilters,
+    selectedDates,
     fetchPageData
   ])
 

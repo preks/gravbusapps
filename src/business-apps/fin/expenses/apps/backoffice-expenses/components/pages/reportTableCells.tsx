@@ -4,7 +4,8 @@ import { formatDateLocalized } from '../../utils/dateUtils'
 import { isDateKey } from './backofficeExpenseReportsPage.utils'
 
 export const renderReportTableCell = (columnKey: string, rowOriginal: any): React.ReactNode => {
-  const value = rowOriginal?.[columnKey]
+  const value =
+    columnKey === 'status' ? rowOriginal?.statusLabel || rowOriginal?.status || '' : rowOriginal?.[columnKey]
   if (columnKey.includes('amount') || columnKey.includes('Amount')) {
     const currency = extractCurrencyCode(rowOriginal?.currency || '') || 'EUR'
     return <span className="gba:text-sm">{formatCurrency(Number(value) || 0, currency)}</span>

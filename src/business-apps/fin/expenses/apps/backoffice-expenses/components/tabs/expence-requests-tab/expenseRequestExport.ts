@@ -80,7 +80,7 @@ export const getExportColumns = () => [
     title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
   },
   {
-    key: 'requestDate',
+    key: 'creationDate',
     title: getTranslationFromI18nKeyAndLabel(
       'lowcoder:manager_expense_request_list.expense_table.creation_date',
       'Creation Date'
@@ -105,13 +105,6 @@ export const getExportColumns = () => [
   {
     key: 'department',
     title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')
-  },
-  {
-    key: 'requestDate',
-    title: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:confirm_transfer_advance_payment.request_date_label',
-      'Request Date'
-    )
   }
 ]
 

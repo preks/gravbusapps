@@ -45,14 +45,10 @@ interface UseBackofficeExpensesOverviewParams {
   plansDepartmentNames?: string[]
   paymentsDepartmentNames?: string[]
   plansEffectiveDateRange?: { from?: string | null; to?: string | null } | null
-  plansStartDateRange?: { from?: string | null; to?: string | null } | null
-  plansEndDateRange?: { from?: string | null; to?: string | null } | null
   plansPlanDateRange?: { from?: string | null; to?: string | null } | null
   plansTypeFilter?: string[]
   requestsEffectiveDateRange?: { from?: string | null; to?: string | null } | null
   requestsRequestDateRange?: { from?: string | null; to?: string | null } | null
-  requestsStartDateRange?: { from?: string | null; to?: string | null } | null
-  requestsEndDateRange?: { from?: string | null; to?: string | null } | null
   requestsTypeFilter?: string[]
   includeRequests?: boolean
   includePlans?: boolean
@@ -142,13 +138,9 @@ function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]):
 function buildBackofficeOverviewDependencies(params: UseBackofficeExpensesOverviewParams): unknown[] {
   const dateRangePairs: Array<{ from?: string | null; to?: string | null } | null | undefined> = [
     params.plansEffectiveDateRange,
-    params.plansStartDateRange,
-    params.plansEndDateRange,
     params.plansPlanDateRange,
     params.requestsEffectiveDateRange,
-    params.requestsRequestDateRange,
-    params.requestsStartDateRange,
-    params.requestsEndDateRange
+    params.requestsRequestDateRange
   ]
   return [
     ...buildOverviewCoreDependencies(params),
@@ -198,11 +190,9 @@ function buildDepartmentNameWhere(
   names: string[] | undefined,
   path: 'employee' | 'expensePlan.employee' = 'employee'
 ): GqlBoolExp {
-  return buildScopedNameWhere(names, path, name => ({
+  return buildScopedNameWhere(names, path, idOrName => ({
     employeePosition: {
-      organizationalUnit: {
-        name: { _eq: name }
-      }
+      organizationalUnitId: { _eq: idOrName }
     }
   }))
 }
