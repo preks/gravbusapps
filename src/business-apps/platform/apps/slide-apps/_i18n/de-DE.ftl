@@ -638,3 +638,53 @@ transition-trigger-click = Bei Klick
 transition-trigger-auto = Automatisch
 transition-delay = Verzögerung
 transition-preview = Vorschau
+
+# Menüband-Symbolleiste
+ribbon-tab-home = Start
+ribbon-tab-insert = Einfügen
+ribbon-tab-slideshow = Bildschirmpräsentation
+ribbon-aria-label = Folieneditor-Menüband
+
+# Symbolleisten-Hinweise
+toolbar-select-element-hint = Element auswählen zum Formatieren
+toolbar-video-hint = Video im Eigenschaftenfenster bearbeiten
+toolbar-code-hint = Code im Eigenschaftenfenster bearbeiten
+toolbar-multi-hint = { $count } Elemente ausgewählt
+
+# Formatierungsbeschriftungen
+editor-undo = Rückgängig
+editor-redo = Wiederholen
+editor-copy = Kopieren
+editor-paste = Einfügen
+editor-bold = Fett
+editor-italic = Kursiv
+editor-underline = Unterstrichen
+editor-strikethrough = Durchgestrichen
+editor-align-left = Linksbündig
+editor-align-center = Zentriert
+editor-align-right = Rechtsbündig
+editor-text-color = Textfarbe
+editor-link = Link
+editor-code-placeholder = // Code hier
+
+# Einfügen-Tab-Gruppen
+insert-elements-group = Elemente
+insert-media-group = Medien
+insert-templates-group = Vorlagen
+insert-ai-group = KI-Tools
+
+# Bildschirmpräsentation-Tab
+slideshow-start-group = Starten
+slideshow-broadcast-group = Übertragen
+slideshow-view-group = Ansicht
+slideshow-export-group = Exportieren
+slideshow-present = Präsentieren
+slideshow-presenter-view = Referentenansicht
+slideshow-present-window = Im Fenster präsentieren
+slideshow-cast = Auf Anzeige übertragen
+slideshow-cast-connecting = Verbinden...
+slideshow-speaker-notes = Sprechernotizen
+slideshow-transitions = Übergänge
+slideshow-save-now = Jetzt speichern
+slideshow-export-pptx = Als PPTX exportieren
+slideshow-export-pdf = Als PDF exportieren

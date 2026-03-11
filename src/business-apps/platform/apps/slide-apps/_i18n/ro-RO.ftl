@@ -593,3 +593,53 @@ transition-trigger-click = La click
 transition-trigger-auto = Automat
 transition-delay = Întârziere
 transition-preview = Previzualizare
+
+# Bară de instrumente Panglică
+ribbon-tab-home = Pornire
+ribbon-tab-insert = Inserare
+ribbon-tab-slideshow = Prezentare
+ribbon-aria-label = Bara de instrumente editor slide
+
+# Indicii bara de instrumente
+toolbar-select-element-hint = Selectați un element pentru formatare
+toolbar-video-hint = Folosiți panoul de proprietăți pentru a edita video
+toolbar-code-hint = Folosiți panoul de proprietăți pentru a edita codul
+toolbar-multi-hint = { $count } elemente selectate
+
+# Etichete de formatare
+editor-undo = Anulare
+editor-redo = Refacere
+editor-copy = Copiere
+editor-paste = Lipire
+editor-bold = Îngroșat
+editor-italic = Înclinat
+editor-underline = Subliniat
+editor-strikethrough = Tăiat
+editor-align-left = Aliniere stânga
+editor-align-center = Aliniere centru
+editor-align-right = Aliniere dreapta
+editor-text-color = Culoare text
+editor-link = Link
+editor-code-placeholder = // Cod aici
+
+# Grupuri tab Inserare
+insert-elements-group = Elemente
+insert-media-group = Media
+insert-templates-group = Șabloane
+insert-ai-group = Instrumente AI
+
+# Tab Prezentare
+slideshow-start-group = Pornire
+slideshow-broadcast-group = Transmitere
+slideshow-view-group = Vizualizare
+slideshow-export-group = Export
+slideshow-present = Prezentare
+slideshow-presenter-view = Vizualizare prezentator
+slideshow-present-window = Prezintă în fereastră
+slideshow-cast = Proiectează pe ecran
+slideshow-cast-connecting = Se conectează...
+slideshow-speaker-notes = Note prezentator
+slideshow-transitions = Tranziții
+slideshow-save-now = Salvează acum
+slideshow-export-pptx = Export PPTX
+slideshow-export-pdf = Export PDF

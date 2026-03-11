@@ -25,3 +25,10 @@ export {
 } from './useSpeechMatcher'
 export { useSlideSpellCheck } from './useSlideSpellCheck'
 export { useSlideTransition, type UseSlideTransitionOptions, type UseSlideTransitionReturn } from './useSlideTransition'
+export {
+  useToolbarContext,
+  type ToolbarContext,
+  type ToolbarContextType,
+  type UseToolbarContextOptions,
+  type UseToolbarContextReturn
+} from './useToolbarContext'

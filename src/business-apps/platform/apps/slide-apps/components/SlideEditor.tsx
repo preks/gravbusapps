@@ -7,73 +7,33 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   Separator,
   Input,
-  Badge,
   Label,
   useTranslation
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
   Play,
-  Save,
   Plus,
   Trash2,
-  Copy,
-  ChevronDown,
-  Palette,
-  Image as ImageIcon,
-  Code,
-  Type,
-  Square,
-  Circle,
-  Triangle,
-  Star,
-  ArrowRight,
-  Hexagon,
-  Minus,
-  MessageSquare,
-  Diamond,
   ZoomIn,
   ZoomOut,
-  Grid3X3,
   Pencil,
-  Video,
   Presentation,
-  Clock,
   Cast,
   MonitorX,
-  CheckCircle,
-  Download,
-  FileDown,
   ChevronLeft,
   ChevronRight,
   Minimize,
-  Undo2,
-  Redo2,
-  ClipboardPaste,
   CopyPlus,
-  StickyNote,
-  BarChart2,
-  LineChart,
-  PieChart,
-  AreaChart,
-  Activity,
-  Target,
-  ExternalLink,
   X,
   PanelRight,
-  SpellCheck,
-  Link
+  Image as ImageIcon
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -85,8 +45,11 @@ import { SlideChartRenderer } from './SlideChartRenderer'
 import { PropertyPanel } from './PropertyPanel'
 import { CollaboratorCursors } from './CollaboratorCursors'
 import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
+import { AutoSaveIndicator } from '../../shared/components/AutoSaveIndicator'
 import { SlideEditorHeaderActions } from './editor/SlideEditorHeaderActions'
 import { SLIDE_THEMES, getThemeById } from './slideThemes'
+import { SlideToolbarRibbon } from './toolbar'
+import { useToolbarContext } from '../hooks/useToolbarContext'
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
 import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
 import { useEffectManager } from '../hooks/useEffectManager'
@@ -101,19 +64,12 @@ import {
   type ChartElement,
   createTextElement,
   createImageElement,
-  createShapeElement,
-  createCodeElement,
   createVideoElement,
-  createChartElement,
   PRESET_GRADIENTS,
   gradientToCss,
   COLOR_PRESETS
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
-import { GeneratePresentationButton } from './GeneratePresentationButton'
-import { RefineSlideButton } from './RefineSlideButton'
-import { SaveTemplateButton } from './SaveTemplateButton'
-import { TemplateBrowserButton } from './TemplateBrowserButton'
 import { FloatingTextActions } from './FloatingTextActions'
 import { LinkDialog } from './LinkDialog'
 import { PdfExportDialog } from './PdfExportDialog'
@@ -389,6 +345,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showSpellCheckPanel, setShowSpellCheckPanel] = useState(false)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null)
   const [isPresentMode, setIsPresentMode] = useState(false)
   const [presentScale, setPresentScale] = useState(1)
 
@@ -677,6 +634,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
   const selectedElements = currentSlide.elements.filter(e => selectedElementIds.has(e.id))
 
+  // Toolbar context for contextual formatting tools
+  const { context: toolbarContext } = useToolbarContext({
+    selectedElement,
+    selectedElements,
+    selectedCount: selectedElementIds.size
+  })
+
   // Presentation mode transitions using shared hook
   const {
     previousSlide: presentPreviousSlide,
@@ -705,12 +669,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     canSnapshotSaveRef.current = isSynced && isInitialized
   }, [isSynced, isInitialized])
 
+  // Set initial save time when collaboration syncs
+  useEffect(() => {
+    if (isSynced && !lastSaveTime) {
+      setLastSaveTime(new Date())
+    }
+  }, [isSynced, lastSaveTime])
+
   const handleSave = useCallback(
     async (silent = false) => {
       if (!silent) setIsSaving(true)
       try {
         const contentJson = { slides, themeId: collaborativeThemeId }
         await SlidesApiService.updateSlide(slideId, { contentJson })
+        setLastSaveTime(new Date())
         if (!silent) toast.success(t('editor-slide-saved'))
       } catch (err) {
         console.error('[SlideEditor] Save error:', err)
@@ -1946,7 +1918,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       {/* Header - matching PagedDocumentEditor style */}
       <div className="gba:border-b gba:bg-card gba:shadow-sm">
         <div className="gba:px-4 gba:py-3">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+          <div className="gba:flex gba:items-center gba:gap-2">
             {/* Back button and title */}
             <div className="gba:flex gba:items-center gba:gap-4 gba:flex-shrink-0">
               <Button variant="ghost" size="icon" onClick={onBack} title={t('editor-back-to-slides')}>
@@ -1985,458 +1957,174 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               </>
             )}
 
-            <Separator orientation="vertical" className="gba:h-6" />
+            {/* Spacer to push right-aligned items */}
+            <div className="gba:flex-1" />
 
-            <SlideEditorHeaderActions
-              slideId={slideId}
-              slideTitle={presentationTitle}
-              accessToken={accessToken}
-              currentUserId={currentUserId}
-              currentUserName={currentUserName}
-              applyContentJsonSnapshot={contentJson => {
-                applyContentJsonSnapshot(contentJson)
-              }}
-              data-testid={`${testId}-header-actions`}
-            />
+            {/* Right-aligned header controls */}
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+              <SlideEditorHeaderActions
+                slideId={slideId}
+                slideTitle={presentationTitle}
+                accessToken={accessToken}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                applyContentJsonSnapshot={contentJson => {
+                  applyContentJsonSnapshot(contentJson)
+                }}
+                data-testid={`${testId}-header-actions`}
+              />
 
-            <Separator orientation="vertical" className="gba:h-6" />
+              <Separator orientation="vertical" className="gba:h-6" />
 
-            {/* Save status */}
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {isSaving ? (
-                <Badge variant="secondary" className="gba:gap-1">
-                  <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                  {t('editor-saving')}
-                </Badge>
-              ) : isSynced ? (
-                <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                  <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
-                  {t('editor-synced')}
-                </span>
-              ) : (
-                <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                  <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                  {t('editor-connecting')}
-                </span>
+              {/* Auto-save status - consistent with document-apps */}
+              <AutoSaveIndicator
+                isSaving={isSaving}
+                lastSaveTime={lastSaveTime}
+                hasUnsavedChanges={!isSynced}
+                data-testid={`${testId}-auto-save`}
+              />
+
+              <Separator orientation="vertical" className="gba:h-6" />
+
+              {/* Zoom controls */}
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCanvasScale(Math.max(0.25, canvasScale - 0.1))}
+                  title={t('editor-zoom-out')}
+                  className="gba:h-8 gba:w-8"
+                >
+                  <ZoomOut className="gba:w-4 gba:h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCanvasScale(0.65)}
+                  className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
+                >
+                  {Math.round(canvasScale * 100)}%
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCanvasScale(Math.min(1.5, canvasScale + 0.1))}
+                  title={t('editor-zoom-in')}
+                  className="gba:h-8 gba:w-8"
+                >
+                  <ZoomIn className="gba:w-4 gba:h-4" />
+                </Button>
+              </div>
+
+              {/* Cast status indicator - keep in header as status */}
+              {isCastConnected && (
+                <>
+                  <Separator orientation="vertical" className="gba:h-6" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleStopCast}
+                    className="gba:gap-2 gba:text-green-600 gba:border-green-600"
+                    data-testid={`${testId}-cast-stop`}
+                  >
+                    <Cast className="gba:w-4 gba:h-4" />
+                    {isCastFallback ? t('cast-connected-window') : t('cast-connected')}
+                    <MonitorX className="gba:w-4 gba:h-4" />
+                  </Button>
+                </>
               )}
-            </div>
 
-            <Separator orientation="vertical" className="gba:h-6" />
+              <Separator orientation="vertical" className="gba:h-6" />
 
-            {/* Zoom controls */}
-            <div className="gba:flex gba:items-center gba:gap-1">
+              {/* Present button - primary action, more options in ribbon Slideshow tab */}
               <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setCanvasScale(Math.max(0.25, canvasScale - 0.1))}
-                title={t('editor-zoom-out')}
-                className="gba:h-8 gba:w-8"
-              >
-                <ZoomOut className="gba:w-4 gba:h-4" />
-              </Button>
-              <Button
-                variant="ghost"
+                variant="default"
                 size="sm"
-                onClick={() => setCanvasScale(0.65)}
-                className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
+                onClick={() => {
+                  setIsPresentMode(true)
+                  document.documentElement.requestFullscreen?.().catch(() => {})
+                }}
+                data-testid={`${testId}-present`}
               >
-                {Math.round(canvasScale * 100)}%
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setCanvasScale(Math.min(1.5, canvasScale + 0.1))}
-                title={t('editor-zoom-in')}
-                className="gba:h-8 gba:w-8"
-              >
-                <ZoomIn className="gba:w-4 gba:h-4" />
+                <Play className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('editor-present')}
               </Button>
             </div>
-
-            <Separator orientation="vertical" className="gba:h-6" />
-
-            {/* Speaker Notes button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowNotesPanel(!showNotesPanel)}
-              className={showNotesPanel ? 'gba:bg-accent' : ''}
-            >
-              <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-speaker-notes')}
-            </Button>
-
-            {/* Cast status indicator */}
-            {isCastConnected && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStopCast}
-                className="gba:gap-2 gba:text-green-600 gba:border-green-600"
-                data-testid={`${testId}-cast-stop`}
-              >
-                <Cast className="gba:w-4 gba:h-4" />
-                {isCastFallback ? t('cast-connected-window') : t('cast-connected')}
-                <MonitorX className="gba:w-4 gba:h-4" />
-              </Button>
-            )}
-
-            {/* Present dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="default" size="sm">
-                  <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('editor-present')}
-                  <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => {
-                    setIsPresentMode(true)
-                    document.documentElement.requestFullscreen?.().catch(() => {})
-                  }}
-                >
-                  <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('editor-present')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPresenterMode(true)}>
-                  <StickyNote className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('presenter-view')}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleStartWindowPresent}
-                  disabled={isCastConnected || castConnectionState === 'connecting'}
-                >
-                  <ExternalLink className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('present-in-window')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleStartCast}
-                  disabled={isCastConnected || castConnectionState === 'connecting'}
-                >
-                  <Cast className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {castConnectionState === 'connecting' ? t('cast-connecting') : t('cast-to-display')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Export dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('editor-export')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleSave(false)}>
-                  <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('editor-save-now')}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleExportToPptx}>
-                  <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('editor-export-pptx')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowPdfExportDialog(true)}>
-                  <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('editor-export-pdf')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Save as Template */}
-            <SaveTemplateButton
-              slides={slides}
-              themeId={currentTheme?.id || 'corporate-blue'}
-              disabled={!isSynced || slides.length === 0}
-              data-testid={`${testId}-save-template-button`}
-            />
-
-            {/* AI Tools */}
-            <RefineSlideButton
-              currentSlide={currentSlide}
-              onRefine={handleRefineSlide}
-              accessToken={accessToken || ''}
-              theme={currentTheme}
-              disabled={!isSynced}
-              data-testid={`${testId}-refine-button`}
-            />
-            <GeneratePresentationButton
-              onGenerate={handleGeneratedSlides}
-              accessToken={accessToken || ''}
-              disabled={!isSynced}
-              data-testid={`${testId}-generate-button`}
-            />
           </div>
         </div>
       </div>
 
-      {/* Toolbar - Insert & Formatting Tools */}
-      <div className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:bg-card gba:flex-wrap">
-        {/* Edit Group - Undo/Redo & Copy/Paste */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={undo}
-          disabled={!canUndo}
-          title={`${t('editor-undo') || 'Undo'} (Ctrl+Z)`}
-        >
-          <Undo2 className="gba:w-4 gba:h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={redo}
-          disabled={!canRedo}
-          title={`${t('editor-redo') || 'Redo'} (Ctrl+Y)`}
-        >
-          <Redo2 className="gba:w-4 gba:h-4" />
-        </Button>
+      {/* Ribbon Toolbar */}
+      <SlideToolbarRibbon
+        context={toolbarContext}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        hasClipboardContent={clipboard !== null}
+        isSynced={isSynced}
+        currentTheme={currentTheme}
+        showSpellCheckPanel={showSpellCheckPanel}
+        spellCheckIssueCount={spellCheck.totalIssues}
+        spellCheckIsChecking={spellCheck.isChecking}
+        showNotesPanel={showNotesPanel}
+        isCastConnected={isCastConnected}
+        isCastConnecting={castConnectionState === 'connecting'}
+        slides={slides}
+        currentSlide={currentSlide}
+        accessToken={accessToken}
+        onUndo={undo}
+        onRedo={redo}
+        onCopy={copyElement}
+        onPaste={pasteElement}
+        onAddElement={addElement}
+        onUpdateElement={updateElement}
+        onShowBackgroundDialog={() => setShowBackgroundDialog(true)}
+        onShowImageDialog={() => setShowImageDialog(true)}
+        onShowVideoDialog={() => setShowVideoDialog(true)}
+        onShowLinkDialog={() => setShowLinkDialog(true)}
+        onUpdateTheme={updateCollaborativeTheme}
+        onToggleSpellCheck={() => {
+          if (!showSpellCheckPanel) {
+            setShowSpellCheckPanel(true)
+            spellCheck.checkAllSlides()
+          } else {
+            setShowSpellCheckPanel(false)
+          }
+        }}
+        onApplyTemplate={handleApplyTemplate}
+        onPresent={() => {
+          setIsPresentMode(true)
+          document.documentElement.requestFullscreen?.().catch(() => {})
+        }}
+        onPresenterView={() => setPresenterMode(true)}
+        onPresentInWindow={handleStartWindowPresent}
+        onCastToDisplay={handleStartCast}
+        onToggleNotes={() => setShowNotesPanel(!showNotesPanel)}
+        onShowTransitions={() => {
+          // Select the current slide in the property panel to show transitions
+          setShowPropertyPanel(true)
+        }}
+        onSaveNow={() => handleSave(false)}
+        onExportPptx={handleExportToPptx}
+        onExportPdf={() => setShowPdfExportDialog(true)}
+        onRefineSlide={handleRefineSlide}
+        onGenerateSlides={handleGeneratedSlides}
+        data-testid={`${testId}-toolbar`}
+      />
 
-        <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
-
-        <Button variant="ghost" size="sm" onClick={copyElement} title={`${t('editor-copy') || 'Copy'} (Ctrl+C)`}>
-          <Copy className="gba:w-4 gba:h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={pasteElement}
-          disabled={!clipboard}
-          title={`${t('editor-paste') || 'Paste'} (Ctrl+V)`}
-        >
-          <ClipboardPaste className="gba:w-4 gba:h-4" />
-        </Button>
-
-        <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
-        {/* Insert Group */}
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('editor-insert')}</span>
-
-        {/* Add Text */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => addElement(createTextElement({ position: { x: 100, y: 300 } }))}
-        >
-          <Type className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('editor-text')}
-        </Button>
-
-        {/* Add Shape */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <Square className="gba:w-4 gba:h-4 gba:mr-1" />
-              {t('editor-shapes')}
-              <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="gba:w-48">
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('rectangle'))}>
-              <Square className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-rectangle')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('rounded-rectangle'))}>
-              <Square className="gba:w-4 gba:h-4 gba:mr-2 gba:rounded" />
-              {t('editor-rounded-rectangle')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('circle'))}>
-              <Circle className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-circle')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('triangle'))}>
-              <Triangle className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-triangle')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('diamond'))}>
-              <Diamond className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-diamond')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('star'))}>
-              <Star className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-star')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('hexagon'))}>
-              <Hexagon className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-hexagon')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('arrow-right'))}>
-              <ArrowRight className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-arrow-right')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('line'))}>
-              <Minus className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-line')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createShapeElement('callout'))}>
-              <MessageSquare className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-callout')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Add Image */}
-        <Button variant="ghost" size="sm" onClick={() => setShowImageDialog(true)}>
-          <ImageIcon className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('editor-image')}
-        </Button>
-
-        {/* Add Code */}
-        <Button variant="ghost" size="sm" onClick={() => addElement(createCodeElement(t('editor-code-placeholder')))}>
-          <Code className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('editor-code')}
-        </Button>
-
-        {/* Add Video */}
-        <Button variant="ghost" size="sm" onClick={() => setShowVideoDialog(true)}>
-          <Video className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('editor-video')}
-        </Button>
-
-        {/* Add Chart */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <BarChart2 className="gba:w-4 gba:h-4 gba:mr-1" />
-              {t('editor-chart')}
-              <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="gba:w-48">
-            <DropdownMenuItem onClick={() => addElement(createChartElement('bar'))}>
-              <BarChart2 className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-bar-chart')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createChartElement('line'))}>
-              <LineChart className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-line-chart')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createChartElement('area'))}>
-              <AreaChart className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-area-chart')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createChartElement('pie'))}>
-              <PieChart className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-pie-chart')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => addElement(createChartElement('radar'))}>
-              <Activity className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-radar-chart')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => addElement(createChartElement('radial'))}>
-              <Target className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('editor-radial-chart')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Add/Edit Link - enabled only when text element is selected */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowLinkDialog(true)}
-          disabled={!selectedElement || selectedElement.type !== 'text'}
-          title={getExistingLinkUrl() ? t('link-edit') : t('link-add')}
-        >
-          <Link className="gba:w-4 gba:h-4 gba:mr-1" />
-          {getExistingLinkUrl() ? t('link-edit') : t('link-add')}
-        </Button>
-
-        <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
-        {/* Design Group */}
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('editor-design')}</span>
-
-        {/* Background */}
-        <Button variant="ghost" size="sm" onClick={() => setShowBackgroundDialog(true)}>
-          <Palette className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('editor-background')}
-        </Button>
-
-        {/* Theme */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <Grid3X3 className="gba:w-4 gba:h-4 gba:mr-1" />
-              {t('editor-theme')}
-              <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="gba:w-56">
-            {SLIDE_THEMES.map(theme => (
-              <DropdownMenuItem key={theme.id} onClick={() => isSynced && updateCollaborativeTheme(theme.id)}>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
-                  <div className="gba:flex gba:gap-1">
-                    <div className="gba:w-4 gba:h-4 gba:rounded" style={{ backgroundColor: theme.preview.primary }} />
-                    <div className="gba:w-4 gba:h-4 gba:rounded" style={{ backgroundColor: theme.preview.secondary }} />
-                  </div>
-                  <span>{t(`theme-${theme.id}`)}</span>
-                </div>
-                {currentTheme.id === theme.id && (
-                  <Badge variant="secondary" className="gba:text-xs">
-                    {t('editor-theme-active')}
-                  </Badge>
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Templates */}
-        <TemplateBrowserButton
-          onApplyTemplate={handleApplyTemplate}
-          disabled={!isSynced}
-          data-testid={`${testId}-template-browser-button`}
-        />
-
-        <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-
-        {/* Spell Check */}
-        <Button
-          variant={showSpellCheckPanel ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => {
-            if (!showSpellCheckPanel) {
-              setShowSpellCheckPanel(true)
-              spellCheck.checkAllSlides()
-            } else {
-              setShowSpellCheckPanel(false)
-            }
-          }}
-          disabled={spellCheck.isChecking}
-          data-testid={`${testId}-spell-check-btn`}
-        >
-          <SpellCheck className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('spell-check-button')}
-          {spellCheck.totalIssues > 0 && (
-            <Badge variant="destructive" className="gba:ml-1 gba:text-xs gba:px-1.5 gba:min-w-[18px]">
-              {spellCheck.totalIssues}
-            </Badge>
-          )}
-        </Button>
-
-        {/* Property Panel Toggle */}
-        {!showPropertyPanel && (
-          <>
-            <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowPropertyPanel(true)}
-              title={t('editor-show-properties') || 'Show Properties'}
-              data-testid={`${testId}-show-property-panel`}
-            >
-              <PanelRight className="gba:w-4 gba:h-4" />
-            </Button>
-          </>
-        )}
-      </div>
+      {/* Property Panel Toggle - only show when panel is hidden */}
+      {!showPropertyPanel && (
+        <div className="gba:flex gba:items-center gba:justify-end gba:px-4 gba:py-1 gba:border-b gba:bg-card">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowPropertyPanel(true)}
+            title={t('editor-show-properties') || 'Show Properties'}
+            data-testid={`${testId}-show-property-panel`}
+          >
+            <PanelRight className="gba:w-4 gba:h-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">

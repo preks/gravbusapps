@@ -721,3 +721,53 @@ transition-trigger-click = On Click
 transition-trigger-auto = Automatic
 transition-delay = Delay
 transition-preview = Preview
+
+# Ribbon Toolbar
+ribbon-tab-home = Home
+ribbon-tab-insert = Insert
+ribbon-tab-slideshow = Slideshow
+ribbon-aria-label = Slide editor ribbon
+
+# Toolbar hints
+toolbar-select-element-hint = Select an element to format
+toolbar-video-hint = Use property panel to edit video
+toolbar-code-hint = Use property panel to edit code
+toolbar-multi-hint = { $count } elements selected
+
+# Formatting labels
+editor-undo = Undo
+editor-redo = Redo
+editor-copy = Copy
+editor-paste = Paste
+editor-bold = Bold
+editor-italic = Italic
+editor-underline = Underline
+editor-strikethrough = Strikethrough
+editor-align-left = Align Left
+editor-align-center = Align Center
+editor-align-right = Align Right
+editor-text-color = Text Color
+editor-link = Link
+editor-code-placeholder = // Code here
+
+# Insert tab groups
+insert-elements-group = Elements
+insert-media-group = Media
+insert-templates-group = Templates
+insert-ai-group = AI Tools
+
+# Slideshow tab
+slideshow-start-group = Start
+slideshow-broadcast-group = Broadcast
+slideshow-view-group = View
+slideshow-export-group = Export
+slideshow-present = Present
+slideshow-presenter-view = Presenter View
+slideshow-present-window = Present in Window
+slideshow-cast = Cast to Display
+slideshow-cast-connecting = Connecting...
+slideshow-speaker-notes = Speaker Notes
+slideshow-transitions = Transitions
+slideshow-save-now = Save Now
+slideshow-export-pptx = Export PPTX
+slideshow-export-pdf = Export PDF
