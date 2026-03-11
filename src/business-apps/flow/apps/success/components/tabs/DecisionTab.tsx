@@ -1,39 +1,62 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Spinner,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Card, CardContent, CardDescription, CardTitle, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { AlertTriangle, Bot, GitBranch, UserRound } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
 import { formatDisplayText } from '@/common/utils/displayText'
 import translations from '../../_i18n'
-import { DecisionLogEntry, DecisionTimeframe, useDecisionLogs } from '../../hooks/useDecisionData'
-import { SuccessEmptyState, SuccessErrorState, SuccessKpiGrid, SuccessTabPage, SuccessTimeframeSelect } from '../shared'
-import { formatDateTime, formatMillisecondsDuration, formatStatusLabel } from '../../utils/formatters'
+import {
+  DecisionLogEntry,
+  DecisionTimeframe,
+  useDecisionLogs,
+  useDecisionOptimizationAnalytics
+} from '../../hooks/useDecisionData'
+import {
+  SuccessEmptyState,
+  SuccessErrorState,
+  SuccessKpiGrid,
+  SuccessSectionCardHeader,
+  SuccessTabPage,
+  SuccessTimeframeSelect
+} from '../shared'
+import { formatDateTime, formatStatusLabel } from '../../utils/formatters'
+import { getDecisionStepDisplayLabel } from '../../utils/decisionLabels'
 import { getSuccessTimeframeOptions } from '../../utils/timeframe'
 import { DecisionDetailsDialog } from './DecisionDetailsDialog'
+import { DecisionOptimizationPanel } from './DecisionOptimizationPanel'
+import type { FlowSuccessDecisionFilter } from '../../shellState'
 
 interface DecisionTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  timeframe?: DecisionTimeframe
+  onTimeframeChange?: (timeframe: DecisionTimeframe) => void
+  templateId?: string
+  selectedFlowLabel?: string
+  showControls?: boolean
+  section?: string
+  decisionFilter?: FlowSuccessDecisionFilter
+  headerActions?: React.ReactNode
 }
 
-export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'decision-tab', accessToken }) => {
+export const DecisionTab: React.FC<DecisionTabProps> = ({
+  prefixDataTestId = 'decision-tab',
+  accessToken,
+  timeframe,
+  onTimeframeChange,
+  templateId,
+  selectedFlowLabel,
+  showControls = true,
+  section,
+  decisionFilter = 'all',
+  headerActions
+}) => {
   const { t } = useTranslation(translations)
-  const [timeframe, setTimeframe] = useState<DecisionTimeframe>('mtd')
-  const [selectedFlowName, setSelectedFlowName] = useState<string>('ALL')
+  const [internalTimeframe, setInternalTimeframe] = useState<DecisionTimeframe>('mtd')
   const [actorNames, setActorNames] = useState<Record<string, string>>({})
   const [selectedEntry, setSelectedEntry] = useState<DecisionLogEntry | null>(null)
+  const activeTimeframe = timeframe ?? internalTimeframe
+  const handleTimeframeChange = onTimeframeChange ?? setInternalTimeframe
+  const scopedTemplateId = templateId && templateId !== 'ALL' ? templateId : undefined
 
   const {
     data: decisionData,
@@ -42,13 +65,16 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
     refetch: refetchDecisions
   } = useDecisionLogs({
     accessToken,
-    timeframe,
-    flowName: selectedFlowName === 'ALL' ? undefined : selectedFlowName,
+    timeframe: activeTimeframe,
+    templateId: scopedTemplateId,
     limit: 100,
     offset: 0
   })
-
-  const flowOptions = decisionData?.flowOptions || []
+  const { data: optimizationData, isLoading: optimizationLoading } = useDecisionOptimizationAnalytics({
+    accessToken,
+    timeframe: activeTimeframe,
+    templateId: scopedTemplateId
+  })
   const actorIds = useMemo(
     () => [
       ...new Set((decisionData?.decisions || []).map(entry => String(entry.decidedBy || '').trim()).filter(Boolean))
@@ -56,12 +82,6 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
     [decisionData?.decisions]
   )
   const unresolvedActorIds = useMemo(() => actorIds.filter(actorId => !actorNames[actorId]), [actorIds, actorNames])
-
-  useEffect(() => {
-    if (selectedFlowName === 'ALL') return
-    if (flowOptions.some(option => option.flowName === selectedFlowName)) return
-    setSelectedFlowName('ALL')
-  }, [flowOptions, selectedFlowName])
 
   useEffect(() => {
     if (!accessToken || unresolvedActorIds.length === 0) return
@@ -95,43 +115,58 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
     }
   }, [accessToken, unresolvedActorIds, t])
 
-  const timeframeOptions: Array<{ value: DecisionTimeframe; label: string }> = useMemo(
-    () => getSuccessTimeframeOptions(t, { includeLast24h: true }) as Array<{ value: DecisionTimeframe; label: string }>,
-    [t]
-  )
-  const selectedFlowOption = flowOptions.find(option => option.flowName === selectedFlowName)
-  const selectedFlowLabel =
-    selectedFlowName === 'ALL'
-      ? t('filter-all-flows')
-      : selectedFlowOption
-        ? `${formatDisplayText(selectedFlowOption.flowName, selectedFlowOption.flowName)} (${selectedFlowOption.decisionCount})`
-        : formatDisplayText(selectedFlowName, selectedFlowName)
+  useEffect(() => {
+    if (!section) return
+    const element = document.getElementById(section)
+    if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [section])
+
+  const timeframeOptions = getSuccessTimeframeOptions(t, { includeLast24h: true }) as Array<{
+    value: DecisionTimeframe
+    label: string
+  }>
+  const resolvedFlowLabel = selectedFlowLabel || t('filter-all-templates')
+  const visibleDecisions = (decisionData?.decisions || []).filter(entry => {
+    switch (decisionFilter) {
+      case 'ai-direct':
+        return entry.decisionMode === 'AI' && !entry.escalated
+      case 'ai-escalated':
+        return entry.decisionMode === 'AI' && entry.escalated
+      case 'human-overrides':
+        return entry.branchAgreement === false
+      case 'branch-agreement':
+        return entry.branchAgreement === true
+      default:
+        return true
+    }
+  })
+  const summary = decisionData?.summary
   const summaryItems = [
+    {
+      id: 'total-decisions',
+      label: t('decisions-total'),
+      value: String(summary?.totalDecisions || 0),
+      description: t('decisions-total-description'),
+      icon: <Bot className="gba:h-5 gba:w-5" />
+    },
     {
       id: 'user-decisions',
       label: t('decisions-user'),
-      value: String(decisionData?.summary?.userCount || 0),
+      value: String(summary?.userCount || 0),
       description: t('decisions-user-description'),
       icon: <UserRound className="gba:h-5 gba:w-5" />
     },
     {
       id: 'ai-decisions',
       label: t('decisions-ai'),
-      value: String(decisionData?.summary?.aiCount || 0),
+      value: String(summary?.aiCount || 0),
       description: t('decisions-ai-description'),
-      icon: <Bot className="gba:h-5 gba:w-5" />
-    },
-    {
-      id: 'logic-decisions',
-      label: t('decisions-logic'),
-      value: String(decisionData?.summary?.logicCount || 0),
-      description: t('decisions-logic-description'),
       icon: <GitBranch className="gba:h-5 gba:w-5" />
     },
     {
       id: 'escalated-decisions',
       label: t('decisions-escalated'),
-      value: String(decisionData?.summary?.escalatedCount || 0),
+      value: String(summary?.escalatedCount || 0),
       description: t('decisions-escalated-description'),
       icon: <AlertTriangle className="gba:h-5 gba:w-5" />
     }
@@ -142,31 +177,43 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
     return actorNames[actorId] || actorId
   }
 
+  const getDecisionPathLabel = (entry: DecisionLogEntry) => {
+    if (entry.decisionMode === 'AI' && entry.escalated) return t('decisions-ai-escalated-to-user')
+    if (entry.decisionMode === 'AI') return t('decisions-ai-direct')
+    if (entry.decisionMode === 'USER') return t('decisions-user-direct')
+    if (entry.decisionMode === 'LOGIC') return t('decisions-logic-direct')
+    return formatStatusLabel(entry.decisionMode)
+  }
+
+  const getEscalationLabel = (entry: DecisionLogEntry) => {
+    if (!entry.escalated) return '-'
+    return t('decisions-ai-escalated-to-user')
+  }
+
+  const getDecisionPreview = (entry: DecisionLogEntry) => {
+    return (
+      entry.decisionInstructions ||
+      entry.humanReviewInstructions ||
+      entry.decisionReasoning ||
+      getDecisionPathLabel(entry)
+    )
+  }
+
   return (
     <SuccessTabPage
-      title={t('decisions-title')}
+      title={t('governance-subview-decisions')}
       description={t('decisions-description')}
       actions={
         <>
-          <SuccessTimeframeSelect
-            value={timeframe}
-            onChange={value => setTimeframe(value as DecisionTimeframe)}
-            options={timeframeOptions}
-            data-testid={`${prefixDataTestId}-timeframe-select`}
-          />
-          <Select value={selectedFlowName} onValueChange={setSelectedFlowName}>
-            <SelectTrigger className="gba:w-full gba:min-w-72" data-testid={`${prefixDataTestId}-flow-select`}>
-              <SelectValue>{selectedFlowLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">{t('filter-all-flows')}</SelectItem>
-              {flowOptions.map(option => (
-                <SelectItem key={option.flowName} value={option.flowName}>
-                  {formatDisplayText(option.flowName, option.flowName)} ({option.decisionCount})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {headerActions}
+          {showControls ? (
+            <SuccessTimeframeSelect
+              value={activeTimeframe}
+              onChange={value => handleTimeframeChange(value as DecisionTimeframe)}
+              options={timeframeOptions}
+              data-testid={`${prefixDataTestId}-timeframe-select`}
+            />
+          ) : null}
         </>
       }
       data-testid={prefixDataTestId}
@@ -189,17 +236,30 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
         />
       )}
 
-      <Card className="gba:border-border gba:bg-card" data-testid={`${prefixDataTestId}-table-card`}>
-        <CardHeader className="gba:border-b gba:border-border">
+      <div id="decision-optimization">
+        <DecisionOptimizationPanel
+          data={optimizationData}
+          variant="governance"
+          isLoading={optimizationLoading}
+          data-testid={`${prefixDataTestId}-optimization`}
+        />
+      </div>
+
+      <Card
+        className="gba:border-border gba:bg-card"
+        data-testid={`${prefixDataTestId}-table-card`}
+        id="decision-entries"
+      >
+        <SuccessSectionCardHeader>
           <CardTitle>{t('decisions-entries')}</CardTitle>
-          <CardDescription>{selectedFlowLabel}</CardDescription>
-        </CardHeader>
+          <CardDescription>{resolvedFlowLabel}</CardDescription>
+        </SuccessSectionCardHeader>
         <CardContent className="gba:p-5">
           {decisionsLoading ? (
             <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
               <Spinner />
             </div>
-          ) : decisionData?.decisions?.length ? (
+          ) : visibleDecisions.length ? (
             <div className="gba:overflow-x-auto">
               <table className="gba:w-full gba:border-collapse">
                 <thead>
@@ -212,11 +272,10 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
                       {t('decisions-selected-branch')}
                     </th>
                     <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('decisions-escalation')}</th>
-                    <th className="gba:p-3 gba:text-left gba:text-xs gba:font-semibold">{t('decisions-duration')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {decisionData.decisions.map((entry, index) => (
+                  {visibleDecisions.map((entry, index) => (
                     <tr
                       key={entry.id || `${entry.stepReference}-${entry.createdAt || index}`}
                       className="gba:cursor-pointer gba:border-b gba:border-border gba:hover:bg-muted/40"
@@ -237,10 +296,10 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
                       <td className="gba:p-3 gba:text-sm">
                         <div className="gba:flex gba:flex-col gba:gap-1">
                           <span className="gba:font-medium">
-                            {entry.decisionTitle || entry.stepReference || t('value-not-available')}
+                            {getDecisionStepDisplayLabel(entry, t('value-not-available'))}
                           </span>
                           <span className="gba:text-xs gba:text-muted-foreground">
-                            {formatStatusLabel(entry.decisionMode)}
+                            <span className="gba:line-clamp-2">{getDecisionPreview(entry)}</span>
                           </span>
                         </div>
                       </td>
@@ -265,20 +324,17 @@ export const DecisionTab: React.FC<DecisionTabProps> = ({ prefixDataTestId = 'de
                         </div>
                       </td>
                       <td className="gba:p-3 gba:text-sm">
-                        {entry.escalated ? (
-                          <div className="gba:flex gba:flex-col gba:gap-1">
-                            <span className="gba:text-sm gba:font-medium gba:text-destructive">
-                              {t('decisions-escalated')}
-                            </span>
-                            {entry.escalationReason ? (
-                              <span className="gba:text-xs gba:text-muted-foreground">{entry.escalationReason}</span>
-                            ) : null}
-                          </div>
-                        ) : (
-                          t('decisions-direct')
-                        )}
+                        <div className="gba:flex gba:flex-col gba:gap-1">
+                          <span
+                            className={`gba:text-sm gba:font-medium ${entry.escalated ? 'gba:text-destructive' : 'gba:text-foreground'}`}
+                          >
+                            {getEscalationLabel(entry)}
+                          </span>
+                          {entry.escalationReason ? (
+                            <span className="gba:text-xs gba:text-muted-foreground">{entry.escalationReason}</span>
+                          ) : null}
+                        </div>
                       </td>
-                      <td className="gba:p-3 gba:text-sm">{formatMillisecondsDuration(entry.durationMs)}</td>
                     </tr>
                   ))}
                 </tbody>

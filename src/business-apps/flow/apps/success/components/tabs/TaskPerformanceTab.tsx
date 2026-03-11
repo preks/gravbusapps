@@ -1,23 +1,51 @@
-import React, { useMemo, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Card, CardContent, CardDescription, CardTitle, useTranslation } from '@newwork/nw-design-system'
 import { AlertTriangle, CheckCircle2, Target, Timer, Users } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from '../../_i18n'
 import { useTaskPerformanceAnalytics } from '../../hooks/useFlowAnalytics'
-import { SuccessEmptyState, SuccessErrorState, SuccessKpiGrid, SuccessTabPage, SuccessTimeframeSelect } from '../shared'
+import { useResolvedUserNames } from '../../hooks/useResolvedUserNames'
+import { useSystemTaskReliability } from '../../hooks/useSystemTaskReliability'
+import {
+  SuccessEmptyState,
+  SuccessErrorState,
+  SuccessKpiGrid,
+  SuccessSectionCardHeader,
+  SuccessTabPage,
+  SuccessTimeframeSelect,
+  SystemTaskReliabilityPanel
+} from '../shared'
 import { formatMinutesDuration, formatPercent } from '../../utils/formatters'
 import { DEFAULT_SUCCESS_TIMEFRAME, getSuccessTimeframeOptions, type SuccessTimeframe } from '../../utils/timeframe'
+import type { FlowSuccessDrilldownTarget } from '../../shellState'
 
 interface TaskPerformanceTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  timeframe?: SuccessTimeframe
+  onTimeframeChange?: (timeframe: SuccessTimeframe) => void
+  templateId?: string
+  showControls?: boolean
+  section?: string
+  onDrilldown?: (target: FlowSuccessDrilldownTarget) => void
+  headerActions?: React.ReactNode
 }
 
 export const TaskPerformanceTab: React.FC<TaskPerformanceTabProps> = ({
   prefixDataTestId = 'task-performance-tab',
-  accessToken
+  accessToken,
+  timeframe,
+  onTimeframeChange,
+  templateId,
+  showControls = true,
+  section,
+  onDrilldown,
+  headerActions
 }) => {
   const { t } = useTranslation(translations)
-  const [timeframe, setTimeframe] = useState<SuccessTimeframe>(DEFAULT_SUCCESS_TIMEFRAME)
+  const [internalTimeframe, setInternalTimeframe] = useState<SuccessTimeframe>(DEFAULT_SUCCESS_TIMEFRAME)
+  const activeTimeframe = timeframe ?? internalTimeframe
+  const handleTimeframeChange = onTimeframeChange ?? setInternalTimeframe
+  const scopedTemplateId = templateId && templateId !== 'ALL' ? templateId : undefined
 
   const {
     data: analytics,
@@ -25,28 +53,52 @@ export const TaskPerformanceTab: React.FC<TaskPerformanceTabProps> = ({
     error,
     refetch
   } = useTaskPerformanceAnalytics({
-    timeframe,
+    timeframe: activeTimeframe,
+    templateId: scopedTemplateId,
     accessToken
   })
+  const { data: systemReliability, isLoading: reliabilityLoading } = useSystemTaskReliability({
+    timeframe: activeTimeframe,
+    templateId: scopedTemplateId,
+    accessToken
+  })
+
+  useEffect(() => {
+    if (!section) return
+    const element = document.getElementById(section)
+    if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [section])
 
   const taskTypePerformance = analytics?.taskTypePerformance ?? []
   const assignmentModeAnalytics = analytics?.assignmentModeAnalytics ?? []
   const userProductivity = analytics?.userProductivity ?? []
-  const timeframeOptions = useMemo(() => getSuccessTimeframeOptions(t), [t])
+  const productivityUserIds = useMemo(() => userProductivity.map(user => user.userId), [userProductivity])
+  const resolvedUserNames = useResolvedUserNames(accessToken, productivityUserIds)
+  const timeframeOptions = getSuccessTimeframeOptions(t)
   const kpiItems = [
     {
       id: 'pending-tasks',
       label: t('tasks-pending'),
       value: String(analytics?.pendingTasks ?? 0),
       description: t('tasks-pending-description'),
-      icon: <Timer className="gba:h-5 gba:w-5" />
+      icon: <Timer className="gba:h-5 gba:w-5" />,
+      actionLabel: t('action-view-details'),
+      onClick: () => onDrilldown?.({ primaryView: 'performance', performanceView: 'tasks', section: 'task-types' })
     },
     {
       id: 'overdue-tasks',
       label: t('tasks-overdue'),
       value: String(analytics?.overdueTasks ?? 0),
       description: t('tasks-overdue-description'),
-      icon: <AlertTriangle className="gba:h-5 gba:w-5" />
+      icon: <AlertTriangle className="gba:h-5 gba:w-5" />,
+      actionLabel: t('action-view-details'),
+      onClick: () =>
+        onDrilldown?.({
+          primaryView: 'governance',
+          governanceView: 'sla',
+          templateId: templateId || 'ALL',
+          section: 'sla-immediate-action'
+        })
     },
     {
       id: 'avg-completion-rate',
@@ -57,7 +109,9 @@ export const TaskPerformanceTab: React.FC<TaskPerformanceTabProps> = ({
           : 0
       ),
       description: t('tasks-avg-completion-rate-description'),
-      icon: <CheckCircle2 className="gba:h-5 gba:w-5" />
+      icon: <CheckCircle2 className="gba:h-5 gba:w-5" />,
+      actionLabel: t('action-view-details'),
+      onClick: () => onDrilldown?.({ primaryView: 'performance', performanceView: 'tasks', section: 'task-types' })
     },
     {
       id: 'avg-tasks-per-user',
@@ -68,21 +122,31 @@ export const TaskPerformanceTab: React.FC<TaskPerformanceTabProps> = ({
           : 0
       ),
       description: t('tasks-avg-tasks-per-user-description'),
-      icon: <Users className="gba:h-5 gba:w-5" />
+      icon: <Users className="gba:h-5 gba:w-5" />,
+      actionLabel: t('action-view-details'),
+      onClick: () =>
+        onDrilldown?.({ primaryView: 'performance', performanceView: 'tasks', section: 'user-productivity' })
     }
   ]
 
   return (
     <SuccessTabPage
-      title={t('tasks-title')}
+      title={t('analytics-subview-tasks')}
       description={t('tasks-description')}
       actions={
-        <SuccessTimeframeSelect
-          value={timeframe}
-          onChange={setTimeframe}
-          options={timeframeOptions}
-          data-testid={`${prefixDataTestId}-timeframe-select`}
-        />
+        showControls || headerActions ? (
+          <>
+            {showControls ? (
+              <SuccessTimeframeSelect
+                value={activeTimeframe}
+                onChange={handleTimeframeChange}
+                options={timeframeOptions}
+                data-testid={`${prefixDataTestId}-timeframe-select`}
+              />
+            ) : null}
+            {headerActions}
+          </>
+        ) : undefined
       }
       data-testid={prefixDataTestId}
     >
@@ -105,11 +169,11 @@ export const TaskPerformanceTab: React.FC<TaskPerformanceTabProps> = ({
       )}
 
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:xl:grid-cols-2">
-        <Card className="gba:border-border gba:bg-card">
-          <CardHeader className="gba:border-b gba:border-border">
+        <Card className="gba:border-border gba:bg-card" id="task-types">
+          <SuccessSectionCardHeader>
             <CardTitle>{t('tasks-task-types')}</CardTitle>
             <CardDescription>{t('tasks-task-types-description')}</CardDescription>
-          </CardHeader>
+          </SuccessSectionCardHeader>
           <CardContent className="gba:p-5">
             {!taskTypePerformance.length ? (
               <SuccessEmptyState
@@ -164,11 +228,11 @@ export const TaskPerformanceTab: React.FC<TaskPerformanceTabProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="gba:border-border gba:bg-card">
-          <CardHeader className="gba:border-b gba:border-border">
+        <Card className="gba:border-border gba:bg-card" id="assignment-modes">
+          <SuccessSectionCardHeader>
             <CardTitle>{t('tasks-assignment-modes')}</CardTitle>
             <CardDescription>{t('tasks-assignment-modes-description')}</CardDescription>
-          </CardHeader>
+          </SuccessSectionCardHeader>
           <CardContent className="gba:p-5">
             {!assignmentModeAnalytics.length ? (
               <SuccessEmptyState
@@ -216,11 +280,21 @@ export const TaskPerformanceTab: React.FC<TaskPerformanceTabProps> = ({
         </Card>
       </div>
 
-      <Card className="gba:border-border gba:bg-card">
-        <CardHeader className="gba:border-b gba:border-border">
+      <div id="task-reliability">
+        <SystemTaskReliabilityPanel
+          title={t('system-reliability-title')}
+          description={t('system-reliability-tasks-description')}
+          data={systemReliability}
+          isLoading={reliabilityLoading}
+          data-testid={`${prefixDataTestId}-system-reliability`}
+        />
+      </div>
+
+      <Card className="gba:border-border gba:bg-card" id="user-productivity">
+        <SuccessSectionCardHeader>
           <CardTitle>{t('tasks-user-productivity')}</CardTitle>
           <CardDescription>{t('tasks-user-productivity-description')}</CardDescription>
-        </CardHeader>
+        </SuccessSectionCardHeader>
         <CardContent className="gba:p-5">
           {!userProductivity.length ? (
             <SuccessEmptyState
@@ -247,7 +321,7 @@ export const TaskPerformanceTab: React.FC<TaskPerformanceTabProps> = ({
                   {userProductivity.map(user => (
                     <tr key={user.userId} className="gba:border-b gba:border-border/60">
                       <td className="gba:p-3 gba:text-sm gba:font-medium gba:text-foreground">
-                        {user.userName || user.userId}
+                        {resolvedUserNames[user.userId] || user.userName || user.userId}
                       </td>
                       <td className="gba:p-3 gba:text-right gba:text-sm gba:text-foreground">{user.tasksCompleted}</td>
                       <td className="gba:p-3 gba:text-right gba:text-sm gba:text-foreground">

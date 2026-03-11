@@ -6,6 +6,8 @@ import type { ExpressionSuggestionItem } from '@/common/components/flow/expressi
 import { FlowContextExpressionEditor } from '../../../shared/FlowContextExpressionEditor'
 import { DecisionHumanFallbackSection } from './DecisionHumanFallbackSection'
 import { DecisionPolicyPicker } from './DecisionPolicyPicker'
+import { TaskLinksSection } from '../../task/TaskLinksSection'
+import type { Link } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 
 interface EveryAiDecisionSectionProps {
   mode: DesignerMode
@@ -17,6 +19,9 @@ interface EveryAiDecisionSectionProps {
   dataSources?: React.ComponentProps<typeof FlowContextExpressionEditor>['dataSources']
   onChangeAiConfig: (next: any) => void
   onSelectPolicy: (policy: { id?: string; title?: string; entryVersion?: string }) => void
+  links?: Link[]
+  onChangeLinks?: (next: Link[]) => void
+  nodeId?: string
   testId: string
 }
 
@@ -30,6 +35,9 @@ export const EveryAiDecisionSection: React.FC<EveryAiDecisionSectionProps> = ({
   dataSources,
   onChangeAiConfig,
   onSelectPolicy,
+  links = [],
+  onChangeLinks,
+  nodeId,
   testId
 }) => {
   const { t } = useTranslation(translations)
@@ -61,6 +69,16 @@ export const EveryAiDecisionSection: React.FC<EveryAiDecisionSectionProps> = ({
         onSelect={onSelectPolicy as any}
         data-testid={policyTestId}
       />
+
+      {nodeId && onChangeLinks ? (
+        <TaskLinksSection
+          nodeId={nodeId}
+          value={links}
+          onChange={onChangeLinks}
+          t={t}
+          data-testid={`${testId}-links`}
+        />
+      ) : null}
 
       <DecisionHumanFallbackSection
         mode={mode}

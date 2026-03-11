@@ -10,14 +10,21 @@ interface EndNodeData {
   summaryFieldsCount?: number
   isSelected?: boolean
   status?: StepStatus
+  isOnActivePath?: boolean
   onSelect?: () => void
   testId?: string
 }
 
-function getBorderClass(status?: StepStatus, isSelected?: boolean, hasFields?: boolean): string {
+function getBorderClass(
+  status?: StepStatus,
+  isSelected?: boolean,
+  hasFields?: boolean,
+  isOnActivePath?: boolean
+): string {
   if (isSelected) return 'gba:border-primary'
+  if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-primary'
+  if (status === 'active') return 'gba:border-info'
   if (hasFields) return 'gba:border-success/60'
   return 'gba:border-border'
 }
@@ -31,7 +38,7 @@ function getBgClass(status?: StepStatus, isSelected?: boolean, hasFields?: boole
 
 export const EndNode: React.FC<{ data: EndNodeData }> = ({ data }) => {
   const hasFields = (data.summaryFieldsCount ?? 0) > 0
-  const borderClass = getBorderClass(data.status, data.isSelected, hasFields)
+  const borderClass = getBorderClass(data.status, data.isSelected, hasFields, data.isOnActivePath)
   const bgClass = getBgClass(data.status, data.isSelected, hasFields)
 
   return (

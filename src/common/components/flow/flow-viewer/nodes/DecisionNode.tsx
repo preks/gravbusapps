@@ -11,6 +11,7 @@ interface DecisionNodeData {
   decisionMode?: DecisionMode
   isSelected?: boolean
   status?: StepStatus
+  isOnActivePath?: boolean
   onSelect?: () => void
   testId?: string
 }
@@ -27,19 +28,18 @@ const MODE_LABELS: Record<DecisionMode, string> = {
   LOGIC: 'Logic'
 }
 
-function getStatusBorder(status?: StepStatus, isSelected?: boolean): string {
+function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
   if (isSelected) return 'gba:border-primary gba:shadow-md'
+  if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-primary'
+  if (status === 'active') return 'gba:border-info gba:shadow-md'
   if (status === 'failed') return 'gba:border-destructive'
   return 'gba:border-border'
 }
 
-function getStatusBg(status?: StepStatus, isSelected?: boolean): string {
-  if (isSelected) return 'gba:bg-accent'
-  if (status === 'active') return 'gba:bg-accent'
-  if (status === 'completed') return 'gba:bg-success-secondary'
-  if (status === 'failed') return 'gba:bg-destructive-secondary'
+function getStatusBg(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
+  if (isSelected) return 'gba:bg-card'
+  if (isOnActivePath) return 'gba:bg-card'
   return 'gba:bg-card'
 }
 
@@ -51,8 +51,8 @@ export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => 
   const mode = data.decisionMode ?? 'LOGIC'
   const ModeIcon = MODE_ICONS[mode]
 
-  const borderClass = getStatusBorder(data.status, data.isSelected)
-  const bgClass = getStatusBg(data.status, data.isSelected)
+  const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
+  const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
 
   return (
     <button

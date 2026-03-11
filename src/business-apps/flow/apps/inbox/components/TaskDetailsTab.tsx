@@ -132,7 +132,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
           <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
             Attachments
           </h3>
-          <LinksRenderer links={task.links!} />
+          <LinksRenderer links={task.links!} accessToken={accessToken} />
         </div>
       )}
 

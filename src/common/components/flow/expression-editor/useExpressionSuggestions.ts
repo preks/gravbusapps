@@ -85,6 +85,61 @@ const WORKFLOW_SUGGESTIONS: ExpressionSuggestionItem[] = [
   }
 ]
 
+function expressionToDisplayFallback(expression: string): string {
+  const parts = String(expression || '').split('.')
+  if (parts.length <= 2) return expression
+  return `${parts[1]}.${parts[parts.length - 1]}`
+}
+
+function getExpressionAliases(expression: string): string[] {
+  const expr = String(expression || '').trim()
+  if (!expr) return []
+
+  const aliases = new Set<string>([expr])
+
+  const triggerInputValuesMatch = expr.match(/^\$workflow\.input\.inputValues\.(.+)$/)
+  if (triggerInputValuesMatch) {
+    const suffix = triggerInputValuesMatch[1]
+    aliases.add(`$workflow.input.${suffix}`)
+    aliases.add(`$workflow.input.formData.${suffix}`)
+    aliases.add(`$workflow.input.inputData.${suffix}`)
+  }
+
+  const stepResultMatch = expr.match(/^\$steps\.([^.]+)\.resultData\.(.+)$/)
+  if (stepResultMatch) {
+    aliases.add(`$steps.${stepResultMatch[1]}.${stepResultMatch[2]}`)
+  }
+
+  return Array.from(aliases)
+}
+
+function buildSuggestionLabelLookup(items: ExpressionSuggestionItem[]): Map<string, string> {
+  const lookup = new Map<string, string>()
+
+  for (const item of items) {
+    const expression = String(item.expression || '').trim()
+    const label = String(item.label || '').trim()
+    if (!expression || !label) continue
+
+    for (const alias of getExpressionAliases(expression)) {
+      if (!lookup.has(alias)) lookup.set(alias, label)
+    }
+  }
+
+  return lookup
+}
+
+function resolveEmbeddedExpressionLabels(text: string, lookup: Map<string, string>): string {
+  const raw = String(text || '')
+  if (!raw.includes('{{')) return raw
+
+  return raw.replace(/\{\{([^}]+)\}\}/g, (match, expr) => {
+    const normalizedExpression = String(expr || '').trim()
+    if (!normalizedExpression) return match
+    return lookup.get(normalizedExpression) || expressionToDisplayFallback(normalizedExpression)
+  })
+}
+
 function buildStepSuggestions(steps: StepInfo[]): ExpressionSuggestionItem[] {
   const items: ExpressionSuggestionItem[] = []
 
@@ -104,6 +159,14 @@ function buildStepSuggestions(steps: StepInfo[]): ExpressionSuggestionItem[] {
         expression: `$steps.${step.reference}.completedBy`,
         source: 'steps',
         description: `Who completed "${step.label}"`
+      },
+      {
+        id: `step-${step.reference}-comment`,
+        label: `${step.label} - Comment`,
+        expression: `$steps.${step.reference}.comment`,
+        source: 'steps',
+        dataType: 'string',
+        description: `Comment entered when completing or rejecting "${step.label}"`
       }
     )
 
@@ -142,6 +205,16 @@ function buildStepSuggestions(steps: StepInfo[]): ExpressionSuggestionItem[] {
   }
 
   return items
+}
+
+function resolveSuggestionDisplayText(items: ExpressionSuggestionItem[]): ExpressionSuggestionItem[] {
+  const lookup = buildSuggestionLabelLookup(items)
+
+  return items.map(item => ({
+    ...item,
+    label: resolveEmbeddedExpressionLabels(item.label, lookup),
+    ...(item.description ? { description: resolveEmbeddedExpressionLabels(item.description, lookup) } : {})
+  }))
 }
 
 export function useExpressionSuggestions(options: UseExpressionSuggestionsOptions = {}): ExpressionSuggestionItem[] {
@@ -199,6 +272,6 @@ export function useExpressionSuggestions(options: UseExpressionSuggestionsOption
       })
     }
 
-    return items
+    return resolveSuggestionDisplayText(items)
   }, [triggerFields, steps, catalogFields, entityFields, orgchartFields])
 }

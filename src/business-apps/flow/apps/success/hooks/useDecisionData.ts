@@ -16,8 +16,21 @@ export interface DecisionLogEntry {
   selectedBranch: string
   selectedBranchLabel?: string
   decisionReasoning?: string
+  decisionInstructions?: string
+  humanReviewInstructions?: string
+  confidence?: number | null
   escalated: boolean
   escalationReason?: string
+  promptId?: string
+  promptName?: string
+  promptVersion?: number | null
+  policyDocumentId?: string
+  policyDocumentTitle?: string
+  policyDocumentVersion?: string
+  promptExecutionId?: string
+  aiSuggestedBranch?: string
+  branchAgreement?: boolean | null
+  correlationId?: string
   durationMs: number
   isTest?: boolean
   createdAt?: string
@@ -52,10 +65,66 @@ export interface DecisionLogsData {
   }
 }
 
+export interface DecisionOptimizationData {
+  summary: {
+    totalDecisions: number
+    aiDirectCount: number
+    aiEscalatedCount: number
+    userDirectCount: number
+    logicDirectCount: number
+    humanOverrideCount: number
+    promptExecutionCount: number
+    promptLinkedCount: number
+    policyLinkedCount: number
+    branchAgreementRate: number
+  }
+  stepPerformance: Array<{
+    decisionTitle: string
+    stepReference: string
+    decisionMode: string
+    promptName?: string
+    promptVersion?: number | null
+    policyDocumentTitle?: string
+    policyDocumentVersion?: string
+    totalDecisions: number
+    escalatedCount: number
+    escalationRate: number
+    humanOverrideCount: number
+    humanOverrideRate: number
+    branchAgreementRate: number
+    avgDurationMs: number
+  }>
+  promptVersions: Array<{
+    stepReference: string
+    promptId?: string
+    promptName?: string
+    promptVersion?: number | null
+    totalDecisions: number
+    escalatedCount: number
+    escalationRate: number
+    branchAgreementRate: number
+  }>
+  policyVersions: Array<{
+    stepReference: string
+    policyDocumentId?: string
+    policyDocumentTitle?: string
+    policyDocumentVersion?: string
+    totalDecisions: number
+    escalatedCount: number
+    escalationRate: number
+    branchAgreementRate: number
+  }>
+  escalationReasons: Array<{
+    reason: string
+    totalOccurrences: number
+  }>
+}
+
 export const useDecisionLogs = (filters: {
   accessToken: string
   timeframe?: DecisionTimeframe
   flowName?: string
+  templateId?: string
   limit?: number
   offset?: number
 }) => {
@@ -81,6 +150,7 @@ export const useDecisionLogs = (filters: {
       queryParams.set('limit', String(filters.limit || 100))
       queryParams.set('offset', String(filters.offset || 0))
       if (filters.flowName?.trim()) queryParams.set('flowName', filters.flowName.trim())
+      if (filters.templateId?.trim()) queryParams.set('templateId', filters.templateId.trim())
 
       const response = await fetch(`${API_BASE}/decisions/logs?${queryParams.toString()}`, {
         headers: {
@@ -120,7 +190,15 @@ export const useDecisionLogs = (filters: {
     } finally {
       setIsLoading(false)
     }
-  }, [API_BASE, filters.accessToken, filters.flowName, filters.limit, filters.offset, filters.timeframe])
+  }, [
+    API_BASE,
+    filters.accessToken,
+    filters.flowName,
+    filters.limit,
+    filters.offset,
+    filters.templateId,
+    filters.timeframe
+  ])
 
   useEffect(() => {
     fetchDecisionLogs()
@@ -131,5 +209,84 @@ export const useDecisionLogs = (filters: {
     isLoading,
     error,
     refetch: fetchDecisionLogs
+  }
+}
+
+export const useDecisionOptimizationAnalytics = (filters: {
+  accessToken: string
+  timeframe?: DecisionTimeframe
+  flowName?: string
+  templateId?: string
+}) => {
+  const [data, setData] = useState<DecisionOptimizationData | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const API_BASE = getFlowEngineApiBaseUrl()
+
+  const fetchDecisionOptimization = useCallback(async () => {
+    if (!filters.accessToken) {
+      setData(null)
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const queryParams = new URLSearchParams()
+      queryParams.set('timeframe', filters.timeframe || 'mtd')
+      if (filters.flowName?.trim()) queryParams.set('flowName', filters.flowName.trim())
+      if (filters.templateId?.trim()) queryParams.set('templateId', filters.templateId.trim())
+
+      const response = await fetch(`${API_BASE}/decisions/analytics?${queryParams.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${filters.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch decision optimization analytics: ${response.status} ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      const payload = result?.status === 'success' ? result.data : result
+      setData({
+        summary: {
+          totalDecisions: Number(payload?.summary?.totalDecisions || 0),
+          aiDirectCount: Number(payload?.summary?.aiDirectCount || 0),
+          aiEscalatedCount: Number(payload?.summary?.aiEscalatedCount || 0),
+          userDirectCount: Number(payload?.summary?.userDirectCount || 0),
+          logicDirectCount: Number(payload?.summary?.logicDirectCount || 0),
+          humanOverrideCount: Number(payload?.summary?.humanOverrideCount || 0),
+          promptExecutionCount: Number(payload?.summary?.promptExecutionCount || 0),
+          promptLinkedCount: Number(payload?.summary?.promptLinkedCount || 0),
+          policyLinkedCount: Number(payload?.summary?.policyLinkedCount || 0),
+          branchAgreementRate: Number(payload?.summary?.branchAgreementRate || 0)
+        },
+        stepPerformance: Array.isArray(payload?.stepPerformance) ? payload.stepPerformance : [],
+        promptVersions: Array.isArray(payload?.promptVersions) ? payload.promptVersions : [],
+        policyVersions: Array.isArray(payload?.policyVersions) ? payload.policyVersions : [],
+        escalationReasons: Array.isArray(payload?.escalationReasons) ? payload.escalationReasons : []
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch decision optimization analytics'))
+      setData(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [API_BASE, filters.accessToken, filters.flowName, filters.templateId, filters.timeframe])
+
+  useEffect(() => {
+    fetchDecisionOptimization()
+  }, [fetchDecisionOptimization])
+
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: fetchDecisionOptimization
   }
 }

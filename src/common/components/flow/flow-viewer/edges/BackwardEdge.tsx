@@ -27,8 +27,10 @@ export const BackwardEdge: React.FC<EdgeProps> = ({
   const label = data?.label as string | undefined
   const isSelected = Boolean(data?.isSelected)
   const points: Array<{ x: number; y: number }> = data?.points
+  const edgeState = data?.edgeState as 'active' | 'failed' | undefined
   const strokeDefault = 'hsl(215 16% 65%)'
   const strokeSelected = 'hsl(215 76% 56%)'
+  const strokeFailed = 'hsl(0 72% 51%)'
   // Keep markerEnd unchanged: BaseEdge passes it to SVG path; only url(#id) is valid there.
   // Switching to an object when selected would make the arrow disappear.
 
@@ -65,7 +67,7 @@ export const BackwardEdge: React.FC<EdgeProps> = ({
         path={edgePath}
         style={{
           strokeWidth: isSelected ? 2.5 : 1.5,
-          stroke: isSelected ? strokeSelected : strokeDefault,
+          stroke: isSelected ? strokeSelected : edgeState === 'failed' ? strokeFailed : strokeDefault,
           strokeDasharray: '6 4',
           ...style
         }}
@@ -90,6 +92,7 @@ export const BackwardEdge: React.FC<EdgeProps> = ({
 BackwardEdge.displayName = 'BackwardEdge'
 
 const STROKE_SELECTED = 'hsl(215 76% 56%)'
+const STROKE_FAILED = 'hsl(0 72% 51%)'
 
 /** Default marker for backward edges */
 export const BACKWARD_MARKER = {
@@ -101,4 +104,10 @@ export const BACKWARD_MARKER = {
 export const BACKWARD_MARKER_SELECTED = {
   type: MarkerType.ArrowClosed,
   color: STROKE_SELECTED
+}
+
+/** Marker for backward edges that lead into a failed node */
+export const BACKWARD_MARKER_FAILED = {
+  type: MarkerType.ArrowClosed,
+  color: STROKE_FAILED
 }

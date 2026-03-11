@@ -66,6 +66,7 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
   // (Zustand compares selector return values by reference).
   const nodes = useFlowStudioStore(s => s.nodes)
   const edges = useFlowStudioStore(s => s.edges)
+  const selectedNodeId = useFlowStudioStore(s => s.selectedNodeId)
 
   const { triggerFields, steps, catalogFields, entityFields, orgchartFields } = useMemo(() => {
     const mapInputTypeToValueType = (type: InputType): ExpressionValueType => {
@@ -125,28 +126,35 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
     }
 
     const stepIndexByNodeId = buildStepIndexByNodeId(nodes, edges)
-    const taskNodes = nodes.filter(n => n.type === 'task' && n.config?.nodeType === 'task')
-    for (const task of taskNodes) {
-      const cfg = task.config as any
-      const stepIndex = stepIndexByNodeId.get(task.id)
+    const stepNodes = nodes.filter(
+      node =>
+        node.id !== selectedNodeId &&
+        ((node.type === 'task' && node.config?.nodeType === 'task') ||
+          (node.type === 'decision' && node.config?.nodeType === 'decision'))
+    )
+    for (const stepNode of stepNodes) {
+      const cfg = stepNode.config as any
+      const stepIndex = stepIndexByNodeId.get(stepNode.id)
       if (typeof stepIndex !== 'number' || Number.isNaN(stepIndex)) continue
-      const fields = Array.isArray(cfg.form)
-        ? (cfg.form as InputBlock[])
-            .map(f => {
-              const fieldName = String(f.name || '').trim()
-              if (!fieldName) return null
-              return {
-                name: fieldName,
-                label: String(f.label ?? '').trim() || undefined,
-                dataType: mapInputTypeToValueType(f.type)
-              }
-            })
-            .filter(Boolean)
-        : []
+      const isTaskNode = stepNode.type === 'task'
+      const fields =
+        isTaskNode && Array.isArray(cfg.form)
+          ? (cfg.form as InputBlock[])
+              .map(f => {
+                const fieldName = String(f.name || '').trim()
+                if (!fieldName) return null
+                return {
+                  name: fieldName,
+                  label: String(f.label ?? '').trim() || undefined,
+                  dataType: mapInputTypeToValueType(f.type)
+                }
+              })
+              .filter(Boolean)
+          : []
       const outputSchema =
-        cfg.stepType === FlowStepType.FUNCTION
+        isTaskNode && cfg.stepType === FlowStepType.FUNCTION
           ? cfg.functionConfig?.outputSchema
-          : cfg.stepType === FlowStepType.AI_AGENT || cfg.stepType === FlowStepType.AI_TASK_EXPERT
+          : isTaskNode && (cfg.stepType === FlowStepType.AI_AGENT || cfg.stepType === FlowStepType.AI_TASK_EXPERT)
             ? cfg.agentConfig?.outputSchema
             : null
       const outputs = collectJsonSchemaPaths(outputSchema).map(path => {
@@ -159,7 +167,8 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
       })
       steps.push({
         reference: `step_${stepIndex}`,
-        label: cfg.title || task.label || `Step ${stepIndex + 1}`,
+        label:
+          cfg.title || cfg.userConfig?.title || cfg.aiConfig?.promptName || stepNode.label || `Step ${stepIndex + 1}`,
         fields,
         outputs
       })
@@ -229,7 +238,7 @@ export function useStudioExpressionSuggestions(): ExpressionSuggestionItem[] {
     // Keep the suggestion list free of placeholder-based templates (e.g. ID_HERE).
 
     return { triggerFields, steps, catalogFields, entityFields, orgchartFields }
-  }, [edges, nodes])
+  }, [edges, nodes, selectedNodeId])
 
   return useExpressionSuggestions({ triggerFields, steps, catalogFields, entityFields, orgchartFields })
 }

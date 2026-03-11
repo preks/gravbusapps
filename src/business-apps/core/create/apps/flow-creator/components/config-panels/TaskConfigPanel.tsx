@@ -22,7 +22,7 @@ import {
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { TaskNodeConfig, DesignerMode } from '../../types/studioTypes'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { AssignmentMode, FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 import { TaskGeneralTab } from './task/TaskGeneralTab'
 import { TaskFormTab } from './task/TaskFormTab'
@@ -113,9 +113,28 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
       const isAutomation = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(
         nextType
       )
+      const keepFunctionConfig = nextType === FlowStepType.FUNCTION && config.stepType === FlowStepType.FUNCTION
+      const keepTaskExpertConfig =
+        nextType === FlowStepType.AI_TASK_EXPERT && config.stepType === FlowStepType.AI_TASK_EXPERT
+      const neutralSystemAssignment = {
+        targets: null,
+        assignmentMode: AssignmentMode.ASSIGN,
+        allowReassignment: true
+      }
+
       update({
         stepType: nextType,
         kind: isAutomation ? 'SYSTEM' : 'USER',
+        assignment: isAutomation ? (neutralSystemAssignment as any) : config.assignment,
+        form: isAutomation ? [] : config.form,
+        links: nextType === FlowStepType.FUNCTION || nextType === FlowStepType.AI_TASK_EXPERT ? [] : config.links,
+        dueInMinutes: isAutomation ? undefined : config.dueInMinutes,
+        defaultPriority: isAutomation ? undefined : config.defaultPriority,
+        customStates: isAutomation ? undefined : config.customStates,
+        eventSubscriptions: isAutomation ? undefined : config.eventSubscriptions,
+        reworkConfig: isAutomation ? undefined : config.reworkConfig,
+        functionConfig: keepFunctionConfig ? config.functionConfig : undefined,
+        agentConfig: keepTaskExpertConfig ? config.agentConfig : undefined,
         permissionContext:
           nextType === FlowStepType.AI_AGENT
             ? (config.permissionContext ?? { contextType: 'USER', permissions: ['read', 'write', 'execute'] })

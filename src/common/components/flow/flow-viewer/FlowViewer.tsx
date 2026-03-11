@@ -28,8 +28,14 @@ import { DecisionNode } from './nodes/DecisionNode'
 import { ForkNode } from './nodes/ForkNode'
 import { JoinNode } from './nodes/JoinNode'
 import { EndNode } from './nodes/EndNode'
-import { RoutedEdge, FORWARD_MARKER, FORWARD_MARKER_SELECTED } from './edges/RoutedEdge'
-import { BackwardEdge, BACKWARD_MARKER, BACKWARD_MARKER_SELECTED } from './edges/BackwardEdge'
+import {
+  RoutedEdge,
+  FORWARD_MARKER,
+  FORWARD_MARKER_ACTIVE,
+  FORWARD_MARKER_FAILED,
+  FORWARD_MARKER_SELECTED
+} from './edges/RoutedEdge'
+import { BackwardEdge, BACKWARD_MARKER, BACKWARD_MARKER_FAILED, BACKWARD_MARKER_SELECTED } from './edges/BackwardEdge'
 import { computeLayout } from './layout/elkLayout'
 import { getNodeDimensions } from './nodes/nodeDimensions'
 import { resolveFlowCanvasThemeColors, DEFAULT_FLOW_CANVAS_THEME_COLORS } from './utils/themeColors'
@@ -47,6 +53,7 @@ function buildNodeData(
   node: FlowGraphNode,
   isSelected: boolean,
   status: StepStatus | undefined,
+  isOnActivePath: boolean,
   iteration: number | undefined,
   onSelect: () => void
 ): Record<string, unknown> {
@@ -56,6 +63,7 @@ function buildNodeData(
     label: node.label,
     isSelected,
     status,
+    isOnActivePath,
     onSelect
   }
 
@@ -129,6 +137,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   elementsSelectable: elementsSelectableProp,
   fitViewVerticalAlign = 'top',
   showMiniMap = true,
+  showControls = true,
   'data-testid': testId = 'flow-viewer'
 }) => {
   const { selectedNodeId, selectedEdgeId, executionState, selectNode, selectEdge, isInteractive } =
@@ -240,6 +249,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     return definition.nodes.map((node, index) => {
       const dims = getNodeDimensions(node.type)
       const status = executionState?.nodeStates[node.id]
+      const isOnActivePath = executionState?.pathNodeIds?.includes(node.id) ?? false
       const iteration = executionState?.iterations?.[node.id]
       const isSelected = selectedNodeId === node.id
       const pos = layoutNodes[node.id] ?? { x: 20, y: index * 140 + 40 }
@@ -248,7 +258,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         id: node.id,
         type: node.type,
         position: pos,
-        data: buildNodeData(node, isSelected, status, iteration, () => selectNode(node.id)),
+        data: buildNodeData(node, isSelected, status, isOnActivePath, iteration, () => selectNode(node.id)),
         style: {
           background: 'transparent',
           border: 'none',
@@ -280,21 +290,39 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
       }
       const points = layoutEdgePoints[edge.id]
       const edgeActions = getEdgeActions?.(edge.id) ?? {}
+      const targetStatus = executionState?.nodeStates[edge.target]
+      const edgeState =
+        executionState?.pathEdgeIds?.includes(edge.id) || executionState?.activeNodeId === edge.target
+          ? 'active'
+          : targetStatus === 'failed'
+            ? 'failed'
+            : undefined
       const edgeData = {
         ...base.data,
         ...(points?.length ? { points } : {}),
         isSelected: selectedEdgeId === edge.id,
+        ...(edgeState ? { edgeState } : {}),
         onSelect: () => selectEdge(edge.id),
         ...(edgeActions.onInsert == null ? {} : { onInsert: edgeActions.onInsert }),
         ...(edgeActions.onOpenInsertPanel == null ? {} : { onOpenInsertPanel: edgeActions.onOpenInsertPanel })
       }
       const isSelected = selectedEdgeId === edge.id
       const isBackward = edge.direction === 'backward'
-      const selectedMarker = isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_SELECTED
-      const markerEnd = isSelected ? selectedMarker : base.markerEnd
+      const markerEnd = (() => {
+        if (isSelected) {
+          return isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_SELECTED
+        }
+        if (edgeState === 'failed') {
+          return isBackward ? BACKWARD_MARKER_FAILED : FORWARD_MARKER_FAILED
+        }
+        if (edgeState === 'active') {
+          return isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_ACTIVE
+        }
+        return base.markerEnd
+      })()
       return { ...base, data: edgeData, markerEnd }
     })
-  }, [definition.edges, definition.nodes, layoutEdgePoints, selectedEdgeId, selectEdge, getEdgeActions])
+  }, [definition.edges, definition.nodes, executionState, layoutEdgePoints, selectedEdgeId, selectEdge, getEdgeActions])
 
   const [flowNodes, setNodes, onNodesChange] = useNodesState(rfNodes)
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState(rfEdges)
@@ -570,15 +598,17 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         }
       >
         <Background color={uiColors.border} gap={16} size={1} />
-        <FlowCanvasControls
-          uiColors={uiColors}
-          onFitView={() => {
-            void runFitView(300)
-          }}
-          onExport={exportPng}
-          isExporting={isExporting}
-          data-testid={`${testId}-controls`}
-        />
+        {showControls ? (
+          <FlowCanvasControls
+            uiColors={uiColors}
+            onFitView={() => {
+              void runFitView(300)
+            }}
+            onExport={exportPng}
+            isExporting={isExporting}
+            data-testid={`${testId}-controls`}
+          />
+        ) : null}
         {showMiniMap ? (
           <MiniMap
             position="bottom-left"

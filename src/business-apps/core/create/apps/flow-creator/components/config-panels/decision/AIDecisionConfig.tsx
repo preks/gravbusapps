@@ -10,6 +10,7 @@ import { TaskExpertDecisionSection } from './ai/TaskExpertDecisionSection'
 import { useAIDecisionConfigState } from './ai/useAIDecisionConfigState'
 
 interface AIDecisionConfigProps {
+  nodeId: string
   config: DecisionNodeConfig
   update: (partial: Partial<DecisionNodeConfig>) => void
   mode: DesignerMode
@@ -20,6 +21,7 @@ interface AIDecisionConfigProps {
 }
 
 export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
+  nodeId,
   config,
   update,
   mode,
@@ -98,6 +100,9 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
             dataSources={dataSources}
             onChangeAiConfig={next => update({ aiConfig: next })}
             onSelectPolicy={onSelectPolicy}
+            links={config.links ?? []}
+            onChangeLinks={next => update({ links: next })}
+            nodeId={nodeId}
             testId={testId}
           />
         ) : (
@@ -155,6 +160,9 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
           dataSources={dataSources}
           onChangeAiConfig={next => update({ aiConfig: next })}
           onSelectPolicy={onSelectPolicy}
+          links={config.links ?? []}
+          onChangeLinks={next => update({ links: next })}
+          nodeId={nodeId}
           testId={testId}
         />
       ) : (

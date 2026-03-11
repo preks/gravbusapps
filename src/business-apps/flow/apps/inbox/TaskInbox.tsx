@@ -45,9 +45,9 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowManagement } from '@/common/components/flow'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { TaskDetailsTab } from './components'
-import { FlowManagement } from '../../common/components'
 import { QuickTaskModal, QuickTaskFormData, QuickTaskFlowService } from '../../common/components/flow-quick-task'
 
 // Remove unused Ant Design destructuring

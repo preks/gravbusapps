@@ -16,6 +16,19 @@ import {
 
 type PrimaryMode = 'CLAIMABLE' | 'ASSIGN'
 
+function hasSpecificClaimTargets(targets: TaskAssignment['targets'] | null | undefined): boolean {
+  if (!targets || typeof targets !== 'object') return false
+
+  return Object.values(targets).some(
+    value =>
+      Array.isArray(value) &&
+      value.some(entry => {
+        const normalized = String(entry || '').trim()
+        return normalized !== '' && normalized !== 'ANY'
+      })
+  )
+}
+
 export interface AssignmentConfigSectionProps {
   mode: DesignerMode
   accessToken: string
@@ -54,6 +67,7 @@ export const AssignmentConfigSection: React.FC<AssignmentConfigSectionProps> = (
   const defaultAssignMode = inferAssignmentModeForTargets({ users: defaultUserTargets }) as AssignmentMode
 
   const primaryMode: PrimaryMode = assignmentMode === AssignmentMode.CLAIM ? 'CLAIMABLE' : 'ASSIGN'
+  const claimTargetsConfigured = hasSpecificClaimTargets(targets)
   const assignAtExecution =
     allowAssignAtExecution &&
     (assignmentMode === AssignmentMode.ASSIGN_SINGLE || assignmentMode === AssignmentMode.ASSIGN) &&
@@ -215,21 +229,28 @@ export const AssignmentConfigSection: React.FC<AssignmentConfigSectionProps> = (
       </div>
 
       {primaryMode === 'CLAIMABLE' ? (
-        <AssignmentSelector
-          value={{ targets, assignmentMode: AssignmentMode.CLAIM, allowReassignment }}
-          onChange={(next: TaskAssignment) =>
-            onChange({
-              ...value,
-              assignmentMode: AssignmentMode.CLAIM,
-              targets: next.targets,
-              allowReassignment
-            })
-          }
-          assignmentMode={AssignmentMode.CLAIM}
-          allowedTypes={allowedClaimTypes}
-          accessToken={accessToken}
-          data-testid={`${testId}-selector`}
-        />
+        <div className="gba:flex gba:flex-col gba:gap-2">
+          <AssignmentSelector
+            value={{ targets, assignmentMode: AssignmentMode.CLAIM, allowReassignment }}
+            onChange={(next: TaskAssignment) =>
+              onChange({
+                ...value,
+                assignmentMode: AssignmentMode.CLAIM,
+                targets: next.targets,
+                allowReassignment
+              })
+            }
+            assignmentMode={AssignmentMode.CLAIM}
+            allowedTypes={allowedClaimTypes}
+            accessToken={accessToken}
+            data-testid={`${testId}-selector`}
+          />
+          {!claimTargetsConfigured ? (
+            <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-claim-target-error`}>
+              Configure at least one claim target.
+            </p>
+          ) : null}
+        </div>
       ) : (
         <div className="gba:flex gba:flex-col gba:gap-3">
           {allowAssignAtExecution && (

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react'
-import { Separator } from '@newwork/nw-design-system'
+import { Separator, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 import { useFlowStudioStore } from '../../../hooks/useFlowStudioStore'
 import { useStudioExpressionSuggestions } from '../../../hooks/useStudioExpressionSuggestions'
 import type { DecisionNodeConfig, DesignerMode } from '../../../types/studioTypes'
@@ -10,6 +11,7 @@ import { UserDecisionApprovalSection } from './UserDecisionApprovalSection'
 import { UserDecisionHeaderSection } from './UserDecisionHeaderSection'
 import { UserDecisionAssignmentSection } from './UserDecisionAssignmentSection'
 import { UserDecisionDueSection } from './UserDecisionDueSection'
+import { TaskLinksSection } from '../task/TaskLinksSection'
 
 interface UserDecisionConfigProps {
   config: DecisionNodeConfig
@@ -35,6 +37,7 @@ export const UserDecisionConfig: React.FC<UserDecisionConfigProps> = ({
   studioData,
   availableStartFields
 }) => {
+  const { t } = useTranslation(translations)
   const expressionSuggestions = useStudioExpressionSuggestions()
   const decisionType = config.userConfig?.userDecisionType ?? 'APPROVAL'
   const isApproval = decisionType === 'APPROVAL'
@@ -121,6 +124,14 @@ export const UserDecisionConfig: React.FC<UserDecisionConfigProps> = ({
         suggestions={expressionSuggestions}
         dataSources={dataSources}
         testId={testId}
+      />
+
+      <TaskLinksSection
+        nodeId={nodeId}
+        value={config.links ?? []}
+        onChange={next => update({ links: next })}
+        t={t}
+        data-testid={`${testId}-links`}
       />
 
       {isApproval ? (

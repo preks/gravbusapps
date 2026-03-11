@@ -11,26 +11,29 @@ interface JoinNodeData {
   joinCondition?: 'ALL' | 'ANY'
   isSelected?: boolean
   status?: StepStatus
+  isOnActivePath?: boolean
   onSelect?: () => void
   testId?: string
 }
 
-function getStatusBorder(status?: StepStatus, isSelected?: boolean): string {
+function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
   if (isSelected) return 'gba:border-primary'
+  if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-primary'
+  if (status === 'active') return 'gba:border-info'
   return 'gba:border-border'
 }
 
-function getStatusBg(status?: StepStatus, isSelected?: boolean): string {
+function getStatusBg(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
   if (isSelected) return 'gba:bg-accent'
+  if (isOnActivePath) return 'gba:bg-card'
   if (status === 'active') return 'gba:bg-accent'
   return 'gba:bg-card'
 }
 
 export const JoinNode: React.FC<{ data: JoinNodeData }> = ({ data }) => {
-  const borderClass = getStatusBorder(data.status, data.isSelected)
-  const bgClass = getStatusBg(data.status, data.isSelected)
+  const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
+  const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
   const condition = data.joinCondition ?? 'ALL'
 
   return (

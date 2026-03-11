@@ -80,6 +80,10 @@ export interface FlowExecutionState {
   nodeStates: Record<string, StepStatus>
   /** Currently active node ID */
   activeNodeId?: string
+  /** Node IDs that belong to the currently highlighted path */
+  pathNodeIds?: string[]
+  /** Edge IDs that belong to the currently highlighted path */
+  pathEdgeIds?: string[]
   /** Iteration counts per node (for rework loops) */
   iterations?: Record<string, number>
 }
@@ -127,6 +131,8 @@ export interface FlowCanvasViewProps {
   fitViewVerticalAlign?: 'top' | 'center'
   /** When false, hides the minimap. Defaults to true. */
   showMiniMap?: boolean
+  /** When false, hides the canvas controls. Defaults to true. */
+  showControls?: boolean
   /** Test ID for automated testing */
   'data-testid'?: string
 }

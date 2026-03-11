@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
+import React, { useEffect, useState } from 'react'
+import { Card, CardContent, CardDescription, CardTitle, useTranslation } from '@newwork/nw-design-system'
 import {
   Activity,
   ArrowDownRight,
@@ -15,12 +15,28 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from '../../_i18n'
 import { useTrendComparison } from '../../hooks/useFlowAnalytics'
-import { SuccessEmptyState, SuccessErrorState, SuccessTabPage, SuccessTimeframeSelect } from '../shared'
+import { useSystemTaskReliability } from '../../hooks/useSystemTaskReliability'
+import {
+  SuccessEmptyState,
+  SuccessErrorState,
+  SuccessSectionCardHeader,
+  SuccessTabPage,
+  SuccessTimeframeSelect
+} from '../shared'
+import { TrendsReliabilityCharts } from './trends/TrendsReliabilityCharts'
 import { formatDetailedHoursDuration, formatPercent } from '../../utils/formatters'
 import { getSuccessTimeframeOptions, type SuccessTimeframe } from '../../utils/timeframe'
+import type { FlowSuccessDrilldownTarget } from '../../shellState'
 
 interface TrendsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  timeframe?: SuccessTimeframe
+  onTimeframeChange?: (timeframe: SuccessTimeframe) => void
+  templateId?: string
+  showControls?: boolean
+  section?: string
+  onDrilldown?: (target: FlowSuccessDrilldownTarget) => void
+  headerActions?: React.ReactNode
 }
 
 type TrendKey =
@@ -31,9 +47,21 @@ type TrendKey =
   | 'activeUsers'
   | 'avgTasksPerUser'
 
-export const TrendsTab: React.FC<TrendsTabProps> = ({ prefixDataTestId = 'trends-tab', accessToken }) => {
+export const TrendsTab: React.FC<TrendsTabProps> = ({
+  prefixDataTestId = 'trends-tab',
+  accessToken,
+  timeframe,
+  onTimeframeChange,
+  templateId,
+  showControls = true,
+  section,
+  headerActions
+}) => {
   const { t } = useTranslation(translations)
-  const [timeframe, setTimeframe] = useState<SuccessTimeframe>('wtd')
+  const [internalTimeframe, setInternalTimeframe] = useState<SuccessTimeframe>('wtd')
+  const activeTimeframe = timeframe ?? internalTimeframe
+  const handleTimeframeChange = onTimeframeChange ?? setInternalTimeframe
+  const scopedTemplateId = templateId && templateId !== 'ALL' ? templateId : undefined
 
   const {
     data: trendData,
@@ -41,11 +69,23 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({ prefixDataTestId = 'trends
     error,
     refetch
   } = useTrendComparison({
-    timeframe,
+    timeframe: activeTimeframe,
+    templateId: scopedTemplateId,
+    accessToken
+  })
+  const { data: systemReliability } = useSystemTaskReliability({
+    timeframe: activeTimeframe,
+    templateId: scopedTemplateId,
     accessToken
   })
 
-  const timeframeOptions = useMemo(() => getSuccessTimeframeOptions(t, { includeLast24h: true }), [t])
+  useEffect(() => {
+    if (!section) return
+    const element = document.getElementById(section)
+    if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [section])
+
+  const timeframeOptions = getSuccessTimeframeOptions(t, { includeLast24h: true })
   const trendMetrics: Array<{
     key: TrendKey
     title: string
@@ -137,15 +177,22 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({ prefixDataTestId = 'trends
 
   return (
     <SuccessTabPage
-      title={t('trends-title')}
+      title={t('analytics-subview-trends')}
       description={t('trends-description')}
       actions={
-        <SuccessTimeframeSelect
-          value={timeframe}
-          onChange={setTimeframe}
-          options={timeframeOptions}
-          data-testid={`${prefixDataTestId}-timeframe-select`}
-        />
+        showControls || headerActions ? (
+          <>
+            {showControls ? (
+              <SuccessTimeframeSelect
+                value={activeTimeframe}
+                onChange={handleTimeframeChange}
+                options={timeframeOptions}
+                data-testid={`${prefixDataTestId}-timeframe-select`}
+              />
+            ) : null}
+            {headerActions}
+          </>
+        ) : undefined
       }
       data-testid={prefixDataTestId}
     >
@@ -179,7 +226,11 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({ prefixDataTestId = 'trends
                   </Card>
                 ))
               : trendMetrics.map(metric => (
-                  <Card key={metric.key} className="gba:border-border gba:bg-card">
+                  <Card
+                    key={metric.key}
+                    className="gba:border-border gba:bg-card"
+                    data-testid={`${prefixDataTestId}-${metric.key}`}
+                  >
                     <CardContent className="gba:flex gba:flex-col gba:gap-4 gba:p-5">
                       <div className="gba:flex gba:items-center gba:justify-between">
                         <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">{metric.title}</span>
@@ -205,11 +256,11 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({ prefixDataTestId = 'trends
                 ))}
           </div>
 
-          <Card className="gba:border-border gba:bg-card">
-            <CardHeader className="gba:border-b gba:border-border">
+          <Card className="gba:border-border gba:bg-card" id="trend-summary">
+            <SuccessSectionCardHeader>
               <CardTitle>{t('trends-summary')}</CardTitle>
               <CardDescription>{t('trends-description')}</CardDescription>
-            </CardHeader>
+            </SuccessSectionCardHeader>
             <CardContent className="gba:p-5">
               <div className="gba:overflow-x-auto">
                 <table className="gba:w-full gba:border-collapse">
@@ -235,6 +286,24 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({ prefixDataTestId = 'trends
                   </tbody>
                 </table>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="gba:border-border gba:bg-card" id="trend-reliability">
+            <SuccessSectionCardHeader>
+              <CardTitle>{t('system-reliability-trend-title')}</CardTitle>
+              <CardDescription>{t('system-reliability-trend-description')}</CardDescription>
+            </SuccessSectionCardHeader>
+            <CardContent className="gba:p-5">
+              <TrendsReliabilityCharts
+                data={systemReliability?.timeSeries || []}
+                emptyTitle={t('state-empty')}
+                emptyDescription={t('system-reliability-trend-description')}
+                successRateLabel={t('system-reliability-success-rate')}
+                failuresLabel={t('system-reliability-failures')}
+                timeoutsLabel={t('system-reliability-timeouts')}
+                data-testid={`${prefixDataTestId}-reliability-charts`}
+              />
             </CardContent>
           </Card>
         </>

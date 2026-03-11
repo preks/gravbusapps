@@ -15,6 +15,7 @@ interface FlowStudioCanvasProps extends BusinessAppContextProps {
   mode: DesignerMode
   onModeChange?: (mode: DesignerMode) => void
   onSave?: () => Promise<void> | void
+  showValidationIssues?: boolean
   'data-testid'?: string
 }
 
@@ -23,6 +24,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   mode,
   onModeChange,
   onSave,
+  showValidationIssues = false,
   'data-testid': testId = 'flow-studio-canvas'
 }) => {
   const storeNodes = useFlowStudioStore(s => s.nodes)
@@ -37,7 +39,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   const openEdgeInsert = useFlowStudioStore(s => s.openEdgeInsert)
   const toGraphDefinition = useFlowStudioStore(s => s.toGraphDefinition)
   const studioData = useFlowStudioData(accessToken)
-  const { errors, warnings } = useFlowValidation()
+  const { issues, errors, warnings } = useFlowValidation()
   const prevContentKeyRef = useRef<string>('')
   const prevDefinitionRef = useRef<ReturnType<typeof toGraphDefinition>>({
     nodes: [],
@@ -321,13 +323,26 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
         data-testid={`${testId}-config-panel`}
       />
     ) : null
+  const visibleIssues = issues.slice(0, 6)
 
   return (
     <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
       <CanvasToolbar onSave={onSave} mode={mode} onModeChange={onModeChange} data-testid={`${testId}-toolbar`} />
-      {(errors.length > 0 || warnings.length > 0) && (
-        <div className="gba:px-3 gba:py-1.5 gba:border-b gba:border-border gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:text-xs">
-          {errors.length > 0 ? `${errors.length} errors` : 'No errors'} · {warnings.length} warnings
+      {showValidationIssues && (errors.length > 0 || warnings.length > 0) && (
+        <div className="gba:px-3 gba:py-2 gba:border-b gba:border-border gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:text-xs">
+          <div className="gba:font-medium">
+            {errors.length > 0 ? `${errors.length} errors` : 'No errors'} · {warnings.length} warnings
+          </div>
+          <div className="gba:mt-1.5 gba:flex gba:flex-col gba:gap-1" data-testid={`${testId}-validation-issues`}>
+            {visibleIssues.map(issue => (
+              <div key={issue.id} className="gba:truncate" title={issue.message}>
+                {issue.severity === 'error' ? 'Error' : 'Warning'}: {issue.message}
+              </div>
+            ))}
+            {issues.length > visibleIssues.length ? (
+              <div className="gba:text-[11px] gba:opacity-80">+ {issues.length - visibleIssues.length} more issues</div>
+            ) : null}
+          </div>
         </div>
       )}
       <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col" data-testid={`${testId}-surface`}>

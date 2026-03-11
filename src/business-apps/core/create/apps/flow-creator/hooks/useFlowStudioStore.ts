@@ -165,6 +165,50 @@ function orphanedNodeIdsAfterEdgeRemoval(
   return nodes.filter(n => n.id !== START_ID && n.id !== END_ID && !reachable.has(n.id)).map(n => n.id)
 }
 
+function reconnectForwardEdgesAroundNode(edges: FlowGraphEdge[], nodeId: string): FlowGraphEdge[] {
+  const remainingEdges = edges.filter(e => e.source !== nodeId && e.target !== nodeId)
+  const incomingForward = edges.filter(e => e.target === nodeId && e.direction === 'forward')
+  const outgoingForward = edges.filter(e => e.source === nodeId && e.direction === 'forward')
+  const existingConnections = new Set(
+    remainingEdges.map(edge =>
+      JSON.stringify({
+        source: edge.source,
+        target: edge.target,
+        direction: edge.direction,
+        label: edge.label ?? null,
+        metadata: edge.metadata ?? null
+      })
+    )
+  )
+  const bridgedEdges: FlowGraphEdge[] = []
+
+  for (const incoming of incomingForward) {
+    for (const outgoing of outgoingForward) {
+      if (incoming.source === outgoing.target) continue
+      if (incoming.source === nodeId || outgoing.target === nodeId) continue
+
+      const signature = JSON.stringify({
+        source: incoming.source,
+        target: outgoing.target,
+        direction: outgoing.direction,
+        label: outgoing.label ?? incoming.label ?? null,
+        metadata: outgoing.metadata ?? incoming.metadata ?? null
+      })
+      if (existingConnections.has(signature)) continue
+
+      existingConnections.add(signature)
+      bridgedEdges.push({
+        ...createEdge(incoming.source, outgoing.target, outgoing.label ?? incoming.label, outgoing.direction),
+        ...(outgoing.metadata || incoming.metadata
+          ? { metadata: (outgoing.metadata ?? incoming.metadata) as FlowGraphEdge['metadata'] }
+          : {})
+      })
+    }
+  }
+
+  return [...remainingEdges, ...bridgedEdges]
+}
+
 export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((set, get) => ({
   ...initialState,
   setMode: (mode: DesignerMode) => set({ mode }),
@@ -179,11 +223,12 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
   removeNode: (nodeId: string) => {
     const state = get()
     const node = state.nodes.find(n => n.id === nodeId)
-    if (!node || node.type === 'start') return
+    if (!node || node.type === 'start' || node.type === 'end') return
     state.pushSnapshot()
+    const nextEdges = reconnectForwardEdgesAroundNode(state.edges, nodeId)
     const next = normalizeGraph(
       state.nodes.filter(n => n.id !== nodeId),
-      state.edges.filter(e => e.source !== nodeId && e.target !== nodeId)
+      nextEdges
     )
     setDirtyGraph(set, next, {
       selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
@@ -194,7 +239,7 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
   requestDeleteNode: (nodeId: string) => {
     const state = get()
     const node = state.nodes.find(n => n.id === nodeId)
-    if (!node || node.type === 'start') return
+    if (!node || node.type === 'start' || node.type === 'end') return
     set({ pendingDelete: { kind: 'node', id: nodeId, label: node.label } })
   },
   updateNode: (nodeId: string, updates: Partial<StudioNode>) => {

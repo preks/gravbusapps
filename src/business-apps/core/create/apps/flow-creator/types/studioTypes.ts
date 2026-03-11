@@ -101,6 +101,7 @@ export interface TaskNodeConfig {
 export interface DecisionNodeConfig {
   nodeType: 'decision'
   decisionMode: DecisionMode
+  links?: Link[]
   branches: DecisionBranch[]
   defaultBranch?: string
   /**

@@ -16,10 +16,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Separator,
   Spinner
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowDetailView } from '@/common/components/flow/flow-detail'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useFlowList, type FlowSummary } from '@/common/data/flow/hooks/useFlowList'
 
@@ -205,58 +205,26 @@ export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
         )}
       </CardContent>
 
-      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="gba:max-w-2xl" data-testid={`${testId}-details-dialog`}>
-          <DialogHeader>
-            <DialogTitle data-testid={`${testId}-details-title`}>
-              {selectedFlow?.flowName || selectedFlow?.templateName || 'Flow details'}
-            </DialogTitle>
+      <Dialog
+        open={detailsOpen}
+        onOpenChange={open => {
+          setDetailsOpen(open)
+          if (!open) setSelectedFlow(null)
+        }}
+      >
+        <DialogContent
+          className="gba:max-w-[92vw] gba:w-[92vw] gba:h-[92vh] gba:overflow-hidden gba:p-0"
+          data-testid={`${testId}-details-dialog`}
+        >
+          <DialogHeader className="gba:sr-only">
+            <DialogTitle>{selectedFlow?.flowName || selectedFlow?.templateName || 'Flow details'}</DialogTitle>
           </DialogHeader>
 
-          {selectedFlow ? (
-            <div className="gba:space-y-4" data-testid={`${testId}-details-content`}>
-              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-                <Badge variant={getStatusBadgeVariant(selectedFlow.status)}>
-                  {String(selectedFlow.status).toUpperCase()}
-                </Badge>
-                <Badge variant="outline">{selectedFlow.flowId}</Badge>
-              </div>
-
-              <Separator />
-
-              <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:gap-3 gba:text-sm">
-                <div>
-                  <div className="gba:text-muted-foreground">Template</div>
-                  <div className="gba:font-medium">{selectedFlow.templateName || selectedFlow.templateId || '—'}</div>
-                </div>
-                <div>
-                  <div className="gba:text-muted-foreground">Initiated by</div>
-                  <div className="gba:font-medium">{selectedFlow.initiatedBy || '—'}</div>
-                </div>
-                <div>
-                  <div className="gba:text-muted-foreground">Started</div>
-                  <div className="gba:font-medium">{formatDateTime(selectedFlow.startTime)}</div>
-                </div>
-                <div>
-                  <div className="gba:text-muted-foreground">Last activity</div>
-                  <div className="gba:font-medium">
-                    {formatDateTime(selectedFlow.lastActivityTime || selectedFlow.updateTime)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="gba:flex gba:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDetailsOpen(false)}
-                  data-testid={`${testId}-details-close`}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          <div className="gba:h-full gba:overflow-y-auto" data-testid={`${testId}-details-content`}>
+            {selectedFlow ? (
+              <FlowDetailView flowId={selectedFlow.flowId} accessToken={accessToken} showBackButton={false} />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </Card>

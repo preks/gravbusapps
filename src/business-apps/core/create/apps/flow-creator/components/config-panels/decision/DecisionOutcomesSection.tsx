@@ -19,6 +19,10 @@ interface DecisionOutcomesSectionProps {
   testId: string
 }
 
+function buildOptionLabel(index: number): string {
+  return `Option ${index + 1}`
+}
+
 export const DecisionOutcomesSection: React.FC<DecisionOutcomesSectionProps> = ({
   config,
   branchEdges,
@@ -27,7 +31,14 @@ export const DecisionOutcomesSection: React.FC<DecisionOutcomesSectionProps> = (
   onUpdateEdgeLabel,
   testId
 }) => {
-  const labels = useMemo(() => branchEdges.map(e => String(e.label || '').trim() || 'Outcome'), [branchEdges])
+  const labels = useMemo(
+    () =>
+      branchEdges.map(edge => {
+        const rawLabel = String(edge.label || '')
+        return rawLabel.trim() ? rawLabel : 'Outcome'
+      }),
+    [branchEdges]
+  )
 
   const approvalSelected = useMemo(() => {
     if (branchEdges.length !== 2) return false
@@ -41,8 +52,8 @@ export const DecisionOutcomesSection: React.FC<DecisionOutcomesSectionProps> = (
   }
 
   const setCustomOutcomes = () => {
-    // Switch away from approval-style outcomes so inputs become editable.
-    syncBranches(['Option 1', 'Option 2'])
+    // Keep the standard approval outcomes and add an editable third choice.
+    syncBranches(['Approve', 'Reject', buildOptionLabel(2)])
     update({
       rejectRework: undefined,
       userConfig: config.userConfig ? ({ ...(config.userConfig as any), rejectRework: undefined } as any) : undefined
@@ -74,7 +85,7 @@ export const DecisionOutcomesSection: React.FC<DecisionOutcomesSectionProps> = (
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => syncBranches([...labels, `Outcome ${labels.length + 1}`])}
+              onClick={() => syncBranches([...labels, buildOptionLabel(labels.length)])}
               data-testid={`${testId}-outcomes-add`}
             >
               <Plus className="gba:h-3 gba:w-3 gba:mr-1" />
@@ -104,7 +115,7 @@ export const DecisionOutcomesSection: React.FC<DecisionOutcomesSectionProps> = (
       ) : (
         <div className="gba:flex gba:flex-col gba:gap-2" data-testid={`${testId}-outcomes-list`}>
           {branchEdges.map((edge, i) => {
-            const value = String(edge.label || '').trim()
+            const value = String(edge.label || '')
             const isLast = i === branchEdges.length - 1
             return (
               <div key={edge.id} className="gba:flex gba:items-center gba:gap-2">

@@ -567,6 +567,28 @@ interface FlowManagementAnalytics {
     violation_rate: number
     avg_overdue_hours: number
   }>
+  immediateActionQueue: Array<{
+    flow_id: string
+    flow_name: string
+    template_id: string
+    status: string
+    last_activity_time?: string
+    due_date?: string
+    step_name: string
+    sla_violations: number
+    violation_rate: number
+    avg_overdue_hours: number
+    assigned_users?: string
+  }>
+  criticalSteps: Array<{
+    flow_name: string
+    template_id: string
+    step_name: string
+    overdue_tasks: number
+    active_tasks_with_sla: number
+    violation_rate: number
+    avg_overdue_hours: number
+  }>
   longestCycleFlows: Array<{
     flow_name: string
     workflow_count: number
@@ -1094,7 +1116,7 @@ export const useTemplatePerformanceAnalytics = ({
   userId,
   tags
 }: {
-  timeframe?: 'wtd' | 'mtd' | 'qtd' | 'ytd'
+  timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd'
   accessToken: string
   limit?: number
   offset?: number

@@ -288,6 +288,7 @@ export function studioGraphToTemplate(
         reference: node.id,
         type: 'DECISION',
         title: node.label || 'Decision',
+        links: Array.isArray(cfg.links) ? cfg.links : undefined,
         decisionMode,
         branches,
         defaultBranch:
@@ -472,6 +473,7 @@ export function templateToStudioGraph(template: FlowTemplate): {
         config: {
           nodeType: 'decision',
           decisionMode: safeString(step.decisionMode || 'USER') as any,
+          links: Array.isArray(step.links) ? step.links : [],
           branches: [],
           defaultBranch: step.defaultBranch,
           rejectRework: (step as any).rejectRework ?? (step as any)?.userConfig?.rejectRework,

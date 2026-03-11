@@ -6,6 +6,7 @@ import {
   type InputBlock,
   type TaskAssignment
 } from '@/common/network/flows/FlowTemplateClient'
+import type { FileInfo } from '@/common/types/FileTypes'
 
 export type RuntimeAssignment = {
   stepIndex: number
@@ -197,15 +198,57 @@ export const toRuntimeTaskAssignment = (assignment: RuntimeAssignment): TaskAssi
   allowReassignment: true
 })
 
+export const toSerializableFileValue = (value: unknown): FileInfo | undefined => {
+  if (!value || typeof value !== 'object') return undefined
+  if (typeof File !== 'undefined' && value instanceof File) return undefined
+
+  const fileValue = value as FileInfo
+  const path = String(fileValue.path || '').trim()
+  if (!path) return undefined
+
+  return {
+    path,
+    ...(fileValue.fileId ? { fileId: String(fileValue.fileId) } : {}),
+    ...(fileValue.appName ? { appName: String(fileValue.appName) } : {}),
+    ...(fileValue.folderPath ? { folderPath: String(fileValue.folderPath) } : {}),
+    ...(fileValue.uploadedAt ? { uploadedAt: String(fileValue.uploadedAt) } : {}),
+    ...(fileValue.accessScope ? { accessScope: String(fileValue.accessScope) } : {}),
+    ...(fileValue.fileMetadata && typeof fileValue.fileMetadata === 'object'
+      ? {
+          fileMetadata: {
+            ...fileValue.fileMetadata,
+            ...(fileValue.fileMetadata.originalFileName
+              ? { originalFileName: String(fileValue.fileMetadata.originalFileName) }
+              : {}),
+            ...(fileValue.fileMetadata.mimeType ? { mimeType: String(fileValue.fileMetadata.mimeType) } : {})
+          }
+        }
+      : {})
+  }
+}
+
 export const coerceFormDataBySchema = (inputs: InputBlock[], formData: Record<string, any>): Record<string, any> => {
   const next = { ...formData }
 
   inputs.forEach(input => {
-    if (String(input?.type || '').toUpperCase() !== InputType.NUMBER) return
     const key = String(input?.name || '').trim()
     if (!key || !(key in next)) return
 
+    const inputType = String(input?.type || '').toUpperCase()
     const value = next[key]
+
+    if (inputType === InputType.FILE) {
+      if (value === '' || value === null || value === undefined) {
+        next[key] = undefined
+        return
+      }
+
+      next[key] = toSerializableFileValue(value)
+      return
+    }
+
+    if (inputType !== InputType.NUMBER) return
+
     if (value === '' || value === null || value === undefined) {
       next[key] = undefined
       return

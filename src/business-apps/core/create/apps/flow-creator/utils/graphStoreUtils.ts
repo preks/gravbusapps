@@ -33,6 +33,7 @@ export function createDefaultConfig(type: FlowNodeType): StudioNodeConfig {
       return {
         nodeType: 'decision',
         decisionMode: 'USER',
+        links: [],
         branches: [
           { id: uuid(), label: 'Approve' },
           { id: uuid(), label: 'Reject' }

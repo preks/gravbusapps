@@ -43,6 +43,8 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AssignmentSelector } from '@/components/assignment-selector/AssignmentSelector'
 import FlowDataSourceSelect from '@/business-apps/flow/common/components/data-source/FlowDataSourceSelect'
 import FlowDataSourceMultiSelect from '@/business-apps/flow/common/components/data-source/FlowDataSourceMultiSelect'
+import { useFlowLaunchFileUpload } from '../hooks/useFlowLaunchFileUpload'
+import { FlowLaunchFileField } from './FlowLaunchFileField'
 import {
   buildRuntimeAssignmentsPayload,
   coerceFormDataBySchema,
@@ -112,6 +114,13 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [isLaunching, setIsLaunching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const {
+    uploadFormFiles,
+    isUploading: isUploadingFiles,
+    clearError: clearUploadError
+  } = useFlowLaunchFileUpload({
+    accessToken
+  })
 
   const launchFormContext = useMemo(() => resolveLaunchFormContext(template), [template])
   const startInputs = launchFormContext.inputs
@@ -135,6 +144,7 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
       setError(null)
       setTemplate(null)
       setAssignments([])
+      clearUploadError()
       try {
         const client = new FlowTemplateClient(accessToken)
         const res = await client.getTemplateWithMetadata(templateId)
@@ -155,14 +165,15 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
     }
 
     void load()
-  }, [open, templateId, accessToken, form])
+  }, [accessToken, clearUploadError, form, open, templateId])
 
   const canLaunch = useMemo(() => {
     if (isLoading) return false
     if (!template) return false
     if (!accessToken) return false
+    if (isUploadingFiles) return false
     return assignments.every(a => hasAssignmentTargets(a.targets))
-  }, [accessToken, assignments, isLoading, template])
+  }, [accessToken, assignments, isLoading, isUploadingFiles, template])
 
   const handleAssignmentChange = (stepIndex: number, nextAssignment: TaskAssignment) => {
     setAssignments(prev =>
@@ -195,7 +206,8 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
       const effectiveInitiatorId =
         userInfo?.id || userInfo?.employeeDetails?.employeeId || userInfo?.userName || 'unknown'
       const inputValues = form.getValues()
-      const normalizedFallbackValues = coerceFormDataBySchema(startInputs, inputValues)
+      const uploadedValues = await uploadFormFiles(startInputs, inputValues, templateId)
+      const normalizedFallbackValues = coerceFormDataBySchema(startInputs, uploadedValues)
       const runtimeAssignments = buildRuntimeAssignmentsPayload(assignments, {
         template,
         launchFormContext,
@@ -323,7 +335,35 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
                             : { required: 'Required' as const }
                           : undefined
 
-                      if (inputType === InputType.FILE || inputType === InputType.SIGNATURE) {
+                      if (inputType === InputType.FILE) {
+                        return (
+                          <FormField
+                            key={fieldName}
+                            control={form.control}
+                            name={fieldName}
+                            rules={rules as any}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{input.label || fieldName}</FormLabel>
+                                <FormControl>
+                                  <FlowLaunchFileField
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    disabled={isLaunching || isUploadingFiles}
+                                    data-testid={`${testId}-field-${fieldName}`}
+                                  />
+                                </FormControl>
+                                {input.description ? (
+                                  <div className="gba:text-xs gba:text-muted-foreground">{input.description}</div>
+                                ) : null}
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )
+                      }
+
+                      if (inputType === InputType.SIGNATURE) {
                         return (
                           <Alert key={fieldName} variant="info" data-testid={`${testId}-unsupported-${fieldName}`}>
                             <div className="gba:space-y-1">
@@ -568,7 +608,7 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={isLaunching}
+                disabled={isLaunching || isUploadingFiles}
                 data-testid={`${testId}-cancel`}
               >
                 Cancel
@@ -577,7 +617,7 @@ export const FlowLaunchDialog: React.FC<FlowLaunchDialogProps> = ({
                 type="button"
                 variant="default"
                 onClick={handleLaunch}
-                disabled={!canLaunch || isLaunching}
+                disabled={!canLaunch || isLaunching || isUploadingFiles}
                 data-testid={`${testId}-launch`}
               >
                 {isLaunching ? (

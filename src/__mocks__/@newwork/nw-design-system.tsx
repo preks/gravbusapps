@@ -21,6 +21,7 @@ export const FormMessage = () => <div />
 
 export const Input = React.forwardRef((props: any, ref) => <input ref={ref as any} {...props} />)
 export const Textarea = React.forwardRef((props: any, ref) => <textarea ref={ref as any} {...props} />)
+export const Button = ({ children, ...props }: any) => <button {...props}>{children}</button>
 
 export const Select = ({ children, value, onValueChange }: any) => (
   <select value={value} onChange={e => onValueChange?.(e.target.value)}>
@@ -60,6 +61,7 @@ export default {
   FormMessage,
   Input,
   Textarea,
+  Button,
   Select,
   SelectTrigger,
   SelectValue,

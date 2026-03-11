@@ -61,6 +61,33 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
     [nodeId, updateNodeConfig]
   )
 
+  const handleDecisionModeChange = useCallback(
+    (next: DecisionMode) => {
+      if (next === config.decisionMode) return
+
+      if (next === 'LOGIC') {
+        update({
+          decisionMode: next,
+          userConfig: undefined,
+          aiConfig: undefined,
+          logicConfig: undefined,
+          links: [],
+          rejectRework: undefined
+        })
+        return
+      }
+
+      update({
+        decisionMode: next,
+        userConfig: undefined,
+        aiConfig: undefined,
+        logicConfig: undefined,
+        rejectRework: undefined
+      })
+    },
+    [config.decisionMode, update]
+  )
+
   useDecisionBranchSanitizers(config, update)
 
   const approvalOutcomesSelected = useMemo(() => {
@@ -138,7 +165,7 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
 
         <DecisionKindSelector
           value={config.decisionMode}
-          onChange={next => update({ decisionMode: next as DecisionMode })}
+          onChange={next => handleDecisionModeChange(next as DecisionMode)}
           testId={testId}
         />
 
@@ -159,6 +186,7 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
         {config.decisionMode === 'AI' ? (
           <>
             <AIDecisionConfig
+              nodeId={nodeId}
               config={config}
               update={update}
               mode={mode}

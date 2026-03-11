@@ -10,6 +10,7 @@ interface StartNodeData {
   isSelected?: boolean
   triggerType?: TriggerType
   status?: StepStatus
+  isOnActivePath?: boolean
   onSelect?: () => void
   testId?: string
 }
@@ -28,9 +29,10 @@ const TRIGGER_LABELS: Record<string, string> = {
   MANUAL_FORM: 'Manual'
 }
 
-function getStatusRing(status?: StepStatus): string {
+function getStatusRing(status?: StepStatus, isOnActivePath?: boolean): string {
+  if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-primary gba:animate-pulse'
+  if (status === 'active') return 'gba:border-info gba:animate-pulse'
   if (status === 'failed') return 'gba:border-destructive'
   return 'gba:border-border'
 }
@@ -40,7 +42,7 @@ export const StartNode: React.FC<{ data: StartNodeData }> = ({ data }) => {
   const triggerType = data.triggerType ?? 'MANUAL_FORM'
   const Icon = TRIGGER_ICONS[triggerType] ?? Play
 
-  const borderClass = isSelected ? 'gba:border-primary' : getStatusRing(data.status)
+  const borderClass = isSelected ? 'gba:border-primary' : getStatusRing(data.status, data.isOnActivePath)
   const bgClass = isSelected ? 'gba:bg-accent' : 'gba:bg-card'
 
   return (

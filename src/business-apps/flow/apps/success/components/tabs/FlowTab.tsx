@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Button,
   Card,
   CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
   Combobox,
   useTranslation
@@ -13,6 +12,7 @@ import { Activity, CheckCircle2, Clock3, Layers3, Target, Workflow } from 'lucid
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ReadonlyTemplateFlowCanvas } from '@/common/components/flow'
 import translations from '../../_i18n'
+import { useSystemTaskReliability } from '../../hooks/useSystemTaskReliability'
 import { useFlowTemplateOptions } from '../../hooks/useFlowTemplateOptions'
 import { useFlowManagementAnalytics, useTemplatePerformanceAnalytics } from '../../hooks/useFlowAnalytics'
 import {
@@ -20,9 +20,11 @@ import {
   SuccessEmptyState,
   SuccessErrorState,
   SuccessKpiGrid,
+  SuccessSectionCardHeader,
   SuccessStatusBadge,
   SuccessTabPage,
-  SuccessTimeframeSelect
+  SuccessTimeframeSelect,
+  SystemTaskReliabilityPanel
 } from '../shared'
 import { formatHoursDuration, formatPercent } from '../../utils/formatters'
 import { DEFAULT_SUCCESS_TIMEFRAME, getSuccessTimeframeOptions, type SuccessTimeframe } from '../../utils/timeframe'
@@ -73,6 +75,11 @@ export const FlowTab: React.FC<FlowTabProps> = ({ prefixDataTestId = 'flow-analy
     accessToken,
     templateId: selectedTemplateId === 'ALL' ? undefined : selectedTemplateId
   })
+  const { data: systemReliability, isLoading: reliabilityLoading } = useSystemTaskReliability({
+    timeframe,
+    accessToken,
+    templateId: selectedTemplateId === 'ALL' ? undefined : selectedTemplateId
+  })
 
   useEffect(() => {
     setTablePage(0)
@@ -84,14 +91,11 @@ export const FlowTab: React.FC<FlowTabProps> = ({ prefixDataTestId = 'flow-analy
     templateOptions.find(option => option.id === selectedTemplateId)?.name ||
     templates.find(template => template.templateId === selectedTemplateId)?.templateName ||
     ''
-  const timeframeOptions = useMemo(() => getSuccessTimeframeOptions(t), [t])
-  const templateComboboxOptions = useMemo(
-    () => [
-      { value: 'ALL', label: t('filter-all-flows') },
-      ...templateOptions.map(option => ({ value: option.id, label: option.name }))
-    ],
-    [t, templateOptions]
-  )
+  const timeframeOptions = getSuccessTimeframeOptions(t)
+  const templateComboboxOptions = [
+    { value: 'ALL', label: t('filter-all-flows') },
+    ...templateOptions.map(option => ({ value: option.id, label: option.name }))
+  ]
   const scopedMetrics = selectedAnalytics?.statusMetrics
   const scopedTimeSeries = selectedAnalytics?.timeSeries || []
   const renderTemplateSelector = (testId: string) => (
@@ -206,14 +210,14 @@ export const FlowTab: React.FC<FlowTabProps> = ({ prefixDataTestId = 'flow-analy
 
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="gba:flex gba:h-full gba:flex-col gba:border-border gba:bg-card">
-          <CardHeader className="gba:border-b gba:border-border gba:pb-3">
+          <SuccessSectionCardHeader className="gba:pb-3">
             <CardTitle>{t('flows-selected-title')}</CardTitle>
             <CardDescription>
               {selectedTemplateId === 'ALL'
                 ? t('flows-selector-description')
                 : `${t('flows-selected-description')} ${selectedTemplateName}`}
             </CardDescription>
-          </CardHeader>
+          </SuccessSectionCardHeader>
           <CardContent className="gba:flex gba:flex-1 gba:flex-col gba:gap-5 gba:px-5 gba:pb-5 gba:pt-4">
             {renderTemplateSelector(`${prefixDataTestId}-template-select`)}
 
@@ -263,11 +267,23 @@ export const FlowTab: React.FC<FlowTabProps> = ({ prefixDataTestId = 'flow-analy
         />
       </div>
 
+      <SystemTaskReliabilityPanel
+        title={t('system-reliability-template-title')}
+        description={
+          selectedTemplateId === 'ALL'
+            ? t('system-reliability-template-description')
+            : `${t('system-reliability-template-description')} · ${selectedTemplateName}`
+        }
+        data={systemReliability}
+        isLoading={reliabilityLoading}
+        data-testid={`${prefixDataTestId}-system-reliability`}
+      />
+
       <Card className="gba:border-border gba:bg-card">
-        <CardHeader className="gba:border-b gba:border-border">
+        <SuccessSectionCardHeader>
           <CardTitle>{t('flows-templates-title')}</CardTitle>
           <CardDescription>{t('flows-templates-description')}</CardDescription>
-        </CardHeader>
+        </SuccessSectionCardHeader>
         <CardContent className="gba:p-5">
           {templateError ? (
             <SuccessErrorState

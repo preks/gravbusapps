@@ -104,6 +104,8 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const templateTags = useFlowStudioStore(s => s.templateTags)
   const setTemplateTags = useFlowStudioStore(s => s.setTemplateTags)
   const isDirty = useFlowStudioStore(s => s.isDirty)
+  const nodes = useFlowStudioStore(s => s.nodes)
+  const edges = useFlowStudioStore(s => s.edges)
   const resetStore = useFlowStudioStore(s => s.resetStore)
   const selectNode = useFlowStudioStore(s => s.selectNode)
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
@@ -117,6 +119,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const [pendingTemplateName, setPendingTemplateName] = useState('')
   const [saveNameError, setSaveNameError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [showValidationIssues, setShowValidationIssues] = useState(false)
 
   const handleModeChange = useCallback(
     (newMode: DesignerMode) => {
@@ -214,11 +217,13 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const executeSave = useCallback(async () => {
     setSaveError(null)
     await saveFlow()
+    setShowValidationIssues(false)
     onSaveComplete?.()
   }, [onSaveComplete, saveFlow])
 
   const requestSave = useCallback(async () => {
     if (view !== 'designer') return
+    setShowValidationIssues(true)
 
     if (!isUntitledTemplateName(templateName)) {
       try {
@@ -233,6 +238,10 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     setSaveNameError(null)
     setSaveNameDialogOpen(true)
   }, [executeSave, getSaveErrorMessage, templateName, view])
+
+  useEffect(() => {
+    setShowValidationIssues(false)
+  }, [edges, nodes])
 
   const confirmSaveWithName = useCallback(async () => {
     const trimmedName = pendingTemplateName.trim()
@@ -477,6 +486,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
               mode={mode}
               onModeChange={handleModeChange}
               onSave={requestSave}
+              showValidationIssues={showValidationIssues}
               data-testid={`${testId}-canvas`}
             />
           </div>

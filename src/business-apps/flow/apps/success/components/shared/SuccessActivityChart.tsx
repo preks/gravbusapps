@@ -30,6 +30,7 @@ interface SuccessActivityChartProps {
   emptyTitle: string
   emptyDescription: string
   data: SuccessActivityPoint[]
+  fillHeight?: boolean
   'data-testid'?: string
 }
 
@@ -41,12 +42,13 @@ export const SuccessActivityChart: React.FC<SuccessActivityChartProps> = ({
   emptyTitle,
   emptyDescription,
   data,
+  fillHeight = false,
   'data-testid': testId = 'success-activity-chart'
 }) => {
   const chartConfig = useMemo<ChartConfig>(
     () => ({
-      started: { label: startedLabel },
-      completed: { label: completedLabel }
+      started: { label: startedLabel, color: 'var(--color-info)' },
+      completed: { label: completedLabel, color: 'var(--color-primary)' }
     }),
     [startedLabel, completedLabel]
   )
@@ -63,12 +65,15 @@ export const SuccessActivityChart: React.FC<SuccessActivityChartProps> = ({
   )
 
   return (
-    <Card className="gba:border-border gba:bg-background" data-testid={testId}>
+    <Card
+      className={`gba:border-border gba:bg-card ${fillHeight ? 'gba:flex gba:h-full gba:flex-col' : ''}`}
+      data-testid={testId}
+    >
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="gba:p-5">
+      <CardContent className={`gba:p-5 ${fillHeight ? 'gba:flex gba:flex-1 gba:flex-col' : ''}`}>
         {!chartData.length ? (
           <SuccessEmptyState
             title={emptyTitle}
@@ -77,7 +82,11 @@ export const SuccessActivityChart: React.FC<SuccessActivityChartProps> = ({
             data-testid={`${testId}-empty`}
           />
         ) : (
-          <ChartContainer config={chartConfig} className="gba:h-[240px] gba:w-full" data-testid={`${testId}-chart`}>
+          <ChartContainer
+            config={chartConfig}
+            className={`gba:w-full ${fillHeight ? 'gba:min-h-[320px] gba:flex-1' : 'gba:h-[240px]'}`}
+            data-testid={`${testId}-chart`}
+          >
             <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
@@ -96,6 +105,7 @@ export const SuccessActivityChart: React.FC<SuccessActivityChartProps> = ({
                 dataKey="started"
                 stroke="var(--color-started)"
                 strokeWidth={2}
+                strokeDasharray="4 4"
                 dot={{ r: 2 }}
                 activeDot={{ r: 4 }}
               />

@@ -27,6 +27,7 @@ interface TaskNodeData {
   stepNumber?: number
   isSelected?: boolean
   status?: StepStatus
+  isOnActivePath?: boolean
   iteration?: number
   onSelect?: () => void
   testId?: string
@@ -49,17 +50,19 @@ const VARIANT_META: Record<
   AI_TASK_EXPERT: { label: 'AI Task Expert', Icon: Bot, isAI: true }
 }
 
-function getStatusBorder(status?: StepStatus, isSelected?: boolean): string {
+function getStatusBorder(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
   if (isSelected) return 'gba:border-primary gba:shadow-md gba:scale-[1.02]'
+  if (isOnActivePath) return 'gba:border-info'
   if (status === 'completed') return 'gba:border-success'
-  if (status === 'active') return 'gba:border-primary gba:shadow-md'
+  if (status === 'active') return 'gba:border-info gba:shadow-md'
   if (status === 'failed') return 'gba:border-destructive'
   if (status === 'skipped') return 'gba:border-muted-foreground/30 gba:opacity-60'
   return 'gba:border-border'
 }
 
-function getStatusBg(status?: StepStatus, isSelected?: boolean): string {
+function getStatusBg(status?: StepStatus, isSelected?: boolean, isOnActivePath?: boolean): string {
   if (isSelected) return 'gba:bg-card'
+  if (isOnActivePath) return 'gba:bg-card'
   if (status === 'completed') return 'gba:bg-success-secondary'
   if (status === 'active') return 'gba:bg-accent'
   if (status === 'failed') return 'gba:bg-destructive-secondary'
@@ -69,8 +72,8 @@ function getStatusBg(status?: StepStatus, isSelected?: boolean): string {
 export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
   const variant = data.taskVariant ?? 'TASK'
   const meta = (VARIANT_META as Record<string, (typeof VARIANT_META)[TaskVariant]>)[variant] ?? VARIANT_META.TASK
-  const borderClass = getStatusBorder(data.status, data.isSelected)
-  const bgClass = getStatusBg(data.status, data.isSelected)
+  const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
+  const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
   const isAI = meta.isAI === true
   const isFunction = variant === 'FUNCTION'
   const showAssignmentMode = !isAI && !isFunction && Boolean(data.assignmentMode)
@@ -198,6 +201,7 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
             className={(() => {
               let stepBg = 'gba:bg-muted-foreground'
               if (data.isSelected) stepBg = 'gba:bg-primary'
+              else if (data.isOnActivePath) stepBg = 'gba:bg-primary'
               else if (data.status === 'completed') stepBg = 'gba:bg-success'
               return `gba:absolute gba:top-2 gba:left-2 gba:w-6 gba:h-6 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold gba:text-primary-foreground ${stepBg}`
             })()}

@@ -1,28 +1,22 @@
 import React from 'react'
 import { Badge } from '@newwork/nw-design-system'
-import { formatStatusLabel } from '../../utils/formatters'
+import { formatEnumLabel, formatStatusLabel } from '../../utils/formatters'
 
 interface SuccessStatusBadgeProps {
   status?: string
 }
 
-const STATUS_CLASSNAMES: Record<string, string> = {
-  COMPLETED: 'gba:bg-success-secondary gba:text-success-secondary-foreground gba:border-none',
-  RUNNING: 'gba:bg-info-secondary gba:text-info-secondary-foreground gba:border-none',
-  IN_PROGRESS: 'gba:bg-info-secondary gba:text-info-secondary-foreground gba:border-none',
-  TIMED_OUT: 'gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-none',
-  FAILED: 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:border-none',
-  TERMINATED: 'gba:bg-offline-secondary gba:text-offline-secondary-foreground gba:border-none',
-  PAUSED: 'gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-none',
-  QUEUED: 'gba:bg-muted gba:text-muted-foreground gba:border-none',
-  OPEN: 'gba:bg-muted gba:text-muted-foreground gba:border-none'
-}
-
 export const SuccessStatusBadge: React.FC<SuccessStatusBadgeProps> = ({ status }) => {
   const normalized = formatStatusLabel(status)
+  const label = formatEnumLabel(status) || 'Unknown'
+  const className =
+    normalized === 'FAILED'
+      ? 'gba:h-5 gba:border-none gba:bg-destructive-secondary gba:px-2 gba:text-xs gba:font-medium gba:text-destructive-secondary-foreground'
+      : 'gba:h-5 gba:border-none gba:bg-muted gba:px-2 gba:text-xs gba:font-medium gba:text-muted-foreground'
+
   return (
-    <Badge variant="secondary" className={STATUS_CLASSNAMES[normalized] ?? 'gba:border-border gba:text-foreground'}>
-      {normalized}
+    <Badge variant="secondary" className={className}>
+      {label}
     </Badge>
   )
 }
