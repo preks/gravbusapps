@@ -304,6 +304,23 @@ generate-validate = Validate
 generate-cancel = Cancel
 generate-button = Generate
 generate-generating = Generating...
+generate-use-template = Use Template
+generate-clear-template = Clear Template Selection
+generate-advanced-options = Advanced Options
+generate-style = Style
+generate-style-professional = Professional
+generate-style-creative = Creative
+generate-style-minimal = Minimal
+generate-style-bold = Bold
+generate-density = Content Density
+generate-density-detailed = Detailed
+generate-density-balanced = Balanced
+generate-density-visual = Visual
+generate-audience = Audience
+generate-audience-executive = Executive
+generate-audience-technical = Technical
+generate-audience-sales = Sales
+generate-audience-general = General
 generate-toast-success = Presentation generated!
 generate-toast-description = Created { $count } slides
 
@@ -389,6 +406,7 @@ attachment-no-spreadsheets = No spreadsheets available
 attachment-no-slides = No slides available
 attachment-max-references = Maximum { $count } references allowed
 attachment-helper = Optionally attach documents, notes, or other content as reference for the AI
+attachment-open-new-tab = Open in new tab
 
 # Gradient Builder
 gradient-quick-presets = Quick Presets
@@ -448,6 +466,7 @@ progress-web-search-failed = Web search failed, continuing without research data
 progress-building = Building slides...
 progress-checking-templates = Checking for matching templates...
 progress-using-template = Using template: { $templateName }
+progress-loading-references = Loading reference materials...
 
 # SlideGenerationService fallbacks (comparison/quote/thank-you)
 generation-option-a = Option A

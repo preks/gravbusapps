@@ -7,15 +7,17 @@
 
 import type { SlideTheme } from '../components/slideThemes'
 import type { AnySlideElement, SlideData } from '../components/slideElements'
-import { createTextElement, createShapeElement, createImageElement } from '../components/slideElements'
+import {
+  createTextElement,
+  createShapeElement,
+  createImageElement,
+  createChartElement
+} from '../components/slideElements'
 import {
   createMetricRow,
   createDataTable,
   createTimeline,
   createQuadrantMatrix,
-  createBarChart,
-  createPieChart,
-  createLineChart,
   createProcessFlow,
   createComparisonColumns,
   COLORS
@@ -41,6 +43,13 @@ export type SlideLayoutType =
   | 'bar-chart'
   | 'pie-chart'
   | 'line-chart'
+  | 'area-chart'
+  | 'radar-chart'
+  | 'swot-analysis'
+  | 'funnel'
+  | 'pyramid'
+  | 'icon-grid'
+  | 'roadmap'
   | 'process-flow'
   | 'image-left'
   | 'image-right'
@@ -153,6 +162,57 @@ export interface LineChartContent {
   source?: string
 }
 
+export interface AreaChartContent {
+  title: string
+  data: Array<{ label: string; value: number }>
+  xAxisLabel?: string
+  yAxisLabel?: string
+  source?: string
+  fillOpacity?: number
+}
+
+export interface RadarChartContent {
+  title: string
+  data: Array<{ label: string; value: number }>
+  categories: string[]
+  source?: string
+}
+
+export interface SWOTContent {
+  title: string
+  strengths: string[]
+  weaknesses: string[]
+  opportunities: string[]
+  threats: string[]
+}
+
+export interface FunnelContent {
+  title: string
+  stages: Array<{ label: string; value: number; percentage?: number }>
+  source?: string
+}
+
+export interface PyramidContent {
+  title: string
+  levels: Array<{ label: string; description?: string }>
+}
+
+export interface IconGridContent {
+  title: string
+  items: Array<{ icon: string; label: string; description?: string }>
+  columns?: 3 | 4
+}
+
+export interface RoadmapContent {
+  title: string
+  milestones: Array<{
+    date: string
+    title: string
+    description?: string
+    status?: 'completed' | 'current' | 'upcoming'
+  }>
+}
+
 export interface ProcessFlowContent {
   title: string
   steps: Array<{ title: string; description?: string }>
@@ -205,6 +265,13 @@ export type SlideLayoutContent =
   | { layout: 'bar-chart'; content: BarChartContent }
   | { layout: 'pie-chart'; content: PieChartContent }
   | { layout: 'line-chart'; content: LineChartContent }
+  | { layout: 'area-chart'; content: AreaChartContent }
+  | { layout: 'radar-chart'; content: RadarChartContent }
+  | { layout: 'swot-analysis'; content: SWOTContent }
+  | { layout: 'funnel'; content: FunnelContent }
+  | { layout: 'pyramid'; content: PyramidContent }
+  | { layout: 'icon-grid'; content: IconGridContent }
+  | { layout: 'roadmap'; content: RoadmapContent }
   | { layout: 'process-flow'; content: ProcessFlowContent }
   | { layout: 'image-left'; content: ImageSideContent }
   | { layout: 'image-right'; content: ImageSideContent }
@@ -268,6 +335,27 @@ export function generateSlideFromLayout(
 
     case 'line-chart':
       return createLineChartSlide(slideId, layoutContent.content, primaryColor)
+
+    case 'area-chart':
+      return createAreaChartSlide(slideId, layoutContent.content, primaryColor)
+
+    case 'radar-chart':
+      return createRadarChartSlide(slideId, layoutContent.content, primaryColor)
+
+    case 'swot-analysis':
+      return createSWOTSlide(slideId, layoutContent.content)
+
+    case 'funnel':
+      return createFunnelSlide(slideId, layoutContent.content, primaryColor)
+
+    case 'pyramid':
+      return createPyramidSlide(slideId, layoutContent.content, primaryColor)
+
+    case 'icon-grid':
+      return createIconGridSlide(slideId, layoutContent.content, primaryColor)
+
+    case 'roadmap':
+      return createRoadmapSlide(slideId, layoutContent.content, primaryColor)
 
     case 'process-flow':
       return createProcessFlowSlide(slideId, layoutContent.content, primaryColor)
@@ -1075,15 +1163,41 @@ function createBarChartSlide(slideId: string, content: BarChartContent, color: s
     })
   )
 
-  // Chart
-  const chartElements = createBarChart({
-    data: content.data,
-    position: { x: 80, y: 150 },
-    size: { width: SLIDE_WIDTH - 160, height: 480 },
-    source: content.source,
-    zIndex: 2
-  })
-  elements.push(...chartElements)
+  // Chart using ChartElement for interactive Recharts rendering
+  elements.push(
+    createChartElement('bar', {
+      id: `${slideId}-chart`,
+      title: '',
+      data: content.data.map(d => ({ label: d.label, value1: d.value })),
+      series: [{ key: 'value1', label: 'Value' }],
+      showLegend: false,
+      showGrid: true,
+      showTooltip: true,
+      position: { x: 80, y: 150 },
+      size: { width: SLIDE_WIDTH - 160, height: content.source ? 440 : 480 },
+      backgroundColor: 'transparent',
+      borderRadius: 8,
+      zIndex: 2
+    })
+  )
+
+  // Source citation
+  if (content.source) {
+    elements.push(
+      createTextElement({
+        id: `${slideId}-source`,
+        content: `Source: ${content.source}`,
+        position: { x: 80, y: SLIDE_HEIGHT - 50 },
+        size: { width: SLIDE_WIDTH - 160, height: 20 },
+        fontSize: 11,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'bottom',
+        color: COLORS.muted,
+        zIndex: 1
+      })
+    )
+  }
 
   return {
     id: slideId,
@@ -1122,17 +1236,41 @@ function createPieChartSlide(slideId: string, content: PieChartContent, color: s
     })
   )
 
-  // Chart
-  const chartElements = createPieChart({
-    data: content.data,
-    position: { x: 80, y: 150 },
-    size: { width: SLIDE_WIDTH - 160, height: 480 },
-    source: content.source,
-    donut: content.donut,
-    showLegend: true,
-    zIndex: 2
-  })
-  elements.push(...chartElements)
+  // Chart using ChartElement for interactive Recharts rendering
+  elements.push(
+    createChartElement('pie', {
+      id: `${slideId}-chart`,
+      title: '',
+      data: content.data.map(d => ({ label: d.label, value1: d.value })),
+      series: [{ key: 'value1', label: 'Value' }],
+      showLegend: true,
+      showGrid: false,
+      showTooltip: true,
+      position: { x: 80, y: 150 },
+      size: { width: SLIDE_WIDTH - 160, height: content.source ? 440 : 480 },
+      backgroundColor: 'transparent',
+      borderRadius: 8,
+      zIndex: 2
+    })
+  )
+
+  // Source citation
+  if (content.source) {
+    elements.push(
+      createTextElement({
+        id: `${slideId}-source`,
+        content: `Source: ${content.source}`,
+        position: { x: 80, y: SLIDE_HEIGHT - 50 },
+        size: { width: SLIDE_WIDTH - 160, height: 20 },
+        fontSize: 11,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'bottom',
+        color: COLORS.muted,
+        zIndex: 1
+      })
+    )
+  }
 
   return {
     id: slideId,
@@ -1171,17 +1309,791 @@ function createLineChartSlide(slideId: string, content: LineChartContent, color:
     })
   )
 
-  // Chart
-  const chartElements = createLineChart({
-    data: content.data,
-    position: { x: 80, y: 150 },
-    size: { width: SLIDE_WIDTH - 160, height: 480 },
-    xAxisLabel: content.xAxisLabel,
-    yAxisLabel: content.yAxisLabel,
-    source: content.source,
-    zIndex: 2
+  // Chart using ChartElement for interactive Recharts rendering
+  elements.push(
+    createChartElement('line', {
+      id: `${slideId}-chart`,
+      title: '',
+      data: content.data.map(d => ({ label: d.label, value1: d.value })),
+      series: [{ key: 'value1', label: content.yAxisLabel || 'Value' }],
+      showLegend: false,
+      showGrid: true,
+      showTooltip: true,
+      position: { x: 80, y: 150 },
+      size: { width: SLIDE_WIDTH - 160, height: content.source ? 440 : 480 },
+      backgroundColor: 'transparent',
+      borderRadius: 8,
+      zIndex: 2
+    })
+  )
+
+  // Source citation
+  if (content.source) {
+    elements.push(
+      createTextElement({
+        id: `${slideId}-source`,
+        content: `Source: ${content.source}`,
+        position: { x: 80, y: SLIDE_HEIGHT - 50 },
+        size: { width: SLIDE_WIDTH - 160, height: 20 },
+        fontSize: 11,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'bottom',
+        color: COLORS.muted,
+        zIndex: 1
+      })
+    )
+  }
+
+  return {
+    id: slideId,
+    elements,
+    background: { type: 'solid', color: '#ffffff' }
+  }
+}
+
+function createAreaChartSlide(slideId: string, content: AreaChartContent, color: string): SlideData {
+  const elements: AnySlideElement[] = []
+
+  // Accent line (use theme color)
+  elements.push(
+    createShapeElement('rectangle', {
+      id: `${slideId}-accent-line`,
+      position: { x: 80, y: 125 },
+      size: { width: 160, height: 6 },
+      fill: color,
+      zIndex: 1
+    })
+  )
+
+  // Title
+  elements.push(
+    createTextElement({
+      id: `${slideId}-title`,
+      content: content.title,
+      position: { x: 80, y: 50 },
+      size: { width: SLIDE_WIDTH - 160, height: 70 },
+      fontSize: 40,
+      fontWeight: 'bold',
+      textAlign: 'left',
+      verticalAlign: 'middle',
+      color: COLORS.dark,
+      zIndex: 1
+    })
+  )
+
+  // Chart using ChartElement with area type
+  elements.push(
+    createChartElement('area', {
+      id: `${slideId}-chart`,
+      title: '',
+      data: content.data.map(d => ({ label: d.label, value1: d.value })),
+      series: [{ key: 'value1', label: content.yAxisLabel || 'Value' }],
+      showLegend: false,
+      showGrid: true,
+      showTooltip: true,
+      position: { x: 80, y: 150 },
+      size: { width: SLIDE_WIDTH - 160, height: content.source ? 440 : 480 },
+      backgroundColor: 'transparent',
+      borderRadius: 8,
+      zIndex: 2
+    })
+  )
+
+  // Source citation
+  if (content.source) {
+    elements.push(
+      createTextElement({
+        id: `${slideId}-source`,
+        content: `Source: ${content.source}`,
+        position: { x: 80, y: SLIDE_HEIGHT - 50 },
+        size: { width: SLIDE_WIDTH - 160, height: 20 },
+        fontSize: 11,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'bottom',
+        color: COLORS.muted,
+        zIndex: 1
+      })
+    )
+  }
+
+  return {
+    id: slideId,
+    elements,
+    background: { type: 'solid', color: '#ffffff' }
+  }
+}
+
+function createRadarChartSlide(slideId: string, content: RadarChartContent, color: string): SlideData {
+  const elements: AnySlideElement[] = []
+
+  // Accent line (use theme color)
+  elements.push(
+    createShapeElement('rectangle', {
+      id: `${slideId}-accent-line`,
+      position: { x: 80, y: 125 },
+      size: { width: 160, height: 6 },
+      fill: color,
+      zIndex: 1
+    })
+  )
+
+  // Title
+  elements.push(
+    createTextElement({
+      id: `${slideId}-title`,
+      content: content.title,
+      position: { x: 80, y: 50 },
+      size: { width: SLIDE_WIDTH - 160, height: 70 },
+      fontSize: 40,
+      fontWeight: 'bold',
+      textAlign: 'left',
+      verticalAlign: 'middle',
+      color: COLORS.dark,
+      zIndex: 1
+    })
+  )
+
+  // Chart using ChartElement with radar type
+  elements.push(
+    createChartElement('radar', {
+      id: `${slideId}-chart`,
+      title: '',
+      data: content.data.map(d => ({ label: d.label, value1: d.value })),
+      series: [{ key: 'value1', label: 'Score' }],
+      showLegend: false,
+      showGrid: true,
+      showTooltip: true,
+      position: { x: 80, y: 150 },
+      size: { width: SLIDE_WIDTH - 160, height: content.source ? 440 : 480 },
+      backgroundColor: 'transparent',
+      borderRadius: 8,
+      zIndex: 2
+    })
+  )
+
+  // Source citation
+  if (content.source) {
+    elements.push(
+      createTextElement({
+        id: `${slideId}-source`,
+        content: `Source: ${content.source}`,
+        position: { x: 80, y: SLIDE_HEIGHT - 50 },
+        size: { width: SLIDE_WIDTH - 160, height: 20 },
+        fontSize: 11,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'bottom',
+        color: COLORS.muted,
+        zIndex: 1
+      })
+    )
+  }
+
+  return {
+    id: slideId,
+    elements,
+    background: { type: 'solid', color: '#ffffff' }
+  }
+}
+
+function createSWOTSlide(slideId: string, content: SWOTContent): SlideData {
+  const elements: AnySlideElement[] = []
+
+  // Title
+  elements.push(
+    createTextElement({
+      id: `${slideId}-title`,
+      content: content.title,
+      position: { x: 80, y: 30 },
+      size: { width: SLIDE_WIDTH - 160, height: 60 },
+      fontSize: 36,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      verticalAlign: 'middle',
+      color: COLORS.dark,
+      zIndex: 1
+    })
+  )
+
+  // SWOT quadrant colors (using semantic colors)
+  const quadrantColors = {
+    strengths: '#22c55e',
+    weaknesses: '#ef4444',
+    opportunities: '#3b82f6',
+    threats: '#f97316'
+  }
+
+  const quadrantWidth = (SLIDE_WIDTH - 200) / 2
+  const quadrantHeight = 280
+  const startY = 110
+  const leftX = 80
+  const rightX = leftX + quadrantWidth + 40
+
+  // Quadrant labels and positions
+  const quadrants = [
+    { key: 'strengths', label: 'S', title: 'Strengths', items: content.strengths, x: leftX, y: startY },
+    { key: 'weaknesses', label: 'W', title: 'Weaknesses', items: content.weaknesses, x: rightX, y: startY },
+    {
+      key: 'opportunities',
+      label: 'O',
+      title: 'Opportunities',
+      items: content.opportunities,
+      x: leftX,
+      y: startY + quadrantHeight + 20
+    },
+    { key: 'threats', label: 'T', title: 'Threats', items: content.threats, x: rightX, y: startY + quadrantHeight + 20 }
+  ]
+
+  quadrants.forEach(q => {
+    const qColor = quadrantColors[q.key as keyof typeof quadrantColors]
+
+    // Quadrant background
+    elements.push(
+      createShapeElement('rectangle', {
+        id: `${slideId}-${q.key}-bg`,
+        position: { x: q.x, y: q.y },
+        size: { width: quadrantWidth, height: quadrantHeight },
+        fill: `${qColor}10`,
+        stroke: qColor,
+        strokeWidth: 2,
+        borderRadius: 8,
+        zIndex: 1
+      })
+    )
+
+    // Quadrant letter badge
+    elements.push(
+      createShapeElement('rectangle', {
+        id: `${slideId}-${q.key}-badge`,
+        position: { x: q.x + 12, y: q.y + 12 },
+        size: { width: 36, height: 36 },
+        fill: qColor,
+        borderRadius: 6,
+        zIndex: 2
+      })
+    )
+
+    elements.push(
+      createTextElement({
+        id: `${slideId}-${q.key}-letter`,
+        content: q.label,
+        position: { x: q.x + 12, y: q.y + 12 },
+        size: { width: 36, height: 36 },
+        fontSize: 20,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        verticalAlign: 'middle',
+        color: '#ffffff',
+        zIndex: 3
+      })
+    )
+
+    // Quadrant title
+    elements.push(
+      createTextElement({
+        id: `${slideId}-${q.key}-title`,
+        content: q.title,
+        position: { x: q.x + 56, y: q.y + 12 },
+        size: { width: quadrantWidth - 68, height: 36 },
+        fontSize: 16,
+        fontWeight: 'bold',
+        textAlign: 'left',
+        verticalAlign: 'middle',
+        color: qColor,
+        zIndex: 2
+      })
+    )
+
+    // Quadrant items
+    const itemsText = q.items
+      .slice(0, 4)
+      .map(item => `• ${item}`)
+      .join('\n')
+    elements.push(
+      createTextElement({
+        id: `${slideId}-${q.key}-items`,
+        content: itemsText,
+        position: { x: q.x + 16, y: q.y + 56 },
+        size: { width: quadrantWidth - 32, height: quadrantHeight - 72 },
+        fontSize: 14,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'top',
+        color: COLORS.dark,
+        lineHeight: 1.6,
+        zIndex: 2
+      })
+    )
   })
-  elements.push(...chartElements)
+
+  return {
+    id: slideId,
+    elements,
+    background: { type: 'solid', color: '#ffffff' }
+  }
+}
+
+function createFunnelSlide(slideId: string, content: FunnelContent, color: string): SlideData {
+  const elements: AnySlideElement[] = []
+
+  // Accent line
+  elements.push(
+    createShapeElement('rectangle', {
+      id: `${slideId}-accent-line`,
+      position: { x: 80, y: 125 },
+      size: { width: 160, height: 6 },
+      fill: color,
+      zIndex: 1
+    })
+  )
+
+  // Title
+  elements.push(
+    createTextElement({
+      id: `${slideId}-title`,
+      content: content.title,
+      position: { x: 80, y: 50 },
+      size: { width: SLIDE_WIDTH - 160, height: 70 },
+      fontSize: 40,
+      fontWeight: 'bold',
+      textAlign: 'left',
+      verticalAlign: 'middle',
+      color: COLORS.dark,
+      zIndex: 1
+    })
+  )
+
+  // Funnel stages
+  const stages = content.stages.slice(0, 6)
+  const funnelTop = 180
+  const funnelHeight = 420
+  const stageHeight = funnelHeight / stages.length
+  const maxWidth = SLIDE_WIDTH - 300
+  const minWidth = 200
+
+  stages.forEach((stage, index) => {
+    const progress = index / (stages.length - 1 || 1)
+    const stageWidth = maxWidth - (maxWidth - minWidth) * progress
+    const stageX = (SLIDE_WIDTH - stageWidth) / 2
+    const stageY = funnelTop + index * stageHeight
+
+    // Calculate color gradient (darker as we go down)
+    const colorIntensity = 1 - progress * 0.5
+
+    // Stage background (trapezoid effect using overlapping rectangles)
+    elements.push(
+      createShapeElement('rectangle', {
+        id: `${slideId}-stage-${index}-bg`,
+        position: { x: stageX, y: stageY },
+        size: { width: stageWidth, height: stageHeight - 4 },
+        fill: color,
+        opacity: colorIntensity,
+        borderRadius: 4,
+        zIndex: 2
+      })
+    )
+
+    // Stage label
+    elements.push(
+      createTextElement({
+        id: `${slideId}-stage-${index}-label`,
+        content: stage.label,
+        position: { x: stageX + 20, y: stageY },
+        size: { width: stageWidth - 150, height: stageHeight - 4 },
+        fontSize: 16,
+        fontWeight: 'semibold',
+        textAlign: 'left',
+        verticalAlign: 'middle',
+        color: '#ffffff',
+        zIndex: 3
+      })
+    )
+
+    // Stage value
+    const valueText = stage.percentage
+      ? `${stage.value.toLocaleString()} (${stage.percentage}%)`
+      : stage.value.toLocaleString()
+
+    elements.push(
+      createTextElement({
+        id: `${slideId}-stage-${index}-value`,
+        content: valueText,
+        position: { x: stageX + stageWidth - 140, y: stageY },
+        size: { width: 120, height: stageHeight - 4 },
+        fontSize: 14,
+        fontWeight: 'bold',
+        textAlign: 'right',
+        verticalAlign: 'middle',
+        color: '#ffffff',
+        zIndex: 3
+      })
+    )
+  })
+
+  // Source citation
+  if (content.source) {
+    elements.push(
+      createTextElement({
+        id: `${slideId}-source`,
+        content: `Source: ${content.source}`,
+        position: { x: 80, y: SLIDE_HEIGHT - 50 },
+        size: { width: SLIDE_WIDTH - 160, height: 20 },
+        fontSize: 11,
+        fontWeight: 'normal',
+        textAlign: 'left',
+        verticalAlign: 'bottom',
+        color: COLORS.muted,
+        zIndex: 1
+      })
+    )
+  }
+
+  return {
+    id: slideId,
+    elements,
+    background: { type: 'solid', color: '#ffffff' }
+  }
+}
+
+function createPyramidSlide(slideId: string, content: PyramidContent, color: string): SlideData {
+  const elements: AnySlideElement[] = []
+
+  // Title
+  elements.push(
+    createTextElement({
+      id: `${slideId}-title`,
+      content: content.title,
+      position: { x: 80, y: 30 },
+      size: { width: SLIDE_WIDTH - 160, height: 60 },
+      fontSize: 36,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      verticalAlign: 'middle',
+      color: COLORS.dark,
+      zIndex: 1
+    })
+  )
+
+  // Pyramid levels (from top to bottom, getting wider)
+  const levels = content.levels.slice(0, 5)
+  const pyramidTop = 120
+  const pyramidHeight = 520
+  const levelHeight = pyramidHeight / levels.length
+  const minWidth = 150
+  const maxWidth = SLIDE_WIDTH - 200
+
+  levels.forEach((level, index) => {
+    const progress = index / (levels.length - 1 || 1)
+    const levelWidth = minWidth + (maxWidth - minWidth) * progress
+    const levelX = (SLIDE_WIDTH - levelWidth) / 2
+    const levelY = pyramidTop + index * levelHeight
+
+    // Level background
+    const colorIntensity = 1 - progress * 0.4
+    elements.push(
+      createShapeElement('rectangle', {
+        id: `${slideId}-level-${index}-bg`,
+        position: { x: levelX, y: levelY },
+        size: { width: levelWidth, height: levelHeight - 8 },
+        fill: color,
+        opacity: colorIntensity,
+        borderRadius: 6,
+        zIndex: 2
+      })
+    )
+
+    // Level label
+    elements.push(
+      createTextElement({
+        id: `${slideId}-level-${index}-label`,
+        content: level.label,
+        position: { x: levelX + 20, y: levelY },
+        size: { width: levelWidth - 40, height: level.description ? (levelHeight - 8) * 0.5 : levelHeight - 8 },
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        verticalAlign: level.description ? 'bottom' : 'middle',
+        color: '#ffffff',
+        zIndex: 3
+      })
+    )
+
+    // Level description (if provided)
+    if (level.description) {
+      elements.push(
+        createTextElement({
+          id: `${slideId}-level-${index}-desc`,
+          content: level.description,
+          position: { x: levelX + 20, y: levelY + (levelHeight - 8) * 0.45 },
+          size: { width: levelWidth - 40, height: (levelHeight - 8) * 0.5 },
+          fontSize: 12,
+          fontWeight: 'normal',
+          textAlign: 'center',
+          verticalAlign: 'top',
+          color: 'rgba(255,255,255,0.9)',
+          zIndex: 3
+        })
+      )
+    }
+  })
+
+  return {
+    id: slideId,
+    elements,
+    background: { type: 'solid', color: '#ffffff' }
+  }
+}
+
+function createIconGridSlide(slideId: string, content: IconGridContent, color: string): SlideData {
+  const elements: AnySlideElement[] = []
+
+  // Title
+  elements.push(
+    createTextElement({
+      id: `${slideId}-title`,
+      content: content.title,
+      position: { x: 80, y: 30 },
+      size: { width: SLIDE_WIDTH - 160, height: 60 },
+      fontSize: 36,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      verticalAlign: 'middle',
+      color: COLORS.dark,
+      zIndex: 1
+    })
+  )
+
+  // Grid layout
+  const columns = content.columns || 3
+  const items = content.items.slice(0, columns * 3)
+  const rows = Math.ceil(items.length / columns)
+  const gridTop = 120
+  const gridLeft = 100
+  const gridWidth = SLIDE_WIDTH - 200
+  const gridHeight = 520
+  const cellWidth = gridWidth / columns
+  const cellHeight = gridHeight / rows
+
+  items.forEach((item, index) => {
+    const col = index % columns
+    const row = Math.floor(index / columns)
+    const cellX = gridLeft + col * cellWidth
+    const cellY = gridTop + row * cellHeight
+
+    // Icon circle
+    elements.push(
+      createShapeElement('ellipse', {
+        id: `${slideId}-icon-${index}-circle`,
+        position: { x: cellX + (cellWidth - 60) / 2, y: cellY + 10 },
+        size: { width: 60, height: 60 },
+        fill: `${color}20`,
+        stroke: color,
+        strokeWidth: 2,
+        zIndex: 2
+      })
+    )
+
+    // Icon placeholder (letter for icon name)
+    elements.push(
+      createTextElement({
+        id: `${slideId}-icon-${index}-letter`,
+        content: item.icon.charAt(0).toUpperCase(),
+        position: { x: cellX + (cellWidth - 60) / 2, y: cellY + 10 },
+        size: { width: 60, height: 60 },
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        verticalAlign: 'middle',
+        color: color,
+        zIndex: 3
+      })
+    )
+
+    // Label
+    elements.push(
+      createTextElement({
+        id: `${slideId}-icon-${index}-label`,
+        content: item.label,
+        position: { x: cellX + 10, y: cellY + 80 },
+        size: { width: cellWidth - 20, height: 30 },
+        fontSize: 16,
+        fontWeight: 'semibold',
+        textAlign: 'center',
+        verticalAlign: 'top',
+        color: COLORS.dark,
+        zIndex: 2
+      })
+    )
+
+    // Description (if provided)
+    if (item.description) {
+      elements.push(
+        createTextElement({
+          id: `${slideId}-icon-${index}-desc`,
+          content: item.description,
+          position: { x: cellX + 10, y: cellY + 110 },
+          size: { width: cellWidth - 20, height: cellHeight - 130 },
+          fontSize: 12,
+          fontWeight: 'normal',
+          textAlign: 'center',
+          verticalAlign: 'top',
+          color: COLORS.muted,
+          zIndex: 2
+        })
+      )
+    }
+  })
+
+  return {
+    id: slideId,
+    elements,
+    background: { type: 'solid', color: '#ffffff' }
+  }
+}
+
+function createRoadmapSlide(slideId: string, content: RoadmapContent, color: string): SlideData {
+  const elements: AnySlideElement[] = []
+
+  // Title
+  elements.push(
+    createTextElement({
+      id: `${slideId}-title`,
+      content: content.title,
+      position: { x: 80, y: 30 },
+      size: { width: SLIDE_WIDTH - 160, height: 60 },
+      fontSize: 36,
+      fontWeight: 'bold',
+      textAlign: 'left',
+      verticalAlign: 'middle',
+      color: COLORS.dark,
+      zIndex: 1
+    })
+  )
+
+  // Timeline line
+  const timelineY = 350
+  elements.push(
+    createShapeElement('rectangle', {
+      id: `${slideId}-timeline-line`,
+      position: { x: 80, y: timelineY - 2 },
+      size: { width: SLIDE_WIDTH - 160, height: 4 },
+      fill: COLORS.muted,
+      borderRadius: 2,
+      zIndex: 1
+    })
+  )
+
+  // Milestones
+  const milestones = content.milestones.slice(0, 6)
+  const timelineWidth = SLIDE_WIDTH - 200
+  const milestoneSpacing = timelineWidth / (milestones.length - 1 || 1)
+
+  milestones.forEach((milestone, index) => {
+    const x = 100 + index * milestoneSpacing
+
+    // Status colors
+    const statusColors = {
+      completed: '#22c55e',
+      current: color,
+      upcoming: COLORS.muted
+    }
+    const milestoneColor = statusColors[milestone.status || 'upcoming']
+
+    // Milestone dot
+    elements.push(
+      createShapeElement('ellipse', {
+        id: `${slideId}-milestone-${index}-dot`,
+        position: { x: x - 12, y: timelineY - 12 },
+        size: { width: 24, height: 24 },
+        fill: milestoneColor,
+        zIndex: 3
+      })
+    )
+
+    // Inner dot for current
+    if (milestone.status === 'current') {
+      elements.push(
+        createShapeElement('ellipse', {
+          id: `${slideId}-milestone-${index}-inner`,
+          position: { x: x - 6, y: timelineY - 6 },
+          size: { width: 12, height: 12 },
+          fill: '#ffffff',
+          zIndex: 4
+        })
+      )
+    }
+
+    // Check mark for completed
+    if (milestone.status === 'completed') {
+      elements.push(
+        createTextElement({
+          id: `${slideId}-milestone-${index}-check`,
+          content: '✓',
+          position: { x: x - 12, y: timelineY - 12 },
+          size: { width: 24, height: 24 },
+          fontSize: 14,
+          fontWeight: 'bold',
+          textAlign: 'center',
+          verticalAlign: 'middle',
+          color: '#ffffff',
+          zIndex: 4
+        })
+      )
+    }
+
+    // Date (above the line)
+    elements.push(
+      createTextElement({
+        id: `${slideId}-milestone-${index}-date`,
+        content: milestone.date,
+        position: { x: x - 60, y: timelineY - 70 },
+        size: { width: 120, height: 30 },
+        fontSize: 12,
+        fontWeight: 'semibold',
+        textAlign: 'center',
+        verticalAlign: 'bottom',
+        color: milestoneColor,
+        zIndex: 2
+      })
+    )
+
+    // Title (below the line)
+    elements.push(
+      createTextElement({
+        id: `${slideId}-milestone-${index}-title`,
+        content: milestone.title,
+        position: { x: x - 80, y: timelineY + 30 },
+        size: { width: 160, height: 40 },
+        fontSize: 14,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        verticalAlign: 'top',
+        color: COLORS.dark,
+        zIndex: 2
+      })
+    )
+
+    // Description (if provided)
+    if (milestone.description) {
+      elements.push(
+        createTextElement({
+          id: `${slideId}-milestone-${index}-desc`,
+          content: milestone.description,
+          position: { x: x - 80, y: timelineY + 70 },
+          size: { width: 160, height: 60 },
+          fontSize: 11,
+          fontWeight: 'normal',
+          textAlign: 'center',
+          verticalAlign: 'top',
+          color: COLORS.muted,
+          lineHeight: 1.4,
+          zIndex: 2
+        })
+      )
+    }
+  })
 
   return {
     id: slideId,

@@ -14,13 +14,187 @@ import { generateSlideFromLayout, type SlideLayoutContent, type SlideLayoutType 
 import { SlidesApiService } from './SlidesApiService'
 import type { SlideTemplate } from '../types'
 
+const API_URL = getDocumentServiceApiUrl()
+
 // Content types for references
-export type ContentType = 'document' | 'spreadsheet' | 'note' | 'slides'
+export type ContentType = 'document' | 'spreadsheet' | 'note' | 'slide'
 
 export interface ContentReference {
   id: string
   type: ContentType
   title: string
+}
+
+/**
+ * Fetch content from a reference document/note/spreadsheet/slide
+ */
+async function fetchReferenceContent(
+  ref: ContentReference,
+  accessToken: string
+): Promise<{ title: string; content: string } | null> {
+  try {
+    const endpoint = getEndpointForType(ref.type)
+    const response = await fetch(`${API_URL}/${endpoint}/${ref.id}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    })
+
+    if (!response.ok) {
+      console.warn(`[SlideGeneration] Failed to fetch ${ref.type} ${ref.id}: ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    return extractContentFromResponse(ref.type, data, ref.title)
+  } catch (error) {
+    console.error(`[SlideGeneration] Error fetching reference ${ref.id}:`, error)
+    return null
+  }
+}
+
+function getEndpointForType(type: ContentType): string {
+  switch (type) {
+    case 'document':
+      return 'documents'
+    case 'note':
+      return 'notes'
+    case 'spreadsheet':
+      return 'spreadsheets'
+    case 'slide':
+      return 'slides'
+  }
+}
+
+function extractContentFromResponse(
+  type: ContentType,
+  data: Record<string, unknown>,
+  fallbackTitle: string
+): { title: string; content: string } {
+  const title = (data.title as string) || fallbackTitle
+
+  switch (type) {
+    case 'document':
+      return { title, content: (data.content as string) || '' }
+    case 'note':
+      return { title, content: (data.content as string) || '' }
+    case 'spreadsheet': {
+      const sheets = data.sheets as Array<{ name: string; data: unknown[][] }> | undefined
+      if (sheets && sheets.length > 0) {
+        const content = sheets
+          .map(sheet => {
+            const rows = sheet.data || []
+            return `Sheet: ${sheet.name}\n${rows.map(row => row.join('\t')).join('\n')}`
+          })
+          .join('\n\n')
+        return { title, content }
+      }
+      return { title, content: '' }
+    }
+    case 'slide': {
+      const contentJson = data.contentJson as
+        | { slides?: Array<{ elements?: Array<{ type: string; content?: string }> }> }
+        | undefined
+      if (contentJson?.slides) {
+        const content = contentJson.slides
+          .map((slide, i) => {
+            const texts = (slide.elements || [])
+              .filter(el => el.type === 'text' && el.content)
+              .map(el => el.content)
+              .join('\n')
+            return `Slide ${i + 1}:\n${texts}`
+          })
+          .join('\n\n')
+        return { title, content }
+      }
+      return { title, content: '' }
+    }
+  }
+}
+
+/**
+ * Truncate text to a maximum length, preserving complete sentences where possible
+ */
+function truncateContent(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+
+  const truncated = text.substring(0, maxLength)
+  const lastSentenceEnd = Math.max(
+    truncated.lastIndexOf('. '),
+    truncated.lastIndexOf('.\n'),
+    truncated.lastIndexOf('! '),
+    truncated.lastIndexOf('? ')
+  )
+
+  if (lastSentenceEnd > maxLength * 0.5) {
+    return truncated.substring(0, lastSentenceEnd + 1) + '...'
+  }
+
+  const lastSpace = truncated.lastIndexOf(' ')
+  return truncated.substring(0, lastSpace > 0 ? lastSpace : maxLength) + '...'
+}
+
+// Cache for fetched reference content to avoid double-fetching
+const referenceContentCache = new Map<string, { title: string; content: string } | null>()
+
+/**
+ * Fetch all reference content and format for AI prompt
+ * @param truncate - If true, truncates to fit within backend API limits
+ */
+async function fetchAndFormatReferences(
+  references: ContentReference[],
+  accessToken: string,
+  existingRequirementsLength: number = 0,
+  truncate: boolean = true
+): Promise<string> {
+  if (!references || references.length === 0) return ''
+
+  // Fetch content (with caching to avoid double requests)
+  const contents = await Promise.all(
+    references.map(async ref => {
+      const cacheKey = `${ref.type}:${ref.id}`
+      if (referenceContentCache.has(cacheKey)) {
+        return referenceContentCache.get(cacheKey)
+      }
+      const content = await fetchReferenceContent(ref, accessToken)
+      referenceContentCache.set(cacheKey, content)
+      return content
+    })
+  )
+
+  const validContents = contents.filter(
+    (c): c is { title: string; content: string } => c !== null && c.content.length > 0
+  )
+
+  if (validContents.length === 0) return ''
+
+  // Full content mode (for research service - no limit)
+  if (!truncate) {
+    const formatted = validContents.map(c => `### ${c.title}\n${c.content}`).join('\n\n---\n\n')
+    return `\n\nREFERENCE MATERIALS (BASE THE PRESENTATION ON THIS CONTENT):\n${formatted}`
+  }
+
+  // Truncated mode (for document-service API - 1000 char limit)
+  const HEADER = '\n\nREFERENCE:\n'
+  const MAX_TOTAL = 950
+  const availableSpace = MAX_TOTAL - existingRequirementsLength - HEADER.length - 50
+
+  if (availableSpace < 100) {
+    console.warn('[SlideGeneration] Not enough space for reference content')
+    return ''
+  }
+
+  // Distribute space among references
+  const spacePerRef = Math.floor(availableSpace / validContents.length)
+
+  const formatted = validContents
+    .map(c => {
+      const titleLine = `[${c.title}]: `
+      const contentSpace = spacePerRef - titleLine.length
+      const truncatedContent = truncateContent(c.content, Math.max(contentSpace, 50))
+      return titleLine + truncatedContent
+    })
+    .join('\n')
+
+  return HEADER + formatted
 }
 
 export interface GenerationOptions {
@@ -766,6 +940,9 @@ export async function generateSlides(
   accessToken: string,
   onProgress?: GenerationProgressCallback
 ): Promise<GenerationResult> {
+  // Clear reference content cache for fresh fetch
+  referenceContentCache.clear()
+
   let researchData: ResearchResult | undefined
   const sources: string[] = []
   let matchedTemplate: SlideTemplate | null = null
@@ -818,6 +995,42 @@ export async function generateSlides(
     }
   }
 
+  // Phase 0: Fetch reference content
+  let fullReferenceContent = ''
+  if (options.references && options.references.length > 0) {
+    onProgress?.('research', 'progress-loading-references')
+
+    try {
+      // Fetch full content (no truncation) for research service
+      fullReferenceContent = await fetchAndFormatReferences(
+        options.references,
+        accessToken,
+        0, // No truncation for full content
+        false // Don't truncate
+      )
+
+      // Create truncated version for document-service API (has 1000 char limit)
+      const existingLength = (options.additionalRequirements || '').length
+      const truncatedContent = await fetchAndFormatReferences(
+        options.references,
+        accessToken,
+        existingLength,
+        true // Truncate for API
+      )
+      if (truncatedContent) {
+        options = {
+          ...options,
+          additionalRequirements: `${options.additionalRequirements || ''}${truncatedContent}`
+        }
+        console.log(
+          `[SlideGeneration] Added ${options.references.length} reference(s) to prompt (truncated: ${truncatedContent.length} chars, full: ${fullReferenceContent.length} chars)`
+        )
+      }
+    } catch (err) {
+      console.error('[SlideGeneration] Failed to fetch reference content:', err)
+    }
+  }
+
   // Phase 1: Research (if web search enabled)
   if (options.useWebSearch) {
     onProgress?.('research', 'progress-search-info')
@@ -827,6 +1040,7 @@ export async function generateSlides(
         {
           topic: options.description,
           additionalContext: options.additionalRequirements,
+          referenceContent: fullReferenceContent || undefined,
           slideCount: SLIDE_COUNT_RANGES[options.length].target
         },
         accessToken,

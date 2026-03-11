@@ -284,6 +284,23 @@ generate-validate = Validare
 generate-cancel = Anulare
 generate-button = Generare
 generate-generating = Se generează...
+generate-use-template = Folosește șablon
+generate-clear-template = Șterge selecția șablonului
+generate-advanced-options = Opțiuni avansate
+generate-style = Stil
+generate-style-professional = Profesional
+generate-style-creative = Creativ
+generate-style-minimal = Minimal
+generate-style-bold = Îndrăzneț
+generate-density = Densitatea conținutului
+generate-density-detailed = Detaliat
+generate-density-balanced = Echilibrat
+generate-density-visual = Vizual
+generate-audience = Public țintă
+generate-audience-executive = Executiv
+generate-audience-technical = Tehnic
+generate-audience-sales = Vânzări
+generate-audience-general = General
 generate-toast-success = Prezentare generată!
 generate-toast-description = Creat { $count } slide-uri
 
@@ -367,6 +384,7 @@ attachment-no-spreadsheets = Niciun tabel disponibil
 attachment-no-slides = Niciun slide disponibil
 attachment-max-references = Maximum { $count } referințe permise
 attachment-helper = Opțional, atașați documente, note sau alt conținut ca referință pentru AI
+attachment-open-new-tab = Deschide în filă nouă
 
 # Gradient Builder
 gradient-quick-presets = Gradienturi rapide
@@ -426,6 +444,7 @@ progress-web-search-failed = Căutarea web a eșuat, continuăm fără date de c
 progress-building = Slide-urile se construiesc...
 progress-checking-templates = Se caută șabloane potrivite...
 progress-using-template = Se folosește șablonul: { $templateName }
+progress-loading-references = Se încarcă materialele de referință...
 
 # SlideGenerationService fallbacks
 generation-option-a = Opțiunea A

@@ -303,6 +303,23 @@ generate-validate = Validieren
 generate-cancel = Abbrechen
 generate-button = Generieren
 generate-generating = Wird generiert...
+generate-use-template = Vorlage verwenden
+generate-clear-template = Vorlagenauswahl löschen
+generate-advanced-options = Erweiterte Optionen
+generate-style = Stil
+generate-style-professional = Professionell
+generate-style-creative = Kreativ
+generate-style-minimal = Minimal
+generate-style-bold = Mutig
+generate-density = Inhaltsdichte
+generate-density-detailed = Detailliert
+generate-density-balanced = Ausgewogen
+generate-density-visual = Visuell
+generate-audience = Zielgruppe
+generate-audience-executive = Führungskräfte
+generate-audience-technical = Technisch
+generate-audience-sales = Vertrieb
+generate-audience-general = Allgemein
 generate-toast-success = Präsentation generiert!
 generate-toast-description = { $count } Folien erstellt
 
@@ -386,6 +403,7 @@ attachment-no-spreadsheets = Keine Tabellen verfügbar
 attachment-no-slides = Keine Folien verfügbar
 attachment-max-references = Maximal { $count } Referenzen erlaubt
 attachment-helper = Optional Dokumente, Notizen oder anderen Inhalt als Referenz für die KI anhängen
+attachment-open-new-tab = In neuem Tab öffnen
 
 # Gradient Builder
 gradient-quick-presets = Schnellvorlagen
@@ -445,6 +463,7 @@ progress-web-search-failed = Websuche fehlgeschlagen, es wird ohne Recherchedate
 progress-building = Folien werden erstellt...
 progress-checking-templates = Passende Vorlagen werden gesucht...
 progress-using-template = Vorlage wird verwendet: { $templateName }
+progress-loading-references = Referenzmaterialien werden geladen...
 
 # SlideGenerationService fallbacks
 generation-option-a = Option A
