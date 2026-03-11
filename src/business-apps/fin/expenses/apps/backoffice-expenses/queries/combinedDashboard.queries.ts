@@ -197,12 +197,14 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
       }
     }
 
-    # 5. Transfer Required (BOOKED status - no department filter)
+    # 5. Transfer Required (BOOKED status)
     transferRequired: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "BOOKED" },
-        isDeleted: { _eq: false },
-        currencyRef: { _eq: $selectedCurrency }
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { isDeleted: { _eq: false } },
+          { currencyRef: { _eq: $selectedCurrency } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -212,11 +214,13 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
       }
     }
 
-    # 6. Pending Requests (PENDING status - no department or currency filter)
+    # 6. Pending Requests (PENDING status)
     pendingRequests: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "PENDING" },
-        isDeleted: { _eq: false }
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { isDeleted: { _eq: false } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -224,23 +228,15 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
       }
     }
 
-    # 7. Average Spend Per Trip (current month) - with mixed date logic
+    # 7. Average Spend Per Trip (current month) - TRIP type only
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
           { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
-          { _or: [
-            { _and: [
-              { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } },
-              { expenseItem: { expenseDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd }, isDeleted: { _eq: false } } }
-            ] },
-            { _and: [
-              { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
-              { startDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } }
-            ] }
-          ] }${getDeptFilter(hasDepartment)}
+          { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
+          { startDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } }${getDeptFilter(hasDepartment)}
         ]
       }
     ) {
@@ -251,11 +247,11 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
       }
     }
 
-    # 8. Advance Payments Approved/Booked (current month) - with mixed date logic
+    # 8. Advance Payments Approved/Booked/Transferred (current month) - with mixed date logic
     advancePaymentsApproved: AdvancePaymentAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "BOOKED"] } },
+          { status: { _in: ["APPROVED", "BOOKED", "TRANSFERRED"] } },
           { isDeleted: { _eq: false } },
           { currencyRef: { _eq: $selectedCurrency } },
           { _or: [
@@ -515,9 +511,11 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
 
     transferRequired: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "BOOKED" },
-        isDeleted: { _eq: false },
-        currencyRef: { _eq: $selectedCurrency }
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { isDeleted: { _eq: false } },
+          { currencyRef: { _eq: $selectedCurrency } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -529,8 +527,10 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
 
     pendingRequests: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "PENDING" },
-        isDeleted: { _eq: false }
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { isDeleted: { _eq: false } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -544,16 +544,8 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
           { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
-          { _or: [
-            { _and: [
-              { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } },
-              { expenseItem: { expenseDate: { _gte: $currentQuarterStart, _lt: $currentQuarterEnd }, isDeleted: { _eq: false } } }
-            ] },
-            { _and: [
-              { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
-              { startDate: { _gte: $currentQuarterStart, _lt: $currentQuarterEnd } }
-            ] }
-          ] }${getDeptFilter(hasDepartment)}
+          { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
+          { startDate: { _gte: $currentQuarterStart, _lt: $currentQuarterEnd } }${getDeptFilter(hasDepartment)}
         ]
       }
     ) {
@@ -567,7 +559,7 @@ export const GET_COMBINED_DASHBOARD_STATS_QUARTERLY = (hasDepartment: boolean) =
     advancePaymentsApproved: AdvancePaymentAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "BOOKED"] } },
+          { status: { _in: ["APPROVED", "BOOKED", "TRANSFERRED"] } },
           { isDeleted: { _eq: false } },
           { currencyRef: { _eq: $selectedCurrency } },
           { _or: [
@@ -763,9 +755,11 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
 
     transferRequired: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "BOOKED" },
-        isDeleted: { _eq: false },
-        currencyRef: { _eq: $selectedCurrency }
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { isDeleted: { _eq: false } },
+          { currencyRef: { _eq: $selectedCurrency } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -777,8 +771,10 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
 
     pendingRequests: ExpenseRequestAggregate(
       where: {
-        status: { _eq: "PENDING" },
-        isDeleted: { _eq: false }
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { isDeleted: { _eq: false } }${getDeptFilter(hasDepartment)}
+        ]
       }
     ) {
       aggregate {
@@ -792,16 +788,8 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
           { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { isDeleted: { _eq: false } },
-          { _or: [
-            { _and: [
-              { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } },
-              { expenseItem: { expenseDate: { _gte: $currentYearStart, _lt: $currentYearEnd }, isDeleted: { _eq: false } } }
-            ] },
-            { _and: [
-              { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
-              { startDate: { _gte: $currentYearStart, _lt: $currentYearEnd } }
-            ] }
-          ] }${getDeptFilter(hasDepartment)}
+          { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
+          { startDate: { _gte: $currentYearStart, _lt: $currentYearEnd } }${getDeptFilter(hasDepartment)}
         ]
       }
     ) {
@@ -815,7 +803,7 @@ export const GET_COMBINED_DASHBOARD_STATS_YEARLY = (hasDepartment: boolean) => `
     advancePaymentsApproved: AdvancePaymentAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "BOOKED"] } },
+          { status: { _in: ["APPROVED", "BOOKED", "TRANSFERRED"] } },
           { isDeleted: { _eq: false } },
           { currencyRef: { _eq: $selectedCurrency } },
           { _or: [
