@@ -117,6 +117,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
   '/platform/create/screen-builder': 'core/create/apps/ai-builder',
   '/platform/create/ai-builder': 'core/create/apps/ai-orchestrator',
+  '/platform/create/ai-builder-admin': 'core/create/apps/ai-builder-admin',
+  '/platform/create/ai-orchestrator-admin': 'core/create/apps/ai-builder-admin',
   '/platform/create/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
   '/platform/create/apps/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
   '/platform/create/resource-preview-demo': 'core/create/apps/resource-preview-demo',

@@ -43,7 +43,7 @@ export interface CompleteViewProps {
   isPublishing?: boolean
   publishSuccess?: boolean
   publishError?: string | null
-  onPublish?: () => void
+  onPublish?: () => void | Promise<void>
   onReset?: () => void
   isRestoringSession?: boolean
 }

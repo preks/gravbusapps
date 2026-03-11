@@ -83,7 +83,12 @@ function buildNodeData(
     case 'join':
       return { ...base, joinCondition: meta.joinCondition }
     case 'end':
-      return { ...base, summaryFieldsCount: meta.summaryFieldsCount }
+      return {
+        ...base,
+        title: node.label,
+        description: meta.description,
+        summaryFieldsCount: meta.summaryFieldsCount
+      }
     default:
       return base
   }
