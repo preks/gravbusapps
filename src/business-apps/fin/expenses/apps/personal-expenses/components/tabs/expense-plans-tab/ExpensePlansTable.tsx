@@ -317,11 +317,16 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         dateRangeTokens.push('effectiveDateRange')
       if (applyDateRangeFromFilter(filters.startDateRange, setStartDateRange)) dateRangeTokens.push('startDateRange')
       if (applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)) dateRangeTokens.push('endDateRange')
-      props.setFilters([...statusIds, ...planTypeIds, ...dateRangeTokens])
+      // Preserve currency and top-destination; the filter sheet only controls status, plan type, and date ranges
+      const preserved = (props.selectedFilters || []).filter(
+        f => f.startsWith('currency:') || f.startsWith('topDestination:')
+      )
+      props.setFilters([...preserved, ...statusIds, ...planTypeIds, ...dateRangeTokens])
       onFiltersChange?.()
     },
     [
       props.setFilters,
+      props.selectedFilters,
       setPlanDateRange,
       setEffectiveDateRange,
       setStartDateRange,

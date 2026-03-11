@@ -333,6 +333,38 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     setItems(fetchedItems)
   }
 
+  const performRequest = useCallback(
+    async (
+      controller: AbortController,
+      requestKey: string,
+      cacheKey: string,
+      query: string,
+      variables: GraphQLVariables
+    ): Promise<void> => {
+      const baseRequestPromise = graphqlClient.request<any>(query, variables)
+      const requestPromise = makeCancellableRequest(baseRequestPromise, controller).finally(() => {
+        inflightRef.current.delete(requestKey)
+      })
+      inflightRef.current.set(requestKey, requestPromise)
+      try {
+        const result = await requestPromise
+        if (abortControllerRef.current !== controller) return
+        processResponseData(result, cacheKey)
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+        if (abortControllerRef.current !== controller) return
+        setError(err instanceof Error ? err : new Error(String(err)))
+        setItems([])
+        setTotalCount(0)
+      } finally {
+        if (abortControllerRef.current === controller) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [graphqlClient, processResponseData]
+  )
+
   const fetchItems = useCallback(
     async (options: FetchItemsOptions = {}) => {
       const {
@@ -400,76 +432,42 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         return
       }
 
-      // Only show loading when we have no data yet (initial load); skip for sort/pagination to avoid table rerender/flash (same as items table)
       if (itemsRef.current.length === 0) {
         setIsLoading(true)
       }
       setError(null)
 
-      try {
-        const filters: AdvancePaymentFilters = {
-          statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
-          amountRange: amountRange || undefined,
-          advanceRange: advanceRange || undefined,
-          currencyRef: currencyRef || undefined
-        }
-
-        const filterState = validateFilters(filters)
-        const query = buildAdvancePaymentsListQuery(filters, { includeSearch })
-        const variables = buildVariables({
-          employeeId,
-          searchTerm,
-          includeSearch,
-          page,
-          pageSize,
-          sortField: sortField || null,
-          sortOrder: sortOrder || null,
-          filters,
-          filterState
-        })
-
-        const baseRequestPromise = graphqlClient.request<any>(query, variables)
-        const requestPromise = makeCancellableRequest(baseRequestPromise, controller).finally(() => {
-          inflightRef.current.delete(requestKey)
-        })
-
-        inflightRef.current.set(requestKey, requestPromise)
-        const result = await requestPromise
-
-        // If a newer request started, ignore this response.
-        if (abortControllerRef.current !== controller) {
-          return
-        }
-
-        processResponseData(result, cacheKey)
-      } catch (err) {
-        // Ignore errors from cancelled/stale requests
-        if (err instanceof Error && err.name === 'AbortError') {
-          return
-        }
-        if (abortControllerRef.current !== controller) {
-          return
-        }
-        setError(err instanceof Error ? err : new Error(String(err)))
-        setItems([])
-        setTotalCount(0)
-      } finally {
-        if (abortControllerRef.current === controller) {
-          setIsLoading(false)
-        }
+      const filters: AdvancePaymentFilters = {
+        statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
+        amountRange: amountRange || undefined,
+        advanceRange: advanceRange || undefined,
+        currencyRef: currencyRef || undefined
       }
+      const filterState = validateFilters(filters)
+      const query = buildAdvancePaymentsListQuery(filters, { includeSearch })
+      const variables = buildVariables({
+        employeeId,
+        searchTerm,
+        includeSearch,
+        page,
+        pageSize,
+        sortField: sortField || null,
+        sortOrder: sortOrder || null,
+        filters,
+        filterState
+      })
+      await performRequest(controller, requestKey, cacheKey, query, variables)
     },
     [
       context?.userInfo?.employeeDetails?.employeeId,
       context?.accessToken,
-      graphqlClient,
       generateCacheKey,
       validateAndGetValues,
       handleCachedData,
       checkCallSignature,
       handleInflightRequest,
       buildVariables,
-      processResponseData
+      performRequest
     ]
   )
 

@@ -34,6 +34,46 @@ import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
+function applyExpenseDateRangeFromFilters(
+  rawDateRange: unknown,
+  setExpenseDateRange: (range: [Date | null, Date | null] | null) => void
+): void {
+  const isDisplayString =
+    typeof rawDateRange === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(rawDateRange) && !rawDateRange.includes(',')
+  if (isDisplayString) return
+  const obj = rawDateRange as { from?: unknown; to?: unknown } | null | undefined
+  const raw: string | string[] | null | undefined =
+    rawDateRange == null
+      ? undefined
+      : typeof rawDateRange === 'object' &&
+          !Array.isArray(rawDateRange) &&
+          ('from' in rawDateRange || 'to' in rawDateRange)
+        ? [obj?.from, obj?.to].filter(Boolean).join(',')
+        : typeof rawDateRange === 'string' || Array.isArray(rawDateRange)
+          ? rawDateRange
+          : undefined
+  const normalized = normalizeDateRange(raw)
+  if (normalized && (normalized.from || normalized.to)) {
+    setExpenseDateRange([
+      normalized.from ? new Date(normalized.from) : null,
+      normalized.to ? new Date(normalized.to) : null
+    ])
+  } else {
+    setExpenseDateRange(null)
+  }
+}
+
+function applyAmountRangeFromFilters(
+  amt: { min?: number; max?: number } | undefined,
+  setAmountRange: (range: { min?: number; max?: number } | null) => void
+): void {
+  if (amt && (amt.min !== undefined || amt.max !== undefined)) {
+    setAmountRange({ min: amt.min, max: amt.max })
+  } else {
+    setAmountRange(null)
+  }
+}
+
 export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   onAddExpenseItem: () => void
   selectedFilters: string[]
@@ -82,7 +122,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   // Stable signature for "effective filters" (selectedFilters + active widget) – used to reset pagination when filters change (opportunity-style; keeps card link)
   const filterSignature = useMemo(
-    () => [...allSelectedFilters].sort().join('\0') + '\0' + (props.activeWidgetKey ?? ''),
+    () => [...allSelectedFilters].sort((a, b) => a.localeCompare(b)).join('\0') + '\0' + (props.activeWidgetKey ?? ''),
     [allSelectedFilters, props.activeWidgetKey]
   )
 
@@ -277,40 +317,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     []
   )
 
-  // When DataDisplay filter sheet applies changes, sync back to hook state (keeps card link)
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, any>) => {
       const statusIds = (filters.statusIds as string[] | undefined) || []
       setFilters(statusIds)
-      // Support multiple formats: { from, to }, string "from,to", or array [from, to]. Ignore display-only strings (e.g. "Jan 1, 2024 – Jan 31, 2024") so we don't clear the range.
-      const rawDateRange = filters.expenseDateRange
-      const isDisplayString =
-        typeof rawDateRange === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(rawDateRange) && !rawDateRange.includes(',')
-      if (!isDisplayString) {
-        const normalized = normalizeDateRange(
-          rawDateRange == null
-            ? undefined
-            : typeof rawDateRange === 'object' &&
-                !Array.isArray(rawDateRange) &&
-                ('from' in rawDateRange || 'to' in rawDateRange)
-              ? [rawDateRange.from, rawDateRange.to].filter(Boolean).join(',')
-              : rawDateRange
-        )
-        if (normalized && (normalized.from || normalized.to)) {
-          setExpenseDateRange([
-            normalized.from ? new Date(normalized.from) : null,
-            normalized.to ? new Date(normalized.to) : null
-          ])
-        } else {
-          setExpenseDateRange(null)
-        }
-      }
-      const amt = filters.amount as { min?: number; max?: number } | undefined
-      if (amt && (amt.min !== undefined || amt.max !== undefined)) {
-        setAmountRange({ min: amt.min, max: amt.max })
-      } else {
-        setAmountRange(null)
-      }
+      applyExpenseDateRangeFromFilters(filters.expenseDateRange, setExpenseDateRange)
+      applyAmountRangeFromFilters(filters.amount as { min?: number; max?: number } | undefined, setAmountRange)
       setCurrentPage(1)
     },
     [setFilters, setExpenseDateRange, setAmountRange]

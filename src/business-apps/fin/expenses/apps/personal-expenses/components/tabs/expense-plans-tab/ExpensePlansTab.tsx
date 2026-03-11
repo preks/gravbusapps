@@ -10,7 +10,6 @@ import { getPlanCardStrategies, preserveCurrencyAndResetPlans } from './cardStra
 // ExpenseStatus usage moved into strategies
 import { useExpensePlanCurrencies } from '../../../hooks/useExpensePlanCurrencies'
 import { getSelectedCurrencyRef, pickMostUsedCurrencyRef } from '../../../utils/currencyUtils'
-import { useDebounce } from '@/common/hooks/useDebounce'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseStatus } from '../../../utils'
 
@@ -55,8 +54,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   } = useExpensePlanFilters()
 
   const availableStatuses = useMemo(() => Object.values(ExpenseStatus).filter(s => s !== ExpenseStatus.DISCARDED), [])
-
-  const debouncedSelectedFilters = useDebounce(selectedFilters, 200) // Reduced from 300ms for faster filter response
 
   const {
     data: overview,
@@ -121,6 +118,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
   // Track previous selectedFilters to reset pagination when filters change.
   const prevSelectedFiltersRef = useRef<string | null>(null)
+  // When filters change we must fetch page 1; track filters key so the fetch effect can force page 1.
+  const lastFiltersKeyRef = useRef<string>('')
   // Track previous search to detect when search is cleared
   const prevSearchRef = useRef<string>('')
 
@@ -255,13 +254,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     [activeWidget, destinationFilter]
   )
 
-  // Memoize the filters to prevent unnecessary API calls
+  // Memoize the filters for API calls. Depend on selectedFilters (not debounced) so that when the
+  // user applies a status/filter, we refetch immediately with the new filters and correct page.
   const memoizedFilters = useMemo(() => {
-    const baseFilters = getFilters() // This now uses debouncedSearch internally
+    const baseFilters = getFilters()
     // Filter by currency only when explicitly selected
     if (explicitSelectedCurrencyRef) {
       baseFilters._and = baseFilters._and || []
-      // Match by ref OR by code (to handle v1/v2 ref differences), for both plan and related request
       const selectedCode = (explicitSelectedCurrencyRef.split(':').pop() || '').toUpperCase()
       baseFilters._and.push({
         _or: [
@@ -278,12 +277,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     }
     const finalFilters = buildWidgetFilters(baseFilters)
     return finalFilters
-  }, [getFilters, buildWidgetFilters, explicitSelectedCurrencyRef, debouncedSelectedFilters])
+  }, [getFilters, buildWidgetFilters, explicitSelectedCurrencyRef, selectedFilters])
 
   // Only fetch when filters, page, pageSize, or sorting changes and context is ready
   useEffect(() => {
-    // Avoid an initial fetch that will immediately be invalidated by currency auto-selection.
-    // We only fetch once currency is explicitly present in filters (unless user suppressed auto-select).
     const hasExplicitCurrency = !!explicitSelectedCurrencyRef
     const canFetch =
       !!props.accessToken &&
@@ -292,7 +289,14 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
     if (canFetch) {
       const statsCurrency = explicitSelectedCurrencyRef || 'Currency:v1:EUR'
-      fetchOverview(memoizedFilters, currentPage, pageSize, sortField, sortOrder, statsCurrency)
+      const filtersKey = JSON.stringify(memoizedFilters)
+      const filtersChanged = filtersKey !== lastFiltersKeyRef.current
+      if (filtersChanged) {
+        lastFiltersKeyRef.current = filtersKey
+        setCurrentPage(1)
+      }
+      const pageToFetch = filtersChanged ? 1 : currentPage
+      fetchOverview(memoizedFilters, pageToFetch, pageSize, sortField, sortOrder, statsCurrency)
     }
   }, [
     fetchOverview,
@@ -307,19 +311,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     suppressCurrencyAutoSelect
   ])
 
-  // Reset pagination when filters change (e.g., applying a status filter while on a later page).
-  // Use debounced filters to avoid resetting page multiple times during rapid filter changes
+  // When filters change (e.g. apply status filter while on page 2), reset to page 1 so the next
+  // fetch (triggered by memoizedFilters + currentPage in the main effect) uses page 1.
   useEffect(() => {
-    const currentFiltersKey = JSON.stringify(debouncedSelectedFilters)
+    const currentFiltersKey = JSON.stringify(selectedFilters)
     const previousFiltersKey = prevSelectedFiltersRef.current
 
-    // Skip on initial render; only react to actual changes.
     if (previousFiltersKey !== null && previousFiltersKey !== currentFiltersKey) {
       setCurrentPage(1)
     }
 
     prevSelectedFiltersRef.current = currentFiltersKey
-  }, [debouncedSelectedFilters])
+  }, [selectedFilters])
 
   // Force refetch when search is cleared to ensure table repopulates with correct filters
   useEffect(() => {
@@ -461,10 +464,26 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     }
   }, [props.onContentHeaderChange, contentHeader])
 
-  // Enhanced table change handler for server-side sorting
+  const getNextSortState = useCallback(
+    (sorter: any): { nextField: string; nextOrder: 'ascend' | 'descend' } => {
+      if (!sorter?.field) return { nextField: 'createdAt', nextOrder: 'ascend' }
+      const isSameColumn = sortField === sorter.field
+      const orderFromTable = sorter.order !== undefined && sorter.order !== null ? sorter.order : null
+      if (isSameColumn && orderFromTable !== null) {
+        return { nextField: sorter.field, nextOrder: orderFromTable }
+      }
+      if (isSameColumn) {
+        if (sortOrder === 'ascend') return { nextField: sorter.field, nextOrder: 'descend' }
+        if (sortOrder === 'descend') return { nextField: 'createdAt', nextOrder: 'ascend' }
+        return { nextField: sorter.field, nextOrder: 'ascend' }
+      }
+      return { nextField: sorter.field, nextOrder: 'ascend' }
+    },
+    [sortField, sortOrder]
+  )
+
   const handleTableChange = useCallback(
     (pagination: any, _filters: any, sorter: any) => {
-      // Validate page number against total count to prevent invalid pagination
       const totalCount = overview?.totalCount || 0
       const maxPages = Math.max(1, Math.ceil(totalCount / pagination.pageSize))
       const validPage = pagination.current > maxPages ? 1 : pagination.current
@@ -472,31 +491,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setCurrentPage(validPage)
       setPageSize(pagination.pageSize)
 
-      // New column always starts with ascend; use table order only when cycling the same column
-      if (sorter && sorter.field) {
-        const isSameColumn = sortField === sorter.field
-        const orderFromTable = sorter.order !== undefined && sorter.order !== null ? sorter.order : null
-        let nextField = sorter.field
-        let nextOrder: 'ascend' | 'descend' | null
-        if (isSameColumn && orderFromTable !== null) {
-          nextOrder = orderFromTable
-        } else if (isSameColumn) {
-          if (sortOrder === 'ascend') nextOrder = 'descend'
-          else if (sortOrder === 'descend') {
-            nextField = 'createdAt'
-            nextOrder = 'ascend'
-          } else nextOrder = 'ascend'
-        } else {
-          nextOrder = 'ascend'
-        }
-        setSortField(nextField)
-        setSortOrder(nextOrder ?? 'ascend')
-      } else {
-        setSortField('createdAt')
-        setSortOrder('ascend')
-      }
+      const { nextField, nextOrder } = getNextSortState(sorter)
+      setSortField(nextField)
+      setSortOrder(nextOrder)
     },
-    [sortField, sortOrder, overview?.totalCount]
+    [getNextSortState, overview?.totalCount]
   )
 
   return (
