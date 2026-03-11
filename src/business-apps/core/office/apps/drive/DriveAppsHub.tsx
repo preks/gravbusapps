@@ -12,7 +12,10 @@ import { CreateFolderDialog } from './components/CreateFolderDialog'
 import { RenameDialog } from './components/RenameDialog'
 import { ShareDriveItemDialog } from './components/ShareDriveItemDialog'
 import { DriveFilePreviewDialog } from './components/DriveFilePreviewDialog'
+import { DriveExternalImportSheet } from './components/DriveExternalImportSheet'
 import { DriveDropZoneOverlay } from './components/DriveDropZoneOverlay'
+import { DeleteConfirmDialog } from './components/DeleteConfirmDialog'
+import { DriveBulkActions } from './components/DriveBulkActions'
 import { useDrive } from './hooks/useDrive'
 import { useDriveSearch } from './hooks/useDriveSearch'
 import { useDriveHubUrlState } from './hooks/useDriveHubUrlState'
@@ -71,6 +74,11 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
 
   const selection = useDriveSelection({ items: drive.items, folders: drive.folders })
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [pendingDeleteRefs, setPendingDeleteRefs] = useState<
+    Array<{ entityType: string; entityId: string; name: string }>
+  >([])
+
   const handleMoveToFolder = useCallback(
     (targetFolderId: string, refs: Array<{ entityType: string; entityId: string }>) => {
       drive.moveItems(refs, targetFolderId)
@@ -79,18 +87,8 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
     [drive, selection]
   )
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setSearchOpen(true)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
-
   const [previewItem, setPreviewItem] = useState<DriveItem | null>(null)
+  const [externalImportOpen, setExternalImportOpen] = useState(false)
 
   const handleItemClick = useCallback(
     (item: DriveItem) => {
@@ -116,7 +114,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
           )
           break
         case 'drive_file':
-          if (item.mimeType?.startsWith('image/')) {
+          if (item.mimeType?.startsWith('image/') || item.mimeType === 'application/pdf') {
             setPreviewItem(item)
           } else {
             DriveApiService.setAccessToken(accessToken ?? null)
@@ -135,12 +133,33 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
     [handleItemClick]
   )
 
+  const requestTrash = useCallback((refs: Array<{ entityType: string; entityId: string; name: string }>) => {
+    setPendingDeleteRefs(refs)
+    setDeleteConfirmOpen(true)
+  }, [])
+
   const handleTrashItem = useCallback(
     (item: DriveItem) => {
-      drive.trashItems([{ entityType: item.type, entityId: item.id }])
+      requestTrash([{ entityType: item.type, entityId: item.id, name: item.name }])
     },
-    [drive]
+    [requestTrash]
   )
+
+  const handleBulkTrash = useCallback(() => {
+    const refs = selection.getSelectedRefs().map(r => {
+      const item = drive.items.find(i => i.type === r.entityType && i.id === r.entityId)
+      const folder = drive.folders.find(f => f.id === r.entityId && r.entityType === 'drive_folder')
+      return { ...r, name: item?.name ?? folder?.name ?? 'Unknown' }
+    })
+    if (refs.length > 0) requestTrash(refs)
+  }, [selection, drive.items, drive.folders, requestTrash])
+
+  const confirmTrash = useCallback(() => {
+    const refs = pendingDeleteRefs.map(({ entityType, entityId }) => ({ entityType, entityId }))
+    drive.trashItems(refs)
+    selection.clearSelection()
+    setPendingDeleteRefs([])
+  }, [drive, pendingDeleteRefs, selection])
 
   const handleRestoreItem = useCallback(
     (item: DriveItem) => {
@@ -148,6 +167,23 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
     },
     [drive]
   )
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selection.selectedCount > 0 && activeSection !== 'trash') {
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+        e.preventDefault()
+        handleBulkTrash()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selection.selectedCount, activeSection, handleBulkTrash])
 
   const handleDownload = useCallback(
     async (item: DriveItem) => {
@@ -220,6 +256,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
             onSortOrderToggle={() => setSortOrder(o => (o === 'ASC' ? 'DESC' : 'ASC'))}
             onSearchClick={() => setSearchOpen(true)}
             onUploadFiles={upload.uploadFiles}
+            onImportExternal={() => setExternalImportOpen(true)}
             section={activeSection}
             onEmptyTrash={activeSection === 'trash' ? drive.emptyTrash : undefined}
             t={t}
@@ -228,7 +265,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
         </div>
 
         <div
-          className="gba:flex-1 gba:overflow-y-auto gba:p-6"
+          className="gba:flex-1 gba:overflow-y-auto gba:p-6 gba:relative"
           onClick={e => {
             if (e.target === e.currentTarget) selection.clearSelection()
           }}
@@ -272,6 +309,20 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
               onPageChange={p => setUrlState({ page: p })}
               data-testid={`${testId}-pagination`}
             />
+          )}
+
+          {selection.selectedCount > 0 && activeSection !== 'trash' && (
+            <div className="gba:sticky gba:bottom-4 gba:flex gba:justify-center gba:pointer-events-none gba:z-20">
+              <div className="gba:pointer-events-auto gba:shadow-lg gba:rounded-xl">
+                <DriveBulkActions
+                  selectedCount={selection.selectedCount}
+                  onTrash={handleBulkTrash}
+                  onClearSelection={selection.clearSelection}
+                  t={t}
+                  data-testid={`${testId}-bulk-actions`}
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -331,6 +382,24 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
         onDownload={handleDownload}
         t={t}
         data-testid={`${testId}-preview`}
+      />
+
+      <DriveExternalImportSheet
+        open={externalImportOpen}
+        onOpenChange={setExternalImportOpen}
+        accessToken={accessToken ?? ''}
+        currentFolderId={currentFolderId}
+        onAfterImport={drive.refresh}
+        data-testid={`${testId}-external-import`}
+      />
+
+      <DeleteConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        itemNames={pendingDeleteRefs.map(r => r.name)}
+        onConfirm={confirmTrash}
+        t={t}
+        data-testid={`${testId}-delete-confirm`}
       />
     </div>
   )

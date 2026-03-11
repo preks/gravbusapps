@@ -1164,6 +1164,7 @@ export const BoardApiService = {
     boardId: string,
     sheetId: string,
     connectorId: string,
+    connectionId?: string,
     query?: Record<string, unknown>,
     limit?: number
   ): Promise<{
@@ -1174,7 +1175,7 @@ export const BoardApiService = {
     try {
       return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/preview`, {
         method: 'POST',
-        body: JSON.stringify({ connectorId, query, limit })
+        body: JSON.stringify({ connectorId, connectionId, query, limit })
       })
     } catch (err) {
       console.error('External preview failed:', err instanceof Error ? err.message : err)
@@ -1189,6 +1190,7 @@ export const BoardApiService = {
       connectorId: string
       connectorName: string
       connectorDescription?: string
+      connectionId?: string
       query?: Record<string, unknown>
       selectedFields?: string[]
       limit?: number

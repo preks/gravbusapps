@@ -60,6 +60,10 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     setOutputSchema,
     configKeys,
     setConfigKeys,
+    connectionOptions,
+    selectedConnectionId,
+    setSelectedConnectionId,
+    isLoadingConnections,
 
     isValid,
     isSaving,
@@ -179,6 +183,10 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
               inputSchema={inputSchema}
               outputSchema={outputSchema}
               configKeys={configKeys}
+              connectionOptions={connectionOptions}
+              selectedConnectionId={selectedConnectionId}
+              onSelectedConnectionIdChange={setSelectedConnectionId}
+              isLoadingConnections={isLoadingConnections}
               onSourceChange={setSource}
               onInputSchemaChange={setInputSchema}
               onOutputSchemaChange={setOutputSchema}

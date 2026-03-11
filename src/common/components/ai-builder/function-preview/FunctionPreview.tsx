@@ -129,8 +129,8 @@ const FunctionPreviewSingle: React.FC<FunctionPreviewSingleProps> = ({
           client.getVersions(functionId).catch(() => ({ versions: [] }))
         ])
         if (cancelled) return
-        const meta = fn as { id: string; name: string; description?: string | null; version?: { source?: string } }
-        const source = meta.version?.source ?? ''
+        const meta = fn.metadata as { id: string; name: string; description?: string | null }
+        const source = fn.version?.source ?? ''
         const versions = versionsRes.versions ?? []
         const latestVer = versions.length > 0 ? versions.reduce((a, b) => (a.version > b.version ? a : b)) : null
         const inputSchema = (latestVer?.inputSchema as Record<string, unknown>) ?? {}

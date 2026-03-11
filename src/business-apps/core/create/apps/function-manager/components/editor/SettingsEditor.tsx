@@ -1,5 +1,15 @@
 import React from 'react'
-import { Badge, Button, Input, Label } from '@newwork/nw-design-system'
+import {
+  Badge,
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
 
 export type ConfigRow = { key: string; value: string }
@@ -7,12 +17,20 @@ export type ConfigRow = { key: string; value: string }
 export interface SettingsEditorProps {
   rows: ConfigRow[]
   onChange: (rows: ConfigRow[]) => void
+  connectionOptions?: Array<{ id: string; name: string }>
+  selectedConnectionId?: string | null
+  onConnectionChange?: (connectionId: string | null) => void
+  isLoadingConnections?: boolean
   'data-testid'?: string
 }
 
 export const SettingsEditor: React.FC<SettingsEditorProps> = ({
   rows,
   onChange,
+  connectionOptions = [],
+  selectedConnectionId = null,
+  onConnectionChange,
+  isLoadingConnections = false,
   'data-testid': testId = 'function-editor-settings'
 }) => {
   const safeRows = rows.length ? rows : [{ key: '', value: '' }]
@@ -53,6 +71,34 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
           secret values.
         </div>
       </div>
+
+      {onConnectionChange ? (
+        <div className="gba:space-y-2">
+          <Label>Shared connection</Label>
+          <Select
+            value={selectedConnectionId || '__none__'}
+            onValueChange={value => onConnectionChange(value === '__none__' ? null : value)}
+          >
+            <SelectTrigger className="gba:h-9" data-testid={`${testId}-shared-connection`}>
+              <SelectValue
+                placeholder={isLoadingConnections ? 'Loading shared connections...' : 'No shared connection selected'}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">No shared connection</SelectItem>
+              {connectionOptions.map(option => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="gba:text-xs gba:text-muted-foreground">
+            Shared connection values are merged into <span className="gba:font-mono">context.config</span> at runtime.
+            Local Settings below remain available as overrides and test-only values.
+          </div>
+        </div>
+      ) : null}
 
       <div className="gba:space-y-2">
         <div className="gba:hidden gba:sm:grid gba:sm:grid-cols-[minmax(220px,1fr)_minmax(260px,1fr)_auto] gba:gap-3 gba:px-1">

@@ -1,4 +1,14 @@
 import React, { useCallback, useRef, useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@newwork/nw-design-system'
 import { Plus, LayoutGrid, Columns3, Calendar, GanttChart, FileInput, BarChart3, X, GripVertical } from 'lucide-react'
 import type { BoardView, BoardViewType, BoardColumn } from '../../types'
 import { AddColumnPopover } from '../columns/AddColumnPopover'
@@ -41,6 +51,7 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
 }) => {
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dropIdx, setDropIdx] = useState<number | null>(null)
+  const [pendingDeleteView, setPendingDeleteView] = useState<BoardView | null>(null)
   const dragNodeRef = useRef<HTMLElement | null>(null)
 
   const tableView = views.find(v => v.type === 'table')
@@ -149,7 +160,7 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
                   tabIndex={-1}
                   onClick={e => {
                     e.stopPropagation()
-                    onDeleteView(view.id)
+                    setPendingDeleteView(view)
                   }}
                   className="gba:ml-0.5 gba:p-0.5 gba:rounded gba:opacity-0 gba:group-hover:opacity-100 gba:hover:bg-destructive/10 gba:text-muted-foreground gba:hover:text-destructive gba:transition-all gba:flex-shrink-0"
                   data-testid={`${testId}-delete-view-${view.id || idx}`}
@@ -186,6 +197,38 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
       >
         <Plus className="gba:w-3 gba:h-3" /> Add view
       </button>
+
+      <AlertDialog
+        open={!!pendingDeleteView}
+        onOpenChange={open => {
+          if (!open) setPendingDeleteView(null)
+        }}
+      >
+        <AlertDialogContent data-testid={`${testId}-delete-view-confirm`}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete view</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{pendingDeleteView?.name}&quot;? All configuration and data
+              associated with this view will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid={`${testId}-delete-view-cancel`}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteView && onDeleteView) {
+                  onDeleteView(pendingDeleteView.id)
+                }
+                setPendingDeleteView(null)
+              }}
+              data-testid={`${testId}-delete-view-confirm-btn`}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
