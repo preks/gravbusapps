@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Search, LayoutGrid, List, Upload, SortAsc, SortDesc, Trash2 } from 'lucide-react'
+import { Search, LayoutGrid, List, Upload, SortAsc, SortDesc, Trash2, CloudDownload } from 'lucide-react'
 import type { DriveViewMode, DriveSortBy, DriveSection } from '../types/drive.types'
 
 export interface DriveToolbarProps {
@@ -12,6 +12,7 @@ export interface DriveToolbarProps {
   onSortOrderToggle: () => void
   onSearchClick: () => void
   onUploadFiles: (files: File[]) => void
+  onImportExternal?: () => void
   section: DriveSection
   onEmptyTrash?: () => void
   t: (key: string) => string
@@ -27,6 +28,7 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
   onSortOrderToggle,
   onSearchClick,
   onUploadFiles,
+  onImportExternal,
   section,
   onEmptyTrash,
   t,
@@ -75,16 +77,30 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
           data-testid={`${testId}-file-input`}
         />
         {section === 'my-drive' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            className="gba:gap-1.5"
-            data-testid={`${testId}-upload`}
-          >
-            <Upload className="gba:w-4 gba:h-4" />
-            {t('header-upload-file')}
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="gba:gap-1.5"
+              data-testid={`${testId}-upload`}
+            >
+              <Upload className="gba:w-4 gba:h-4" />
+              {t('header-upload-file')}
+            </Button>
+            {onImportExternal && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onImportExternal}
+                className="gba:gap-1.5"
+                data-testid={`${testId}-import-external`}
+              >
+                <CloudDownload className="gba:w-4 gba:h-4" />
+                {t('header-import-external')}
+              </Button>
+            )}
+          </>
         )}
 
         <select

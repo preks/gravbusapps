@@ -137,6 +137,53 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
   }
 }
 
+function mapApiDocToSummary(doc: Record<string, unknown>): DocumentSummary {
+  const sourceFileInfo = doc.sourceFileInfo as Record<string, unknown> | undefined
+  const sourceFile = sourceFileInfo
+    ? {
+        originalName: sourceFileInfo.originalName as string,
+        fileSize: sourceFileInfo.fileSize as number,
+        mimeType: sourceFileInfo.mimeType as string,
+        uploadedAt: sourceFileInfo.uploadedAt as string,
+        path: sourceFileInfo.path as string | undefined,
+        fileId: sourceFileInfo.fileId as string | undefined,
+        accessScope: sourceFileInfo.accessScope as string | undefined,
+        appName: sourceFileInfo.appName as string | undefined,
+        folderPath: sourceFileInfo.folderPath as string | undefined,
+        pageCount: sourceFileInfo.pageCount as number | undefined
+      }
+    : undefined
+  const isPdf = sourceFile?.mimeType === 'application/pdf'
+
+  return {
+    id: doc.id as string,
+    title: doc.title as string,
+    description: doc.description as string | undefined,
+    status: doc.status as DocumentStatus,
+    category: doc.category as string | undefined,
+    tags: doc.tags as string[] | undefined,
+    createdAt: doc.createdAt as string,
+    updatedAt: doc.updatedAt as string,
+    createdBy: doc.ownerId as string,
+    wordCount: (doc.wordCount as number) || 0,
+    approvalStatus: (doc.status === 'pending_approval'
+      ? 'pending'
+      : doc.status === 'approved'
+        ? 'approved'
+        : doc.status === 'rejected'
+          ? 'rejected'
+          : undefined) as DocumentSummary['approvalStatus'],
+    isShared: doc.isShared as boolean | undefined,
+    sharedBy: doc.sharedBy as string | undefined,
+    permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
+    sharedCount: (doc.sharedCount as number) ?? 0,
+    sharedPreviewUserIds: (doc.sharedPreviewUserIds as string[]) ?? [],
+    sourceFile,
+    isPdf,
+    settings: doc.settings as DocumentSummary['settings']
+  }
+}
+
 /**
  * Document API Service
  */
@@ -147,9 +194,11 @@ export const DocumentApiService = {
   // ============ Documents ============
 
   /**
-   * Get all documents for the current user
+   * Get a single page of documents for the current user (server-driven pagination).
    */
   async listDocuments(options?: {
+    section?: string
+    favoriteIds?: string
     status?: DocumentStatus
     category?: string
     tags?: string[]
@@ -157,88 +206,49 @@ export const DocumentApiService = {
     page?: number
     limit?: number
     includeShared?: boolean
-  }): Promise<DocumentSummary[]> {
+    sortBy?: 'createdAt' | 'updatedAt' | 'title'
+    sortOrder?: 'ASC' | 'DESC'
+  }): Promise<PaginatedResponse<DocumentSummary>> {
     const params = new URLSearchParams()
+    if (options?.section) params.set('section', options.section)
+    if (options?.favoriteIds) params.set('favoriteIds', options.favoriteIds)
     if (options?.status) params.set('status', options.status)
     if (options?.category) params.set('category', options.category)
     if (options?.tags?.length) params.set('tags', options.tags.join(','))
     if (options?.search) params.set('search', options.search)
     if (options?.page) params.set('page', options.page.toString())
     if (options?.limit) params.set('limit', options.limit.toString())
-    // Include shared documents by default
-    params.set('includeShared', options?.includeShared !== false ? 'true' : 'false')
+    if (options?.sortBy) params.set('sortBy', options.sortBy)
+    if (options?.sortOrder) params.set('sortOrder', options.sortOrder)
+    if (!options?.section) {
+      params.set('includeShared', options?.includeShared !== false ? 'true' : 'false')
+    }
 
     const queryString = params.toString()
     const endpoint = `/documents${queryString ? `?${queryString}` : ''}`
 
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
 
-    return response.items.map(doc => {
-      // Map sourceFileInfo from backend to sourceFile
-      const sourceFileInfo = doc.sourceFileInfo as Record<string, unknown> | undefined
-      const sourceFile = sourceFileInfo
-        ? {
-            originalName: sourceFileInfo.originalName as string,
-            fileSize: sourceFileInfo.fileSize as number,
-            mimeType: sourceFileInfo.mimeType as string,
-            uploadedAt: sourceFileInfo.uploadedAt as string,
-            path: sourceFileInfo.path as string | undefined,
-            fileId: sourceFileInfo.fileId as string | undefined,
-            accessScope: sourceFileInfo.accessScope as string | undefined,
-            appName: sourceFileInfo.appName as string | undefined,
-            folderPath: sourceFileInfo.folderPath as string | undefined,
-            pageCount: sourceFileInfo.pageCount as number | undefined
-          }
-        : undefined
-      const isPdf = sourceFile?.mimeType === 'application/pdf'
+    const items = response.items.map(doc => mapApiDocToSummary(doc))
 
-      return {
-        id: doc.id as string,
-        title: doc.title as string,
-        description: doc.description as string | undefined,
-        status: doc.status as DocumentStatus,
-        category: doc.category as string | undefined,
-        tags: doc.tags as string[] | undefined,
-        createdAt: doc.createdAt as string,
-        updatedAt: doc.updatedAt as string,
-        createdBy: doc.ownerId as string,
-        wordCount: (doc.wordCount as number) || 0,
-        approvalStatus: (doc.status === 'pending_approval'
-          ? 'pending'
-          : doc.status === 'approved'
-            ? 'approved'
-            : doc.status === 'rejected'
-              ? 'rejected'
-              : undefined) as DocumentSummary['approvalStatus'],
-        // Sharing information from backend
-        isShared: doc.isShared as boolean | undefined,
-        sharedBy: doc.sharedBy as string | undefined,
-        // Map backend 'admin' permission to frontend 'owner'
-        permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
-        // Source file info for PDFs
-        sourceFile,
-        isPdf,
-        settings: doc.settings as DocumentSummary['settings']
-      }
-    })
+    return {
+      items,
+      total: response.total,
+      page: response.page,
+      limit: response.limit,
+      totalPages: response.totalPages
+    }
   },
 
   /**
    * Get a single document by ID
    */
-  async getDocument(
-    id: string,
-    optionsOrAccessToken?: { fresh?: boolean } | string | null
-  ): Promise<Document | null> {
+  async getDocument(id: string, optionsOrAccessToken?: { fresh?: boolean } | string | null): Promise<Document | null> {
     try {
       const fresh = typeof optionsOrAccessToken === 'object' && optionsOrAccessToken?.fresh === true
       const accessToken = typeof optionsOrAccessToken === 'string' ? optionsOrAccessToken : undefined
       const endpoint = fresh ? `/documents/${id}?_ts=${Date.now()}` : `/documents/${id}`
-      const doc = await apiRequest<Record<string, unknown>>(
-        endpoint,
-        fresh ? { cache: 'no-store' } : {},
-        accessToken
-      )
+      const doc = await apiRequest<Record<string, unknown>>(endpoint, fresh ? { cache: 'no-store' } : {}, accessToken)
       return mapApiDocumentToDocument(doc)
     } catch (error) {
       console.error('Failed to get document:', error)

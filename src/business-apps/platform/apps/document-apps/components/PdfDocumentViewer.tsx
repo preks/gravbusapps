@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, Button, Spinner, Badge, useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { ChevronLeft, FileText, Download, ExternalLink, AlertCircle, RefreshCw } from 'lucide-react'
-import { fileClient } from '@/common/network/files/FileClient'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import type { Document } from '../types'
 
 export interface PdfDocumentViewerProps {
@@ -74,12 +74,17 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
     }
 
     try {
-      // Download the PDF from file service
-      const blob = await fileClient.downloadFileByPath(document.sourceFile.path, accessToken)
+      const apiUrl = getDocumentServiceApiUrl()
+      const response = await fetch(`${apiUrl}/documents/${document.id}/file`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const blob = await response.blob()
 
       if (!isMounted.current) return
 
-      // Create object URL for the PDF
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (err) {

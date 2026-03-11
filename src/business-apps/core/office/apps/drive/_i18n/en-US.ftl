@@ -9,6 +9,7 @@ sidebar-spaces = Spaces
 header-search-placeholder = Search in Drive...
 header-new-folder = New folder
 header-upload-file = Upload file
+header-import-external = Import external
 header-new-document = New document
 header-new-note = New note
 header-new-spreadsheet = New spreadsheet
@@ -107,3 +108,14 @@ shortcut-remove = Remove shortcut
 shortcut-badge = Shortcut
 add-to-my-drive = Add to My Drive
 cannot-move-out-of-shared = Items cannot be moved out of a shared folder
+
+delete-confirm-title = Move to trash?
+delete-confirm-single = "{$name}" will be moved to trash. You can restore it within 30 days.
+delete-confirm-multi = {$count} items will be moved to trash. You can restore them within 30 days.
+delete-confirm-action = Move to trash
+delete-confirm-cancel = Cancel
+
+bulk-actions-selected = {$count} selected
+bulk-actions-trash = Delete
+bulk-actions-move = Move
+bulk-actions-download = Download

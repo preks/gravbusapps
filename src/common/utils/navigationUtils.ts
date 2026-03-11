@@ -112,6 +112,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // Create
   '/platform/create': 'core/create/apps/create-workspace',
+  '/platform/create/connect': 'core/create/apps/newwork-connect',
   '/platform/create/function-manager': 'core/create/apps/function-manager',
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
   '/platform/create/screen-builder': 'core/create/apps/ai-builder',

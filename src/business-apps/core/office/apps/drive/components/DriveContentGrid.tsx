@@ -1,18 +1,27 @@
 import React, { useState } from 'react'
+import { Badge } from '@newwork/nw-design-system'
 import {
   FileText,
   StickyNote,
   Table2,
   Presentation,
   File,
+  Image as ImageIcon,
   Folder,
   Trash2,
   Share2,
   Users,
-  ExternalLink
+  CloudDownload,
+  FileJson,
+  FileSpreadsheet,
+  FileVideo,
+  FileAudio,
+  FileArchive,
+  FileCode,
+  FileTerminal
 } from 'lucide-react'
 import type { DriveItem, DriveFolder, DriveViewMode, DriveSection } from '../types/drive.types'
-import { getItemLabel, formatFileSize } from '../types/drive.types'
+import { getFileTypeLabel, formatFileSize } from '../types/drive.types'
 import type { SelectModifiers } from '../hooks/useDriveSelection'
 import { DriveListItemActions } from './DriveListItemActions'
 
@@ -60,6 +69,120 @@ const TYPE_COLORS: Record<string, string> = {
   drive_folder: 'gba:text-primary'
 }
 
+const PdfIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path
+      d="M8 4C8 2.89543 8.89543 2 10 2H24L32 10V36C32 37.1046 31.1046 38 30 38H10C8.89543 38 8 37.1046 8 36V4Z"
+      fill="currentColor"
+      fillOpacity="0.08"
+      stroke="currentColor"
+      strokeOpacity="0.3"
+      strokeWidth="1.5"
+    />
+    <path d="M24 2L32 10H26C24.8954 10 24 9.10457 24 8V2Z" fill="currentColor" fillOpacity="0.15" />
+    <rect x="10" y="22" rx="2" width="20" height="12" fill="hsl(var(--destructive))" />
+    <text
+      x="20"
+      y="31.5"
+      textAnchor="middle"
+      fill="hsl(var(--destructive-foreground))"
+      fontSize="7.5"
+      fontWeight="700"
+      fontFamily="system-ui, sans-serif"
+    >
+      PDF
+    </text>
+  </svg>
+)
+
+const MIME_ICON_MAP: Array<{
+  test: (mime: string, name: string) => boolean
+  icon: React.ElementType
+  color: string
+}> = [
+  { test: m => m.startsWith('image/'), icon: ImageIcon, color: 'gba:text-primary' },
+  { test: m => m === 'application/pdf', icon: PdfIcon, color: 'gba:text-destructive' },
+  {
+    test: (m, n) =>
+      m.includes('presentation') ||
+      m.includes('powerpoint') ||
+      n.endsWith('.pptx') ||
+      n.endsWith('.ppt') ||
+      n.endsWith('.key'),
+    icon: Presentation,
+    color: 'gba:text-warning'
+  },
+  {
+    test: (m, n) =>
+      m.includes('spreadsheet') ||
+      m.includes('excel') ||
+      m === 'text/csv' ||
+      n.endsWith('.xlsx') ||
+      n.endsWith('.xls') ||
+      n.endsWith('.csv'),
+    icon: FileSpreadsheet,
+    color: 'gba:text-success'
+  },
+  {
+    test: (m, n) => m === 'application/json' || n.endsWith('.json'),
+    icon: FileJson,
+    color: 'gba:text-info'
+  },
+  { test: m => m.startsWith('video/'), icon: FileVideo, color: 'gba:text-destructive' },
+  { test: m => m.startsWith('audio/'), icon: FileAudio, color: 'gba:text-warning' },
+  {
+    test: (m, n) =>
+      m.includes('zip') ||
+      m.includes('gzip') ||
+      m.includes('tar') ||
+      m.includes('rar') ||
+      m.includes('7z') ||
+      n.endsWith('.zip') ||
+      n.endsWith('.gz') ||
+      n.endsWith('.tar') ||
+      n.endsWith('.rar') ||
+      n.endsWith('.7z'),
+    icon: FileArchive,
+    color: 'gba:text-muted-foreground'
+  },
+  {
+    test: (_m, n) => /\.(jsx?|tsx?|py|rb|go|rs|java|c|cpp|cs|php|swift|kt)$/i.test(n),
+    icon: FileCode,
+    color: 'gba:text-info'
+  },
+  {
+    test: (_m, n) => /\.(sh|bash|zsh|bat|ps1)$/i.test(n),
+    icon: FileTerminal,
+    color: 'gba:text-muted-foreground'
+  },
+  {
+    test: (m, n) =>
+      m.includes('word') ||
+      m.includes('opendocument.text') ||
+      n.endsWith('.docx') ||
+      n.endsWith('.doc') ||
+      n.endsWith('.odt'),
+    icon: FileText,
+    color: 'gba:text-info'
+  }
+]
+
+function resolveIconAndColor(item: DriveItem): { Icon: React.ElementType; color: string } {
+  if (item.type === 'drive_file' || (item.mimeType && item.type !== 'drive_folder')) {
+    const mime = (item.mimeType ?? '').toLowerCase()
+    const name = (item.name ?? '').toLowerCase()
+    for (const entry of MIME_ICON_MAP) {
+      if (entry.test(mime, name)) {
+        return { Icon: entry.icon, color: entry.color }
+      }
+    }
+  }
+  return {
+    Icon: TYPE_ICONS[item.type] ?? File,
+    color: TYPE_COLORS[item.type] ?? 'gba:text-muted-foreground'
+  }
+}
+
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr)
   const diff = Date.now() - d.getTime()
@@ -69,18 +192,6 @@ function formatDate(dateStr: string): string {
   if (diff < 604_800_000) return `${Math.floor(diff / 86_400_000)}d ago`
   return d.toLocaleDateString()
 }
-
-const SharedBadge: React.FC = () => (
-  <span className="gba:absolute gba:-bottom-0.5 gba:-right-0.5 gba:w-3 gba:h-3 gba:rounded-full gba:bg-primary gba:flex gba:items-center gba:justify-center">
-    <Users className="gba:w-2 gba:h-2 gba:text-primary-foreground" />
-  </span>
-)
-
-const ShortcutBadge: React.FC = () => (
-  <span className="gba:absolute gba:-bottom-0.5 gba:-left-0.5 gba:w-3 gba:h-3 gba:rounded-full gba:bg-accent gba:flex gba:items-center gba:justify-center">
-    <ExternalLink className="gba:w-2 gba:h-2 gba:text-accent-foreground" />
-  </span>
-)
 
 function refsFromKeys(keys: Set<string>): Array<{ entityType: string; entityId: string }> {
   return Array.from(keys).map(k => {
@@ -207,11 +318,11 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
                     className={`gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-xl gba:border gba:border-border/50 gba:bg-card gba:hover:bg-accent/50 gba:transition-colors gba:text-left ${isSelected(key) ? selectedCls : ''} ${dragOverFolderId === folder.id ? dropTargetCls : ''}`}
                     data-testid={`${testId}-folder-${folder.id}`}
                   >
-                    <span className="gba:relative gba:flex-shrink-0">
-                      <Folder className="gba:w-8 gba:h-8 gba:text-primary" />
-                      {folder.isShared && <SharedBadge />}
-                    </span>
+                    <Folder className="gba:w-8 gba:h-8 gba:text-primary gba:flex-shrink-0" />
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{folder.name}</span>
+                    {folder.isShared && (
+                      <Users className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
+                    )}
                   </button>
                 )
               })}
@@ -225,8 +336,7 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
             </h3>
             <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-5 gba:gap-3">
               {items.map(item => {
-                const Icon = TYPE_ICONS[item.type] ?? File
-                const color = TYPE_COLORS[item.type] ?? 'gba:text-muted-foreground'
+                const { Icon, color } = resolveIconAndColor(item)
                 const key = `${item.type}:${item.id}`
                 return (
                   <button
@@ -238,15 +348,27 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
                     className={`gba:flex gba:flex-col gba:items-center gba:gap-2 gba:p-4 gba:rounded-xl gba:border gba:border-border/50 gba:bg-card gba:hover:bg-accent/50 gba:transition-colors gba:text-center gba:group ${isSelected(key) ? selectedCls : ''}`}
                     data-testid={`${testId}-item-${item.id}`}
                   >
-                    <span className="gba:relative">
-                      <Icon className={`gba:w-10 gba:h-10 ${color}`} />
-                      {item.isShared && <SharedBadge />}
-                      {item.isShortcut && <ShortcutBadge />}
-                    </span>
+                    <Icon className={`gba:w-10 gba:h-10 ${color}`} />
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:w-full">
                       {item.name}
                     </span>
-                    <span className="gba:text-xs gba:text-muted-foreground">{getItemLabel(item.type)}</span>
+                    <div className="gba:flex gba:items-center gba:gap-1 gba:flex-wrap gba:justify-center">
+                      <span className="gba:text-xs gba:text-muted-foreground">
+                        {getFileTypeLabel(item.type, item.mimeType, item.name)}
+                      </span>
+                      {item.externalSource && (
+                        <Badge variant="info" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5">
+                          <CloudDownload className="gba:w-2 gba:h-2" />
+                          Imported
+                        </Badge>
+                      )}
+                      {item.isShared && (
+                        <Badge variant="secondary" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5">
+                          <Users className="gba:w-2 gba:h-2" />
+                          Shared
+                        </Badge>
+                      )}
+                    </div>
                   </button>
                 )
               })}
@@ -277,12 +399,15 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
             className={`gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:rounded-lg gba:hover:bg-accent/50 gba:transition-colors gba:group gba:cursor-pointer ${isSelected(key) ? selectedCls : ''} ${dragOverFolderId === folder.id ? dropTargetCls : ''}`}
             data-testid={`${testId}-folder-${folder.id}`}
           >
-            <span className="gba:relative gba:flex-shrink-0">
-              <Folder className="gba:w-5 gba:h-5 gba:text-primary" />
-              {folder.isShared && <SharedBadge />}
-            </span>
-            <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-              {folder.name}
+            <Folder className="gba:w-5 gba:h-5 gba:text-primary gba:flex-shrink-0" />
+            <span className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-1.5">
+              <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{folder.name}</span>
+              {folder.isShared && (
+                <Badge variant="secondary" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5 gba:shrink-0">
+                  <Users className="gba:w-2 gba:h-2" />
+                  Shared
+                </Badge>
+              )}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-24 gba:text-right gba:hidden gba:sm:block">
               Folder
@@ -333,8 +458,7 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
         )
       })}
       {items.map(item => {
-        const Icon = TYPE_ICONS[item.type] ?? File
-        const color = TYPE_COLORS[item.type] ?? 'gba:text-muted-foreground'
+        const { Icon, color } = resolveIconAndColor(item)
         const key = `${item.type}:${item.id}`
         return (
           <div
@@ -346,14 +470,24 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
             className={`gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:rounded-lg gba:hover:bg-accent/50 gba:transition-colors gba:group gba:cursor-pointer ${isSelected(key) ? selectedCls : ''}`}
             data-testid={`${testId}-item-${item.id}`}
           >
-            <span className="gba:relative gba:flex-shrink-0">
-              <Icon className={`gba:w-5 gba:h-5 ${color}`} />
-              {item.isShared && <SharedBadge />}
-              {item.isShortcut && <ShortcutBadge />}
+            <Icon className={`gba:w-5 gba:h-5 ${color} gba:flex-shrink-0`} />
+            <span className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-1.5">
+              <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{item.name}</span>
+              {item.externalSource && (
+                <Badge variant="info" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5 gba:shrink-0">
+                  <CloudDownload className="gba:w-2 gba:h-2" />
+                  Imported
+                </Badge>
+              )}
+              {item.isShared && (
+                <Badge variant="secondary" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5 gba:shrink-0">
+                  <Users className="gba:w-2 gba:h-2" />
+                  Shared
+                </Badge>
+              )}
             </span>
-            <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{item.name}</span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-24 gba:text-right gba:hidden gba:sm:block">
-              {getItemLabel(item.type)}
+              {getFileTypeLabel(item.type, item.mimeType, item.name)}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-20 gba:text-right gba:hidden gba:md:block">
               {formatFileSize(item.fileSize)}

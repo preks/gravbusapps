@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles, BarChart3 } from 'lucide-react'
+import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles, BarChart3, Cable } from 'lucide-react'
 import { Button, cn } from '@newwork/nw-design-system'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
@@ -53,8 +53,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
     {
       id: 'ai-builder-metrics',
       title: 'AI Builder Metrics',
-      description:
-        'Track LLM token usage, model distribution, and session-level consumption for AI Builder.',
+      description: 'Track LLM token usage, model distribution, and session-level consumption for AI Builder.',
       icon: BarChart3,
       href: buildPlatformUrl('/platform/create/ai-builder-metrics'),
       badge: 'Ops',
@@ -82,6 +81,17 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       badge: 'AI-Powered',
       badgeVariant: 'info',
       accentColor: 'ai'
+    },
+    {
+      id: 'connect',
+      title: 'NEWWORK CONNECT',
+      description:
+        'Manage AnyPoint, DataBridge, and MCP connections in one product surface and reuse them across experts, tools, functions, and imports.',
+      icon: Cable,
+      href: buildPlatformUrl('/platform/create/connect'),
+      badge: 'Unified',
+      badgeVariant: 'info',
+      accentColor: 'primary'
     },
     {
       id: 'functions',
