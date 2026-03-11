@@ -96,16 +96,24 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
     (item: DriveItem) => {
       switch (item.type) {
         case 'document':
-          openInNewTab(buildPlatformUrl('/platform/documents', { docId: item.id, view: 'editor', from: 'drive' }))
+          openInNewTab(
+            buildPlatformUrl('/platform/every-office/documents', { docId: item.id, view: 'editor', from: 'drive' })
+          )
           break
         case 'spreadsheet_app':
-          openInNewTab(buildPlatformUrl('/platform/spreadsheets', { appId: item.id, view: 'viewer', from: 'drive' }))
+          openInNewTab(
+            buildPlatformUrl('/platform/every-office/spreadsheets', { appId: item.id, view: 'viewer', from: 'drive' })
+          )
           break
         case 'slide':
-          openInNewTab(buildPlatformUrl('/platform/slides', { slideId: item.id, view: 'editor', from: 'drive' }))
+          openInNewTab(
+            buildPlatformUrl('/platform/every-office/slides', { slideId: item.id, view: 'editor', from: 'drive' })
+          )
           break
         case 'note':
-          openInNewTab(buildPlatformUrl('/platform/notes', { noteId: item.id, view: 'editor', from: 'drive' }))
+          openInNewTab(
+            buildPlatformUrl('/platform/every-office/notes', { noteId: item.id, view: 'editor', from: 'drive' })
+          )
           break
         case 'drive_file':
           if (item.mimeType?.startsWith('image/')) {
