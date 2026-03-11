@@ -24,15 +24,17 @@ import {
   Card,
   CardContent,
   Sheet,
-  SheetContent
+  SheetContent,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system'
-import { ArrowUpIcon, ArrowDownIcon, DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { ArrowUpIcon, ArrowDownIcon, DownloadIcon, FileXlsIcon, InfoIcon } from '@phosphor-icons/react'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../../../utils/currencyUtils'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
-import { InfoIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import { useFilterData, type OrganizationalUnit, type Currency } from '../../../hooks/useFilterData'
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils/utils'

@@ -89,6 +89,17 @@ const extractIds = (items: any[], paths: string[]): string[] =>
     .flatMap((item: any) => paths.map(p => String(p.split('.').reduce((o: any, k: string) => o?.[k], item) || '')))
     .filter(Boolean)
 
+const extractEmployeeNames = (rows: any[]): string[] =>
+  rows
+    .map((r: any) => {
+      const e = r?.employee
+      if (!e) return ''
+      const full = (e.fullName || '').trim()
+      if (full) return full
+      return [e.firstName, e.lastName].filter(Boolean).join(' ').trim()
+    })
+    .filter(Boolean)
+
 const AGGREGATE_KEY: Record<string, string> = {
   [ReportType.EXPENSE_ITEM]: 'ExpenseItemAggregate',
   [ReportType.EXPENSE_PLAN]: 'ExpensePlanAggregate',
@@ -609,17 +620,10 @@ export const useBackofficeExpenseReportData = (
       try {
         const result = await graphqlClient.request(GET_EXPENSE_EMPLOYEE_NAMES, {})
         if (cancelled) return
-        const extractNames = (rows: any[]) =>
-          rows
-            .map((r: any) => {
-              const e = r?.employee
-              if (!e) return ''
-              const full = (e.fullName || '').trim()
-              if (full) return full
-              return [e.firstName, e.lastName].filter(Boolean).join(' ').trim()
-            })
-            .filter(Boolean)
-        const names = [...extractNames(result?.requestEmployees || []), ...extractNames(result?.planEmployees || [])]
+        const names = [
+          ...extractEmployeeNames(result?.requestEmployees || []),
+          ...extractEmployeeNames(result?.planEmployees || [])
+        ]
         setAllEmployeeNames(Array.from(new Set(names)).sort((a, b) => a.localeCompare(b)))
       } catch {
         /* ignore */
