@@ -32,9 +32,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
   Checkbox,
-  Tabs,
-  TabsList,
-  TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
@@ -77,7 +74,6 @@ import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/commo
 
 // Components
 import { ExcelUploader } from './components/ExcelUploader'
-import { SheetAnalysisPreview } from './components/SheetAnalysisPreview'
 import { PromoteToDatabaseModal } from './components/PromoteToDatabaseModal'
 import { SpreadsheetAppViewer } from './SpreadsheetAppViewer'
 import { SpreadsheetAppEditor } from './SpreadsheetAppEditor'
@@ -88,7 +84,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Hooks
 import { useSpreadsheetApps } from './hooks/useSpreadsheetApps'
-import { useSpreadsheetAI } from './hooks/useSpreadsheetAI'
 import { useDataPromotion } from './hooks/useDataPromotion'
 import { useSpreadsheetAppsHubFavorites } from './hooks/useSpreadsheetAppsHubFavorites'
 import { useSpreadsheetAppsHubFiltering } from './hooks/useSpreadsheetAppsHubFiltering'
@@ -98,21 +93,21 @@ import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // Services
-import { generateAppSchema, generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
+import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
 import { setSpreadsheetApiAuthTokenProvider, SpreadsheetApiService } from './services/SpreadsheetApiService'
 import { exportAppToExcel } from './utils/exportUtils'
 
 // Types
-import type { ParsedExcelFile, SpreadsheetAnalysis, SpreadsheetApp, SpreadsheetAppSummary } from './types'
+import type { ParsedExcelFile, SpreadsheetApp, SpreadsheetAppSummary } from './types'
 import { getIconByName } from './utils/appIcons'
+import { SpreadsheetPreviewThumbnail } from './components/SpreadsheetPreviewThumbnail'
 
 export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'upload' | 'analysis' | 'viewer' | 'editor'
+type HubView = 'list' | 'upload' | 'viewer' | 'editor'
 type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'tasks' | 'trash'
-type UploadMode = 'simple' | 'create-app'
 
 const resolveCurrentUserId = (userInfo?: SpreadsheetAppsHubProps['userInfo']): string =>
   userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -226,7 +221,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
-  const [uploadMode, setUploadMode] = useState<UploadMode>('simple')
 
   // Clear space return URL if not opened from a space
   useEffect(() => {
@@ -254,8 +248,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
 
   // Data state
-  const [parsedFile, setParsedFile] = useState<ParsedExcelFile | null>(null)
-  const [analysis, setAnalysis] = useState<SpreadsheetAnalysis | null>(null)
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [appToPromote, setAppToPromote] = useState<SpreadsheetApp | null>(null)
 
@@ -321,7 +313,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     activeSection
   })
 
-  const { isAnalyzing, analyzeSpreadsheet, reset: resetAI } = useSpreadsheetAI(accessToken)
   const { promoteToDatabase } = useDataPromotion(accessToken)
   const { updateUrl, resetLoadAttempt } = useSpreadsheetAppsHubUrlState({
     currentView,
@@ -420,66 +411,25 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         setCurrentView('viewer')
         updateUrl(createdApp.id, 'viewer', createdApp.filePath)
       }
-      setParsedFile(null)
-      setAnalysis(null)
-      resetAI()
     },
-    [loadApp, resetAI, updateUrl]
+    [loadApp, updateUrl]
   )
 
   const handleFileParsed = useCallback(
     async (file: ParsedExcelFile) => {
       if (!userInfo) return
 
-      if (uploadMode === 'simple') {
-        const appSchema = generateAppSchemaFromParsedFile(
-          file,
-          userInfo.id || userInfo?.employeeDetails?.employeeId || 'unknown'
-        )
-        const createdApp = await createApp(appSchema)
-        if (createdApp) {
-          await finishCreatedAppNavigation(createdApp, 'viewer')
-        }
-        return
-      }
-
-      setParsedFile(file)
-      const analysisResult = await analyzeSpreadsheet(file)
-      if (analysisResult) {
-        setAnalysis(analysisResult)
-        setCurrentView('analysis')
-      }
-    },
-    [analyzeSpreadsheet, createApp, finishCreatedAppNavigation, uploadMode, userInfo]
-  )
-
-  const handleAnalysisConfirm = useCallback(
-    async (confirmedAnalysis: SpreadsheetAnalysis) => {
-      if (!parsedFile || !userInfo) return
-
-      const appSchema = generateAppSchema(
-        parsedFile,
-        confirmedAnalysis,
+      const appSchema = generateAppSchemaFromParsedFile(
+        file,
         userInfo.id || userInfo?.employeeDetails?.employeeId || 'unknown'
       )
-
       const createdApp = await createApp(appSchema)
-
       if (createdApp) {
-        await finishCreatedAppNavigation(createdApp)
+        await finishCreatedAppNavigation(createdApp, 'viewer')
       }
     },
-    [createApp, finishCreatedAppNavigation, parsedFile, userInfo]
+    [createApp, finishCreatedAppNavigation, userInfo]
   )
-
-  const handleReanalyze = useCallback(async () => {
-    if (!parsedFile) return
-    resetAI()
-    const analysisResult = await analyzeSpreadsheet(parsedFile)
-    if (analysisResult) {
-      setAnalysis(analysisResult)
-    }
-  }, [parsedFile, analyzeSpreadsheet, resetAI])
 
   const handleOpenApp = useCallback(
     async (id: string) => {
@@ -826,20 +776,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     clearCurrentApp()
     resetLoadAttempt()
     setSelectedAppId(null)
-    setParsedFile(null)
-    setAnalysis(null)
-    resetAI()
     setCurrentView('list')
     updateUrl(null)
-  }, [clearCurrentApp, resetAI, resetLoadAttempt, updateUrl])
+  }, [clearCurrentApp, resetLoadAttempt, updateUrl])
 
   const handleStartUpload = useCallback(() => {
-    setParsedFile(null)
-    setAnalysis(null)
-    setUploadMode('simple')
-    resetAI()
     setCurrentView('upload')
-  }, [resetAI])
+  }, [])
 
   const handleCreateEmptyApp = useCallback(async () => {
     if (!newAppName.trim() || !userInfo) return
@@ -1363,55 +1306,16 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
               <Card className="gba:p-4">
                 <div className="gba:flex gba:flex-col gba:gap-3">
-                  <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('upload-mode-label')}</p>
-                  <Tabs value={uploadMode} onValueChange={value => setUploadMode(value as UploadMode)}>
-                    <TabsList className="gba:grid gba:grid-cols-2 gba:w-full">
-                      <TabsTrigger value="simple" data-testid={`${testId}-upload-mode-simple`}>
-                        {t('upload-mode-simple-title')}
-                      </TabsTrigger>
-                      <TabsTrigger value="create-app" data-testid={`${testId}-upload-mode-create-app`}>
-                        {t('upload-mode-create-app-title')}
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    {uploadMode === 'simple' ? t('upload-mode-simple-desc') : t('upload-mode-create-app-desc')}
-                  </p>
+                  <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('upload-mode-simple-title')}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('upload-mode-simple-desc')}</p>
                 </div>
               </Card>
 
               <ExcelUploader
-                parseMode={uploadMode === 'simple' ? 'preserve-format' : 'structured'}
+                parseMode="preserve-format"
                 onFileParsed={handleFileParsed}
                 onError={error => console.error(error)}
                 data-testid={`${testId}-uploader`}
-              />
-
-              {isAnalyzing && (
-                <Card className="gba:p-8 gba:text-center">
-                  <Spinner size="lg" className="gba:mx-auto gba:mb-4" />
-                  <h3 className="gba:font-semibold gba:text-foreground gba:mb-2">{t('upload-analyzing')}</h3>
-                  <p className="gba:text-sm gba:text-muted-foreground">{t('upload-analyzing-desc')}</p>
-                </Card>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Analysis View */}
-        {currentView === 'analysis' && analysis && (
-          <div className="gba:flex-1 gba:overflow-auto gba:p-8">
-            <div className="gba:max-w-4xl gba:mx-auto">
-              <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
-                <X className="gba:w-4 gba:h-4 gba:mr-2" />
-                {t('upload-cancel')}
-              </Button>
-              <SheetAnalysisPreview
-                analysis={analysis}
-                onConfirm={handleAnalysisConfirm}
-                onReanalyze={handleReanalyze}
-                isLoading={isAnalyzing}
-                data-testid={`${testId}-analysis`}
               />
             </div>
           </div>
@@ -1893,15 +1797,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           onClick={() => handleOpenApp(app.id)}
                         >
                           {/* Preview area */}
-                          <div className="gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:from-emerald-500/10 gba:to-teal-500/10 gba:flex gba:items-center gba:justify-center gba:rounded-t-lg">
-                            {(() => {
-                              const IconComponent = app.icon ? getIconByName(app.icon) : null
-                              return IconComponent ? (
-                                <IconComponent className="gba:w-16 gba:h-16 gba:text-emerald-500/50" />
-                              ) : (
-                                <FileSpreadsheet className="gba:w-16 gba:h-16 gba:text-emerald-500/50" />
-                              )
-                            })()}
+                          <div className="gba:relative gba:aspect-[4/3] gba:rounded-t-lg gba:overflow-hidden">
+                            <SpreadsheetPreviewThumbnail
+                              app={app}
+                              className="gba:absolute gba:inset-0"
+                              data-testid={`${testId}-grid-preview-${app.id}`}
+                            />
 
                             {/* Hover overlay */}
                             <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />

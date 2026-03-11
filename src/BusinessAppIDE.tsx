@@ -271,15 +271,8 @@ const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
 
 const resolveAppFromUrl = (pathname: string, search: string): string | null => {
   const urlParams = new URLSearchParams(search)
-  const explicitApp =
-    urlParams.get('app') ||
-    urlParams.get('form') ||
-    urlParams.get('popup') ||
-    urlParams.get('window')
+  const explicitApp = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
   if (explicitApp) return explicitApp
-  if (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft')) {
-    return 'flow/apps/creator'
-  }
   return null
 }
 

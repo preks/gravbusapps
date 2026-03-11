@@ -38,10 +38,10 @@ section-spreadsheets = Spreadsheets
 # Upload view
 upload-cancel = Cancel
 upload-title = Upload Excel File
-upload-subtitle = Transform your spreadsheet into a powerful app with AI
-upload-mode-label = Upload mode
-upload-mode-simple-title = Simple upload
-upload-mode-simple-desc = Import and create the spreadsheet app directly from your file without analysis.
+upload-subtitle = Upload your .xlsx or .csv file and start editing instantly
+upload-mode-label = Upload
+upload-mode-simple-title = One-click import
+upload-mode-simple-desc = We import your spreadsheet with formatting preserved and open it in editable mode.
 upload-mode-create-app-title = Create app flow
 upload-mode-create-app-desc = Analyze your file first, then review and confirm the generated app structure.
 upload-analyzing = Analyzing your spreadsheet...

@@ -83,9 +83,7 @@ export interface SpreadsheetHeaderProps {
   onOpenAICapability: (
     capability: 'charts' | 'pivot' | 'insights' | 'summary' | 'formula' | 'analyze' | 'chat' | 'review'
   ) => void
-  onShowPublishDialog: () => void
-  onAddColumn: () => void
-  onManageColumns: () => void
+  onShare?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void
   onEdit?: () => void
@@ -115,10 +113,8 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   setShowComments,
   unresolvedCommentCount,
   fileLock,
-  onShowPublishDialog,
+  onShare,
   onOpenAICapability,
-  onAddColumn,
-  onManageColumns,
   onOpenAnalytics,
   onOpenAutomations,
   onEdit,
@@ -343,13 +339,11 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
           <SpreadsheetActionsMenu
             onShowVersionHistory={onShowVersionHistory}
             onShowCheckpointDialog={onShowCheckpointDialog}
-            onShowPublishDialog={onShowPublishDialog}
             isLockedByMe={fileLock.isLockedByMe}
             onAcquireLock={() => void fileLock.acquireLock()}
             onReleaseLock={() => void fileLock.releaseLock()}
             canEdit={canEdit}
-            onAddColumn={onAddColumn}
-            onManageColumns={onManageColumns}
+            onShare={onShare}
             onOpenAnalytics={onOpenAnalytics}
             onOpenAutomations={onOpenAutomations}
             onEdit={onEdit}

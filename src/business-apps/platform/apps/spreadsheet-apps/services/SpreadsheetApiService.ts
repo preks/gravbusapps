@@ -366,10 +366,11 @@ export const SpreadsheetApiService = {
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
 
     return response.items.map(app => {
-      const sheets = (app.sheets as Array<{ rows?: unknown[]; data?: unknown[] }>) || []
+      const sheets = (app.sheets as Array<{ id?: string; rows?: unknown[]; data?: unknown[] }>) || []
       const sheetCount = sheets.length
       // Try to get rowCount from rows (backend) or data (legacy), default to 0
       const rowCount = sheets.reduce((sum, sheet) => sum + (sheet.rows?.length || sheet.data?.length || 0), 0)
+      const firstSheet = sheets[0]
 
       return {
         id: app.id as string,
@@ -382,6 +383,7 @@ export const SpreadsheetApiService = {
         createdBy: app.ownerId as string,
         sheetCount,
         rowCount,
+        firstSheetId: firstSheet?.id as string | undefined,
         // Permission info from backend
         permission: mapPermission(app.permission as string | undefined),
         isShared: app.isShared as boolean | undefined,

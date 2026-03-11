@@ -2,12 +2,8 @@ interface NavigationMapping {
   [key: string]: string
 }
 
-/**
- * Canonical mapping of platform URLs to app paths.
- * Used by navigateTo for dev-mode URL conversion. Export allows consumers
- * (e.g. IDE entry point) to resolve path-based URLs in their use case.
- */
-export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
+// Mapping of platform URLs to app paths for development mode
+const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // CRM
 
   /// Core: Apps
@@ -131,6 +127,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/create/resource-preview-demo': 'core/create/apps/resource-preview-demo',
   '/platform/create/debug/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
   '/platform/create/debug/apps/generated-resource-urls': 'core/create/debug/apps/generated-resource-urls-debug',
+  '/platform/create/flow-studio': 'core/create/apps/flow-creator',
 
   // Flow
   '/platform/apps/flow/apps/creator': 'flow/apps/creator',
@@ -139,6 +136,15 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // TODO: Clean Up
   '/platform/crm/lead-list': 'crm/common/apps/lead-list',
   '/platform/irm/liquid-portfolio-record': 'crm/investments/apps/liquid-portfolio-record'
+}
+
+/**
+ * Resolve app path from platform pathname. Used by IDE entry point for path-based URLs
+ * (e.g. Excel Collection copy links) that need ?app= to load correctly.
+ */
+export function getAppPathFromPathname(pathname: string): string | null {
+  const normalized = pathname.replace(/\/+$/, '') || '/'
+  return PLATFORM_URL_TO_APP_MAPPING[normalized] ?? null
 }
 
 /** Canonical platform path for Every Office (Desk hub). Use with navigateTo(). */

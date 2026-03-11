@@ -403,6 +403,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onAppUpdate,
   onSheetUpdate,
   onBack,
+  onShare,
   onEdit,
   isEditing = true,
   accessToken = '',
@@ -2059,16 +2060,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           acquireLock: fileLock.acquireLock,
           releaseLock: fileLock.releaseLock
         }}
-        onShowPublishDialog={() => setShowPublishDialog(true)}
+        onShare={onShare}
         onOpenAICapability={handleOpenAICapability}
-        onAddColumn={() => {
-          if (!canEditWithLock) return
-          columnsState.handleAddColumn()
-        }}
-        onManageColumns={() => {
-          if (!canEditWithLock) return
-          columnsState.setIsManageColumnsDialogOpen(true)
-        }}
         onOpenAnalytics={() => {
           setAnalyticsInitialTab('charts')
           setIsSheetsAIOpen(false)

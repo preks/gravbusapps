@@ -632,6 +632,8 @@ export interface SpreadsheetAppSummary {
   sharedByName?: string
   /** App settings (e.g. excel_collection_copy for Excel Collection copies to hide from list) */
   settings?: Record<string, unknown>
+  /** First sheet ID when available (from list API) - used for grid preview thumbnail */
+  firstSheetId?: string
 }
 
 /**

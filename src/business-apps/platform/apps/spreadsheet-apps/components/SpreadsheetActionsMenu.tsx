@@ -13,36 +13,19 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@newwork/nw-design-system'
-import {
-  FileSpreadsheet,
-  History,
-  Save,
-  Lock,
-  Unlock,
-  Upload,
-  Download,
-  Plus,
-  Columns,
-  Zap,
-  BarChart3,
-  Settings
-} from 'lucide-react'
+import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3, Settings } from 'lucide-react'
 
 export interface SpreadsheetActionsMenuProps {
   // Version/lock actions
   onShowVersionHistory: () => void
   onShowCheckpointDialog: () => void
-  onShowPublishDialog: () => void
   isLockedByMe: boolean
   onAcquireLock: () => void
   onReleaseLock: () => void
 
-  // Column actions
-  canEdit: boolean
-  onAddColumn: () => void
-  onManageColumns: () => void
-
   // Other actions
+  canEdit: boolean
+  onShare?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void
   onEdit?: () => void
@@ -55,13 +38,10 @@ export interface SpreadsheetActionsMenuProps {
 export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onShowVersionHistory,
   onShowCheckpointDialog,
-  onShowPublishDialog,
   isLockedByMe,
   onAcquireLock,
   onReleaseLock,
-  canEdit,
-  onAddColumn,
-  onManageColumns,
+  onShare,
   onOpenAnalytics,
   onOpenAutomations,
   onEdit,
@@ -100,10 +80,12 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onShowPublishDialog}>
-            <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-            Publish...
-          </DropdownMenuItem>
+          {onShare && (
+            <DropdownMenuItem onClick={onShare}>
+              <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+              Share
+            </DropdownMenuItem>
+          )}
           {allowExport && (
             <DropdownMenuItem onClick={onExport}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -111,18 +93,6 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          {canEdit && (
-            <>
-              <DropdownMenuItem onClick={onAddColumn}>
-                <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                Add Column
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onManageColumns}>
-                <Columns className="gba:w-4 gba:h-4 gba:mr-2" />
-                Manage Columns
-              </DropdownMenuItem>
-            </>
-          )}
           <DropdownMenuItem onClick={onOpenAnalytics}>
             <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
             AI Analytics
