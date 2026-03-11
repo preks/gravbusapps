@@ -11,6 +11,8 @@ news_content = Nachrichten
 news_content_subtitle = Nachrichtenartikel
 knowledge_content = Wissen
 knowledge_content_subtitle = Wissensdatenbank
+policies_content = Richtlinien
+policies_content_subtitle = Richtlinien
 documents_content = Dokumente
 documents_content_subtitle = Dokumentenbibliothek
 questions_content = Fragen
@@ -56,6 +58,7 @@ created_date = Erstellungsdatum
 ## Content Groups
 group_news = Nachrichten
 group_knowledge = Wissen
+group_policies = Richtlinien
 group_document = Dokument
 group_question = Frage
 
