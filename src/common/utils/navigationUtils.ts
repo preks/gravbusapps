@@ -135,12 +135,23 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 }
 
 /**
- * Resolve app path from platform pathname. Used by IDE entry point for path-based URLs
- * (e.g. Excel Collection copy links) that need ?app= to load correctly.
+ * Resolve app path from platform pathname.
  */
 export function getAppPathFromPathname(pathname: string): string | null {
   const normalized = pathname.replace(/\/+$/, '') || '/'
   return PLATFORM_URL_TO_APP_MAPPING[normalized] ?? null
+}
+
+/**
+ * Resolve app path from current URL (pathname + search).
+ * Checks query params (app, form, popup, window) first, then falls back to pathname mapping.
+ * Use this in the IDE to determine which screen to load from the URL.
+ */
+export function getAppPathFromUrl(pathname: string, search: string): string | null {
+  const urlParams = new URLSearchParams(search)
+  const explicit = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
+  if (explicit) return explicit
+  return getAppPathFromPathname(pathname)
 }
 
 /**

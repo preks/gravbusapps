@@ -68,7 +68,6 @@ import {
   Zap
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo } from '@/common/utils/navigationUtils'
 import { getWorkEmailFromCommunication } from '@/common/data/employee/useEmployeeSearch'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
 
@@ -299,7 +298,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     shareApp,
     revokeAccess,
     getSharedUsers,
-    clearCurrentApp,
     refreshApps,
     addRow,
     updateRow,
@@ -314,7 +312,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   })
 
   const { promoteToDatabase } = useDataPromotion(accessToken)
-  const { updateUrl, resetLoadAttempt } = useSpreadsheetAppsHubUrlState({
+  const { updateUrl } = useSpreadsheetAppsHubUrlState({
     currentView,
     currentAppId: currentApp?.id || null,
     isLoadingApps,
@@ -767,18 +765,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     const returnUrl = params.get('returnUrl')
 
     if (returnUrl) {
-      // Navigate back to the specified URL (e.g., space)
       globalThis.window.location.href = returnUrl
       return
     }
 
-    // Otherwise, go back to the list view
-    clearCurrentApp()
-    resetLoadAttempt()
-    setSelectedAppId(null)
-    setCurrentView('list')
-    updateUrl(null)
-  }, [clearCurrentApp, resetLoadAttempt, updateUrl])
+    // Otherwise, go back in history
+    window.history.back()
+  }, [])
 
   const handleStartUpload = useCallback(() => {
     setCurrentView('upload')
@@ -1000,7 +993,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => navigateTo('/platform/every-office')}
+                      onClick={() => window.history.back()}
                       data-testid={`${testId}-back-to-desk`}
                     >
                       <ChevronLeft className="gba:w-4 gba:h-4" />

@@ -60,6 +60,7 @@ import {
   STORAGE_KEY_ADDITIONAL_DATA,
   STORAGE_KEY_SIDEBAR_COLLAPSED
 } from './common/constants/ideStorageKeys'
+import { getAppPathFromUrl } from '@/common/utils/navigationUtils'
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob('./business-apps/**/index.ts', {
@@ -269,13 +270,6 @@ const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   })
 }
 
-const resolveAppFromUrl = (pathname: string, search: string): string | null => {
-  const urlParams = new URLSearchParams(search)
-  const explicitApp = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
-  if (explicitApp) return explicitApp
-  return null
-}
-
 const findInitialSelectedApp = (appFromUrl: string | null): BusinessAppInfo | null => {
   if (!appFromUrl) return null
   return (
@@ -297,7 +291,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
   const search = typeof window !== 'undefined' ? window.location.search : ''
 
-  const effectiveAppFromUrl = resolveAppFromUrl(pathname, search)
+  const effectiveAppFromUrl = getAppPathFromUrl(pathname, search)
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(findInitialSelectedApp(effectiveAppFromUrl))
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false)

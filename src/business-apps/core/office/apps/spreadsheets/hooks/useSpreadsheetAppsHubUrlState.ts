@@ -53,7 +53,6 @@ export function useSpreadsheetAppsHubUrlState(
   } = params
 
   const loadAttemptedRef = useRef<string | null>(null)
-  const cameFromDeskRef = useRef(false)
   const initialAppIdRef = useRef(getUrlParams().appId)
   const initialViewRef = useRef(getUrlParams().view)
 
@@ -139,22 +138,6 @@ export function useSpreadsheetAppsHubUrlState(
     void loadFromUrl()
   }, [currentAppId, isLoadingApps, loadAppById, setCurrentView, setSelectedAppId, onLoadFailed])
 
-  // Track if we came from desk.
-  useEffect(() => {
-    const referrer = document.referrer
-    const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current =
-      referrer.includes('/platform/every-office') ||
-      referrer.includes('?app=platform/apps/desk') ||
-      referrer.includes('?app=platform/apps/every-office') ||
-      referrer.includes('?app=core/office/apps/office-launcher') ||
-      urlParams.get('from') === 'desk'
-
-    if (cameFromDeskRef.current && currentView === 'list') {
-      window.history.replaceState({ fromDesk: true }, '', window.location.href)
-    }
-  }, [currentView])
-
   // Handle browser back/forward navigation.
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -162,7 +145,6 @@ export function useSpreadsheetAppsHubUrlState(
         appId?: string
         view?: HubView
         section?: SidebarSection
-        fromDesk?: boolean
       } | null
 
       // Check if we should return to a space instead of the hub
@@ -194,11 +176,6 @@ export function useSpreadsheetAppsHubUrlState(
       // Restore section if present
       if (state?.section) {
         setActiveSection(state.section)
-      }
-
-      if (state?.fromDesk && !state?.appId && currentView === 'list') {
-        navigateTo('/platform/every-office')
-        return
       }
 
       if (state?.appId) {
