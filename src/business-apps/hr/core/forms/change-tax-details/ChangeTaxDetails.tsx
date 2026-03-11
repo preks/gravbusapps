@@ -99,22 +99,26 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   const watchedValues = form.watch()
 
   const normalizeForCompare = useCallback((v: TaxInfoFormValues) => {
-    const s = (x: unknown) => (x == null ? '' : typeof x === 'object' ? '' : String(x).trim())
+    const toCompareString = (x: unknown): string => {
+      if (x == null) return ''
+      if (typeof x === 'object') return ''
+      return String(x).trim()
+    }
     return {
-      taxNumber: s(v.taxNumber),
+      taxNumber: toCompareString(v.taxNumber),
       taxBracketRef: v.taxBracketRef || null,
-      healthInsuranceName: s(v.healthInsuranceName),
+      healthInsuranceName: toCompareString(v.healthInsuranceName),
       healthInsuranceTypeRef: v.healthInsuranceTypeRef || null,
-      taxIdentificationNumber: s(v.taxIdentificationNumber),
+      taxIdentificationNumber: toCompareString(v.taxIdentificationNumber),
       religionRef: v.religionRef || null,
       taxableChurchAffiliationRef: v.taxableChurchAffiliationRef || null,
-      socialSecurityNumber: s(v.socialSecurityNumber),
-      childTaxAllowance: s(v.childTaxAllowance),
+      socialSecurityNumber: toCompareString(v.socialSecurityNumber),
+      childTaxAllowance: toCompareString(v.childTaxAllowance),
       requestAtTaxOffice: Boolean(v.requestAtTaxOffice),
-      employeeTaxOffice: s(v.employeeTaxOffice),
-      individualFreeAmount: s(v.individualFreeAmount),
+      employeeTaxOffice: toCompareString(v.employeeTaxOffice),
+      individualFreeAmount: toCompareString(v.individualFreeAmount),
       healthInsuranceDocumentTypeId: v.healthInsuranceDocumentTypeId || null,
-      healthInsuranceDocumentValidTo: s(v.healthInsuranceDocumentValidTo),
+      healthInsuranceDocumentValidTo: toCompareString(v.healthInsuranceDocumentValidTo),
       uploadNewHealthInsuranceDocument: Boolean(v.uploadNewHealthInsuranceDocument)
     }
   }, [])

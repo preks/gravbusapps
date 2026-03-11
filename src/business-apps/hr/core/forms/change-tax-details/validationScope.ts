@@ -104,7 +104,7 @@ export function validateTaxNumber(value: string, isGermany: boolean, getMessage:
   const raw = String(value || '').trim()
   if (!raw) return true
   if (!isGermany) return true
-  const digits = raw.replace(/[^0-9]/g, '')
+  const digits = raw.replace(/\D/g, '')
   const validLengths = [10, 11, 13]
   if (!validLengths.includes(digits.length)) {
     return getMessage(
@@ -117,7 +117,7 @@ export function validateTaxNumber(value: string, isGermany: boolean, getMessage:
 
 /** Tax ID: German 11-digit + check digit only when isGermany. Returns error string or true. */
 export function validateTaxId(value: string, isGermany: boolean, getMessage: GetMessage): string | true {
-  const digits = String(value || '').replaceAll(/\D/g, '')
+  const digits = String(value || '').replace(/\D/g, '')
   if (!isGermany) return true
   if (digits.length !== 11) {
     return getMessage(
@@ -139,32 +139,13 @@ const SSN_INVALID_MSG_FALLBACK = 'Please enter a valid German pension insurance 
 const CNP_INVALID_MSG_KEY = 'lowcoder:change_tax_information.invalid_cnp_text'
 const CNP_INVALID_MSG_FALLBACK = 'Please enter a valid 13-digit Romanian CNP (Cod Numeric Personal).'
 
-/** Social Security Number: German format when DE, Romanian CNP when RO. Returns error string or true. */
-export function validateSocialSecurityNumber(
-  value: string,
-  isGermany: boolean,
-  employeeGender: string | null,
-  getMessage: GetMessage,
-  isRomania?: boolean
-): string | true {
-  const raw = String(value || '').trim()
-  if (isRomania) {
-    const digits = raw.replaceAll(/\s+/g, '')
-    if (!digits) return true
-    if (!validateCNP(digits)) {
-      return getMessage(CNP_INVALID_MSG_KEY, CNP_INVALID_MSG_FALLBACK)
-    }
-    return true
-  }
-  if (!isGermany) return true
-  const compact = raw.replaceAll(/\s+/g, '')
-  const basic = /^\d{8}[A-Za-z]\d{3}$/.test(compact)
-  if (!basic) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
+function validateGermanSSN(compact: string, employeeGender: string | null, getMessage: GetMessage): string | true {
+  if (!/^\d{8}[A-Za-z]\d{3}$/.test(compact)) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
   const region = compact.substring(0, 2)
   if (!DE_SSN_VALID_REGION_CODES.has(region)) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
   const dd = Number.parseInt(compact.substring(2, 4), 10)
   const mm = Number.parseInt(compact.substring(4, 6), 10)
-  if (!(dd >= 1 && dd <= 31) || !(mm >= 1 && mm <= 12)) {
+  if (dd < 1 || dd > 31 || mm < 1 || mm > 12) {
     return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
   }
   if (employeeGender) {
@@ -175,4 +156,24 @@ export function validateSocialSecurityNumber(
     if (employeeGender !== 'male' && !validFemale) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
   }
   return true
+}
+
+/** Social Security Number: German format when DE, Romanian CNP when RO. Returns error string or true. */
+export function validateSocialSecurityNumber(
+  value: string,
+  isGermany: boolean,
+  employeeGender: string | null,
+  getMessage: GetMessage,
+  isRomania?: boolean
+): string | true {
+  const raw = String(value || '').trim()
+  if (isRomania) {
+    const digits = raw.replace(/\s+/g, '')
+    if (!digits) return true
+    if (!validateCNP(digits)) return getMessage(CNP_INVALID_MSG_KEY, CNP_INVALID_MSG_FALLBACK)
+    return true
+  }
+  if (!isGermany) return true
+  const compact = raw.replace(/\s+/g, '')
+  return validateGermanSSN(compact, employeeGender, getMessage)
 }

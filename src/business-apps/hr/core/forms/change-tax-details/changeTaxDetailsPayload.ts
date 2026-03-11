@@ -7,15 +7,15 @@ function buildAdditionalProperties(values: TaxInfoFormValues, data: any): Record
     Object.assign(additionalProperties, base)
   }
   additionalProperties.requestAtTaxOffice = Boolean(values.requestAtTaxOffice)
-  if (!values.requestAtTaxOffice) {
+  if (values.requestAtTaxOffice) {
+    const emp = String(values.employeeTaxOffice ?? '').trim()
+    const free = String(values.individualFreeAmount ?? '').trim()
+    if (emp) additionalProperties.employeeTaxOffice = emp
+    if (free) additionalProperties.individualFreeAmount = free
+  } else {
     delete additionalProperties.employeeTaxOffice
     delete additionalProperties.individualFreeAmount
-    return additionalProperties
   }
-  const emp = String(values.employeeTaxOffice ?? '').trim()
-  const free = String(values.individualFreeAmount ?? '').trim()
-  if (emp) additionalProperties.employeeTaxOffice = emp
-  if (free) additionalProperties.individualFreeAmount = free
   return additionalProperties
 }
 
