@@ -3,10 +3,11 @@ import { name, version } from './package.json'
 
 import './src/index.css'
 import { BusinessAppIDE } from './src/BusinessAppIDE'
-import { getAppPathFromPathname } from '@/common/utils/navigationUtils'
+import { getAppPathFromPathname, getValidatedPathname } from '@/common/utils/navigationUtils'
 
 /**
  * Normalize path-based platform URLs to include ?app= for the IDE.
+ * Uses validated path from allowlist (not raw pathname) to prevent open redirect.
  */
 function ensureAppParamInUrl(): boolean {
   if (typeof window === 'undefined') return false
@@ -16,9 +17,10 @@ function ensureAppParamInUrl(): boolean {
     return false
   }
   const app = getAppPathFromPathname(pathname)
-  if (!app) return false
+  const safePath = getValidatedPathname(pathname)
+  if (!app || !safePath) return false
   params.set('app', app)
-  const newUrl = `${pathname}?${params.toString()}`
+  const newUrl = `${safePath}?${params.toString()}`
   window.location.replace(newUrl)
   return true
 }

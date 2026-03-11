@@ -150,6 +150,15 @@ export function getAppPathFromPathname(pathname: string): string | null {
   return PLATFORM_URL_TO_APP_MAPPING[normalized] ?? null
 }
 
+/**
+ * Returns the validated path iff pathname matches a known platform path.
+ * Use this instead of raw pathname when building redirect URLs to prevent open redirect.
+ */
+export function getValidatedPathname(pathname: string): string | null {
+  const normalized = pathname.replace(/\/+$/, '') || '/'
+  return normalized in PLATFORM_URL_TO_APP_MAPPING ? normalized : null
+}
+
 /** Canonical platform path for Every Office (Desk hub). Use with navigateTo(). */
 export const EVERY_OFFICE_PLATFORM_PATH = '/platform/every-office'
 
