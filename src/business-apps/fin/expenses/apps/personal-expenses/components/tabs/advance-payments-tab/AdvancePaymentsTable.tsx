@@ -761,7 +761,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       const entry = newSorting[0]
       const field = entry?.id || 'createdAt'
-      const order = entry ? (entry.desc ? 'descend' : 'ascend') : 'descend'
+      const order = !entry ? 'descend' : entry.desc ? 'descend' : 'ascend'
       if (field === sortField && order === sortOrder) return
       setSortField(field)
       setSortOrder(order)
@@ -899,27 +899,32 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           'Payment Method'
         ),
         size: 140,
-        cell: ({ row }) => (
-          <div className="gba:text-sm gba:truncate" data-testid="advance-payment-method-cell">
-            {row.original.paymentMethod
-              ? typeof row.original.paymentMethod === 'object' &&
-                row.original.paymentMethod !== null &&
-                'value' in row.original.paymentMethod
-                ? getCatalogValue(row.original.paymentMethod)
-                : String(row.original.paymentMethod) === 'DIRECT_DEPOSIT'
-                  ? getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-                      'Direct Deposit'
-                    )
-                  : String(row.original.paymentMethod) === 'CASH_PAYMENT'
-                    ? getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-                        'Cash Payment'
-                      )
-                    : 'N/A'
-              : 'N/A'}
-          </div>
-        )
+        cell: ({ row }) => {
+          const pm = row.original.paymentMethod
+          let label: string
+          if (!pm) {
+            label = 'N/A'
+          } else if (typeof pm === 'object' && pm !== null && 'value' in pm) {
+            label = getCatalogValue(pm)
+          } else if (String(pm) === 'DIRECT_DEPOSIT') {
+            label = getTranslationFromI18nKeyAndLabel(
+              'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+              'Direct Deposit'
+            )
+          } else if (String(pm) === 'CASH_PAYMENT') {
+            label = getTranslationFromI18nKeyAndLabel(
+              'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+              'Cash Payment'
+            )
+          } else {
+            label = 'N/A'
+          }
+          return (
+            <div className="gba:text-sm gba:truncate" data-testid="advance-payment-method-cell">
+              {label}
+            </div>
+          )
+        }
       }
     ],
     []
@@ -929,7 +934,14 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     (row: { original: AdvancePayment }) => {
       const record = row.original
       return (
-        <div className="gba:flex gba:justify-end gba:gap-2" onClick={e => e.stopPropagation()}>
+        <div
+          className="gba:flex gba:justify-end gba:gap-2"
+          role="group"
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+          }}
+        >
           <AppAction
             variant="table-row"
             customActions={[

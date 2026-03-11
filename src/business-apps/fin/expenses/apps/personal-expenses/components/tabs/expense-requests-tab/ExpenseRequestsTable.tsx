@@ -794,7 +794,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     (row: { original: ExpenseRequestRow }) => {
       const record = row.original
       return (
-        <div className="gba:flex gba:justify-end gba:gap-2" onClick={e => e.stopPropagation()}>
+        <div
+          className="gba:flex gba:justify-end gba:gap-2"
+          role="group"
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+          }}
+        >
           <AppAction
             variant="table-row"
             customActions={[

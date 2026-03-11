@@ -587,15 +587,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     [selectedRowKeys, items, contextProps.userInfo]
   )
 
-  const sorting = useMemo(
-    () => (sortOrder ? [{ id: sortField || 'expenseDate', desc: sortOrder === 'descend' }] : []),
-    [sortField, sortOrder]
-  )
+  const sorting = useMemo(() => {
+    if (!sortOrder) return []
+    return [{ id: sortField || 'expenseDate', desc: sortOrder === 'descend' }]
+  }, [sortField, sortOrder])
   const handleSortingChange = useCallback(
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       const entry = newSorting[0]
       const field = entry?.id || 'expenseDate'
-      const orderFromTable = entry ? (entry.desc ? 'descend' : 'ascend') : undefined
+      let orderFromTable: 'ascend' | 'descend' | undefined
+      if (!entry) orderFromTable = undefined
+      else orderFromTable = entry.desc ? 'descend' : 'ascend'
       const isSameColumn = sortField === field
       let nextOrder: 'ascend' | 'descend'
       if (isSameColumn && orderFromTable != null && orderFromTable !== sortOrder) {
@@ -730,7 +732,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     (row: { original: ExpenseItem }) => {
       const record = row.original
       return (
-        <div className="gba:flex gba:justify-end gba:gap-2" onClick={e => e.stopPropagation()}>
+        <div
+          className="gba:flex gba:justify-end gba:gap-2"
+          role="group"
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+          }}
+        >
           <AppAction
             variant="table-row"
             customActions={generateExpenseItemActions(
@@ -770,37 +779,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     },
     [contextProps.userInfo?.employeeDetails?.employeeId, contextProps.accessToken, handleSelectItem]
   )
-
-  // Show error state
-  if (error) {
-    return (
-      <div
-        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
-        data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
-      >
-        <Alert variant="destructive" className="gba:mb-4">
-          <div className="gba:text-lg gba:font-medium gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.error_loading_expense_items',
-              'Error Loading Expense Items'
-            )}
-          </div>
-          <div className="gba:text-gray-600">{error}</div>
-        </Alert>
-        <Button
-          variant="default"
-          onClick={() => {
-            const searchTerm = debouncedSearch?.trim() || '%'
-            const apiFilters = buildApiFilters()
-            fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
-          }}
-          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
-        >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.retry', 'Retry')}
-        </Button>
-      </div>
-    )
-  }
 
   const primaryAction = useMemo(
     () => (
@@ -885,6 +863,37 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       handleDeleteSelection
     ]
   )
+
+  // Show error state (after all hooks so hook order is stable)
+  if (error) {
+    return (
+      <div
+        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
+        data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
+      >
+        <Alert variant="destructive" className="gba:mb-4">
+          <div className="gba:text-lg gba:font-medium gba:mb-2">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_expenses.error_loading_expense_items',
+              'Error Loading Expense Items'
+            )}
+          </div>
+          <div className="gba:text-gray-600">{error}</div>
+        </Alert>
+        <Button
+          variant="default"
+          onClick={() => {
+            const searchTerm = debouncedSearch?.trim() || '%'
+            const apiFilters = buildApiFilters()
+            fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
+          }}
+          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
+        >
+          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.retry', 'Retry')}
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <>

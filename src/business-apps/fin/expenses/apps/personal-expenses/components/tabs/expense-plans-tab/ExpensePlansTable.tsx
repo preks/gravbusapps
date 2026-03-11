@@ -517,16 +517,18 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     navigateTo(url)
   }, [])
 
-  const sorting = useMemo(
-    () => (sortOrder ? [{ id: sortField || 'planDate', desc: sortOrder === 'descend' }] : []),
-    [sortField, sortOrder]
-  )
+  const sorting = useMemo(() => {
+    if (!sortOrder) return []
+    return [{ id: sortField || 'planDate', desc: sortOrder === 'descend' }]
+  }, [sortField, sortOrder])
   const handleSortingChange = useCallback(
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       if (!onTableChange) return
       const entry = newSorting[0]
       const field = entry?.id || 'createdAt'
-      const order = entry ? (entry.desc ? 'descend' : 'ascend') : undefined
+      let order: 'ascend' | 'descend' | undefined
+      if (!entry) order = undefined
+      else order = entry.desc ? 'descend' : 'ascend'
       onTableChange({ current: 1, pageSize }, {}, { field, order })
     },
     [onTableChange, pageSize]
@@ -753,7 +755,14 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     (row: { original: ExpensePlan }) => {
       const record = row.original
       return (
-        <div className="gba:flex gba:justify-end gba:gap-2" onClick={e => e.stopPropagation()}>
+        <div
+          className="gba:flex gba:justify-end gba:gap-2"
+          role="group"
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+          }}
+        >
           <AppAction
             variant="table-row"
             customActions={[
