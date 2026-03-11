@@ -1,5 +1,38 @@
 import { ColumnConfig } from '../hooks/useReportFilters'
 
+const BASE_COLUMNS: ColumnConfig[] = [
+  { id: 'investment', label: 'Investment', visible: true, disabled: true },
+  { id: 'date', label: 'Date', visible: true }
+]
+
+const REAL_ESTATE_FALLBACK_COLUMNS: ColumnConfig[] = [
+  ...BASE_COLUMNS,
+  { id: 'name', label: 'Name', visible: true },
+  { id: 'proprietor', label: 'Proprietor', visible: true },
+  { id: 'location', label: 'Location', visible: true },
+  { id: 'size', label: 'Size', visible: true },
+  { id: 'buildingYear', label: 'Building Year', visible: true },
+  { id: 'annualNetColdRent', label: 'Annual Net Cold Rent', visible: true },
+  { id: 'occupancyPercent', label: 'Occupancy %', visible: true },
+  { id: 'funding', label: 'Funding', visible: true }
+]
+
+const LIQUID_FUND_FALLBACK_COLUMNS: ColumnConfig[] = [
+  ...BASE_COLUMNS,
+  { id: 'name', label: 'Name', visible: true },
+  { id: 'proprietor', label: 'Proprietor', visible: true },
+  { id: 'currency', label: 'Currency', visible: true },
+  { id: 'openingBalance', label: 'Opening Balance', visible: true },
+  { id: 'incoming', label: 'Incoming', visible: true },
+  { id: 'outgoing', label: 'Outgoing', visible: true },
+  { id: 'realized', label: 'Realized', visible: true },
+  { id: 'gainsLosses', label: 'Gains/Losses', visible: true },
+  { id: 'closingBalance', label: 'Closing Balance', visible: true },
+  { id: 'timeWeightedReturn', label: 'Time-Weighted Return', visible: true },
+  { id: 'interestRate', label: 'Interest Rate', visible: false },
+  { id: 'maturityDate', label: 'Maturity Date', visible: false }
+]
+
 /**
  * Base column generator that works for any investment group
  * Extracts columns from catalog data based on configuration
@@ -63,27 +96,22 @@ export const generateBaseReportColumns = (
  * @param catalogData - The catalog data
  * @returns Array of column configurations
  */
+const EQUITY_FALLBACK_COLUMNS: ColumnConfig[] = [
+  ...BASE_COLUMNS,
+  { id: 'name', label: 'Name', visible: true },
+  { id: 'company', label: 'Company', visible: true },
+  { id: 'sector', label: 'Sector', visible: true },
+  { id: 'shares', label: 'Shares', visible: true },
+  { id: 'sharePrice', label: 'Share Price', visible: true },
+  { id: 'totalValue', label: 'Total Value', visible: true },
+  { id: 'gainLoss', label: 'Gain/Loss', visible: true },
+  { id: 'returnPercent', label: 'Return %', visible: true }
+]
+
 export const generateEquityReportColumns = (catalogData: any): ColumnConfig[] => {
   const columns = generateBaseReportColumns(catalogData, 'GROUP', 'EQUITY', 'investmentGroups')
 
-  // If no catalog data, use fallback columns
-  if (columns.length === 2) {
-    // Only has base columns (investment + date)
-    return [
-      { id: 'investment', label: 'Investment', visible: true, disabled: true },
-      { id: 'date', label: 'Date', visible: true },
-      { id: 'name', label: 'Name', visible: true },
-      { id: 'company', label: 'Company', visible: true },
-      { id: 'sector', label: 'Sector', visible: true },
-      { id: 'shares', label: 'Shares', visible: true },
-      { id: 'sharePrice', label: 'Share Price', visible: true },
-      { id: 'totalValue', label: 'Total Value', visible: true },
-      { id: 'gainLoss', label: 'Gain/Loss', visible: true },
-      { id: 'returnPercent', label: 'Return %', visible: true }
-    ]
-  }
-
-  return columns
+  return columns.length === 2 ? EQUITY_FALLBACK_COLUMNS : columns
 }
 
 /**
@@ -96,40 +124,12 @@ export const generateEquityReportColumns = (catalogData: any): ColumnConfig[] =>
  */
 export const generateRealEstateReportColumns = (catalogData: any, investmentTypeCode: string): ColumnConfig[] => {
   if (!investmentTypeCode || investmentTypeCode === 'overview') {
-    // Return fallback for overview
-    return [
-      { id: 'investment', label: 'Investment', visible: true, disabled: true },
-      { id: 'date', label: 'Date', visible: true },
-      { id: 'name', label: 'Name', visible: true },
-      { id: 'proprietor', label: 'Proprietor', visible: true },
-      { id: 'location', label: 'Location', visible: true },
-      { id: 'size', label: 'Size', visible: true },
-      { id: 'buildingYear', label: 'Building Year', visible: true },
-      { id: 'annualNetColdRent', label: 'Annual Net Cold Rent', visible: true },
-      { id: 'occupancyPercent', label: 'Occupancy %', visible: true },
-      { id: 'funding', label: 'Funding', visible: true }
-    ]
+    return REAL_ESTATE_FALLBACK_COLUMNS
   }
 
   const columns = generateBaseReportColumns(catalogData, 'TYPE', investmentTypeCode, 'investmentTypes')
 
-  // If no catalog data, use fallback columns
-  if (columns.length === 2) {
-    return [
-      { id: 'investment', label: 'Investment', visible: true, disabled: true },
-      { id: 'date', label: 'Date', visible: true },
-      { id: 'name', label: 'Name', visible: true },
-      { id: 'proprietor', label: 'Proprietor', visible: true },
-      { id: 'location', label: 'Location', visible: true },
-      { id: 'size', label: 'Size', visible: true },
-      { id: 'buildingYear', label: 'Building Year', visible: true },
-      { id: 'annualNetColdRent', label: 'Annual Net Cold Rent', visible: true },
-      { id: 'occupancyPercent', label: 'Occupancy %', visible: true },
-      { id: 'funding', label: 'Funding', visible: true }
-    ]
-  }
-
-  return columns
+  return columns.length === 2 ? REAL_ESTATE_FALLBACK_COLUMNS : columns
 }
 
 /**
@@ -142,46 +142,10 @@ export const generateRealEstateReportColumns = (catalogData: any, investmentType
  */
 export const generateLiquidFundReportColumns = (catalogData: any, liquidFundTypeCode: string): ColumnConfig[] => {
   if (!liquidFundTypeCode) {
-    // Return fallback
-    return [
-      { id: 'investment', label: 'Investment', visible: true, disabled: true },
-      { id: 'date', label: 'Date', visible: true },
-      { id: 'name', label: 'Name', visible: true },
-      { id: 'proprietor', label: 'Proprietor', visible: true },
-      { id: 'currency', label: 'Currency', visible: true },
-      { id: 'openingBalance', label: 'Opening Balance', visible: true },
-      { id: 'incoming', label: 'Incoming', visible: true },
-      { id: 'outgoing', label: 'Outgoing', visible: true },
-      { id: 'realized', label: 'Realized', visible: true },
-      { id: 'gainsLosses', label: 'Gains/Losses', visible: true },
-      { id: 'closingBalance', label: 'Closing Balance', visible: true },
-      { id: 'timeWeightedReturn', label: 'Time-Weighted Return', visible: true },
-      { id: 'interestRate', label: 'Interest Rate', visible: false },
-      { id: 'maturityDate', label: 'Maturity Date', visible: false }
-    ]
+    return LIQUID_FUND_FALLBACK_COLUMNS
   }
 
   const columns = generateBaseReportColumns(catalogData, 'TYPE', liquidFundTypeCode, 'investmentLiquidFundTypes')
 
-  // If no catalog data, use fallback columns
-  if (columns.length === 2) {
-    return [
-      { id: 'investment', label: 'Investment', visible: true, disabled: true },
-      { id: 'date', label: 'Date', visible: true },
-      { id: 'name', label: 'Name', visible: true },
-      { id: 'proprietor', label: 'Proprietor', visible: true },
-      { id: 'currency', label: 'Currency', visible: true },
-      { id: 'openingBalance', label: 'Opening Balance', visible: true },
-      { id: 'incoming', label: 'Incoming', visible: true },
-      { id: 'outgoing', label: 'Outgoing', visible: true },
-      { id: 'realized', label: 'Realized', visible: true },
-      { id: 'gainsLosses', label: 'Gains/Losses', visible: true },
-      { id: 'closingBalance', label: 'Closing Balance', visible: true },
-      { id: 'timeWeightedReturn', label: 'Time-Weighted Return', visible: true },
-      { id: 'interestRate', label: 'Interest Rate', visible: false },
-      { id: 'maturityDate', label: 'Maturity Date', visible: false }
-    ]
-  }
-
-  return columns
+  return columns.length === 2 ? LIQUID_FUND_FALLBACK_COLUMNS : columns
 }

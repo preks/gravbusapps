@@ -498,7 +498,8 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   const serviceUrl = apiUrl.replace(/\/api\/v1$/, '')
 
   // Extract the service path (e.g., '/document') for socket.io path
-  const urlObj = new URL(serviceUrl)
+  // Resolve relative URLs (e.g., "/local-doc-api") against the current page origin
+  const urlObj = new URL(serviceUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005')
   const servicePath = urlObj.pathname // e.g., '/document'
 
   // For localhost, use simple path; for production use service path

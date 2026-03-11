@@ -33,7 +33,7 @@ const ChartCardHeader: React.FC<ChartCardHeaderProps> = ({ children }) => (
   </CardHeader>
 )
 
-const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...props }) => {
+const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, allEntities, ...props }) => {
   // Line visibility state
   const [visibleLines, setVisibleLines] = useState({
     totalLeads: true,
@@ -45,7 +45,8 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
   const { chartData, isLoading, error, timeFilter, setTimeFilter, refetch } = useCampaignChart(
     props,
     campaignId,
-    campaign
+    campaign,
+    allEntities
   )
 
   const timeFilterOptions = [

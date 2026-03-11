@@ -66,6 +66,12 @@ export interface ContactLayoutProps<TContact extends Contact = Contact, TQueryVa
   readonly initialFilters?: Record<string, any>
   readonly hideFilters?: boolean
   readonly customPrimaryAction?: React.ReactNode
+  /**
+   * Pass statistics here instead of via config.contactStatistics so that statistics
+   * state updates do not recreate the config object and inadvertently re-trigger
+   * the GetContacts query via the queryVariables / loadData dependency chain.
+   */
+  readonly contactStatistics?: ContactStatisticsData
 }
 
 // Row Actions Component
@@ -108,8 +114,12 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
     dataTestId = 'contact-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    contactStatistics: contactStatisticsProp
   } = props
+
+  // Prefer the directly-passed prop; fall back to config for backwards compatibility
+  const activeContactStatistics = contactStatisticsProp ?? config.contactStatistics
 
   // View State
   const [searchTerm, setSearchTerm] = useState('')
@@ -178,18 +188,19 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
     loadData(true)
   }, [context?.accessToken, isInitialLoad])
 
-  // Reload data when filters/search/sort change (skip initial load)
+  // Reload data when filters/search/sort change (skip initial load).
+  // loadData is intentionally omitted from deps: it is derived from queryVariables,
+  // so including it would cause the effect to fire twice on every query change.
   useEffect(() => {
     if (isInitialLoad || !context?.accessToken) return
     loadData(false)
-  }, [queryVariables, context?.accessToken, loadData])
+  }, [queryVariables, context?.accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
     loadData(false)
-    // Also refresh statistics when process completes
-    config.contactStatistics?.refetch?.()
-  }, [loadData, config.contactStatistics?.refetch])
+    activeContactStatistics?.refetch?.()
+  }, [loadData, activeContactStatistics?.refetch])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
@@ -251,8 +262,8 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {config.contactStatistics && (
-        <ContactStatisticsLayout statistics={config.contactStatistics} data-testid={`${dataTestId}-statistics`} />
+      {activeContactStatistics && (
+        <ContactStatisticsLayout statistics={activeContactStatistics} data-testid={`${dataTestId}-statistics`} />
       )}
 
       {/* DataDisplay */}

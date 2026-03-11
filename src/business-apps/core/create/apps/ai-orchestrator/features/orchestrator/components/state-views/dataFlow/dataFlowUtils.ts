@@ -28,21 +28,22 @@ export const PAD_BOTTOM = 32
 const ARC_ZONE_Y_START = 52
 const ARC_ZONE_STEP = 8 // vertical step between stacked arcs
 
-// ── Colors ────────────────────────────────────────────────────────────────────
+// ── Colors: NEWWORK design system tokens (changeable from theme) ───────────────
+// Uses var(--nw-*) from @newwork/nw-design-system/dist/styles/colors.css
 export const TYPE_COLORS: Record<ComponentType, string> = {
-  data_model: '#6366f1',
-  function: '#f59e0b',
-  agent: '#8b5cf6',
-  flow: '#14b8a6',
-  screen: '#10b981'
+  data_model: 'var(--nw-info)',
+  function: 'var(--nw-warning)',
+  agent: 'var(--nw-ai-1)',
+  flow: 'var(--nw-success)',
+  screen: 'var(--nw-success-on-card)'
 }
 
 export const TYPE_BG_COLORS: Record<ComponentType, string> = {
-  data_model: 'rgba(99,102,241,0.10)',
-  function: 'rgba(245,158,11,0.10)',
-  agent: 'rgba(139,92,246,0.10)',
-  flow: 'rgba(20,184,166,0.10)',
-  screen: 'rgba(16,185,129,0.10)'
+  data_model: 'color-mix(in srgb, var(--nw-info) 18%, transparent)',
+  function: 'color-mix(in srgb, var(--nw-warning) 18%, transparent)',
+  agent: 'color-mix(in srgb, var(--nw-ai-1) 18%, transparent)',
+  flow: 'color-mix(in srgb, var(--nw-success) 18%, transparent)',
+  screen: 'color-mix(in srgb, var(--nw-success-on-card) 18%, transparent)'
 }
 
 export const TYPE_LAYER_LABELS: Record<ComponentType, string> = {

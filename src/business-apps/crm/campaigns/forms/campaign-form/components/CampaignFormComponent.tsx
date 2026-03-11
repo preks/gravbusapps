@@ -97,7 +97,7 @@ const CampaignFormComponent: React.FC = () => {
                 </FormLabel>
                 <FormControl>
                   <CatalogSelect
-                    catalogIdentifier="SalesCampaignType:v1"
+                    catalogIdentifier="CustomerCampaignType:v1"
                     value={field.value || ''}
                     onValueChange={field.onChange}
                     data-testid="campaign-form-type-select"

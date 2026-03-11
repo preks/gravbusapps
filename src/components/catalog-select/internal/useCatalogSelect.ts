@@ -236,9 +236,10 @@ export const useCatalogSelect = (
       defaultThreshold,
       locale,
       fetchCatalogs,
+      fetchCatalogEntriesByIdentifier,
       setFor
     })
-  }, [configs, fetchCatalogs, locale, stateById, externalValues, setFor])
+  }, [configs, fetchCatalogs, fetchCatalogEntriesByIdentifier, locale, stateById, externalValues, setFor])
 
   const { fetchCatalog } = useCatalog(context)
   const primeNonPrefetch = useCallback(async () => {
@@ -286,6 +287,20 @@ export const useCatalogSelect = (
           const currentState = stateById[config.id]
           const effectiveValues = resolveCatalogSelectFieldValues(config.id, externalValues, stateById)
           if (effectiveValues.length === 0 || !currentState?.options) return []
+
+          // For child fields (those with a parentField): only check for missing options after
+          // the parent-filtered fetch has been initiated (detected via lastFiltersSig).
+          // Without this guard, fetchMissingCatalogOptions fires in the same render cycle as
+          // fetchFilteredOptionsWithParent — before its setFor(loading:true) is reflected in
+          // stateById (React batching) — causing a duplicate API call for the child catalog.
+          if (config.parentField) {
+            const parentValue = resolveCatalogSelectFieldValue(config.parentField, externalValues, stateById)
+            if (parentValue) {
+              const expectedFiltersSig = buildFiltersSignature({ parentEntryId: parentValue })
+              if (currentState.lastFiltersSig !== expectedFiltersSig) return []
+            }
+          }
+
           const optionValueSet = new Set(currentState.options.map(option => option.value))
           return effectiveValues
             .filter(effectiveValue => !optionValueSet.has(effectiveValue))
@@ -301,8 +316,6 @@ export const useCatalogSelect = (
       // Ignore errors
     })
   }, [fetchMissingOptions, missingOptionSignature])
-
-  const configById = useMemo(() => new Map(configs.map(config => [config.id, config])), [configs])
 
   const createSetValue = useCallback(
     (id: string) => (v: string | null | undefined) => {
@@ -462,7 +475,6 @@ export const useCatalogSelect = (
     configs,
     stateById,
     externalValues,
-    configById,
     defaultPageSize,
     createSetValue,
     createOnSearch,

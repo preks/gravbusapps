@@ -177,7 +177,7 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
       )}
 
       {/* Tiles List - stable order to avoid jumpy card movement */}
-      <div className="gba:flex gba:flex-col gba:gap-2">
+      <div className="gba:flex gba:flex-col gba:gap-1.5 gba:md:gap-2">
         {visibleTiles.map(type => (
           <BuildTile key={type} tile={tiles[type]} data-testid={`${testId}-tile-${type}`} />
         ))}

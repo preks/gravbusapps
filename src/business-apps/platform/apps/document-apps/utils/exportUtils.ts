@@ -519,6 +519,7 @@ function dataUrlToPngForWord(dataUrl: string): Promise<{ dataUrl: string; width:
  * Process all data-URL images in HTML for Word: convert to PNG, upscale small images, add width/height.
  * Improves sharpness when the source image was low resolution (e.g. screenshots or small embeds).
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function prepareImagesForWordExport(html: string): Promise<string> {
   const imgDataUrlRegex = /<img([^>]*?)src\s*=\s*["'](data:image\/[^"']+)["']([^>]*)>/gi
   const matches = [...html.matchAll(imgDataUrlRegex)]
@@ -566,6 +567,7 @@ function makeWordFriendlyImages(html: string): string {
 /**
  * Convert HTML content to Word-compatible markup
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function htmlToWordML(html: string): string {
   const content = html
     .replace(/<div[^>]*data-page-break[^>]*>.*?<\/div>/gi, '<br clear="all" style="page-break-after:always"/>')
@@ -580,120 +582,20 @@ export interface ExportImageOptions {
 /**
  * Export document to Word format (.docx)
  *
- * Uses HTML-to-DOCX conversion with proper page break handling.
- * If getImageDataUrl is provided, images are embedded as data URLs so they display in the exported file.
+ * Produces a proper Office Open XML .docx file (ZIP-based) that can be opened
+ * by Word, LibreOffice, and re-imported via mammoth. Images are embedded.
+ * If getImageDataUrl is provided, images are resolved to data URLs before conversion.
  */
 export async function exportToWord(title: string, htmlContent: string, options?: ExportImageOptions): Promise<void> {
-  let content = sanitizeHtmlForExport(htmlContent, {
-    preserveBlockSpacing: true,
-    allowDataUriInImg: true
-  })
+  const { buildDocxBlob, sanitizeDocxFilename } = await import('./docxExport')
+
+  let content = htmlContent
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }
-  content = await prepareImagesForWordExport(content)
-  const wordContent = htmlToWordML(content)
-  const safeTitle = escapeHtmlText(title || 'Document')
 
-  // Create Word document using HTML
-  const wordDoc = `
-    <!DOCTYPE html>
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" 
-          xmlns:w="urn:schemas-microsoft-com:office:word"
-          xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-      <meta charset="utf-8">
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>${safeTitle}</title>
-      <!--[if gte mso 9]>
-      <xml>
-        <w:WordDocument>
-          <w:View>Print</w:View>
-          <w:Zoom>100</w:Zoom>
-          <w:DoNotOptimizeForBrowser/>
-        </w:WordDocument>
-      </xml>
-      <![endif]-->
-      <style>
-        @page {
-          size: A4;
-          margin: 1in;
-        }
-        body {
-          font-family: 'Times New Roman', serif;
-          font-size: 12pt;
-          line-height: 1.6;
-          margin: 0;
-          padding: 0;
-        }
-        h1 { font-size: 24pt; font-weight: bold; margin: 0 0 12pt 0; }
-        h2 { font-size: 18pt; font-weight: bold; margin: 18pt 0 10pt 0; }
-        h3 { font-size: 14pt; font-weight: bold; margin: 16pt 0 8pt 0; }
-        h4, h5, h6 { font-size: 12pt; font-weight: bold; margin: 14pt 0 6pt 0; }
-        p { margin: 0 0 10pt 0; }
-        ul, ol { padding-left: 24pt; margin: 0 0 10pt 0; }
-        li { margin-bottom: 4pt; }
-        blockquote {
-          border-left: 3pt solid #ccc;
-          padding-left: 12pt;
-          margin: 12pt 0;
-          color: #555;
-          font-style: italic;
-        }
-        table {
-          border-collapse: collapse;
-          width: 100%;
-          margin: 12pt 0;
-        }
-        td, th {
-          border: 1pt solid #333;
-          padding: 6pt 8pt;
-        }
-        th {
-          background: #f0f0f0;
-          font-weight: bold;
-        }
-        pre {
-          background: #f5f5f5;
-          border: 1pt solid #e0e0e0;
-          padding: 8pt;
-          font-family: 'Courier New', monospace;
-          font-size: 10pt;
-          white-space: pre-wrap;
-        }
-        code {
-          font-family: 'Courier New', monospace;
-          font-size: 10pt;
-          background: #f0f0f0;
-          padding: 2pt 4pt;
-        }
-        img {
-          max-width: 100%;
-          height: auto;
-        }
-        /* Page break styles */
-        br[style*="page-break"] {
-          page-break-after: always;
-          mso-break-type: section-break;
-        }
-        .page-break {
-          page-break-after: always;
-          mso-break-type: section-break;
-        }
-      </style>
-    </head>
-    <body>
-      ${wordContent}
-    </body>
-    </html>
-  `
-
-  // Create blob and download
-  const blob = new Blob([wordDoc], {
-    type: 'application/msword'
-  })
-
-  downloadBlob(blob, `${sanitizeFilename(title)}.doc`)
+  const blob = await buildDocxBlob(title, content)
+  downloadBlob(blob, `${sanitizeDocxFilename(title)}.docx`)
 }
 
 /**

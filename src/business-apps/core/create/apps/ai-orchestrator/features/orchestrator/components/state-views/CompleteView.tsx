@@ -11,14 +11,14 @@ import { Upload, Loader2, CheckCircle2, ExternalLink, XCircle } from 'lucide-rea
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
-import { BuildPlanTab } from './BuildPlanTab'
-import { DataFlowDiagram } from './DataFlowDiagram'
+import { OverviewTab } from './OverviewTab'
 import { AppIconBadge } from '../ui/AppIconBadge'
 import { AppAboutView } from './AppAboutView'
 import { DataModelPreview } from '@/common/components/ai-builder/data-model-preview/DataModelPreview'
 import { FunctionPreview } from '@/common/components/ai-builder/function-preview/FunctionPreview'
 import { FlowPreview } from '@/common/components/ai-builder/flow-preview/FlowPreview'
 import { AgentPreview } from '@/common/components/ai-builder/agent-preview/AgentPreview'
+import { AgentMeshPreview } from '@/common/components/ai-builder/agent-mesh-preview/AgentMeshPreview'
 import { PreviewTemplate } from '@/common/components/ai-builder/preview-template/PreviewTemplate'
 import { mapDataModelSpec, mapFunctionSpec, mapFlowSpec, mapAgentSpec } from './componentSpecPreviewMappers'
 import type { ComponentSpec, CanvasTab } from '../../types'
@@ -84,10 +84,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   const renderTabContent = () => {
     switch (activeTab) {
       case 'build-plan':
-        return <BuildPlanTab components={components} userSummary={userSummary} prompt={prompt} />
-
-      case 'data-flow':
-        return <DataFlowDiagram components={components} />
+        return <OverviewTab components={components} userSummary={userSummary} prompt={prompt} />
 
       case 'screen':
         if (previewComponent && accessToken) {
@@ -228,12 +225,36 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
                 const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
                 if (comp.flowSpec) {
                   const specTemplate = { ...mapFlowSpec(comp.flowSpec), id: effectiveId }
-                  return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} template={specTemplate} />
+                  return (
+                    <FlowPreview
+                      key={comp.id}
+                      accessToken={accessToken ?? ''}
+                      userInfo={userInfo}
+                      template={specTemplate}
+                    />
+                  )
                 }
-                return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} flowId={effectiveId} />
+                return (
+                  <FlowPreview key={comp.id} accessToken={accessToken ?? ''} userInfo={userInfo} flowId={effectiveId} />
+                )
               }}
             </PreviewTemplate>
           </div>
+        )
+      }
+
+      case 'agent-mesh': {
+        const builtAgents = components.filter(
+          c =>
+            c.type === 'agent' && (c.status === 'completed' || c.status === 'reused') && (c.createdId || c.existingId)
+        )
+        const agentIds = builtAgents.map(c => c.createdId ?? c.existingId ?? c.id)
+        return (
+          <AgentMeshPreview
+            accessToken={accessToken ?? ''}
+            agentIds={agentIds}
+            data-testid="complete-view-agent-mesh-preview"
+          />
         )
       }
 
