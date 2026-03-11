@@ -256,6 +256,15 @@ export const GET_CURRENT_ALLOCATION = `
   }
 `
 
+/** Single allocation by id (e.g. for employee acknowledgment review). */
+export const GET_EMPLOYEE_ASSET_BY_ID = `
+  query GetEmployeeAssetById($id: uuid!) {
+    EmployeeAsset(where: { id: { _eq: $id }, isDeleted: { _eq: false } }, limit: 1) {
+      ${EMPLOYEE_ASSET_FIELDS}
+    }
+  }
+`
+
 /** Asset IDs that have a current allocation to one of the given employee IDs (for filter by employee). */
 export const GET_ASSET_IDS_BY_EMPLOYEE_IDS = `
   query GetAssetIdsByEmployeeIds($employeeIds: [uuid!]!) {

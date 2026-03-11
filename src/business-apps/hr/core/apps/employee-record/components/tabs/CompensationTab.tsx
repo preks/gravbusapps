@@ -22,6 +22,7 @@ import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
 import { CompensationPermissions } from './compensation/hooks/useCompensationPermissions'
 import translations from '../../_i18n'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface CompensationTabProps extends BusinessAppContextProps {
   employeeId: string
@@ -94,6 +95,13 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
     shouldLoadCompensationData ? accessToken : '',
     currentLocale
   )
+
+  useProcessCompletion({
+    onSuccess: () => {
+      if (!shouldLoadCompensationData) return
+      void refetchCompensation()
+    }
+  })
 
   const updateUrl = useCallback(
     (subView: CompensationSubView) => {
