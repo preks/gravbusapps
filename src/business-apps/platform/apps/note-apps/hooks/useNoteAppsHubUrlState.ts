@@ -43,6 +43,8 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  const initialNoteIdRef = useRef(getUrlParams().noteId)
+  const initialViewRef = useRef(getUrlParams().view)
 
   const updateUrl = useCallback(
     (noteId: string | null, view?: HubView) => {
@@ -81,16 +83,24 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
   }, []) // Run only on mount
 
   // Load note from URL on mount.
+  // Uses initialNoteIdRef as fallback since parent effects may clear URL params.
   useEffect(() => {
-    const { noteId, view } = getUrlParams()
+    const urlParams = getUrlParams()
+    const noteId = urlParams.noteId || initialNoteIdRef.current
+    const view = urlParams.view || initialViewRef.current
     if (!noteId) return
     if (currentNoteId) return
     if (isLoadingNote) return
     if (loadAttemptedRef.current === noteId) return
 
     loadAttemptedRef.current = noteId
+    initialNoteIdRef.current = null
+    initialViewRef.current = null
     loadNoteById(noteId).then(note => {
-      if (!note) return
+      if (!note) {
+        loadAttemptedRef.current = null
+        return
+      }
       setSelectedNoteId(noteId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })

@@ -103,6 +103,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/slides': 'platform/apps/slide-apps',
   '/platform/nexus': 'platform/apps/nexus',
   '/platform/apps/agent-mesh': 'platform/apps/agent-mesh',
+  '/platform/apps/drive-apps': 'platform/apps/drive-apps',
+  '/platform/drive': 'platform/apps/drive-apps',
 
   // Email
   '/platform/apps/email-apps': 'platform/apps/email-apps',
@@ -278,6 +280,23 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
         window.location.href = url
       }
     }
+  }
+}
+
+/**
+ * Opens a platform URL in a new browser tab.
+ * Handles dev/prod URL conversion the same way navigateTo does.
+ */
+export const openInNewTab = (url: string): void => {
+  if (typeof window === 'undefined') return
+  const isProduction = process.env.NODE_ENV === 'production'
+  if (isProduction) {
+    window.open(url, '_blank')
+  } else if (isPlatformUrl(url)) {
+    const queryParams = convertToDevQueryParams(url)
+    window.open(`${window.location.origin}${queryParams}`, '_blank')
+  } else {
+    window.open(url, '_blank')
   }
 }
 
