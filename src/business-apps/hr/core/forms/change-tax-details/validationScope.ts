@@ -37,11 +37,11 @@ export function validateCNP(cnp: string): boolean {
   const controlKey = '279146358279'
   let sum = 0
   for (let i = 0; i < 12; i++) {
-    sum += parseInt(cnp[i], 10) * parseInt(controlKey[i], 10)
+    sum += Number.parseInt(cnp[i], 10) * Number.parseInt(controlKey[i], 10)
   }
   let controlDigit = sum % 11
   if (controlDigit === 10) controlDigit = 1
-  return controlDigit === parseInt(cnp[12], 10)
+  return controlDigit === Number.parseInt(cnp[12], 10)
 }
 
 /** Valid German pension insurance (Rentenversicherung) region codes: first two digits of SSN. */
@@ -84,14 +84,14 @@ export function isValidGermanTaxIdCheckDigit(digits: string): boolean {
   if (digits.length !== 11) return false
   let summand = 10
   for (let i = 0; i < 10; i++) {
-    const n = parseInt(digits[i], 10)
+    const n = Number.parseInt(digits[i], 10)
     let v = (summand + n) % 10
     if (v === 0) v = 10
     summand = (v * 2) % 11
   }
   let check = 11 - summand
   if (check === 10) check = 0
-  return check === parseInt(digits[10], 10)
+  return check === Number.parseInt(digits[10], 10)
 }
 
 export type GetMessage = (key: string, fallback: string) => string
@@ -117,7 +117,7 @@ export function validateTaxNumber(value: string, isGermany: boolean, getMessage:
 
 /** Tax ID: German 11-digit + check digit only when isGermany. Returns error string or true. */
 export function validateTaxId(value: string, isGermany: boolean, getMessage: GetMessage): string | true {
-  const digits = String(value || '').replace(/[^0-9]/g, '')
+  const digits = String(value || '').replaceAll(/\D/g, '')
   if (!isGermany) return true
   if (digits.length !== 11) {
     return getMessage(
@@ -149,7 +149,7 @@ export function validateSocialSecurityNumber(
 ): string | true {
   const raw = String(value || '').trim()
   if (isRomania) {
-    const digits = raw.replace(/\s+/g, '')
+    const digits = raw.replaceAll(/\s+/g, '')
     if (!digits) return true
     if (!validateCNP(digits)) {
       return getMessage(CNP_INVALID_MSG_KEY, CNP_INVALID_MSG_FALLBACK)
@@ -157,23 +157,22 @@ export function validateSocialSecurityNumber(
     return true
   }
   if (!isGermany) return true
-  const compact = raw.replace(/\s+/g, '')
-  const basic = /^[0-9]{8}[A-Za-z][0-9]{3}$/.test(compact)
+  const compact = raw.replaceAll(/\s+/g, '')
+  const basic = /^\d{8}[A-Za-z]\d{3}$/.test(compact)
   if (!basic) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
   const region = compact.substring(0, 2)
   if (!DE_SSN_VALID_REGION_CODES.has(region)) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
-  const dd = parseInt(compact.substring(2, 4), 10)
-  const mm = parseInt(compact.substring(4, 6), 10)
+  const dd = Number.parseInt(compact.substring(2, 4), 10)
+  const mm = Number.parseInt(compact.substring(4, 6), 10)
   if (!(dd >= 1 && dd <= 31) || !(mm >= 1 && mm <= 12)) {
     return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
   }
   if (employeeGender) {
-    const genderDigits = parseInt(compact.substring(9, 11), 10)
-    if (employeeGender === 'male') {
-      if (!(genderDigits >= 0 && genderDigits <= 49)) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
-    } else {
-      if (!(genderDigits >= 50 && genderDigits <= 99)) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
-    }
+    const genderDigits = Number.parseInt(compact.substring(9, 11), 10)
+    const validMale = genderDigits >= 0 && genderDigits <= 49
+    const validFemale = genderDigits >= 50 && genderDigits <= 99
+    if (employeeGender === 'male' && !validMale) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
+    if (employeeGender !== 'male' && !validFemale) return getMessage(SSN_INVALID_MSG_KEY, SSN_INVALID_MSG_FALLBACK)
   }
   return true
 }

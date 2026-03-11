@@ -8,12 +8,11 @@ import { AppAction } from '@/components/app-action/AppAction'
 import translations from '../../_i18n'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { formatDate, formatNumberFunction } from '../../../../../../../common/utils/windowUtils'
+import { formatDate, formatNumberFunction, getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
 import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
 import { useEmploymentRegionLabel } from '../../hooks/useEmploymentRegionLabel'
-import { getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 
 interface EmploymentTabProps {
   employee: Employee

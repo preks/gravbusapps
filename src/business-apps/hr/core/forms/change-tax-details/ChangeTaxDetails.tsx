@@ -73,7 +73,7 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
       if (!key.startsWith('lowcoder:')) return t(key)
       const localKey = LOCAL_I18N_KEY_MAP[key]
       if (localKey) return t(localKey)
-      return (getTranslationFromI18nKeyAndLabel(key, fallback) as string) || fallback
+      return getTranslationFromI18nKeyAndLabel(key, fallback) || fallback
     },
     [t]
   )
@@ -99,7 +99,7 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   const watchedValues = form.watch()
 
   const normalizeForCompare = useCallback((v: TaxInfoFormValues) => {
-    const s = (x: unknown) => (x == null ? '' : String(x).trim())
+    const s = (x: unknown) => (x == null ? '' : typeof x === 'object' ? '' : String(x).trim())
     return {
       taxNumber: s(v.taxNumber),
       taxBracketRef: v.taxBracketRef || null,
@@ -120,7 +120,7 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   }, [])
 
   const isUnchangedNow = useMemo(() => {
-    const current = normalizeForCompare(watchedValues as TaxInfoFormValues)
+    const current = normalizeForCompare(watchedValues)
     const initial = normalizeForCompare(initialRef.current)
     return JSON.stringify(current) === JSON.stringify(initial)
   }, [watchedValues, normalizeForCompare])
