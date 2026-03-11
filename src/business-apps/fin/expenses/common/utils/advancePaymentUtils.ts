@@ -1,6 +1,8 @@
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue, formatDate } from '@/common/utils/windowUtils'
+import { getCatalogValue, formatDate } from '@/common/utils/windowUtils'
 import { Badge } from '@newwork/nw-design-system'
 import React from 'react'
+
+type TranslateFn = (key: string, vars?: Record<string, unknown>) => string
 
 /**
  * Advance payment data structure for building fields
@@ -56,8 +58,8 @@ export interface AdvancePaymentFieldConfig {
   showDescription?: boolean
   /** Format currency function */
   formatCurrency: (amount: number, currencyCode: string) => string
-  /** Translation function for expense-plan-code */
-  t: (key: string) => string
+  /** Translation function */
+  t: TranslateFn
   /** Status display function */
   getStatusDisplay: (status: string) => { label: string; badgeVariant?: string }
 }
@@ -68,43 +70,41 @@ export interface DetailsPanelField {
   dataTestId?: string
 }
 
-// Helper to add optional date fields
 const addDateFields = (
   fields: DetailsPanelField[],
   payment: AdvancePaymentData,
-  config: Pick<AdvancePaymentFieldConfig, 'showDuration' | 'showDecisionDate' | 'showTransactionDate'>
+  config: Pick<AdvancePaymentFieldConfig, 'showDuration' | 'showDecisionDate' | 'showTransactionDate' | 't'>
 ): void => {
-  const { showDuration, showDecisionDate, showTransactionDate } = config
+  const { showDuration, showDecisionDate, showTransactionDate, t } = config
 
   if (showDuration && payment.expensePlan?.startDate && payment.expensePlan?.endDate) {
     fields.push({
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration'),
+      label: t('detail-duration'),
       value: `${formatDate(payment.expensePlan.startDate, 'date.short')} → ${formatDate(payment.expensePlan.endDate, 'date.short')}`
     })
   }
 
   if (showDecisionDate && payment.decisionDate) {
     fields.push({
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date'),
+      label: t('detail-decision-date'),
       value: formatDate(payment.decisionDate, 'date.short')
     })
   }
 
   if (showTransactionDate && payment.transactionDate) {
     fields.push({
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.transaction_date', 'Transaction Date'),
+      label: t('detail-transaction-date'),
       value: formatDate(payment.transactionDate, 'date.short')
     })
   }
 }
 
-// Helper to add people fields (requester, manager)
 const addPeopleFields = (
   fields: DetailsPanelField[],
   payment: AdvancePaymentData,
-  config: Pick<AdvancePaymentFieldConfig, 'showRequester' | 'showManager'>
+  config: Pick<AdvancePaymentFieldConfig, 'showRequester' | 'showManager' | 't'>
 ): void => {
-  const { showRequester, showManager } = config
+  const { showRequester, showManager, t } = config
 
   if (showRequester) {
     const requesterName =
@@ -113,7 +113,7 @@ const addPeopleFields = (
       payment.expensePlan?.reporter
     if (requesterName) {
       fields.push({
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester'),
+        label: t('detail-requester'),
         value: requesterName
       })
     }
@@ -121,31 +121,23 @@ const addPeopleFields = (
 
   if (showManager && payment.expensePlan?.employee?.employeePosition?.supervisor?.fullName) {
     fields.push({
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.manager_title', 'Manager'),
+      label: t('detail-manager'),
       value: payment.expensePlan.employee.employeePosition.supervisor.fullName
     })
   }
 }
 
-// Helper to add expense plan and location fields
-const addPlanAndLocationFields = (
-  fields: DetailsPanelField[],
-  payment: AdvancePaymentData,
-  t: (key: string) => string
-): void => {
+const addPlanAndLocationFields = (fields: DetailsPanelField[], payment: AdvancePaymentData, t: TranslateFn): void => {
   if (payment.expensePlan?.code) {
     fields.push({
-      label: t('expense-plan-code'),
+      label: t('detail-expense-plan-code'),
       value: payment.expensePlan.code
     })
   }
 
   fields.push({
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_request.initial_expense_plan_select_label',
-      'Expense Plan'
-    ),
-    value: payment.expensePlan?.title || getExpensePlanDisplay(null)
+    label: t('detail-expense-plan'),
+    value: payment.expensePlan?.title || getExpensePlanDisplay(t, null)
   })
 
   const costCenterName =
@@ -154,10 +146,7 @@ const addPlanAndLocationFields = (
     payment.expensePlan?.employee?.employeePosition?.costCenter?.name
   if (costCenterName) {
     fields.push({
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-        'Cost Center'
-      ),
+      label: t('detail-cost-center'),
       value: costCenterName
     })
   }
@@ -165,7 +154,7 @@ const addPlanAndLocationFields = (
   const projectName = payment.project?.name || payment.expensePlan?.project?.name
   if (projectName) {
     fields.push({
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project'),
+      label: t('detail-project'),
       value: projectName
     })
   }
@@ -185,23 +174,18 @@ export const buildAdvancePaymentFields = (
 
   const fields: DetailsPanelField[] = [
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
+      label: t('header-status'),
       value: React.createElement(Badge, {
         variant: (statusConfig?.badgeVariant || 'outline') as any,
-        children: statusConfig?.label || 'N/A'
+        children: statusConfig?.label || t('common-not-available')
       })
     }
   ]
 
   if (showDescription) {
     fields.push({
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_overview.expense_history.expense_history_table.description',
-        'Description'
-      ),
-      value:
-        payment.description ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_description', 'No description'),
+      label: t('detail-description'),
+      value: payment.description ?? t('advance-payment-no-description'),
       dataTestId: 'advance-payment-description'
     })
   }
@@ -210,32 +194,23 @@ export const buildAdvancePaymentFields = (
   addPeopleFields(fields, payment, config)
   addPlanAndLocationFields(fields, payment, t)
 
-  // Amount
   const currencyCode = payment.currency?.code || payment.currencyRef?.split(':').pop() || 'EUR'
   fields.push({
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.amount', 'Amount'),
+    label: t('header-amount'),
     value: formatCurrency(payment.amount || 0, currencyCode)
   })
 
-  // Plan Total Amount
   if (showPlanTotalAmount && payment.expensePlan?.totalAmount != null) {
     const planCurrencyCode = payment.expensePlan.currency?.code || payment.currency?.code || 'EUR'
     fields.push({
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.expense_plan_table.total_amount',
-        'Plan Total Amount'
-      ),
+      label: t('header-plan-total-amount'),
       value: formatCurrency(payment.expensePlan.totalAmount || 0, planCurrencyCode)
     })
   }
 
-  // Payment Method
   fields.push({
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-      'Payment Method'
-    ),
-    value: getPaymentMethodDisplay(payment.paymentMethod),
+    label: t('header-payment-method'),
+    value: getPaymentMethodDisplay(payment.paymentMethod, t),
     dataTestId: 'advance-payment-payment-method'
   })
 
@@ -262,17 +237,15 @@ export const toTitleCase = (value?: string): string => {
 /**
  * Gets display value for payment method, handling catalog entries and special cases
  */
-export const getPaymentMethodDisplay = (method: unknown): string => {
-  const notSpecified = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')
+export const getPaymentMethodDisplay = (method: unknown, t: TranslateFn): string => {
+  const notSpecified = t('advance-payment-not-specified')
 
   if (!method) return notSpecified
 
-  // Handle catalog entry object with translations/value
   if (typeof method === 'object' && method !== null && 'value' in (method as any)) {
     return getCatalogValue(method as any) || notSpecified
   }
 
-  // Return not specified for unhandled object types to avoid [object Object]
   if (typeof method === 'object') {
     return notSpecified
   }
@@ -280,37 +253,27 @@ export const getPaymentMethodDisplay = (method: unknown): string => {
   const raw = String(method).trim()
   if (!raw) return notSpecified
 
-  // Handle special cases with translations
   if (raw === 'DIRECT_DEPOSIT') {
-    return getTranslationFromI18nKeyAndLabel(
-      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-      'Direct Deposit'
-    )
+    return t('advance-payment-direct-deposit')
   }
 
   if (raw === 'CASH_PAYMENT') {
-    return getTranslationFromI18nKeyAndLabel(
-      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-      'Cash Payment'
-    )
+    return t('advance-payment-cash')
   }
 
-  // Default: format to title case
   return toTitleCase(raw)
 }
 
 /**
  * Formats expense plan display value
  */
-export const getExpensePlanDisplay = (expensePlan?: { code?: string; title?: string } | null): string => {
+export const getExpensePlanDisplay = (
+  t: TranslateFn,
+  expensePlan?: { code?: string; title?: string } | null
+): string => {
   if (!expensePlan) {
-    const noLabel = getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.query_params_no', 'No')
-    const planLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_calculation_rule_details.query_params_expense_plan',
-      'Expense Plan'
-    )
-    return `${noLabel} ${planLabel}`
+    return t('advance-payment-no-expense-plan')
   }
 
-  return expensePlan.code || expensePlan.title || 'N/A'
+  return expensePlan.code || expensePlan.title || t('common-not-available')
 }

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import dayjs from 'dayjs'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { TranslateFn } from '../utils/utils'
 import {
   GET_EXPENSE_ITEMS_BACKOFFICE,
   GET_EXPENSE_PLANS_BACKOFFICE,
@@ -110,11 +110,14 @@ const AGGREGATE_KEY: Record<string, string> = {
 
 export const useBackofficeExpenseReportData = (
   { accessToken, userInfo }: BusinessAppContextProps,
+  t: TranslateFn,
   activeFiltersByReportType: Partial<Record<ReportType, ReportFilters>> = {},
   sorting: SortingState = []
 ): UseBackofficeExpenseReportDataReturn => {
-  const { graphqlClient, resolveEmployeeNamesByIds, resolveDisplayName, resolveDepartmentName } =
-    useEmployeeResolver(accessToken)
+  const { graphqlClient, resolveEmployeeNamesByIds, resolveDisplayName, resolveDepartmentName } = useEmployeeResolver(
+    accessToken,
+    t
+  )
 
   const [reportData, setReportData] = useState<ReportItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -336,7 +339,7 @@ export const useBackofficeExpenseReportData = (
           if (cancelled) return
           applyRows(
             ReportType.EXPENSE_REQUEST,
-            mapRequestsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            mapRequestsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName, t),
             data?.expenseRequestsTotal || 0
           )
           break
@@ -347,7 +350,7 @@ export const useBackofficeExpenseReportData = (
           if (cancelled) return
           applyRows(
             ReportType.EXPENSE_PLAN,
-            mapPlansFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            mapPlansFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName, t),
             data?.expensePlansTotal || 0
           )
           break
@@ -360,7 +363,7 @@ export const useBackofficeExpenseReportData = (
           if (cancelled) return
           applyRows(
             ReportType.ADVANCE_PAYMENT,
-            mapPaymentsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName),
+            mapPaymentsFromOverview(rows, nameById, resolvers.resolveDisplayName, resolvers.resolveDepartmentName, t),
             data?.advancePaymentsTotal || 0
           )
           break
@@ -379,7 +382,8 @@ export const useBackofficeExpenseReportData = (
     resolveEmployeeNamesByIds,
     resolveDisplayName,
     resolveDepartmentName,
-    applyRows
+    applyRows,
+    t
   ])
 
   const loadSlaPolicy = useCallback(async (): Promise<ExpensesSlaPolicy> => {
@@ -453,7 +457,7 @@ export const useBackofficeExpenseReportData = (
             extractIds(result?.ExpenseItem || [], ['employeeId', 'createdBy'])
           )
           return {
-            rows: processExpenseItemsData(result, nameById, resolveDepartmentName),
+            rows: processExpenseItemsData(result, nameById, resolveDepartmentName, t),
             totalCount: getCount(result)
           }
         }
@@ -470,7 +474,7 @@ export const useBackofficeExpenseReportData = (
             extractIds(result?.ExpensePlan || [], ['employeeId', 'createdBy'])
           )
           return {
-            rows: processExpensePlansData(result, nameById, resolveDisplayName, resolveDepartmentName),
+            rows: processExpensePlansData(result, nameById, resolveDisplayName, resolveDepartmentName, t),
             totalCount: getCount(result)
           }
         }
@@ -488,7 +492,7 @@ export const useBackofficeExpenseReportData = (
             extractIds(result?.ExpenseRequest || [], ['employeeId', 'createdBy'])
           )
           return {
-            rows: processExpenseRequestsData(result, nameById, resolveDisplayName, resolveDepartmentName),
+            rows: processExpenseRequestsData(result, nameById, resolveDisplayName, resolveDepartmentName, t),
             totalCount: getCount(result)
           }
         }
@@ -506,7 +510,7 @@ export const useBackofficeExpenseReportData = (
           )
           return {
             rows: (result?.AdvancePayment || []).map((p: any) =>
-              mapAdvancePaymentToReport(p, nameById, resolveDisplayName, resolveDepartmentName)
+              mapAdvancePaymentToReport(p, nameById, resolveDisplayName, resolveDepartmentName, t)
             ),
             totalCount: getCount(result)
           }
@@ -532,6 +536,7 @@ export const useBackofficeExpenseReportData = (
               nameById,
               resolveDisplayName,
               resolveDepartmentName,
+              t,
               slaPolicy
             ),
             totalCount: getCount(result)
@@ -553,7 +558,8 @@ export const useBackofficeExpenseReportData = (
       resolveEmployeeNamesByIds,
       resolveDisplayName,
       resolveDepartmentName,
-      loadSlaPolicy
+      loadSlaPolicy,
+      t
     ]
   )
 
@@ -566,7 +572,7 @@ export const useBackofficeExpenseReportData = (
       for (let i = 0; i < maxBatches; i++) {
         const { rows } = await fetchReport(type, offset, batchLimit, overrides)
         if (!Array.isArray(rows)) {
-          setError(`Partial export: invalid ${type} batch`)
+          setError(t('error-partial-export', { type }))
           break
         }
         all.push(...rows)
@@ -591,7 +597,7 @@ export const useBackofficeExpenseReportData = (
         applyRows(type, rows, count)
         reportQuerySignatureRef.current[type] = querySignature
       } catch {
-        setError(`Failed to load ${type} data`)
+        setError(t('error-failed-load-report', { type }))
       } finally {
         if (!hasCached) setIsLoading(false)
       }
@@ -606,7 +612,7 @@ export const useBackofficeExpenseReportData = (
     try {
       return await fetchBatched(selectedReportType)
     } catch {
-      setError('Failed to export report data')
+      setError(t('error-failed-export-report'))
       return []
     }
   }, [graphqlClient, selectedReportType, fetchBatched])
@@ -666,7 +672,7 @@ export const useBackofficeExpenseReportData = (
             }
           ]
         })
-        setSlaKpiCounts(computeSlaKpiFromFlat(comments, payments, slaPolicy))
+        setSlaKpiCounts(computeSlaKpiFromFlat(comments, payments, slaPolicy, t))
       } catch {
         /* SLA KPI fetch failed */
       }
@@ -675,7 +681,7 @@ export const useBackofficeExpenseReportData = (
     return () => {
       cancelled = true
     }
-  }, [graphqlClient, loadSlaPolicy])
+  }, [graphqlClient, loadSlaPolicy, t])
 
   // Auto-fetch on parameter change for direct-fetch types
   const lastFetchSignatureRef = useRef<string | null>(null)
@@ -725,46 +731,31 @@ export const useBackofficeExpenseReportData = (
   const reportTypes: ReportMetadata[] = [
     {
       id: 'report-1',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.approval_payout_cycle',
-        'Approval & Payout Cycle'
-      ),
+      name: t('report-approval-payout-cycle'),
       type: ReportType.APPROVAL_PAYOUT_CYCLE,
       selected: selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
     },
     {
       id: 'report-2',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_item_report',
-        'Expense Item Report'
-      ),
+      name: t('report-expense-item'),
       type: ReportType.EXPENSE_ITEM,
       selected: selectedReportType === ReportType.EXPENSE_ITEM
     },
     {
       id: 'report-3',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plan_report',
-        'Expense Plan Report'
-      ),
+      name: t('report-expense-plan'),
       type: ReportType.EXPENSE_PLAN,
       selected: selectedReportType === ReportType.EXPENSE_PLAN
     },
     {
       id: 'report-4',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_request_report',
-        'Expense Request Report'
-      ),
+      name: t('report-expense-request'),
       type: ReportType.EXPENSE_REQUEST,
       selected: selectedReportType === ReportType.EXPENSE_REQUEST
     },
     {
       id: 'report-5',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:advance_payment_report.search_module',
-        'Advance Payment Report'
-      ),
+      name: t('report-advance-payment'),
       type: ReportType.ADVANCE_PAYMENT,
       selected: selectedReportType === ReportType.ADVANCE_PAYMENT
     }

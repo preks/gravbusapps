@@ -1,10 +1,18 @@
 import React, { useMemo } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, IconAvatar, ChartContainer } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  IconAvatar,
+  ChartContainer,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { BarChart, Bar } from 'recharts'
 import { ChartBarIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getChartColor } from '../../../../../utils/chartColorUtils'
 import ExpenseBarChartDecorators from '../../../../charts/ExpenseBarChartDecorators'
+import translations from '../../../../../_i18n'
 
 // Chart layout constants
 // Note: Recharts requires numeric values for margin and radius props
@@ -22,6 +30,7 @@ interface PlanVsRequestChartProps {
 }
 
 export const PlanVsRequestChart: React.FC<PlanVsRequestChartProps> = ({ chartData, selectedCurrencyCode }) => {
+  const { t } = useTranslation(translations)
   const chartWrapperRef = React.useRef<HTMLDivElement | null>(null)
   const [hasChartSpace, setHasChartSpace] = React.useState(false)
 
@@ -45,15 +54,15 @@ export const PlanVsRequestChart: React.FC<PlanVsRequestChartProps> = ({ chartDat
   const chartConfig = useMemo(
     () => ({
       a_planned: {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:cards.planned_chart_legend', 'Planned'),
-        color: getChartColor('chart1') // Design system chart-1 token (blue)
+        label: t('pvr-planned-legend'),
+        color: getChartColor('chart1')
       },
       b_actual: {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_chart_legend', 'Actual'),
-        color: getChartColor('chart3') // Design system chart-3 token (orange)
+        label: t('pvr-actual-legend'),
+        color: getChartColor('chart3')
       }
     }),
-    []
+    [t]
   )
 
   return (
@@ -61,17 +70,15 @@ export const PlanVsRequestChart: React.FC<PlanVsRequestChartProps> = ({ chartDat
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <IconAvatar icon={ChartBarIcon} variant="default" size="md" decorative />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly_trend', 'Monthly Trend')}
+          {t('pvr-monthly-trend')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid="chart-empty-state">
             <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
-            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">No data available</h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-              No trend data found for the selected period.
-            </p>
+            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">{t('empty-no-data')}</h3>
+            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('empty-no-trend-period')}</p>
           </div>
         ) : (
           <div ref={chartWrapperRef} className="gba:w-full gba:h-[320px]">

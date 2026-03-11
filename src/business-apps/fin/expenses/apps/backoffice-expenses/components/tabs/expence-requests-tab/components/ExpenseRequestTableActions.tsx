@@ -1,7 +1,8 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { ExpenseData } from '../../../../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../../../_i18n'
 import withStoppedPropagation from '../../common/withStoppedPropagation'
 import type { ExpenseRequestActionHandlers } from '../../../../types/expenseRequestActionHandlers'
 
@@ -21,6 +22,8 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
   onPrintExpenseRequest,
   onTransferPayment
 }) => {
+  const { t } = useTranslation(translations)
+
   const canPrint =
     (record.status === 'PAID' ||
       record.status === 'BOOKED' ||
@@ -48,49 +51,29 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
         size="icon"
         staticFlowData={[
           {
-            category: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_list.flows_button.navigations',
-              'Navigations'
-            ),
+            category: t('action-navigations'),
             key: 'view-expense-request-details',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-              'View Request Details'
-            ),
+            label: t('action-view-request-details'),
             onClick: onNavigate
           },
           {
-            category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+            category: t('action-navigations'),
             key: 'download-accounting-note',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.modal_list_or_flow_button.download_text',
-              'Download Accounting Note'
-            ),
+            label: t('action-download-accounting-note'),
             onClick: onDownload
           },
           {
-            category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+            category: t('action-navigations'),
             key: 'trigger-csv',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_plan_list.expense_plan_flows.trigger_csv',
-              'Trigger CSV'
-            ),
+            label: t('action-trigger-csv'),
             onClick: onTriggerCsvAction
           },
           ...(canTransferPayment
             ? [
                 {
-                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+                  category: t('action-navigations'),
                   key: 'transfer-payment',
-                  label: transferInProgress
-                    ? getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:transfer_expense_request.in_progress',
-                        'Transfer in Progress'
-                      )
-                    : getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:transfer_expense_request.info_message_container.transfer_payment',
-                        'Transfer Payment'
-                      ),
+                  label: transferInProgress ? t('transfer-in-progress') : t('transfer-payment-label'),
                   disabled: transferInProgress,
                   onClick: onTransfer
                 }
@@ -99,12 +82,9 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
           ...(canPrint
             ? [
                 {
-                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+                  category: t('action-navigations'),
                   key: 'print-expense-request',
-                  label: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_plan_list.expense_plan_flows.print',
-                    'Print'
-                  ),
+                  label: t('action-print'),
                   onClick: onPrint
                 }
               ]
