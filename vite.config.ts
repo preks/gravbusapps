@@ -1110,20 +1110,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         }
       }
     },
-    base: './',
-    server: {
-      proxy: {
-        '/local-doc-api': {
-          target: 'http://localhost:3002',
-          changeOrigin: true,
-          rewrite: path => path.replace(/^\/local-doc-api/, '/api/v1')
-        },
-        '/socket.io': {
-          target: 'http://localhost:3002',
-          changeOrigin: true,
-          ws: true
-        }
-      }
-    }
+    base: './'
   }
 })
