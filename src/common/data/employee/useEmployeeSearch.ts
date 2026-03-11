@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { COMMUNICATION_CHANNEL_EMAIL_REF } from '@/common/data/common/constants/communicationChannelConstants'
+import { COMMUNICATION_CHANNEL_EMAIL_REF } from '@/common/data/employee/constants/employeeConstants'
 import { SEARCH_EMPLOYEES_LIGHT, GET_EMPLOYEE_LIGHT_BY_ID } from './queries/employeeQueries'
 
 /**

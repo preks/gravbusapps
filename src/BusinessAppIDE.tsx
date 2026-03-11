@@ -60,7 +60,6 @@ import {
   STORAGE_KEY_ADDITIONAL_DATA,
   STORAGE_KEY_SIDEBAR_COLLAPSED
 } from './common/constants/ideStorageKeys'
-import { getAppPathFromUrl } from '@/common/utils/navigationUtils'
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob('./business-apps/**/index.ts', {
@@ -270,13 +269,6 @@ const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   })
 }
 
-const findInitialSelectedApp = (appFromUrl: string | null): BusinessAppInfo | null => {
-  if (!appFromUrl) return null
-  return (
-    businessApps.find(app => app.screenKey === appFromUrl) || businessApps.find(app => app.name === appFromUrl) || null
-  )
-}
-
 export interface BusinessAppIDEProps {
   readonly packageName: string
   readonly packageVersion: string
@@ -288,12 +280,32 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   useRewrapAntDStylesLive()
 
+  const getAppByName = (name: string): BusinessAppInfo | null => {
+    return businessApps.find(app => app.name === name) || null
+  }
+
+  const getAppByPath = (path: string): BusinessAppInfo | null => {
+    return businessApps.find(app => app.screenKey === path) || null
+  }
+
+  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+
+  // Check for different parameter types (app, form, popup, window)
+  const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
+
+  // Dev deep-links may use path-based URLs without `?app=...` (e.g. copy/paste).
+  // Infer the app from the pathname for a small set of known routes.
   const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
-  const search = typeof window !== 'undefined' ? window.location.search : ''
+  const inferredAppFromPath =
+    !appFromUrl && (pathname.startsWith('/flow-creator') || pathname.startsWith('/flow/draft'))
+      ? 'flow/apps/creator'
+      : null
+  const effectiveAppFromUrl = appFromUrl || inferredAppFromPath
 
-  const effectiveAppFromUrl = getAppPathFromUrl(pathname, search)
-
-  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(findInitialSelectedApp(effectiveAppFromUrl))
+  const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
+    // First try to find by full path (new format), then fallback to name (legacy format)
+    getAppByPath(effectiveAppFromUrl || '') || getAppByName(effectiveAppFromUrl || '') || null
+  )
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   const [userInfo, setUserInfo] = useState<string>('')
   const [userInfoError, setUserInfoError] = useState<string>('')
@@ -526,7 +538,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
     // Set open keys based on the currently selected app (from URL)
     // Only if menu is not collapsed initially and using legacy menu
-    const initialSelectedApp = findInitialSelectedApp(effectiveAppFromUrl)
+    const initialSelectedApp = getAppByPath(appFromUrl || '') || getAppByName(appFromUrl || '')
     const initialCollapsed = localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === 'true'
     if (!initialCollapsed && initialSelectedApp) {
       const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp)

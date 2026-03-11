@@ -1,6 +1,5 @@
 /**
- * Communication channel catalog refs.
- * Central constants for communication channel queries (Employee, Customer, Investment).
+ * Employee-related constants (e.g. communication channel refs for work email).
  */
 
 /** Catalog ref for e-mail communication channel */

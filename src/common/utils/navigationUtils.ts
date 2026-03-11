@@ -118,6 +118,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
   '/platform/create/screen-builder': 'core/create/apps/ai-builder',
   '/platform/create/ai-builder': 'core/create/apps/ai-orchestrator',
+  '/platform/create/ai-builder-admin': 'core/create/apps/ai-builder-admin',
+  '/platform/create/ai-orchestrator-admin': 'core/create/apps/ai-builder-admin',
   '/platform/create/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
   '/platform/create/apps/ai-builder-metrics': 'core/create/apps/ai-builder-metrics-dashboard',
   '/platform/create/resource-preview-demo': 'core/create/apps/resource-preview-demo',
@@ -133,38 +135,6 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/crm/lead-list': 'crm/common/apps/lead-list',
   '/platform/irm/liquid-portfolio-record': 'crm/investments/apps/liquid-portfolio-record'
 }
-
-/**
- * Resolve app path from platform pathname.
- */
-export function getAppPathFromPathname(pathname: string): string | null {
-  const normalized = pathname.replace(/\/+$/, '') || '/'
-  return PLATFORM_URL_TO_APP_MAPPING[normalized] ?? null
-}
-
-/**
- * Resolve app path from current URL (pathname + search).
- * Checks query params (app, form, popup, window) first, then falls back to pathname mapping.
- * Use this in the IDE to determine which screen to load from the URL.
- */
-export function getAppPathFromUrl(pathname: string, search: string): string | null {
-  const urlParams = new URLSearchParams(search)
-  const explicit = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
-  if (explicit) return explicit
-  return getAppPathFromPathname(pathname)
-}
-
-/**
- * Returns the validated path iff pathname matches a known platform path.
- * Use this instead of raw pathname when building redirect URLs to prevent open redirect.
- */
-export function getValidatedPathname(pathname: string): string | null {
-  const normalized = pathname.replace(/\/+$/, '') || '/'
-  return normalized in PLATFORM_URL_TO_APP_MAPPING ? normalized : null
-}
-
-/** Canonical platform path for Every Office (Desk hub). Use with navigateTo(). */
-export const EVERY_OFFICE_PLATFORM_PATH = '/platform/every-office'
 
 /**
  * Checks if a URL is a platform URL that should be mapped to app query parameters
