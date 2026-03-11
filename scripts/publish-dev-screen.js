@@ -552,12 +552,6 @@ async function main() {
   await uploadDirectory(buildOutputDir, azureDestinationPath)
   console.log('✅ Screen JS published successfully to Azure!')
 
-  const chunksOutputDir = path.join(projectRootDir, 'dist', '_chunks')
-  if (fs.existsSync(chunksOutputDir) && fs.readdirSync(chunksOutputDir).length > 0) {
-    await uploadDirectory(chunksOutputDir, '_chunks')
-    console.log('✅ Shared chunks published successfully to Azure!')
-  }
-
   const cssOutputDir = path.join(projectRootDir, 'dist', 'assets')
   await uploadDirectory(cssOutputDir, azureDestinationPath)
   console.log('✅ Screen CSS published successfully to Azure!')

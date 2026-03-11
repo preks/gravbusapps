@@ -1,0 +1,2133 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-02-28T00:00:00.000Z",
+  "mappings": [
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenu",
+      "pencilId": "TjrC7",
+      "pencilName": "nw/DropdownMenu"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuContent",
+      "pencilId": "2JG3V",
+      "pencilName": "nw/DropdownMenu/Content"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuItem",
+      "pencilId": "Hjm6l",
+      "pencilName": "nw/DropdownMenu/Item"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuSeparator",
+      "pencilId": "smGfc",
+      "pencilName": "nw/DropdownMenu/Separator"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuLabel",
+      "pencilId": "xBOPm",
+      "pencilName": "nw/DropdownMenu/Label"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuCheckboxItem",
+      "pencilId": "xiayt",
+      "pencilName": "nw/DropdownMenu/CheckboxItem"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuRadioItem",
+      "pencilId": "uJrxE",
+      "pencilName": "nw/DropdownMenu/RadioItem"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuSubTrigger",
+      "pencilId": "9EfIB",
+      "pencilName": "nw/DropdownMenu/SubTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenu",
+      "pencilId": "PIYdk",
+      "pencilName": "nw/ContextMenu"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuContent",
+      "pencilId": "AapJN",
+      "pencilName": "nw/ContextMenu/Content"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuItem",
+      "pencilId": "5MJuZ",
+      "pencilName": "nw/ContextMenu/Item"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuSeparator",
+      "pencilId": "g1ay8",
+      "pencilName": "nw/ContextMenu/Separator"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuLabel",
+      "pencilId": "BSpUw",
+      "pencilName": "nw/ContextMenu/Label"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuCheckboxItem",
+      "pencilId": "z7Qw3",
+      "pencilName": "nw/ContextMenu/CheckboxItem"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuRadioItem",
+      "pencilId": "9qonY",
+      "pencilName": "nw/ContextMenu/RadioItem"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuSubTrigger",
+      "pencilId": "4LESw",
+      "pencilName": "nw/ContextMenu/SubTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "Menubar",
+      "pencilId": "MRnPZ",
+      "pencilName": "nw/Menubar"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarContent",
+      "pencilId": "mliYT",
+      "pencilName": "nw/Menubar/Content"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarItem",
+      "pencilId": "7xDYZ",
+      "pencilName": "nw/Menubar/Item"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarSeparator",
+      "pencilId": "hjs5U",
+      "pencilName": "nw/Menubar/Separator"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarLabel",
+      "pencilId": "Zdlr4",
+      "pencilName": "nw/Menubar/Label"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarCheckboxItem",
+      "pencilId": "3DQcT",
+      "pencilName": "nw/Menubar/CheckboxItem"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarRadioItem",
+      "pencilId": "seBtF",
+      "pencilName": "nw/Menubar/RadioItem"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarSubTrigger",
+      "pencilId": "Xgfsr",
+      "pencilName": "nw/Menubar/SubTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "Dialog",
+      "pencilId": "Jqy0F",
+      "pencilName": "nw/Dialog"
+    },
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "DialogContent",
+      "pencilId": "Jqy0F",
+      "pencilName": "nw/Dialog"
+    },
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "DialogHeader",
+      "pencilId": "yKFaP",
+      "pencilName": "nw/Dialog/Header"
+    },
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "DialogTitle",
+      "pencilId": "NWfuD",
+      "pencilName": "nw/Dialog/Title"
+    },
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "DialogDescription",
+      "pencilId": "wwuUq",
+      "pencilName": "nw/Dialog/Description"
+    },
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "DialogClose",
+      "pencilId": "jl6q2",
+      "pencilName": "nw/Dialog/Close"
+    },
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "DialogOverlay",
+      "pencilId": "BcKh4",
+      "pencilName": "nw/Dialog/Overlay"
+    },
+
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "Sheet",
+      "pencilId": "nEBHs",
+      "pencilName": "nw/Sheet"
+    },
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "SheetContent",
+      "pencilId": "nEBHs",
+      "pencilName": "nw/Sheet"
+    },
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "SheetHeader",
+      "pencilId": "gNgKU",
+      "pencilName": "nw/Sheet/Header"
+    },
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "SheetTitle",
+      "pencilId": "0vef0",
+      "pencilName": "nw/Sheet/Title"
+    },
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "SheetDescription",
+      "pencilId": "aV1fN",
+      "pencilName": "nw/Sheet/Description"
+    },
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "SheetClose",
+      "pencilId": "Vob7i",
+      "pencilName": "nw/Sheet/Close"
+    },
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "SheetOverlay",
+      "pencilId": "Oea7g",
+      "pencilName": "nw/Sheet/Overlay"
+    },
+
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "Sidebar",
+      "pencilId": "hvFqi",
+      "pencilName": "nw/Sidebar"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarContent",
+      "pencilId": "TeqR3",
+      "pencilName": "nw/SidebarContent"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarHeader",
+      "pencilId": "dym1G",
+      "pencilName": "nw/SidebarHeader"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarFooter",
+      "pencilId": "oV1dN",
+      "pencilName": "nw/SidebarFooter"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarInput",
+      "pencilId": "mLnW0",
+      "pencilName": "nw/SidebarInput"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarInset",
+      "pencilId": "YJELv",
+      "pencilName": "nw/SidebarInset"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarMenu",
+      "pencilId": "F2R6f",
+      "pencilName": "nw/SidebarMenu"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarMenuItem",
+      "pencilId": "KsApW",
+      "pencilName": "nw/SidebarMenuItem"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarMenuButton",
+      "pencilId": "Y8xcy",
+      "pencilName": "nw/SidebarMenuButton"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarMenuAction",
+      "pencilId": "mdw8u",
+      "pencilName": "nw/SidebarMenuAction"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarMenuBadge",
+      "pencilId": "nsG3p",
+      "pencilName": "nw/SidebarMenuBadge"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarMenuSkeleton",
+      "pencilId": "VxqoQ",
+      "pencilName": "nw/SidebarMenuSkeleton"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarMenuSubButton",
+      "pencilId": "voNlA",
+      "pencilName": "nw/SidebarMenuSubButton"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarMenuSubItem",
+      "pencilId": "roP25",
+      "pencilName": "nw/SidebarMenuSubItem"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarSeparator",
+      "pencilId": "qgaeB",
+      "pencilName": "nw/SidebarSeparator"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarRail",
+      "pencilId": "l3ztG",
+      "pencilName": "nw/SidebarRail"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarTrigger",
+      "pencilId": "wT6NV",
+      "pencilName": "nw/SidebarTrigger"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarGroupAction",
+      "pencilId": "ec981",
+      "pencilName": "nw/SidebarGroupAction"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarGroupContent",
+      "pencilId": "0zhGa",
+      "pencilName": "nw/SidebarGroupContent"
+    },
+    {
+      "moduleFrom": "./components/sidebar/Sidebar",
+      "export": "SidebarGroupLabel",
+      "pencilId": "6ut8M",
+      "pencilName": "nw/SidebarGroupLabel"
+    },
+
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "Drawer",
+      "pencilId": "e9rOJ",
+      "pencilName": "nw/Drawer"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerActions",
+      "pencilId": "L5SM3",
+      "pencilName": "nw/DrawerActions"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerClose",
+      "pencilId": "PjHc8",
+      "pencilName": "nw/DrawerClose"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerContent",
+      "pencilId": "NpxIQ",
+      "pencilName": "nw/DrawerContent"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerDescription",
+      "pencilId": "z1ouy",
+      "pencilName": "nw/DrawerDescription"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerFooter",
+      "pencilId": "fk5OO",
+      "pencilName": "nw/DrawerFooter"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerHeader",
+      "pencilId": "8ciD4",
+      "pencilName": "nw/DrawerHeader"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerOverlay",
+      "pencilId": "bRqA2",
+      "pencilName": "nw/DrawerOverlay"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerScrollableContent",
+      "pencilId": "mYq15",
+      "pencilName": "nw/DrawerScrollableContent"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerTitle",
+      "pencilId": "tEhNV",
+      "pencilName": "nw/DrawerTitle"
+    },
+    {
+      "moduleFrom": "./components/drawer/Drawer",
+      "export": "DrawerTrigger",
+      "pencilId": "odrDo",
+      "pencilName": "nw/DrawerTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialog",
+      "pencilId": "JqDED",
+      "pencilName": "nw/AlertDialog"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogAction",
+      "pencilId": "pUBiu",
+      "pencilName": "nw/AlertDialogAction"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogCancel",
+      "pencilId": "mC85b",
+      "pencilName": "nw/AlertDialogCancel"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogContent",
+      "pencilId": "mnpsb",
+      "pencilName": "nw/AlertDialogContent"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogDescription",
+      "pencilId": "5dK9L",
+      "pencilName": "nw/AlertDialogDescription"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogFooter",
+      "pencilId": "Vd6ar",
+      "pencilName": "nw/AlertDialogFooter"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogHeader",
+      "pencilId": "5f9Es",
+      "pencilName": "nw/AlertDialogHeader"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogOverlay",
+      "pencilId": "YpkUM",
+      "pencilName": "nw/AlertDialogOverlay"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogTitle",
+      "pencilId": "XMZHy",
+      "pencilName": "nw/AlertDialogTitle"
+    },
+    {
+      "moduleFrom": "./components/alert-dialog/AlertDialog",
+      "export": "AlertDialogTrigger",
+      "pencilId": "IBl2O",
+      "pencilName": "nw/AlertDialogTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "Timeline",
+      "pencilId": "TTVDU",
+      "pencilName": "nw/Timeline"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineActor",
+      "pencilId": "IX6qY",
+      "pencilName": "nw/TimelineActor"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineContent",
+      "pencilId": "Wr7QB",
+      "pencilName": "nw/TimelineContent"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineDate",
+      "pencilId": "aPx5Z",
+      "pencilName": "nw/TimelineDate"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineHeader",
+      "pencilId": "Vu4Ug",
+      "pencilName": "nw/TimelineHeader"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineIndicator",
+      "pencilId": "gcwmv",
+      "pencilName": "nw/TimelineIndicator"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineItem",
+      "pencilId": "hZFv1",
+      "pencilName": "nw/TimelineItem"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineLayout",
+      "pencilId": "XRsQU",
+      "pencilName": "nw/TimelineLayout"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineSeparator",
+      "pencilId": "eSKmR",
+      "pencilName": "nw/TimelineSeparator"
+    },
+    {
+      "moduleFrom": "./components/timeline/Timeline",
+      "export": "TimelineTitle",
+      "pencilId": "ndmTC",
+      "pencilName": "nw/TimelineTitle"
+    },
+
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "Field",
+      "pencilId": "59w5y",
+      "pencilName": "nw/Field"
+    },
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "FieldContent",
+      "pencilId": "TwXUt",
+      "pencilName": "nw/FieldContent"
+    },
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "FieldDescription",
+      "pencilId": "C5uoA",
+      "pencilName": "nw/FieldDescription"
+    },
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "FieldError",
+      "pencilId": "i7BTQ",
+      "pencilName": "nw/FieldError"
+    },
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "FieldLabel",
+      "pencilId": "tTTza",
+      "pencilName": "nw/FieldLabel"
+    },
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "FieldLegend",
+      "pencilId": "fazyC",
+      "pencilName": "nw/FieldLegend"
+    },
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "FieldSeparator",
+      "pencilId": "Blj40",
+      "pencilName": "nw/FieldSeparator"
+    },
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "FieldSet",
+      "pencilId": "piRTv",
+      "pencilName": "nw/FieldSet"
+    },
+    {
+      "moduleFrom": "./components/field/Field",
+      "export": "FieldTitle",
+      "pencilId": "7jsOV",
+      "pencilName": "nw/FieldTitle"
+    },
+
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "Item",
+      "pencilId": "0rI9I",
+      "pencilName": "nw/Item"
+    },
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "ItemActions",
+      "pencilId": "YJ1yc",
+      "pencilName": "nw/ItemActions"
+    },
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "ItemContent",
+      "pencilId": "5jSUX",
+      "pencilName": "nw/ItemContent"
+    },
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "ItemDescription",
+      "pencilId": "WHs5m",
+      "pencilName": "nw/ItemDescription"
+    },
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "ItemFooter",
+      "pencilId": "139Vh",
+      "pencilName": "nw/ItemFooter"
+    },
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "ItemHeader",
+      "pencilId": "6XzAb",
+      "pencilName": "nw/ItemHeader"
+    },
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "ItemMedia",
+      "pencilId": "vE8MZ",
+      "pencilName": "nw/ItemMedia"
+    },
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "ItemSeparator",
+      "pencilId": "SZg4s",
+      "pencilName": "nw/ItemSeparator"
+    },
+    {
+      "moduleFrom": "./components/item/Item",
+      "export": "ItemTitle",
+      "pencilId": "GpTd6",
+      "pencilName": "nw/ItemTitle"
+    },
+
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "Select",
+      "pencilId": "YF8d7",
+      "pencilName": "nw/Select"
+    },
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "SelectContent",
+      "pencilId": "FyQ9H",
+      "pencilName": "nw/SelectContent"
+    },
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "SelectItem",
+      "pencilId": "IB6iT",
+      "pencilName": "nw/SelectItem"
+    },
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "SelectLabel",
+      "pencilId": "ZyaND",
+      "pencilName": "nw/SelectLabel"
+    },
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "SelectScrollDownButton",
+      "pencilId": "BDyiE",
+      "pencilName": "nw/SelectScrollDownButton"
+    },
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "SelectScrollUpButton",
+      "pencilId": "Iwhha",
+      "pencilName": "nw/SelectScrollUpButton"
+    },
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "SelectSeparator",
+      "pencilId": "w9Unm",
+      "pencilName": "nw/SelectSeparator"
+    },
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "SelectTrigger",
+      "pencilId": "aDQUm",
+      "pencilName": "nw/SelectTrigger"
+    },
+    {
+      "moduleFrom": "./components/select/Select",
+      "export": "SelectValue",
+      "pencilId": "8vjV1",
+      "pencilName": "nw/SelectValue"
+    },
+
+    {
+      "moduleFrom": "./components/stepper/Stepper",
+      "export": "Stepper",
+      "pencilId": "xxj0L",
+      "pencilName": "nw/Stepper"
+    },
+    {
+      "moduleFrom": "./components/stepper/Stepper",
+      "export": "StepperContent",
+      "pencilId": "LrNfa",
+      "pencilName": "nw/StepperContent"
+    },
+    {
+      "moduleFrom": "./components/stepper/Stepper",
+      "export": "StepperDescription",
+      "pencilId": "j5W0a",
+      "pencilName": "nw/StepperDescription"
+    },
+    {
+      "moduleFrom": "./components/stepper/Stepper",
+      "export": "StepperIndicator",
+      "pencilId": "gynoR",
+      "pencilName": "nw/StepperIndicator"
+    },
+    {
+      "moduleFrom": "./components/stepper/Stepper",
+      "export": "StepperItem",
+      "pencilId": "UAj2D",
+      "pencilName": "nw/StepperItem"
+    },
+    {
+      "moduleFrom": "./components/stepper/Stepper",
+      "export": "StepperSeparator",
+      "pencilId": "f73Ea",
+      "pencilName": "nw/StepperSeparator"
+    },
+    {
+      "moduleFrom": "./components/stepper/Stepper",
+      "export": "StepperTitle",
+      "pencilId": "4EqH3",
+      "pencilName": "nw/StepperTitle"
+    },
+    {
+      "moduleFrom": "./components/stepper/Stepper",
+      "export": "StepperTrigger",
+      "pencilId": "Z8qBT",
+      "pencilName": "nw/StepperTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/breadcrumb/Breadcrumb",
+      "export": "Breadcrumb",
+      "pencilId": "oRnau",
+      "pencilName": "nw/Breadcrumb"
+    },
+    {
+      "moduleFrom": "./components/breadcrumb/Breadcrumb",
+      "export": "BreadcrumbEllipsis",
+      "pencilId": "kOOL7",
+      "pencilName": "nw/BreadcrumbEllipsis"
+    },
+    {
+      "moduleFrom": "./components/breadcrumb/Breadcrumb",
+      "export": "BreadcrumbItem",
+      "pencilId": "IZWoY",
+      "pencilName": "nw/BreadcrumbItem"
+    },
+    {
+      "moduleFrom": "./components/breadcrumb/Breadcrumb",
+      "export": "BreadcrumbLink",
+      "pencilId": "zPpMl",
+      "pencilName": "nw/BreadcrumbLink"
+    },
+    {
+      "moduleFrom": "./components/breadcrumb/Breadcrumb",
+      "export": "BreadcrumbList",
+      "pencilId": "mEWJt",
+      "pencilName": "nw/BreadcrumbList"
+    },
+    {
+      "moduleFrom": "./components/breadcrumb/Breadcrumb",
+      "export": "BreadcrumbPage",
+      "pencilId": "xajaR",
+      "pencilName": "nw/BreadcrumbPage"
+    },
+    {
+      "moduleFrom": "./components/breadcrumb/Breadcrumb",
+      "export": "BreadcrumbSeparator",
+      "pencilId": "xqC6i",
+      "pencilName": "nw/BreadcrumbSeparator"
+    },
+
+    {
+      "moduleFrom": "./components/pagination/Pagination",
+      "export": "Pagination",
+      "pencilId": "ufku0",
+      "pencilName": "nw/Pagination"
+    },
+    {
+      "moduleFrom": "./components/pagination/Pagination",
+      "export": "PaginationContent",
+      "pencilId": "DF8Dj",
+      "pencilName": "nw/PaginationContent"
+    },
+    {
+      "moduleFrom": "./components/pagination/Pagination",
+      "export": "PaginationEllipsis",
+      "pencilId": "sqsxN",
+      "pencilName": "nw/PaginationEllipsis"
+    },
+    {
+      "moduleFrom": "./components/pagination/Pagination",
+      "export": "PaginationItem",
+      "pencilId": "8rKJ1",
+      "pencilName": "nw/PaginationItem"
+    },
+    {
+      "moduleFrom": "./components/pagination/Pagination",
+      "export": "PaginationLink",
+      "pencilId": "ApfS5",
+      "pencilName": "nw/PaginationLink"
+    },
+    {
+      "moduleFrom": "./components/pagination/Pagination",
+      "export": "PaginationNext",
+      "pencilId": "l0hik",
+      "pencilName": "nw/PaginationNext"
+    },
+    {
+      "moduleFrom": "./components/pagination/Pagination",
+      "export": "PaginationPrevious",
+      "pencilId": "8FwqO",
+      "pencilName": "nw/PaginationPrevious"
+    },
+
+    {
+      "moduleFrom": "./components/card/Card",
+      "export": "Card",
+      "pencilId": "MCzCF",
+      "pencilName": "nw/Card",
+      "variantCoverage": {
+        "variant=default": ["8pY4a"],
+        "variant=surface": ["Vw2LS"],
+        "variant=decorative": ["m67x1"]
+      },
+      "storyCoverage": {
+        "default": ["8pY4a"],
+        "variants": ["8pY4a", "Vw2LS", "m67x1"],
+        "with_action": ["wPIE5"],
+        "user_profile": ["8pY4a"],
+        "product_card": ["m67x1"],
+        "content_only": ["8pY4a"],
+        "with_separator": ["8pY4a"],
+        "multiple_cards": ["8pY4a"],
+        "muted_text_demo": ["8pY4a", "m67x1"]
+      }
+    },
+    {
+      "moduleFrom": "./components/card/Card",
+      "export": "CardAction",
+      "pencilId": "hHuxY",
+      "pencilName": "nw/CardAction"
+    },
+    {
+      "moduleFrom": "./components/card/Card",
+      "export": "CardContent",
+      "pencilId": "wqccY",
+      "pencilName": "nw/CardContent"
+    },
+    {
+      "moduleFrom": "./components/card/Card",
+      "export": "CardDescription",
+      "pencilId": "MZ02V",
+      "pencilName": "nw/CardDescription"
+    },
+    {
+      "moduleFrom": "./components/card/Card",
+      "export": "CardFooter",
+      "pencilId": "fGrRJ",
+      "pencilName": "nw/CardFooter"
+    },
+    {
+      "moduleFrom": "./components/card/Card",
+      "export": "CardHeader",
+      "pencilId": "4OII4",
+      "pencilName": "nw/CardHeader"
+    },
+    {
+      "moduleFrom": "./components/card/Card",
+      "export": "CardTitle",
+      "pencilId": "sfA4o",
+      "pencilName": "nw/CardTitle"
+    },
+
+    {
+      "moduleFrom": "./components/table/Table",
+      "export": "Table",
+      "pencilId": "Dx2LW",
+      "pencilName": "nw/Table"
+    },
+    {
+      "moduleFrom": "./components/table/Table",
+      "export": "TableBody",
+      "pencilId": "mFU6K",
+      "pencilName": "nw/TableBody"
+    },
+    {
+      "moduleFrom": "./components/table/Table",
+      "export": "TableCaption",
+      "pencilId": "eUpBe",
+      "pencilName": "nw/TableCaption"
+    },
+    {
+      "moduleFrom": "./components/table/Table",
+      "export": "TableCell",
+      "pencilId": "gP92E",
+      "pencilName": "nw/TableCell"
+    },
+    {
+      "moduleFrom": "./components/table/Table",
+      "export": "TableFooter",
+      "pencilId": "LOWn6",
+      "pencilName": "nw/TableFooter"
+    },
+    {
+      "moduleFrom": "./components/table/Table",
+      "export": "TableHead",
+      "pencilId": "ppHtZ",
+      "pencilName": "nw/TableHead"
+    },
+    {
+      "moduleFrom": "./components/table/Table",
+      "export": "TableHeader",
+      "pencilId": "mkKjp",
+      "pencilName": "nw/TableHeader"
+    },
+    {
+      "moduleFrom": "./components/table/Table",
+      "export": "TableRow",
+      "pencilId": "0ADIR",
+      "pencilName": "nw/TableRow"
+    },
+
+    {
+      "moduleFrom": "./components/command/Command",
+      "export": "Command",
+      "pencilId": "AaQMH",
+      "pencilName": "nw/Command"
+    },
+    {
+      "moduleFrom": "./components/command/Command",
+      "export": "CommandDialog",
+      "pencilId": "KBvoa",
+      "pencilName": "nw/CommandDialog"
+    },
+    {
+      "moduleFrom": "./components/command/Command",
+      "export": "CommandEmpty",
+      "pencilId": "C731L",
+      "pencilName": "nw/CommandEmpty"
+    },
+    {
+      "moduleFrom": "./components/command/Command",
+      "export": "CommandInput",
+      "pencilId": "04QIm",
+      "pencilName": "nw/CommandInput"
+    },
+    {
+      "moduleFrom": "./components/command/Command",
+      "export": "CommandItem",
+      "pencilId": "sJ1VR",
+      "pencilName": "nw/CommandItem"
+    },
+    {
+      "moduleFrom": "./components/command/Command",
+      "export": "CommandList",
+      "pencilId": "WCoy9",
+      "pencilName": "nw/CommandList"
+    },
+    {
+      "moduleFrom": "./components/command/Command",
+      "export": "CommandSeparator",
+      "pencilId": "NIMJh",
+      "pencilName": "nw/CommandSeparator"
+    },
+    {
+      "moduleFrom": "./components/command/Command",
+      "export": "CommandShortcut",
+      "pencilId": "nkmWc",
+      "pencilName": "nw/CommandShortcut"
+    },
+
+    {
+      "moduleFrom": "./components/form/Form",
+      "export": "Form",
+      "pencilId": "90EAq",
+      "pencilName": "nw/Form"
+    },
+    {
+      "moduleFrom": "./components/form/Form",
+      "export": "FormControl",
+      "pencilId": "yDpdz",
+      "pencilName": "nw/FormControl"
+    },
+    {
+      "moduleFrom": "./components/form/Form",
+      "export": "FormDescription",
+      "pencilId": "35nmL",
+      "pencilName": "nw/FormDescription"
+    },
+    {
+      "moduleFrom": "./components/form/Form",
+      "export": "FormField",
+      "pencilId": "uilOl",
+      "pencilName": "nw/FormField"
+    },
+    {
+      "moduleFrom": "./components/form/Form",
+      "export": "FormItem",
+      "pencilId": "F0YBm",
+      "pencilName": "nw/FormItem"
+    },
+    {
+      "moduleFrom": "./components/form/Form",
+      "export": "FormLabel",
+      "pencilId": "2tcFm",
+      "pencilName": "nw/FormLabel"
+    },
+    {
+      "moduleFrom": "./components/form/Form",
+      "export": "FormMessage",
+      "pencilId": "mOAsw",
+      "pencilName": "nw/FormMessage"
+    },
+    {
+      "moduleFrom": "./components/form/Form",
+      "export": "FormSection",
+      "pencilId": "6R2pT",
+      "pencilName": "nw/FormSection"
+    },
+
+    {
+      "moduleFrom": "./components/navigation-menu/NavigationMenu",
+      "export": "NavigationMenu",
+      "pencilId": "5OPXW",
+      "pencilName": "nw/NavigationMenu"
+    },
+    {
+      "moduleFrom": "./components/navigation-menu/NavigationMenu",
+      "export": "NavigationMenuContent",
+      "pencilId": "RP8cv",
+      "pencilName": "nw/NavigationMenuContent"
+    },
+    {
+      "moduleFrom": "./components/navigation-menu/NavigationMenu",
+      "export": "NavigationMenuIndicator",
+      "pencilId": "qrGwL",
+      "pencilName": "nw/NavigationMenuIndicator"
+    },
+    {
+      "moduleFrom": "./components/navigation-menu/NavigationMenu",
+      "export": "NavigationMenuItem",
+      "pencilId": "17HSD",
+      "pencilName": "nw/NavigationMenuItem"
+    },
+    {
+      "moduleFrom": "./components/navigation-menu/NavigationMenu",
+      "export": "NavigationMenuLink",
+      "pencilId": "NjJTi",
+      "pencilName": "nw/NavigationMenuLink"
+    },
+    {
+      "moduleFrom": "./components/navigation-menu/NavigationMenu",
+      "export": "NavigationMenuList",
+      "pencilId": "XQTOi",
+      "pencilName": "nw/NavigationMenuList"
+    },
+    {
+      "moduleFrom": "./components/navigation-menu/NavigationMenu",
+      "export": "NavigationMenuTrigger",
+      "pencilId": "sfxYe",
+      "pencilName": "nw/NavigationMenuTrigger"
+    },
+    {
+      "moduleFrom": "./components/navigation-menu/NavigationMenu",
+      "export": "NavigationMenuViewport",
+      "pencilId": "Rvaaw",
+      "pencilName": "nw/NavigationMenuViewport"
+    },
+
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "DialogFooter",
+      "pencilId": "9V43p",
+      "pencilName": "nw/DialogFooter"
+    },
+    {
+      "moduleFrom": "./components/dialog/Dialog",
+      "export": "DialogTrigger",
+      "pencilId": "0tbN9",
+      "pencilName": "nw/DialogTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/popover/Popover",
+      "export": "Popover",
+      "pencilId": "CsAVD",
+      "pencilName": "nw/Popover"
+    },
+    {
+      "moduleFrom": "./components/popover/Popover",
+      "export": "PopoverAnchor",
+      "pencilId": "4tuQA",
+      "pencilName": "nw/PopoverAnchor"
+    },
+    {
+      "moduleFrom": "./components/popover/Popover",
+      "export": "PopoverContent",
+      "pencilId": "v7EMq",
+      "pencilName": "nw/PopoverContent"
+    },
+    {
+      "moduleFrom": "./components/popover/Popover",
+      "export": "PopoverTrigger",
+      "pencilId": "94OQr",
+      "pencilName": "nw/PopoverTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/alert/Alert",
+      "export": "Alert",
+      "pencilId": "ePhT6",
+      "pencilName": "nw/Alert/Default"
+    },
+    {
+      "moduleFrom": "./components/alert/Alert",
+      "export": "AlertDescription",
+      "pencilId": "nS0iy",
+      "pencilName": "nw/AlertDescription"
+    },
+    {
+      "moduleFrom": "./components/alert/Alert",
+      "export": "AlertTitle",
+      "pencilId": "B8l68",
+      "pencilName": "nw/AlertTitle"
+    },
+
+    {
+      "moduleFrom": "./components/avatar/Avatar",
+      "export": "Avatar",
+      "pencilId": "M9VNE",
+      "pencilName": "nw/Avatar"
+    },
+    {
+      "moduleFrom": "./components/avatar/Avatar",
+      "export": "AvatarFallback",
+      "pencilId": "k9FnP",
+      "pencilName": "nw/AvatarFallback"
+    },
+    {
+      "moduleFrom": "./components/avatar/Avatar",
+      "export": "AvatarImage",
+      "pencilId": "2ve7K",
+      "pencilName": "nw/AvatarImage"
+    },
+
+    {
+      "moduleFrom": "./components/collapsible/Collapsible",
+      "export": "Collapsible",
+      "pencilId": "eEr8s",
+      "pencilName": "nw/Collapsible"
+    },
+    {
+      "moduleFrom": "./components/collapsible/Collapsible",
+      "export": "CollapsibleContent",
+      "pencilId": "9OAHO",
+      "pencilName": "nw/CollapsibleContent"
+    },
+    {
+      "moduleFrom": "./components/collapsible/Collapsible",
+      "export": "CollapsibleTrigger",
+      "pencilId": "UYLYY",
+      "pencilName": "nw/CollapsibleTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/input-group/InputGroup",
+      "export": "InputGroupAddon",
+      "pencilId": "yD6pT",
+      "pencilName": "nw/InputGroupAddon"
+    },
+    {
+      "moduleFrom": "./components/input-group/InputGroup",
+      "export": "InputGroupButton",
+      "pencilId": "jVSds",
+      "pencilName": "nw/InputGroupButton"
+    },
+    {
+      "moduleFrom": "./components/input-group/InputGroup",
+      "export": "InputGroupInput",
+      "pencilId": "mdstU",
+      "pencilName": "nw/InputGroupInput"
+    },
+    {
+      "moduleFrom": "./components/input-group/InputGroup",
+      "export": "InputGroupText",
+      "pencilId": "w60Xy",
+      "pencilName": "nw/InputGroupText"
+    },
+    {
+      "moduleFrom": "./components/input-group/InputGroup",
+      "export": "InputGroupTextarea",
+      "pencilId": "7vMRz",
+      "pencilName": "nw/InputGroupTextarea"
+    },
+
+    {
+      "moduleFrom": "./components/tooltip/Tooltip",
+      "export": "Tooltip",
+      "pencilId": "IxcV1",
+      "pencilName": "nw/Tooltip"
+    },
+    {
+      "moduleFrom": "./components/tooltip/Tooltip",
+      "export": "TooltipContent",
+      "pencilId": "XPvnr",
+      "pencilName": "nw/TooltipContent"
+    },
+    {
+      "moduleFrom": "./components/tooltip/Tooltip",
+      "export": "TooltipTrigger",
+      "pencilId": "zYg7q",
+      "pencilName": "nw/TooltipTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/data-table/DataTable",
+      "export": "DataTable",
+      "pencilId": "sZ8dz",
+      "pencilName": "nw/DataTable",
+      "variantCoverage": {
+        "variant=default": ["oXX55"],
+        "variant=striped": ["CJDkQ"],
+        "variant=bordered": ["KF7xm"],
+        "variant=compact": ["dtiSY"],
+        "density=compact": ["dtiSY"],
+        "density=default": ["oXX55"],
+        "density=comfortable": ["ANyAC"],
+        "tableLayout=auto": ["oXX55"],
+        "tableLayout=fixed": ["T4xen"],
+        "columnResizeMode=onChange": ["oXX55"],
+        "columnResizeMode=onEnd": ["tv1bt"]
+      },
+      "storyCoverage": {
+        "default": ["oXX55"],
+        "with_actions": ["oXX55"],
+        "custom_actions_renderer": ["oXX55"],
+        "playground": ["oXX55", "CJDkQ", "KF7xm", "dtiSY", "ANyAC", "T4xen", "tv1bt"],
+        "states": ["Opmvs", "pFX3A", "jTNB9", "qeLW0"],
+        "data_sets": ["oXX55"],
+        "server_side_filtering": ["oXX55"],
+        "expandable_rows": ["oXX55"]
+      }
+    },
+    {
+      "moduleFrom": "./components/data-table/DataTable",
+      "export": "default",
+      "pencilId": "sZ8dz",
+      "pencilName": "nw/DataTable"
+    },
+
+    {
+      "moduleFrom": "./components/navigation-card/NavigationCard",
+      "export": "NavigationCard",
+      "pencilId": "6Vxxp",
+      "pencilName": "nw/NavigationCard"
+    },
+    {
+      "moduleFrom": "./components/navigation-card/NavigationCard",
+      "export": "default",
+      "pencilId": "6Vxxp",
+      "pencilName": "nw/NavigationCard"
+    },
+
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarMenu",
+      "pencilId": "AJPdn",
+      "pencilName": "nw/MenubarMenu"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarShortcut",
+      "pencilId": "6FZL5",
+      "pencilName": "nw/MenubarShortcut"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarSubContent",
+      "pencilId": "NA6si",
+      "pencilName": "nw/MenubarSubContent"
+    },
+    {
+      "moduleFrom": "./components/menubar/Menubar",
+      "export": "MenubarTrigger",
+      "pencilId": "YAF2V",
+      "pencilName": "nw/MenubarTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuShortcut",
+      "pencilId": "4Sv2Y",
+      "pencilName": "nw/ContextMenuShortcut"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuSubContent",
+      "pencilId": "mjoLy",
+      "pencilName": "nw/ContextMenuSubContent"
+    },
+    {
+      "moduleFrom": "./components/context-menu/ContextMenu",
+      "export": "ContextMenuTrigger",
+      "pencilId": "SFl3s",
+      "pencilName": "nw/ContextMenuTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuShortcut",
+      "pencilId": "Na1HX",
+      "pencilName": "nw/DropdownMenuShortcut"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuSubContent",
+      "pencilId": "uVpen",
+      "pencilName": "nw/DropdownMenuSubContent"
+    },
+    {
+      "moduleFrom": "./components/dropdown-menu/DropdownMenu",
+      "export": "DropdownMenuTrigger",
+      "pencilId": "gpvL0",
+      "pencilName": "nw/DropdownMenuTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "SheetFooter",
+      "pencilId": "XzqDp",
+      "pencilName": "nw/SheetFooter"
+    },
+    {
+      "moduleFrom": "./components/sheet/Sheet",
+      "export": "SheetTrigger",
+      "pencilId": "pOxiy",
+      "pencilName": "nw/SheetTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/tabs/Tabs",
+      "export": "Tabs",
+      "pencilId": "d7c6t",
+      "pencilName": "nw/Tabs"
+    },
+    {
+      "moduleFrom": "./components/tabs/Tabs",
+      "export": "TabsBadge",
+      "pencilId": "sxoRS",
+      "pencilName": "nw/TabsBadge"
+    },
+    {
+      "moduleFrom": "./components/tabs/Tabs",
+      "export": "TabsContent",
+      "pencilId": "I8VUW",
+      "pencilName": "nw/TabsContent"
+    },
+    {
+      "moduleFrom": "./components/tabs/Tabs",
+      "export": "TabsList",
+      "pencilId": "TtPAY",
+      "pencilName": "nw/TabsList"
+    },
+    {
+      "moduleFrom": "./components/tabs/Tabs",
+      "export": "TabsTrigger",
+      "pencilId": "9whNT",
+      "pencilName": "nw/TabsTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/tab-switch/TabSwitch",
+      "export": "TabSwitch",
+      "pencilId": "c5WkJ",
+      "pencilName": "nw/TabSwitch"
+    },
+    {
+      "moduleFrom": "./components/tab-switch/TabSwitch",
+      "export": "TabSwitchBadge",
+      "pencilId": "rNRGm",
+      "pencilName": "nw/TabSwitchBadge"
+    },
+    {
+      "moduleFrom": "./components/tab-switch/TabSwitch",
+      "export": "TabSwitchContent",
+      "pencilId": "Gjt8P",
+      "pencilName": "nw/TabSwitchContent"
+    },
+    {
+      "moduleFrom": "./components/tab-switch/TabSwitch",
+      "export": "TabSwitchList",
+      "pencilId": "Y11iE",
+      "pencilName": "nw/TabSwitchList"
+    },
+    {
+      "moduleFrom": "./components/tab-switch/TabSwitch",
+      "export": "TabSwitchTrigger",
+      "pencilId": "miIqI",
+      "pencilName": "nw/TabSwitchTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/tab-nav/TabNav",
+      "export": "TabNav",
+      "pencilId": "zQ6Mg",
+      "pencilName": "nw/TabNav"
+    },
+    {
+      "moduleFrom": "./components/tab-nav/TabNav",
+      "export": "TabNavLink",
+      "pencilId": "quEsL",
+      "pencilName": "nw/TabNavLink"
+    },
+
+    {
+      "moduleFrom": "./components/button-group/ButtonGroup",
+      "export": "ButtonGroupSeparator",
+      "pencilId": "oVjXW",
+      "pencilName": "nw/ButtonGroupSeparator"
+    },
+    {
+      "moduleFrom": "./components/button-group/ButtonGroup",
+      "export": "ButtonGroupText",
+      "pencilId": "47TP5",
+      "pencilName": "nw/ButtonGroupText"
+    },
+
+    {
+      "moduleFrom": "./components/stage-progression/StageProgression",
+      "export": "StageItem",
+      "pencilId": "7S1vo",
+      "pencilName": "nw/StageItem"
+    },
+    {
+      "moduleFrom": "./components/stage-progression/StageProgression",
+      "export": "StageProgression",
+      "pencilId": "A3Qlc",
+      "pencilName": "nw/StageProgression"
+    },
+
+    {
+      "moduleFrom": "./components/hover-card/HoverCard",
+      "export": "HoverCard",
+      "pencilId": "Ss8nN",
+      "pencilName": "nw/HoverCard"
+    },
+    {
+      "moduleFrom": "./components/hover-card/HoverCard",
+      "export": "HoverCardContent",
+      "pencilId": "BOq3t",
+      "pencilName": "nw/HoverCardContent"
+    },
+    {
+      "moduleFrom": "./components/hover-card/HoverCard",
+      "export": "HoverCardTrigger",
+      "pencilId": "Xcirw",
+      "pencilName": "nw/HoverCardTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/input-otp/InputOtp",
+      "export": "InputOTP",
+      "pencilId": "2IX0Y",
+      "pencilName": "nw/InputOTP"
+    },
+    {
+      "moduleFrom": "./components/input-otp/InputOtp",
+      "export": "InputOTPSeparator",
+      "pencilId": "rSKNJ",
+      "pencilName": "nw/InputOTPSeparator"
+    },
+    {
+      "moduleFrom": "./components/input-otp/InputOtp",
+      "export": "InputOTPSlot",
+      "pencilId": "sLKrz",
+      "pencilName": "nw/InputOTPSlot"
+    },
+
+    {
+      "moduleFrom": "./components/data-toolbar/DataToolbar",
+      "export": "DataToolbar",
+      "pencilId": "P5sJT",
+      "pencilName": "nw/DataToolbar"
+    },
+    {
+      "moduleFrom": "./components/data-toolbar/DataToolbar",
+      "export": "ToolbarActions",
+      "pencilId": "LFg5s",
+      "pencilName": "nw/ToolbarActions"
+    },
+    {
+      "moduleFrom": "./components/data-toolbar/DataToolbar",
+      "export": "ToolbarSearch",
+      "pencilId": "f6l8P",
+      "pencilName": "nw/ToolbarSearch"
+    },
+
+    {
+      "moduleFrom": "./components/accordion/Accordion",
+      "export": "Accordion",
+      "pencilId": "tLYc7",
+      "pencilName": "nw/Accordion"
+    },
+    {
+      "moduleFrom": "./components/accordion/Accordion",
+      "export": "AccordionContent",
+      "pencilId": "kLAMi",
+      "pencilName": "nw/AccordionContent"
+    },
+    {
+      "moduleFrom": "./components/accordion/Accordion",
+      "export": "AccordionItem",
+      "pencilId": "aqley",
+      "pencilName": "nw/AccordionItem"
+    },
+    {
+      "moduleFrom": "./components/accordion/Accordion",
+      "export": "AccordionTrigger",
+      "pencilId": "3YQCK",
+      "pencilName": "nw/AccordionTrigger"
+    },
+
+    {
+      "moduleFrom": "./components/action-list-item/ActionListItem",
+      "export": "ActionList",
+      "pencilId": "IowJU",
+      "pencilName": "nw/ActionList"
+    },
+    {
+      "moduleFrom": "./components/action-list-item/ActionListItem",
+      "export": "ActionListItem",
+      "pencilId": "DgmNO",
+      "pencilName": "nw/ActionListItem"
+    },
+
+    {
+      "moduleFrom": "./components/action-menu/ActionMenu",
+      "export": "ActionMenu",
+      "pencilId": "swnIu",
+      "pencilName": "nw/ActionMenu"
+    },
+    {
+      "moduleFrom": "./components/action-menu/ActionMenu",
+      "export": "default",
+      "pencilId": "swnIu",
+      "pencilName": "nw/ActionMenu"
+    },
+
+    {
+      "moduleFrom": "./components/empty-state/EmptyState",
+      "export": "EmptyState",
+      "pencilId": "5zNsy",
+      "pencilName": "nw/EmptyState"
+    },
+    {
+      "moduleFrom": "./components/empty-state/EmptyState",
+      "export": "default",
+      "pencilId": "5zNsy",
+      "pencilName": "nw/EmptyState"
+    },
+
+    {
+      "moduleFrom": "./components/entry-page/EntryPage",
+      "export": "EntryLayout",
+      "pencilId": "q5FNE",
+      "pencilName": "nw/EntryLayout"
+    },
+    {
+      "moduleFrom": "./components/entry-page/EntryPage",
+      "export": "default",
+      "pencilId": "q5FNE",
+      "pencilName": "nw/EntryLayout"
+    },
+
+    {
+      "moduleFrom": "./components/launcher-page/LauncherPage",
+      "export": "LauncherLayout",
+      "pencilId": "soZ4W",
+      "pencilName": "nw/LauncherLayout"
+    },
+    {
+      "moduleFrom": "./components/launcher-page/LauncherPage",
+      "export": "default",
+      "pencilId": "soZ4W",
+      "pencilName": "nw/LauncherLayout"
+    },
+
+    {
+      "moduleFrom": "./components/record-layout/RecordLayout",
+      "export": "RecordLayout",
+      "pencilId": "5UTO9",
+      "pencilName": "nw/RecordLayout"
+    },
+    {
+      "moduleFrom": "./components/record-layout/RecordLayout",
+      "export": "default",
+      "pencilId": "5UTO9",
+      "pencilName": "nw/RecordLayout"
+    },
+
+    {
+      "moduleFrom": "./components/resizable/Resizable",
+      "export": "ResizableHandle",
+      "pencilId": "ON0IU",
+      "pencilName": "nw/ResizableHandle"
+    },
+    {
+      "moduleFrom": "./components/resizable/Resizable",
+      "export": "ResizablePanel",
+      "pencilId": "kQLRm",
+      "pencilName": "nw/ResizablePanel"
+    },
+
+    {
+      "moduleFrom": "./components/scroll-area/ScrollArea",
+      "export": "ScrollArea",
+      "pencilId": "gIMOr",
+      "pencilName": "nw/ScrollArea"
+    },
+    {
+      "moduleFrom": "./components/scroll-area/ScrollArea",
+      "export": "ScrollBar",
+      "pencilId": "nN2GQ",
+      "pencilName": "nw/ScrollBar"
+    },
+
+    {
+      "moduleFrom": "./components/section-kpi-cards/SectionKpiCards",
+      "export": "SectionCards",
+      "pencilId": "nmVtu",
+      "pencilName": "nw/SectionCards"
+    },
+    {
+      "moduleFrom": "./components/section-kpi-cards/SectionKpiCards",
+      "export": "SectionKpiCards",
+      "pencilId": "lk4zT",
+      "pencilName": "nw/SectionKpiCards"
+    },
+
+    {
+      "moduleFrom": "./components/simple-page/SimplePage",
+      "export": "KPICard",
+      "pencilId": "wPIE5",
+      "pencilName": "nw/KpiCard"
+    },
+    {
+      "moduleFrom": "./components/simple-page/SimplePage",
+      "export": "PageLayout",
+      "pencilId": "aXUPC",
+      "pencilName": "nw/PageLayout"
+    },
+
+    {
+      "moduleFrom": "./components/tree-view/TreeView",
+      "export": "TreeView",
+      "pencilId": "RoicA",
+      "pencilName": "nw/TreeView"
+    },
+    {
+      "moduleFrom": "./components/tree-view/TreeView",
+      "export": "default",
+      "pencilId": "RoicA",
+      "pencilName": "nw/TreeView"
+    },
+
+    {
+      "moduleFrom": "./components/wizard-form/WizardForm",
+      "export": "WizardForm",
+      "pencilId": "lXkRN",
+      "pencilName": "nw/WizardForm"
+    },
+    {
+      "moduleFrom": "./components/wizard-form/WizardForm",
+      "export": "WizardFormStep",
+      "pencilId": "cQzo5",
+      "pencilName": "nw/WizardFormStep"
+    },
+
+    {
+      "moduleFrom": "./components/page-header/PageHeader",
+      "export": "Header",
+      "pencilId": "Kv7RE",
+      "pencilName": "nw/Header"
+    },
+    {
+      "moduleFrom": "./components/page-header/PageHeader",
+      "export": "HeaderSlot",
+      "pencilId": "AICKN",
+      "pencilName": "nw/HeaderSlot"
+    },
+    {
+      "moduleFrom": "./components/page-header/PageHeader",
+      "export": "PageHeader",
+      "pencilId": "R5kdy",
+      "pencilName": "nw/PageHeader"
+    },
+
+    {
+      "moduleFrom": "./components/file-explorer/FileExplorer",
+      "export": "FileExplorer",
+      "pencilId": "RRcYE",
+      "pencilName": "nw/FileExplorer"
+    },
+    {
+      "moduleFrom": "./components/file-explorer/FileExplorer",
+      "export": "default",
+      "pencilId": "RRcYE",
+      "pencilName": "nw/FileExplorer"
+    },
+
+    {
+      "moduleFrom": "./components/carousel/Carousel",
+      "export": "Carousel",
+      "pencilId": "HwEFu",
+      "pencilName": "nw/Carousel"
+    },
+    {
+      "moduleFrom": "./components/carousel/Carousel",
+      "export": "CarouselContent",
+      "pencilId": "ol6z0",
+      "pencilName": "nw/CarouselContent"
+    },
+    {
+      "moduleFrom": "./components/carousel/Carousel",
+      "export": "CarouselItem",
+      "pencilId": "YFS8S",
+      "pencilName": "nw/CarouselItem"
+    },
+    {
+      "moduleFrom": "./components/carousel/Carousel",
+      "export": "CarouselNext",
+      "pencilId": "p6yXP",
+      "pencilName": "nw/CarouselNext"
+    },
+    {
+      "moduleFrom": "./components/carousel/Carousel",
+      "export": "CarouselPrevious",
+      "pencilId": "RSIcI",
+      "pencilName": "nw/CarouselPrevious"
+    },
+
+    {
+      "moduleFrom": "./components/chart/Chart",
+      "export": "ChartContainer",
+      "pencilId": "Ib8Mj",
+      "pencilName": "nw/ChartContainer"
+    },
+    {
+      "moduleFrom": "./components/chart/Chart",
+      "export": "ChartLegend",
+      "pencilId": "zYhPx",
+      "pencilName": "nw/ChartLegend"
+    },
+    {
+      "moduleFrom": "./components/chart/Chart",
+      "export": "ChartLegendContent",
+      "pencilId": "7GEsn",
+      "pencilName": "nw/ChartLegendContent"
+    },
+    {
+      "moduleFrom": "./components/chart/Chart",
+      "export": "ChartTooltip",
+      "pencilId": "8ZVfO",
+      "pencilName": "nw/ChartTooltip"
+    },
+    {
+      "moduleFrom": "./components/chart/Chart",
+      "export": "ChartTooltipContent",
+      "pencilId": "j0K2t",
+      "pencilName": "nw/ChartTooltipContent"
+    },
+
+    {
+      "moduleFrom": "./components/filter-group/FilterGroup",
+      "export": "BooleanFilter",
+      "pencilId": "kx9D4",
+      "pencilName": "nw/BooleanFilter"
+    },
+    {
+      "moduleFrom": "./components/filter-group/FilterGroup",
+      "export": "DateFilter",
+      "pencilId": "tb3jU",
+      "pencilName": "nw/DateFilter"
+    },
+    {
+      "moduleFrom": "./components/filter-group/FilterGroup",
+      "export": "MultiSelectFilter",
+      "pencilId": "yfM9V",
+      "pencilName": "nw/MultiSelectFilter"
+    },
+    {
+      "moduleFrom": "./components/filter-group/FilterGroup",
+      "export": "NumberFilter",
+      "pencilId": "0bUbL",
+      "pencilName": "nw/NumberFilter"
+    },
+    {
+      "moduleFrom": "./components/filter-group/FilterGroup",
+      "export": "TextFilter",
+      "pencilId": "vA7JO",
+      "pencilName": "nw/TextFilter"
+    },
+
+    {
+      "moduleFrom": "./components/action-button/ActionButton",
+      "export": "ActionButton",
+      "pencilId": "l6LDd",
+      "pencilName": "nw/Button/Default"
+    },
+    {
+      "moduleFrom": "./components/ai-badge/AiBadge",
+      "export": "AiBadge",
+      "pencilId": "x1SH2",
+      "pencilName": "nw/Badge/AI"
+    },
+    {
+      "moduleFrom": "./components/ai-button/AiButton",
+      "export": "AiButton",
+      "pencilId": "tv3wI",
+      "pencilName": "nw/AiButton/Default"
+    },
+    {
+      "moduleFrom": "./components/badge/Badge",
+      "export": "Badge",
+      "pencilId": "v8Uf2",
+      "pencilName": "nw/Badge/Default"
+    },
+    {
+      "moduleFrom": "./components/button/Button",
+      "export": "Button",
+      "pencilId": "l6LDd",
+      "pencilName": "nw/Button/Default"
+    },
+    {
+      "moduleFrom": "./components/checkbox/Checkbox",
+      "export": "Checkbox",
+      "pencilId": "Gfqg1",
+      "pencilName": "nw/Checkbox/Checked"
+    },
+    {
+      "moduleFrom": "./components/chip/Chip",
+      "export": "Chip",
+      "pencilId": "GzZiE",
+      "pencilName": "nw/Chip"
+    },
+    {
+      "moduleFrom": "./components/combobox/Combobox",
+      "export": "Combobox",
+      "pencilId": "BENdy",
+      "pencilName": "nw/Combobox"
+    },
+    {
+      "moduleFrom": "./components/data-display/DataDisplay",
+      "export": "DataDisplay",
+      "pencilId": "cf6mB",
+      "pencilName": "nw/DataDisplay"
+    },
+    {
+      "moduleFrom": "./components/gradient-background/GradientBackground",
+      "export": "GradientBackground",
+      "pencilId": "F733H",
+      "pencilName": "nw/GradientBackground"
+    },
+    {
+      "moduleFrom": "./components/icon-avatar/IconAvatar",
+      "export": "IconAvatar",
+      "pencilId": "9YdBp",
+      "pencilName": "nw/IconAvatar/Default"
+    },
+    {
+      "moduleFrom": "./components/icon/Icon",
+      "export": "Icon",
+      "pencilId": "wYvNg",
+      "pencilName": "nw/Icon/Md"
+    },
+    {
+      "moduleFrom": "./components/input/Input",
+      "export": "Input",
+      "pencilId": "feMQI",
+      "pencilName": "nw/Input/Default"
+    },
+    {
+      "moduleFrom": "./components/kbd/Kbd",
+      "export": "Kbd",
+      "pencilId": "UVtxA",
+      "pencilName": "nw/Kbd"
+    },
+    {
+      "moduleFrom": "./components/kpi-card/KpiCard",
+      "export": "KpiCard",
+      "pencilId": "wPIE5",
+      "pencilName": "nw/KpiCard"
+    },
+    {
+      "moduleFrom": "./components/label/Label",
+      "export": "Label",
+      "pencilId": "2uFLy",
+      "pencilName": "nw/Label"
+    },
+
+    {
+      "moduleFrom": "./components/ai-confidence/AiConfidence",
+      "export": "Confidence",
+      "pencilId": "U9ykI",
+      "pencilName": "nw/Confidence"
+    },
+    {
+      "moduleFrom": "./components/ai-input/AiInput",
+      "export": "AiInput",
+      "pencilId": "RWxVM",
+      "pencilName": "nw/AiInput"
+    },
+    {
+      "moduleFrom": "./components/aspect-ratio/AspectRatio",
+      "export": "AspectRatio",
+      "pencilId": "TTCxe",
+      "pencilName": "nw/AspectRatio"
+    },
+    {
+      "moduleFrom": "./components/autocomplete/AutocompleteInput",
+      "export": "AutocompleteInput",
+      "pencilId": "rdTIZ",
+      "pencilName": "nw/AutocompleteInput"
+    },
+    {
+      "moduleFrom": "./components/avatar-upload",
+      "export": "AvatarUpload",
+      "pencilId": "hrIov",
+      "pencilName": "nw/AvatarUpload"
+    },
+    {
+      "moduleFrom": "./components/calendar/Calendar",
+      "export": "Calendar",
+      "pencilId": "jE90s",
+      "pencilName": "nw/Calendar"
+    },
+    {
+      "moduleFrom": "./components/clear-button/ClearButton",
+      "export": "ClearButton",
+      "pencilId": "P4dRH",
+      "pencilName": "nw/ClearButton"
+    },
+    {
+      "moduleFrom": "./components/copy-button/CopyButton",
+      "export": "CopyButton",
+      "pencilId": "JWEIz",
+      "pencilName": "nw/CopyButton"
+    },
+    {
+      "moduleFrom": "./components/counting-number/CountingNumber",
+      "export": "CountingNumber",
+      "pencilId": "U9eRR",
+      "pencilName": "nw/CountingNumber"
+    },
+    {
+      "moduleFrom": "./components/date-input/DateInput",
+      "export": "DateInput",
+      "pencilId": "5Mli2",
+      "pencilName": "nw/DateInput"
+    },
+    {
+      "moduleFrom": "./components/debounced-input/DebouncedInput",
+      "export": "DebouncedInput",
+      "pencilId": "rpXFo",
+      "pencilName": "nw/DebouncedInput"
+    },
+    {
+      "moduleFrom": "./components/file-upload/FileUpload",
+      "export": "FileUpload",
+      "pencilId": "JNli8",
+      "pencilName": "nw/FileUpload"
+    },
+    {
+      "moduleFrom": "./components/filter-sheet/FilterSheet",
+      "export": "FilterSheet",
+      "pencilId": "RK6DC",
+      "pencilName": "nw/FilterSheet"
+    },
+    {
+      "moduleFrom": "./components/locale-select/LocaleSelect",
+      "export": "LocaleSelect",
+      "pencilId": "E0DdN",
+      "pencilName": "nw/LocaleSelect"
+    },
+    {
+      "moduleFrom": "./components/progress/Progress",
+      "export": "Progress",
+      "pencilId": "f3CJ6",
+      "pencilName": "nw/Progress"
+    },
+    {
+      "moduleFrom": "./components/radio-group/RadioGroup",
+      "export": "RadioGroupItem",
+      "pencilId": "G6n5C",
+      "pencilName": "nw/Radio/Selected"
+    },
+    {
+      "moduleFrom": "./components/separator/Separator",
+      "export": "Separator",
+      "pencilId": "Xfjt2",
+      "pencilName": "nw/Separator"
+    },
+    {
+      "moduleFrom": "./components/shell-context-panel/ShellContextPanel",
+      "export": "ShellContextPanel",
+      "pencilId": "qXRMp",
+      "pencilName": "nw/ShellContextPanel"
+    },
+    {
+      "moduleFrom": "./components/shell-header/ShellHeader",
+      "export": "ShellHeader",
+      "pencilId": "eb9I1",
+      "pencilName": "nw/ShellHeader"
+    },
+    {
+      "moduleFrom": "./components/shell-sidebar/ShellSidebar",
+      "export": "ShellSidebar",
+      "pencilId": "hvFqi",
+      "pencilName": "nw/Sidebar"
+    },
+    {
+      "moduleFrom": "./components/shell/ShellLayout",
+      "export": "ShellLayout",
+      "pencilId": "IQn5c",
+      "pencilName": "nw/ShellLayout"
+    },
+    {
+      "moduleFrom": "./components/skeleton/Skeleton",
+      "export": "Skeleton",
+      "pencilId": "OP9FA",
+      "pencilName": "nw/Skeleton"
+    },
+    {
+      "moduleFrom": "./components/slider/Slider",
+      "export": "Slider",
+      "pencilId": "Aitwt",
+      "pencilName": "nw/Slider"
+    },
+    {
+      "moduleFrom": "./components/sonner/Sonner",
+      "export": "Toaster",
+      "pencilId": "uWrvY",
+      "pencilName": "nw/Toaster"
+    },
+    {
+      "moduleFrom": "./components/spinner/Spinner",
+      "export": "Spinner",
+      "pencilId": "rz9eM",
+      "pencilName": "nw/Spinner/Md"
+    },
+    {
+      "moduleFrom": "./components/status-badge/StatusBadge",
+      "export": "StatusBadge",
+      "pencilId": "XFTGt",
+      "pencilName": "nw/StatusBadge"
+    },
+    {
+      "moduleFrom": "./components/status-dot/StatusDot",
+      "export": "StatusDot",
+      "pencilId": "fUxds",
+      "pencilName": "nw/StatusDot/Default"
+    },
+    {
+      "moduleFrom": "./components/switch/Switch",
+      "export": "Switch",
+      "pencilId": "P4rhs",
+      "pencilName": "nw/Switch/Default"
+    },
+    {
+      "moduleFrom": "./components/textarea/Textarea",
+      "export": "Textarea",
+      "pencilId": "vx0rm",
+      "pencilName": "nw/Textarea/Default"
+    },
+    {
+      "moduleFrom": "./components/theme-switch/ThemeSwitch",
+      "export": "ThemeSwitch",
+      "pencilId": "rDlg3",
+      "pencilName": "nw/ThemeSwitch"
+    },
+    {
+      "moduleFrom": "./components/toggle-group/ToggleGroup",
+      "export": "ToggleGroupItem",
+      "pencilId": "LYyzD",
+      "pencilName": "nw/ToggleGroupItem"
+    },
+    {
+      "moduleFrom": "./components/toggle/Toggle",
+      "export": "Toggle",
+      "pencilId": "6py0h",
+      "pencilName": "nw/Toggle/Default"
+    },
+    {
+      "moduleFrom": "./components/writing/Writing",
+      "export": "WritingText",
+      "pencilId": "1i1uH",
+      "pencilName": "nw/WritingText"
+    }
+  ]
+}
