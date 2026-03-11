@@ -30,7 +30,7 @@ export function mapSortingToOrderBy(selectedReportType: ReportType | null, sorti
         createdAt: 'createdAt',
         status: 'status',
         totalAmount: 'reimbursableAmount',
-        requestDate: 'requestDate',
+        requestDate: 'createdAt',
         startDate: 'startDate',
         endDate: 'endDate'
       }
@@ -52,7 +52,7 @@ export function mapSortingToOrderBy(selectedReportType: ReportType | null, sorti
     }
     case ReportType.ADVANCE_PAYMENT: {
       const fieldMap: Record<string, string> = {
-        requestDate: 'createdAt',
+        createdAt: 'createdAt',
         status: 'status',
         amount: 'amount',
         paymentMethod: 'paymentMethod'

@@ -225,9 +225,18 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
                 const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
                 if (comp.flowSpec) {
                   const specTemplate = { ...mapFlowSpec(comp.flowSpec), id: effectiveId }
-                  return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} template={specTemplate} />
+                  return (
+                    <FlowPreview
+                      key={comp.id}
+                      accessToken={accessToken ?? ''}
+                      userInfo={userInfo}
+                      template={specTemplate}
+                    />
+                  )
                 }
-                return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} flowId={effectiveId} />
+                return (
+                  <FlowPreview key={comp.id} accessToken={accessToken ?? ''} userInfo={userInfo} flowId={effectiveId} />
+                )
               }}
             </PreviewTemplate>
           </div>

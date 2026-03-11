@@ -365,12 +365,13 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     const initialRole = additionalData?.role ?? additionalData?.contentEntry?.role ?? undefined
     const initialContentGroupRef =
       additionalData?.contentGroupRef ?? additionalData?.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? ''
-    const initialContentTypeRef =
+    const rawInitialContentTypeRef =
       additionalData?.contentTypeRef ??
       additionalData?.contentEntry?.contentTypeRef ??
       additionalData?.contentEntry?.contentType ??
       additionalData?.contentEntry?.contentTypeName ??
       ''
+    const initialContentTypeRef = initialContentGroupRef ? rawInitialContentTypeRef : ''
 
     const isPolicy = initialContentGroupRef === ContentGroup.POLICY
 
@@ -475,14 +476,15 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       additionalData.preview ?? additionalData.previewText ?? additionalData.contentEntry?.preview ?? null
     const initialContent = additionalData.content ?? additionalData.contentEntry?.content ?? null
     const initialContentGroupRef =
-      additionalData.contentGroupRef ?? additionalData.contentEntry?.contentGroupRef ?? null
+      additionalData.contentGroupRef ?? additionalData.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? null
     const initialRole = additionalData.role ?? additionalData.contentEntry?.role ?? null
-    const initialContentTypeRef =
+    const rawInitialContentTypeRef =
       additionalData.contentTypeRef ??
       additionalData.contentEntry?.contentTypeRef ??
       additionalData.contentEntry?.contentType ??
       additionalData.contentEntry?.contentTypeName ??
       null
+    const initialContentTypeRef = initialContentGroupRef ? rawInitialContentTypeRef : null
 
     // Skip if no values to set
     if (
@@ -528,7 +530,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     if (initialRole !== null && initialRole !== currentRole) {
       form.setValue('role', initialRole, { shouldDirty: false, shouldValidate: false })
     }
-  }, [loadedContentEntry?.id, context.additionalData, form])
+  }, [loadedContentEntry?.id, context.additionalData, extractedContentGroupRef, form])
 
   const contentTypeResolutionRef = useRef(false)
   useEffect(() => {
@@ -772,6 +774,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       return 'article'
     }
   }, [watchContentGroupRef])
+
+  useEffect(() => {
+    if (currentSegment !== 'glossary' || !watchContentTypeRef) {
+      return
+    }
+
+    setValue('contentTypeRef', '', { shouldValidate: false })
+  }, [currentSegment, watchContentTypeRef, setValue])
 
   // Register form with catalog provider
   useEffect(() => {

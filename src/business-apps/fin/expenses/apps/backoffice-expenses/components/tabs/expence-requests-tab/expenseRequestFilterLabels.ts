@@ -2,20 +2,6 @@ import { formatDateLocalized } from '../../../utils/dateUtils'
 import { extractCurrencyCode } from '../../../utils/sharedUtils'
 import type { Currency } from '../../../hooks/useFilterData'
 
-export const getStartDateLabel = (startFrom?: string, startTo?: string): string => {
-  if (!startFrom && !startTo) return 'Start: All'
-  const fromLabel = startFrom ? formatDateLocalized(startFrom) : '-'
-  const toLabel = startTo ? formatDateLocalized(startTo) : '-'
-  return `Start: ${fromLabel} → ${toLabel}`
-}
-
-export const getEndDateLabel = (endFrom?: string, endTo?: string): string => {
-  if (!endFrom && !endTo) return 'End: All'
-  const fromLabel = endFrom ? formatDateLocalized(endFrom) : '-'
-  const toLabel = endTo ? formatDateLocalized(endTo) : '-'
-  return `End: ${fromLabel} → ${toLabel}`
-}
-
 export const getCurrencyLabel = (currencyRef: string, currencies?: readonly Currency[]): string => {
   if (!currencyRef) return 'Currency: All'
   const currency = currencies?.find(c => c.currencyRef === currencyRef)

@@ -5,7 +5,12 @@
 
 import type { DataModelPreviewDefinition } from '@/common/components/ai-builder/data-model-preview/dataModelPreviewTypes'
 import type { FunctionDefinition } from '@/common/components/ai-builder/function-preview/FunctionPreview'
-import type { FlowPreviewTemplate, FlowPreviewStep } from '@/common/components/ai-builder/flow-preview/flowPreviewTypes'
+import type {
+  FlowPreviewTemplate,
+  FlowPreviewStep,
+  FlowPreviewTriggerType,
+  FlowPreviewInputBlock
+} from '@/common/components/ai-builder/flow-preview/flowPreviewTypes'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { DataModelSpec, FunctionSpec, FlowSpec, FlowStepSpec, AgentSpec } from '../../types/components'
 
@@ -87,13 +92,33 @@ function mapFlowStep(step: FlowStepSpec): FlowPreviewStep {
 }
 
 export function mapFlowSpec(spec: FlowSpec): FlowPreviewTemplate {
-  return {
+  const result: FlowPreviewTemplate = {
     type: spec.flowType ?? 'TEMPLATE',
     name: spec.name,
     description: spec.description,
     version: 1,
     steps: spec.steps.map(mapFlowStep)
   }
+  const start = (
+    spec as {
+      start?: {
+        triggers?: Array<{ id?: string; type: string; name: string; config?: Record<string, unknown> }>
+        form?: FlowPreviewInputBlock[]
+      }
+    }
+  ).start
+  if (start != null && (start.triggers?.length || start.form?.length)) {
+    result.start = {
+      triggers: (start.triggers ?? []).map(t => ({
+        id: t.id ?? t.type,
+        type: t.type as FlowPreviewTriggerType,
+        name: t.name ?? t.type,
+        config: t.config ?? {}
+      })),
+      form: start.form
+    }
+  }
+  return result
 }
 
 export function mapAgentSpec(spec: AgentSpec): PromptODM {

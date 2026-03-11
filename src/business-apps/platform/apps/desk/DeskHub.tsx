@@ -15,6 +15,7 @@ import {
   StickyNote,
   MessageSquare,
   Presentation,
+  HardDrive,
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
@@ -81,7 +82,11 @@ const navigateToApp = (appPath: string, params?: Record<string, string>) => {
             ? isProduction
               ? '/platform/slides'
               : '/platform/apps/slide-apps'
-            : `/platform/apps/${appName}`
+            : appName === 'drive-apps'
+              ? isProduction
+                ? '/platform/drive'
+                : '/platform/apps/drive-apps'
+              : `/platform/apps/${appName}`
   const urlParams = params?.from ? params : { from: 'desk', ...params }
   navigateTo(buildPlatformUrl(platformUrl, urlParams))
 }
@@ -166,6 +171,10 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
   const handleCreateSlide = useCallback(() => {
     navigateToApp('slide-apps', { action: 'new' })
+  }, [])
+
+  const handleOpenDrive = useCallback(() => {
+    navigateToApp('drive-apps')
   }, [])
 
   const handleOpenSpaces = useCallback(() => {
@@ -324,7 +333,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
             {/* App cards grid - collapsible */}
             {!isAppsCollapsed && (
-              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 lg:gba:grid-cols-4 gba:gap-4">
+              <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-5 gba:gap-4">
                 <AppCard
                   title={t('app-documents-title')}
                   description={t('app-documents-description')}
@@ -376,6 +385,18 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   isLoading={isLoading}
                   animationDelay={0.4}
                   data-testid={`${testId}-app-slides`}
+                />
+                <AppCard
+                  title={t('app-drive-title')}
+                  description={t('app-drive-description')}
+                  icon={HardDrive}
+                  count={stats.totalItems}
+                  accentColor="secondary"
+                  onOpen={handleOpenDrive}
+                  onCreate={handleOpenDrive}
+                  isLoading={isLoading}
+                  animationDelay={0.5}
+                  data-testid={`${testId}-app-drive`}
                 />
               </div>
             )}

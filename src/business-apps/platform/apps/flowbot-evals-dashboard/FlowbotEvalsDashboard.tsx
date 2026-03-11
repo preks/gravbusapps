@@ -44,7 +44,9 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       fromLocal: daysAgoDateInputValue(6),
       toLocal: todayDateInputValue(),
       bucket: 'day',
-      includeSplitView: false
+      includeSplitView: true,
+      llmProvider: '',
+      llmModel: ''
     }),
     []
   )
@@ -69,6 +71,19 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       .slice(0, 30)
   }, [data])
 
+  const providerOptions = useMemo(() => data?.available_filters?.providers ?? [], [data?.available_filters?.providers])
+
+  const modelOptions = useMemo(() => {
+    const byProvider = data?.available_filters?.models_by_provider
+    if (!byProvider) return []
+    if (filters.llmProvider && byProvider[filters.llmProvider]) {
+      return byProvider[filters.llmProvider]
+    }
+    const all = new Set<string>()
+    Object.values(byProvider).forEach(models => models.forEach(m => all.add(m)))
+    return Array.from(all).sort((a, b) => a.localeCompare(b))
+  }, [data?.available_filters?.models_by_provider, filters.llmProvider])
+
   const showData = data && !error
 
   const resetFilters = () => {
@@ -77,7 +92,9 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
       filters.fromLocal === defaultFilters.fromLocal &&
       filters.toLocal === defaultFilters.toLocal &&
       filters.bucket === defaultFilters.bucket &&
-      filters.includeSplitView === defaultFilters.includeSplitView
+      filters.includeSplitView === defaultFilters.includeSplitView &&
+      filters.llmProvider === defaultFilters.llmProvider &&
+      filters.llmModel === defaultFilters.llmModel
 
     if (isAlreadyDefault) {
       void refetch()
@@ -111,6 +128,16 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
             >
               Split-view: {data?.include_split_view ? 'on' : 'off'}
             </Badge>
+            {!!filters.llmProvider.trim() && (
+              <Badge variant="secondary" data-testid="flowbot-evals-dashboard-summary-provider">
+                Provider: {filters.llmProvider.trim()}
+              </Badge>
+            )}
+            {!!filters.llmModel.trim() && (
+              <Badge variant="secondary" data-testid="flowbot-evals-dashboard-summary-model">
+                Model: {filters.llmModel.trim()}
+              </Badge>
+            )}
             {!!filters.workflow.trim() && (
               <Badge variant="outline" data-testid="flowbot-evals-dashboard-summary-workflow">
                 Workflow: {filters.workflow.trim()}
@@ -135,21 +162,26 @@ export function FlowbotEvalsDashboard(context: Readonly<FlowbotEvalsDashboardPro
         setFilters={setFilters}
         onReset={resetFilters}
         workflowSuggestions={derivedWorkflowSuggestions}
+        providerOptions={providerOptions}
+        modelOptions={modelOptions}
         onQuick24h={() =>
           setFilters(prev => ({
             ...prev,
             fromLocal: todayDateInputValue(),
             toLocal: todayDateInputValue(),
-            bucket: 'hour'
+            bucket: 'hour',
+            llmProvider: '',
+            llmModel: ''
           }))
         }
         onQuick7d={() =>
           setFilters(prev => ({
             ...prev,
-            // Inclusive 7-day window with toLocal +1 day at request time.
             fromLocal: daysAgoDateInputValue(6),
             toLocal: todayDateInputValue(),
-            bucket: 'day'
+            bucket: 'day',
+            llmProvider: '',
+            llmModel: ''
           }))
         }
       />
