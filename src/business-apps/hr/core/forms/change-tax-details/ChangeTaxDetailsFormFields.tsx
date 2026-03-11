@@ -17,6 +17,7 @@ import {
   Combobox
 } from '@newwork/nw-design-system'
 import type { UseFormReturn } from 'react-hook-form'
+import { parseLocalizedNumber } from '@/common/utils/numberFormatter'
 import { validateTaxNumber, validateTaxId, validateSocialSecurityNumber } from './validationScope'
 import type { GetMessage } from './validationScope'
 import { ACCEPTED_HEALTH_INSURANCE_DOCUMENT_FILE_TYPES } from './constants'
@@ -35,6 +36,27 @@ export interface ChangeTaxDetailsFormFieldsProps {
 }
 
 const catLabel = (e: CatalogEntry) => e?.translations?.[0]?.value || e?.value || ''
+
+/**
+ * Accepts:
+ * - Plain numbers: 1234, 1234.56, 1234,56
+ * - US grouped: 1,234.56
+ * - EU grouped: 1.234,56
+ */
+function isValidLocalizedNumberInput(raw: string): boolean {
+  const value = String(raw ?? '').trim()
+  if (!value) return true
+
+  const PLAIN = /^-?\d+(?:[.,]\d+)?$/
+  const US_GROUPED = /^-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/
+  const EU_GROUPED = /^-?\d{1,3}(?:\.\d{3})+(?:,\d+)?$/
+
+  if (!(PLAIN.test(value) || US_GROUPED.test(value) || EU_GROUPED.test(value))) {
+    return false
+  }
+  const parsed = parseLocalizedNumber(value)
+  return !Number.isNaN(parsed)
+}
 
 export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProps> = ({
   form,
@@ -351,6 +373,9 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
       <FormField
         control={form.control as any}
         name={'childTaxAllowance' as any}
+        rules={{
+          validate: (v: string) => (isValidLocalizedNumberInput(v) ? true : L.invalidLocalizedNumber)
+        }}
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="change-tax-details-child-tax-allowance-label">{L.childTaxAllowance}</FormLabel>
@@ -398,6 +423,9 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
               <FormField
                 control={form.control as any}
                 name={'individualFreeAmount' as any}
+                rules={{
+                  validate: (v: string) => (isValidLocalizedNumberInput(v) ? true : L.invalidLocalizedNumber)
+                }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel data-testid="change-tax-details-individual-free-amount-label">

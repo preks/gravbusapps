@@ -92,7 +92,7 @@ export function useChangeTaxDetailsData(
           uploadNewHealthInsuranceDocument: false
         }
         form.reset(defaults)
-        initialRef.current = defaults
+        initialRef.current = JSON.parse(JSON.stringify(defaults)) as TaxInfoFormValues
         void form.trigger()
       } catch {
         // no-op

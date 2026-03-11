@@ -9,6 +9,7 @@ import translations from '../../_i18n'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { formatDate, formatNumberFunction, getCatalogValue } from '../../../../../../../common/utils/windowUtils'
+import { parseLocalizedNumber } from '../../../../../../../common/utils/numberFormatter'
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
 import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
@@ -280,7 +281,12 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
         },
         {
           label: t('employment-label-individual-free-amount'),
-          value: String(additionalProps.individualFreeAmount ?? '')
+          value: (() => {
+            const raw = String(additionalProps.individualFreeAmount ?? '').trim()
+            if (!raw) return ''
+            const parsed = parseLocalizedNumber(raw)
+            return Number.isNaN(parsed) ? raw : formatNumberFunction(parsed)
+          })()
         }
       )
     }

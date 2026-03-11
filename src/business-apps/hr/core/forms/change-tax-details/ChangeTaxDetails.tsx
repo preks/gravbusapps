@@ -130,8 +130,9 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   }, [watchedValues, normalizeForCompare])
 
   const { formState } = form
-  const { isValid } = formState
-  const isSubmitDisabledFinal = !isValid || isUnchangedNow
+  const { isValid, isDirty, errors } = formState
+  const hasValidationErrors = Object.keys(errors || {}).length > 0
+  const isSubmitDisabledFinal = (!isValid && hasValidationErrors) || !isDirty || isUnchangedNow
 
   const handlePreSubmit =
     healthInsuranceFileList.length > 0 && healthInsuranceFileList[0]?.originFileObj

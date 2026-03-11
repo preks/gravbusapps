@@ -1,3 +1,4 @@
+import { parseLocalizedNumber } from '@/common/utils/numberFormatter'
 import type { TaxInfoFormValues } from './types'
 
 function buildAdditionalProperties(values: TaxInfoFormValues, data: any): Record<string, unknown> {
@@ -9,9 +10,10 @@ function buildAdditionalProperties(values: TaxInfoFormValues, data: any): Record
   additionalProperties.requestAtTaxOffice = Boolean(values.requestAtTaxOffice)
   if (values.requestAtTaxOffice) {
     const emp = String(values.employeeTaxOffice ?? '').trim()
-    const free = String(values.individualFreeAmount ?? '').trim()
+    const freeRaw = String(values.individualFreeAmount ?? '').trim()
+    const freeParsed = freeRaw ? parseLocalizedNumber(freeRaw) : Number.NaN
     if (emp) additionalProperties.employeeTaxOffice = emp
-    if (free) additionalProperties.individualFreeAmount = free
+    if (freeRaw && !Number.isNaN(freeParsed)) additionalProperties.individualFreeAmount = String(freeParsed)
   } else {
     delete additionalProperties.employeeTaxOffice
     delete additionalProperties.individualFreeAmount
@@ -25,7 +27,9 @@ function buildEmployeeTaxDetailObject(
   additionalProperties: Record<string, unknown>
 ): any {
   const childTaxAllowanceNum =
-    values.childTaxAllowance !== '' && values.childTaxAllowance != null ? Number(values.childTaxAllowance) : 0
+    values.childTaxAllowance !== '' && values.childTaxAllowance != null
+      ? parseLocalizedNumber(values.childTaxAllowance)
+      : 0
   const healthInsuranceDocId =
     values.uploadedHealthInsuranceDocumentId ??
     (typeof data?.healthInsuranceDocument === 'object' && data?.healthInsuranceDocument != null

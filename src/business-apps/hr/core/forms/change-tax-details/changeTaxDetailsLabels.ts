@@ -46,6 +46,7 @@ export function getChangeTaxDetailsLabels(getMessage: GetMessage, t: TranslateFn
       'lowcoder:change_tax_information.required_social_security_number_text',
       'The Social Security Number field is required.'
     ),
+    invalidLocalizedNumber: t('invalid-localized-number-text'),
     placeholderEnter: getMessage(
       'lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder',
       'Please Enter'
