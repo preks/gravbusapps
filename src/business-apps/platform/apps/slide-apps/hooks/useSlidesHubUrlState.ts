@@ -111,10 +111,10 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     const referrer = document.referrer
     const urlParams = new URLSearchParams(window.location.search)
     cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
       referrer.includes('/platform/every-office') ||
       referrer.includes('?app=platform/apps/desk') ||
       referrer.includes('?app=platform/apps/every-office') ||
+      referrer.includes('?app=core/office/apps/office-launcher') ||
       urlParams.get('from') === 'desk'
 
     if (cameFromDeskRef.current && currentView === 'list') {

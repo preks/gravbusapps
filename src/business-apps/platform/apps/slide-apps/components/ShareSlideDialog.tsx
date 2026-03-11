@@ -34,7 +34,7 @@ import { Share2, Search, X, CheckCircle, AlertCircle, Eye, Pencil, MessageSquare
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
-import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import translations from '../_i18n'
 
 export interface ShareSlideDialogProps {
@@ -102,7 +102,10 @@ const sendShareNotification = async (
     const timestamp = Date.now()
     const blinkGroupId = `slide_share_${timestamp}_${payload.initiatorId}`
 
-    const slideUrl = getCanonicalContentUrl('slide', { slideId: payload.slideId, view: 'editor' })
+    const slideUrl = buildPlatformUrl('/platform/every-office/slides', {
+      slideId: payload.slideId,
+      view: 'editor'
+    })
 
     for (const recipient of payload.recipients) {
       const { userId, permission } = recipient

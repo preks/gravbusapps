@@ -11,7 +11,7 @@ import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import deskTranslations from '../_i18n'
 
-const NEXUS_URL = '/platform/nexus'
+const NEXUS_URL = '/platform/every-office/nexus'
 
 export interface NexusTeaserProps {
   'data-testid'?: string
