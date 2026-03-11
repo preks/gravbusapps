@@ -1,20 +1,20 @@
 import type { GetMessage } from './validationScope'
 
-export function getChangeTaxDetailsLabels(getMessage: GetMessage) {
+export type TranslateFn = (key: string) => string
+
+export function getChangeTaxDetailsLabels(getMessage: GetMessage, t: TranslateFn) {
   return {
     taxNumber: getMessage('lowcoder:change_tax_information.tax_number', 'Tax Number'),
     taxBracket: getMessage('lowcoder:change_tax_information.tax_bracket', 'Tax Bracket'),
     healthInsurance: getMessage('lowcoder:change_tax_information.health_insurance', 'Health Insurance'),
-    employeeTaxOffice: getMessage('lowcoder:change_tax_information.employee_tax_office', "Employee's Tax Office"),
-    individualFreeAmount: getMessage(
-      'lowcoder:change_tax_information.individual_free_amount',
-      'Individual Free Amount'
-    ),
+    employeeTaxOffice: t('employee-tax-office'),
+    individualFreeAmount: t('individual-free-amount'),
     healthInsuranceType: getMessage(
       'lowcoder:change_tax_information.health_insurance_type',
       'Type Of Health Insurance'
     ),
     taxIdNumber: getMessage('lowcoder:change_tax_information.tax_identification_number', 'Tax Identification Number'),
+    religion: t('religion'),
     churchAffiliation: getMessage('lowcoder:change_tax_information.taxable_church_affiliation', 'Church Affiliation'),
     socialSecurityNumber: getMessage(
       'lowcoder:change_tax_information.social_security_number',
@@ -25,20 +25,11 @@ export function getChangeTaxDetailsLabels(getMessage: GetMessage) {
       'lowcoder:change_tax_information.request_at_tax_office_text',
       'Request at tax office'
     ),
-    healthInsuranceDocumentUpload: getMessage(
-      'lowcoder:change_tax_information.health_insurance_document_upload',
-      'Upload document'
-    ),
-    documentType: getMessage('lowcoder:change_tax_information.document_type', 'Document Type'),
-    requiredDocumentType: getMessage(
-      'lowcoder:change_tax_information.required_document_type_text',
-      'Document type is required when uploading a new health insurance document.'
-    ),
-    validTo: getMessage('lowcoder:change_tax_information.document_valid_to', 'Valid to'),
-    uploadNewHealthInsuranceDocument: getMessage(
-      'lowcoder:change_tax_information.upload_new_health_insurance_document',
-      'Upload new health insurance document'
-    ),
+    healthInsuranceDocumentUpload: t('health-insurance-document-upload'),
+    documentType: t('document-type'),
+    requiredDocumentType: t('required-document-type-text'),
+    validTo: t('document-valid-to'),
+    uploadNewHealthInsuranceDocument: t('upload-new-health-insurance-document'),
     requiredHealthInsurance: getMessage(
       'lowcoder:change_tax_information.required_health_insurance_text',
       'The Health Insurance field is required.'

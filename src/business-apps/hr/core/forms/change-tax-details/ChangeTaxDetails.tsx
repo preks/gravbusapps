@@ -5,8 +5,9 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
+import translations from './_i18n'
 import { useChangeTaxDetailsData } from './useChangeTaxDetailsData'
 import { getChangeTaxDetailsLabels } from './changeTaxDetailsLabels'
 import { buildEmployeeTaxDetailPayload } from './changeTaxDetailsPayload'
@@ -32,6 +33,7 @@ const defaultValues: TaxInfoFormValues = {
   healthInsuranceName: '',
   healthInsuranceTypeRef: null,
   taxIdentificationNumber: '',
+  religionRef: null,
   taxableChurchAffiliationRef: null,
   socialSecurityNumber: '',
   childTaxAllowance: '',
@@ -43,18 +45,37 @@ const defaultValues: TaxInfoFormValues = {
   uploadNewHealthInsuranceDocument: false
 }
 
+/** Validation messages: lowcoder keys from validationScope → local i18n FTL keys. */
+const LOCAL_I18N_KEY_MAP: Record<string, string> = {
+  'lowcoder:change_tax_information.invalid_tax_number_text': 'invalid-tax-number-text',
+  'lowcoder:change_tax_information.invalid_tax_identification_number_text': 'invalid-tax-identification-number-text',
+  'lowcoder:change_tax_information.invalid_social_security_number_text': 'invalid-social-security-number-text',
+  'lowcoder:change_tax_information.invalid_cnp_text': 'invalid-cnp-text'
+}
+
 export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
   const form = useForm<TaxInfoFormValues>({ defaultValues, mode: 'onChange' })
   const initialRef = useRef<TaxInfoFormValues>(form.getValues())
   const [healthInsuranceFileList, setHealthInsuranceFileList] = useState<any[]>([])
   const fileClient = useFileClient({ accessToken: accessToken ?? '' })
 
-  const { data, catalogs, isReady, isEmployeeInGermany, employeeGender } = useChangeTaxDetailsData(
+  const { t } = useTranslation(translations)
+  const { data, catalogs, isReady, isEmployeeInGermany, isEmployeeInRomania, employeeGender } = useChangeTaxDetailsData(
     accessToken,
     additionalData,
     userInfo,
     form,
     initialRef
+  )
+
+  const getMessage = useCallback(
+    (key: string, fallback: string) => {
+      if (!key.startsWith('lowcoder:')) return t(key)
+      const localKey = LOCAL_I18N_KEY_MAP[key]
+      if (localKey) return t(localKey)
+      return (getTranslationFromI18nKeyAndLabel(key, fallback) as string) || fallback
+    },
+    [t]
   )
 
   const title = useMemo(
@@ -63,10 +84,7 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
     []
   )
 
-  const labels = useMemo(
-    () => getChangeTaxDetailsLabels((key, fallback) => getTranslationFromI18nKeyAndLabel(key, fallback) as string),
-    []
-  )
+  const labels = useMemo(() => getChangeTaxDetailsLabels(getMessage, t), [getMessage, t])
 
   const handleHealthInsuranceFilesChange = useCallback(
     (files: Array<{ file: File | { name: string }; id: string }>) => {
@@ -88,6 +106,7 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
       healthInsuranceName: s(v.healthInsuranceName),
       healthInsuranceTypeRef: v.healthInsuranceTypeRef || null,
       taxIdentificationNumber: s(v.taxIdentificationNumber),
+      religionRef: v.religionRef || null,
       taxableChurchAffiliationRef: v.taxableChurchAffiliationRef || null,
       socialSecurityNumber: s(v.socialSecurityNumber),
       childTaxAllowance: s(v.childTaxAllowance),
@@ -186,8 +205,9 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
             form={form}
             catalogs={catalogs}
             labels={labels}
-            getMessage={(key, fallback) => getTranslationFromI18nKeyAndLabel(key, fallback) as string}
+            getMessage={getMessage}
             isEmployeeInGermany={isEmployeeInGermany}
+            isEmployeeInRomania={isEmployeeInRomania}
             employeeGender={employeeGender}
             healthInsuranceFileList={healthInsuranceFileList}
             onHealthInsuranceFilesChange={handleHealthInsuranceFilesChange}

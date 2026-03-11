@@ -32,6 +32,7 @@ export function buildEmployeeTaxDetailPayload(
     taxBracketRef: values.taxBracketRef || '',
     socialSecurityNumber: values.socialSecurityNumber || '',
     wageTaxClassRef: data?.wageTaxClassRef ?? '',
+    religionRef: values.religionRef || '',
     taxableChurchAffiliationRef: values.taxableChurchAffiliationRef || '',
     healthInsuranceTypeRef: values.healthInsuranceTypeRef || '',
     healthInsuranceName: values.healthInsuranceName || '',
@@ -42,7 +43,6 @@ export function buildEmployeeTaxDetailPayload(
         : data?.healthInsuranceDocument) ??
       null,
     childTaxAllowance: Number.isNaN(childTaxAllowanceNum) ? 0 : childTaxAllowanceNum,
-    religionRef: values.taxableChurchAffiliationRef || data?.religionRef || '',
     additionalProperties
   }
 

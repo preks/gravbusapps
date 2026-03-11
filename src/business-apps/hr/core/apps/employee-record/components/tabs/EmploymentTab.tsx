@@ -8,7 +8,7 @@ import { AppAction } from '@/components/app-action/AppAction'
 import translations from '../../_i18n'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { formatNumberFunction } from '../../../../../../../common/utils/windowUtils'
+import { formatDate, formatNumberFunction } from '../../../../../../../common/utils/windowUtils'
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
 import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
@@ -20,13 +20,15 @@ interface EmploymentTabProps {
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info
+  /** When true, show the Change Tax Details edit button (HR role only). */
+  showChangeTaxDetailsButton?: boolean
 }
 
 /**
  * Employment Tab Component
  * Displays employment-related information about the employee
  */
-const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) => {
+const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, showChangeTaxDetailsButton = false }) => {
   const { t } = useTranslation(translations)
   const workingCondition = employee.workingCondition?.[0]
   const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY')
@@ -209,12 +211,16 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
 
   const payrollData = getPayrollData()
 
+  // Employee country from working condition region (parentEntry = country)
+  const employeeCountryCode = employee.workingCondition?.[0]?.region?.parentEntry?.code ?? null
+  const isEmployeeInGermany = employeeCountryCode != null && String(employeeCountryCode).trim().toUpperCase() === 'DE'
+
   // Prepare tax information data (combined from both tabs)
   const getTaxInformationData = () => {
     const taxDetails = employee.taxDetails?.[0] || {}
+    const additionalProps = taxDetails.additionalProperties ?? {}
 
-    return [
-      // Tax information from both tabs
+    const rows: Array<{ label: string; value: string }> = [
       {
         label: t('employment-label-tax-number'),
         value: taxDetails.taxNumber || ''
@@ -231,14 +237,12 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         label: t('employment-label-tax-bracket'),
         value: loadingTaxBrackets ? t('common-loading') : getTaxBracketValueById(taxDetails.taxBracketRef || '')
       },
-      // Church affiliation from Details tab
       {
         label: t('employment-label-church-affiliation'),
         value: loadingReligions
           ? t('common-loading')
           : getReligionValueById(taxDetails.taxableChurchAffiliationRef || '')
       },
-      // Child allowance present in both tabs - formatted according to user locale
       {
         label: t('employment-label-child-tax-allowance'),
         value:
@@ -246,7 +250,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
             ? formatNumberFunction(taxDetails.childTaxAllowance.toString())
             : ''
       },
-      // Health insurance info from Employment tab
       {
         label: t('employment-label-health-insurance'),
         value: taxDetails.healthInsuranceName || ''
@@ -258,6 +261,32 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
           : getHealthInsuranceTypeValueById(taxDetails.healthInsuranceTypeRef || '')
       }
     ]
+
+    if (isEmployeeInGermany) {
+      rows.push(
+        {
+          label: t('employment-label-request-at-office'),
+          value: additionalProps.requestAtTaxOffice === true ? t('common-yes') : t('common-no')
+        },
+        {
+          label: t('employment-label-last-updated'),
+          value:
+            taxDetails.updatedAt != null && taxDetails.updatedAt !== ''
+              ? (formatDate(taxDetails.updatedAt, 'datetime.short') ?? '')
+              : ''
+        },
+        {
+          label: t('employment-label-employee-tax-office'),
+          value: String(additionalProps.employeeTaxOffice ?? '')
+        },
+        {
+          label: t('employment-label-individual-free-amount'),
+          value: String(additionalProps.individualFreeAmount ?? '')
+        }
+      )
+    }
+
+    return rows
   }
 
   const taxInformationData = getTaxInformationData()
@@ -367,13 +396,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-lg gba:font-semibold">{t('employment-tax-information')}</h3>
-              <AppAction
-                variant="update-secondary"
-                data-testid="employee-tax-information-edit-button"
-                contexts={[{ context: FlowContextName.changeTaxDetails, contextData: { employeeId: employee?.id } }]}
-                prefixDataTestId="employee-tax-information-edit"
-                accessToken={accessToken}
-              />
+              {showChangeTaxDetailsButton && (
+                <AppAction
+                  variant="update-secondary"
+                  data-testid="employee-tax-information-edit-button"
+                  contexts={[{ context: FlowContextName.changeTaxDetails, contextData: { employeeId: employee?.id } }]}
+                  prefixDataTestId="employee-tax-information-edit"
+                  accessToken={accessToken}
+                />
+              )}
             </div>
             {renderDataItems(taxInformationData)}
           </CardContent>

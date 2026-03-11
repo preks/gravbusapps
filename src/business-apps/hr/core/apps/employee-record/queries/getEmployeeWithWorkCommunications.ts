@@ -15,7 +15,7 @@ export const getEmployeeWithWorkCommunications = `
       id
       firstName
       lastName
-      workCommunications: communication(
+      workCommunications: EmployeeCommunication(
         where: {
           _and: [
             { isDeleted: { _eq: false } }

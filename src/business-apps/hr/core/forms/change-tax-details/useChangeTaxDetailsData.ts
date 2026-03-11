@@ -3,12 +3,13 @@ import { UseFormReturn } from 'react-hook-form'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { GET_TAX_DETAILS_EMPLOYEE, GET_TAX_DETAILS_CATALOG } from './ChangeTaxDetailsQueries'
-import { isEmployeeInGermany } from './validationScope'
+import { isEmployeeInGermany, isEmployeeInRomania } from './validationScope'
 import type { TaxInfoFormValues, TaxDetailsCatalogs, CatalogEntry } from './types'
 
 const defaultCatalogs: TaxDetailsCatalogs = {
   taxBracket: [],
   religion: [],
+  churchAffiliation: [],
   healthInsuranceType: [],
   documentType: []
 }
@@ -51,6 +52,7 @@ export function useChangeTaxDetailsData(
         setCatalogs({
           taxBracket: (catalogsRes?.taxBracket as CatalogEntry[]) || [],
           religion: (catalogsRes?.religion as CatalogEntry[]) || [],
+          churchAffiliation: (catalogsRes?.churchAffiliation as CatalogEntry[]) || [],
           healthInsuranceType: (catalogsRes?.healthInsuranceType as CatalogEntry[]) || [],
           documentType: (catalogsRes?.documentType as CatalogEntry[]) || []
         })
@@ -78,7 +80,8 @@ export function useChangeTaxDetailsData(
           healthInsuranceName: emp?.healthInsuranceName ?? '',
           healthInsuranceTypeRef: emp?.healthInsuranceTypeRef ?? null,
           taxIdentificationNumber: emp?.taxIdentificationNumber ?? '',
-          taxableChurchAffiliationRef: emp?.taxableChurchAffiliationRef ?? emp?.religionRef ?? null,
+          religionRef: emp?.religionRef ?? null,
+          taxableChurchAffiliationRef: emp?.taxableChurchAffiliationRef ?? null,
           socialSecurityNumber: emp?.socialSecurityNumber ?? '',
           childTaxAllowance: emp?.childTaxAllowance ?? '',
           requestAtTaxOffice: Boolean(emp?.additionalProperties?.requestAtTaxOffice ?? false),
@@ -101,6 +104,7 @@ export function useChangeTaxDetailsData(
   }, [employeeId, graphqlClient])
 
   const isEmployeeInGermanyFlag = isEmployeeInGermany(employeeCountryCode)
+  const isEmployeeInRomaniaFlag = isEmployeeInRomania(employeeCountryCode)
 
   return {
     data,
@@ -108,6 +112,7 @@ export function useChangeTaxDetailsData(
     isReady,
     employeeCountryCode,
     isEmployeeInGermany: isEmployeeInGermanyFlag,
+    isEmployeeInRomania: isEmployeeInRomaniaFlag,
     employeeGender
   }
 }

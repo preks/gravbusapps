@@ -51,7 +51,16 @@ export const GET_TAX_DETAILS_CATALOG = `query fetchTaxDetailsCatalog($activeUser
       value
     }
   }
-  religion: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "TaxableChurchAffiliation"}}}, orderBy: {value: ASC}) {
+  religion: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Religion"}}}, orderBy: {value: ASC}) {
+    id
+    value
+    objectValue
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+  }
+  churchAffiliation: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "TaxableChurchAffiliation"}}}, orderBy: {value: ASC}) {
     id
     value
     objectValue

@@ -28,6 +28,7 @@ export interface ChangeTaxDetailsFormFieldsProps {
   labels: ReturnType<typeof import('./changeTaxDetailsLabels').getChangeTaxDetailsLabels>
   getMessage: GetMessage
   isEmployeeInGermany: boolean
+  isEmployeeInRomania?: boolean
   employeeGender: string | null
   healthInsuranceFileList: any[]
   onHealthInsuranceFilesChange: (files: Array<{ file: File | { name: string }; id: string }>) => void
@@ -41,6 +42,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
   labels: L,
   getMessage,
   isEmployeeInGermany,
+  isEmployeeInRomania = false,
   employeeGender,
   healthInsuranceFileList,
   onHealthInsuranceFilesChange
@@ -267,6 +269,34 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
 
       <FormField
         control={form.control as any}
+        name={'religionRef' as any}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel data-testid="change-tax-details-religion-label">{L.religion}</FormLabel>
+            <FormControl>
+              <Select value={field.value || ''} onValueChange={val => field.onChange(val || null)}>
+                <SelectTrigger
+                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  data-testid="flw_changeTaxDetails_religion"
+                >
+                  <SelectValue placeholder={placeholderSelect} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(catalogs.religion || []).map(entry => (
+                    <SelectItem key={entry.id} value={String(entry.id)}>
+                      {catLabel(entry)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control as any}
         name={'taxableChurchAffiliationRef' as any}
         render={({ field }) => (
           <FormItem>
@@ -280,7 +310,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
                 <SelectContent>
-                  {catalogs.religion.map(entry => (
+                  {(catalogs.churchAffiliation || []).map(entry => (
                     <SelectItem key={entry.id} value={String(entry.id)}>
                       {catLabel(entry)}
                     </SelectItem>
@@ -298,7 +328,8 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
         name={'socialSecurityNumber' as any}
         rules={{
           required: L.requiredSSN,
-          validate: (v: string) => validateSocialSecurityNumber(v, isEmployeeInGermany, employeeGender, getMessage)
+          validate: (v: string) =>
+            validateSocialSecurityNumber(v, isEmployeeInGermany, employeeGender, getMessage, isEmployeeInRomania)
         }}
         render={({ field }) => (
           <FormItem>

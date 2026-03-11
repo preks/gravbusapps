@@ -1,9 +1,11 @@
 /**
  * Centralized country and validation logic for Change Tax Details.
  * German-specific rules run only when isEmployeeInGermany (country code DE).
+ * Romanian CNP validation runs when isEmployeeInRomania (country code RO).
  */
 
 export const COUNTRY_CODE_GERMANY = 'DE'
+export const COUNTRY_CODE_ROMANIA = 'RO'
 
 /**
  * True when the employee's working-condition country is Germany (code "DE").
@@ -14,6 +16,32 @@ export function isEmployeeInGermany(countryCode: string | null | undefined): boo
       .trim()
       .toUpperCase() === COUNTRY_CODE_GERMANY
   )
+}
+
+/**
+ * True when the employee's working-condition country is Romania (code "RO").
+ */
+export function isEmployeeInRomania(countryCode: string | null | undefined): boolean {
+  return (
+    String(countryCode || '')
+      .trim()
+      .toUpperCase() === COUNTRY_CODE_ROMANIA
+  )
+}
+
+/**
+ * Validates Romanian CNP (Cod Numeric Personal) - 13 digits with check digit.
+ */
+export function validateCNP(cnp: string): boolean {
+  if (!/^\d{13}$/.test(cnp)) return false
+  const controlKey = '279146358279'
+  let sum = 0
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(cnp[i], 10) * parseInt(controlKey[i], 10)
+  }
+  let controlDigit = sum % 11
+  if (controlDigit === 10) controlDigit = 1
+  return controlDigit === parseInt(cnp[12], 10)
 }
 
 /** Valid German pension insurance (Rentenversicherung) region codes: first two digits of SSN. */
@@ -68,16 +96,20 @@ export function isValidGermanTaxIdCheckDigit(digits: string): boolean {
 
 export type GetMessage = (key: string, fallback: string) => string
 
-/** Tax Number: German 13-digit validation only when isGermany. Returns error string or true. */
+/**
+ * Tax Number (Steuernummer): when Germany, accept state schema (10/11 digits, often with slashes)
+ * or unified federal 13-digit schema. See German state-specific vs. 13-stellige Bundesschema.
+ */
 export function validateTaxNumber(value: string, isGermany: boolean, getMessage: GetMessage): string | true {
   const raw = String(value || '').trim()
   if (!raw) return true
   if (!isGermany) return true
   const digits = raw.replace(/[^0-9]/g, '')
-  if (digits.length !== 13) {
+  const validLengths = [10, 11, 13]
+  if (!validLengths.includes(digits.length)) {
     return getMessage(
       'lowcoder:change_tax_information.invalid_tax_number_text',
-      'Please enter a valid 13-digit German Tax Number or leave empty.'
+      'Please enter a valid German Tax Number (10, 11 or 13 digits, e.g. 313/876/56432) or leave empty.'
     )
   }
   return true
@@ -104,15 +136,26 @@ export function validateTaxId(value: string, isGermany: boolean, getMessage: Get
 
 const SSN_INVALID_MSG_KEY = 'lowcoder:change_tax_information.invalid_social_security_number_text'
 const SSN_INVALID_MSG_FALLBACK = 'Please enter a valid German pension insurance number (e.g., 89 010299 B 123).'
+const CNP_INVALID_MSG_KEY = 'lowcoder:change_tax_information.invalid_cnp_text'
+const CNP_INVALID_MSG_FALLBACK = 'Please enter a valid 13-digit Romanian CNP (Cod Numeric Personal).'
 
-/** Social Security Number: German format (region, date, gender) only when isGermany. Returns error string or true. */
+/** Social Security Number: German format when DE, Romanian CNP when RO. Returns error string or true. */
 export function validateSocialSecurityNumber(
   value: string,
   isGermany: boolean,
   employeeGender: string | null,
-  getMessage: GetMessage
+  getMessage: GetMessage,
+  isRomania?: boolean
 ): string | true {
   const raw = String(value || '').trim()
+  if (isRomania) {
+    const digits = raw.replace(/\s+/g, '')
+    if (!digits) return true
+    if (!validateCNP(digits)) {
+      return getMessage(CNP_INVALID_MSG_KEY, CNP_INVALID_MSG_FALLBACK)
+    }
+    return true
+  }
   if (!isGermany) return true
   const compact = raw.replace(/\s+/g, '')
   const basic = /^[0-9]{8}[A-Za-z][0-9]{3}$/.test(compact)
