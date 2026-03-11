@@ -147,12 +147,19 @@ export function useDocumentAppsHubUserLookup(params: { accessToken: string; docu
       if (ownedDocs.length === 0) return
 
       ownedDocs.forEach(doc => loadedSharesRef.current.add(doc.id))
-      const results = await Promise.all(
-        ownedDocs.map(doc => buildSharedUsersForDocument({ documentId: doc.id, fetchUserInfoByUserId }))
-      )
+
+      const BATCH_SIZE = 5
+      const allResults: { docId: string; sharedUsers: SharedUserInfo[] }[] = []
+      for (let i = 0; i < ownedDocs.length; i += BATCH_SIZE) {
+        const batch = ownedDocs.slice(i, i + BATCH_SIZE)
+        const batchResults = await Promise.all(
+          batch.map(doc => buildSharedUsersForDocument({ documentId: doc.id, fetchUserInfoByUserId }))
+        )
+        allResults.push(...batchResults)
+      }
 
       const newMap: Record<string, SharedUserInfo[]> = {}
-      for (const r of results) {
+      for (const r of allResults) {
         newMap[r.docId] = r.sharedUsers
       }
 
