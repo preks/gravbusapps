@@ -94,33 +94,26 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/chat': 'platform/apps/chat', // Chat application
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
-  '/platform/every-office': 'platform/apps/every-office',
-  '/platform/spaces': 'platform/apps/spaces',
-  '/platform/apps/desk': 'platform/apps/desk',
-  '/platform/apps/document-apps': 'platform/apps/document-apps',
-  '/platform/apps/note-apps': 'platform/apps/note-apps',
-  '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
+  '/platform/every-office': 'core/office/apps/office-launcher',
+  '/platform/every-office/settings': 'core/office/apps/office-settings',
+  '/platform/every-office/nexus': 'core/office/apps/office-canvas',
+  '/platform/every-office/documents': 'core/office/apps/documents',
+  '/platform/every-office/drive': 'core/office/apps/drive',
+  '/platform/every-office/emails': 'core/office/apps/emails',
+  '/platform/mail/oauth/callback': 'core/office/apps/emails',
+  '/platform/every-office/notes': 'core/office/apps/notes',
+  '/platform/every-office/slides': 'core/office/apps/slides',
+  '/platform/every-office/spaces': 'core/office/apps/spaces',
+  '/platform/every-office/spreadsheets': 'core/office/apps/spreadsheets',
   '/platform/apps/board-apps': 'platform/apps/board-apps',
-  '/platform/slides': 'platform/apps/slide-apps',
-  '/platform/nexus': 'platform/apps/nexus',
   '/platform/apps/agent-mesh': 'platform/apps/agent-mesh',
-  '/platform/apps/drive-apps': 'platform/apps/drive-apps',
-  '/platform/drive': 'platform/apps/drive-apps',
-
-  // Email
-  '/platform/apps/email-apps': 'platform/apps/email-apps',
-  '/platform/mail': 'platform/apps/email-apps',
-  '/platform/mail/oauth/callback': 'platform/apps/email-apps',
-  '/platform/mail/settings': 'platform/apps/email-provider-settings',
 
   // Canonical URLs for content apps (production-ready)
-  '/platform/documents': 'platform/apps/document-apps',
-  '/platform/notes': 'platform/apps/note-apps',
-  '/platform/spreadsheets': 'platform/apps/spreadsheet-apps',
   '/platform/boards': 'platform/apps/board-apps',
 
   // Create
   '/platform/create': 'core/create/apps/create-workspace',
+  '/platform/create/connect': 'core/create/apps/newwork-connect',
   '/platform/create/function-manager': 'core/create/apps/function-manager',
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
   '/platform/create/screen-builder': 'core/create/apps/ai-builder',
@@ -347,24 +340,4 @@ export const getCurrentUrlWithUpdatedSearchParams = (updates: Record<string, str
   const query = params.toString()
   const suffix = query ? '?' + query : ''
   return globalThis.window.location.pathname + suffix
-}
-
-/**
- * Get canonical URL for content apps (for sharing notifications, etc.)
- * Always returns production-style URLs regardless of environment
- */
-export const getCanonicalContentUrl = (
-  type: 'document' | 'spreadsheet' | 'note' | 'slide' | 'email',
-  params?: Record<string, string>
-): string => {
-  const baseUrls = {
-    document: '/platform/documents',
-    spreadsheet: '/platform/spreadsheets',
-    note: '/platform/notes',
-    slide: '/platform/slides',
-    email: '/platform/mail'
-  }
-
-  const basePath = baseUrls[type]
-  return buildPlatformUrl(basePath, params)
 }

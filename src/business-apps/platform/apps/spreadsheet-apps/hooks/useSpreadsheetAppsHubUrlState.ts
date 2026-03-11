@@ -143,10 +143,10 @@ export function useSpreadsheetAppsHubUrlState(
     const referrer = document.referrer
     const urlParams = new URLSearchParams(window.location.search)
     cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
       referrer.includes('/platform/every-office') ||
       referrer.includes('?app=platform/apps/desk') ||
       referrer.includes('?app=platform/apps/every-office') ||
+      referrer.includes('?app=core/office/apps/office-launcher') ||
       urlParams.get('from') === 'desk'
 
     if (cameFromDeskRef.current && currentView === 'list') {
@@ -172,7 +172,7 @@ export function useSpreadsheetAppsHubUrlState(
           const spaceReturnUrl = sessionStorage.getItem('space_return_url')
           if (spaceReturnUrl) {
             sessionStorage.removeItem('space_return_url')
-            window.location.href = spaceReturnUrl
+            navigateTo(spaceReturnUrl)
             return
           }
         } catch (e) {
@@ -184,11 +184,8 @@ export function useSpreadsheetAppsHubUrlState(
         const urlParams = new URLSearchParams(window.location.search)
         const spaceId = urlParams.get('spaceId')
         if (spaceId) {
-          const isProduction = process.env.NODE_ENV === 'production'
-          const spaceUrl = isProduction
-            ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
-            : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
-          window.location.href = spaceUrl
+          const spaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
+          navigateTo(spaceUrl)
           return
         }
       }

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
+import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -185,8 +186,8 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
 
     if (dateFrom || dateTo) {
       const dateConditions: any = {}
-      if (dateFrom) dateConditions._gte = dateFrom
-      if (dateTo) dateConditions._lte = dateTo
+      if (dateFrom) dateConditions._gte = dayjs(dateFrom).startOf('day').format('YYYY-MM-DD[T]HH:mm:ss')
+      if (dateTo) dateConditions._lte = dayjs(dateTo).endOf('day').format('YYYY-MM-DD[T]HH:mm:ss')
       conditions.push({
         expensePlan: { startDate: dateConditions }
       })

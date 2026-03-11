@@ -511,7 +511,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                   {isShowingEmptyState ? (
                     <TableRow>
                       <TableCell colSpan={10} className="gba:py-8 gba:text-center">
-                        <div className="gba:text-gray-500">{getEmptyStateMessage()}</div>
+                        <div className="gba:text-muted-foreground">{getEmptyStateMessage()}</div>
                       </TableCell>
                     </TableRow>
                   ) : (

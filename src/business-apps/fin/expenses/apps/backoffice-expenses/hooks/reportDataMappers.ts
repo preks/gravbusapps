@@ -47,7 +47,8 @@ const mapSingleRequest = (
     startDate: request.startDate || '',
     endDate: request.endDate || '',
     createdAt: request.createdAt || '',
-    status: statusDisplay.label,
+    status: request.status || '',
+    statusLabel: statusDisplay.label,
     totalAmount: Number(request.reimbursableAmount ?? 0),
     advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
     remainingAmount: Number(request.totalRemainingAmount ?? 0),
@@ -84,7 +85,8 @@ export const mapPlansFromOverview = (
       title: plan.title || '',
       startDate: plan.startDate || '',
       endDate: plan.endDate || '',
-      status: statusDisplay.label,
+      status: plan.status || '',
+      statusLabel: statusDisplay.label,
       totalAmount: Number(plan.totalAmount || 0),
       advancePaidAmount: getSettledAdvancePaidAmount(plan?.advancePayment),
       remainingAmount: Number(plan.totalRemainingAmount ?? 0),
@@ -113,7 +115,8 @@ export const mapPaymentsFromOverview = (
       code: p.expensePlan?.code || p.code || '',
       title: p.expensePlan?.title || '',
       requestDate: p.createdAt || '',
-      status: statusDisplay.label,
+      status: p.status || '',
+      statusLabel: statusDisplay.label,
       amount: Number(p.amount || 0),
       employeeName:
         buildEmployeeDisplayName(p.expensePlan?.employee) ||
@@ -159,7 +162,8 @@ export const processExpenseItemsData = (
         employeeNameById[item.createdBy] ||
         FORMER_EMPLOYEE_LABEL,
       departmentName: resolveDepartmentName([item.employeeId, item.createdBy]),
-      status: statusDisplay.label
+      status: item.expenseRequest?.status || '',
+      statusLabel: statusDisplay.label
     }
   })
 }
@@ -179,7 +183,8 @@ export const processExpensePlansData = (
       title: plan.title || '',
       startDate: plan.startDate || '',
       endDate: plan.endDate || '',
-      status: statusDisplay.label,
+      status: plan.status || '',
+      statusLabel: statusDisplay.label,
       totalAmount: plan.totalAmount || 0,
       currency: extractCurrencyCode(plan.currencyRef),
       employeeName: resolveDisplayName([plan.employeeId, plan.createdBy], employeeNameById),
@@ -215,7 +220,8 @@ export const mapAdvancePaymentToReport = (
     code: p.expensePlan?.code || p.code || '',
     title: p.expensePlan?.title || '',
     requestDate: p.createdAt || '',
-    status: statusDisplay.label,
+    status: p.status || '',
+    statusLabel: statusDisplay.label,
     amount: p.amount || 0,
     employeeName: resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
     departmentName: resolveDepartmentName([p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy]),
@@ -318,7 +324,8 @@ const mapApprovalPayoutCycleRow = (
     payoutSlaStatus: payoutSlaEvaluation.status,
     totalCycleSlaStatus,
     bottleneckStage: resolveBottleneckStage(pendingAt, approvedAt, paidAt, approvalDays, payoutDays, request?.status),
-    status: statusDisplay.label,
+    status: request?.status || '',
+    statusLabel: statusDisplay.label,
     totalAmount: Number(request.reimbursableAmount ?? 0),
     currency: extractCurrencyCode(request.currencyRef)
   }

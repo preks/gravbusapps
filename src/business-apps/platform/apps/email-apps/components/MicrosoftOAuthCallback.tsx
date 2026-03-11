@@ -9,8 +9,6 @@ import React, { useEffect, useState } from 'react'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
 import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- OAuthConfigError used in instanceof check
-import { OAuthConfigError } from '../services/OAuthConfigError'
 import translations from '../_i18n'
 
 /** Remove all OAuth-related sessionStorage keys */
@@ -102,7 +100,7 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
     if (!code) {
       // No code found anywhere — redirect back
       onSuccess()
-      window.history.replaceState({}, '', '/platform/mail')
+      window.history.replaceState({}, '', '/platform/every-office/emails')
       return
     }
 
@@ -159,7 +157,7 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
         // Redirect to mail after a short delay so user sees success
         setTimeout(() => {
           onSuccess()
-          window.history.replaceState({}, '', '/platform/mail')
+          window.history.replaceState({}, '', '/platform/every-office/emails')
         }, 1500)
       } catch (err) {
         const msg = err instanceof Error ? err.message : t('oauth-connect-failed')
@@ -172,7 +170,7 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
 
         // Redirect back after showing error
         setTimeout(() => {
-          window.history.replaceState({}, '', '/platform/mail')
+          window.history.replaceState({}, '', '/platform/every-office/emails')
         }, 4000)
       }
     }
@@ -236,8 +234,8 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
             variant="outline"
             onClick={() => {
               cleanupOAuthStorage()
-              window.history.replaceState({}, '', '/platform/mail')
-              window.location.href = '/platform/mail'
+              window.history.replaceState({}, '', '/platform/every-office/emails')
+              window.location.href = '/platform/every-office/emails'
             }}
             data-testid="oauth-error-back"
           >

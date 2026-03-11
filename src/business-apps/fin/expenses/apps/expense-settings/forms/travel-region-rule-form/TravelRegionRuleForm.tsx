@@ -13,7 +13,6 @@ dayjs.extend(localeData)
 
 import { useGetAllowanceRegionRuleById } from '../../queries/ExpenseRuleQueries'
 import { useCatalogData } from './hooks/useCatalogData'
-import { useTravelRegionScroll } from './hooks/useTravelRegionScroll'
 import { useGroupedDetails } from './hooks/useGroupedDetails'
 import { BasicInformationSection } from './components/BasicInformationSection'
 import { AllowanceRegionDetailsSection } from './components/AllowanceRegionDetailsSection'
@@ -45,11 +44,13 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showValidation, setShowValidation] = useState(false)
+  const DEFAULT_ACTIVE_TO = '9999-12-31'
+
   const [formData, setFormData] = useState<TravelRegionRuleFormData>({
     code: '',
     name: '',
     activeFrom: dayjs().format('YYYY-MM-DD'),
-    activeTo: '',
+    activeTo: DEFAULT_ACTIVE_TO,
     details: []
   })
 
@@ -67,18 +68,13 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     travelRegions,
     catalogsLoading,
     error: catalogError,
-    isLoadingMoreRegions,
-    hasMoreRef,
+    isLoadingRegions,
+    hasMoreRegions,
     loadTravelRegions,
     loadMoreTravelRegions,
+    searchTravelRegions,
     resetPagination
   } = useCatalogData({ accessToken, travelRegionSetId })
-
-  const { handleTravelRegionScroll } = useTravelRegionScroll({
-    hasMoreRef,
-    isLoadingRef: { current: isLoadingMoreRegions },
-    loadMoreTravelRegions
-  })
 
   const { groupedDetails } = useGroupedDetails({ formData, countries, currencies })
 
@@ -98,7 +94,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
               code: freshData.code || '',
               name: freshData.name || '',
               activeFrom: formatDateForInput(freshData.activeFrom) || dayjs().format('YYYY-MM-DD'),
-              activeTo: formatDateForInput(freshData.activeTo) || '',
+              activeTo: formatDateForInput(freshData.activeTo) || DEFAULT_ACTIVE_TO,
               details: (freshData.allowanceRegionRuleDetail || []).map((detail: any) => ({
                 id: detail.id,
                 version: detail.version,
@@ -109,7 +105,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                 amounts: [detail.amount || 0],
                 home: detail.home || false,
                 activeFrom: formatDateForInput(detail.activeFrom) || dayjs().format('YYYY-MM-DD'),
-                activeTo: formatDateForInput(detail.activeTo) || '',
+                activeTo: formatDateForInput(detail.activeTo) || DEFAULT_ACTIVE_TO,
                 businessKey: detail.businessKey,
                 additionalProperties: detail.additionalProperties
               }))
@@ -150,7 +146,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         setFormData({
           ...initialData,
           activeFrom: formatDateForInput(initialData.activeFrom) || dayjs().format('YYYY-MM-DD'),
-          activeTo: formatDateForInput(initialData.activeTo) || '',
+          activeTo: formatDateForInput(initialData.activeTo) || DEFAULT_ACTIVE_TO,
           details: transformedDetails
         })
       }
@@ -166,19 +162,16 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   }
 
   const addColumnGroup = () => {
-    // Determine default activeFrom and activeTo
     let defaultActiveFrom: string
     let defaultActiveTo: string
 
     if (formData.details.length > 0) {
-      // If there are existing details, use the dates from the most recent detail
       const lastDetail = formData.details[formData.details.length - 1]
       defaultActiveFrom = lastDetail.activeFrom || dayjs().format('YYYY-MM-DD')
-      defaultActiveTo = lastDetail.activeTo || ''
+      defaultActiveTo = lastDetail.activeTo || DEFAULT_ACTIVE_TO
     } else {
-      // If this is the first detail, inherit from the rule
       defaultActiveFrom = formData.activeFrom || dayjs().format('YYYY-MM-DD')
-      defaultActiveTo = formData.activeTo || ''
+      defaultActiveTo = formData.activeTo || DEFAULT_ACTIVE_TO
     }
 
     const newDetail: AllowanceRegionDetailFormData = {
@@ -188,7 +181,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       home: false,
       activeFrom: defaultActiveFrom,
       activeTo: defaultActiveTo,
-      amounts: [0]
+      amounts: [null]
     }
 
     setFormData(prev => ({
@@ -233,8 +226,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         const detailGroupKey = `${uniqueId}-${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         if (detailGroupKey === groupKey) {
           const newAmounts = [...(detail.amounts || [])]
-          // Store as number but handle empty string case
-          newAmounts[amountIndex] = value === '' ? 0 : parseFloat(value) || 0
+          newAmounts[amountIndex] = value === '' ? null : parseFloat(value)
           return { ...detail, amounts: newAmounts }
         }
         return detail
@@ -285,8 +277,12 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       if (!detail.activeFrom) {
         errors.push(`Detail ${index + 1}: Valid from date is required`)
       }
-      if (!detail.amounts || detail.amounts.length === 0 || detail.amounts.every(a => a <= 0)) {
-        errors.push(`Detail ${index + 1}: At least one amount greater than 0 is required`)
+      if (
+        !detail.amounts ||
+        detail.amounts.length === 0 ||
+        detail.amounts.some(a => a === null || a === undefined || isNaN(a))
+      ) {
+        errors.push(`Detail ${index + 1}: Amount is required`)
       }
     })
 
@@ -311,22 +307,20 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       const expandedDetails: AllowanceRegionDetailFormData[] = []
 
       groupedDetails().forEach(group => {
-        // Create one detail record per group with all amounts
-        if (group.amounts.length > 0 && group.amounts.some(amount => amount > 0)) {
-          // Find the travel region label from the ID
+        if (group.amounts.length > 0) {
           const regionOption = travelRegions.find(r => r.id === group.travelRegion)
-          const regionLabel = regionOption?.value || group.travelRegion // Fallback to ID if label not found
+          const regionLabel = regionOption?.value || group.travelRegion
 
           expandedDetails.push({
-            id: group.detailIds[0] || undefined, // Use the first detail ID if available
+            id: group.detailIds[0] || undefined,
             countryRef: group.countryRef,
-            travelRegion: regionLabel, // Display label from catalog
-            travelRegionRef: group.travelRegion, // ID reference for API
+            travelRegion: regionLabel,
+            travelRegionRef: group.travelRegion,
             currencyRef: group.currencyRef,
             home: group.homeFlag,
             activeFrom: group.activeFrom,
             activeTo: group.activeTo,
-            amounts: group.amounts.filter(amount => amount > 0) // Only include non-zero amounts
+            amounts: group.amounts.map(a => a ?? 0)
           })
         }
       })
@@ -362,15 +356,15 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       {isEditing && (
         <div className="gba:flex gba:items-center gba:justify-end">
           <span
-            className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded ${
+            className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded gba:border ${
               dataSource === 'fresh'
-                ? 'gba:bg-green-100 gba:text-green-800 gba:border gba:border-green-300'
+                ? 'gba:bg-success-secondary gba:text-success-secondary-foreground gba:border-success-ring'
                 : dataSource === 'stale'
-                  ? 'gba:bg-yellow-100 gba:text-yellow-800 gba:border gba:border-yellow-300'
-                  : 'gba:bg-gray-100 gba:text-gray-800 gba:border gba:border-gray-300'
+                  ? 'gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning-ring'
+                  : 'gba:bg-muted gba:text-muted-foreground gba:border-border'
             }`}
           >
-            {dataSource === 'fresh' ? '✅ Fresh Data' : dataSource === 'stale' ? '⚠️ Stale Data' : '📝 New Item'}
+            {dataSource === 'fresh' ? 'Fresh Data' : dataSource === 'stale' ? 'Stale Data' : 'New Item'}
           </span>
         </div>
       )}
@@ -410,13 +404,14 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         countries={countries}
         travelRegions={travelRegions}
         currencies={currencies}
-        isLoadingMoreRegions={isLoadingMoreRegions}
-        hasMore={hasMoreRef.current}
+        isLoadingRegions={isLoadingRegions}
+        hasMoreRegions={hasMoreRegions.current}
+        onSearchRegions={searchTravelRegions}
+        onLoadMoreRegions={loadMoreTravelRegions}
         onAddGroup={addColumnGroup}
         onUpdateGroupDetail={updateGroupDetail}
         onUpdateAmount={updateAmount}
         onRemoveGroup={removeGroup}
-        onScroll={handleTravelRegionScroll}
         isUsedInTransactions={isUsedInTransactions}
         showValidation={showValidation}
       />

@@ -99,8 +99,8 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
       }
     case ExpenseStatus.REJECTED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        badgeVariant: 'destructive'
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required'),
+        badgeVariant: 'warning'
       }
 
     case ExpenseStatus.DISCARDED:
@@ -152,8 +152,13 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
       }
     case ExpenseStatus.REJECTED:
       return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        badgeVariant: 'destructive'
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required'),
+        badgeVariant: 'warning'
+      }
+    case ExpenseStatus.RETURNED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
+        badgeVariant: 'warning'
       }
     case ExpenseStatus.TRANSFERRED:
       return {

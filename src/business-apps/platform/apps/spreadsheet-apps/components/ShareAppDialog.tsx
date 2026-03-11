@@ -35,7 +35,7 @@ import {
   getWorkEmailFromCommunication
 } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
-import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { SharePermission } from '../types'
 
 export interface ShareAppDialogProps {
@@ -120,8 +120,7 @@ const sendBlinkNotifications = async (
 
     const workflowIds: string[] = []
 
-    // Build the app URL using canonical URL
-    const appUrl = getCanonicalContentUrl('spreadsheet', {
+    const appUrl = buildPlatformUrl('/platform/every-office/spreadsheets', {
       appId: payload.appId,
       view: 'viewer',
       filePath: payload.appFilePath

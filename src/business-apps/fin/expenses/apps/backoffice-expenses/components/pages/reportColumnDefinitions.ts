@@ -55,10 +55,7 @@ export const getReportColumns = (selectedReportType: ReportType | null): ReportC
         },
         {
           key: 'date',
-          title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:acknowledge_sick_leave.submission_date',
-            'Submission Date'
-          ),
+          title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date'),
           widthClass: 'gba:w-[8%]'
         },
         {
@@ -101,8 +98,8 @@ export const getReportColumns = (selectedReportType: ReportType | null): ReportC
         {
           key: 'createdAt',
           title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:acknowledge_sick_leave.submission_date',
-            'Submission Date'
+            'lowcoder:manager_expense_request_list.expense_table.creation_date',
+            'Creation Date'
           ),
           widthClass: 'gba:w-[8%]'
         },
@@ -140,7 +137,10 @@ export const getReportColumns = (selectedReportType: ReportType | null): ReportC
         },
         {
           key: 'createdAt',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date')
+          title: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:manager_expense_request_list.expense_table.creation_date',
+            'Creation Date'
+          )
         },
         {
           key: 'status',
@@ -165,10 +165,10 @@ export const getReportColumns = (selectedReportType: ReportType | null): ReportC
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code')
         },
         {
-          key: 'requestDate',
+          key: 'createdAt',
           title: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:acknowledge_sick_leave.submission_date',
-            'Submission Date'
+            'lowcoder:manager_expense_request_list.expense_table.creation_date',
+            'Creation Date'
           ),
           widthClass: 'gba:w-[10%]'
         },
@@ -311,11 +311,11 @@ export const getBackendSortableColumnKeys = (selectedReportType: ReportType | nu
     case ReportType.EXPENSE_ITEM:
       return new Set(['title', 'date', 'amount', 'status'])
     case ReportType.EXPENSE_REQUEST:
-      return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'requestDate', 'startDate', 'endDate'])
+      return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'startDate', 'endDate'])
     case ReportType.EXPENSE_PLAN:
       return new Set(['title', 'code', 'createdAt', 'status', 'totalAmount', 'startDate', 'endDate'])
     case ReportType.ADVANCE_PAYMENT:
-      return new Set(['requestDate', 'status', 'amount', 'paymentMethod'])
+      return new Set(['createdAt', 'status', 'amount', 'paymentMethod'])
     case ReportType.APPROVAL_PAYOUT_CYCLE:
       return new Set(['title', 'code', 'status', 'totalAmount'])
     default:

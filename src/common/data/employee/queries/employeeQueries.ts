@@ -111,3 +111,20 @@ export const GET_EMPLOYEE_LIGHT_BY_USER_ID = (userId: string): string => {
     }
   `
 }
+
+// Batch-fetch employees by multiple userIds in a single GraphQL request
+export const GET_EMPLOYEES_LIGHT_BY_USER_IDS = (userIds: string[]): string => {
+  const safeIds = userIds.map(id => `"${(id || '').replace(/"/g, '')}"`).join(', ')
+  return `
+    query GetEmployeesLightByUserIds {
+      Employee(where: { userId: { _in: [${safeIds}] } }, limit: ${userIds.length}) {
+        id
+        displayName
+        firstName
+        lastName
+        userId
+        pictureThumbnail
+      }
+    }
+  `
+}
