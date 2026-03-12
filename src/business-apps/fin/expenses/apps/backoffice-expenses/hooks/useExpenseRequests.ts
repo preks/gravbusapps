@@ -4,6 +4,7 @@ import { GET_EXPENSE_REQUESTS, PROCESS_PAYMENT_MUTATION } from '../queries'
 import { ExpenseData, ExpenseRequestQueryData } from '../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDateLocalized } from '../utils/dateUtils'
+import type { TranslateFn } from '../utils/utils'
 import {
   buildNumericRangeCondition,
   buildSearchCondition as buildSearchConditionBase,
@@ -15,7 +16,7 @@ import { buildRequestEffectiveDateFilter, buildRequestTypeFilter } from './backo
 import { extractUniqueStatuses, extractUniqueEmployees } from '../utils/sharedUtils'
 import { buildEmployeeDisplayName } from './backofficeReportUtils'
 
-export const useExpenseRequests = (context: BusinessAppContextProps, isActive: boolean = true) => {
+export const useExpenseRequests = (context: BusinessAppContextProps, t: TranslateFn, isActive: boolean = true) => {
   const { accessToken } = context
   const client = useGraphqlClient(accessToken)
 
@@ -132,10 +133,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       sapNumber: item.employee?.hrReferenceCode ?? '-',
       employee: buildEmployeeDisplayName(item.employee) || '-',
       title: item.title ?? '-',
-      creationDate: formatDateLocalized(item.createdAt),
-      startDate: formatDateLocalized(item.startDate),
-      endDate: formatDateLocalized(item.endDate),
-      requestDate: formatDateLocalized(item.requestDate ?? item.createdAt),
+      creationDate: formatDateLocalized(item.createdAt, t),
+      startDate: formatDateLocalized(item.startDate, t),
+      endDate: formatDateLocalized(item.endDate, t),
+      requestDate: formatDateLocalized(item.requestDate ?? item.createdAt, t),
       reporter: buildEmployeeDisplayName(item.employee) || '-',
       type: item.requestType?.value ?? '-',
       amount: item.reimbursableAmount ? `${item.reimbursableAmount} ${item.currency?.code ?? ''}`.trim() : '-',

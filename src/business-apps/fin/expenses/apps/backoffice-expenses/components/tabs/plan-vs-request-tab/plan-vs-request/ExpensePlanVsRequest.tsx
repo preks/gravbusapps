@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Spinner, SectionKpiCards } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { Spinner, SectionKpiCards, useTranslation } from '@newwork/nw-design-system'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { extractCurrencyCode } from '../../../../utils/currencyUtils'
 import { useExpenseGroupCatalog } from './hooks/useExpenseGroupCatalog'
 import { useCombinedPlanVsRequestData } from './hooks/useCombinedPlanVsRequestData'
@@ -10,6 +10,7 @@ import dayjs from 'dayjs'
 import { ExpenseFilterBar, FilterOptions } from '../../../filter-bar'
 import { usePlanVsRequestKpiCards, PlanVsRequestChart, PlanVsRequestCategoryTable } from './components'
 import { getExpenseGroupPluralName } from './utils/expenseGroupDisplay'
+import translations from '../../../../_i18n'
 
 export interface ExpensePlanVsRequestProps extends BusinessAppContextProps {
   isActive?: boolean
@@ -17,6 +18,7 @@ export interface ExpensePlanVsRequestProps extends BusinessAppContextProps {
 
 const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
   const { accessToken, isActive = true } = props
+  const { t } = useTranslation(translations)
 
   const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'quarter' | 'year'>('month')
   const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
@@ -128,11 +130,11 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
   // Get selected department name from ID
   const selectedDepartmentName = useMemo(() => {
     if (!currentFilters.department) {
-      return getTranslationFromI18nKeyAndLabel('filters.all', 'All')
+      return t('pvr-filter-all')
     }
     const dept = filterData.organizationalUnits.find(ou => ou.id === currentFilters.department)
     return dept?.name || currentFilters.department
-  }, [currentFilters.department, filterData.organizationalUnits])
+  }, [currentFilters.department, filterData.organizationalUnits, t])
 
   // Combine catalog data with financial values
   const categories = useMemo(() => {
@@ -142,8 +144,7 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
       const currentPeriodAmount = categoryStat?.currentPeriodAmount || 0
       const variance = Number((categoryStat?.variance || 0).toFixed(2))
 
-      // Use translated plural name for display
-      const translatedName = getExpenseGroupPluralName(category.code || category.value)
+      const translatedName = getExpenseGroupPluralName(category.code || category.value, t)
 
       return {
         id: category.id,
@@ -236,32 +237,15 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
         data-testid="plan-vs-request-active-filters"
       >
         <div>
-          <span className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:
-          </span>{' '}
-          {selectedPeriod}
+          <span className="gba:font-medium">{t('pvr-period-label')}:</span> {selectedPeriod}
           {' · '}
-          <span className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')}:
-          </span>{' '}
-          {selectedCurrencyCode}
+          <span className="gba:font-medium">{t('header-currency')}:</span> {selectedCurrencyCode}
           {' · '}
-          <span className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')}:
-          </span>{' '}
-          {selectedDepartmentName}
+          <span className="gba:font-medium">{t('header-department')}:</span> {selectedDepartmentName}
           {' · '}
-          <span className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:cards.last_updated', 'Last updated')}:
-          </span>{' '}
-          {dayjs().format('YYYY-MM-DD HH:mm')}
+          <span className="gba:font-medium">{t('pvr-last-updated')}:</span> {dayjs().format('YYYY-MM-DD HH:mm')}
         </div>
-        <div className="gba:text-xs gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:plan_vs_request.data_scope_note',
-            'Data scope: Planned amounts include all active plans (excludes drafts, rejected, discarded). Actual amounts include paid expenses.'
-          )}
-        </div>
+        <div className="gba:text-xs gba:text-muted-foreground">{t('pvr-data-scope-note')}</div>
       </div>
 
       <PlanVsRequestChart chartData={chartData} selectedCurrencyCode={selectedCurrencyCode} />

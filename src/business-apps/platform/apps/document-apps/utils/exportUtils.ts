@@ -7,6 +7,7 @@
 
 import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
+import { buildDocxBlob, sanitizeDocxFilename } from './docxExport'
 
 /**
  * Escape plain text for safe insertion into HTML text nodes / <title>
@@ -587,8 +588,6 @@ export interface ExportImageOptions {
  * If getImageDataUrl is provided, images are resolved to data URLs before conversion.
  */
 export async function exportToWord(title: string, htmlContent: string, options?: ExportImageOptions): Promise<void> {
-  const { buildDocxBlob, sanitizeDocxFilename } = await import('./docxExport')
-
   let content = htmlContent
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)

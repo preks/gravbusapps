@@ -5,7 +5,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Spinner,
   Alert,
   AlertDescription,
   Button,
@@ -17,9 +16,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox
+  Checkbox,
+  TabsContent
 } from '@newwork/nw-design-system'
 import { Play, Zap, Bot, GitBranch } from 'lucide-react'
+import { PreviewHeaderCard } from '../preview-header'
+import { friendlyLabel, getSchemaTypeLabel, PreviewTabs, PreviewLoading, PreviewError, PreviewEmpty } from '../shared'
 import { FunctionsServiceClient } from '@/common/network/functions/FunctionsServiceClient'
 
 export interface FunctionDefinition {
@@ -50,9 +52,8 @@ export interface FunctionPreviewProps {
   'data-testid'?: string
 }
 
-function friendlyLabel(key: string): string {
-  const lower = key.toLowerCase().split('_').join(' ')
-  return lower.charAt(0).toUpperCase() + lower.slice(1)
+function functionSchemaTypeLabel(prop: Record<string, unknown>): string {
+  return getSchemaTypeLabel(prop, { stringLabel: 'Short text', objectLabel: 'Data' })
 }
 
 export const FunctionPreview: React.FC<FunctionPreviewProps> = ({
@@ -104,6 +105,7 @@ const FunctionPreviewSingle: React.FC<FunctionPreviewSingleProps> = ({
   const [testLoading, setTestLoading] = useState(false)
   const [testResult, setTestResult] = useState<string>('')
   const [testError, setTestError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'overview' | 'try-it'>('overview')
 
   const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
 
@@ -200,219 +202,243 @@ const FunctionPreviewSingle: React.FC<FunctionPreviewSingleProps> = ({
     setPayload(prev => ({ ...prev, [key]: value }))
   }, [])
 
-  if (loading)
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:py-12" data-testid={`${testId}-loading`}>
-        <Spinner size="lg" />
-      </div>
-    )
-  if (error)
-    return (
-      <Alert variant="destructive" data-testid={`${testId}-error`}>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    )
-  if (!loaded)
-    return (
-      <div className="gba:text-muted-foreground gba:py-4" data-testid={`${testId}-empty`}>
-        No tool data.
-      </div>
-    )
+  if (loading) return <PreviewLoading testId={testId} />
+  if (error) return <PreviewError testId={testId} message={error} />
+  if (!loaded) return <PreviewEmpty testId={testId} message="No tool data." />
 
   const propertyKeys = Object.keys(schemaProperties)
   const outputKeys = Object.keys(outputProperties)
 
   return (
-    <div className="gba:space-y-6" data-testid={testId}>
-      {/* Header */}
-      <Card className="gba:border-border">
-        <CardHeader className="gba:border-b gba:border-border">
-          <div className="gba:flex gba:items-start gba:gap-4">
-            <div className="gba:p-3 gba:rounded-xl gba:bg-primary/10">
-              <Zap className="gba:h-8 gba:w-8 gba:text-primary" />
-            </div>
-            <div className="gba:flex-1 gba:min-w-0">
-              <CardTitle className="gba:text-lg">{loaded.name}</CardTitle>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                {loaded.description ?? 'Run this tool with the inputs below and see the result.'}
-              </p>
-              {(loaded.agentEnabled || loaded.workflowEnabled) && (
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mt-3">
-                  {loaded.agentEnabled && (
-                    <Badge variant="secondary" className="gba:flex gba:items-center gba:gap-1">
-                      <Bot className="gba:h-3 gba:w-3" />
-                      Agent-enabled
-                    </Badge>
-                  )}
-                  {loaded.workflowEnabled && (
-                    <Badge variant="secondary" className="gba:flex gba:items-center gba:gap-1">
-                      <GitBranch className="gba:h-3 gba:w-3" />
-                      Workflow-enabled
-                    </Badge>
-                  )}
-                </div>
+    <div className="gba:flex gba:flex-col gba:gap-4 gba:min-h-0" data-testid={testId}>
+      <PreviewHeaderCard
+        icon={Zap}
+        title={loaded.name}
+        description={loaded.description ?? 'Run this tool with the inputs below and see the result.'}
+        badges={
+          loaded.agentEnabled || loaded.workflowEnabled ? (
+            <>
+              {loaded.agentEnabled && (
+                <Badge variant="outline" className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
+                  <Bot className="gba:h-3 gba:w-3" />
+                  Agent-enabled
+                </Badge>
               )}
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+              {loaded.workflowEnabled && (
+                <Badge variant="outline" className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
+                  <GitBranch className="gba:h-3 gba:w-3" />
+                  Workflow-enabled
+                </Badge>
+              )}
+            </>
+          ) : undefined
+        }
+        data-testid={`${testId}-header`}
+      />
 
-      {/* Run and test */}
-      <Card className="gba:border-border">
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
-            <Play className="gba:h-4 gba:w-4" /> Run and test
-          </CardTitle>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            Enter the required information and run the tool to see the result.
-          </p>
-        </CardHeader>
-        <CardContent className="gba:space-y-4">
-          {propertyKeys.length > 0 ? (
-            <div className="gba:space-y-3">
-              {propertyKeys.map(key => {
-                const prop = schemaProperties[key] as Record<string, unknown>
-                const type = prop?.type as string | undefined
-                const enumValues = prop?.enum as unknown[] | undefined
-                const description = prop?.description as string | undefined
-                const isRequired = requiredFields.includes(key)
-                const label = friendlyLabel(key)
+      <PreviewTabs value={activeTab} onValueChange={setActiveTab} testId={testId}>
+        <TabsContent
+          value="overview"
+          className="gba:mt-0 gba:flex-1 gba:min-h-0 gba:space-y-4"
+          data-testid={`${testId}-overview`}
+        >
+          <Card className="gba:border-border gba:overflow-hidden">
+            <CardHeader className="gba:py-3 gba:border-b gba:border-border">
+              <CardTitle className="gba:text-sm gba:font-medium">What you provide</CardTitle>
+            </CardHeader>
+            <CardContent className="gba:p-0">
+              {propertyKeys.length === 0 ? (
+                <p className="gba:text-sm gba:text-muted-foreground gba:py-6 gba:px-4">No inputs required.</p>
+              ) : (
+                <ul className="gba:divide-y gba:divide-border">
+                  {propertyKeys.map(key => {
+                    const prop = schemaProperties[key] as Record<string, unknown>
+                    const isRequired = requiredFields.includes(key)
+                    return (
+                      <li
+                        key={key}
+                        className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3 gba:text-sm"
+                        data-testid={`${testId}-overview-input-${key}`}
+                      >
+                        <div className="gba:min-w-0 gba:flex-1">
+                          <span className="gba:font-medium gba:text-foreground">{friendlyLabel(key)}</span>
+                          <span className="gba:text-muted-foreground gba:ml-2">{functionSchemaTypeLabel(prop)}</span>
+                        </div>
+                        <Badge variant="outline" className="gba:text-xs gba:shrink-0">
+                          {isRequired ? 'Required' : 'Optional'}
+                        </Badge>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
 
-                return (
-                  <div key={key} className="gba:space-y-1">
-                    <Label htmlFor={`${testId}-input-${key}`}>
-                      {label}
-                      {isRequired && <span className="gba:text-destructive gba:ml-0.5">*</span>}
-                    </Label>
-                    {description && <p className="gba:text-xs gba:text-muted-foreground">{description}</p>}
-                    {(() => {
-                      const payloadStringValue = typeof payload[key] === 'string' ? payload[key] : ''
-                      if (type === 'boolean') {
-                        return (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Checkbox
+          <Card className="gba:border-border gba:overflow-hidden">
+            <CardHeader className="gba:py-3 gba:border-b gba:border-border">
+              <CardTitle className="gba:text-sm gba:font-medium">What you get back</CardTitle>
+            </CardHeader>
+            <CardContent className="gba:p-0">
+              {outputKeys.length === 0 ? (
+                <p className="gba:text-sm gba:text-muted-foreground gba:py-6 gba:px-4">
+                  No structured output described.
+                </p>
+              ) : (
+                <ul className="gba:divide-y gba:divide-border">
+                  {outputKeys.map(key => {
+                    const prop = outputProperties[key] as Record<string, unknown>
+                    return (
+                      <li
+                        key={key}
+                        className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:text-sm"
+                        data-testid={`${testId}-overview-output-${key}`}
+                      >
+                        <span className="gba:font-medium gba:text-foreground gba:shrink-0">{friendlyLabel(key)}</span>
+                        <span className="gba:text-muted-foreground">{functionSchemaTypeLabel(prop)}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="try-it" className="gba:mt-0 gba:flex-1 gba:min-h-0" data-testid={`${testId}-try-it`}>
+          {/* Run and test */}
+          <Card className="gba:border-border">
+            <CardHeader>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
+                <Play className="gba:h-4 gba:w-4" /> Run and test
+              </CardTitle>
+              <p className="gba:text-sm gba:text-muted-foreground">
+                Enter the required information and run the tool to see the result.
+              </p>
+            </CardHeader>
+            <CardContent className="gba:space-y-4">
+              {propertyKeys.length > 0 ? (
+                <div className="gba:space-y-3">
+                  {propertyKeys.map(key => {
+                    const prop = schemaProperties[key] as Record<string, unknown>
+                    const type = prop?.type as string | undefined
+                    const enumValues = prop?.enum as unknown[] | undefined
+                    const description = prop?.description as string | undefined
+                    const isRequired = requiredFields.includes(key)
+                    const label = friendlyLabel(key)
+
+                    return (
+                      <div key={key} className="gba:space-y-1">
+                        <Label htmlFor={`${testId}-input-${key}`}>
+                          {label}
+                          {isRequired && <span className="gba:text-destructive gba:ml-0.5">*</span>}
+                        </Label>
+                        {description && <p className="gba:text-xs gba:text-muted-foreground">{description}</p>}
+                        {(() => {
+                          const payloadStringValue = typeof payload[key] === 'string' ? payload[key] : ''
+                          if (type === 'boolean') {
+                            return (
+                              <div className="gba:flex gba:items-center gba:gap-2">
+                                <Checkbox
+                                  id={`${testId}-input-${key}`}
+                                  checked={!!payload[key]}
+                                  onCheckedChange={checked => setPayloadField(key, checked)}
+                                  data-testid={`${testId}-input-${key}`}
+                                />
+                                <Label
+                                  htmlFor={`${testId}-input-${key}`}
+                                  className="gba:cursor-pointer gba:font-normal"
+                                >
+                                  {payload[key] ? 'Yes' : 'No'}
+                                </Label>
+                              </div>
+                            )
+                          }
+                          if (enumValues && enumValues.length > 0) {
+                            return (
+                              <Select value={payloadStringValue} onValueChange={v => setPayloadField(key, v)}>
+                                <SelectTrigger id={`${testId}-input-${key}`} data-testid={`${testId}-input-${key}`}>
+                                  <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {enumValues.map(v => (
+                                    <SelectItem key={String(v)} value={String(v)}>
+                                      {String(v)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )
+                          }
+                          if (type === 'number' || type === 'integer') {
+                            return (
+                              <Input
+                                id={`${testId}-input-${key}`}
+                                type="number"
+                                value={payloadStringValue}
+                                onChange={e =>
+                                  setPayloadField(
+                                    key,
+                                    type === 'integer'
+                                      ? Number.parseInt(e.target.value) || 0
+                                      : Number.parseFloat(e.target.value) || 0
+                                  )
+                                }
+                                placeholder={description ?? `Enter ${label.toLowerCase()}...`}
+                                data-testid={`${testId}-input-${key}`}
+                              />
+                            )
+                          }
+                          return (
+                            <Input
                               id={`${testId}-input-${key}`}
-                              checked={!!payload[key]}
-                              onCheckedChange={checked => setPayloadField(key, checked)}
+                              value={payloadStringValue}
+                              onChange={e => setPayloadField(key, e.target.value)}
+                              placeholder={description ?? `Enter ${label.toLowerCase()}...`}
                               data-testid={`${testId}-input-${key}`}
                             />
-                            <Label htmlFor={`${testId}-input-${key}`} className="gba:cursor-pointer gba:font-normal">
-                              {payload[key] ? 'Yes' : 'No'}
-                            </Label>
-                          </div>
-                        )
-                      }
-                      if (enumValues && enumValues.length > 0) {
-                        return (
-                          <Select value={payloadStringValue} onValueChange={v => setPayloadField(key, v)}>
-                            <SelectTrigger id={`${testId}-input-${key}`} data-testid={`${testId}-input-${key}`}>
-                              <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {enumValues.map(v => (
-                                <SelectItem key={String(v)} value={String(v)}>
-                                  {String(v)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )
-                      }
-                      if (type === 'number' || type === 'integer') {
-                        return (
-                          <Input
-                            id={`${testId}-input-${key}`}
-                            type="number"
-                            value={payloadStringValue}
-                            onChange={e =>
-                              setPayloadField(
-                                key,
-                                type === 'integer'
-                                  ? Number.parseInt(e.target.value) || 0
-                                  : Number.parseFloat(e.target.value) || 0
-                              )
-                            }
-                            placeholder={description ?? `Enter ${label.toLowerCase()}...`}
-                            data-testid={`${testId}-input-${key}`}
-                          />
-                        )
-                      }
-                      return (
-                        <Input
-                          id={`${testId}-input-${key}`}
-                          value={payloadStringValue}
-                          onChange={e => setPayloadField(key, e.target.value)}
-                          placeholder={description ?? `Enter ${label.toLowerCase()}...`}
-                          data-testid={`${testId}-input-${key}`}
-                        />
-                      )
-                    })()}
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="gba:text-sm gba:text-muted-foreground">No inputs required. Click Run to execute.</p>
-          )}
+                          )
+                        })()}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="gba:text-sm gba:text-muted-foreground">No inputs required. Click Run to execute.</p>
+              )}
 
-          <Button variant="default" size="sm" onClick={runTest} disabled={testLoading} data-testid={`${testId}-invoke`}>
-            <Play className="gba:h-4 gba:w-4 gba:mr-1" />
-            {testLoading ? 'Running...' : 'Run'}
-          </Button>
-
-          {testError && (
-            <Alert variant="destructive">
-              <AlertDescription>{testError}</AlertDescription>
-            </Alert>
-          )}
-
-          {testResult && (
-            <div className="gba:mt-4 gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:p-4">
-              <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Result</p>
-              <pre
-                className="gba:text-sm gba:text-foreground gba:overflow-auto gba:max-h-40 gba:whitespace-pre-wrap"
-                data-testid={`${testId}-result`}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={runTest}
+                disabled={testLoading}
+                data-testid={`${testId}-invoke`}
               >
-                {testResult}
-              </pre>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <Play className="gba:h-4 gba:w-4 gba:mr-1" />
+                {testLoading ? 'Running...' : 'Run'}
+              </Button>
 
-      {/* Output schema */}
-      {outputKeys.length > 0 && (
-        <Card className="gba:border-border">
-          <CardHeader>
-            <CardTitle className="gba:text-base">What this function returns</CardTitle>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              The output of this function contains the following fields.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ul className="gba:space-y-1.5">
-              {outputKeys.map(key => {
-                const prop = outputProperties[key] as Record<string, unknown>
-                const type = prop?.type as string | undefined
-                const description = prop?.description as string | undefined
-                return (
-                  <li key={key} className="gba:flex gba:items-start gba:gap-2 gba:text-sm">
-                    <span className="gba:font-medium gba:text-foreground gba:shrink-0">{key}</span>
-                    <span className="gba:text-muted-foreground">
-                      {type && (
-                        <span className="gba:font-mono gba:text-xs gba:bg-muted gba:px-1 gba:py-0.5 gba:rounded gba:mr-1">
-                          {type}
-                        </span>
-                      )}
-                      {description}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+              {testError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{testError}</AlertDescription>
+                </Alert>
+              )}
+
+              {testResult && (
+                <div className="gba:mt-4 gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:p-4">
+                  <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Result</p>
+                  <pre
+                    className="gba:text-sm gba:text-foreground gba:overflow-auto gba:max-h-40 gba:whitespace-pre-wrap"
+                    data-testid={`${testId}-result`}
+                  >
+                    {testResult}
+                  </pre>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </PreviewTabs>
     </div>
   )
 }

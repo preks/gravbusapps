@@ -1,10 +1,20 @@
 import { DriveApiService } from '../services/DriveApiService'
-import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
+import { buildDocxBlob, sanitizeDocxFilename } from '@/business-apps/platform/apps/document-apps/utils/docxExport'
 import { downloadNote } from '@/business-apps/platform/apps/note-apps/utils/noteExportUtils'
 import { exportSheetToExcel } from '@/business-apps/platform/apps/spreadsheet-apps/utils/exportUtils'
 import { exportToPptx } from '@/business-apps/platform/apps/slide-apps/utils/exportUtils'
 import { getThemeById } from '@/business-apps/platform/apps/slide-apps/components/slideThemes'
 import type { DriveItem } from '../types/drive.types'
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.rel = 'noopener noreferrer'
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
+}
 
 export async function downloadDriveItem(item: DriveItem): Promise<void> {
   switch (item.type) {
@@ -32,7 +42,8 @@ export async function downloadDriveItem(item: DriveItem): Promise<void> {
 
 async function downloadDocument(id: string): Promise<void> {
   const doc = await DriveApiService.fetchDocument(id)
-  await exportToWord(doc.title || 'Untitled', doc.content || doc.plainText || '')
+  const blob = await buildDocxBlob(doc.title || 'Untitled', doc.content || doc.plainText || '')
+  downloadBlob(blob, `${sanitizeDocxFilename(doc.title || 'Untitled')}.docx`)
 }
 
 async function downloadNoteItem(id: string): Promise<void> {

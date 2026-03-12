@@ -12,11 +12,12 @@ import {
   Spinner,
   Alert,
   IconAvatar,
-  ChartContainer
+  ChartContainer,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, CartesianGrid } from 'recharts'
 import { MonthlyExpenseTrend } from '../../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../_i18n'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import ExpenseBarChartDecorators from '../charts/ExpenseBarChartDecorators'
 import { getChartColor } from '../../utils/chartColorUtils'
@@ -36,9 +37,9 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
   selectedCurrencyCode,
   moduleColor
 }) => {
+  const { t } = useTranslation(translations)
   const currentYear = new Date().getFullYear()
 
-  // Type guard for IconAvatar variant (from nw-design-system)
   type IconAvatarVariant =
     | 'default'
     | 'secondary'
@@ -58,7 +59,6 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
     | 'ext8'
     | 'pending'
 
-  // Validate and get safe variant with proper typing
   const safeVariant: IconAvatarVariant | undefined = (() => {
     const validVariants: IconAvatarVariant[] = [
       'default',
@@ -84,50 +84,41 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
       : undefined
   })()
 
-  // Helper function to translate month names
-  const getTranslatedMonthName = (monthName: string): string => {
-    const monthMap: { [key: string]: string } = {
-      Jan: 'lowcoder:absence_report.totals_table.jan',
-      Feb: 'lowcoder:absence_report.totals_table.feb',
-      Mar: 'lowcoder:absence_report.totals_table.mar',
-      Apr: 'lowcoder:absence_report.totals_table.apr',
-      May: 'lowcoder:absence_report.totals_table.may',
-      Jun: 'lowcoder:absence_report.totals_table.jun',
-      Jul: 'lowcoder:absence_report.totals_table.jul',
-      Aug: 'lowcoder:absence_report.totals_table.aug',
-      Sep: 'lowcoder:absence_report.totals_table.sep',
-      Oct: 'lowcoder:absence_report.totals_table.oct',
-      Nov: 'lowcoder:absence_report.totals_table.nov',
-      Dec: 'lowcoder:absence_report.totals_table.dec'
-    }
+  const monthKeyMap: Record<string, string> = {
+    Jan: 'month-short-jan',
+    Feb: 'month-short-feb',
+    Mar: 'month-short-mar',
+    Apr: 'month-short-apr',
+    May: 'month-short-may',
+    Jun: 'month-short-jun',
+    Jul: 'month-short-jul',
+    Aug: 'month-short-aug',
+    Sep: 'month-short-sep',
+    Oct: 'month-short-oct',
+    Nov: 'month-short-nov',
+    Dec: 'month-short-dec'
+  }
 
-    const translationKey = monthMap[monthName]
-    if (translationKey) {
-      return getTranslationFromI18nKeyAndLabel(translationKey, monthName)
-    }
-    return monthName
+  const getTranslatedMonthName = (monthName: string): string => {
+    const ftlKey = monthKeyMap[monthName]
+    return ftlKey ? t(ftlKey) : monthName
   }
 
   const renderCardTitle = () => (
     <CardTitle className="gba:flex gba:items-center gba:gap-2">
       <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
-      {getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-        'Monthly Expense Trends'
-      )}{' '}
-      {currentYear}
+      {t('chart-monthly-expense-trends')} {currentYear}
     </CardTitle>
   )
 
-  // Keep hook order stable across loading/error/data states.
   const chartConfig = useMemo(
     () => ({
       totalAmount: {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total Amount'),
+        label: t('chart-total-amount'),
         color: getChartColor('chart1')
       }
     }),
-    []
+    [t]
   )
 
   if (loading) {
@@ -150,7 +141,9 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
         <CardContent>
           <Alert variant="destructive">
             <div>
-              <p className="gba:text-sm">Error: {error.message}</p>
+              <p className="gba:text-sm">
+                {t('common-error')}: {error.message}
+              </p>
             </div>
           </Alert>
         </CardContent>
@@ -165,9 +158,9 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
         {monthlyTrends.length === 0 ? (
           <div className="gba:text-center gba:p-8" data-testid="monthly-expense-trends-empty-state">
             <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
-            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">No data available</h3>
+            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">{t('empty-no-data')}</h3>
             <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-              No expense trends data found for {currentYear}.
+              {t('empty-no-trends-data', { year: currentYear })}
             </p>
           </div>
         ) : (
