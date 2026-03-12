@@ -34,6 +34,18 @@ import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
+function rawDateRangeToNormalizable(rawDateRange: unknown): string | string[] | null | undefined {
+  if (rawDateRange == null) return undefined
+  const isObjectWithFromOrTo =
+    typeof rawDateRange === 'object' && !Array.isArray(rawDateRange) && ('from' in rawDateRange || 'to' in rawDateRange)
+  if (isObjectWithFromOrTo) {
+    const obj = rawDateRange as { from?: unknown; to?: unknown }
+    return [obj?.from, obj?.to].filter(Boolean).join(',')
+  }
+  if (typeof rawDateRange === 'string' || Array.isArray(rawDateRange)) return rawDateRange
+  return undefined
+}
+
 function applyExpenseDateRangeFromFilters(
   rawDateRange: unknown,
   setExpenseDateRange: (range: [Date | null, Date | null] | null) => void
@@ -41,17 +53,7 @@ function applyExpenseDateRangeFromFilters(
   const isDisplayString =
     typeof rawDateRange === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(rawDateRange) && !rawDateRange.includes(',')
   if (isDisplayString) return
-  const obj = rawDateRange as { from?: unknown; to?: unknown } | null | undefined
-  const raw: string | string[] | null | undefined =
-    rawDateRange == null
-      ? undefined
-      : typeof rawDateRange === 'object' &&
-          !Array.isArray(rawDateRange) &&
-          ('from' in rawDateRange || 'to' in rawDateRange)
-        ? [obj?.from, obj?.to].filter(Boolean).join(',')
-        : typeof rawDateRange === 'string' || Array.isArray(rawDateRange)
-          ? rawDateRange
-          : undefined
+  const raw = rawDateRangeToNormalizable(rawDateRange)
   const normalized = normalizeDateRange(raw)
   if (normalized && (normalized.from || normalized.to)) {
     setExpenseDateRange([
@@ -596,8 +598,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       const entry = newSorting[0]
       const field = entry?.id || 'expenseDate'
       let orderFromTable: 'ascend' | 'descend' | undefined
-      if (!entry) orderFromTable = undefined
-      else orderFromTable = entry.desc ? 'descend' : 'ascend'
+      if (entry) {
+        orderFromTable = entry.desc ? 'descend' : 'ascend'
+      } else {
+        orderFromTable = undefined
+      }
       const isSameColumn = sortField === field
       let nextOrder: 'ascend' | 'descend'
       if (isSameColumn && orderFromTable != null && orderFromTable !== sortOrder) {
@@ -670,7 +675,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
             <div className="gba:text-sm gba:truncate" data-testid="expense-expense-date-cell">
               {(() => {
                 try {
-                  return formatDate(row.original.expenseDate!, 'date.long') || 'N/A'
+                  return formatDate(row.original.expenseDate, 'date.long') || 'N/A'
                 } catch {
                   return 'N/A'
                 }
@@ -732,10 +737,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     (row: { original: ExpenseItem }) => {
       const record = row.original
       return (
-        <div
-          className="gba:flex gba:justify-end gba:gap-2"
-          role="group"
-          tabIndex={0}
+        <button
+          type="button"
+          className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
           onClick={e => e.stopPropagation()}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
@@ -775,7 +779,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
               />
             </svg>
           </AppAction>
-        </div>
+        </button>
       )
     },
     [contextProps.userInfo?.employeeDetails?.employeeId, contextProps.accessToken, handleSelectItem]

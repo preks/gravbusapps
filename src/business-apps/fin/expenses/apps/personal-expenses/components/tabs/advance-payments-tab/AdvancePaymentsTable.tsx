@@ -761,7 +761,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       const entry = newSorting[0]
       const field = entry?.id || 'createdAt'
-      const order = !entry ? 'descend' : entry.desc ? 'descend' : 'ascend'
+      const order = entry ? (entry.desc ? 'descend' : 'ascend') : 'descend'
       if (field === sortField && order === sortOrder) return
       setSortField(field)
       setSortOrder(order)
@@ -906,12 +906,12 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
             label = 'N/A'
           } else if (typeof pm === 'object' && pm !== null && 'value' in pm) {
             label = getCatalogValue(pm)
-          } else if (String(pm) === 'DIRECT_DEPOSIT') {
+          } else if (typeof pm === 'string' && pm === 'DIRECT_DEPOSIT') {
             label = getTranslationFromI18nKeyAndLabel(
               'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
               'Direct Deposit'
             )
-          } else if (String(pm) === 'CASH_PAYMENT') {
+          } else if (typeof pm === 'string' && pm === 'CASH_PAYMENT') {
             label = getTranslationFromI18nKeyAndLabel(
               'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
               'Cash Payment'
@@ -934,10 +934,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     (row: { original: AdvancePayment }) => {
       const record = row.original
       return (
-        <div
-          className="gba:flex gba:justify-end gba:gap-2"
-          role="group"
-          tabIndex={0}
+        <button
+          type="button"
+          className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
           onClick={e => e.stopPropagation()}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
@@ -1028,7 +1027,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
               />
             </svg>
           </AppAction>
-        </div>
+        </button>
       )
     },
     [contextProps.accessToken, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails]

@@ -793,10 +793,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     (row: { original: ExpenseRequestRow }) => {
       const record = row.original
       return (
-        <div
-          className="gba:flex gba:justify-end gba:gap-2"
-          role="group"
-          tabIndex={0}
+        <button
+          type="button"
+          className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
           onClick={e => e.stopPropagation()}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
@@ -874,7 +873,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
               />
             </svg>
           </AppAction>
-        </div>
+        </button>
       )
     },
     [tPersonal, contextProps.accessToken, handleEditExpenseRequest, handlePrintRequest, handleViewExpenseRequestDetails]

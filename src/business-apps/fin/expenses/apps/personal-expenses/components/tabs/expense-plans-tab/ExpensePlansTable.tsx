@@ -526,8 +526,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       const entry = newSorting[0]
       const field = entry?.id || 'createdAt'
       let order: 'ascend' | 'descend' | undefined
-      if (!entry) order = undefined
-      else order = entry.desc ? 'descend' : 'ascend'
+      if (entry) {
+        order = entry.desc ? 'descend' : 'ascend'
+      } else {
+        order = undefined
+      }
       onTableChange({ current: 1, pageSize }, {}, { field, order })
     },
     [onTableChange, pageSize]
@@ -754,10 +757,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     (row: { original: ExpensePlan }) => {
       const record = row.original
       return (
-        <div
-          className="gba:flex gba:justify-end gba:gap-2"
-          role="group"
-          tabIndex={0}
+        <button
+          type="button"
+          className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
           onClick={e => e.stopPropagation()}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
@@ -910,7 +912,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
               />
             </svg>
           </AppAction>
-        </div>
+        </button>
       )
     },
     [
