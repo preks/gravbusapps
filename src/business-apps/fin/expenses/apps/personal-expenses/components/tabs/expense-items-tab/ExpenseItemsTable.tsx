@@ -3,20 +3,7 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
-import {
-  Button,
-  Alert,
-  Checkbox,
-  Sheet,
-  SheetContent,
-  Badge,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
+import { Button, Alert, Checkbox, Badge } from '@newwork/nw-design-system'
 import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action'
 import { useGetExpenseItems, ExpenseFilter, type ExpenseItem } from '../../../hooks/useGetExpenseItems'
@@ -29,8 +16,9 @@ import { startProcess } from '@/common/utils/start-process'
 import { notification } from 'antd'
 import { formatCurrencyDisplay } from '../../../utils'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
-import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
+import { resolveSelectedCurrencyCode, applyCurrencyChange, buildEmptyMessage } from '../../../utils/tableUtils'
+import { CurrencyDropdown, DetailsSheet, RowActionsWrapper, RowActionsIcon } from '../../shared/TableSharedComponents'
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
@@ -374,23 +362,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   }, [allSelectedFilters, expenseDateRange, amountRange, props.availableStatuses])
 
   // Currency: derived from filters for toolbar dropdown (currency moved out of sidebar)
-  const selectedCurrencyCode = useMemo(() => {
-    const currencyFilter = allSelectedFilters.find(f => f.startsWith('currency:'))
-    if (!currencyFilter) return 'ALL'
-    const ref = currencyFilter.replace('currency:', '')
-    return currencyStats.find(cs => cs.ref === ref)?.code ?? 'ALL'
-  }, [allSelectedFilters, currencyStats])
+  const selectedCurrencyCode = useMemo(
+    () => resolveSelectedCurrencyCode(allSelectedFilters, currencyStats),
+    [allSelectedFilters, currencyStats]
+  )
 
   const handleCurrencyChange = useCallback(
     (code: string) => {
-      if (code === 'ALL') {
-        setFilters(allSelectedFilters.filter(f => !f.startsWith('currency:')))
-      } else {
-        const cs = currencyStats.find(c => c.code === code)
-        if (cs) {
-          setFilters([...allSelectedFilters.filter(f => !f.startsWith('currency:')), `currency:${cs.ref}`])
-        }
-      }
+      applyCurrencyChange(code, allSelectedFilters, currencyStats, setFilters)
       setCurrentPage(1)
     },
     [allSelectedFilters, currencyStats, setFilters]
@@ -544,8 +523,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       }
 
       if (trimmedPrev !== '' && trimmedNext === '') {
-        // Clearing search → restore saved page if available
-        setCurrentPage(savedPageBeforeSearchRef.current || 1)
+        setCurrentPage(1)
         savedPageBeforeSearchRef.current = null
         return
       }
@@ -733,12 +711,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     setCurrentPage(newPagination.pageIndex + 1)
     setPageSize(newPagination.pageSize)
   }, [])
-  const emptyMessage = hasActiveFilters
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.no_expense_items_found',
-        'No expense items found. Create your first expense item to get started.'
-      )
+  const emptyMessage = buildEmptyMessage(
+    !!hasActiveFilters,
+    'lowcoder:personal_expenses.no_expense_items_found',
+    'No expense items found. Create your first expense item to get started.'
+  )
 
   const columns = useMemo<ColumnDef<ExpenseItem>[]>(
     () => [
@@ -810,14 +787,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     (row: { original: ExpenseItem }) => {
       const record = row.original
       return (
-        <button
-          type="button"
-          className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
-          }}
-        >
+        <RowActionsWrapper>
           <AppAction
             variant="table-row"
             customActions={generateExpenseItemActions(
@@ -843,16 +813,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
             accessToken={contextProps.accessToken}
             data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
           >
-            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-              />
-            </svg>
+            <RowActionsIcon />
           </AppAction>
-        </button>
+        </RowActionsWrapper>
       )
     },
     [contextProps.userInfo?.employeeDetails?.employeeId, contextProps.accessToken, handleSelectItem]
@@ -880,30 +843,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     () => (
       <>
         {currencyStats.length > 0 && (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Label className="gba:font-medium gba:shrink-0">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                'Currency'
-              )}
-              :
-            </Label>
-            <Select value={selectedCurrencyCode} onValueChange={handleCurrencyChange}>
-              <SelectTrigger className="gba:w-[140px]" data-testid="expense-items-currency-select">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
-                </SelectItem>
-                {currencyStats.map(cs => (
-                  <SelectItem key={cs.ref} value={cs.code}>
-                    {cs.code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <CurrencyDropdown
+            currencyStats={currencyStats}
+            selectedCurrencyCode={selectedCurrencyCode}
+            onCurrencyChange={handleCurrencyChange}
+            testIdPrefix="expense-items"
+          />
         )}
         {selectedRowKeys.length > 0 && (
           <>
@@ -1046,29 +991,24 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         />
       </DataDisplay>
 
-      {/* Sheet for details */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedItem?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.expense_item_details',
-                'Expense Item Details'
-              )
-            }
-          >
-            {selectedItem ? (
-              <ExpenseItemDetails
-                selectedItem={selectedItem}
-                onClose={handleCloseDetails}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-              />
-            ) : null}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+      <DetailsSheet
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        title={
+          selectedItem?.title ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details', 'Expense Item Details')
+        }
+        testId="expense-item-details-sheet"
+      >
+        {selectedItem ? (
+          <ExpenseItemDetails
+            selectedItem={selectedItem}
+            onClose={handleCloseDetails}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+          />
+        ) : null}
+      </DetailsSheet>
     </>
   )
 })

@@ -3,18 +3,7 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
-import {
-  Sheet,
-  SheetContent,
-  Badge,
-  Button,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
+import { Badge, Button } from '@newwork/nw-design-system'
 import { message } from 'antd'
 import { AppAction } from '@/components/app-action'
 import { startProcess } from '@/common/utils/start-process'
@@ -27,11 +16,12 @@ import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components'
 import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
 import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
 import { toast } from 'sonner'
+import { resolveSelectedCurrencyCode, applyCurrencyChange, buildEmptyMessage } from '../../../utils/tableUtils'
+import { CurrencyDropdown, DetailsSheet, RowActionsWrapper, RowActionsIcon } from '../../shared/TableSharedComponents'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
 const DEFAULT_STATUS_FILTER = ['PREPARED', 'PENDING']
@@ -569,23 +559,15 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     []
   )
 
-  const selectedCurrencyCode = useMemo(() => {
-    const token = (props.selectedFilters || []).find(f => f.startsWith('currency:'))
-    if (!token) return 'ALL'
-    const ref = token.substring('currency:'.length)
-    return currencyStats.find(cs => cs.ref === ref)?.code ?? 'ALL'
-  }, [props.selectedFilters, currencyStats])
+  const selectedCurrencyCode = useMemo(
+    () => resolveSelectedCurrencyCode(props.selectedFilters || [], currencyStats),
+    [props.selectedFilters, currencyStats]
+  )
 
   const handleCurrencyChange = useCallback(
     (code: string) => {
-      const current = props.selectedFilters || []
-      if (code === 'ALL') {
-        props.onFilterChange?.(current.filter(f => !f.startsWith('currency:')))
-      } else {
-        const cs = currencyStats.find(c => c.code === code)
-        if (cs) {
-          props.onFilterChange?.([...current.filter(f => !f.startsWith('currency:')), `currency:${cs.ref}`])
-        }
+      if (props.onFilterChange) {
+        applyCurrencyChange(code, props.selectedFilters || [], currencyStats, props.onFilterChange)
       }
       setCurrentPage(1)
     },
@@ -717,7 +699,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       savedPageBeforeSearchRef.current ??= currentPageRef.current
       setCurrentPage(1)
     } else if (trimmedPrev !== '' && trimmedDebounced === '') {
-      setCurrentPage(savedPageBeforeSearchRef.current || 1)
+      setCurrentPage(1)
       savedPageBeforeSearchRef.current = null
     } else if (trimmedDebounced !== '' && trimmedPrev !== trimmedDebounced) {
       setCurrentPage(1)
@@ -870,12 +852,11 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     setCurrentPage(newPagination.pageIndex + 1)
     setPageSize(newPagination.pageSize)
   }, [])
-  const emptyMessage = hasActiveFilters
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.no_advance_payments_found',
-        'No advance payments found. Create your first advance payment to get started.'
-      )
+  const emptyMessage = buildEmptyMessage(
+    hasActiveFilters,
+    'lowcoder:personal_expenses.no_advance_payments_found',
+    'No advance payments found. Create your first advance payment to get started.'
+  )
 
   // Handle closing the details panel
   const handleCloseDetails = useCallback(() => {
@@ -970,14 +951,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     (row: { original: AdvancePayment }) => {
       const record = row.original
       return (
-        <button
-          type="button"
-          className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
-          }}
-        >
+        <RowActionsWrapper>
           <AppAction
             variant="table-row"
             customActions={[
@@ -1054,16 +1028,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
             accessToken={contextProps.accessToken}
             data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
           >
-            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-              />
-            </svg>
+            <RowActionsIcon />
           </AppAction>
-        </button>
+        </RowActionsWrapper>
       )
     },
     [contextProps.accessToken, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails]
@@ -1090,30 +1057,12 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const secondaryActions = useMemo(
     () =>
       currencyStats.length > 0 ? (
-        <div className="gba:flex gba:items-center gba:gap-2" key="currency-dropdown">
-          <Label className="gba:font-medium gba:shrink-0">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-              'Currency'
-            )}
-            :
-          </Label>
-          <Select value={selectedCurrencyCode} onValueChange={handleCurrencyChange}>
-            <SelectTrigger className="gba:w-[140px]" data-testid="advance-payments-currency-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
-              </SelectItem>
-              {currencyStats.map(cs => (
-                <SelectItem key={cs.ref} value={cs.code}>
-                  {cs.code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <CurrencyDropdown
+          currencyStats={currencyStats}
+          selectedCurrencyCode={selectedCurrencyCode}
+          onCurrencyChange={handleCurrencyChange}
+          testIdPrefix="advance-payments"
+        />
       ) : undefined,
     [currencyStats, selectedCurrencyCode, handleCurrencyChange]
   )
@@ -1188,82 +1137,76 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         />
       </DataDisplay>
 
-      {/* Advance Payment Details Sheet */}
-      <Sheet open={!!selectedItem} onOpenChange={open => !open && handleCloseDetails()}>
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedItem?.expensePlan?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.advance_payment_details',
-                'Advance Payment Details'
-              )
-            }
-            onClose={handleCloseDetails}
-          >
-            {selectedItem ? <AdvancePaymentDetails payment={selectedItem} {...contextProps} /> : null}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+      <DetailsSheet
+        open={!!selectedItem}
+        onOpenChange={open => !open && handleCloseDetails()}
+        title={
+          selectedItem?.expensePlan?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:personal_expenses.advance_payment_details',
+            'Advance Payment Details'
+          )
+        }
+        testId="advance-payment-details-sheet"
+        onClose={handleCloseDetails}
+      >
+        {selectedItem ? <AdvancePaymentDetails payment={selectedItem} {...contextProps} /> : null}
+      </DetailsSheet>
 
-      {/* Expense Plan Details Sheet */}
-      <Sheet open={!!selectedExpensePlan} onOpenChange={open => !open && handleCloseDetails()}>
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedExpensePlan?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:approve_expense_plan.expense_subtitle_details',
-                'Expense Plan Details'
-              )
-            }
+      <DetailsSheet
+        open={!!selectedExpensePlan}
+        onOpenChange={open => !open && handleCloseDetails()}
+        title={
+          selectedExpensePlan?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approve_expense_plan.expense_subtitle_details',
+            'Expense Plan Details'
+          )
+        }
+        testId="expense-plan-details-sheet"
+        onClose={handleCloseDetails}
+      >
+        {selectedExpensePlan ? (
+          <ExpensePlanDetails
+            selectedItem={selectedExpensePlan}
             onClose={handleCloseDetails}
-          >
-            {selectedExpensePlan ? (
-              <ExpensePlanDetails
-                selectedItem={selectedExpensePlan}
-                onClose={handleCloseDetails}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                planTypeLabel={
-                  (selectedExpensePlan.requestType && (selectedExpensePlan.requestType as any).value) ||
-                  (selectedExpensePlan.type && (selectedExpensePlan.type as any).value) ||
-                  (selectedExpensePlan.requestType
-                    ? String(selectedExpensePlan.requestType)
-                    : selectedExpensePlan.type
-                      ? String(selectedExpensePlan.type)
-                      : undefined)
-                }
-              />
-            ) : null}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+            planTypeLabel={
+              (selectedExpensePlan.requestType && (selectedExpensePlan.requestType as any).value) ||
+              (selectedExpensePlan.type && (selectedExpensePlan.type as any).value) ||
+              (selectedExpensePlan.requestType
+                ? String(selectedExpensePlan.requestType)
+                : selectedExpensePlan.type
+                  ? String(selectedExpensePlan.type)
+                  : undefined)
+            }
+          />
+        ) : null}
+      </DetailsSheet>
 
-      {/* Expense Request Details Sheet */}
-      <Sheet open={!!selectedExpenseRequest} onOpenChange={open => !open && handleCloseDetails()}>
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedExpenseRequest?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                'Expense Request Details'
-              )
-            }
+      <DetailsSheet
+        open={!!selectedExpenseRequest}
+        onOpenChange={open => !open && handleCloseDetails()}
+        title={
+          selectedExpenseRequest?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+            'Expense Request Details'
+          )
+        }
+        testId="expense-request-details-sheet"
+        onClose={handleCloseDetails}
+      >
+        {selectedExpenseRequest ? (
+          <ExpenseRequestDetails
+            selectedItem={selectedExpenseRequest}
             onClose={handleCloseDetails}
-          >
-            {selectedExpenseRequest ? (
-              <ExpenseRequestDetails
-                selectedItem={selectedExpenseRequest}
-                onClose={handleCloseDetails}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-              />
-            ) : null}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+          />
+        ) : null}
+      </DetailsSheet>
 
       <GenerateDocumentDialog
         open={generateDocOpen}

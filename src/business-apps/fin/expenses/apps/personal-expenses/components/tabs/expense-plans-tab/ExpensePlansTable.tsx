@@ -7,28 +7,27 @@ import { getExpensePlanStatusDisplay } from '../../../utils'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
 import { startProcess } from '@/common/utils/start-process'
-import {
-  Spinner,
-  Badge,
-  Sheet,
-  SheetContent,
-  Button,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
+import { Badge, Button } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { useExpensePlanFileService } from '../../../utils/expensePlanFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
-import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
-import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
+import {
+  formatDateRangeForChip,
+  applyDateRangeFromFilter,
+  resolveSelectedCurrencyCode,
+  applyCurrencyChange,
+  buildEmptyMessage
+} from '../../../utils/tableUtils'
+import {
+  CurrencyDropdown,
+  PrintPreviewDialog,
+  DetailsSheet,
+  RowActionsWrapper,
+  RowActionsIcon
+} from '../../shared/TableSharedComponents'
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
 
@@ -342,13 +341,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     return { id: 'expense-plans-filters', name: 'Expense Plans Filters', groups }
   }, [availableStatuses, props.filterLabelMap])
 
-  const formatDateRangeForChip = useCallback((range: [Date | null, Date | null] | null | undefined) => {
-    if (!range?.[0] && !range?.[1]) return null
-    const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
-    const fmt = (d: Date | null | undefined) => (d ? d.toLocaleDateString('en-GB', opts) : '')
-    return range[0] && range[1] ? `${fmt(range[0])} – ${fmt(range[1])}` : fmt(range[0]) || fmt(range[1])
-  }, [])
-
   const filtersObject = useMemo((): Record<string, unknown> => {
     const statusIds = (selectedFilters || []).filter(f => availableStatuses.includes(f))
     const planTypeIds = (selectedFilters || []).filter(f => f.startsWith('planType:'))
@@ -364,38 +356,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     const endDateStr = formatDateRangeForChip(endDateRange)
     if (endDateStr) obj.endDateRange = endDateStr
     return obj
-  }, [
-    selectedFilters,
-    planDateRange,
-    effectiveDateRange,
-    startDateRange,
-    endDateRange,
-    availableStatuses,
-    formatDateRangeForChip
-  ])
-
-  const applyDateRangeFromFilter = useCallback(
-    (raw: unknown, setter: ((r: [Date | null, Date | null] | null) => void) | undefined): boolean => {
-      if (!setter) return false
-      const isDisplayString = typeof raw === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(raw) && !raw.includes(',')
-      if (isDisplayString) return false
-      const fromTo =
-        typeof raw === 'object' &&
-        raw != null &&
-        !Array.isArray(raw) &&
-        ((raw as any).from != null || (raw as any).to != null)
-          ? [(raw as any).from, (raw as any).to].filter(Boolean).join(',')
-          : (raw as string)
-      const normalized = normalizeDateRange(raw == null ? undefined : fromTo)
-      if (normalized && (normalized.from || normalized.to)) {
-        setter([normalized.from ? new Date(normalized.from) : null, normalized.to ? new Date(normalized.to) : null])
-        return true
-      }
-      setter(null)
-      return false
-    },
-    []
-  )
+  }, [selectedFilters, planDateRange, effectiveDateRange, startDateRange, endDateRange, availableStatuses])
 
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, unknown>) => {
@@ -421,7 +382,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       setEffectiveDateRange,
       setStartDateRange,
       setEndDateRange,
-      applyDateRangeFromFilter,
       onFiltersChange
     ]
   )
@@ -637,31 +597,20 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     },
     [onTableChange]
   )
-  const emptyMessage = hasActiveFilters
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.no_plan_data',
-        'No expense plans found. Create your first expense plan to get started.'
-      )
+  const emptyMessage = buildEmptyMessage(
+    hasActiveFilters,
+    'lowcoder:personal_expenses.no_plan_data',
+    'No expense plans found. Create your first expense plan to get started.'
+  )
 
-  const selectedCurrencyCode = useMemo(() => {
-    const token = (selectedFilters || []).find(f => f.startsWith('currency:'))
-    if (!token) return 'ALL'
-    const ref = token.substring('currency:'.length)
-    return props.currencyStats?.find(cs => cs.ref === ref)?.code ?? 'ALL'
-  }, [selectedFilters, props.currencyStats])
+  const selectedCurrencyCode = useMemo(
+    () => resolveSelectedCurrencyCode(selectedFilters || [], props.currencyStats || []),
+    [selectedFilters, props.currencyStats]
+  )
 
   const handleCurrencyChange = useCallback(
     (code: string) => {
-      const current = selectedFilters || []
-      if (code === 'ALL') {
-        props.setFilters(current.filter(f => !f.startsWith('currency:')))
-      } else {
-        const cs = props.currencyStats?.find(c => c.code === code)
-        if (cs) {
-          props.setFilters([...current.filter(f => !f.startsWith('currency:')), `currency:${cs.ref}`])
-        }
-      }
+      applyCurrencyChange(code, selectedFilters || [], props.currencyStats || [], props.setFilters)
     },
     [selectedFilters, props.currencyStats, props.setFilters]
   )
@@ -669,30 +618,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
   const secondaryActions = useMemo(
     () =>
       props.currencyStats?.length ? (
-        <div className="gba:flex gba:items-center gba:gap-2" key="currency-dropdown">
-          <Label className="gba:font-medium gba:shrink-0">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-              'Currency'
-            )}
-            :
-          </Label>
-          <Select value={selectedCurrencyCode} onValueChange={handleCurrencyChange}>
-            <SelectTrigger className="gba:w-[140px]" data-testid="expense-plans-currency-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
-              </SelectItem>
-              {props.currencyStats.map(cs => (
-                <SelectItem key={cs.ref} value={cs.code}>
-                  {cs.code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <CurrencyDropdown
+          currencyStats={props.currencyStats}
+          selectedCurrencyCode={selectedCurrencyCode}
+          onCurrencyChange={handleCurrencyChange}
+          testIdPrefix="expense-plans"
+        />
       ) : undefined,
     [props.currencyStats, selectedCurrencyCode, handleCurrencyChange]
   )
@@ -777,14 +708,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     (row: { original: ExpensePlan }) => {
       const record = row.original
       return (
-        <button
-          type="button"
-          className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
-          }}
-        >
+        <RowActionsWrapper>
           <AppAction
             variant="table-row"
             customActions={[
@@ -923,16 +847,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
             accessToken={contextProps.accessToken}
             data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-plan-button-${record.id}`}
           >
-            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-              />
-            </svg>
+            <RowActionsIcon />
           </AppAction>
-        </button>
+        </RowActionsWrapper>
       )
     },
     [
@@ -961,17 +878,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     const prev = (prevSearchRef.current || '').trim()
     const next = (props.search || '').trim()
     if (prev === '' && next !== '') {
-      // starting a search → save current page and jump to 1
-      const pagination = { current: 1, pageSize, total: totalCount }
-      onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = currentPage
+      onTableChange({ current: 1, pageSize, total: totalCount }, {}, {})
     } else if (prev !== '' && next === '') {
-      // clearing search → restore saved page, but validate it's not beyond available pages
-      const savedPage = savedPageBeforeSearchRef.current || 1
-      const maxPages = Math.max(1, Math.ceil(totalCount / pageSize))
-      const validPage = savedPage > maxPages ? 1 : savedPage
-      const pagination = { current: validPage, pageSize, total: totalCount }
-      onTableChange(pagination, {}, {})
+      onTableChange({ current: 1, pageSize, total: totalCount }, {}, {})
       savedPageBeforeSearchRef.current = null
     }
     prevSearchRef.current = props.search || ''
@@ -1057,64 +967,51 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         />
       </DataDisplay>
 
-      {/* Expense Plan Details Sheet */}
-      <Sheet
+      <DetailsSheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        data-testid="expense-plan-details-sheet"
+        title={
+          selectedItem?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approve_expense_plan.expense_subtitle_details',
+            'Expense Plan Details'
+          )
+        }
+        testId="expense-plan-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedItem?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:approve_expense_plan.expense_subtitle_details',
-                'Expense Plan Details'
-              )
-            }
-          >
-            {selectedItem ? (
-              <ExpensePlanDetails
-                selectedItem={selectedItem}
-                onClose={handleCloseDetails}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-              />
-            ) : null}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+        {selectedItem ? (
+          <ExpensePlanDetails
+            selectedItem={selectedItem}
+            onClose={handleCloseDetails}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+          />
+        ) : null}
+      </DetailsSheet>
 
-      {/* Expense Request Details Sheet */}
-      <Sheet
+      <DetailsSheet
         open={!!selectedExpenseRequest}
         onOpenChange={open => !open && handleCloseDetails()}
-        data-testid="expense-request-details-sheet"
+        title={
+          selectedExpenseRequest?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
+            'Expense Request Details'
+          )
+        }
+        testId="expense-request-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedExpenseRequest?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-                'Expense Request Details'
-              )
-            }
-          >
-            {selectedExpenseRequest ? (
-              <ExpenseRequestDetails
-                selectedItem={selectedExpenseRequest}
-                onClose={handleCloseDetails}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-              />
-            ) : null}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+        {selectedExpenseRequest ? (
+          <ExpenseRequestDetails
+            selectedItem={selectedExpenseRequest}
+            onClose={handleCloseDetails}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+          />
+        ) : null}
+      </DetailsSheet>
 
-      {/* Print Dialog using design system */}
-      <Dialog
+      <PrintPreviewDialog
         open={printModalOpen}
         onOpenChange={open => {
           if (!open) {
@@ -1122,32 +1019,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
             setPrintPdfUrl('')
           }
         }}
-      >
-        <DialogContent
-          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
-          style={{ height: '90vh' }}
-          data-testid="print-plan-modal"
-        >
-          <DialogHeader className="gba:p-4">
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.print_expense_plan', 'Print Expense Plan')}
-            </DialogTitle>
-          </DialogHeader>
-          {printLoading ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-              <Spinner />
-            </div>
-          ) : (
-            <iframe
-              src={printPdfUrl}
-              className="gba:w-full gba:border-0"
-              style={{ height: 'calc(90vh - 55px)' }}
-              title="Print Preview"
-              data-testid="print-plan-iframe"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        title={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.print_expense_plan', 'Print Expense Plan')}
+        loading={printLoading}
+        pdfUrl={printPdfUrl}
+        testIdPrefix="print-plan"
+      />
     </div>
   )
 })

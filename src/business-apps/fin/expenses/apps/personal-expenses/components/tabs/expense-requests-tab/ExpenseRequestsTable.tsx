@@ -3,27 +3,8 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  Spinner,
-  Sheet,
-  SheetContent,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  useTranslation,
-  Button,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
-import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
-import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
+import { useTranslation, Button, Badge } from '@newwork/nw-design-system'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
-import { Badge } from '@newwork/nw-design-system'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action'
@@ -33,6 +14,20 @@ import { ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import translations from '../../../_i18n'
+import {
+  formatDateRangeForChip,
+  applyDateRangeFromFilter,
+  resolveSelectedCurrencyCode,
+  applyCurrencyChange,
+  buildEmptyMessage
+} from '../../../utils/tableUtils'
+import {
+  CurrencyDropdown,
+  PrintPreviewDialog,
+  DetailsSheet,
+  RowActionsWrapper,
+  RowActionsIcon
+} from '../../shared/TableSharedComponents'
 
 type ExpenseRequestRow = {
   id: string
@@ -364,13 +359,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     return { id: 'expense-requests-filters', name: 'Expense Requests Filters', groups }
   }, [filterLabelMap])
 
-  const formatDateRangeForChip = useCallback((range: [Date | null, Date | null] | null | undefined) => {
-    if (!range?.[0] && !range?.[1]) return null
-    const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
-    const fmt = (d: Date | null | undefined) => (d ? d.toLocaleDateString('en-GB', opts) : '')
-    return range[0] && range[1] ? `${fmt(range[0])} – ${fmt(range[1])}` : fmt(range[0]) || fmt(range[1])
-  }, [])
-
   const filtersObject = useMemo((): Record<string, unknown> => {
     const statusIds = (selectedFilters || []).filter(f => Object.values(ExpenseRequestStatus).includes(f as any))
     const requestTypeIds = (selectedFilters || []).filter(f =>
@@ -388,30 +376,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     const endDateStr = formatDateRangeForChip(endDateRange)
     if (endDateStr) obj.endDateRange = endDateStr
     return obj
-  }, [selectedFilters, requestDateRange, effectiveDateRange, startDateRange, endDateRange, formatDateRangeForChip])
-
-  const applyDateRangeFromFilter = useCallback(
-    (raw: unknown, setter: ((r: [Date | null, Date | null] | null) => void) | undefined): boolean => {
-      if (!setter) return false
-      const isDisplayString = typeof raw === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(raw) && !raw.includes(',')
-      if (isDisplayString) return false
-      const fromTo =
-        typeof raw === 'object' &&
-        raw != null &&
-        !Array.isArray(raw) &&
-        ((raw as any).from != null || (raw as any).to != null)
-          ? [(raw as any).from, (raw as any).to].filter(Boolean).join(',')
-          : (raw as string)
-      const normalized = normalizeDateRange(raw == null ? undefined : fromTo)
-      if (normalized && (normalized.from || normalized.to)) {
-        setter([normalized.from ? new Date(normalized.from) : null, normalized.to ? new Date(normalized.to) : null])
-        return true
-      }
-      setter(null)
-      return false
-    },
-    []
-  )
+  }, [selectedFilters, requestDateRange, effectiveDateRange, startDateRange, endDateRange])
 
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, unknown>) => {
@@ -439,7 +404,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       props.setEffectiveDateRange,
       props.setStartDateRange,
       props.setEndDateRange,
-      applyDateRangeFromFilter,
       onTableChange,
       pageSize,
       sortField,
@@ -546,23 +510,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     []
   )
 
-  const selectedCurrencyCode = useMemo(() => {
-    const token = (selectedFilters || []).find(f => f.startsWith('currency:'))
-    if (!token) return 'ALL'
-    const ref = token.substring('currency:'.length)
-    return currencyStats.find(cs => cs.ref === ref)?.code ?? 'ALL'
-  }, [selectedFilters, currencyStats])
+  const selectedCurrencyCode = useMemo(
+    () => resolveSelectedCurrencyCode(selectedFilters || [], currencyStats),
+    [selectedFilters, currencyStats]
+  )
 
   const handleCurrencyChange = useCallback(
     (code: string) => {
-      const current = selectedFilters || []
-      if (code === 'ALL') {
-        props.setFilters?.(current.filter(f => !f.startsWith('currency:')))
-      } else {
-        const cs = currencyStats.find(c => c.code === code)
-        if (cs) {
-          props.setFilters?.([...current.filter(f => !f.startsWith('currency:')), `currency:${cs.ref}`])
-        }
+      if (props.setFilters) {
+        applyCurrencyChange(code, selectedFilters || [], currencyStats, props.setFilters)
       }
       if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
     },
@@ -588,33 +544,25 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     const prev = (prevDebouncedSearchRef.current || '').trim()
     const next = (debouncedSearchTerm || '').trim()
 
+    // Propagate search change to parent first so filters are up-to-date before any refetch
+    if (onSearchChange && debouncedSearchTerm !== search) {
+      onSearchChange(debouncedSearchTerm)
+    }
+
     // Manage pagination transitions for search
     if (prev === '' && next !== '') {
-      // Starting a new search → save current page and jump to page 1
+      savedPageBeforeSearchRef.current = currentPage
       if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
-      savedPageBeforeSearchRef.current = currentPage
     } else if (prev !== '' && next === '') {
-      // Clearing search → restore saved page if available
-      if (onTableChange) {
-        onTableChange(
-          { current: savedPageBeforeSearchRef.current || 1, pageSize },
-          {},
-          { field: sortField, order: sortOrder }
-        )
-      }
       savedPageBeforeSearchRef.current = null
     } else if (prev !== next && next !== '') {
-      // Search term changed while already in search mode → reset to first page
       if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
     }
 
-    if (onSearchChange && debouncedSearchTerm !== search) {
-      onSearchChange(debouncedSearchTerm)
-    }
     prevDebouncedSearchRef.current = debouncedSearchTerm
   }, [debouncedSearchTerm, onSearchChange, search, onTableChange, currentPage, pageSize, sortField, sortOrder])
 
@@ -675,12 +623,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     },
     [onTableChange, sortField, sortOrder]
   )
-  const emptyMessage = hasActiveFilters
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data available')
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.no_expense_request_data',
-        'No expense requests found. Create your first expense request to get started.'
-      )
+  const emptyMessage = buildEmptyMessage(
+    hasActiveFilters,
+    'lowcoder:personal_expenses.no_expense_request_data',
+    'No expense requests found. Create your first expense request to get started.'
+  )
   const columns = useMemo<ColumnDef<ExpenseRequestRow>[]>(
     () => [
       {
@@ -821,14 +768,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     (row: { original: ExpenseRequestRow }) => {
       const record = row.original
       return (
-        <button
-          type="button"
-          className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
-          }}
-        >
+        <RowActionsWrapper>
           <AppAction
             variant="table-row"
             customActions={[
@@ -892,16 +832,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
             accessToken={contextProps.accessToken}
             data-testid={`expense-request-update-button-${record.id}`}
           >
-            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-              />
-            </svg>
+            <RowActionsIcon />
           </AppAction>
-        </button>
+        </RowActionsWrapper>
       )
     },
     [tPersonal, contextProps.accessToken, handleEditExpenseRequest, handlePrintRequest, handleViewExpenseRequestDetails]
@@ -928,30 +861,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   const secondaryActions = useMemo(
     () =>
       currencyStats.length > 0 ? (
-        <div className="gba:flex gba:items-center gba:gap-2" key="currency-dropdown">
-          <Label className="gba:font-medium gba:shrink-0">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-              'Currency'
-            )}
-            :
-          </Label>
-          <Select value={selectedCurrencyCode} onValueChange={handleCurrencyChange}>
-            <SelectTrigger className="gba:w-[140px]" data-testid="expense-requests-currency-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
-              </SelectItem>
-              {currencyStats.map(cs => (
-                <SelectItem key={cs.ref} value={cs.code}>
-                  {cs.code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <CurrencyDropdown
+          currencyStats={currencyStats}
+          selectedCurrencyCode={selectedCurrencyCode}
+          onCurrencyChange={handleCurrencyChange}
+          testIdPrefix="expense-requests"
+        />
       ) : undefined,
     [currencyStats, selectedCurrencyCode, handleCurrencyChange]
   )
@@ -1026,76 +941,42 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         />
       </DataDisplay>
 
-      {/* Expense Request Details Sheet */}
-      <Sheet
+      <DetailsSheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        data-testid="expense-request-details-sheet"
+        title={
+          selectedItem?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
+            'Expense Request Details'
+          )
+        }
+        testId="expense-request-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedItem?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-                'Expense Request Details'
-              )
-            }
-          >
-            {selectedItem ? (
-              <ExpenseRequestDetails
-                selectedItem={selectedItem}
-                onClose={handleCloseDetails}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-              />
-            ) : null}
-          </ExpenseDetailsShell>
-        </SheetContent>
-      </Sheet>
+        {selectedItem ? (
+          <ExpenseRequestDetails
+            selectedItem={selectedItem}
+            onClose={handleCloseDetails}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+          />
+        ) : null}
+      </DetailsSheet>
 
-      {/* Print Dialog using design system */}
-      <Dialog
+      <PrintPreviewDialog
         open={printModalOpen}
         onOpenChange={open => {
           setPrintModalOpen(open)
-          if (!open) {
-            setPrintPdfUrl('')
-          }
+          if (!open) setPrintPdfUrl('')
         }}
-      >
-        <DialogContent
-          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
-          style={{ height: '90vh' }}
-          data-testid="expense-request-print-modal"
-        >
-          <DialogHeader className="gba:p-4">
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.print_expense_request',
-                'Print Expense Request'
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          {printLoading ? (
-            <div className="gba:flex gba:justify-center gba:p-8">
-              <Spinner />
-            </div>
-          ) : printPdfUrl ? (
-            <iframe
-              src={printPdfUrl}
-              className="gba:w-full gba:border-0"
-              style={{ height: 'calc(90vh - 55px)' }}
-              title="Expense Request PDF"
-              data-testid="expense-request-pdf-iframe"
-            />
-          ) : (
-            <div className="gba:text-center gba:p-8 gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+        title={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.print_expense_request',
+          'Print Expense Request'
+        )}
+        loading={printLoading}
+        pdfUrl={printPdfUrl}
+        testIdPrefix="expense-request"
+      />
     </>
   )
 })

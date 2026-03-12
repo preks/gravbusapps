@@ -185,13 +185,13 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       }
       const gqlField = fieldMap[sortField]
       if (gqlField) {
-        const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
+        const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
         variables.orderBy = [{ [gqlField]: direction }]
       } else {
-        variables.orderBy = [{ requestDate: 'DESC' }]
+        variables.orderBy = [{ requestDate: 'DESC_NULLS_LAST' }]
       }
     } else {
-      variables.orderBy = [{ requestDate: 'DESC' }]
+      variables.orderBy = [{ requestDate: 'DESC_NULLS_LAST' }]
     }
 
     return variables
