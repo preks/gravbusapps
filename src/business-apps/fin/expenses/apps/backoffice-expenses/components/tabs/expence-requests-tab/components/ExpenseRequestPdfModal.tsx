@@ -37,18 +37,20 @@ const ExpenseRequestPdfModal: React.FC<ExpenseRequestPdfModalProps> = ({
         <DialogHeader className="gba:p-4">
           <DialogTitle>{t('pdf-modal-title')}</DialogTitle>
         </DialogHeader>
-        {pdfLoading ? (
+        {pdfLoading && (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner />
           </div>
-        ) : pdfError ? (
+        )}
+        {!pdfLoading && pdfError && (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Alert variant="destructive">
               <div className="gba:font-medium">{t('pdf-error-loading')}</div>
               <div className="gba:text-sm">{pdfError}</div>
             </Alert>
           </div>
-        ) : pdfUrl ? (
+        )}
+        {!pdfLoading && !pdfError && pdfUrl && (
           <iframe
             src={pdfUrl}
             className="gba:w-full gba:border-0"
@@ -56,7 +58,8 @@ const ExpenseRequestPdfModal: React.FC<ExpenseRequestPdfModalProps> = ({
             title={t('pdf-iframe-title')}
             data-testid="expense-request-pdf-iframe"
           />
-        ) : (
+        )}
+        {!pdfLoading && !pdfError && !pdfUrl && (
           <div className="gba:text-center gba:p-8 gba:text-gray-500">{t('empty-no-document')}</div>
         )}
       </DialogContent>

@@ -60,11 +60,14 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
 
       {showEmployeeDropdown && employeeSearchText.trim() && (
         <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
-          {employeeSearchLoading ? (
+          {employeeSearchLoading && (
             <div className="gba:p-2 gba:text-sm gba:text-gray-500">{t('employee-loading')}</div>
-          ) : employeeSearchResults.length === 0 ? (
+          )}
+          {!employeeSearchLoading && employeeSearchResults.length === 0 && (
             <div className="gba:p-2 gba:text-sm gba:text-gray-500">{t('employee-no-results')}</div>
-          ) : (
+          )}
+          {!employeeSearchLoading &&
+            employeeSearchResults.length > 0 &&
             employeeSearchResults.map(employee => (
               <button
                 key={employee.id}
@@ -86,8 +89,7 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
               >
                 {employee.name}
               </button>
-            ))
-          )}
+            ))}
         </div>
       )}
     </div>

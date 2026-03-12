@@ -43,6 +43,7 @@ export interface StatusDisplayConfig {
 export const getExpenseRequestStatusDisplay = (status: string, t: TranslateFn): StatusDisplayConfig => {
   switch (status) {
     case ExpenseStatus.CREATED:
+    default:
       return {
         label: t('status-draft'),
         badgeVariant: 'offline'
@@ -111,12 +112,6 @@ export const getExpenseRequestStatusDisplay = (status: string, t: TranslateFn): 
       return {
         label: t('status-transferred'),
         badgeVariant: 'success'
-      }
-
-    default:
-      return {
-        label: t('status-draft'),
-        badgeVariant: 'offline'
       }
   }
 }

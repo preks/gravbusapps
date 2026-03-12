@@ -175,10 +175,11 @@ export const buildAdvancePaymentFields = (
   const fields: DetailsPanelField[] = [
     {
       label: t('header-status'),
-      value: React.createElement(Badge, {
-        variant: (statusConfig?.badgeVariant || 'outline') as any,
-        children: statusConfig?.label || t('common-not-available')
-      })
+      value: React.createElement(
+        Badge,
+        { variant: (statusConfig?.badgeVariant || 'outline') as any },
+        statusConfig?.label || t('common-not-available')
+      )
     }
   ]
 

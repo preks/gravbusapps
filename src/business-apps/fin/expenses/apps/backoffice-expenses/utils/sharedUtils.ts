@@ -14,8 +14,10 @@ export const buildStatusDisplayName = (
   const config = getStatusDisplay(status, t)
   if (config.label.toLowerCase() === status.toLowerCase()) return config.label
   const formatted = status.charAt(0) + status.slice(1).toLowerCase()
-  const translated = t(`status-${status.toLowerCase()}`)
-  return `${config.label} (${translated !== `status-${status.toLowerCase()}` ? translated : formatted})`
+  const statusKey = 'status-' + status.toLowerCase()
+  const translated = t(statusKey)
+  const displayTranslation = translated === statusKey ? formatted : translated
+  return config.label + ' (' + displayTranslation + ')'
 }
 
 const MAX_QUERY_LIMIT = 1000

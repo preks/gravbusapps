@@ -1242,7 +1242,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 } else {
                   // Format backend status with only first letter uppercase and translate it
                   const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-                  const statusKey = `status-${status.toLowerCase().replace(/_/g, '-')}` as const
+                  const statusKey = `status-${status.toLowerCase().replaceAll('_', '-')}` as const
                   const translatedStatus = t(statusKey as any) || formattedStatus
                   acc[status] = `${statusConfig.label} (${translatedStatus})`
                 }
