@@ -29,12 +29,11 @@
     "typecheck": "cross-env NODE_OPTIONS=--max-old-space-size=7168 tsc --noEmit --pretty false",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "prepare": "newwork-git-hooks && node ./scripts/setup-custom-git-hooks.js",
     "commit": "dotenvx run -- czg ai",
     "rules:sync": "cursor-rules sync",
     "rules:validate": "cursor-rules validate",
     "rules:diff": "cursor-rules diff",
-    "postinstall": "cursor-rules sync --silent && node ./scripts/setup-custom-git-hooks.js"
+    "postinstall": "newwork-git-hooks"
   },
   "dependencies": {
     "@cloudflare/realtimekit": "^1.0.0",
@@ -142,7 +141,7 @@
     "@newwork/cursor-rules": "^1.8.0",
     "@newwork/cz-config": "^0.2.1",
     "@newwork/eslint-config": "^0.4.1",
-    "@newwork/git-hooks": "^0.2.0",
+    "@newwork/git-hooks": "^0.2.1",
     "@newwork/lint-staged-config": "^0.1.0",
     "@newwork/prettier-config": "^0.2.0",
     "@originjs/vite-plugin-federation": "^1.4.1",

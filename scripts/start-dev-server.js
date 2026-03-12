@@ -1,9 +1,96 @@
 import detect from 'detect-port'
-import { spawn } from 'child_process'
+import { execSync, spawn } from 'child_process'
 import readline from 'readline'
+import { existsSync, readFileSync } from 'fs'
+import { join } from 'path'
 
 const DEFAULT_PORT = 3001
 const MAX_PORT = 3010
+
+function getInstalledCursorRulesVersion() {
+  const packagePath = join(process.cwd(), 'node_modules', '@newwork', 'cursor-rules', 'package.json')
+  if (!existsSync(packagePath)) {
+    return null
+  }
+
+  try {
+    const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'))
+    return packageJson.version ?? null
+  } catch {
+    return null
+  }
+}
+
+function isCursorRulesDeclared() {
+  const packagePath = join(process.cwd(), 'package.json')
+  if (!existsSync(packagePath)) {
+    return false
+  }
+
+  try {
+    const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'))
+    const deps = {
+      ...(packageJson.dependencies ?? {}),
+      ...(packageJson.devDependencies ?? {}),
+      ...(packageJson.optionalDependencies ?? {})
+    }
+    return Boolean(deps['@newwork/cursor-rules'])
+  } catch {
+    return false
+  }
+}
+
+function warnIfNewerCursorRulesAvailable() {
+  if (!isCursorRulesDeclared()) {
+    return
+  }
+
+  const installedVersion = getInstalledCursorRulesVersion()
+  if (!installedVersion) {
+    return
+  }
+
+  try {
+    const latestVersion = execSync('npm view @newwork/cursor-rules version --silent', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim()
+
+    if (latestVersion && latestVersion !== installedVersion) {
+      console.warn(
+        `WARNING: @newwork/cursor-rules update available: ${installedVersion} -> ${latestVersion}. Run: npm install -D @newwork/cursor-rules@latest`
+      )
+    }
+  } catch {
+    // Ignore version check failures (e.g., network issues).
+  }
+}
+
+function syncCursorRules() {
+  if (!isCursorRulesDeclared()) {
+    return
+  }
+
+  const installedVersion = getInstalledCursorRulesVersion()
+  if (!installedVersion) {
+    console.warn('WARNING: @newwork/cursor-rules is declared but not installed. Run: npm install')
+    return
+  }
+
+  try {
+    execSync('npx --no-install cursor-rules sync --silent', {
+      stdio: 'ignore'
+    })
+  } catch {
+    console.warn('WARNING: cursor-rules sync failed. Run manually: npx cursor-rules sync')
+  }
+}
+
+function installDependencies() {
+  execSync('npm install', {
+    stdio: 'inherit'
+  })
+}
 
 /**
  * Ask user for confirmation using readline
@@ -32,7 +119,11 @@ function askUser(question) {
 function startDevServer(port) {
   console.log(`\nStarting dev server on port ${port}...\n`)
 
-  const command = `npm install @newwork/cursor-rules@latest && npm install && npm run cleanup:logs && vite --port ${port}`
+  installDependencies()
+  syncCursorRules()
+  warnIfNewerCursorRulesAvailable()
+
+  const command = `npm run cleanup:logs && vite --port ${port}`
 
   const child = spawn(command, {
     stdio: 'inherit',
