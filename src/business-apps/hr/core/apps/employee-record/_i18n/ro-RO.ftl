@@ -287,7 +287,7 @@ error-end-date-after-start-date = Data de încheiere trebuie să fie în sau dup
 
 # Employee Record - Notifications
 notification-address-updated-success = Actualizările adresei au fost trimise spre aprobare departamentului HR.
-notification-bank-account-updated-success = Actualizările contului bancar au fost trimise spre aprobare departamentului HR.
+notification-bank-account-updated-success = Actualizările contului bancar sunt finalizate.
 notification-personal-data-updated-success = Actualizările datelor personale au fost trimise spre aprobare departamentului HR.
 notification-communication-updated-success = Actualizările detaliilor de comunicare au fost trimise spre aprobare departamentului HR.
 notification-profile-picture-updated-success = Actualizările fotografiei de profil au fost trimise spre aprobare departamentului HR.
