@@ -210,6 +210,8 @@ const TeamActivitiesTable: React.FC<TeamActivitiesTableProps> = ({ teamMembers, 
           enablePagination
           enableSorting
           enableSelection={false}
+          enableResizing={false}
+          tableLayout="fixed"
         />
       </DataDisplay>
 

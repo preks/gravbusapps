@@ -2,7 +2,7 @@
  * EndConfigPanel - Summary fields configuration for the end node.
  */
 
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import {
   Button,
   Input,
@@ -20,12 +20,14 @@ import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { useStudioExpressionSuggestions } from '../../hooks/useStudioExpressionSuggestions'
 import type { EndNodeConfig, DesignerMode } from '../../types/studioTypes'
 import { SummaryFieldVisibility, type SummaryField } from '@/business-apps/flow/apps/creator/types/flowTemplate'
-import { ExpressionEditor } from '@/common/components/flow/expression-editor'
+import { FlowContextExpressionEditor } from '../shared/FlowContextExpressionEditor'
+import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 
 interface EndConfigPanelProps {
   nodeId: string
   config: EndNodeConfig
   mode: DesignerMode
+  studioData: FlowStudioData
   'data-testid'?: string
 }
 
@@ -33,10 +35,37 @@ export const EndConfigPanel: React.FC<EndConfigPanelProps> = ({
   nodeId,
   config,
   mode,
+  studioData,
   'data-testid': testId = 'flow-studio-end-config'
 }) => {
   const updateNodeConfig = useFlowStudioStore(s => s.updateNodeConfig)
   const suggestions = useStudioExpressionSuggestions()
+  const dataSources = useMemo(
+    () => ({
+      catalogs: studioData.catalogs,
+      catalogsLoading: studioData.catalogsLoading,
+      catalogsError: studioData.catalogsError,
+      catalogsQuery: studioData.catalogsQuery,
+      catalogsHasMore: studioData.catalogsHasMore,
+      searchCatalogs: studioData.searchCatalogs,
+      loadMoreCatalogs: studioData.loadMoreCatalogs,
+      entities: studioData.entities,
+      entitiesLoading: studioData.entitiesLoading,
+      entitiesError: studioData.entitiesError
+    }),
+    [
+      studioData.catalogs,
+      studioData.catalogsError,
+      studioData.catalogsHasMore,
+      studioData.catalogsLoading,
+      studioData.catalogsQuery,
+      studioData.entities,
+      studioData.entitiesError,
+      studioData.entitiesLoading,
+      studioData.loadMoreCatalogs,
+      studioData.searchCatalogs
+    ]
+  )
 
   const fields = config.summaryFields ?? []
 
@@ -115,12 +144,13 @@ export const EndConfigPanel: React.FC<EndConfigPanelProps> = ({
               </div>
 
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label className="gba:text-xs">Value Expression</Label>
-                <ExpressionEditor
+                <Label className="gba:text-xs">Value</Label>
+                <FlowContextExpressionEditor
                   value={field.value}
                   onChange={v => updateField(index, { value: v })}
                   suggestions={suggestions}
-                  placeholder="Type {{ to pick an expression..."
+                  dataSources={dataSources}
+                  placeholder="Type {{ to insert flow context…"
                   allowFreeText={mode === 'advanced'}
                   data-testid={`${testId}-field-value-${index}`}
                 />

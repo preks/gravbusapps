@@ -1,37 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import {
-  UserIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  UsersIcon,
-  ListChecksIcon,
-  TargetIcon,
-  HandshakeIcon,
-  BuildingIcon,
-  CalendarIcon
-} from '@phosphor-icons/react'
+import { UserIcon, TargetIcon, HandshakeIcon, BuildingIcon, CalendarIcon } from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '../hooks/useTeamActivitiesData'
 import type { SalesTeamMember } from '../../sales-members-list/types'
 import { getEntityName, getEntityType, getActivityTypeVariant, safeString } from '../../../utils/activityHelpers'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/utils/windowUtils'
-
-// Get activity type icon (Lucide icons specific to this component)
-const getActivityTypeIcon = (type: string) => {
-  switch (type) {
-    case 'Call':
-      return <PhoneIcon className="gba:h-4 gba:w-4 gba:text-success" />
-    case 'Email':
-      return <EnvelopeIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-    case 'Meeting':
-      return <UsersIcon className="gba:h-4 gba:w-4 gba:text-warning" />
-    case 'Task':
-      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-accent" />
-    default:
-      return <ListChecksIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-  }
-}
 
 // Get entity type icon (Lucide icons specific to this component)
 const getEntityTypeIcon = (entityType: string) => {
@@ -140,12 +114,12 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
     cell: ({ row }) => {
       const title = safeString(row.original.title)
       return (
-        <div className="gba:flex gba:flex-col gba:gap-1">
-          <span className="gba:text-sm gba:font-medium" title={title}>
+        <div className="gba:flex gba:flex-col gba:gap-1 gba:overflow-hidden gba:max-w-[250px]">
+          <span className="gba:text-sm gba:font-medium gba:truncate" title={title}>
             {title || '-'}
           </span>
           {row.original.description && (
-            <span className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1" title={row.original.description}>
+            <span className="gba:text-xs gba:text-muted-foreground gba:truncate" title={row.original.description}>
               {row.original.description}
             </span>
           )}
@@ -162,10 +136,9 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
     cell: ({ row }) => {
       const type = row.original.activityType?.value || 'Other'
       return (
-        <Badge variant={getActivityTypeVariant(type)} className="gba:gap-1.5">
-          {getActivityTypeIcon(type)}
-          <span>{type}</span>
-        </Badge>
+        <div className="gba:flex gba:items-center">
+          <Badge variant={getActivityTypeVariant(type)}>{type}</Badge>
+        </div>
       )
     }
   },

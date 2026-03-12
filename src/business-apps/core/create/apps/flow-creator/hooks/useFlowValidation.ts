@@ -8,6 +8,7 @@ import { useMemo } from 'react'
 import { useFlowStudioStore } from './useFlowStudioStore'
 import type { StudioNode } from '../types/studioTypes'
 import type { FlowGraphEdge } from '@/common/components/flow/flow-viewer'
+import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 
 export type ValidationSeverity = 'error' | 'warning' | 'info'
 
@@ -106,6 +107,71 @@ function validateDecisionNodes(nodes: StudioNode[]): PartialIssue[] {
     }))
 }
 
+function hasSpecificAssignmentTargets(targets: unknown): boolean {
+  if (!targets || typeof targets !== 'object') return false
+
+  return Object.values(targets as Record<string, unknown>).some(
+    value =>
+      Array.isArray(value) &&
+      value.some(entry => {
+        const normalized = String(entry || '').trim()
+        return normalized !== '' && normalized !== 'ANY'
+      })
+  )
+}
+
+function validateClaimAssignments(nodes: StudioNode[]): PartialIssue[] {
+  const issues: PartialIssue[] = []
+
+  for (const node of nodes) {
+    if (node.type === 'task' && node.config.nodeType === 'task' && node.config.kind === 'USER') {
+      const assignment = node.config.assignment
+      if (assignment?.assignmentMode === AssignmentMode.CLAIM && !hasSpecificAssignmentTargets(assignment.targets)) {
+        issues.push({
+          nodeId: node.id,
+          severity: 'error',
+          message: `Claimable step "${node.label}" must define at least one claim target`,
+          rule: 'claim-needs-target'
+        })
+      }
+    }
+
+    if (node.type === 'decision' && node.config.nodeType === 'decision') {
+      if (node.config.decisionMode === 'USER') {
+        const userAssignment = node.config.userConfig?.assignment
+        if (
+          userAssignment?.assignmentMode === AssignmentMode.CLAIM &&
+          !hasSpecificAssignmentTargets(userAssignment.targets)
+        ) {
+          issues.push({
+            nodeId: node.id,
+            severity: 'error',
+            message: `Decision "${node.label}" must define at least one claim target`,
+            rule: 'decision-claim-needs-target'
+          })
+        }
+      }
+
+      if (node.config.decisionMode === 'AI') {
+        const escalationAssignment = node.config.aiConfig?.escalation?.assignment
+        if (
+          escalationAssignment?.assignmentMode === AssignmentMode.CLAIM &&
+          !hasSpecificAssignmentTargets(escalationAssignment.targets)
+        ) {
+          issues.push({
+            nodeId: node.id,
+            severity: 'error',
+            message: `Decision "${node.label}" escalation must define at least one claim target`,
+            rule: 'decision-escalation-claim-needs-target'
+          })
+        }
+      }
+    }
+  }
+
+  return issues
+}
+
 function validateForkJoinPairs(nodes: StudioNode[]): PartialIssue[] {
   const joinNodes = nodes.filter(n => n.type === 'join')
   return nodes
@@ -166,6 +232,7 @@ function validateFlow(nodes: StudioNode[], edges: FlowGraphEdge[]): ValidationIs
     ...validateStartAndEndNodes(nodes),
     ...validateOrphanNodes(nodes, edges),
     ...validateDecisionNodes(nodes),
+    ...validateClaimAssignments(nodes),
     ...validateForkJoinPairs(nodes),
     ...validateReworkTargets(nodes, nodeMap),
     ...validateEdges(edges, nodeIds)
