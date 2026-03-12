@@ -8,6 +8,7 @@ actions = Actions
 
 today = Today
 holiday = Bank Holiday
+manual_entry = Manual Entry
 
 # Day Type column (attendance page only; absences use catalog translations)
 time_tracking_day_type_weekend = Weekend
