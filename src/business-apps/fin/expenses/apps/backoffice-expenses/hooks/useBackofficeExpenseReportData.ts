@@ -462,8 +462,9 @@ export const useBackofficeExpenseReportData = (
           }
         }
         case ReportType.EXPENSE_PLAN: {
+          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
           const dates = overrides?.dates ?? selectedDates
-          const where = buildExpensePlanWhereForExport(search, empFilters, deptFilters, dates)
+          const where = buildExpensePlanWhereForExport(search, empFilters, deptFilters, dates, statuses)
           const result = await graphqlClient.request(GET_EXPENSE_PLANS_BACKOFFICE, {
             where,
             limit,
@@ -497,8 +498,9 @@ export const useBackofficeExpenseReportData = (
           }
         }
         case ReportType.ADVANCE_PAYMENT: {
+          const statuses = resolveOverride(overrides?.statusFilters, selectedStatusFilters)
           const dates = overrides?.dates ?? selectedDates
-          const where = buildAdvancePaymentWhereForExport(search, empFilters, deptFilters, dates)
+          const where = buildAdvancePaymentWhereForExport(search, empFilters, deptFilters, dates, statuses)
           const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BACKOFFICE, {
             where,
             limit,

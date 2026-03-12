@@ -244,6 +244,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
           accessToken={accessToken}
           employeeId={employeeId}
           userId={userId}
+          showRowsPerPage={false}
         />
       </Card>
     </div>

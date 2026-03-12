@@ -36,7 +36,6 @@ if (import.meta.hot && typeof window !== 'undefined') {
     hmrVersion += 1
     globalScreenCache.clear()
     globalLoadingState.clear()
-    dynamicScreenLoader = null
     window.dispatchEvent(new Event(DYNAMIC_SCREEN_HMR_EVENT))
   })
 }

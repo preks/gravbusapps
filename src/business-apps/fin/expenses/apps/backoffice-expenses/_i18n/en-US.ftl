@@ -466,8 +466,8 @@ error-unknown = Unknown error occurred
 error-failed-load-expense-groups = Failed to load expense group data
 error-failed-load-filter-data = Failed to fetch filter data
 
-# Quick Actions
-quick-actions-title = Quick Actions
+# Insights & Reports
+quick-actions-title = Insights & Reports
 quick-actions-reports-cta = Generate or view expense reports.
 
 # SLA Tooltips
