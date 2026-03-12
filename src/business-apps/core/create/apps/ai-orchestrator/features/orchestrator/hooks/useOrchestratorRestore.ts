@@ -17,12 +17,6 @@ export interface UseOrchestratorRestoreOptions {
     sessionId?: string
     limit?: number
   }) => Promise<{ checkpointId: string; snapshot?: { viewState?: unknown } }[]>
-  restoreDraftCheckpoint: (
-    checkpointId: string,
-    sessionId?: string
-  ) => Promise<{
-    checkpoint?: { snapshot?: { viewState?: unknown } }
-  }>
   builderClient: {
     loadChatHistory: (repoId: string, sessionId: string) => Promise<BuilderChatMessage[]>
   }
@@ -36,15 +30,14 @@ export interface UseOrchestratorRestoreOptions {
 }
 
 export function useOrchestratorRestore(options: UseOrchestratorRestoreOptions) {
-  const {
-    listDraftCheckpoints,
-    restoreDraftCheckpoint,
-    builderClient,
-    chat,
-    state,
-    setSessionFromBuild,
-    lastChatStateRef
-  } = options
+  const { listDraftCheckpoints, builderClient, chat, state, setSessionFromBuild, lastChatStateRef } = options
+
+  const deriveViewStateFromPlan = useCallback((plan: BuildPlan): OrchestratorViewState => {
+    if (plan.currentPhase === 'awaiting_change_decision') {
+      return 'review'
+    }
+    return plan.status === 'completed' ? 'complete' : 'review'
+  }, [])
 
   const resolveViewStateFromCheckpoint = useCallback(
     async (
@@ -60,25 +53,35 @@ export function useOrchestratorRestore(options: UseOrchestratorRestoreOptions) {
         })
         const latestCheckpoint = checkpoints[0]
         if (!latestCheckpoint) return fallback
-        const restored = await restoreDraftCheckpoint(latestCheckpoint.checkpointId, sessionContext.sessionId)
-        const checkpointViewState = restored.checkpoint?.snapshot?.viewState
-        return isValidOrchestratorViewState(checkpointViewState) ? checkpointViewState : fallback
+        // Never restore here: refresh/session selection should hydrate current persisted state,
+        // not mutate backend state by replaying a historical checkpoint.
+        const checkpointViewState = latestCheckpoint.snapshot?.viewState
+        if (!isValidOrchestratorViewState(checkpointViewState)) {
+          return fallback
+        }
+
+        // Plan state is authoritative for actionable review/complete modes.
+        // Keep explicit error checkpoint only when plan is not already complete.
+        if (checkpointViewState === 'error' && fallback !== 'complete') {
+          return 'error'
+        }
+        return fallback
       } catch {
         return fallback
       }
     },
-    [listDraftCheckpoints, restoreDraftCheckpoint]
+    [listDraftCheckpoints]
   )
 
   const applyRestoredPlan = useCallback(
     async (plan: BuildPlan) => {
       const alreadyBuilt =
-        plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
+        deriveViewStateFromPlan(plan) === 'complete'
 
       // Get session directly from plan (no need to extract from components)
       const sessionContext = plan.sessionId && plan.repoId ? { sessionId: plan.sessionId, repoId: plan.repoId } : null
 
-      const baseViewState: OrchestratorViewState = alreadyBuilt ? 'complete' : 'review'
+      const baseViewState: OrchestratorViewState = alreadyBuilt ? 'complete' : deriveViewStateFromPlan(plan)
       const resolvedViewState = sessionContext
         ? await resolveViewStateFromCheckpoint(sessionContext, plan, baseViewState)
         : baseViewState
@@ -115,7 +118,7 @@ export function useOrchestratorRestore(options: UseOrchestratorRestoreOptions) {
       state.setChatActive(true)
       state.setViewState(resolvedViewState)
     },
-    [chat, state, builderClient, setSessionFromBuild, resolveViewStateFromCheckpoint, lastChatStateRef]
+    [chat, state, builderClient, setSessionFromBuild, resolveViewStateFromCheckpoint, lastChatStateRef, deriveViewStateFromPlan]
   )
 
   return { applyRestoredPlan }

@@ -62,7 +62,7 @@ interface AccountSegmentProps {
   accountsError: string | null
   searchAccounts: (search: string) => void
 
-  // Account contacts with full data (for display)
+  // Account contacts from loaded entity (with nested account) for display - same pattern as account form
   accountContacts?: any[]
 
   // Test ID prefix
@@ -83,7 +83,7 @@ const AccountItem: React.FC<{
   typeMode: 'accountType' | 'contactType'
   accountTypeCatalogIdentifier?: string
   accountIndex: number
-  accountContacts: any[]
+  accountContacts?: any[]
   accounts: AccountSegmentOption[]
   onRemove: () => void
   dataTestId?: string
@@ -106,16 +106,12 @@ const AccountItem: React.FC<{
   // Watch the account ID to get display data
   const accountId = form.watch(`${fieldArrayName}.${accountIndex}.${accountIdFieldName}`)
 
-  // Get account display data from accountContacts (junction table records) or accounts (search results)
+  // Get account display data from accountContacts (from loaded entity) or accounts (search results)
   const accountData = React.useMemo(() => {
-    // First, try to find in accountContacts (junction table with nested data)
-    const accountContact = accountContacts.find((ac: any) => {
-      // Handle both investmentAccount (for investments) and account (for opportunities)
-      const id = ac.investmentAccount?.id || ac.account?.id || ac.investmentAccountId || ac.accountId
+    const accountContact = accountContacts?.find((ac: any) => {
+      const id = ac.account?.id || ac.investmentAccount?.id || ac.accountId || ac.investmentAccountId
       return id === accountId
     })
-
-    // Extract account object - could be 'account' or 'investmentAccount'
     const account = accountContact?.account || accountContact?.investmentAccount
 
     if (account) {
@@ -227,11 +223,11 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   accountTypeFieldName,
   typeMode = 'accountType',
   accountTypeCatalogIdentifier,
+  accountContacts,
   accounts,
   accountsLoading,
   accountsError,
   searchAccounts,
-  accountContacts = [],
   dataTestId = 'account-segment',
   disabled = false,
   error

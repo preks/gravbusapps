@@ -1,9 +1,10 @@
 import { useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_POSITIONS_BY_IDENTIFIERS, GET_EMPLOYEES_BY_IDS } from '../queries/backofficeReportQueries'
-import { FORMER_EMPLOYEE_LABEL, buildEmployeeDisplayName } from './backofficeReportUtils'
+import { getFormerEmployeeLabel, buildEmployeeDisplayName } from './backofficeReportUtils'
+import type { TranslateFn } from '../utils/utils'
 
-export const useEmployeeResolver = (accessToken: string | undefined) => {
+export const useEmployeeResolver = (accessToken: string | undefined, t?: TranslateFn) => {
   const graphqlClient = useGraphQLClient(accessToken)
   const employeeNameCacheRef = useRef<Record<string, string>>({})
   const employeeDepartmentCacheRef = useRef<Record<string, string>>({})
@@ -106,9 +107,9 @@ export const useEmployeeResolver = (accessToken: string | undefined) => {
         const resolved = employeeNameById[key]
         if (resolved) return resolved
       }
-      return FORMER_EMPLOYEE_LABEL
+      return t ? getFormerEmployeeLabel(t) : 'Former employee'
     },
-    []
+    [t]
   )
 
   const resolveDepartmentName = useCallback((candidates: Array<string | undefined | null>) => {

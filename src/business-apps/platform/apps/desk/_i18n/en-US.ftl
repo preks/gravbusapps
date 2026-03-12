@@ -24,6 +24,8 @@ app-notes-title = Notes
 app-notes-description = Capture ideas quickly with rich formatting and tags
 app-slides-title = Slides
 app-slides-description = Create slide decks with live collaboration
+app-drive-title = Drive
+app-drive-description = Organize, search, and share all your files in one place
 
 # Quick Actions – search & create
 search-placeholder = Search your documents, spreadsheets, and notes...

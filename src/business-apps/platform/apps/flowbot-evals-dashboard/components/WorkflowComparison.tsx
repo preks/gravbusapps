@@ -24,7 +24,15 @@ type WorkflowStats = {
   avgTotalMs: number | null
   avgTokens: number | null
   avgToolCalls: number | null
+  avgScopeTokens: Record<string, number | null>
 }
+
+const SCOPE_LABELS: Record<string, string> = {
+  monolith: 'Avg mono tkns',
+  controller: 'Avg ctrl tkns',
+  prechat: 'Avg prechat tkns'
+}
+const scopeLabel = (scope: string) => SCOPE_LABELS[scope] ?? `Avg ${scope} tkns`
 
 const formatNumber = (value: number | null, digits = 0) => {
   if (value == null) return '—'
@@ -35,6 +43,21 @@ const average = (values: Array<number | null | undefined>): number | null => {
   const nums = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
   if (nums.length === 0) return null
   return nums.reduce((a, b) => a + b, 0) / nums.length
+}
+
+const buildWorkflowStats = (workflow: string, runs: RunRow[], scopes: string[]): WorkflowStats => {
+  const avgScopeTokens: Record<string, number | null> = {}
+  scopes.forEach(scope => {
+    avgScopeTokens[scope] = average(runs.map(r => r.token_scopes?.[scope]?.total_tokens ?? null))
+  })
+  return {
+    workflow,
+    runs: runs.length,
+    avgTotalMs: average(runs.map(r => r.total_ms)),
+    avgTokens: average(runs.map(r => r.total_tokens)),
+    avgToolCalls: average(runs.map(r => r.num_tool_calls)),
+    avgScopeTokens
+  }
 }
 
 export interface WorkflowComparisonProps {
@@ -48,10 +71,14 @@ export function WorkflowComparison({
   topCostRuns,
   'data-testid': testId = 'flowbot-evals-workflow-comparison'
 }: Readonly<WorkflowComparisonProps>) {
-  const workflowStats = useMemo(() => {
+  const { workflowStats, scopeNames } = useMemo(() => {
     const mergedById = new Map<string, RunRow>()
     ;[...recentRuns, ...topCostRuns].forEach(run => mergedById.set(run.run_id, run))
     const merged = Array.from(mergedById.values())
+
+    const allScopes = new Set<string>()
+    merged.forEach(r => Object.keys(r.token_scopes ?? {}).forEach(s => allScopes.add(s)))
+    const sortedScopes = Array.from(allScopes).sort((a, b) => a.localeCompare(b))
 
     const grouped = new Map<string, RunRow[]>()
     merged.forEach(run => {
@@ -61,15 +88,11 @@ export function WorkflowComparison({
       grouped.set(key, arr)
     })
 
-    const rows: WorkflowStats[] = Array.from(grouped.entries()).map(([workflow, runs]) => ({
-      workflow,
-      runs: runs.length,
-      avgTotalMs: average(runs.map(r => r.total_ms)),
-      avgTokens: average(runs.map(r => r.total_tokens)),
-      avgToolCalls: average(runs.map(r => r.num_tool_calls))
-    }))
+    const rows: WorkflowStats[] = Array.from(grouped.entries()).map(([workflow, runs]) =>
+      buildWorkflowStats(workflow, runs, sortedScopes)
+    )
 
-    return rows.sort((a, b) => b.runs - a.runs)
+    return { workflowStats: [...rows].sort((a, b) => b.runs - a.runs), scopeNames: sortedScopes }
   }, [recentRuns, topCostRuns])
 
   const chartConfig = useMemo<ChartConfig>(() => ({ runs: { label: 'Runs' } }), [])
@@ -115,6 +138,9 @@ export function WorkflowComparison({
                   <TableHead>Runs</TableHead>
                   <TableHead>Avg total</TableHead>
                   <TableHead>Avg tokens</TableHead>
+                  {scopeNames.map(s => (
+                    <TableHead key={s}>{scopeLabel(s)}</TableHead>
+                  ))}
                   <TableHead>Avg tool calls</TableHead>
                 </TableRow>
               </TableHeader>
@@ -125,12 +151,15 @@ export function WorkflowComparison({
                     <TableCell>{formatNumber(row.runs)}</TableCell>
                     <TableCell>{formatNumber(row.avgTotalMs)} ms</TableCell>
                     <TableCell>{formatNumber(row.avgTokens)}</TableCell>
+                    {scopeNames.map(s => (
+                      <TableCell key={s}>{formatNumber(row.avgScopeTokens[s])}</TableCell>
+                    ))}
                     <TableCell>{formatNumber(row.avgToolCalls, 1)}</TableCell>
                   </TableRow>
                 ))}
                 {workflowStats.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="gba:text-center gba:text-muted-foreground">
+                    <TableCell colSpan={5 + scopeNames.length} className="gba:text-center gba:text-muted-foreground">
                       No workflow data in this range.
                     </TableCell>
                   </TableRow>

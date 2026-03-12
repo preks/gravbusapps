@@ -43,7 +43,7 @@ export interface CompleteViewProps {
   isPublishing?: boolean
   publishSuccess?: boolean
   publishError?: string | null
-  onPublish?: () => void
+  onPublish?: () => void | Promise<void>
   onReset?: () => void
   isRestoringSession?: boolean
 }
@@ -218,16 +218,25 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
           )
         }
         return (
-          <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col">
+          <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:overflow-y-auto gba:p-4">
             <PreviewTemplate items={eligible.map(c => ({ id: c.id, label: c.flowSpec?.name ?? c.name }))}>
               {selectedId => {
                 const comp = eligible.find(c => c.id === selectedId) ?? eligible[0]
                 const effectiveId = comp.createdId ?? comp.existingId ?? comp.id
                 if (comp.flowSpec) {
                   const specTemplate = { ...mapFlowSpec(comp.flowSpec), id: effectiveId }
-                  return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} template={specTemplate} />
+                  return (
+                    <FlowPreview
+                      key={comp.id}
+                      accessToken={accessToken ?? ''}
+                      userInfo={userInfo}
+                      template={specTemplate}
+                    />
+                  )
                 }
-                return <FlowPreview key={comp.id} accessToken={accessToken ?? ''} flowId={effectiveId} />
+                return (
+                  <FlowPreview key={comp.id} accessToken={accessToken ?? ''} userInfo={userInfo} flowId={effectiveId} />
+                )
               }}
             </PreviewTemplate>
           </div>
@@ -348,7 +357,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
         <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} tabs={visibleTabs} />
       </div>
 
-      {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0 */}
+      {/* Tab Content — position:relative so DataFlowDiagram can use absolute inset:0; no key so content switches without remount flash */}
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden gba:relative">{renderTabContent()}</div>
     </div>
   )

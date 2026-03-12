@@ -1,0 +1,349 @@
+import type { LucideIcon } from 'lucide-react'
+import {
+  BookText,
+  Building2,
+  Cable,
+  Cloud,
+  CloudCog,
+  Compass,
+  DatabaseZap,
+  FileBox,
+  FolderOpen,
+  Github,
+  HardDrive,
+  Landmark,
+  MapPin,
+  MessageSquare,
+  NotebookText,
+  Search,
+  Server,
+  Warehouse
+} from 'lucide-react'
+import type {
+  ConnectorProviderConfigField,
+  ConnectorProviderODM,
+  ExternalConnectionLane,
+  ExternalConnectionODM
+} from '@/common/network/ai/prompt-manager/PromptManagerClient'
+
+type Translate = (key: string, args?: Record<string, unknown>) => string
+
+export type ConnectLane = ExternalConnectionLane
+
+export const CONNECT_LANES: ConnectLane[] = ['anypoint_connect', 'data_bridge', 'mcp_servers']
+
+export const LANE_CONFIG: Record<
+  ExternalConnectionLane,
+  { titleKey: string; descriptionKey: string; availableProvidersKey: string }
+> = {
+  anypoint_connect: {
+    titleKey: 'connect-group-anypoint-title',
+    descriptionKey: 'connect-group-anypoint-description',
+    availableProvidersKey: 'connect-group-anypoint-available'
+  },
+  data_bridge: {
+    titleKey: 'connect-group-data-bridge-title',
+    descriptionKey: 'connect-group-data-bridge-description',
+    availableProvidersKey: 'connect-group-data-bridge-available'
+  },
+  mcp_servers: {
+    titleKey: 'connect-group-mcp-title',
+    descriptionKey: 'connect-group-mcp-description',
+    availableProvidersKey: 'connect-group-mcp-available'
+  }
+}
+
+export const CUSTOM_MCP_PROVIDER_ID = 'mcp.custom-server'
+export const CUSTOM_STRUCTURED_PROVIDER_ID = 'data-bridge.custom-structured'
+export const CUSTOM_UNSTRUCTURED_PROVIDER_ID = 'anypoint-connect.custom-unstructured'
+
+const providerIconMap: Record<string, LucideIcon> = {
+  [CUSTOM_MCP_PROVIDER_ID]: Cable,
+  'mcp.github': Github,
+  'mcp.slack': MessageSquare,
+  'mcp.jira': BookText,
+  'mcp.brave-search': Search,
+  'mcp.sentry': Compass,
+  'mcp.linear': Compass,
+  'mcp.google-maps': MapPin,
+  'mcp.puppeteer': Compass,
+  'data-bridge.sap': Building2,
+  'data-bridge.oracle': Server,
+  'data-bridge.salesforce': Cloud,
+  'data-bridge.hubspot': Cloud,
+  'data-bridge.postgresql': DatabaseZap,
+  'data-bridge.mysql': DatabaseZap,
+  'data-bridge.mongodb': DatabaseZap,
+  'data-bridge.snowflake': DatabaseZap,
+  'data-bridge.dynamics365': Building2,
+  'data-bridge.servicenow': Server,
+  [CUSTOM_STRUCTURED_PROVIDER_ID]: DatabaseZap,
+  'anypoint-connect.sharepoint': Landmark,
+  'anypoint-connect.onedrive': Cloud,
+  'anypoint-connect.confluence': NotebookText,
+  'anypoint-connect.google-drive': HardDrive,
+  'anypoint-connect.s3': Warehouse,
+  'anypoint-connect.notion': NotebookText,
+  'anypoint-connect.dropbox': FolderOpen,
+  'anypoint-connect.box': FolderOpen,
+  'anypoint-connect.azure-blob': Cloud,
+  'anypoint-connect.gcs': Warehouse,
+  [CUSTOM_UNSTRUCTURED_PROVIDER_ID]: FileBox
+}
+
+export const getProviderIcon = (providerId: string): LucideIcon => providerIconMap[providerId] || CloudCog
+
+export const getProviderIconForProvider = (provider?: ConnectorProviderODM | null): LucideIcon =>
+  getProviderIcon(getProviderId(provider))
+
+export const getLaneIcon = (lane: ExternalConnectionLane): LucideIcon => {
+  if (lane === 'anypoint_connect') return FolderOpen
+  if (lane === 'data_bridge') return DatabaseZap
+  return Cable
+}
+
+const providerCopyKeys: Record<string, { title: string; description: string }> = {
+  [CUSTOM_MCP_PROVIDER_ID]: {
+    title: 'connect-provider-custom-mcp-title',
+    description: 'connect-provider-custom-mcp-description'
+  },
+  'mcp.github': {
+    title: 'connect-provider-github-title',
+    description: 'connect-provider-github-description'
+  },
+  'mcp.slack': {
+    title: 'connect-provider-slack-title',
+    description: 'connect-provider-slack-description'
+  },
+  'mcp.jira': {
+    title: 'connect-provider-jira-title',
+    description: 'connect-provider-jira-description'
+  },
+  'mcp.brave-search': {
+    title: 'connect-provider-brave-search-title',
+    description: 'connect-provider-brave-search-description'
+  },
+  'mcp.sentry': {
+    title: 'connect-provider-sentry-title',
+    description: 'connect-provider-sentry-description'
+  },
+  'mcp.linear': {
+    title: 'connect-provider-linear-title',
+    description: 'connect-provider-linear-description'
+  },
+  'mcp.google-maps': {
+    title: 'connect-provider-google-maps-title',
+    description: 'connect-provider-google-maps-description'
+  },
+  'mcp.puppeteer': {
+    title: 'connect-provider-puppeteer-title',
+    description: 'connect-provider-puppeteer-description'
+  },
+  'data-bridge.sap': {
+    title: 'connect-provider-sap-title',
+    description: 'connect-provider-sap-description'
+  },
+  'data-bridge.oracle': {
+    title: 'connect-provider-oracle-title',
+    description: 'connect-provider-oracle-description'
+  },
+  'data-bridge.salesforce': {
+    title: 'connect-provider-salesforce-title',
+    description: 'connect-provider-salesforce-description'
+  },
+  'data-bridge.hubspot': {
+    title: 'connect-provider-hubspot-title',
+    description: 'connect-provider-hubspot-description'
+  },
+  'data-bridge.postgresql': {
+    title: 'connect-provider-postgresql-title',
+    description: 'connect-provider-postgresql-description'
+  },
+  'data-bridge.mysql': {
+    title: 'connect-provider-mysql-title',
+    description: 'connect-provider-mysql-description'
+  },
+  'data-bridge.mongodb': {
+    title: 'connect-provider-mongodb-title',
+    description: 'connect-provider-mongodb-description'
+  },
+  'data-bridge.snowflake': {
+    title: 'connect-provider-snowflake-title',
+    description: 'connect-provider-snowflake-description'
+  },
+  'data-bridge.dynamics365': {
+    title: 'connect-provider-dynamics365-title',
+    description: 'connect-provider-dynamics365-description'
+  },
+  'data-bridge.servicenow': {
+    title: 'connect-provider-servicenow-title',
+    description: 'connect-provider-servicenow-description'
+  },
+  [CUSTOM_STRUCTURED_PROVIDER_ID]: {
+    title: 'connect-provider-custom-structured-title',
+    description: 'connect-provider-custom-structured-description'
+  },
+  'anypoint-connect.sharepoint': {
+    title: 'connect-provider-sharepoint-title',
+    description: 'connect-provider-sharepoint-description'
+  },
+  'anypoint-connect.onedrive': {
+    title: 'connect-provider-onedrive-title',
+    description: 'connect-provider-onedrive-description'
+  },
+  'anypoint-connect.confluence': {
+    title: 'connect-provider-confluence-title',
+    description: 'connect-provider-confluence-description'
+  },
+  'anypoint-connect.google-drive': {
+    title: 'connect-provider-google-drive-title',
+    description: 'connect-provider-google-drive-description'
+  },
+  'anypoint-connect.s3': {
+    title: 'connect-provider-s3-title',
+    description: 'connect-provider-s3-description'
+  },
+  'anypoint-connect.notion': {
+    title: 'connect-provider-notion-title',
+    description: 'connect-provider-notion-description'
+  },
+  'anypoint-connect.dropbox': {
+    title: 'connect-provider-dropbox-title',
+    description: 'connect-provider-dropbox-description'
+  },
+  'anypoint-connect.box': {
+    title: 'connect-provider-box-title',
+    description: 'connect-provider-box-description'
+  },
+  'anypoint-connect.azure-blob': {
+    title: 'connect-provider-azure-blob-title',
+    description: 'connect-provider-azure-blob-description'
+  },
+  'anypoint-connect.gcs': {
+    title: 'connect-provider-gcs-title',
+    description: 'connect-provider-gcs-description'
+  },
+  [CUSTOM_UNSTRUCTURED_PROVIDER_ID]: {
+    title: 'connect-provider-custom-unstructured-title',
+    description: 'connect-provider-custom-unstructured-description'
+  }
+}
+
+const fieldLabelKeys: Record<string, string> = {
+  BASE_URL: 'connect-field-base-url-label',
+  API_KEY: 'connect-field-api-key-label',
+  HOST: 'connect-field-host-label',
+  PORT: 'connect-field-port-label',
+  SERVICE_NAME: 'connect-field-service-name-label',
+  USERNAME: 'connect-field-username-label',
+  PASSWORD: 'connect-field-password-label',
+  SITE_URL: 'connect-field-site-url-label',
+  TENANT_ID: 'connect-field-tenant-id-label',
+  CLIENT_ID: 'connect-field-client-id-label',
+  CLIENT_SECRET: 'connect-field-client-secret-label',
+  DRIVE_ID: 'connect-field-drive-id-label',
+  EMAIL: 'connect-field-email-label',
+  API_TOKEN: 'connect-field-api-token-label',
+  FOLDER_ID: 'connect-field-folder-id-label',
+  SERVICE_ACCOUNT_JSON: 'connect-field-service-account-json-label',
+  BUCKET: 'connect-field-bucket-label',
+  REGION: 'connect-field-region-label',
+  ACCESS_KEY_ID: 'connect-field-access-key-id-label',
+  SECRET_ACCESS_KEY: 'connect-field-secret-access-key-label',
+  AUTH_TOKEN: 'connect-field-auth-token-label',
+  INSTANCE_URL: 'connect-field-instance-url-label',
+  ACCESS_TOKEN: 'connect-field-access-token-label',
+  PORTAL_ID: 'connect-field-portal-id-label',
+  DATABASE: 'connect-field-database-label',
+  CONNECTION_STRING: 'connect-field-connection-string-label',
+  ACCOUNT: 'connect-field-account-label',
+  WAREHOUSE: 'connect-field-warehouse-label',
+  SCHEMA: 'connect-field-schema-label',
+  DATABASE_ID: 'connect-field-database-id-label',
+  FOLDER_PATH: 'connect-field-folder-path-label',
+  ACCOUNT_NAME: 'connect-field-account-name-label',
+  ACCOUNT_KEY: 'connect-field-account-key-label',
+  CONTAINER_NAME: 'connect-field-container-name-label',
+  GITHUB_PERSONAL_ACCESS_TOKEN: 'connect-field-github-pat-label',
+  SLACK_BOT_TOKEN: 'connect-field-slack-bot-token-label',
+  SLACK_TEAM_ID: 'connect-field-slack-team-id-label',
+  BRAVE_API_KEY: 'connect-field-brave-api-key-label',
+  SENTRY_AUTH_TOKEN: 'connect-field-sentry-auth-token-label',
+  ORGANIZATION_SLUG: 'connect-field-organization-slug-label',
+  LINEAR_API_KEY: 'connect-field-linear-api-key-label',
+  JIRA_URL: 'connect-field-jira-url-label',
+  JIRA_EMAIL: 'connect-field-jira-email-label',
+  JIRA_API_TOKEN: 'connect-field-jira-api-token-label',
+  GOOGLE_MAPS_API_KEY: 'connect-field-google-maps-api-key-label'
+}
+
+const humanizeKey = (value: string): string =>
+  value
+    .split('_')
+    .filter(Boolean)
+    .map(part => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(' ')
+
+export const getProviderId = (provider?: ConnectorProviderODM | null): string =>
+  provider?.providerId || provider?.provider_id || ''
+
+export const getConnectionId = (connection?: ExternalConnectionODM | null): string =>
+  connection?.connectionId || connection?.connection_id || ''
+
+export const getConnectionProviderId = (connection?: ExternalConnectionODM | null): string =>
+  connection?.providerId || connection?.provider_id || ''
+
+export const inferProviderIdFromConnection = (connection?: ExternalConnectionODM | null): string => {
+  const explicitProviderId = getConnectionProviderId(connection)
+  if (explicitProviderId) return explicitProviderId
+  if (connection?.kind === 'mcp') return CUSTOM_MCP_PROVIDER_ID
+  if (connection?.lane === 'data_bridge' || connection?.kind === 'structured') return CUSTOM_STRUCTURED_PROVIDER_ID
+  if (connection?.lane === 'anypoint_connect' || connection?.kind === 'unstructured')
+    return CUSTOM_UNSTRUCTURED_PROVIDER_ID
+  return ''
+}
+
+export const getProviderTitle = (t: Translate, provider?: ConnectorProviderODM | null): string => {
+  const providerId = getProviderId(provider)
+  const keys = providerCopyKeys[providerId]
+  return keys ? t(keys.title) : provider?.name || ''
+}
+
+export const getProviderDescription = (t: Translate, provider?: ConnectorProviderODM | null): string => {
+  const providerId = getProviderId(provider)
+  const keys = providerCopyKeys[providerId]
+  return keys ? t(keys.description) : provider?.description || ''
+}
+
+export const getProviderConfigFields = (provider?: ConnectorProviderODM | null): ConnectorProviderConfigField[] =>
+  provider?.configFields || provider?.config_fields || []
+
+export const getProviderHelpUrl = (provider?: ConnectorProviderODM | null): string | null =>
+  provider?.helpUrl || provider?.help_url || null
+
+export const CONSUMER_TYPE_OPTIONS = [
+  { value: 'mcp_tool', labelKey: 'connect-consumer-mcp-tool' },
+  { value: 'task_expert', labelKey: 'connect-consumer-task-expert' },
+  { value: 'function', labelKey: 'connect-consumer-function' },
+  { value: 'board_import', labelKey: 'connect-consumer-board-import' },
+  { value: 'document_import', labelKey: 'connect-consumer-document-import' },
+  { value: 'nexus', labelKey: 'connect-consumer-nexus' }
+] as const
+
+export type ConsumerTypeValue = (typeof CONSUMER_TYPE_OPTIONS)[number]['value']
+
+export const getDefaultConsumerTypes = (provider?: ConnectorProviderODM | null): string[] =>
+  provider?.consumerTypes || provider?.consumer_types || []
+
+export const getConnectionConsumerTypes = (connection?: ExternalConnectionODM | null): string[] =>
+  connection?.consumerTypes || connection?.consumer_types || []
+
+export const getFieldLabel = (t: Translate, key: string): string => {
+  const labelKey = fieldLabelKeys[key]
+  return labelKey ? t(labelKey) : humanizeKey(key)
+}
+
+export const getFieldPlaceholder = (t: Translate, key: string): string => {
+  const labelKey = fieldLabelKeys[key]
+  return labelKey ? t(labelKey) : humanizeKey(key)
+}

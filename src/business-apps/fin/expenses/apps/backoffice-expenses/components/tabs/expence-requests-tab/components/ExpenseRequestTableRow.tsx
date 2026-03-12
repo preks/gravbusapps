@@ -1,6 +1,6 @@
 import React from 'react'
-import { TableCell, TableRow, Checkbox, Badge } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TableCell, TableRow, Checkbox, Badge, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../../_i18n'
 import { formatCurrency } from '../../../../utils/currencyUtils'
 import { extractCurrencyCode } from '../../../../utils/sharedUtils'
 import { getExpenseRequestStatusDisplay } from '../../../../utils/utils'
@@ -30,6 +30,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
   onSelectRecord,
   transferInProgress = false
 }) => {
+  const { t } = useTranslation(translations)
   const currencyCode = extractCurrencyCode(record.currency?.code)
   const renderEllipsisCell = (config: {
     cellClassName?: string
@@ -146,8 +147,8 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
           className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full gba:flex gba:justify-center"
           data-testid={`expense-request-status-${record.id}`}
         >
-          <Badge variant={getExpenseRequestStatusDisplay(record.status).badgeVariant || 'outline'}>
-            {getExpenseRequestStatusDisplay(record.status).label}
+          <Badge variant={getExpenseRequestStatusDisplay(record.status, t).badgeVariant || 'outline'}>
+            {getExpenseRequestStatusDisplay(record.status, t).label}
           </Badge>
         </div>
       </TableCell>
@@ -155,9 +156,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
         <span data-testid={`expense-request-remaining-amount-${record.id}`}>
           {(() => {
             const remainingAmount = Number(record.totalRemainingAmount) || 0
-            return remainingAmount > 0
-              ? formatCurrency(remainingAmount, currencyCode)
-              : getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.not_applicable', '-')
+            return remainingAmount > 0 ? formatCurrency(remainingAmount, currencyCode) : '-'
           })()}
         </span>
       </TableCell>

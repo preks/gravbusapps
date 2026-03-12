@@ -7,7 +7,7 @@ export interface AllowanceRegionDetailFormData {
   home: boolean
   activeFrom: string
   activeTo?: string
-  amounts: number[]
+  amounts: (number | null)[]
 }
 
 export interface TravelRegionRuleFormData {
@@ -35,6 +35,6 @@ export interface SmartColumnGroup {
   homeFlag: boolean
   activeFrom: string
   activeTo?: string
-  amounts: number[]
+  amounts: (number | null)[]
   detailIds: string[]
 }

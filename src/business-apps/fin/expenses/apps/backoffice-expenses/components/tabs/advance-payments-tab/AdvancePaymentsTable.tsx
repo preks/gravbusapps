@@ -24,8 +24,10 @@ import {
   CardContent,
   Sheet,
   SheetContent,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -40,7 +42,7 @@ import DepartmentSelectFilter from '../common/DepartmentSelectFilter'
 import CurrencySelectFilter from '../common/CurrencySelectFilter'
 import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
 
@@ -51,6 +53,7 @@ interface AdvancePaymentsTableProps extends BusinessAppContextProps {
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const { search, onSearchChange, ...context } = props
+  const { t } = useTranslation(translations)
 
   const [searchText, setSearchText] = useState(search ?? '')
   const [currentPage, setCurrentPage] = useState(1)
@@ -140,13 +143,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         const results = await searchReporters(debouncedReporterSearchText)
         setReporterSearchResults(results)
       } catch (error) {
-        console.error(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.error_searching_reporters',
-            'Error searching reporters:'
-          ),
-          error
-        )
+        console.error('Error searching reporters:', error)
         setReporterSearchResults([])
       } finally {
         setReporterSearchLoading(false)
@@ -249,21 +246,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const renderReporterDropdownContent = useCallback(() => {
     if (reporterSearchLoading) {
       return (
-        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.loading_reporters',
-            'Loading reporters...'
-          )}
-        </div>
+        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">{t('advance-payment-loading-reporters')}</div>
       )
     }
 
     if (reporterSearchResults.length === 0) {
-      return (
-        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.no_reporters_found', 'No reporters found')}
-        </div>
-      )
+      return <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">{t('advance-payment-no-reporters')}</div>
     }
 
     return reporterSearchResults.map(reporter => (
@@ -302,21 +290,18 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   }, [])
 
   // Helper: Get payment method label (reduces cognitive complexity)
-  const getPaymentMethodLabel = useCallback((paymentMethod: string | undefined): string => {
-    if (paymentMethod === 'DIRECT_DEPOSIT') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-        'Direct Deposit'
-      )
-    }
-    if (paymentMethod) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-        'Cash Payment'
-      )
-    }
-    return 'N/A'
-  }, [])
+  const getPaymentMethodLabel = useCallback(
+    (paymentMethod: string | undefined): string => {
+      if (paymentMethod === 'DIRECT_DEPOSIT') {
+        return t('advance-payment-direct-deposit')
+      }
+      if (paymentMethod) {
+        return t('advance-payment-cash')
+      }
+      return t('common-not-available')
+    },
+    [t]
+  )
 
   // Helper: Handle row click (reduces cognitive complexity)
   const handleRowClick = useCallback((event: React.MouseEvent<HTMLTableRowElement>, record: any) => {
@@ -333,33 +318,24 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       const hasExpenseRequest = checkHasExpenseRequest(record)
       const baseFlows = [
         {
-          category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
+          category: t('action-navigations'),
           key: 'view-advance-payment-details',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.view_advance_payment_details',
-            'View Advance Payment Details'
-          ),
+          label: t('advance-payment-view-details'),
           onClick: withStoppedPropagation(() => setSelectedItem(record))
         },
         {
-          category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
+          category: t('action-navigations'),
           key: 'view-plan-details',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-            'View Plan Details'
-          ),
+          label: t('action-view-plan-details'),
           onClick: withStoppedPropagation(() => handleNavigateToPlanDetails(record))
         }
       ]
 
       if (hasExpenseRequest) {
         baseFlows.push({
-          category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
+          category: t('action-navigations'),
           key: 'view-request-details',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-            'View Request Details'
-          ),
+          label: t('action-view-request-details'),
           onClick: withStoppedPropagation(() => handleNavigateToRequestDetails(record))
         })
       }
@@ -401,15 +377,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   // Helper: Get empty state message (reduces cognitive complexity)
   const getEmptyStateMessage = useCallback((): string => {
-    return hasActiveFilters
-      ? getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-          'No data available'
-        )
-      : getTranslationFromI18nKeyAndLabel(
-          'lowcoder:backoffice_expense_landing_page.no_advance_payments_created_yet',
-          'No advance payments created yet.'
-        )
+    return hasActiveFilters ? t('empty-no-data') : t('advance-payment-no-payments-yet')
   }, [hasActiveFilters])
 
   // Helper: Check if showing empty state (reduces cognitive complexity)
@@ -420,7 +388,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const renderDataBody = useCallback(() => {
     const renderSimpleValueCell = (value: string | undefined, testId: string) => (
       <TableCell>
-        <div data-testid={testId}>{value || 'N/A'}</div>
+        <div data-testid={testId}>{value || t('common-not-available')}</div>
       </TableCell>
     )
 
@@ -452,71 +420,29 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-muted">
                     <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_profile.employee_tabs.flows_button.actions',
-                        'Actions'
-                      )}
+                      {t('header-actions')}
                     </TableHead>
-                    <TableHead className="gba:w-[20%]">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.title',
-                        'Title'
-                      )}
-                    </TableHead>
-                    <TableHead className="gba:w-[15%]">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-                    </TableHead>
-                    <TableHead className="gba:w-[15%]">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
-                        'Org Unit'
-                      )}
-                    </TableHead>
-                    <TableHead className="gba:w-[12%]">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_overview.side_bar.request_cost_center',
-                        'Cost Center'
-                      )}
-                    </TableHead>
-                    <TableHead className="gba:w-[10%]">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}
-                    </TableHead>
-                    <TableHead className="gba:w-[10%]">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.expense_plan_table.status',
-                        'Status'
-                      )}
-                    </TableHead>
-                    <TableHead className="gba:w-[12%] gba:text-right">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.expense_plan_table.amount',
-                        'Amount'
-                      )}
-                    </TableHead>
-                    <TableHead className="gba:w-[12%] gba:text-right">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.advance',
-                        'Advance'
-                      )}
-                    </TableHead>
-                    <TableHead className="gba:w-[12%]">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                        'Payment Method'
-                      )}
-                    </TableHead>
+                    <TableHead className="gba:w-[20%]">{t('header-title')}</TableHead>
+                    <TableHead className="gba:w-[15%]">{t('header-employee')}</TableHead>
+                    <TableHead className="gba:w-[15%]">{t('header-org-unit')}</TableHead>
+                    <TableHead className="gba:w-[12%]">{t('header-cost-center')}</TableHead>
+                    <TableHead className="gba:w-[10%]">{t('header-plan-id')}</TableHead>
+                    <TableHead className="gba:w-[10%]">{t('header-status')}</TableHead>
+                    <TableHead className="gba:w-[12%] gba:text-right">{t('header-amount')}</TableHead>
+                    <TableHead className="gba:w-[12%] gba:text-right">{t('header-advance')}</TableHead>
+                    <TableHead className="gba:w-[12%]">{t('header-payment-method')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isShowingEmptyState ? (
                     <TableRow>
                       <TableCell colSpan={10} className="gba:py-8 gba:text-center">
-                        <div className="gba:text-gray-500">{getEmptyStateMessage()}</div>
+                        <div className="gba:text-muted-foreground">{getEmptyStateMessage()}</div>
                       </TableCell>
                     </TableRow>
                   ) : (
                     payments.map((record: any) => {
-                      const status = getAdvancePaymentStatusDisplay(record.status || 'N/A')
+                      const status = getAdvancePaymentStatusDisplay(record.status || t('common-not-available'), t)
                       const currencyCode = record.currency?.code || record.expensePlan?.currency?.code || ''
 
                       return (
@@ -543,11 +469,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                           </TableCell>
                           <TableCell>
                             <div data-testid="advance-payment-title-cell">
-                              {record.title || record.description || 'N/A'}
+                              {record.title || record.description || t('common-not-available')}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div data-testid="advance-payment-reporter-cell">{record.employeeFullName || 'N/A'}</div>
+                            <div data-testid="advance-payment-reporter-cell">
+                              {record.employeeFullName || t('common-not-available')}
+                            </div>
                           </TableCell>
                           {renderSimpleValueCell(
                             record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name,
@@ -590,10 +518,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
               totalItems={totalCount}
               onPageChange={handleTablePaginationChange}
               scrollTargetRef={tableTopRef}
-              entityNamePlural={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:backoffice_expense_landing_page.advance_title',
-                'Advance Payments'
-              )}
+              entityNamePlural={t('tab-advance-payments')}
               dataTestIdPrefix="advance-payments"
               showBorder={false}
             />
@@ -618,8 +543,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   ])
 
   const getStatusDisplayName = useCallback(
-    (status: string): string => buildStatusDisplayName(status, getAdvancePaymentStatusDisplay),
-    []
+    (status: string): string => buildStatusDisplayName(status, getAdvancePaymentStatusDisplay, t),
+    [t]
   )
 
   const resetPage = useCallback(() => setCurrentPage(1), [])
@@ -628,17 +553,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const getDateRangeLabel = useCallback((): string => {
     const from = dateFrom ? dayjs(dateFrom).format('DD/MM/YYYY') : ''
     const to = dateTo ? dayjs(dateTo).format('DD/MM/YYYY') : ''
-    if (from && to) return `Date: ${from} - ${to}`
-    if (from) return `Date: from ${from}`
-    if (to) return `Date: until ${to}`
-    return 'Date'
+    if (from && to) return t('chip-date', { from, to })
+    if (from) return t('chip-date-from', { from })
+    if (to) return t('chip-date-to', { to })
+    return t('chip-date-label')
   }, [dateFrom, dateTo])
 
   // Filter groups for DataContainer
   const filterGroups: DataFilterGroup[] = [
     {
       id: 'status',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      title: t('filter-status'),
       type: 'checkbox',
       filters: availableStatuses.map(status => ({
         id: status,
@@ -648,7 +573,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     },
     {
       id: 'reporter',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
+      title: t('filter-employee'),
       type: 'custom',
       customComponent: (
         <div className="reporter-search-container gba:relative gba:p-2">
@@ -661,10 +586,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             }}
             onFocus={() => setShowReporterDropdown(true)}
             className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:advance_payment_table.search_reporter_placeholder',
-              'Search employee...'
-            )}
+            placeholder={t('filter-search-employee')}
             data-testid="reporter-search-input"
           />
           {showReporterDropdown && reporterSearchText.trim() && (
@@ -677,7 +599,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     },
     {
       id: 'currency',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_landing_page.all_currencies', 'Currency'),
+      title: t('filter-currency'),
       type: 'custom',
       customComponent: (
         <CurrencySelectFilter
@@ -688,15 +610,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           }}
           currencies={currencies}
           testIdPrefix="advance-payments"
+          t={t}
         />
       )
     },
     {
       id: 'department',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
-        'Department'
-      ),
+      title: t('filter-department'),
       type: 'custom',
       customComponent: (
         <DepartmentSelectFilter
@@ -707,19 +627,18 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           }}
           departmentOptions={departmentOptions}
           testIdPrefix="advance-payments"
+          t={t}
         />
       )
     },
     {
       id: 'dateRange',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.date_range', 'Date Range'),
+      title: t('filter-date-range'),
       type: 'custom',
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-10">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:common.from', 'From')}
-            </span>
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-10">{t('filter-from')}</span>
             <input
               type="date"
               value={dateFrom}
@@ -732,9 +651,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             />
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground gba:w-10">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:common.to', 'To')}
-            </span>
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-10">{t('filter-to')}</span>
             <input
               type="date"
               value={dateTo}
@@ -751,7 +668,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     },
     {
       id: 'amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
+      title: t('filter-amount'),
       type: 'custom',
       customComponent: (
         <MinMaxNumberFilter
@@ -766,10 +683,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     },
     {
       id: 'advance',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_request_list.expense_table.advance',
-        'Advance'
-      ),
+      title: t('filter-advance'),
       type: 'custom',
       customComponent: (
         <MinMaxNumberFilter
@@ -802,12 +716,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       },
       {} as Record<string, string>
     ),
-    reporter: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.reporter_label', 'Reporter:')} ${selectedReporters.join(', ')}`,
+    reporter: `${t('advance-payment-reporter-label')} ${selectedReporters.join(', ')}`,
     currency: getCurrencyLabel(currencyRef, currencies),
     department: getDepartmentLabel(departmentId, departmentOptions),
     dateRange: getDateRangeLabel(),
-    amount: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.amount_label', 'Amount:')} ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
-    advance: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_label', 'Advance:')} ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
+    amount: `${t('advance-payment-amount-label')} ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
+    advance: `${t('advance-payment-advance-label')} ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
   }
 
   const handleFilterChange = useCallback(
@@ -888,17 +802,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       <DataContainer
         contentBackground="white"
         dataControllerProps={{
-          listTitle: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:backoffice_expense_landing_page.advance_title',
-            'Advance Payments'
-          ),
+          listTitle: t('tab-advance-payments'),
           listAmount: totalCount ? `${totalCount}` : undefined,
           search: searchText,
           setSearch: handleSearchChange,
-          placeholder: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.search_placeholder',
-            'Search in Advance Payments'
-          ),
+          placeholder: t('advance-payment-search'),
           filter: totalCount === 0 && !isLoading ? [] : selectedFilters,
           setFilter: handleSetFilter,
           filterLabelMap: filterLabelMap,
@@ -913,25 +821,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       <Sheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.title ||
-          selectedItem?.description ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.advance_payment_details',
-            'Advance Payment Details'
-          )
-        }
+        title={selectedItem?.title || selectedItem?.description || t('advance-payment-details-title')}
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <ExpenseDetailsShell
-            title={
-              selectedItem?.title ||
-              selectedItem?.description ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:advance_payment_table.advance_payment_details',
-                'Advance Payment Details'
-              )
-            }
+            title={selectedItem?.title || selectedItem?.description || t('advance-payment-details-title')}
           >
             {selectedItem ? (
               <AdvancePaymentDetailsBackoffice

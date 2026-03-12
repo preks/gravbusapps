@@ -528,11 +528,11 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   // Notes and documents
   // -------------------------------------------------------------------------
   note: {
-    urlTemplate: '/platform/notes?noteId={id}&view=editor',
+    urlTemplate: '/platform/every-office/notes?noteId={id}&view=editor',
     icon: DEFAULT_ICON
   },
   document: {
-    urlTemplate: '/platform/documents?docId={id}&view=editor',
+    urlTemplate: '/platform/every-office/documents?docId={id}&view=editor',
     icon: DEFAULT_ICON
   }
 }

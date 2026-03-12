@@ -41,14 +41,14 @@ export const useMatrixSearch = (options: UseMatrixSearchOptions) => {
   const [isSearching, setIsSearching] = useState(false)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Handle search
+  // Handle search — fetch all matching regions (not limited by pageSize)
   const handleSearch = useCallback(
     async (search: string) => {
-      setCurrentPage(1) // Reset to first page when searching
+      setCurrentPage(1)
       setIsSearching(true)
 
       try {
-        const regions = await loadTravelRegions(1, pageSize, search)
+        const regions = await loadTravelRegions(1, 9999, search)
 
         // Update the regions state
         const editableRegions = regions.map(region => ({

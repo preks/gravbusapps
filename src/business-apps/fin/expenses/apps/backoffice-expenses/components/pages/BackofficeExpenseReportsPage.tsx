@@ -8,7 +8,8 @@ import {
   PageLayout,
   Tabs,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { ColumnDef as TanstackColumnDef, OnChangeFn, SortingState } from '@tanstack/react-table'
 import { PiDownload, PiFileText } from 'react-icons/pi'
@@ -16,29 +17,55 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBackofficeExpenseReportData, ReportType } from '../../hooks/useBackofficeExpenseReportData'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useFilterData } from '../../hooks/useFilterData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { downloadCsvReport, downloadExcelReport } from './backofficeExpenseReportsPage.utils'
 import { getReportColumns, getExportColumns, getBackendSortableColumnKeys } from './reportColumnDefinitions'
 import ReportSlaKpiCards from './ReportSlaKpiCards'
-import {
-  type ReportSnapshot,
-  REPORT_TYPE_DEFINITIONS,
-  normalizeStatusFilterValue,
-  buildTransferRequiredAliases,
-  hasAnyReportFilters
-} from './reportFilterUtils'
+import { type ReportSnapshot, REPORT_TYPE_DEFINITIONS, hasAnyReportFilters } from './reportFilterUtils'
 import { useReportFilters } from './useReportFilters'
 import { renderReportTableCell } from './reportTableCells'
 import { useSlaKpiValues } from './useSlaKpiValues'
+import translations from '../../_i18n'
+
+const readUrlParams = () => {
+  const params = new URLSearchParams(globalThis.location?.search || '')
+  return {
+    reportType: (params.get('reportType') as ReportType) || null,
+    search: params.get('search') || '',
+    page: Math.max(1, Number(params.get('page')) || 1),
+    status: params.get('status')?.split(',').filter(Boolean) || [],
+    department: params.get('department')?.split(',').filter(Boolean) || []
+  }
+}
+
+const writeUrlParams = (values: Record<string, string | undefined>) => {
+  const params = new URLSearchParams(globalThis.location?.search || '')
+  for (const [key, value] of Object.entries(values)) {
+    if (value) params.set(key, value)
+    else params.delete(key)
+  }
+  const qs = params.toString()
+  const url = qs ? `${globalThis.location.pathname}?${qs}` : globalThis.location.pathname
+  globalThis.history?.replaceState(null, '', url)
+}
 
 const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+  const { t } = useTranslation(translations)
+  const [initialUrlParams] = useState(readUrlParams)
   const [sorting, setSorting] = useState<SortingState>([])
   const [reportSnapshotsByType, setReportSnapshotsByType] = useState<Partial<Record<ReportType, ReportSnapshot>>>({})
-  const [localSearchText, setLocalSearchText] = useState('')
-  const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>({})
+  const [localSearchText, setLocalSearchText] = useState(initialUrlParams.search)
+  const [filtersByReportType, setFiltersByReportType] = useState<Partial<Record<ReportType, Record<string, any>>>>(
+    () => {
+      const rt = initialUrlParams.reportType
+      if (!rt) return {}
+      const initial: Record<string, any> = {}
+      if (initialUrlParams.status.length > 0) initial.status = initialUrlParams.status
+      if (initialUrlParams.department.length > 0) initial.departmentName = initialUrlParams.department
+      return Object.keys(initial).length > 0 ? { [rt]: initial } : {}
+    }
+  )
 
   const contextProps = useMemo(() => ({ accessToken, userInfo }), [accessToken, userInfo])
-  const transferRequiredAliases = useMemo(() => buildTransferRequiredAliases(), [])
 
   const {
     reportData,
@@ -55,11 +82,19 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     reportDataType,
     setSelectedReportType,
     fetchAllForExport,
-    fetchAllForFilterOptions,
+    allEmployeeNames,
     slaKpiCounts
-  } = useBackofficeExpenseReportData(contextProps, filtersByReportType, sorting)
+  } = useBackofficeExpenseReportData(contextProps, t, filtersByReportType, sorting)
 
   const { organizationalUnits } = useFilterData({ accessToken })
+
+  useEffect(() => {
+    if (initialUrlParams.reportType && initialUrlParams.reportType !== selectedReportType) {
+      setSelectedReportType(initialUrlParams.reportType)
+    }
+    if (initialUrlParams.search) setSearchTerm(initialUrlParams.search)
+    if (initialUrlParams.page > 1) setCurrentPage(initialUrlParams.page)
+  }, [])
 
   const isDataAlignedWithSelectedType = reportDataType === selectedReportType
   const selectedReportSnapshot = selectedReportType ? reportSnapshotsByType[selectedReportType] : undefined
@@ -77,12 +112,8 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   }, [selectedReportType, isDataAlignedWithSelectedType, reportData, totalCount])
 
   const reportRowsWithGroupedStatuses = useMemo(
-    () =>
-      (Array.isArray(baseReportRows) ? baseReportRows : []).map(row => ({
-        ...row,
-        status: normalizeStatusFilterValue(row?.status, transferRequiredAliases)
-      })),
-    [baseReportRows, transferRequiredAliases]
+    () => (Array.isArray(baseReportRows) ? baseReportRows : []),
+    [baseReportRows]
   )
 
   const {
@@ -96,24 +127,51 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     selectedReportType,
     reportRowsWithGroupedStatuses,
     organizationalUnits,
-    fetchAllForFilterOptions,
+    allEmployeeNames,
     filtersByReportType,
     setFiltersByReportType,
     setCurrentPage,
     setLocalSearchText,
-    setSearchTerm
+    setSearchTerm,
+    t
   })
 
   const slaKpiValues = useSlaKpiValues(slaKpiCounts)
   const hasActiveFilters = useMemo(() => hasAnyReportFilters(selectedFilters), [selectedFilters])
   const activeFiltersOnly = useMemo(() => {
     if (!hasActiveFilters) return undefined
-    const result: Record<string, string[]> = {}
-    for (const [key, values] of Object.entries(selectedFilters)) {
-      if (Array.isArray(values) && values.length > 0) result[key] = values
+    const result: Record<string, any> = {}
+    if (selectedFilters.status.length > 0) result['status'] = selectedFilters.status
+    if (selectedFilters.employeeName.length > 0) result['employeeName'] = selectedFilters.employeeName
+    if (selectedFilters.departmentName.length > 0) result['departmentName'] = selectedFilters.departmentName
+    if (selectedFilters.dateFrom || selectedFilters.dateTo) {
+      result['dateRange'] = [selectedFilters.dateFrom ?? null, selectedFilters.dateTo ?? null]
+    }
+    if (selectedFilters.effectiveDateFrom || selectedFilters.effectiveDateTo) {
+      result['effectiveDateRange'] = [
+        selectedFilters.effectiveDateFrom ?? null,
+        selectedFilters.effectiveDateTo ?? null
+      ]
+    }
+    if (selectedFilters.requestDateFrom || selectedFilters.requestDateTo) {
+      result['requestDateRange'] = [selectedFilters.requestDateFrom ?? null, selectedFilters.requestDateTo ?? null]
+    }
+    if (selectedFilters.planDateFrom || selectedFilters.planDateTo) {
+      result['planDateRange'] = [selectedFilters.planDateFrom ?? null, selectedFilters.planDateTo ?? null]
     }
     return result
   }, [selectedFilters, hasActiveFilters])
+
+  useEffect(() => {
+    writeUrlParams({
+      reportType: selectedReportType || undefined,
+      search: searchTerm || undefined,
+      page: currentPage > 1 ? String(currentPage) : undefined,
+      status: selectedFilters.status.length > 0 ? selectedFilters.status.join(',') : undefined,
+      department: selectedFilters.departmentName.length > 0 ? selectedFilters.departmentName.join(',') : undefined
+    })
+  }, [selectedReportType, searchTerm, currentPage, selectedFilters.status, selectedFilters.departmentName])
+
   const hasReportRows = Array.isArray(baseReportRows) && baseReportRows.length > 0
   const displayTotalCount = isDataAlignedWithSelectedType ? totalCount : (selectedReportSnapshot?.totalCount ?? 0)
   const tableLoading = isLoading && !hasReportRows
@@ -122,14 +180,14 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     () =>
       REPORT_TYPE_DEFINITIONS.map(def => ({
         key: def.key,
-        name: getTranslationFromI18nKeyAndLabel(def.nameKey, def.nameFallback),
-        description: getTranslationFromI18nKeyAndLabel(def.descKey, def.descFallback)
+        name: t(def.nameKey),
+        description: t(def.descKey)
       })),
-    []
+    [t]
   )
-  const selectedReportMeta = reportTypes.find(t => t.key === selectedReportType)
+  const selectedReportMeta = reportTypes.find(rt => rt.key === selectedReportType)
 
-  const columns = useMemo(() => getReportColumns(selectedReportType), [selectedReportType])
+  const columns = useMemo(() => getReportColumns(selectedReportType, t), [selectedReportType, t])
   const backendSortableColumnKeys = useMemo(
     () => getBackendSortableColumnKeys(selectedReportType),
     [selectedReportType]
@@ -141,7 +199,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
         enableSorting: backendSortableColumnKeys.has(col.key),
         header: col.title ?? '',
         accessorFn: (row: any) => row?.[col.key],
-        cell: ({ row }: any) => renderReportTableCell(col.key, row?.original)
+        cell: ({ row }: any) => renderReportTableCell(col.key, row?.original, t)
       })),
     [columns, backendSortableColumnKeys]
   )
@@ -163,7 +221,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   }, [])
 
   const handleReportTypeChange = (value: string) => {
-    const nextType = reportTypes.find(t => t.key === value)?.key
+    const nextType = reportTypes.find(rt => rt.key === value)?.key
     if (nextType) setSelectedReportType(nextType)
   }
   const handleSortingChange: OnChangeFn<SortingState> = updater => {
@@ -171,12 +229,12 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
     setCurrentPage(1)
   }
   const handleDownload = async () => {
-    const cols = getExportColumns(selectedReportType)
+    const cols = getExportColumns(selectedReportType, t)
     if (!cols.length) return
     downloadCsvReport(selectedReportType, cols, (await fetchAllForExport()) as any[])
   }
   const handleDownloadExcel = async () => {
-    const cols = getExportColumns(selectedReportType)
+    const cols = getExportColumns(selectedReportType, t)
     if (!cols.length) return
     downloadExcelReport(selectedReportType, cols, (await fetchAllForExport()) as any[])
   }
@@ -194,21 +252,15 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
   }
   const dataDisplayStateKey = useMemo(
     () =>
-      `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${searchTerm || ''}`,
+      `${selectedReportType || 'unknown'}::${selectedFilters.status.join('|')}::${selectedFilters.employeeName.join('|')}::${selectedFilters.departmentName.join('|')}::${selectedFilters.dateFrom || ''}::${selectedFilters.dateTo || ''}::${selectedFilters.effectiveDateFrom || ''}::${selectedFilters.effectiveDateTo || ''}::${selectedFilters.requestDateFrom || ''}::${selectedFilters.requestDateTo || ''}::${selectedFilters.planDateFrom || ''}::${selectedFilters.planDateTo || ''}::${searchTerm || ''}`,
     [selectedFilters, selectedReportType, searchTerm]
   )
 
   return (
     <div data-testid="backoffice-expense-reports-page-container">
       <PageLayout
-        headerTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
-          'Expense Reports'
-        )}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.expense_reports_subheader',
-          'Generate and download comprehensive expense reports across different categories and time periods'
-        )}
+        headerTitle={t('expense-reports-title')}
+        headerDescription={t('expense-reports-subheader')}
         headerIcon={PiFileText as any}
         className="gba:min-h-screen"
       >
@@ -220,7 +272,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
             {error && (
               <Alert data-testid="backoffice-expense-reports-error-alert">
                 <AlertDescription>
-                  <strong>{getTranslationFromI18nKeyAndLabel('lowcoder:common.error_title', 'Error')}</strong> {error}
+                  <strong>{t('common-error')}</strong> {error}
                 </AlertDescription>
               </Alert>
             )}
@@ -253,7 +305,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
               titleSections={[
                 {
                   id: 'results',
-                  label: getTranslationFromI18nKeyAndLabel('lowcoder:common.data', 'Data'),
+                  label: t('report-data-label'),
                   metadata: {
                     count: hasClientSideFilters ? filteredReportRows.length : displayTotalCount,
                     isLoading: tableLoading
@@ -262,10 +314,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
               ]}
               currentSection="results"
               searchValue={localSearchText}
-              searchPlaceholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.search_report_data',
-                'Search report data...'
-              )}
+              searchPlaceholder={t('report-search')}
               onSearchChange={handleSearchChange}
               filters={activeFiltersOnly}
               filterConfiguration={filterConfiguration}
@@ -281,10 +330,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                       onClick={handleResetFilters}
                       data-testid="backoffice-expense-reports-reset-filters-button"
                     >
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:team_expenses_page.dashboard_tab.reset_filters',
-                        'Reset Filters'
-                      )}
+                      {t('filter-report-filters')}
                     </Button>
                   )}
                   <Button
@@ -294,10 +340,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                     data-testid="backoffice-expense-reports-download-button"
                   >
                     <PiDownload className="gba:text-sm" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.download_report',
-                      'Download CSV'
-                    )}
+                    {t('report-download-csv')}
                   </Button>
                   <Button
                     variant="outline"
@@ -306,10 +349,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                     data-testid="backoffice-expense-reports-download-excel-button"
                   >
                     <PiDownload className="gba:text-sm" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.download_report_excel',
-                      'Download Excel'
-                    )}
+                    {t('report-download-excel')}
                   </Button>
                 </div>
               }
@@ -336,10 +376,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                   rowsPerPageOptions={[10, 20, 50, 100]}
                   showPageNumbers
                   maxVisiblePages={7}
-                  emptyMessage={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.no_expense_reports_found',
-                    'No expense reports found'
-                  )}
+                  emptyMessage={t('report-no-reports-found')}
                   data-testid="backoffice-expense-reports-table"
                 />
               </div>

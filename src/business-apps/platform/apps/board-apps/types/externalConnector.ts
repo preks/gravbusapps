@@ -131,6 +131,7 @@ export interface DatasetSheetBinding {
 
 export interface ExternalPreviewRequest {
   connectorId: string
+  connectionId?: string
   query?: Record<string, unknown>
   limit?: number
 }
@@ -147,6 +148,7 @@ export interface ExternalStartSyncRequest {
   connectorId: string
   connectorName: string
   connectorDescription?: string
+  connectionId?: string
   query?: Record<string, unknown>
   selectedFields?: string[]
   limit?: number

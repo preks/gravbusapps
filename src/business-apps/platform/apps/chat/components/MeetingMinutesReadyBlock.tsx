@@ -57,7 +57,7 @@ export const MeetingMinutesReadyBlock: React.FC<MeetingMinutesReadyBlockProps> =
           variant="default"
           size="sm"
           onClick={() => {
-            if (noteId) navigateTo(`/platform/notes?noteId=${noteId}&view=editor`)
+            if (noteId) navigateTo(`/platform/every-office/notes?noteId=${noteId}&view=editor`)
           }}
           className="gba:mt-1"
           data-testid={`meeting-minutes-view-btn-${message.id}`}

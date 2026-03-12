@@ -5,14 +5,22 @@
  * state management and actions for the document apps module.
  *
  * Uses the document-service backend API for data persistence.
+ * Server-driven pagination — fetches exactly one page per request.
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import { DocumentApiService } from '../services/DocumentApiService'
 import type { Document, DocumentSummary, ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
 import translations from '../_i18n'
+
+interface ServerPageMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
 
 interface UseDocumentAppsState {
   documents: DocumentSummary[]
@@ -21,33 +29,34 @@ interface UseDocumentAppsState {
   isLoading: boolean
   error: string | null
   storageMode: 'database' | 'local'
+  pageMeta: ServerPageMeta
+}
+
+export interface ListQueryParams {
+  section?: string
+  favoriteIds?: string
+  search?: string
+  page?: number
+  limit?: number
+  sortBy?: 'createdAt' | 'updatedAt' | 'title'
+  sortOrder?: 'ASC' | 'DESC'
 }
 
 interface UseDocumentAppsResult extends UseDocumentAppsState {
-  // Document operations
   loadDocument: (id: string, filePath?: string) => Promise<Document | null>
   createDocument: (document: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Document | null>
   updateDocument: (id: string, updates: Partial<Document>) => Promise<Document | null>
   deleteDocument: (id: string) => Promise<boolean>
   duplicateDocument: (id: string) => Promise<Document | null>
-
-  // Sharing
   shareDocument: (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment') => Promise<boolean>
   revokeAccess: (id: string, userId: string) => Promise<boolean>
-
-  // Approval workflow
   sendForApproval: (config: ApprovalWorkflowConfig) => Promise<DocumentApprovalRequest | null>
   cancelApproval: (documentId: string) => Promise<boolean>
-
-  // Utilities
   clearCurrentDocument: () => void
-  refreshDocuments: () => Promise<void>
+  refreshDocuments: (queryOverride?: ListQueryParams) => Promise<void>
   exportDocument: (id: string, format: 'docx' | 'pdf' | 'html') => Promise<string | null>
 }
 
-/**
- * Hook for managing documents using the document-service backend
- */
 export function useDocumentApps(accessToken: string, userId?: string): UseDocumentAppsResult {
   const { t } = useTranslation(translations)
   const [state, setState] = useState<UseDocumentAppsState>({
@@ -56,74 +65,80 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     currentDocumentPermission: null,
     isLoading: true,
     error: null,
-    storageMode: 'database'
+    storageMode: 'database',
+    pageMeta: { total: 0, page: 1, limit: 20, totalPages: 0 }
   })
+
+  const lastQueryRef = useRef<ListQueryParams>({})
 
   useEffect(() => {
     DocumentApiService.setAccessToken(accessToken || null)
   }, [accessToken])
 
-  /**
-   * Load all documents from the backend (paginated fetch, max 100 per request)
-   */
-  const refreshDocuments = useCallback(async () => {
-    if (!accessToken) {
-      setState(prev => ({ ...prev, isLoading: false, error: t('doc-apps-error-not-authenticated') }))
-      return
-    }
-
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }))
-
-      const PAGE_SIZE = 100
-      let allRawDocuments: Awaited<ReturnType<typeof DocumentApiService.listDocuments>> = []
-      let page = 1
-      let hasMore = true
-
-      while (hasMore) {
-        const pageItems = await DocumentApiService.listDocuments({ limit: PAGE_SIZE, page })
-        allRawDocuments = [...allRawDocuments, ...pageItems]
-        hasMore = pageItems.length === PAGE_SIZE
-        page++
+  const refreshDocuments = useCallback(
+    async (queryOverride?: ListQueryParams) => {
+      if (!accessToken) {
+        setState(prev => ({ ...prev, isLoading: false, error: t('doc-apps-error-not-authenticated') }))
+        return
       }
 
-      const rawDocuments = allRawDocuments
+      const query = queryOverride ?? lastQueryRef.current
+      lastQueryRef.current = query
 
-      // Enhance documents with ownership info (backend may already provide some of this)
-      const documents = rawDocuments.map(doc => {
-        const isOwner = doc.createdBy === userId
-        return {
-          ...doc,
-          // Use backend values if available, otherwise compute
-          isOwner: doc.permission === 'owner' || isOwner,
-          isShared: doc.isShared ?? !isOwner
+      try {
+        setState(prev => ({ ...prev, isLoading: true, error: null }))
+
+        const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'title'> = {
+          created: 'createdAt',
+          modified: 'updatedAt',
+          name: 'title'
         }
-      })
+        const backendSortBy = query.sortBy ?? (sortByMap[query.sortBy as string] || 'updatedAt')
+        const backendSortOrder = query.sortOrder ?? 'DESC'
 
-      setState(prev => ({
-        ...prev,
-        documents,
-        isLoading: false,
-        storageMode: 'database'
-      }))
-    } catch (error) {
-      console.error('[useDocumentApps] Failed to load documents:', error)
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : t('doc-apps-error-load-documents')
-      }))
-    }
-  }, [accessToken, userId, t])
+        const result = await DocumentApiService.listDocuments({
+          section: query.section,
+          favoriteIds: query.favoriteIds,
+          search: query.search,
+          page: query.page ?? 1,
+          limit: query.limit ?? 20,
+          sortBy: backendSortBy,
+          sortOrder: backendSortOrder
+        })
 
-  // Load documents on mount
-  useEffect(() => {
-    refreshDocuments()
-  }, [refreshDocuments])
+        const documents = result.items.map(doc => {
+          const isOwner = doc.createdBy === userId
+          return {
+            ...doc,
+            isOwner: doc.permission === 'owner' || isOwner,
+            isShared: doc.isShared ?? !isOwner
+          }
+        })
 
-  /**
-   * Load a single document
-   */
+        setState(prev => ({
+          ...prev,
+          documents,
+          isLoading: false,
+          storageMode: 'database',
+          pageMeta: {
+            total: result.total,
+            page: result.page,
+            limit: result.limit,
+            totalPages: result.totalPages
+          }
+        }))
+      } catch (error) {
+        console.error('[useDocumentApps] Failed to load documents:', error)
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error.message : t('doc-apps-error-load-documents')
+        }))
+      }
+    },
+    [accessToken, userId, t]
+  )
+
   const loadDocument = useCallback(
     async (id: string): Promise<Document | null> => {
       if (!accessToken) return null
@@ -131,11 +146,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const document = await DocumentApiService.getDocument(id)
         if (document) {
-          // Use permission from backend API response (already computed by backend)
-          // Backend returns 'admin' for owner, which gets mapped to 'owner' in the API service
-          // Default to 'owner' if not specified (for newly created documents)
           const permission = document.permission || 'owner'
-
           setState(prev => ({
             ...prev,
             currentDocument: document,
@@ -149,12 +160,9 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [accessToken, userId, t]
+    [accessToken, t]
   )
 
-  /**
-   * Create a new document
-   */
   const createDocument = useCallback(
     async (document: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<Document | null> => {
       if (!accessToken) return null
@@ -175,9 +183,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, refreshDocuments, t]
   )
 
-  /**
-   * Update an existing document
-   */
   const updateDocument = useCallback(
     async (id: string, updates: Partial<Document>): Promise<Document | null> => {
       if (!accessToken) return null
@@ -189,7 +194,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
             ...prev,
             currentDocument: updatedDocument
           }))
-          // Update list entry
           setState(prev => ({
             ...prev,
             documents: prev.documents.map(d =>
@@ -215,9 +219,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, t]
   )
 
-  /**
-   * Delete a document
-   */
   const deleteDocument = useCallback(
     async (id: string): Promise<boolean> => {
       if (!accessToken) return false
@@ -226,11 +227,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         const success = await DocumentApiService.deleteDocument(id)
         if (success) {
           toast.success(t('doc-apps-toast-document-deleted'))
-          setState(prev => ({
-            ...prev,
-            documents: prev.documents.filter(d => d.id !== id),
-            currentDocument: prev.currentDocument?.id === id ? null : prev.currentDocument
-          }))
+          await refreshDocuments()
         }
         return success
       } catch (error) {
@@ -239,12 +236,9 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return false
       }
     },
-    [accessToken, t]
+    [accessToken, refreshDocuments, t]
   )
 
-  /**
-   * Duplicate a document
-   */
   const duplicateDocument = useCallback(
     async (id: string): Promise<Document | null> => {
       if (!accessToken) return null
@@ -265,9 +259,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, refreshDocuments, t]
   )
 
-  /**
-   * Share a document with users
-   */
   const shareDocument = useCallback(
     async (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment'): Promise<boolean> => {
       if (!accessToken) return false
@@ -289,15 +280,12 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, refreshDocuments, t]
   )
 
-  /**
-   * Revoke document access
-   */
   const revokeAccess = useCallback(
-    async (id: string, userId: string): Promise<boolean> => {
+    async (id: string, revokeUserId: string): Promise<boolean> => {
       if (!accessToken) return false
 
       try {
-        const success = await DocumentApiService.revokeAccess(id, userId)
+        const success = await DocumentApiService.revokeAccess(id, revokeUserId)
         if (success) {
           toast.success(t('doc-apps-toast-access-revoked'))
           await refreshDocuments()
@@ -312,27 +300,18 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, refreshDocuments, t]
   )
 
-  /**
-   * Send document for approval
-   */
   const sendForApproval = useCallback(
     async (config: ApprovalWorkflowConfig): Promise<DocumentApprovalRequest | null> => {
       if (!accessToken) return null
 
       try {
-        const success = await DocumentApiService.sendForApproval(
-          config.documentId,
-          config.approvers, // approvers is already string[] of user IDs
-          config.message
-        )
+        const success = await DocumentApiService.sendForApproval(config.documentId, config.approvers, config.message)
 
         if (success) {
-          // Update document status
           await DocumentApiService.updateDocumentStatus(config.documentId, 'pending_approval')
           toast.success(t('doc-apps-toast-sent-approval'))
           await refreshDocuments()
 
-          // Get the approval status
           const approvalRequest = await DocumentApiService.getApprovalStatus(config.documentId)
           return approvalRequest
         }
@@ -346,9 +325,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, refreshDocuments, t]
   )
 
-  /**
-   * Cancel approval request
-   */
   const cancelApproval = useCallback(
     async (documentId: string): Promise<boolean> => {
       if (!accessToken) return false
@@ -371,9 +347,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, refreshDocuments, t]
   )
 
-  /**
-   * Clear current document
-   */
   const clearCurrentDocument = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -382,9 +355,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     }))
   }, [])
 
-  /**
-   * Export document to specified format
-   */
   const exportDocument = useCallback(
     async (id: string): Promise<string | null> => {
       if (!accessToken) return null
@@ -392,8 +362,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const document = await DocumentApiService.getDocument(id)
         if (!document) return null
-
-        // Return content for export (actual export handled by exportUtils)
         return document.content
       } catch (error) {
         console.error('[useDocumentApps] Failed to export document:', error)

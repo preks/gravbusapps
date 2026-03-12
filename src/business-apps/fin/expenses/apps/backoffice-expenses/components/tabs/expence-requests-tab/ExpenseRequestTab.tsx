@@ -4,7 +4,8 @@
  */
 
 import React, { useMemo } from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
 import BackofficeTabHeaderAlert from '../common/BackofficeTabHeaderAlert'
 import useBackofficeTabSearch from '../common/useBackofficeTabSearch'
@@ -15,6 +16,7 @@ type ExpenseRequestTabProps = BackofficeTabProps
 
 function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
   const { onContentHeaderChange, isActive = true } = props
+  const { t } = useTranslation(translations)
 
   const { searchTerm, handleSearchChange } = useBackofficeTabSearch()
 
@@ -23,17 +25,11 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
       <BackofficeTabHeaderAlert
         wrapperTestId="expense-request-stats-header"
         alertTestId="expense-request-stats-alert"
-        title={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.overview_title',
-          'Expense Requests Overview'
-        )}
-        description={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.overview_description',
-          'View and manage all expense requests across the organization'
-        )}
+        title={t('expense-requests-overview-title')}
+        description={t('expense-requests-overview-description')}
       />
     ),
-    []
+    [t]
   )
 
   useBackofficeContentHeader(onContentHeaderChange, overviewHeader)
