@@ -567,6 +567,28 @@ interface FlowManagementAnalytics {
     violation_rate: number
     avg_overdue_hours: number
   }>
+  immediateActionQueue: Array<{
+    flow_id: string
+    flow_name: string
+    template_id: string
+    status: string
+    last_activity_time?: string
+    due_date?: string
+    step_name: string
+    sla_violations: number
+    violation_rate: number
+    avg_overdue_hours: number
+    assigned_users?: string
+  }>
+  criticalSteps: Array<{
+    flow_name: string
+    template_id: string
+    step_name: string
+    overdue_tasks: number
+    active_tasks_with_sla: number
+    violation_rate: number
+    avg_overdue_hours: number
+  }>
   longestCycleFlows: Array<{
     flow_name: string
     workflow_count: number
@@ -984,6 +1006,8 @@ interface FlowsListFilters {
   status?: string
   templateId?: string
   search?: string
+  startDate?: string
+  endDate?: string
   limit?: number
   offset?: number
   orderBy?: string
@@ -1018,6 +1042,8 @@ export const useFlowsList = (
       if (filters.status) queryParams.append('status', filters.status)
       if (filters.templateId) queryParams.append('templateId', filters.templateId)
       if (filters.search) queryParams.append('search', filters.search)
+      if (filters.startDate) queryParams.append('startDate', filters.startDate)
+      if (filters.endDate) queryParams.append('endDate', filters.endDate)
       if (filters.limit) queryParams.append('limit', filters.limit.toString())
       if (filters.offset) queryParams.append('offset', filters.offset.toString())
       if (filters.orderBy) queryParams.append('orderBy', filters.orderBy)
@@ -1056,6 +1082,8 @@ export const useFlowsList = (
     filters.status,
     filters.templateId,
     filters.search,
+    filters.startDate,
+    filters.endDate,
     filters.limit,
     filters.offset,
     filters.orderBy,
@@ -1088,7 +1116,7 @@ export const useTemplatePerformanceAnalytics = ({
   userId,
   tags
 }: {
-  timeframe?: 'wtd' | 'mtd' | 'qtd' | 'ytd'
+  timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd'
   accessToken: string
   limit?: number
   offset?: number

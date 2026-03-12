@@ -18,6 +18,8 @@ export interface AssignmentSelectorProps {
   accessToken: string
   /** Restrict to specific resource types. Defaults to all types. */
   allowedTypes?: ResourceTypeKey[]
+  /** Optional per-field selection cap, e.g. 1 for single-user selection. */
+  maxSelectionsPerField?: number
   'data-testid'?: string
 }
 
@@ -27,6 +29,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   assignmentMode,
   accessToken,
   allowedTypes,
+  maxSelectionsPerField,
   'data-testid': testId = 'assignment-selector'
 }) => {
   const visibleTypes = useMemo(
@@ -43,7 +46,20 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const { data: orgData, loading: orgLoading } = useOrgDirectory(dataRequested ? accessToken : '')
+  const assignment = value || { targets: null, assignmentMode, allowReassignment: true }
+  const currentTarget: AssignmentTarget = assignment.targets || ({} as AssignmentTarget)
+
+  const hasExistingSelections = useMemo(
+    () =>
+      visibleTypes.some(
+        resourceType =>
+          Array.isArray(currentTarget[resourceType.field]) && currentTarget[resourceType.field]!.length > 0
+      ),
+    [currentTarget, visibleTypes]
+  )
+
+  const shouldLoadOrgData = dataRequested || hasExistingSelections
+  const { data: orgData, loading: orgLoading } = useOrgDirectory(shouldLoadOrgData ? accessToken : '')
 
   const getItems = useCallback(
     (dataKey: string): Array<{ id: string; name: string }> => {
@@ -60,9 +76,6 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     [orgData]
   )
 
-  const assignment = value || { targets: null, assignmentMode, allowReassignment: true }
-  const currentTarget: AssignmentTarget = assignment.targets || ({} as AssignmentTarget)
-
   const filtered = useMemo(() => {
     const items = getItems(activeType.dataKey)
     const q = query.toLowerCase().trim()
@@ -72,17 +85,32 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
   const selectedIds = useMemo(() => new Set(currentTarget[activeType.field] || []), [currentTarget, activeType.field])
 
+  const resolveItemName = useCallback(
+    (dataKey: string, id: string): string => {
+      if (nameCache[id]) return nameCache[id]
+      const match = getItems(dataKey).find(item => item.id === id)
+      return match?.name || id
+    },
+    [getItems, nameCache]
+  )
+
   const handleSelect = useCallback(
     (field: TargetField, id: string, name: string) => {
       setNameCache(prev => ({ ...prev, [id]: name }))
       const target = assignment.targets || ({} as AssignmentTarget)
       const current = target[field] || []
       if (current.includes(id)) return
-      onChange({ ...assignment, targets: { ...target, [field]: [...current, id] } })
+      const nextValues =
+        maxSelectionsPerField === 1
+          ? [id]
+          : typeof maxSelectionsPerField === 'number' && maxSelectionsPerField > 0
+            ? [...current, id].slice(0, maxSelectionsPerField)
+            : [...current, id]
+      onChange({ ...assignment, targets: { ...target, [field]: nextValues } })
       setQuery('')
       setResultsOpen(false)
     },
-    [assignment, onChange]
+    [assignment, maxSelectionsPerField, onChange]
   )
 
   const handleRemove = useCallback(
@@ -100,11 +128,33 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     const result: Array<{ field: TargetField; id: string; name: string; icon: React.ReactNode }> = []
     for (const rt of visibleTypes) {
       for (const id of currentTarget[rt.field] || []) {
-        result.push({ field: rt.field, id, name: nameCache[id] || id, icon: rt.icon })
+        result.push({ field: rt.field, id, name: resolveItemName(rt.dataKey, id), icon: rt.icon })
       }
     }
     return result
-  }, [currentTarget, nameCache, visibleTypes])
+  }, [currentTarget, resolveItemName, visibleTypes])
+
+  useEffect(() => {
+    if (!orgData) return
+
+    const nextEntries = visibleTypes.flatMap(resourceType =>
+      getItems(resourceType.dataKey).map(item => [item.id, item.name] as const)
+    )
+    if (nextEntries.length === 0) return
+
+    setNameCache(prev => {
+      let changed = false
+      const next = { ...prev }
+
+      nextEntries.forEach(([id, name]) => {
+        if (!id || !name || next[id] === name) return
+        next[id] = name
+        changed = true
+      })
+
+      return changed ? next : prev
+    })
+  }, [getItems, orgData, visibleTypes])
 
   // Close dropdowns on outside click
   useEffect(() => {

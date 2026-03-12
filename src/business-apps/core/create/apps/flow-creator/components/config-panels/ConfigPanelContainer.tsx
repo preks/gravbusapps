@@ -66,7 +66,7 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
 
     switch (config.nodeType) {
       case 'start':
-        return <StartConfigPanel nodeId={selectedNode.id} config={config} mode={mode} />
+        return <StartConfigPanel nodeId={selectedNode.id} config={config} mode={mode} studioData={studioData} />
       case 'task':
         return (
           <TaskConfigPanel
@@ -78,7 +78,7 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
           />
         )
       case 'end':
-        return <EndConfigPanel nodeId={selectedNode.id} config={config} mode={mode} />
+        return <EndConfigPanel nodeId={selectedNode.id} config={config} mode={mode} studioData={studioData} />
       case 'decision':
         return (
           <DecisionConfigPanel
