@@ -466,8 +466,8 @@ error-unknown = A apărut o eroare necunoscută
 error-failed-load-expense-groups = Nu s-au putut încărca datele grupurilor de cheltuială
 error-failed-load-filter-data = Nu s-au putut obține datele filtrelor
 
-# Quick Actions
-quick-actions-title = Acțiuni Rapide
+# Insights & Reports
+quick-actions-title = Analize & Rapoarte
 quick-actions-reports-cta = Generați sau vizualizați rapoarte de decont.
 
 # SLA Tooltips
