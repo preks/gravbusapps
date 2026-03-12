@@ -12,6 +12,7 @@ export type AssistantStreamPartial = Partial<{
   messageType: CreateChatMessage['messageType']
   blocks: ChatMessageBlock[]
   toolCalls: ChatMessageToolCall[]
+  decisionPrompt: CreateChatMessage['decisionPrompt']
   thinkingLog?: string
   thinkingCollapsed?: boolean
 }>
@@ -58,6 +59,15 @@ function stringifyToolArgs(value: unknown): string | undefined {
   }
 }
 
+function stringifyToolResult(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return undefined
+  }
+}
+
 function deriveResponseContent(blocks: ChatMessageBlock[]): string {
   return blocks
     .filter(block => block.type === 'response')
@@ -72,6 +82,63 @@ function deriveThinkingLog(blocks: ChatMessageBlock[]): string | undefined {
     .join('\n\n')
     .trim()
   return content || undefined
+}
+
+function parseDecisionOptions(value: unknown): Array<{
+  id: string
+  title: string
+  description: string
+  riskLevel?: 'low' | 'medium' | 'high'
+  destructive?: boolean
+  requiresExplicitConsent?: boolean
+}> {
+  if (!Array.isArray(value)) return []
+  return value
+    .map(item => {
+      if (!item || typeof item !== 'object') return null
+      const record = item as Record<string, unknown>
+      const id = typeof record.id === 'string' ? record.id.trim() : ''
+      const title = typeof record.title === 'string' ? record.title.trim() : ''
+      const description = typeof record.description === 'string' ? record.description.trim() : ''
+      if (!id || !title) return null
+      const riskLevel =
+        record.riskLevel === 'low' || record.riskLevel === 'medium' || record.riskLevel === 'high'
+          ? record.riskLevel
+          : undefined
+      return {
+        id,
+        title,
+        description,
+        riskLevel,
+        destructive: record.destructive === true,
+        requiresExplicitConsent: record.requiresExplicitConsent === true
+      }
+    })
+    .filter(
+      (option): option is {
+        id: string
+        title: string
+        description: string
+        riskLevel?: 'low' | 'medium' | 'high'
+        destructive?: boolean
+        requiresExplicitConsent?: boolean
+      } => option != null
+    )
+}
+
+function parseDecisionTools(value: unknown): Array<{ name: string; description: string }> | undefined {
+  if (!Array.isArray(value)) return undefined
+  const normalized = value
+    .map(item => {
+      if (!item || typeof item !== 'object') return null
+      const record = item as Record<string, unknown>
+      const name = typeof record.name === 'string' ? record.name.trim() : ''
+      const description = typeof record.description === 'string' ? record.description.trim() : ''
+      if (!name || !description) return null
+      return { name, description }
+    })
+    .filter((tool): tool is { name: string; description: string } => tool != null)
+  return normalized.length > 0 ? normalized : undefined
 }
 
 function getNextTimelineOrder(blocks: ChatMessageBlock[], toolCalls: ChatMessageToolCall[]): number {
@@ -144,12 +211,17 @@ async function parseAssistantStream(
 ): Promise<{
   assistantMessage: AssistantStreamPartial & { content: string; messageType: 'fix' | 'refinement' }
   hasMutation?: boolean
+  hasPlanUpdate?: boolean
+  planJobId?: string
 }> {
   const { messageType, errorMessage, fallbackContent, trackMutations } = options
   const reader = stream.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
   let hasMutation = false
+  let hasPlanUpdate = false
+  let planJobId: string | undefined
+  let decisionPrompt: CreateChatMessage['decisionPrompt']
   const blocks: ChatMessageBlock[] = []
   const toolCalls: ChatMessageToolCall[] = []
 
@@ -162,6 +234,7 @@ async function parseAssistantStream(
         ...toolCall,
         progressLines: Array.isArray(toolCall.progressLines) ? [...toolCall.progressLines] : undefined
       })),
+      decisionPrompt,
       thinkingLog: deriveThinkingLog(blocks),
       thinkingCollapsed: true
     })
@@ -173,6 +246,7 @@ async function parseAssistantStream(
       typeof eventData?.toolResult === 'object' && eventData.toolResult != null ? eventData.toolResult : undefined
     const resultContent =
       typeof eventData.content === 'string' ? eventData.content : resultPayload ? JSON.stringify(resultPayload) : ''
+    const serializedResult = stringifyToolResult(resultPayload)
     const resultRecord = resultPayload as Record<string, unknown> | undefined
     const resultSuccess = isSuccessResult(resultRecord)
     if (trackMutations && MUTATION_TOOLS.has(toolName) && resultSuccess) {
@@ -185,7 +259,7 @@ async function parseAssistantStream(
     const displayKindDefault = getDisplayKindForResult(resultSuccess)
     if (toolCall) {
       toolCall.status = 'complete'
-      toolCall.result = resultContent
+      toolCall.result = serializedResult ?? resultContent
       toolCall.displayTitle = displayTitle
       toolCall.displayDetail =
         typeof eventData.displayDetail === 'string' ? eventData.displayDetail : toolCall.displayDetail
@@ -197,7 +271,7 @@ async function parseAssistantStream(
         status: 'complete',
         id: crypto.randomUUID(),
         order: getNextTimelineOrder(blocks, toolCalls),
-        result: resultContent,
+        result: serializedResult ?? resultContent,
         displayTitle,
         displayDetail: typeof eventData.displayDetail === 'string' ? eventData.displayDetail : undefined,
         displayKind: parseDisplayKind(eventData.displayKind) ?? displayKindDefault,
@@ -266,8 +340,45 @@ async function parseAssistantStream(
       return
     }
     if (eventType === 'tool_result') {
+      const toolName = typeof eventData.toolName === 'string' ? eventData.toolName : ''
+      if (toolName === 'schema_resolution_options' || toolName === 'apply_schema_change') {
+        const toolResult =
+          eventData.toolResult && typeof eventData.toolResult === 'object'
+            ? (eventData.toolResult as Record<string, unknown>)
+            : null
+        const options = parseDecisionOptions(toolResult?.options)
+        if (options.length > 0) {
+          decisionPrompt = {
+            ...(decisionPrompt ?? {}),
+            options,
+            riskSummary: typeof toolResult?.riskSummary === 'string' ? toolResult.riskSummary : decisionPrompt?.riskSummary,
+            availableTools: parseDecisionTools(toolResult?.availableTools) ?? decisionPrompt?.availableTools
+          }
+        }
+      }
       handleToolResultEvent(eventData)
       emitPartial()
+      return
+    }
+    if (eventType === 'plan_updated' && typeof eventData.message === 'string') {
+      hasPlanUpdate = true
+      if (typeof eventData.jobId === 'string' && eventData.jobId.trim()) {
+        planJobId = eventData.jobId
+      }
+      const planData =
+        eventData.data && typeof eventData.data === 'object' ? (eventData.data as Record<string, unknown>) : null
+      if (planData?.requiresUserDecision === true || planData?.currentPhase === 'awaiting_change_decision') {
+        decisionPrompt = {
+          ...(decisionPrompt ?? { options: [] }),
+          decisionId: typeof planData.decisionId === 'string' ? planData.decisionId : decisionPrompt?.decisionId
+        }
+      }
+      const summary = eventData.message.trim()
+      const hasResponseContent = blocks.some(block => block.type === 'response' && block.content.trim().length > 0)
+      if (summary && !hasResponseContent) {
+        appendAssistantBlock(blocks, toolCalls, 'response', summary)
+        emitPartial()
+      }
     }
   }
 
@@ -321,14 +432,15 @@ async function parseAssistantStream(
     messageType,
     blocks,
     toolCalls,
+    decisionPrompt,
     thinkingLog: deriveThinkingLog(blocks),
     thinkingCollapsed: true
   }
 
   if (trackMutations) {
-    return { assistantMessage, hasMutation }
+    return { assistantMessage, hasMutation, hasPlanUpdate, planJobId }
   }
-  return { assistantMessage }
+  return { assistantMessage, hasPlanUpdate, planJobId }
 }
 
 /** Parse fix stream for AI builder screen fixes (tracks mutations) */
@@ -338,6 +450,8 @@ export async function parseFixAssistantFromStream(
 ): Promise<{
   assistantMessage: AssistantStreamPartial & { content: string; messageType: 'fix' }
   hasMutation: boolean
+  hasPlanUpdate?: boolean
+  planJobId?: string
 }> {
   const result = await parseAssistantStream(
     stream,
@@ -351,7 +465,9 @@ export async function parseFixAssistantFromStream(
   )
   return {
     assistantMessage: result.assistantMessage as AssistantStreamPartial & { content: string; messageType: 'fix' },
-    hasMutation: result.hasMutation ?? false
+    hasMutation: result.hasMutation ?? false,
+    hasPlanUpdate: result.hasPlanUpdate,
+    planJobId: result.planJobId
   }
 }
 

@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
+  useTranslation,
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
@@ -25,9 +26,11 @@ import type {
   ToolODM,
   MCPConfig,
   ToolSettings,
-  ToolDetails
+  ToolDetails,
+  ExternalConnectionODM
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import translations from '../_i18n'
 type ToolType = 'mcp'
 type McpAuthType = 'none' | 'bearer' | 'basic' | 'header' | 'oauth_client_credentials'
 
@@ -42,6 +45,7 @@ export interface ToolEditorProps extends BusinessAppContextProps {
 
 export const ToolEditor: React.FC<ToolEditorProps> = props => {
   const { mode, tool, onClose, onSaved, onCreate, onUpdate, accessToken } = props
+  const { t } = useTranslation(translations)
   const [name, setName] = useState('')
   const toolType: ToolType = 'mcp'
   const pmClient = usePromptManagerClient(accessToken)
@@ -52,6 +56,8 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
 
   const [mcpUrl, setMcpUrl] = useState('')
   const [mcpTransport, setMcpTransport] = useState<'sse' | 'websocket' | 'http'>('sse')
+  const [externalConnectionId, setExternalConnectionId] = useState<string>('')
+  const [availableConnections, setAvailableConnections] = useState<ExternalConnectionODM[]>([])
 
   const [settings, setSettings] = useState<ToolSettings>({ config: {} })
   const [configKeys, setConfigKeys] = useState<Array<{ key: string; value: string }>>([{ key: '', value: '' }])
@@ -116,6 +122,7 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
       const mcpConfig = tool.config as MCPConfig
       setMcpUrl(mcpConfig.url || '')
       setMcpTransport(mcpConfig.transport || 'sse')
+      setExternalConnectionId(tool.externalConnectionId || tool.external_connection_id || '')
       const toolSettings = tool.settings || { config: {} }
       setSettings(toolSettings)
       // Load config key-value pairs
@@ -129,6 +136,7 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
       setName('')
       setMcpUrl('')
       setMcpTransport('sse')
+      setExternalConnectionId('')
       setSettings({ config: {} })
       setConfigKeys([
         // Defaults so auth controls have sane initial values
@@ -139,13 +147,47 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
     }
   }, [mode, tool])
 
-  const isValid = useMemo(() => !!name && !!mcpUrl, [name, mcpUrl])
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const result = await pmClient.getExternalConnections({
+          kind: 'mcp',
+          consumerType: 'mcp_tool',
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true
+        })
+        if (!cancelled) setAvailableConnections(result.data || [])
+      } catch {
+        if (!cancelled) setAvailableConnections([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [pmClient])
+
+  const selectedExternalConnection = useMemo(
+    () =>
+      availableConnections.find(
+        connection => (connection.connectionId || connection.connection_id || '') === externalConnectionId
+      ) || null,
+    [availableConnections, externalConnectionId]
+  )
+
+  const isValid = useMemo(() => !!name && (!!externalConnectionId || !!mcpUrl), [name, externalConnectionId, mcpUrl])
 
   const handleSave = useCallback(async () => {
     setIsSaving(true)
     setError(null)
     try {
-      const config: MCPConfig = { url: mcpUrl, transport: mcpTransport }
+      const config: MCPConfig = {
+        url: selectedExternalConnection?.url || mcpUrl,
+        transport: (selectedExternalConnection?.transport as 'sse' | 'websocket' | 'http' | undefined) || mcpTransport,
+        serverId: selectedExternalConnection?.connectionId || selectedExternalConnection?.connection_id || undefined,
+        env: selectedExternalConnection?.env || undefined
+      }
 
       // Build settings with config key-value pairs
       const finalSettings: ToolSettings = {
@@ -168,7 +210,8 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
         name,
         type: toolType,
         config,
-        settings: finalSettings
+        settings: finalSettings,
+        externalConnectionId: externalConnectionId || null
       } as ToolDetails
 
       if (mode === 'create' && onCreate) {
@@ -187,7 +230,22 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
       setIsSaving(false)
       setError(e instanceof Error ? e.message : 'Failed to save tool')
     }
-  }, [name, toolType, mcpUrl, mcpTransport, settings, configKeys, mode, tool, onCreate, onUpdate, onSaved, onClose])
+  }, [
+    name,
+    toolType,
+    mcpUrl,
+    mcpTransport,
+    selectedExternalConnection,
+    settings,
+    configKeys,
+    externalConnectionId,
+    mode,
+    tool,
+    onCreate,
+    onUpdate,
+    onSaved,
+    onClose
+  ])
 
   const handleTest = useCallback(async () => {
     if (!tool?._id) return
@@ -198,35 +256,37 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
       const count = response.tools?.length ?? 0
       setTestResult({
         success: true,
-        message: `Connection successful - ${count} action${count !== 1 ? 's' : ''} available`
+        message: t('tool-editor-test-success', { count })
       })
     } catch (e) {
       setTestResult({
         success: false,
-        message: e instanceof Error ? e.message : 'Connection failed'
+        message: e instanceof Error ? e.message : t('tool-editor-test-failed')
       })
     } finally {
       setIsTesting(false)
     }
-  }, [pmClient, tool?._id])
+  }, [pmClient, t, tool?._id])
 
   return (
     <div data-testid="tool-editor" className="gba:w-full gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
         <div className="gba:flex gba:items-center gba:gap-2">
           <Button variant="outline" onClick={onClose} data-testid="tool-editor-back">
-            Back
+            {t('back')}
           </Button>
-          <div className="gba:text-lg gba:font-semibold">{mode === 'edit' ? name || tool?.name : 'Add MCP server'}</div>
+          <div className="gba:text-lg gba:font-semibold">
+            {mode === 'edit' ? name || tool?.name : t('tool-editor-add-mcp')}
+          </div>
         </div>
         <div className="gba:flex gba:gap-2">
           {mode === 'edit' && tool?._id && (
             <Button variant="outline" onClick={handleTest} disabled={isTesting} data-testid="tool-editor-test">
-              {isTesting ? 'Testing…' : 'Test Connection'}
+              {isTesting ? t('connections-test-running') : t('connections-test')}
             </Button>
           )}
           <Button variant="default" onClick={handleSave} disabled={!isValid || isSaving} data-testid="tool-editor-save">
-            {isSaving ? 'Saving…' : 'Save'}
+            {isSaving ? t('saving') : t('save')}
           </Button>
         </div>
       </div>
@@ -251,32 +311,67 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
         <div className="gba:flex-1 gba:space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
+              <CardTitle>{t('tool-editor-basic-information')}</CardTitle>
             </CardHeader>
             <CardContent className="gba:space-y-3">
               <div className="gba:space-y-2">
-                <Label>Name</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Display Name" />
+                <Label>{t('column-name')}</Label>
+                <Input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder={t('tool-editor-display-name')}
+                />
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>MCP Configuration</CardTitle>
+              <CardTitle>{t('tool-editor-mcp-configuration')}</CardTitle>
             </CardHeader>
             <CardContent className="gba:space-y-3">
+              <div className="gba:space-y-2">
+                <Label>{t('tool-editor-managed-mcp')}</Label>
+                <Select
+                  value={externalConnectionId || '__custom__'}
+                  onValueChange={v => setExternalConnectionId(v === '__custom__' ? '' : v)}
+                >
+                  <SelectTrigger data-testid="tool-editor-external-connection">
+                    <SelectValue placeholder={t('tool-editor-custom-mcp-config')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__custom__">{t('tool-editor-custom-mcp-config')}</SelectItem>
+                    {availableConnections.map(connection => {
+                      const value = connection.connectionId || connection.connection_id || ''
+                      if (!value) return null
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {connection.name}
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+                {selectedExternalConnection ? (
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('tool-editor-managed-mcp-help')}</div>
+                ) : null}
+              </div>
               <div className="gba:space-y-2">
                 <Label>URL</Label>
                 <Input
                   value={mcpUrl}
                   onChange={e => setMcpUrl(e.target.value)}
                   placeholder="https://mcp-server.example.com/api"
+                  disabled={!!selectedExternalConnection}
                 />
               </div>
               <div className="gba:space-y-2">
                 <Label>Transport</Label>
-                <Select value={mcpTransport} onValueChange={v => setMcpTransport(v as 'sse' | 'websocket' | 'http')}>
+                <Select
+                  value={selectedExternalConnection?.transport || mcpTransport}
+                  onValueChange={v => setMcpTransport(v as 'sse' | 'websocket' | 'http')}
+                  disabled={!!selectedExternalConnection}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="sse" />
                   </SelectTrigger>

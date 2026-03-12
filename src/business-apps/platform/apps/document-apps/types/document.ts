@@ -171,6 +171,7 @@ export interface DocumentSummary {
   isOwner?: boolean
   permission?: 'owner' | 'view' | 'edit' | 'comment'
   sharedCount?: number
+  sharedPreviewUserIds?: string[]
   sharedWithCount?: number
   wordCount?: number
   approvalStatus?: 'pending' | 'approved' | 'rejected'

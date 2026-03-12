@@ -88,7 +88,7 @@ export const ActivityEmailBody: React.FC<ActivityEmailBodyProps> = ({
   }, [emailBody?.htmlBody, isExpanded])
 
   const handleOpenInEmail = useCallback(() => {
-    navigateTo(buildPlatformUrl('/platform/mail', { messageId: emailMessageId }))
+    navigateTo(buildPlatformUrl('/platform/every-office/emails', { messageId: emailMessageId }))
   }, [emailMessageId])
 
   return (

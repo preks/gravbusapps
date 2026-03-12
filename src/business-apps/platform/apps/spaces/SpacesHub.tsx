@@ -8,7 +8,7 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
 import { Plus, Search, LayoutDashboard } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo, EVERY_OFFICE_PLATFORM_PATH } from '@/common/utils/navigationUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
 import { SpaceCard } from './components/SpaceCard'
@@ -159,7 +159,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => navigateTo(EVERY_OFFICE_PLATFORM_PATH)}
+                onClick={() => navigateTo('/platform/every-office')}
                 className="gba:gap-2 gba:rounded-xl gba:bg-white/10 gba:text-white gba:border-white/20 hover:gba:bg-white/20"
                 data-testid={`${testId}-every-office-link`}
               >

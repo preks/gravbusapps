@@ -24,6 +24,9 @@ interface AccountInformationSegmentProps {
   // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
 
+  // Account contacts from loaded entity (with nested contact) for display - same pattern as ownerEmployee
+  accountContacts?: any[]
+
   // Owner employee from account data (to display immediately)
   ownerEmployee?: any
   // Entity ID (account ID for edit mode)
@@ -54,6 +57,7 @@ interface AccountInformationSegmentProps {
 
 const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   businessAppContext,
+  accountContacts,
   ownerEmployee,
   entityId,
   useContacts,
@@ -122,8 +126,11 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   } => {
     const contactId = ac.contactId || ac.contact?.id || ''
 
-    // Use the nested contact data directly from the accountContact query
-    const contact = ac.contact || useContacts?.contacts?.find((c: any) => c.id === contactId)
+    // Use nested contact from loaded entity (accountContacts prop) or from useContacts
+    const contact =
+      ac.contact ||
+      accountContacts?.find((acEntity: any) => (acEntity.contactId || acEntity.contact?.id) === contactId)?.contact ||
+      useContacts?.contacts?.find((c: any) => c.id === contactId)
 
     if (contact) {
       const displayName =

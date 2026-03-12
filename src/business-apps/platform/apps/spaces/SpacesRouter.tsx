@@ -56,7 +56,7 @@ export const SpacesRouter: React.FC<SpacesRouterProps> = props => {
 
   const handleNavigateToHub = useCallback(() => {
     setSpaceId(null)
-    navigateTo(buildPlatformUrl('/platform/spaces'))
+    navigateTo(buildPlatformUrl('/platform/every-office/spaces'))
   }, [])
 
   // If spaceId is present, show the detail view
@@ -73,11 +73,7 @@ export const SpacesRouter: React.FC<SpacesRouterProps> = props => {
 
   // Otherwise show the hub (list view)
   return (
-    <SpacesHub
-      {...contextProps}
-      onOpenSpace={nextSpaceId => setSpaceId(nextSpaceId)}
-      data-testid={`${testId}-hub`}
-    />
+    <SpacesHub {...contextProps} onOpenSpace={nextSpaceId => setSpaceId(nextSpaceId)} data-testid={`${testId}-hub`} />
   )
 }
 

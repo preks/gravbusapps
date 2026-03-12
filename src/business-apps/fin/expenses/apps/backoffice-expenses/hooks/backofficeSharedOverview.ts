@@ -18,14 +18,10 @@ type PaginationParams = {
 
 export type OverviewDateFilterParams = {
   plansEffectiveDateRange?: DateRangeInput
-  plansStartDateRange?: DateRangeInput
-  plansEndDateRange?: DateRangeInput
   plansPlanDateRange?: DateRangeInput
   plansTypeFilter?: string[]
   requestsEffectiveDateRange?: DateRangeInput
   requestsRequestDateRange?: DateRangeInput
-  requestsStartDateRange?: DateRangeInput
-  requestsEndDateRange?: DateRangeInput
   requestsTypeFilter?: string[]
 }
 
@@ -76,7 +72,7 @@ function buildEffectiveDateFilter(range: DateRangeInput, mode: RequestTypeMode):
   } as unknown as GqlBoolExp
 }
 
-function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
+export function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
   return buildEffectiveDateFilter(range, 'plan')
 }
 
@@ -114,14 +110,6 @@ export function buildPlanDateWhereClause(params: OverviewDateFilterParams): GqlB
   const conditions = [
     buildPlanEffectiveDateFilter(params.plansEffectiveDateRange),
     wrapFieldCondition(
-      'startDate',
-      buildDateRangeCondition(params.plansStartDateRange?.from, params.plansStartDateRange?.to)
-    ),
-    wrapFieldCondition(
-      'endDate',
-      buildDateRangeCondition(params.plansEndDateRange?.from, params.plansEndDateRange?.to)
-    ),
-    wrapFieldCondition(
       'planDate',
       buildDateRangeCondition(params.plansPlanDateRange?.from, params.plansPlanDateRange?.to)
     ),
@@ -134,16 +122,8 @@ export function buildRequestDateWhereClause(params: OverviewDateFilterParams): G
   const conditions = [
     buildRequestEffectiveDateFilter(params.requestsEffectiveDateRange),
     wrapFieldCondition(
-      'requestDate',
+      'createdAt',
       buildDateRangeCondition(params.requestsRequestDateRange?.from, params.requestsRequestDateRange?.to)
-    ),
-    wrapFieldCondition(
-      'startDate',
-      buildDateRangeCondition(params.requestsStartDateRange?.from, params.requestsStartDateRange?.to)
-    ),
-    wrapFieldCondition(
-      'endDate',
-      buildDateRangeCondition(params.requestsEndDateRange?.from, params.requestsEndDateRange?.to)
     ),
     buildRequestTypeFilter(params.requestsTypeFilter)
   ].filter(Boolean)

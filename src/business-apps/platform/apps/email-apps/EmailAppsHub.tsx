@@ -218,7 +218,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   // Handle OAuth callback completion
   const handleOAuthSuccess = useCallback(() => {
-    globalThis.window.history.replaceState({}, '', '/platform/mail')
+    globalThis.window.history.replaceState({}, '', '/platform/every-office/emails')
     setIsOAuthCallback(false)
     refreshAccounts()
   }, [refreshAccounts])
@@ -553,7 +553,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           setIsManageDialogOpen(false)
           setIsAccountDialogOpen(true)
         }}
-        onOpenAdminSettings={() => navigateTo('/platform/mail/settings')}
+        onOpenAdminSettings={() => navigateTo('/platform/every-office/settings')}
       />
 
       {/* Account setup dialog */}

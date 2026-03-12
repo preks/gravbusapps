@@ -99,14 +99,11 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
       }
 
       // Default navigation behavior
-      const isProduction = process.env.NODE_ENV === 'production'
       const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
       let url: string
 
       // Store the current space URL in sessionStorage for the back button
-      const currentSpaceUrl = isProduction
-        ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
-        : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
+      const currentSpaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
 
       try {
         sessionStorage.setItem('space_return_url', currentSpaceUrl)
@@ -116,25 +113,17 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
 
       switch (activity.documentType) {
         case 'document':
-          url = isProduction
-            ? `/platform/documents?documentId=${encodeURIComponent(activity.documentId)}`
-            : `/platform/apps/documents?documentId=${encodeURIComponent(activity.documentId)}`
+          url = `/platform/every-office/documents?docId=${encodeURIComponent(activity.documentId)}`
           break
         case 'note':
-          url = isProduction
-            ? `/platform/notes?noteId=${encodeURIComponent(activity.documentId)}`
-            : `/platform/apps/notes?noteId=${encodeURIComponent(activity.documentId)}`
+          url = `/platform/every-office/notes?noteId=${encodeURIComponent(activity.documentId)}`
           break
         case 'spreadsheet':
           // Spreadsheet apps are routed via appId (see SpaceDetail drive navigation)
-          url = isProduction
-            ? `/platform/spreadsheets?appId=${encodeURIComponent(activity.documentId)}&view=viewer`
-            : `/platform/apps/spreadsheet-apps?appId=${encodeURIComponent(activity.documentId)}&view=viewer`
+          url = `/platform/every-office/spreadsheets?appId=${encodeURIComponent(activity.documentId)}&view=viewer`
           break
         case 'slide':
-          url = isProduction
-            ? `/platform/slides?slideId=${encodeURIComponent(activity.documentId)}`
-            : `/platform/apps/slides?slideId=${encodeURIComponent(activity.documentId)}`
+          url = `/platform/every-office/slides?slideId=${encodeURIComponent(activity.documentId)}`
           break
         default:
           return

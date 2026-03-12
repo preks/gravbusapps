@@ -31,6 +31,23 @@ export const GET_EMPLOYEES_BY_IDS = `
   }
 `
 
+export const GET_EXPENSE_EMPLOYEE_NAMES = `
+  query GetExpenseEmployeeNames {
+    requestEmployees: ExpenseRequest(
+      where: { isDeleted: { _eq: false }, status: { _nin: ["CREATED", "DISCARDED"] } },
+      distinctOn: [employeeId]
+    ) {
+      employee { fullName firstName lastName }
+    }
+    planEmployees: ExpensePlan(
+      where: { isDeleted: { _eq: false } },
+      distinctOn: [employeeId]
+    ) {
+      employee { fullName firstName lastName }
+    }
+  }
+`
+
 export const GET_EXPENSES_SLA_POLICY = `
   query GetExpensesSlaPolicy($searchTerm: String!) {
     ContentEntry(
@@ -54,43 +71,17 @@ export const GET_EXPENSE_ITEMS_BACKOFFICE = `
   query GetExpenseItemsBackoffice(
     $limit: Int!,
     $offset: Int!,
-    $searchTerm: String,
-    $orderBy: [ExpenseItemOrderBy!]
+    $orderBy: [ExpenseItemOrderBy!],
+    $where: ExpenseItemBoolExp!
   ) {
-    ExpenseItemAggregate(
-      where: {
-        isDeleted: {_eq: false},
-        status: {_nin: ["CREATED", "DISCARDED"]},
-        expenseRequest: {isDeleted: {_eq: false}, status: {_nin: ["CREATED", "DISCARDED"]}},
-        _or: [
-          {title: {_ilike: $searchTerm}},
-          {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
-          {expenseRequest: {code: {_ilike: $searchTerm}}},
-          {expenseRequest: {status: {_ilike: $searchTerm}}},
-          {employee: {firstName: {_ilike: $searchTerm}}},
-          {employee: {lastName: {_ilike: $searchTerm}}}
-        ]
-      }
-    ) {
+    ExpenseItemAggregate(where: $where) {
       aggregate { count }
     }
     ExpenseItem(
       limit: $limit,
       offset: $offset,
       orderBy: $orderBy,
-      where: {
-        isDeleted: {_eq: false},
-        status: {_nin: ["CREATED", "DISCARDED"]},
-        expenseRequest: {isDeleted: {_eq: false}, status: {_nin: ["CREATED", "DISCARDED"]}},
-        _or: [
-          {title: {_ilike: $searchTerm}},
-          {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
-          {expenseRequest: {code: {_ilike: $searchTerm}}},
-          {expenseRequest: {status: {_ilike: $searchTerm}}},
-          {employee: {firstName: {_ilike: $searchTerm}}},
-          {employee: {lastName: {_ilike: $searchTerm}}}
-        ]
-      }
+      where: $where
     ) {
       id
       employeeId
@@ -155,7 +146,6 @@ export const GET_EXPENSE_REQUESTS_BACKOFFICE = `
           status
         }
       }
-      employeeDocument { file name }
     }
   }
 `

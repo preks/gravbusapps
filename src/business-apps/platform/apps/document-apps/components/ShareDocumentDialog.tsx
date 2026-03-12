@@ -34,7 +34,7 @@ import { Share2, Search, X, CheckCircle, AlertCircle, Eye, Pencil, MessageSquare
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
-import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import translations from '../_i18n'
 
 export interface ShareDocumentDialogProps {
@@ -93,8 +93,10 @@ const sendShareNotification = async (
     const timestamp = Date.now()
     const blinkGroupId = `doc_share_${timestamp}_${payload.initiatorId}`
 
-    // Build the document URL using canonical URL
-    const documentUrl = getCanonicalContentUrl('document', { docId: payload.documentId, view: 'editor' })
+    const documentUrl = buildPlatformUrl('/platform/every-office/documents', {
+      docId: payload.documentId,
+      view: 'editor'
+    })
 
     for (const recipient of payload.recipients) {
       const { userId, permission } = recipient

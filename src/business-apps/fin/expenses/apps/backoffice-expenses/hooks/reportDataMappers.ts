@@ -5,6 +5,7 @@ import type {
   AdvancePaymentReport,
   ApprovalPayoutCycleReport
 } from '../types/reportTypes'
+import type { TranslateFn } from '../utils/utils'
 import {
   getExpenseRequestStatusDisplay,
   getExpensePlanStatusDisplay,
@@ -13,7 +14,7 @@ import {
 import { extractCurrencyCode } from '../utils/sharedUtils'
 import {
   buildEmployeeDisplayName,
-  FORMER_EMPLOYEE_LABEL,
+  getFormerEmployeeLabel,
   getSettledAdvancePaidAmount,
   isPaidLikeStatus,
   toUpperText,
@@ -35,9 +36,12 @@ const mapSingleRequest = (
   request: any,
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): ExpenseRequestReport => {
-  const statusDisplay = request.status ? getExpenseRequestStatusDisplay(request.status) : { label: '', type: 'draft' }
+  const statusDisplay = request.status
+    ? getExpenseRequestStatusDisplay(request.status, t)
+    : { label: '', type: 'draft' }
   return {
     id: request.id,
     code: request.code || '',
@@ -47,7 +51,8 @@ const mapSingleRequest = (
     startDate: request.startDate || '',
     endDate: request.endDate || '',
     createdAt: request.createdAt || '',
-    status: statusDisplay.label,
+    status: request.status || '',
+    statusLabel: statusDisplay.label,
     totalAmount: Number(request.reimbursableAmount ?? 0),
     advancePaidAmount: getSettledAdvancePaidAmount(request?.expensePlan?.advancePayment),
     remainingAmount: Number(request.totalRemainingAmount ?? 0),
@@ -63,10 +68,11 @@ export const mapRequestsFromOverview = (
   rows: any[],
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): ExpenseRequestReport[] => {
   return (rows || []).map((request: any) =>
-    mapSingleRequest(request, employeeNameById, resolveDisplayName, resolveDepartmentName)
+    mapSingleRequest(request, employeeNameById, resolveDisplayName, resolveDepartmentName, t)
   )
 }
 
@@ -74,17 +80,19 @@ export const mapPlansFromOverview = (
   rows: any[],
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): ExpensePlanReport[] => {
   return (rows || []).map((plan: any) => {
-    const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
+    const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status, t) : { label: '', type: 'draft' }
     return {
       id: plan.id,
       code: plan.code || '',
       title: plan.title || '',
       startDate: plan.startDate || '',
       endDate: plan.endDate || '',
-      status: statusDisplay.label,
+      status: plan.status || '',
+      statusLabel: statusDisplay.label,
       totalAmount: Number(plan.totalAmount || 0),
       advancePaidAmount: getSettledAdvancePaidAmount(plan?.advancePayment),
       remainingAmount: Number(plan.totalRemainingAmount ?? 0),
@@ -104,16 +112,18 @@ export const mapPaymentsFromOverview = (
   rows: any[],
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): AdvancePaymentReport[] => {
   return (rows || []).map((p: any) => {
-    const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
+    const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status, t) : { label: '', type: 'draft' }
     return {
       id: p.id,
       code: p.expensePlan?.code || p.code || '',
       title: p.expensePlan?.title || '',
       requestDate: p.createdAt || '',
-      status: statusDisplay.label,
+      status: p.status || '',
+      statusLabel: statusDisplay.label,
       amount: Number(p.amount || 0),
       employeeName:
         buildEmployeeDisplayName(p.expensePlan?.employee) ||
@@ -130,16 +140,17 @@ export const mapPaymentsFromOverview = (
 export const processExpenseItemsData = (
   data: any,
   employeeNameById: Record<string, string>,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): ExpenseItemReport[] => {
   if (!data?.ExpenseItem?.length) return []
   return data.ExpenseItem.map((item: any) => {
     const expenseGroup =
       item.expensePosition && item.expensePosition.length > 0 && item.expensePosition[0].expenseGroupRef
         ? item.expensePosition[0].expenseGroupRef.replaceAll('ExpenseGroup:v1:', '')
-        : 'Uncategorized'
+        : t('report-uncategorized')
     const statusDisplay = item.expenseRequest?.status
-      ? getExpenseRequestStatusDisplay(item.expenseRequest.status)
+      ? getExpenseRequestStatusDisplay(item.expenseRequest.status, t)
       : { label: '', type: 'draft' }
     return {
       id: item.id,
@@ -157,9 +168,10 @@ export const processExpenseItemsData = (
         buildEmployeeDisplayName(item.employee) ||
         employeeNameById[item.employeeId] ||
         employeeNameById[item.createdBy] ||
-        FORMER_EMPLOYEE_LABEL,
+        getFormerEmployeeLabel(t),
       departmentName: resolveDepartmentName([item.employeeId, item.createdBy]),
-      status: statusDisplay.label
+      status: item.expenseRequest?.status || '',
+      statusLabel: statusDisplay.label
     }
   })
 }
@@ -168,18 +180,20 @@ export const processExpensePlansData = (
   data: any,
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): ExpensePlanReport[] => {
   if (!data?.ExpensePlan?.length) return []
   return data.ExpensePlan.map((plan: any) => {
-    const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
+    const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status, t) : { label: '', type: 'draft' }
     return {
       id: plan.id,
       code: plan.code || '',
       title: plan.title || '',
       startDate: plan.startDate || '',
       endDate: plan.endDate || '',
-      status: statusDisplay.label,
+      status: plan.status || '',
+      statusLabel: statusDisplay.label,
       totalAmount: plan.totalAmount || 0,
       currency: extractCurrencyCode(plan.currencyRef),
       employeeName: resolveDisplayName([plan.employeeId, plan.createdBy], employeeNameById),
@@ -195,11 +209,12 @@ export const processExpenseRequestsData = (
   data: any,
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): ExpenseRequestReport[] => {
   if (!data?.ExpenseRequest?.length) return []
   return data.ExpenseRequest.map((request: any) =>
-    mapSingleRequest(request, employeeNameById, resolveDisplayName, resolveDepartmentName)
+    mapSingleRequest(request, employeeNameById, resolveDisplayName, resolveDepartmentName, t)
   )
 }
 
@@ -207,15 +222,17 @@ export const mapAdvancePaymentToReport = (
   p: any,
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): AdvancePaymentReport => {
-  const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
+  const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status, t) : { label: '', type: 'draft' }
   return {
     id: p.id,
     code: p.expensePlan?.code || p.code || '',
     title: p.expensePlan?.title || '',
     requestDate: p.createdAt || '',
-    status: statusDisplay.label,
+    status: p.status || '',
+    statusLabel: statusDisplay.label,
     amount: p.amount || 0,
     employeeName: resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
     departmentName: resolveDepartmentName([p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy]),
@@ -241,6 +258,7 @@ const resolveBottleneckStage = (
   paidAt: string,
   approvalDays: number | null,
   payoutDays: number | null,
+  t: TranslateFn,
   status?: any
 ) => {
   const requestStatus = toUpperText(status)
@@ -251,9 +269,9 @@ const resolveBottleneckStage = (
     return ''
   }
   if (approvalDays !== null && payoutDays !== null) {
-    return approvalDays >= payoutDays ? 'Approval' : 'Payout'
+    return approvalDays >= payoutDays ? t('report-bottleneck-approval') : t('report-bottleneck-payout')
   }
-  return approvedAt ? 'Payout' : 'Approval'
+  return approvedAt ? t('report-bottleneck-payout') : t('report-bottleneck-approval')
 }
 
 const mapApprovalPayoutCycleRow = (
@@ -261,7 +279,8 @@ const mapApprovalPayoutCycleRow = (
   employeeNameById: Record<string, string>,
   slaPolicy: ExpensesSlaPolicy,
   resolveDisplayName: NameResolver,
-  resolveDepartmentName: DepartmentResolver
+  resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn
 ): ApprovalPayoutCycleReport => {
   const comments = Array.isArray(request?.expenseRequestComment) ? request.expenseRequestComment : []
   const paymentRows = Array.isArray(request?.expensePlan?.advancePayment) ? request.expensePlan.advancePayment : []
@@ -287,16 +306,19 @@ const mapApprovalPayoutCycleRow = (
   const approvalDays = daysDiff(pendingAt, approvedAt)
   const payoutDays = daysDiff(approvedAt, paidAt)
   const totalCycleDays = daysDiff(pendingAt, paidAt)
-  const approvalSlaStatus = buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays)
+  const approvalSlaStatus = buildSlaStatus(approvalDays, slaPolicy.approvalSlaBusinessDays, t)
   const payoutSlaEvaluation = evaluatePayoutSlaAgainstRunDay(
     approvedAt,
     paidAt,
     slaPolicy.payoutRunWeekday,
     approvalDays,
-    slaPolicy.totalCycleSlaBusinessDays
+    slaPolicy.totalCycleSlaBusinessDays,
+    t
   )
-  const totalCycleSlaStatus = buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays)
-  const statusDisplay = request?.status ? getExpenseRequestStatusDisplay(request.status) : { label: '', type: 'draft' }
+  const totalCycleSlaStatus = buildSlaStatus(totalCycleDays, slaPolicy.totalCycleSlaBusinessDays, t)
+  const statusDisplay = request?.status
+    ? getExpenseRequestStatusDisplay(request.status, t)
+    : { label: '', type: 'draft' }
 
   return {
     id: request.id,
@@ -317,8 +339,17 @@ const mapApprovalPayoutCycleRow = (
     approvalSlaStatus,
     payoutSlaStatus: payoutSlaEvaluation.status,
     totalCycleSlaStatus,
-    bottleneckStage: resolveBottleneckStage(pendingAt, approvedAt, paidAt, approvalDays, payoutDays, request?.status),
-    status: statusDisplay.label,
+    bottleneckStage: resolveBottleneckStage(
+      pendingAt,
+      approvedAt,
+      paidAt,
+      approvalDays,
+      payoutDays,
+      t,
+      request?.status
+    ),
+    status: request?.status || '',
+    statusLabel: statusDisplay.label,
     totalAmount: Number(request.reimbursableAmount ?? 0),
     currency: extractCurrencyCode(request.currencyRef)
   }
@@ -329,10 +360,11 @@ export const processApprovalPayoutCycleData = (
   employeeNameById: Record<string, string>,
   resolveDisplayName: NameResolver,
   resolveDepartmentName: DepartmentResolver,
+  t: TranslateFn,
   slaPolicy: ExpensesSlaPolicy = DEFAULT_EXPENSES_SLA_POLICY
 ): ApprovalPayoutCycleReport[] => {
   const rows = Array.isArray(data?.ExpenseRequest) ? data.ExpenseRequest : []
   return rows.map((request: any) =>
-    mapApprovalPayoutCycleRow(request, employeeNameById, slaPolicy, resolveDisplayName, resolveDepartmentName)
+    mapApprovalPayoutCycleRow(request, employeeNameById, slaPolicy, resolveDisplayName, resolveDepartmentName, t)
   )
 }

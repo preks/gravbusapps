@@ -40,6 +40,8 @@ export interface EvalsDashboardQueryParams {
   to_ts?: string
   bucket?: 'hour' | 'day'
   include_split_view?: boolean
+  llm_provider?: string
+  llm_model?: string
 }
 
 export interface MapFromFileRequest {
