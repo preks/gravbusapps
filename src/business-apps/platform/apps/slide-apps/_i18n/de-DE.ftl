@@ -320,6 +320,16 @@ generate-audience-executive = Führungskräfte
 generate-audience-technical = Technisch
 generate-audience-sales = Vertrieb
 generate-audience-general = Allgemein
+generate-theme-preference = Thema
+generate-theme-auto = Auto
+generate-theme-auto-desc = Thema automatisch aus Referenzmaterial erkennen
+generate-theme-dark = Dunkel
+generate-theme-dark-desc = Dunkles Thema mit hellem Text verwenden
+generate-theme-light = Hell
+generate-theme-light-desc = Helles Thema mit dunklem Text verwenden
+generate-theme-branded = Marke
+generate-theme-branded-desc = NEWWORK-Markenthema verwenden
+generate-extract-style = Stil aus Referenzen extrahieren
 generate-toast-success = Präsentation generiert!
 generate-toast-description = { $count } Folien erstellt
 
@@ -470,6 +480,7 @@ generation-option-a = Option A
 generation-option-b = Option B
 generation-unknown = Unbekannt
 generation-thank-you = Vielen Dank
+generation-agenda = Agenda
 
 # usePowerPointParser
 parser-invalid-type = Ungültiger Dateityp. Bitte laden Sie eine .pptx-Datei (PowerPoint 2007 oder neuer) hoch.

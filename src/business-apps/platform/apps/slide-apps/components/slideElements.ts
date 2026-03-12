@@ -2,7 +2,21 @@
  * Slide Element Types - Define all element types for the slide editor
  */
 
-export type ElementType = 'text' | 'image' | 'shape' | 'code' | 'video' | 'table' | 'chart'
+export type ElementType =
+  | 'text'
+  | 'image'
+  | 'shape'
+  | 'code'
+  | 'video'
+  | 'table'
+  | 'chart'
+  | 'icon'
+  | 'logo'
+  | 'footer'
+  | 'badge'
+  | 'connector'
+  | 'layer'
+  | 'metric-card'
 
 export type ShapeType =
   | 'rectangle'
@@ -19,6 +33,7 @@ export type ShapeType =
   | 'hexagon'
   | 'line'
   | 'callout'
+  | 'container'
 
 export interface Position {
   x: number
@@ -165,6 +180,105 @@ export interface ChartElement extends SlideElement {
   borderRadius: number
 }
 
+export interface IconElement extends SlideElement {
+  type: 'icon'
+  iconName: string
+  color: string
+  strokeWidth: number
+  filled: boolean
+}
+
+export type LogoPreset = 'newwork-dark' | 'newwork-light' | 'newwork-color'
+
+export interface LogoElement extends SlideElement {
+  type: 'logo'
+  preset: LogoPreset
+  showText: boolean
+}
+
+export interface FooterElement extends SlideElement {
+  type: 'footer'
+  pageNumber?: number
+  totalPages?: number
+  showPageNumber: boolean
+  confidentialityText?: string
+  dateText?: string
+  color: string
+  fontSize: number
+}
+
+export type BadgeVariant = 'filled' | 'outlined' | 'subtle'
+
+export interface BadgeElement extends SlideElement {
+  type: 'badge'
+  label: string
+  iconName?: string
+  backgroundColor: string
+  textColor: string
+  borderColor?: string
+  borderRadius: number
+  fontSize: number
+  iconSize: number
+  variant: BadgeVariant
+}
+
+export type ConnectorLineType = 'straight' | 'curved' | 'elbow'
+export type ConnectorLabelPosition = 'start' | 'middle' | 'end'
+
+export interface ConnectorElement extends SlideElement {
+  type: 'connector'
+  startPoint: Position
+  endPoint: Position
+  controlPoints?: Position[]
+  lineType: ConnectorLineType
+  strokeColor: string
+  strokeWidth: number
+  strokeStyle: 'solid' | 'dashed' | 'dotted'
+  startArrow: boolean
+  endArrow: boolean
+  arrowSize: number
+  label?: string
+  labelPosition: ConnectorLabelPosition
+  labelColor?: string
+  labelFontSize?: number
+}
+
+export interface LayerElement extends SlideElement {
+  type: 'layer'
+  label: string
+  description?: string
+  backgroundColor: string
+  textColor: string
+  borderColor: string
+  borderRadius: number
+  depth: number
+  iconName?: string
+  labelFontSize: number
+  descriptionFontSize: number
+}
+
+export type MetricTrend = 'up' | 'down' | 'neutral'
+
+export interface MetricCardElement extends SlideElement {
+  type: 'metric-card'
+  value: string
+  label: string
+  description?: string
+  iconName?: string
+  backgroundColor: string
+  valueColor: string
+  labelColor: string
+  descriptionColor?: string
+  borderRadius: number
+  borderColor?: string
+  borderWidth?: number
+  trend?: MetricTrend
+  trendValue?: string
+  valueFontSize: number
+  labelFontSize: number
+  descriptionFontSize: number
+}
+
 export type AnySlideElement =
   | TextElement
   | ImageElement
@@ -173,6 +287,13 @@ export type AnySlideElement =
   | VideoElement
   | TableElement
   | ChartElement
+  | IconElement
+  | LogoElement
+  | FooterElement
+  | BadgeElement
+  | ConnectorElement
+  | LayerElement
+  | MetricCardElement
 
 export type SlideTransitionType =
   | 'none'
@@ -205,18 +326,22 @@ export const DEFAULT_TRANSITION: SlideTransition = {
   delay: 0
 }
 
+export interface SlideBackground {
+  type: 'solid' | 'gradient' | 'image' | 'video' | 'branded'
+  color?: string
+  gradient?: GradientConfig
+  overlay?: GradientConfig
+  imageUrl?: string
+  videoUrl?: string
+  videoMuted?: boolean
+  videoLoop?: boolean
+  brandPreset?: 'newwork-dark' | 'newwork-light' | string
+}
+
 export interface SlideData {
   id: string
   elements: AnySlideElement[]
-  background: {
-    type: 'solid' | 'gradient' | 'image' | 'video'
-    color?: string
-    gradient?: GradientConfig
-    imageUrl?: string
-    videoUrl?: string
-    videoMuted?: boolean
-    videoLoop?: boolean
-  }
+  background: SlideBackground
   notes?: string
   transition?: SlideTransition
 }
@@ -381,6 +506,150 @@ export const createChartElement = (chartType: ChartType, partial?: Partial<Chart
   ...partial
 })
 
+export const createIconElement = (iconName: string, partial?: Partial<IconElement>): IconElement => ({
+  id: `icon-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'icon',
+  position: { x: 100, y: 100 },
+  size: { width: 48, height: 48 },
+  rotation: 0,
+  opacity: 1,
+  locked: false,
+  zIndex: 1,
+  iconName,
+  color: '#3b82f6',
+  strokeWidth: 2,
+  filled: false,
+  ...partial
+})
+
+export const createLogoElement = (
+  preset: LogoPreset = 'newwork-dark',
+  partial?: Partial<LogoElement>
+): LogoElement => ({
+  id: `logo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'logo',
+  position: { x: 1120, y: 30 },
+  size: { width: 120, height: 40 },
+  rotation: 0,
+  opacity: 1,
+  locked: true,
+  zIndex: 100,
+  preset,
+  showText: true,
+  ...partial
+})
+
+export const createFooterElement = (partial?: Partial<FooterElement>): FooterElement => ({
+  id: `footer-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'footer',
+  position: { x: 0, y: 680 },
+  size: { width: 1280, height: 40 },
+  rotation: 0,
+  opacity: 1,
+  locked: true,
+  zIndex: 100,
+  showPageNumber: true,
+  color: 'rgba(255, 255, 255, 0.5)',
+  fontSize: 12,
+  ...partial
+})
+
+export const createBadgeElement = (label: string, partial?: Partial<BadgeElement>): BadgeElement => ({
+  id: `badge-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'badge',
+  position: { x: 100, y: 100 },
+  size: { width: 120, height: 40 },
+  rotation: 0,
+  opacity: 1,
+  locked: false,
+  zIndex: 1,
+  label,
+  backgroundColor: '#e91e8c',
+  textColor: '#ffffff',
+  borderRadius: 8,
+  fontSize: 14,
+  iconSize: 16,
+  variant: 'filled',
+  ...partial
+})
+
+export const createConnectorElement = (
+  startPoint: Position,
+  endPoint: Position,
+  partial?: Partial<ConnectorElement>
+): ConnectorElement => ({
+  id: `connector-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'connector',
+  position: { x: Math.min(startPoint.x, endPoint.x), y: Math.min(startPoint.y, endPoint.y) },
+  size: {
+    width: Math.abs(endPoint.x - startPoint.x) || 100,
+    height: Math.abs(endPoint.y - startPoint.y) || 100
+  },
+  rotation: 0,
+  opacity: 1,
+  locked: false,
+  zIndex: 1,
+  startPoint,
+  endPoint,
+  lineType: 'straight',
+  strokeColor: '#64748b',
+  strokeWidth: 2,
+  strokeStyle: 'solid',
+  startArrow: false,
+  endArrow: true,
+  arrowSize: 8,
+  labelPosition: 'middle',
+  ...partial
+})
+
+export const createLayerElement = (label: string, partial?: Partial<LayerElement>): LayerElement => ({
+  id: `layer-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'layer',
+  position: { x: 100, y: 100 },
+  size: { width: 300, height: 70 },
+  rotation: 0,
+  opacity: 1,
+  locked: false,
+  zIndex: 1,
+  label,
+  backgroundColor: '#3b82f6',
+  textColor: '#ffffff',
+  borderColor: 'transparent',
+  borderRadius: 8,
+  depth: 4,
+  labelFontSize: 16,
+  descriptionFontSize: 12,
+  ...partial
+})
+
+export const createMetricCardElement = (
+  value: string,
+  label: string,
+  partial?: Partial<MetricCardElement>
+): MetricCardElement => ({
+  id: `metric-card-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'metric-card',
+  position: { x: 100, y: 100 },
+  size: { width: 220, height: 160 },
+  rotation: 0,
+  opacity: 1,
+  locked: false,
+  zIndex: 1,
+  value,
+  label,
+  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  valueColor: '#e91e8c',
+  labelColor: '#ffffff',
+  descriptionColor: 'rgba(255, 255, 255, 0.7)',
+  borderRadius: 12,
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+  borderWidth: 1,
+  valueFontSize: 36,
+  labelFontSize: 16,
+  descriptionFontSize: 12,
+  ...partial
+})
+
 export const CHART_TYPES: { value: ChartType; label: string; icon: string }[] = [
   { value: 'bar', label: 'Bar Chart', icon: '📊' },
   { value: 'line', label: 'Line Chart', icon: '📈' },
@@ -421,7 +690,8 @@ export const SHAPE_DEFINITIONS: Record<ShapeType, { name: string; icon: string }
   star: { name: 'Star', icon: '★' },
   hexagon: { name: 'Hexagon', icon: '⬡' },
   line: { name: 'Line', icon: '─' },
-  callout: { name: 'Callout', icon: '💬' }
+  callout: { name: 'Callout', icon: '💬' },
+  container: { name: 'Container', icon: '▢' }
 }
 
 // Preset gradients
@@ -511,6 +781,90 @@ export const PRESET_GRADIENTS: { name: string; gradient: GradientConfig }[] = [
   }
 ]
 
+// Branded background presets
+export interface BrandedBackgroundPreset {
+  id: string
+  name: string
+  background: SlideBackground
+}
+
+export const BRANDED_BACKGROUNDS: BrandedBackgroundPreset[] = [
+  {
+    id: 'newwork-dark',
+    name: 'NEWWORK Dark',
+    background: {
+      type: 'branded',
+      brandPreset: 'newwork-dark',
+      color: '#0a0a0a',
+      gradient: {
+        type: 'radial',
+        angle: 225,
+        stops: [
+          { color: 'rgba(180, 50, 120, 0.4)', position: 0 },
+          { color: 'rgba(140, 40, 180, 0.25)', position: 35 },
+          { color: 'transparent', position: 70 }
+        ]
+      },
+      overlay: {
+        type: 'radial',
+        angle: 315,
+        stops: [
+          { color: 'rgba(30, 100, 220, 0.35)', position: 0 },
+          { color: 'rgba(20, 180, 220, 0.2)', position: 35 },
+          { color: 'transparent', position: 70 }
+        ]
+      }
+    }
+  },
+  {
+    id: 'newwork-light',
+    name: 'NEWWORK Light',
+    background: {
+      type: 'branded',
+      brandPreset: 'newwork-light',
+      color: '#ffffff',
+      overlay: {
+        type: 'linear',
+        angle: 180,
+        stops: [
+          { color: '#1e3a5f', position: 0 },
+          { color: '#1e3a5f', position: 20 },
+          { color: 'transparent', position: 20 }
+        ]
+      }
+    }
+  },
+  {
+    id: 'corporate-dark',
+    name: 'Corporate Dark',
+    background: {
+      type: 'branded',
+      brandPreset: 'corporate-dark',
+      gradient: {
+        type: 'linear',
+        angle: 135,
+        stops: [
+          { color: '#0f172a', position: 0 },
+          { color: '#1e293b', position: 100 }
+        ]
+      },
+      overlay: {
+        type: 'radial',
+        angle: 0,
+        stops: [
+          { color: 'rgba(99, 102, 241, 0.1)', position: 0 },
+          { color: 'transparent', position: 60 }
+        ]
+      }
+    }
+  }
+]
+
+export const getBrandedBackground = (presetId: string): SlideBackground | null => {
+  const preset = BRANDED_BACKGROUNDS.find(b => b.id === presetId)
+  return preset?.background || null
+}
+
 // Color presets
 export const COLOR_PRESETS = [
   '#000000',
@@ -542,7 +896,22 @@ export const gradientToCss = (gradient: GradientConfig): string => {
   if (gradient.type === 'linear') {
     return `linear-gradient(${gradient.angle}deg, ${stops})`
   }
-  return `radial-gradient(circle, ${stops})`
+
+  // For radial gradients, use angle to determine position
+  // 225 = bottom-left, 315 = bottom-right, 45 = top-right, 135 = top-left
+  const angleToPosition: Record<number, string> = {
+    225: '0% 100%',
+    315: '100% 100%',
+    45: '100% 0%',
+    135: '0% 0%',
+    0: '50% 0%',
+    90: '100% 50%',
+    180: '50% 100%',
+    270: '0% 50%'
+  }
+
+  const position = angleToPosition[gradient.angle] || '50% 50%'
+  return `radial-gradient(ellipse at ${position}, ${stops})`
 }
 
 // AI Presentation Assist - Effect Types

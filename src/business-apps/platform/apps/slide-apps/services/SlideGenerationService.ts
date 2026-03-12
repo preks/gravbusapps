@@ -9,7 +9,12 @@
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import type { SlideData, SlideElement } from '../components/slideElements'
 import type { SlideTheme } from '../components/slideThemes'
-import { SlideResearchService, formatResearchForGeneration, type ResearchResult } from './SlideResearchService'
+import {
+  SlideResearchService,
+  formatResearchForGeneration,
+  type ResearchResult,
+  type VisualStyleRecommendation
+} from './SlideResearchService'
 import { generateSlideFromLayout, type SlideLayoutContent, type SlideLayoutType } from './SlideLayoutService'
 import { SlidesApiService } from './SlidesApiService'
 import type { SlideTemplate } from '../types'
@@ -197,6 +202,8 @@ async function fetchAndFormatReferences(
   return HEADER + formatted
 }
 
+export type StylePreference = 'auto' | 'dark' | 'light' | 'branded'
+
 export interface GenerationOptions {
   description: string
   length: 'short' | 'medium' | 'long'
@@ -210,6 +217,14 @@ export interface GenerationOptions {
   useTemplateMatching?: boolean
   /** Specific template ID to use (overrides auto-matching) */
   templateId?: string
+  /** Style preference for generated slides */
+  stylePreference?: StylePreference
+  /** Extract visual style from reference materials (default: true) */
+  extractStyleFromReferences?: boolean
+  /** Brand name for branded presentations */
+  brandName?: string
+  /** Custom brand colors */
+  brandColors?: { primary: string; secondary: string }
 }
 
 export interface GenerationResult {
@@ -617,7 +632,7 @@ interface BackendSlideSpec {
   rightTitle?: string
   headers?: string[]
   rows?: string[][]
-  items?: Array<{ date?: string; title: string; description?: string }>
+  items?: Array<{ date?: string; title: string; description?: string; icon?: string }>
   steps?: Array<{ title: string; description?: string }>
   data?: Array<{ label: string; value: number; percentage?: number }>
   metrics?: Array<{ label: string; value: string; trend?: string; trendValue?: string }>
@@ -631,6 +646,86 @@ interface BackendSlideSpec {
   imageKeywords?: string
   imageUrl?: string
   imageAttribution?: string
+  // Feature grid / icon-bullets / branded-cover
+  features?: Array<{ name: string; description: string; icon?: string }>
+  bulletStyle?: 'arrow' | 'check' | 'circle'
+  companyName?: string
+  tagline?: string
+  backgroundStyle?: 'dark' | 'light' | 'gradient'
+
+  // Common professional fields
+  sectionLabel?: string
+  highlights?: string[]
+  containerTitle?: string
+
+  // Product Grid layout
+  products?: Array<{ name: string; description: string; icon?: string }>
+
+  // Statement layout
+  statement?: string
+  supportingFeatures?: Array<{ title: string; description: string }>
+
+  // Two-Panel Features layout
+  leftPanel?: {
+    containerTitle?: string
+    features: Array<{ name: string; description: string; icon?: string }>
+  }
+  rightPanel?: {
+    title?: string
+    highlights: Array<{ title: string; description: string }>
+  }
+
+  // Architecture Diagram layout
+  centralConcept?: { title: string; subtitle?: string }
+  leftConnector?: { label: string }
+  rightConnector?: { label: string }
+  bottomBar?: { label: string }
+  leftBox?: { title: string; items: string[] }
+  rightBox?: { title: string; items: string[] }
+
+  // Layered Stack layout
+  layers?: Array<{ label: string; description?: string; iconName?: string; color?: string }>
+  orientation?: 'vertical' | 'horizontal'
+
+  // Three-Column Comparison layout
+  columns?: Array<{ title: string; subtitle?: string; points: Array<{ text: string; icon?: string }> }>
+  highlightColumn?: number
+  footnote?: string
+
+  // Governance Badges layout
+  badges?: Array<{ label: string; iconName: string; color?: string }>
+  supportingPoints?: Array<{ title: string; description: string }>
+
+  // Metrics Dashboard layout
+  dashboardLayout?: '2x2' | '1x4' | '3x1' | '2x3'
+
+  // Module Architecture layout
+  centralModule?: { name: string; subtitle?: string }
+  topModules?: Array<{ name: string; icon?: string }>
+  leftModules?: Array<{ name: string; icon?: string }>
+  rightModules?: Array<{ name: string; icon?: string }>
+  bottomLabel?: string
+
+  // Dual-Flow Comparison layout
+  leftFlow?: {
+    title: string
+    subtitle?: string
+    sections: Array<{ label: string; items: string[]; annotation?: string }>
+  }
+  rightFlow?: {
+    title: string
+    subtitle?: string
+    sections: Array<{ label: string; items: string[]; annotation?: string }>
+  }
+
+  // Mobile Showcase layout
+  appName?: string
+  phonePosition?: 'left' | 'right' | 'center'
+  phoneImageKeywords?: string
+
+  // Numbered Features layout
+  numberedFeatures?: Array<{ number: string | number; name: string; description: string; iconName?: string }>
+  featuresLayout?: '2x2' | '2x3' | '3x2'
 }
 
 interface BackendGenerationResponse {
@@ -638,6 +733,7 @@ interface BackendGenerationResponse {
   subtitle?: string
   slides: BackendSlideSpec[]
   sources?: string[]
+  detectedStyle?: 'auto' | 'dark' | 'light' | 'branded'
 }
 
 /**
@@ -650,12 +746,23 @@ async function callDocumentServiceAPI(
   const baseUrl = getDocumentServiceApiUrl()
   const url = `${baseUrl}/slides/generate`
 
-  const requestBody = {
+  const requestBody: Record<string, unknown> = {
     description: options.description,
     length: options.length,
     additionalRequirements: options.additionalRequirements,
     references: options.references,
     useWebSearch: options.useWebSearch
+  }
+
+  // Pass style preference to backend for professional layouts
+  if (options.stylePreference && options.stylePreference !== 'auto') {
+    requestBody.stylePreference = options.stylePreference
+  }
+  if (options.extractStyleFromReferences !== undefined) {
+    requestBody.extractStyleFromReferences = options.extractStyleFromReferences
+  }
+  if (options.brandName) {
+    requestBody.brandName = options.brandName
   }
 
   const response = await fetch(url, {
@@ -691,9 +798,11 @@ function resolveFallback(
  */
 function mapToLayoutContent(
   spec: BackendSlideSpec,
-  getMessage?: (key: string, params?: Record<string, string>) => string
+  getMessage?: (key: string, params?: Record<string, string>) => string,
+  effectiveStyle?: StylePreference
 ): SlideLayoutContent {
   const layout = spec.layout as SlideLayoutType
+  const isDarkStyle = effectiveStyle === 'dark' || effectiveStyle === 'branded'
 
   switch (layout) {
     case 'title-cover':
@@ -715,17 +824,23 @@ function mapToLayoutContent(
         }
       }
 
-    case 'agenda':
+    case 'agenda': {
+      // Ensure agenda has a proper title (not generic like "Slide 2")
+      const agendaTitle =
+        spec.title && !spec.title.toLowerCase().startsWith('slide ')
+          ? spec.title
+          : resolveFallback('generation-agenda', 'Agenda', getMessage)
       return {
         layout: 'agenda',
         content: {
-          title: spec.title,
+          title: agendaTitle,
           items:
             spec.items?.map(i => ({ title: i.title, description: i.description })) ||
             spec.bullets?.map(b => ({ title: b })) ||
             []
         }
       }
+    }
 
     case 'executive-summary':
       return {
@@ -919,6 +1034,254 @@ function mapToLayoutContent(
         }
       }
 
+    case 'feature-grid': {
+      // Build features from features array (backend generated) or fallback to items/bullets
+      let features: Array<{ name: string; description: string; icon: string }> = []
+      if (spec.features && spec.features.length > 0) {
+        // Use backend-generated features directly (with icons)
+        features = spec.features.map(f => ({
+          name: f.name,
+          description: f.description || '',
+          icon: f.icon || suggestIconForFeature(f.name)
+        }))
+      } else if (spec.items && spec.items.length > 0) {
+        // Convert items to features
+        features = spec.items.map(i => ({
+          name: i.title,
+          description: i.description || '',
+          icon: i.icon || suggestIconForFeature(i.title)
+        }))
+      } else if (spec.bullets && spec.bullets.length > 0) {
+        // Fallback: convert bullets to features
+        features = spec.bullets.map(b => ({
+          name: b,
+          description: '',
+          icon: suggestIconForFeature(b)
+        }))
+      }
+      return {
+        layout: 'feature-grid',
+        content: {
+          sectionTitle: spec.subtitle,
+          title: spec.title,
+          features,
+          highlights: spec.items ? spec.bullets : undefined
+        }
+      }
+    }
+
+    case 'icon-bullets':
+      return {
+        layout: 'icon-bullets',
+        content: {
+          title: spec.title,
+          items:
+            spec.bullets?.map(b => ({
+              text: b,
+              icon: undefined
+            })) || [],
+          bulletStyle: spec.bulletStyle || 'arrow'
+        }
+      }
+
+    case 'branded-cover':
+      return {
+        layout: 'branded-cover',
+        content: {
+          companyName: spec.companyName || spec.title,
+          tagline: spec.tagline || spec.subtitle,
+          subtitle: spec.subtitle,
+          backgroundStyle: spec.backgroundStyle || (isDarkStyle ? 'dark' : 'light'),
+          logoPosition: 'center' as const
+        }
+      }
+
+    case 'product-grid':
+      return {
+        layout: 'product-grid',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          containerTitle: spec.containerTitle || spec.subtitle,
+          products: (spec.products || spec.features || []).map(p => ({
+            name: p.name,
+            description: p.description || '',
+            icon: p.icon
+          })),
+          highlights: spec.highlights || spec.bullets
+        }
+      }
+
+    case 'statement':
+      return {
+        layout: 'statement',
+        content: {
+          statement: spec.statement || spec.content || spec.title,
+          sectionLabel: spec.sectionLabel,
+          subtitle: spec.subtitle,
+          supportingFeatures:
+            spec.supportingFeatures ||
+            (spec.items || []).map(i => ({
+              title: i.title,
+              description: i.description || ''
+            }))
+        }
+      }
+
+    case 'two-panel-features':
+      return {
+        layout: 'two-panel-features',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          subtitle: spec.subtitle,
+          leftPanel: spec.leftPanel || {
+            containerTitle: spec.leftTitle,
+            features: (spec.features || spec.items || []).map(f => ({
+              name: f.name || f.title,
+              description: f.description || '',
+              icon: f.icon
+            }))
+          },
+          rightPanel: spec.rightPanel || {
+            title: spec.rightTitle,
+            highlights: (spec.highlights || spec.bullets || []).map(h =>
+              typeof h === 'string' ? { title: h, description: '' } : h
+            )
+          }
+        }
+      }
+
+    case 'architecture-diagram':
+      return {
+        layout: 'architecture-diagram',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          centralConcept: spec.centralConcept || {
+            title: spec.subtitle || spec.title,
+            subtitle: spec.content
+          },
+          leftConnector: spec.leftConnector,
+          rightConnector: spec.rightConnector,
+          bottomBar: spec.bottomBar,
+          leftBox: spec.leftBox,
+          rightBox: spec.rightBox
+        }
+      }
+
+    case 'layered-stack':
+      return {
+        layout: 'layered-stack',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          statement: spec.statement,
+          layers: spec.layers || [],
+          orientation: spec.orientation || 'vertical'
+        }
+      }
+
+    case 'three-column-comparison':
+      return {
+        layout: 'three-column-comparison',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          columns: spec.columns || [
+            { title: 'Option 1', points: [] },
+            { title: 'Option 2', points: [] },
+            { title: 'Option 3', points: [] }
+          ],
+          highlightColumn: spec.highlightColumn,
+          footnote: spec.footnote
+        }
+      }
+
+    case 'governance-badges':
+      return {
+        layout: 'governance-badges',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          badges: spec.badges || [],
+          subtitle: spec.subtitle,
+          supportingPoints: spec.supportingPoints
+        }
+      }
+
+    case 'metrics-dashboard':
+      return {
+        layout: 'metrics-dashboard',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          metrics: (spec.metrics || []).map(m => ({
+            value: m.value,
+            label: m.label,
+            description: m.description || '',
+            iconName: m.iconName
+          })),
+          layout: spec.dashboardLayout || '2x2'
+        }
+      }
+
+    case 'module-architecture':
+      return {
+        layout: 'module-architecture',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          centralModule: spec.centralModule,
+          topModules: spec.topModules,
+          leftModules: spec.leftModules,
+          rightModules: spec.rightModules,
+          bottomLabel: spec.bottomLabel
+        }
+      }
+
+    case 'dual-flow-comparison':
+      return {
+        layout: 'dual-flow-comparison',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          leftFlow: spec.leftFlow || { title: 'Before', sections: [] },
+          rightFlow: spec.rightFlow || { title: 'After', sections: [] },
+          footnote: spec.footnote
+        }
+      }
+
+    case 'mobile-showcase':
+      return {
+        layout: 'mobile-showcase',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          appName: spec.appName || spec.title,
+          description: spec.content || spec.subtitle || '',
+          features: spec.features || [],
+          phonePosition: spec.phonePosition || 'left',
+          phoneImageKeywords: spec.phoneImageKeywords
+        }
+      }
+
+    case 'numbered-features':
+      return {
+        layout: 'numbered-features',
+        content: {
+          title: spec.title,
+          sectionLabel: spec.sectionLabel,
+          features: (spec.numberedFeatures || []).map(f => ({
+            number: f.number,
+            name: f.name,
+            description: f.description,
+            iconName: f.iconName
+          })),
+          layout: spec.featuresLayout || '2x3'
+        }
+      }
+
     default:
       // Fallback to bullets
       return {
@@ -930,6 +1293,101 @@ function mapToLayoutContent(
         }
       }
   }
+}
+
+/**
+ * Suggest an icon name based on feature title
+ */
+function suggestIconForFeature(title: string): string {
+  const lowerTitle = title.toLowerCase()
+
+  if (lowerTitle.includes('office') || lowerTitle.includes('document')) return 'file-text'
+  if (lowerTitle.includes('drive') || lowerTitle.includes('file') || lowerTitle.includes('storage')) return 'hard-drive'
+  if (lowerTitle.includes('ai') || lowerTitle.includes('intelligent')) return 'sparkles'
+  if (lowerTitle.includes('chat') || lowerTitle.includes('message')) return 'message-circle'
+  if (lowerTitle.includes('meeting') || lowerTitle.includes('video')) return 'video'
+  if (lowerTitle.includes('calendar') || lowerTitle.includes('schedule')) return 'calendar'
+  if (lowerTitle.includes('mail') || lowerTitle.includes('email') || lowerTitle.includes('box')) return 'inbox'
+  if (lowerTitle.includes('page') || lowerTitle.includes('intranet') || lowerTitle.includes('web')) return 'globe'
+  if (lowerTitle.includes('security') || lowerTitle.includes('secure')) return 'shield'
+  if (lowerTitle.includes('cloud')) return 'cloud'
+  if (lowerTitle.includes('mobile') || lowerTitle.includes('phone')) return 'smartphone'
+  if (lowerTitle.includes('team') || lowerTitle.includes('collaboration')) return 'users'
+  if (lowerTitle.includes('analytics') || lowerTitle.includes('report')) return 'bar-chart-2'
+  if (lowerTitle.includes('setting') || lowerTitle.includes('config')) return 'settings'
+
+  return 'check-circle'
+}
+
+/**
+ * Transform backend slide specs to use professional layouts
+ * based on style preference and visual style recommendations
+ */
+function transformSlidesToProfessionalLayouts(
+  slides: BackendSlideSpec[],
+  stylePreference?: StylePreference,
+  visualStyle?: VisualStyleRecommendation
+): BackendSlideSpec[] {
+  const useProfessionalLayouts =
+    stylePreference === 'dark' ||
+    stylePreference === 'branded' ||
+    visualStyle?.theme === 'newwork-dark' ||
+    visualStyle?.hasFeatureGrid ||
+    visualStyle?.hasIcons
+
+  if (!useProfessionalLayouts) {
+    return slides
+  }
+
+  console.log('[SlideGeneration] Transforming to professional layouts', { stylePreference, visualStyle })
+
+  return slides.map((slide, index) => {
+    const transformed = { ...slide }
+
+    // Transform title-cover to branded-cover for first slide
+    if (index === 0 && slide.layout === 'title-cover') {
+      transformed.layout = 'branded-cover'
+      console.log(`[SlideGeneration] Slide ${index}: title-cover -> branded-cover`)
+      return transformed
+    }
+
+    // Transform bullets with multiple items array to feature-grid
+    if (slide.layout === 'bullets' && slide.items && slide.items.length >= 3) {
+      transformed.layout = 'feature-grid'
+      console.log(`[SlideGeneration] Slide ${index}: bullets -> feature-grid (${slide.items.length} items)`)
+      return transformed
+    }
+
+    // Transform bullets with 4+ bullet points to feature-grid (convert bullets to items)
+    if (slide.layout === 'bullets' && slide.bullets && slide.bullets.length >= 4) {
+      transformed.layout = 'feature-grid'
+      // Convert bullets array to items array for feature-grid
+      transformed.items = slide.bullets.map(bullet => ({
+        title: bullet,
+        description: ''
+      }))
+      console.log(
+        `[SlideGeneration] Slide ${index}: bullets -> feature-grid (converted ${slide.bullets.length} bullets)`
+      )
+      return transformed
+    }
+
+    // Transform regular bullets (less than 4) to icon-bullets
+    if (slide.layout === 'bullets' && slide.bullets && slide.bullets.length > 0) {
+      transformed.layout = 'icon-bullets'
+      console.log(`[SlideGeneration] Slide ${index}: bullets -> icon-bullets (${slide.bullets.length} bullets)`)
+      return transformed
+    }
+
+    // Transform two-column layouts with items to feature-grid
+    if (slide.layout === 'two-column' && slide.items && slide.items.length >= 4) {
+      transformed.layout = 'feature-grid'
+      console.log(`[SlideGeneration] Slide ${index}: two-column -> feature-grid`)
+      return transformed
+    }
+
+    return transformed
+  })
 }
 
 /**
@@ -1080,21 +1538,61 @@ export async function generateSlides(
     })
   }
 
+  // Phase 2.5: Transform layouts based on style preference or detected style
+  const transformedSlides = transformSlidesToProfessionalLayouts(
+    apiResponse.slides,
+    options.stylePreference || apiResponse.detectedStyle,
+    researchData?.visualStyle
+  )
+
   // Phase 3: Convert to slide data
   onProgress?.('validation', 'progress-building')
 
   let slides: SlideData[]
 
+  // Determine theme based on style preference or backend-detected style
+  const effectiveStyle = options.stylePreference || apiResponse.detectedStyle
+  let effectiveTheme = options.theme
+  if (effectiveStyle === 'dark' || effectiveStyle === 'branded') {
+    // Use NEWWORK dark theme for dark/branded style
+    effectiveTheme = {
+      id: 'newwork-dark',
+      name: 'NEWWORK Dark',
+      preview: { primary: '#e91e8c', secondary: '#f5a623', background: '#0a0a0a' },
+      theme: {
+        colors: {
+          primary: '#ffffff',
+          secondary: '#e91e8c',
+          tertiary: '#0a0a0a',
+          quaternary: '#f5a623'
+        },
+        fonts: {
+          header: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+          text: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+          monospace: '"Fira Code", "Monaco", monospace'
+        },
+        fontSizes: {
+          h1: '72px',
+          h2: '56px',
+          h3: '40px',
+          text: '32px',
+          monospace: '24px'
+        }
+      }
+    }
+    console.log(`[SlideGeneration] Using dark theme (effectiveStyle: ${effectiveStyle})`)
+  }
+
   if (matchedTemplate && matchedTemplate.contentJson.slides.length > 0) {
     // Use template slides as base, populate with AI-generated content
     // This preserves the template's visual design (backgrounds, layouts, element positions)
-    slides = populateTemplateWithContent(matchedTemplate.contentJson.slides, apiResponse.slides)
+    slides = populateTemplateWithContent(matchedTemplate.contentJson.slides, transformedSlides)
     console.log(`[SlideGeneration] Populated ${slides.length} template slides with AI content`)
   } else {
     // No template - generate slides from scratch using layout service
-    slides = apiResponse.slides.map((spec, index) => {
-      const layoutContent = mapToLayoutContent(spec, options.getMessage)
-      return generateSlideFromLayout(layoutContent, index, options.theme)
+    slides = transformedSlides.map((spec, index) => {
+      const layoutContent = mapToLayoutContent(spec, options.getMessage, effectiveStyle)
+      return generateSlideFromLayout(layoutContent, index, effectiveTheme)
     })
   }
 

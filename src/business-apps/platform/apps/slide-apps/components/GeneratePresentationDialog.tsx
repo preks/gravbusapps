@@ -57,7 +57,8 @@ import {
   Settings2,
   Users,
   Sparkles,
-  FileText
+  FileText,
+  Moon
 } from 'lucide-react'
 import { ContentAttachmentPicker } from './ContentAttachmentPicker'
 import { useSlideGeneration, type MatchedTemplateInfo } from '../hooks/useSlideGeneration'
@@ -78,6 +79,7 @@ export interface GeneratePresentationDialogProps {
 
 type PresentationLength = 'short' | 'medium' | 'long'
 type PresentationStyle = 'professional' | 'creative' | 'minimal' | 'bold'
+type ThemePreference = 'auto' | 'dark' | 'light' | 'branded'
 type ContentDensity = 'detailed' | 'balanced' | 'visual'
 type TargetAudience = 'executive' | 'technical' | 'sales' | 'general'
 
@@ -107,6 +109,13 @@ const AUDIENCE_OPTIONS: { value: TargetAudience; labelKey: string }[] = [
   { value: 'general', labelKey: 'generate-audience-general' }
 ]
 
+const THEME_PREFERENCE_OPTIONS: { value: ThemePreference; labelKey: string; descKey: string }[] = [
+  { value: 'auto', labelKey: 'generate-theme-auto', descKey: 'generate-theme-auto-desc' },
+  { value: 'dark', labelKey: 'generate-theme-dark', descKey: 'generate-theme-dark-desc' },
+  { value: 'light', labelKey: 'generate-theme-light', descKey: 'generate-theme-light-desc' },
+  { value: 'branded', labelKey: 'generate-theme-branded', descKey: 'generate-theme-branded-desc' }
+]
+
 const TEMPLATE_CATEGORIES: Array<{ value: TemplateCategory | 'all'; labelKey: string; icon: React.ReactNode }> = [
   { value: 'all', labelKey: 'template-tab-all', icon: <LayoutTemplate className="gba:size-3.5" /> },
   { value: 'business', labelKey: 'template-category-business', icon: <Briefcase className="gba:size-3.5" /> },
@@ -134,6 +143,8 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
   const [style, setStyle] = useState<PresentationStyle>('professional')
   const [density, setDensity] = useState<ContentDensity>('balanced')
   const [audience, setAudience] = useState<TargetAudience>('general')
+  const [themePreference, setThemePreference] = useState<ThemePreference>('auto')
+  const [extractStyleFromReferences, setExtractStyleFromReferences] = useState(true)
 
   // Template state
   const [templateSectionOpen, setTemplateSectionOpen] = useState(false)
@@ -209,6 +220,8 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
       setStyle('professional')
       setDensity('balanced')
       setAudience('general')
+      setThemePreference('auto')
+      setExtractStyleFromReferences(true)
       reset()
     }
   }, [open, reset])
@@ -221,8 +234,9 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
     const styleContext = style !== 'professional' ? `Style: ${style}` : ''
     const densityContext = density !== 'balanced' ? `Content density: ${density}` : ''
     const audienceContext = audience !== 'general' ? `Target audience: ${audience}` : ''
+    const themeContext = themePreference !== 'auto' ? `Preferred theme: ${themePreference} (dark/light theme)` : ''
 
-    const contextParts = [styleContext, densityContext, audienceContext].filter(Boolean)
+    const contextParts = [styleContext, densityContext, audienceContext, themeContext].filter(Boolean)
     const combinedRequirements = [additionalRequirements.trim(), ...contextParts].filter(Boolean).join('\n')
 
     const options: GenerationOptions = {
@@ -231,7 +245,9 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
       additionalRequirements: combinedRequirements || undefined,
       references: references.length > 0 ? references : undefined,
       useWebSearch,
-      templateId: selectedTemplateId || undefined
+      templateId: selectedTemplateId || undefined,
+      stylePreference: themePreference !== 'auto' ? themePreference : undefined,
+      extractStyleFromReferences: references.length > 0 ? extractStyleFromReferences : undefined
     }
 
     await generate(options)
@@ -245,6 +261,8 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
     style,
     density,
     audience,
+    themePreference,
+    extractStyleFromReferences,
     generate
   ])
 
@@ -607,6 +625,56 @@ export const GeneratePresentationDialog: React.FC<GeneratePresentationDialogProp
                         </div>
                       ))}
                     </RadioGroup>
+                  </div>
+
+                  {/* Theme Preference */}
+                  <div className="gba:space-y-2">
+                    <Label className="gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
+                      <Moon className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+                      {t('generate-theme-preference') || 'Theme'}
+                    </Label>
+                    <ToggleGroup
+                      type="single"
+                      value={themePreference}
+                      onValueChange={v => v && setThemePreference(v as ThemePreference)}
+                      variant="outline"
+                      className="gba:w-full"
+                      disabled={isGenerating}
+                    >
+                      {THEME_PREFERENCE_OPTIONS.map(opt => (
+                        <ToggleGroupItem
+                          key={opt.value}
+                          value={opt.value}
+                          className="gba:flex-1 gba:text-sm"
+                          data-testid={`${testId}-theme-${opt.value}`}
+                        >
+                          {t(opt.labelKey) || opt.value}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {t(
+                        THEME_PREFERENCE_OPTIONS.find(o => o.value === themePreference)?.descKey ||
+                          'generate-theme-auto-desc'
+                      ) || 'Auto-detect theme from reference materials'}
+                    </p>
+                  </div>
+
+                  {/* Extract Style from References */}
+                  <div className="gba:flex gba:items-center gba:justify-between gba:py-2">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Palette className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+                      <Label htmlFor="extract-style" className="gba:text-xs gba:cursor-pointer gba:font-normal">
+                        {t('generate-extract-style') || 'Extract style from references'}
+                      </Label>
+                    </div>
+                    <Switch
+                      id="extract-style"
+                      checked={extractStyleFromReferences}
+                      onCheckedChange={setExtractStyleFromReferences}
+                      disabled={isGenerating || references.length === 0}
+                      data-testid={`${testId}-extract-style`}
+                    />
                   </div>
                 </div>
               </CollapsibleContent>

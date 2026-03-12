@@ -2241,10 +2241,39 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     {/* Scaled canvas container */}
                     <div
                       className="gba:absolute gba:inset-0"
-                      style={{
-                        backgroundColor: s.background?.color || '#fff',
-                        background: s.background?.gradient ? gradientToCss(s.background.gradient) : undefined
-                      }}
+                      style={(() => {
+                        const bg = s.background
+                        if (!bg) return { backgroundColor: '#fff' }
+
+                        switch (bg.type) {
+                          case 'gradient':
+                            return bg.gradient ? { background: gradientToCss(bg.gradient) } : {}
+                          case 'branded': {
+                            const layers: string[] = []
+                            if (bg.overlay) {
+                              layers.push(gradientToCss(bg.overlay))
+                            }
+                            if (bg.gradient) {
+                              layers.push(gradientToCss(bg.gradient))
+                            }
+                            const baseColor = bg.color || '#0a0a0a'
+                            if (layers.length > 0) {
+                              return { background: `${layers.join(', ')}, ${baseColor}` }
+                            }
+                            return { backgroundColor: baseColor }
+                          }
+                          case 'image':
+                            return bg.imageUrl
+                              ? {
+                                  backgroundImage: `url(${bg.imageUrl})`,
+                                  backgroundSize: 'cover',
+                                  backgroundPosition: 'center'
+                                }
+                              : {}
+                          default:
+                            return { backgroundColor: bg.color || '#ffffff' }
+                        }
+                      })()}
                     >
                       <div
                         style={{
@@ -2257,49 +2286,65 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                           transformOrigin: 'top left'
                         }}
                       >
-                        {(s.elements || []).map(el => (
-                          <div
-                            key={el.id}
-                            className="gba:absolute gba:overflow-hidden"
-                            style={{
-                              left: el.position.x,
-                              top: el.position.y,
-                              width: el.size.width,
-                              height: el.size.height,
-                              backgroundColor: el.type === 'shape' ? (el as any).fill : 'transparent'
-                            }}
-                          >
-                            {el.type === 'text' && (
-                              <div
-                                className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
-                                style={{
-                                  color: (el as any).color,
-                                  fontSize: (el as any).fontSize,
-                                  fontWeight: (el as any).fontWeight,
-                                  fontFamily: (el as any).fontFamily,
-                                  textAlign: (el as any).textAlign,
-                                  lineHeight: (el as any).lineHeight || 1.2
-                                }}
-                              >
-                                {(el as any).content}
-                              </div>
-                            )}
-                            {el.type === 'image' && (
-                              <img
-                                src={sanitizeMediaUrl((el as any).src, ['image/'])}
-                                alt=""
-                                className="gba:w-full gba:h-full gba:object-cover"
-                              />
-                            )}
-                            {el.type === 'chart' && (
-                              <SlideChartRenderer
-                                element={el as ChartElement}
-                                width={el.size.width}
-                                height={el.size.height}
-                              />
-                            )}
-                          </div>
-                        ))}
+                        {[...(s.elements || [])]
+                          .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+                          .map(el => (
+                            <div
+                              key={el.id}
+                              className="gba:absolute"
+                              style={{
+                                left: el.position.x,
+                                top: el.position.y,
+                                width: el.size.width,
+                                height: el.size.height,
+                                zIndex: el.zIndex || 0,
+                                backgroundColor:
+                                  el.type === 'shape' && !(el as any).gradient ? (el as any).fill : 'transparent',
+                                background:
+                                  el.type === 'shape' && (el as any).gradient
+                                    ? gradientToCss((el as any).gradient)
+                                    : undefined,
+                                borderRadius:
+                                  el.type === 'shape'
+                                    ? (el as any).shapeType === 'circle' || (el as any).shapeType === 'ellipse'
+                                      ? '50%'
+                                      : (el as any).cornerRadius || (el as any).borderRadius
+                                    : undefined,
+                                overflow: el.type === 'text' ? 'hidden' : undefined
+                              }}
+                            >
+                              {el.type === 'text' && (
+                                <div
+                                  className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
+                                  style={{
+                                    color: (el as any).color,
+                                    fontSize: (el as any).fontSize,
+                                    fontWeight: (el as any).fontWeight,
+                                    fontFamily: (el as any).fontFamily,
+                                    textAlign: (el as any).textAlign,
+                                    lineHeight: (el as any).lineHeight || 1.2,
+                                    background: (el as any).gradient ? gradientToCss((el as any).gradient) : undefined
+                                  }}
+                                >
+                                  {(el as any).content}
+                                </div>
+                              )}
+                              {el.type === 'image' && (
+                                <img
+                                  src={sanitizeMediaUrl((el as any).src, ['image/'])}
+                                  alt=""
+                                  className="gba:w-full gba:h-full gba:object-cover"
+                                />
+                              )}
+                              {el.type === 'chart' && (
+                                <SlideChartRenderer
+                                  element={el as ChartElement}
+                                  width={el.size.width}
+                                  height={el.size.height}
+                                />
+                              )}
+                            </div>
+                          ))}
                       </div>
                     </div>
                     {/* Slide number overlay */}

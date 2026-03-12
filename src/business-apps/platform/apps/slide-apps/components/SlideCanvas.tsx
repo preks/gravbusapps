@@ -4,7 +4,7 @@
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react'
-import { ImageOff, Mic, MicOff, Check } from 'lucide-react'
+import { ImageOff, Mic, MicOff, Check, icons as lucideIcons } from 'lucide-react'
 import type {
   AnySlideElement,
   TextElement,
@@ -13,12 +13,27 @@ import type {
   VideoElement,
   TableElement,
   ChartElement,
+  IconElement,
+  LogoElement,
+  FooterElement,
+  BadgeElement,
+  ConnectorElement,
+  LayerElement,
+  MetricCardElement,
   Position,
   Size
 } from './slideElements'
 import { gradientToCss } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
+
+const hexToRgba = (hex: string, alpha: number): string => {
+  const cleanHex = hex.replace('#', '')
+  const r = parseInt(cleanHex.substring(0, 2), 16)
+  const g = parseInt(cleanHex.substring(2, 4), 16)
+  const b = parseInt(cleanHex.substring(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 interface InlineEditingProps {
   editingTextId: string | null
@@ -39,13 +54,15 @@ interface SlideCanvasProps {
   elements: AnySlideElement[]
   selectedIds: Set<string>
   background: {
-    type: 'solid' | 'gradient' | 'image' | 'video'
+    type: 'solid' | 'gradient' | 'image' | 'video' | 'branded'
     color?: string
     gradient?: { type: 'linear' | 'radial'; angle: number; stops: { color: string; position: number }[] }
+    overlay?: { type: 'linear' | 'radial'; angle: number; stops: { color: string; position: number }[] }
     imageUrl?: string
     videoUrl?: string
     videoMuted?: boolean
     videoLoop?: boolean
+    brandPreset?: string
   }
   onSelectElements: (ids: Set<string>) => void
   onUpdateElement: (id: string, updates: Partial<AnySlideElement>) => void
@@ -115,12 +132,29 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       switch (background.type) {
         case 'gradient':
           return background.gradient ? { background: gradientToCss(background.gradient) } : {}
+        case 'branded': {
+          // Branded backgrounds layer: overlay (top) + gradient (middle) + base color (bottom)
+          const layers: string[] = []
+
+          if (background.overlay) {
+            layers.push(gradientToCss(background.overlay))
+          }
+          if (background.gradient) {
+            layers.push(gradientToCss(background.gradient))
+          }
+
+          const baseColor = background.color || '#0a0a0a'
+
+          if (layers.length > 0) {
+            return { background: `${layers.join(', ')}, ${baseColor}` }
+          }
+          return { backgroundColor: baseColor }
+        }
         case 'image':
           return background.imageUrl
             ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
             : {}
         case 'video':
-          // Video backgrounds are rendered separately, use transparent background
           return { backgroundColor: '#000000' }
         default:
           return { backgroundColor: background.color || '#ffffff' }
@@ -1160,6 +1194,383 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               height={element.size.height}
             />
           )}
+
+          {element.type === 'icon' &&
+            (() => {
+              const iconEl = element as IconElement
+              const iconName = iconEl.iconName
+                .split('-')
+                .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+                .join('')
+              const IconComponent = lucideIcons[iconName as keyof typeof lucideIcons] || lucideIcons['FileText']
+              return (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <IconComponent
+                    size={Math.min(iconEl.size.width, iconEl.size.height) * 0.8}
+                    color={iconEl.color}
+                    strokeWidth={iconEl.strokeWidth}
+                    fill={iconEl.filled ? iconEl.color : 'none'}
+                  />
+                </div>
+              )
+            })()}
+
+          {element.type === 'logo' &&
+            (() => {
+              const logoEl = element as LogoElement
+              const isDark = logoEl.preset === 'newwork-dark'
+              return (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 8
+                  }}
+                >
+                  {logoEl.showText && (
+                    <span
+                      style={{
+                        fontFamily: 'Inter, sans-serif',
+                        fontWeight: 700,
+                        fontSize: 16,
+                        letterSpacing: 1,
+                        color: isDark ? '#ffffff' : '#0a0a0a'
+                      }}
+                    >
+                      <span style={{ color: isDark ? '#e91e8c' : '#e91e8c' }}>NEW</span>
+                      <span style={{ color: isDark ? '#f5a623' : '#f5a623' }}>WORK</span>
+                    </span>
+                  )}
+                </div>
+              )
+            })()}
+
+          {element.type === 'footer' &&
+            (() => {
+              const footerEl = element as FooterElement
+              return (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingLeft: 80,
+                    paddingRight: 80,
+                    fontSize: footerEl.fontSize,
+                    color: footerEl.color
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    {footerEl.confidentialityText && (
+                      <span style={{ fontSize: footerEl.fontSize - 2 }}>{footerEl.confidentialityText}</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, textAlign: 'center' }}>{footerEl.dateText}</div>
+                  <div style={{ flex: 1, textAlign: 'right' }}>
+                    {footerEl.showPageNumber && (
+                      <span>
+                        {footerEl.pageNumber}
+                        {footerEl.totalPages && ` / ${footerEl.totalPages}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+          {element.type === 'badge' &&
+            (() => {
+              const badgeEl = element as BadgeElement
+              const iconName = badgeEl.iconName
+                ?.split('-')
+                .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+                .join('')
+              const IconComponent = iconName ? lucideIcons[iconName as keyof typeof lucideIcons] : null
+
+              const getBadgeStyle = (): React.CSSProperties => {
+                const base: React.CSSProperties = {
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  borderRadius: badgeEl.borderRadius,
+                  fontSize: badgeEl.fontSize,
+                  fontWeight: 600,
+                  fontFamily: 'Inter, sans-serif'
+                }
+
+                switch (badgeEl.variant) {
+                  case 'filled':
+                    return {
+                      ...base,
+                      backgroundColor: badgeEl.backgroundColor,
+                      color: badgeEl.textColor
+                    }
+                  case 'outlined':
+                    return {
+                      ...base,
+                      backgroundColor: 'transparent',
+                      color: badgeEl.backgroundColor,
+                      border: `2px solid ${badgeEl.borderColor || badgeEl.backgroundColor}`
+                    }
+                  case 'subtle':
+                    return {
+                      ...base,
+                      backgroundColor: `${badgeEl.backgroundColor}20`,
+                      color: badgeEl.backgroundColor
+                    }
+                  default:
+                    return base
+                }
+              }
+
+              return (
+                <div style={getBadgeStyle()}>
+                  {IconComponent && <IconComponent size={badgeEl.iconSize} strokeWidth={2} />}
+                  <span>{badgeEl.label}</span>
+                </div>
+              )
+            })()}
+
+          {element.type === 'connector' &&
+            (() => {
+              const connEl = element as ConnectorElement
+              const relativeStart = {
+                x: connEl.startPoint.x - element.position.x,
+                y: connEl.startPoint.y - element.position.y
+              }
+              const relativeEnd = {
+                x: connEl.endPoint.x - element.position.x,
+                y: connEl.endPoint.y - element.position.y
+              }
+
+              const getPath = (): string => {
+                if (connEl.lineType === 'straight') {
+                  return `M ${relativeStart.x} ${relativeStart.y} L ${relativeEnd.x} ${relativeEnd.y}`
+                } else if (connEl.lineType === 'elbow') {
+                  const midX = (relativeStart.x + relativeEnd.x) / 2
+                  return `M ${relativeStart.x} ${relativeStart.y} L ${midX} ${relativeStart.y} L ${midX} ${relativeEnd.y} L ${relativeEnd.x} ${relativeEnd.y}`
+                } else {
+                  const midX = (relativeStart.x + relativeEnd.x) / 2
+                  const midY = (relativeStart.y + relativeEnd.y) / 2
+                  return `M ${relativeStart.x} ${relativeStart.y} Q ${midX} ${relativeStart.y} ${midX} ${midY} Q ${midX} ${relativeEnd.y} ${relativeEnd.x} ${relativeEnd.y}`
+                }
+              }
+
+              const getStrokeDasharray = (): string | undefined => {
+                switch (connEl.strokeStyle) {
+                  case 'dashed':
+                    return '8 4'
+                  case 'dotted':
+                    return '2 4'
+                  default:
+                    return undefined
+                }
+              }
+
+              const arrowMarkerId = `arrow-${connEl.id}`
+
+              return (
+                <svg width="100%" height="100%" style={{ overflow: 'visible' }}>
+                  <defs>
+                    <marker
+                      id={arrowMarkerId}
+                      markerWidth={connEl.arrowSize}
+                      markerHeight={connEl.arrowSize}
+                      refX={connEl.arrowSize - 1}
+                      refY={connEl.arrowSize / 2}
+                      orient="auto"
+                    >
+                      <polygon
+                        points={`0 0, ${connEl.arrowSize} ${connEl.arrowSize / 2}, 0 ${connEl.arrowSize}`}
+                        fill={connEl.strokeColor}
+                      />
+                    </marker>
+                  </defs>
+                  <path
+                    d={getPath()}
+                    stroke={connEl.strokeColor}
+                    strokeWidth={connEl.strokeWidth}
+                    strokeDasharray={getStrokeDasharray()}
+                    fill="none"
+                    markerEnd={connEl.endArrow ? `url(#${arrowMarkerId})` : undefined}
+                    markerStart={connEl.startArrow ? `url(#${arrowMarkerId})` : undefined}
+                  />
+                  {connEl.label && (
+                    <text
+                      x={(relativeStart.x + relativeEnd.x) / 2}
+                      y={(relativeStart.y + relativeEnd.y) / 2 - 8}
+                      textAnchor="middle"
+                      fill={connEl.labelColor || connEl.strokeColor}
+                      fontSize={connEl.labelFontSize || 12}
+                      fontFamily="Inter, sans-serif"
+                    >
+                      {connEl.label}
+                    </text>
+                  )}
+                </svg>
+              )
+            })()}
+
+          {element.type === 'layer' &&
+            (() => {
+              const layerEl = element as LayerElement
+              const iconName = layerEl.iconName
+                ?.split('-')
+                .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+                .join('')
+              const IconComponent = iconName ? lucideIcons[iconName as keyof typeof lucideIcons] : null
+
+              return (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 16,
+                    padding: '0 24px',
+                    backgroundColor: layerEl.backgroundColor,
+                    color: layerEl.textColor,
+                    borderRadius: layerEl.borderRadius,
+                    border: layerEl.borderColor !== 'transparent' ? `1px solid ${layerEl.borderColor}` : undefined,
+                    boxShadow:
+                      layerEl.depth > 0 ? `0 ${layerEl.depth}px ${layerEl.depth * 2}px rgba(0,0,0,0.2)` : undefined,
+                    fontFamily: 'Inter, sans-serif'
+                  }}
+                >
+                  {IconComponent && <IconComponent size={24} strokeWidth={2} />}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: layerEl.labelFontSize, fontWeight: 600 }}>{layerEl.label}</div>
+                    {layerEl.description && (
+                      <div style={{ fontSize: layerEl.descriptionFontSize, opacity: 0.8, marginTop: 2 }}>
+                        {layerEl.description}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+          {element.type === 'metric-card' &&
+            (() => {
+              const metricEl = element as MetricCardElement
+              const iconName = metricEl.iconName
+                ?.split('-')
+                .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+                .join('')
+              const IconComponent = iconName ? lucideIcons[iconName as keyof typeof lucideIcons] : null
+
+              const getTrendIcon = () => {
+                if (!metricEl.trend) return null
+                const TrendIcon =
+                  metricEl.trend === 'up'
+                    ? lucideIcons['TrendingUp']
+                    : metricEl.trend === 'down'
+                      ? lucideIcons['TrendingDown']
+                      : lucideIcons['Minus']
+                const trendColor =
+                  metricEl.trend === 'up' ? '#22c55e' : metricEl.trend === 'down' ? '#ef4444' : '#64748b'
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: trendColor }}>
+                    <TrendIcon size={14} />
+                    {metricEl.trendValue && <span style={{ fontSize: 12 }}>{metricEl.trendValue}</span>}
+                  </div>
+                )
+              }
+
+              return (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: 20,
+                    backgroundColor: metricEl.backgroundColor,
+                    borderRadius: metricEl.borderRadius,
+                    border: metricEl.borderWidth
+                      ? `${metricEl.borderWidth}px solid ${metricEl.borderColor}`
+                      : undefined,
+                    fontFamily: 'Inter, sans-serif'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}
+                  >
+                    {IconComponent && (
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: hexToRgba(metricEl.valueColor, 0.1),
+                          borderRadius: 8,
+                          color: metricEl.valueColor
+                        }}
+                      >
+                        <IconComponent size={20} />
+                      </div>
+                    )}
+                    {getTrendIcon()}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: metricEl.valueFontSize,
+                      fontWeight: 700,
+                      color: metricEl.valueColor,
+                      lineHeight: 1.1,
+                      marginBottom: 8
+                    }}
+                  >
+                    {metricEl.value}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: metricEl.labelFontSize,
+                      fontWeight: 600,
+                      color: metricEl.labelColor,
+                      marginBottom: 4
+                    }}
+                  >
+                    {metricEl.label}
+                  </div>
+                  {metricEl.description && (
+                    <div
+                      style={{
+                        fontSize: metricEl.descriptionFontSize,
+                        color: metricEl.descriptionColor || 'rgba(255,255,255,0.6)',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      {metricEl.description}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
           {/* Resize handles - only for single selection */}
           {isSelected && isSingleSelection && !element.locked && (

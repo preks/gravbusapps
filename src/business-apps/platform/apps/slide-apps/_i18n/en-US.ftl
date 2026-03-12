@@ -321,6 +321,16 @@ generate-audience-executive = Executive
 generate-audience-technical = Technical
 generate-audience-sales = Sales
 generate-audience-general = General
+generate-theme-preference = Theme
+generate-theme-auto = Auto
+generate-theme-auto-desc = Auto-detect theme from reference materials
+generate-theme-dark = Dark
+generate-theme-dark-desc = Use dark theme with light text
+generate-theme-light = Light
+generate-theme-light-desc = Use light theme with dark text
+generate-theme-branded = Branded
+generate-theme-branded-desc = Use NEWWORK branded theme
+generate-extract-style = Extract style from references
 generate-toast-success = Presentation generated!
 generate-toast-description = Created { $count } slides
 
@@ -473,6 +483,7 @@ generation-option-a = Option A
 generation-option-b = Option B
 generation-unknown = Unknown
 generation-thank-you = Thank You
+generation-agenda = Agenda
 
 # usePowerPointParser
 parser-invalid-type = Invalid file type. Please upload a .pptx file (PowerPoint 2007 or later).

@@ -59,6 +59,15 @@ export interface ChartDataSuggestion {
   source?: string
 }
 
+export interface VisualStyleRecommendation {
+  theme: 'dark' | 'light' | 'newwork-dark' | 'newwork-light' | 'corporate'
+  primaryColor?: string
+  secondaryColor?: string
+  suggestedLayouts: string[]
+  hasIcons: boolean
+  hasFeatureGrid: boolean
+}
+
 export interface ResearchResult {
   topic: string
   summary: string
@@ -70,6 +79,7 @@ export interface ResearchResult {
   competitorInfo: CompetitorInfo[]
   historicalContext: HistoricalMilestone[]
   chartSuggestions: ChartDataSuggestion[]
+  visualStyle?: VisualStyleRecommendation
   sources: Array<{ name: string; url?: string }>
   rawContent: string
 }
@@ -136,13 +146,20 @@ Please research this topic thoroughly and provide me with:
 9. **SUMMARY**
    - A brief executive summary of the topic (2-3 paragraphs)
 
+10. **VISUAL STYLE RECOMMENDATIONS** (if reference material provided)
+   - Analyze the style of any reference materials
+   - Recommend visual approach for the presentation
+   - Format: "Style: [theme] | Colors: [primary, secondary] | Layout: [suggestions]"
+   - Include: Theme (dark/light), suggested layouts (feature-grid, icon-bullets, etc.)
+
 IMPORTANT RULES:
 - Use ONLY real, verifiable information from web search
 - ALWAYS cite your sources with URLs when available
 - DO NOT make up statistics or quotes
 - Focus on recent/current information when relevant
 - Be specific and detailed
-- For chart data, provide actual numbers from reliable sources`
+- For chart data, provide actual numbers from reliable sources
+- If reference material is provided, match its visual style when suggesting themes`
 
   if (additionalContext) {
     prompt += `\n\nAdditional context from user:\n${additionalContext}`
@@ -211,6 +228,9 @@ function parseResearchResponse(rawContent: string, topic: string): ResearchResul
       continue
     } else if (trimmed.includes('SUMMARY')) {
       currentSection = 'summary'
+      continue
+    } else if (trimmed.includes('VISUAL STYLE') || trimmed.includes('STYLE RECOMMENDATION')) {
+      currentSection = 'visual'
       continue
     }
 
@@ -403,6 +423,55 @@ function parseResearchResponse(rawContent: string, topic: string): ResearchResul
       }
     } else if (currentSection === 'summary') {
       summaryLines.push(trimmed)
+    } else if (currentSection === 'visual') {
+      // Parse visual style recommendations
+      const styleMatch = trimmed.match(/Style:\s*(\w+(?:-\w+)?)/i)
+      const colorsMatch = trimmed.match(/Colors?:\s*([#\w]+)\s*,?\s*([#\w]*)/i)
+      const layoutMatch = trimmed.match(/Layout:\s*(.+)/i)
+
+      if (!result.visualStyle) {
+        result.visualStyle = {
+          theme: 'corporate',
+          suggestedLayouts: [],
+          hasIcons: false,
+          hasFeatureGrid: false
+        }
+      }
+
+      if (styleMatch) {
+        const theme = styleMatch[1].toLowerCase()
+        if (theme.includes('dark') || theme.includes('newwork-dark')) {
+          result.visualStyle.theme = theme.includes('newwork') ? 'newwork-dark' : 'dark'
+        } else if (theme.includes('light') || theme.includes('newwork-light')) {
+          result.visualStyle.theme = theme.includes('newwork') ? 'newwork-light' : 'light'
+        } else {
+          result.visualStyle.theme = 'corporate'
+        }
+      }
+
+      if (colorsMatch) {
+        if (colorsMatch[1]?.startsWith('#')) result.visualStyle.primaryColor = colorsMatch[1]
+        if (colorsMatch[2]?.startsWith('#')) result.visualStyle.secondaryColor = colorsMatch[2]
+      }
+
+      if (layoutMatch) {
+        const layoutText = layoutMatch[1].toLowerCase()
+        if (layoutText.includes('feature-grid') || layoutText.includes('feature grid')) {
+          result.visualStyle.suggestedLayouts.push('feature-grid')
+          result.visualStyle.hasFeatureGrid = true
+        }
+        if (layoutText.includes('icon') || layoutText.includes('icon-bullets')) {
+          result.visualStyle.suggestedLayouts.push('icon-bullets')
+          result.visualStyle.hasIcons = true
+        }
+        if (layoutText.includes('branded-cover') || layoutText.includes('branded cover')) {
+          result.visualStyle.suggestedLayouts.push('branded-cover')
+        }
+      }
+
+      // Check for icons/features in trimmed line
+      if (trimmed.toLowerCase().includes('icon')) result.visualStyle.hasIcons = true
+      if (trimmed.toLowerCase().includes('feature grid')) result.visualStyle.hasFeatureGrid = true
     }
   }
 

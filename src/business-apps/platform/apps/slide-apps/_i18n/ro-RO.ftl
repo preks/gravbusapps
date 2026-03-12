@@ -301,6 +301,16 @@ generate-audience-executive = Executiv
 generate-audience-technical = Tehnic
 generate-audience-sales = Vânzări
 generate-audience-general = General
+generate-theme-preference = Temă
+generate-theme-auto = Auto
+generate-theme-auto-desc = Detectare automată a temei din materialele de referință
+generate-theme-dark = Întunecată
+generate-theme-dark-desc = Folosește tema întunecată cu text deschis
+generate-theme-light = Deschisă
+generate-theme-light-desc = Folosește tema deschisă cu text închis
+generate-theme-branded = Marcă
+generate-theme-branded-desc = Folosește tema de marcă NEWWORK
+generate-extract-style = Extrage stilul din referințe
 generate-toast-success = Prezentare generată!
 generate-toast-description = Creat { $count } slide-uri
 
@@ -451,6 +461,7 @@ generation-option-a = Opțiunea A
 generation-option-b = Opțiunea B
 generation-unknown = Necunoscut
 generation-thank-you = Mulțumim
+generation-agenda = Agendă
 
 # usePowerPointParser
 parser-invalid-type = Tip de fișier invalid. Încărcați un fișier .pptx (PowerPoint 2007 sau mai nou).
