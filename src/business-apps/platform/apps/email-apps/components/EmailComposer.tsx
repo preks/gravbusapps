@@ -13,8 +13,11 @@ import { Send, X, Minus, Trash2, Paperclip } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailRecipientInput } from './EmailRecipientInput'
 import { ComposerAttachments } from './ComposerAttachments'
+import { EmailAssistantPanel } from './EmailAssistantPanel'
 import { useFileAttachments } from '../hooks/useFileAttachments'
+import { useEmailAssistant } from '../hooks/useEmailAssistant'
 import { buildReplySubject, buildReplyBody, buildHtmlBody, buildTextBody } from '../utils/composerUtils'
+import { trackEmailAssistantEvent } from '../utils/emailAssistantTelemetry'
 import type { EmailMessage, EmailAccount, ComposeMode, SendEmailRequest, EmailAddress, EmailContact } from '../types'
 import translations from '../_i18n'
 
@@ -29,6 +32,27 @@ interface EmailComposerProps {
   searchContacts: (query: string) => EmailContact[]
   onRecipientsUsed?: (recipients: Array<{ name?: string; email: string }>) => void
   'data-testid'?: string
+}
+
+function normalizeReplyGreeting(textBody: string, recipientName?: string): string {
+  const cleanedName = recipientName?.trim()
+  if (!cleanedName || !textBody.trim()) return textBody
+
+  const lines = textBody.split('\n')
+  const firstLine = lines[0] || ''
+  const normalizedFirstLine = firstLine.trim().toLowerCase()
+  const isGenericGreeting =
+    normalizedFirstLine === 'hi team,' ||
+    normalizedFirstLine === 'hi team' ||
+    normalizedFirstLine === 'hello team,' ||
+    normalizedFirstLine === 'hello team' ||
+    normalizedFirstLine === 'dear team,' ||
+    normalizedFirstLine === 'dear team'
+
+  if (!isGenericGreeting) return textBody
+
+  lines[0] = `Hi ${cleanedName},`
+  return lines.join('\n')
 }
 
 export const EmailComposer: React.FC<EmailComposerProps> = ({
@@ -52,9 +76,37 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
   const [showCcBcc, setShowCcBcc] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [assistantBulletDraft, setAssistantBulletDraft] = useState('')
+  const [assistantReplyIntent, setAssistantReplyIntent] = useState('')
+  const [assistantTone, setAssistantTone] = useState<'formal' | 'informal' | 'friendly' | 'professional' | 'concise'>(
+    'professional'
+  )
+  const [assistantFormality, setAssistantFormality] = useState<'formal' | 'neutral' | 'informal'>('neutral')
+  const [assistantLength, setAssistantLength] = useState<'short' | 'medium' | 'long'>('medium')
+  const [assistantCustomInstruction, setAssistantCustomInstruction] = useState('')
   const hasStartedComposingRef = useRef(false)
   const sigPreviewRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation(translations)
+  const assistant = useEmailAssistant(isOpen && Boolean(accountId))
+  const {
+    isEnabled: isAssistantEnabled,
+    isCapabilitiesLoading: isAssistantCapabilitiesLoading,
+    loading: assistantLoading,
+    latestOutput: assistantLatestOutput,
+    previewDraft: assistantPreviewDraft,
+    lastError: assistantLastError,
+    autoTemperatureCheck,
+    setAutoTemperatureCheck,
+    clearPreviewDraft,
+    generateDraft,
+    rewriteDraft,
+    suggestReply,
+    runTemperatureCheck,
+    runDebouncedTemperatureCheck,
+    retryLastAction,
+    cancelAction,
+    setPreviewDraftOverride
+  } = assistant
 
   const {
     attachments,
@@ -94,6 +146,10 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     if (!isOpen) return
 
     hasStartedComposingRef.current = false
+    clearPreviewDraft()
+    setAssistantBulletDraft('')
+    setAssistantReplyIntent('')
+    setAssistantCustomInstruction('')
 
     if (!replyToMessage) {
       setToRecipients([])
@@ -125,7 +181,157 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       setToRecipients([])
       setBody(quoted)
     }
-  }, [isOpen, replyToMessage, mode, clearAttachments])
+  }, [isOpen, replyToMessage, mode, clearAttachments, clearPreviewDraft])
+
+  useEffect(() => {
+    if (!isAssistantEnabled) return
+    if (!subject.trim() && !body.trim()) return
+    const recipients = [...toRecipients, ...ccRecipients, ...bccRecipients]
+    runDebouncedTemperatureCheck({
+      subject,
+      textBody: body,
+      recipients: recipients.length > 0 ? recipients : undefined
+    })
+  }, [isAssistantEnabled, runDebouncedTemperatureCheck, body, subject, toRecipients, ccRecipients, bccRecipients])
+
+  const handleApplyAssistantPreview = useCallback(() => {
+    const preview = assistantPreviewDraft
+    if (!preview) return
+    if (preview.subject.trim()) setSubject(preview.subject)
+    if (preview.textBody.trim()) setBody(preview.textBody)
+    clearPreviewDraft()
+    trackEmailAssistantEvent('assistant.preview.accepted', { mode })
+  }, [assistantPreviewDraft, clearPreviewDraft, mode])
+
+  const handleRejectAssistantPreview = useCallback(() => {
+    clearPreviewDraft()
+    trackEmailAssistantEvent('assistant.preview.rejected', { mode })
+  }, [clearPreviewDraft, mode])
+
+  const handleGenerateAssistantDraft = useCallback(async () => {
+    if (!accountId) {
+      toast.error(t('composer-toast-no-account'))
+      return
+    }
+    const isReplyMode = mode === 'reply' || mode === 'reply-all'
+    if (isReplyMode && replyToMessage) {
+      const messageId = replyToMessage.id?.trim()
+      const threadId = replyToMessage.threadId?.trim()
+      if (!messageId && !threadId) {
+        toast.error(t('assistant-reply-context-missing'))
+        return
+      }
+      const response = await suggestReply({
+        accountId,
+        ...(messageId ? { messageId } : { threadId }),
+        userBulletDraft: assistantBulletDraft.trim() || undefined,
+        tone: assistantTone,
+        formality: assistantFormality,
+        length: assistantLength
+      })
+      const recipientName = toRecipients[0]?.name || replyToMessage.fromAddress?.name
+      if (response?.draft?.textBody && recipientName) {
+        const normalizedTextBody = normalizeReplyGreeting(response.draft.textBody, recipientName)
+        if (normalizedTextBody !== response.draft.textBody) {
+          setPreviewDraftOverride({
+            ...response.draft,
+            textBody: normalizedTextBody
+          })
+        }
+      }
+      return
+    }
+
+    await generateDraft({
+      accountId,
+      mode,
+      bulletDraft: assistantBulletDraft,
+      tone: assistantTone,
+      formality: assistantFormality,
+      length: assistantLength
+    })
+  }, [
+    accountId,
+    mode,
+    replyToMessage,
+    assistantReplyIntent,
+    assistantBulletDraft,
+    assistantTone,
+    assistantFormality,
+    assistantLength,
+    suggestReply,
+    generateDraft,
+    t
+  ])
+
+  const handleSuggestReply = useCallback(async () => {
+    if (!accountId || !replyToMessage) return
+    const messageId = replyToMessage.id?.trim()
+    const threadId = replyToMessage.threadId?.trim()
+    if (!messageId && !threadId) {
+      toast.error(t('assistant-reply-context-missing'))
+      return
+    }
+    const response = await suggestReply({
+      accountId,
+      ...(messageId ? { messageId } : { threadId }),
+      userBulletDraft: assistantBulletDraft.trim() || undefined,
+      tone: assistantTone,
+      formality: assistantFormality,
+      length: assistantLength
+    })
+    const recipientName = toRecipients[0]?.name || replyToMessage.fromAddress?.name
+    if (response?.draft?.textBody && recipientName) {
+      const normalizedTextBody = normalizeReplyGreeting(response.draft.textBody, recipientName)
+      if (normalizedTextBody !== response.draft.textBody) {
+        setPreviewDraftOverride({
+          ...response.draft,
+          textBody: normalizedTextBody
+        })
+      }
+    }
+  }, [
+    accountId,
+    replyToMessage,
+    suggestReply,
+    assistantBulletDraft,
+    assistantTone,
+    assistantFormality,
+    assistantLength,
+    setPreviewDraftOverride,
+    t,
+    toRecipients
+  ])
+
+  const handleRewrite = useCallback(
+    async (action: 'improve' | 'tone' | 'shorten' | 'expand' | 'custom', overrideTone?: typeof assistantTone) => {
+      if (!accountId) {
+        toast.error(t('composer-toast-no-account'))
+        return
+      }
+      await rewriteDraft({
+        accountId,
+        action,
+        draft: {
+          subject,
+          textBody: body
+        },
+        tone: overrideTone || assistantTone,
+        length: assistantLength,
+        instruction: action === 'custom' ? assistantCustomInstruction : undefined
+      })
+    },
+    [accountId, subject, body, assistantTone, assistantLength, assistantCustomInstruction, rewriteDraft, t]
+  )
+
+  const handleRunTemperatureCheck = useCallback(async () => {
+    const recipients = [...toRecipients, ...ccRecipients, ...bccRecipients]
+    await runTemperatureCheck({
+      subject,
+      textBody: body,
+      recipients: recipients.length > 0 ? recipients : undefined
+    })
+  }, [runTemperatureCheck, subject, body, toRecipients, ccRecipients, bccRecipients])
 
   const handleSend = useCallback(async () => {
     if (toRecipients.length === 0) {
@@ -139,6 +345,15 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
 
     setIsSending(true)
     try {
+      if (autoTemperatureCheck && (subject.trim() || body.trim())) {
+        const recipients = [...toRecipients, ...ccRecipients, ...bccRecipients]
+        void runTemperatureCheck({
+          subject,
+          textBody: body,
+          recipients: recipients.length > 0 ? recipients : undefined
+        })
+      }
+
       const request: SendEmailRequest = {
         accountId,
         to: toRecipients,
@@ -179,6 +394,8 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     signatureHtml,
     attachments,
     replyToMessage,
+    autoTemperatureCheck,
+    runTemperatureCheck,
     onSent,
     onClose,
     onRecipientsUsed,
@@ -326,6 +543,50 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
                 data-testid={`${testId}-subject`}
               />
             </div>
+
+            <EmailAssistantPanel
+              isEnabled={isAssistantEnabled}
+              isCapabilitiesLoading={isAssistantCapabilitiesLoading}
+              loading={assistantLoading}
+              mode={mode}
+              bulletDraft={assistantBulletDraft}
+              onBulletDraftChange={setAssistantBulletDraft}
+              replyIntent={assistantReplyIntent}
+              onReplyIntentChange={setAssistantReplyIntent}
+              tone={assistantTone}
+              onToneChange={setAssistantTone}
+              formality={assistantFormality}
+              onFormalityChange={setAssistantFormality}
+              length={assistantLength}
+              onLengthChange={setAssistantLength}
+              customInstruction={assistantCustomInstruction}
+              onCustomInstructionChange={setAssistantCustomInstruction}
+              latestOutput={assistantLatestOutput}
+              previewDraft={assistantPreviewDraft}
+              lastError={assistantLastError}
+              autoTemperatureCheck={autoTemperatureCheck}
+              onAutoTemperatureCheckChange={setAutoTemperatureCheck}
+              onGenerateDraft={handleGenerateAssistantDraft}
+              onSuggestReply={handleSuggestReply}
+              onRewrite={handleRewrite}
+              onRewriteFormal={() => {
+                setAssistantTone('formal')
+                void handleRewrite('tone', 'formal')
+              }}
+              onRewriteInformal={() => {
+                setAssistantTone('informal')
+                void handleRewrite('tone', 'informal')
+              }}
+              onRunTemperatureCheck={handleRunTemperatureCheck}
+              onAcceptPreview={handleApplyAssistantPreview}
+              onRejectPreview={handleRejectAssistantPreview}
+              onRetry={() => {
+                void retryLastAction()
+              }}
+              onCancel={cancelAction}
+              onApplyAlternative={alternative => setBody(alternative)}
+              data-testid={`${testId}-assistant`}
+            />
           </div>
 
           {/* Body + Signature preview (drag-and-drop zone) */}

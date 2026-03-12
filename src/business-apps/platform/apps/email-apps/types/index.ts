@@ -228,3 +228,24 @@ export interface ExternalCalendarEvent {
   externalLink?: string
   color?: string
 }
+
+export type {
+  EmailAssistantTone,
+  EmailAssistantFormality,
+  EmailAssistantLength,
+  EmailAssistantRewriteAction,
+  EmailAssistantRiskLevel,
+  EmailAssistantDraft,
+  EmailAssistantInsights,
+  EmailAssistantTemperatureCheck,
+  EmailAssistantMeta,
+  EmailAssistantMissingContextPrompt,
+  EmailAssistantResponse,
+  EmailAssistantCapabilities,
+  EmailAssistantDraftRequest,
+  EmailAssistantRewriteRequest,
+  EmailAssistantTemperatureCheckRequest,
+  EmailAssistantReplySuggestRequest,
+  EmailAssistantPolicy,
+  EmailAssistantPolicyUpdateRequest
+} from './emailAssistant.types'
