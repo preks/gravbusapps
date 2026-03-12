@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { PageLayout, Toaster } from '@newwork/nw-design-system'
-import { ArrowLeftIcon } from '@phosphor-icons/react'
+import { XIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetricsClient'
 import { ApprovalRequest, ApprovalTabKey } from '../../types'
 import { useFlowExecutionTasks } from '../../hooks/useFlowExecutionTasks'
 import { APPROVAL_TABS, getTabByKey, getTabLabel } from '../../constants/approvalTabs'
@@ -9,28 +10,21 @@ import ApprovalTable from '../ApprovalTable'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useApprovalTabCounts } from '../../hooks/useApprovalTabCounts'
+import { TaskDetailContent } from '@/business-apps/core/every/apps/every-box'
+import { mapFlowExecutionTaskToUnifiedTask } from '../../utils/flowTaskToUnifiedTask'
 
-interface ApprovalsPageProps extends BusinessAppContextProps {
-  onNavigateBack: () => void
-}
+type ApprovalsPageProps = BusinessAppContextProps
 
 const DATA_TEST_ID_PREFIX = 'approvals-page'
 
-const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props }) => {
+const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
   const [activeTab, setActiveTab] = useState<ApprovalTabKey>('expense-plan')
   const [selectedTasks, setSelectedTasks] = useState<ApprovalRequest[]>([])
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [activeFlowTask, setActiveFlowTask] = useState<FlowExecutionTask | null>(null)
 
-  // Pagination state per tab
   const [tabPagination, setTabPagination] = useState<
-    Record<
-      ApprovalTabKey,
-      {
-        currentPage: number
-        pageSize: number
-        searchTerm: string
-      }
-    >
+    Record<ApprovalTabKey, { currentPage: number; pageSize: number; searchTerm: string }>
   >({
     'expense-plan': { currentPage: 1, pageSize: 20, searchTerm: '' },
     'expense-request': { currentPage: 1, pageSize: 20, searchTerm: '' },
@@ -39,12 +33,9 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     'transfer-payment': { currentPage: 1, pageSize: 20, searchTerm: '' }
   })
 
-  // Tab counts via dedicated hook
   const { tabCounts, isLoadingCounts, refreshTabCounts } = useApprovalTabCounts(props)
 
-  // Get current tab's pagination state
   const currentTabPagination = tabPagination[activeTab]
-
   const currentTab = getTabByKey(activeTab)
 
   const { tasks, totalCount, isLoading, error, refresh } = useFlowExecutionTasks(props, {
@@ -54,16 +45,14 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     filterTaskName: currentTab?.processName || null
   })
 
-  // Fetch counts for all tabs on mount (hook handles effect internally, this keeps dependency for clarity)
   useEffect(() => {
     // no-op; hook already loads on mount
   }, [props.accessToken, props.userInfo?.id, refreshTabCounts])
 
-  // Listen for process completion events and refresh data
   useProcessCompletion({
     onSuccess: () => {
-      refreshTabCounts() // Refresh badge counts
-      refresh() // Refresh the task list
+      refreshTabCounts()
+      refresh()
     }
   })
 
@@ -71,33 +60,39 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     setActiveTab(value as ApprovalTabKey)
     setSelectedTasks([])
     setValidationError(null)
+    setActiveFlowTask(null)
   }
 
-  // Update pagination for current tab
   const updateTabPagination = (updates: Partial<typeof currentTabPagination>) => {
     setTabPagination(prev => ({
       ...prev,
       [activeTab]: { ...prev[activeTab], ...updates }
     }))
   }
+
+  const handleRowClick = useCallback((task: FlowExecutionTask) => {
+    setActiveFlowTask(prev => (prev?.id === task.id ? null : task))
+  }, [])
+
+  const handleDetailClose = useCallback(() => {
+    setActiveFlowTask(null)
+  }, [])
+
+  const handleTaskCompleted = useCallback(() => {
+    setActiveFlowTask(null)
+    refresh()
+    refreshTabCounts()
+  }, [refresh, refreshTabCounts])
+
+  const handleTaskUpdated = useCallback(() => {
+    refresh()
+    refreshTabCounts()
+  }, [refresh, refreshTabCounts])
+
+  const unifiedTask = activeFlowTask ? mapFlowExecutionTaskToUnifiedTask(activeFlowTask) : null
+
   return (
     <div data-testid="approvals-page-container">
-      <div className="gba:px-6 gba:pt-6 gba:pb-0">
-        <button
-          onClick={onNavigateBack}
-          className="gba:flex gba:items-center gba:text-foreground gba:hover:text-primary"
-          data-testid="approvals-back-button"
-        >
-          <ArrowLeftIcon className="gba:mr-2" />
-          <span>
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
-              'Back to Dashboard'
-            )}
-          </span>
-        </button>
-      </div>
-
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.review_approvals',
@@ -121,29 +116,66 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
         }}
         className="gba:min-h-screen"
       >
-        <div className="gba:px-6" data-testid="approvals-page">
-          <ApprovalTable
-            key={activeTab}
-            {...props}
-            tasks={tasks}
-            totalCount={totalCount}
-            isLoading={isLoading}
-            error={error}
-            currentPage={currentTabPagination.currentPage}
-            setCurrentPage={(page: number) => updateTabPagination({ currentPage: page })}
-            pageSize={currentTabPagination.pageSize}
-            setPageSize={(size: number) => updateTabPagination({ pageSize: size })}
-            selectedTasks={selectedTasks}
-            setSelectedTasks={setSelectedTasks}
-            validationError={validationError}
-            setValidationError={setValidationError}
-            dataTestIdPrefix={`${DATA_TEST_ID_PREFIX}-${activeTab}`}
-            tabKey={activeTab}
-            onApprovalSuccess={() => {
-              refresh() // Refresh task list
-              refreshTabCounts() // Refresh badge counts
-            }}
-          />
+        <div className="gba:flex gba:gap-0" data-testid="approvals-page">
+          <div
+            className={activeFlowTask ? 'gba:w-1/2 gba:min-w-0 gba:overflow-auto gba:px-6' : 'gba:flex-1 gba:px-6'}
+            data-testid="approvals-table-panel"
+          >
+            <ApprovalTable
+              key={activeTab}
+              {...props}
+              tasks={tasks}
+              totalCount={totalCount}
+              isLoading={isLoading}
+              error={error}
+              currentPage={currentTabPagination.currentPage}
+              setCurrentPage={(page: number) => updateTabPagination({ currentPage: page })}
+              pageSize={currentTabPagination.pageSize}
+              setPageSize={(size: number) => updateTabPagination({ pageSize: size })}
+              selectedTasks={selectedTasks}
+              setSelectedTasks={setSelectedTasks}
+              validationError={validationError}
+              setValidationError={setValidationError}
+              dataTestIdPrefix={`${DATA_TEST_ID_PREFIX}-${activeTab}`}
+              tabKey={activeTab}
+              onApprovalSuccess={() => {
+                refresh()
+                refreshTabCounts()
+              }}
+              onRowClick={handleRowClick}
+              activeTaskId={activeFlowTask?.id ?? null}
+            />
+          </div>
+
+          {unifiedTask && (
+            <div
+              className="gba:w-1/2 gba:border-l gba:border-border gba:flex gba:flex-col gba:h-[calc(100vh-200px)] gba:sticky gba:top-0"
+              data-testid="approvals-detail-panel"
+            >
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border">
+                <h3 className="gba:text-sm gba:font-semibold gba:truncate">{unifiedTask.title}</h3>
+                <button
+                  onClick={handleDetailClose}
+                  className="gba:p-1 gba:rounded gba:hover:bg-accent"
+                  data-testid="approvals-detail-close-button"
+                >
+                  <XIcon className="gba:h-4 gba:w-4" />
+                </button>
+              </div>
+              <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
+                <TaskDetailContent
+                  task={unifiedTask}
+                  onClose={handleDetailClose}
+                  onTaskUpdated={handleTaskUpdated}
+                  onTaskCompleted={handleTaskCompleted}
+                  accessToken={props.accessToken}
+                  userId={props.userInfo?.id}
+                  userInfo={props.userInfo}
+                  showActions
+                />
+              </div>
+            </div>
+          )}
         </div>
       </PageLayout>
       <Toaster position="bottom-right" />
