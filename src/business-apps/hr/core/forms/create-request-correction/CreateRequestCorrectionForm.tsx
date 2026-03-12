@@ -17,7 +17,7 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import translations from '../_i18n'
 import { parseDurationToMinutes, minutesToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
@@ -27,7 +27,6 @@ import {
   employmentRegionHolidaysQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { getEmployeeAbsences } from '@/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 // Query to fetch employee header info
 const GET_EMPLOYEE_HEADER_INFO = `
