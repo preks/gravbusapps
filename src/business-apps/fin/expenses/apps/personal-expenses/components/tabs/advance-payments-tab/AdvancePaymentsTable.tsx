@@ -54,6 +54,80 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   tableRefreshTrigger?: number
 }
 
+function AdvancePaymentExpensePlanCell({ record }: { record: AdvancePayment }) {
+  return (
+    <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="advance-payment-expense-plan-cell">
+      {record.expensePlan?.title ??
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_plan', 'No expense plan')}
+    </div>
+  )
+}
+
+function AdvancePaymentPlanNumberCell({ record }: { record: AdvancePayment }) {
+  return (
+    <div className="gba:text-sm gba:truncate" data-testid="advance-payment-plan-number-cell">
+      {record.expensePlan?.code ?? 'N/A'}
+    </div>
+  )
+}
+
+function AdvancePaymentStatusCell({ record }: { record: AdvancePayment }) {
+  const statusConfig = getAdvancePaymentStatusDisplay(record.status)
+  return (
+    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-cell">
+      {statusConfig.label}
+    </Badge>
+  )
+}
+
+function AdvancePaymentAmountCell({ record }: { record: AdvancePayment }) {
+  const plan = record.expensePlan
+  const amount = plan?.totalAmount
+  const currencyCode = plan?.currency?.code ?? 'EUR'
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="advance-payment-amount-cell">
+      {amount != null && amount !== undefined
+        ? formatCurrencyDisplay(amount, currencyCode)
+        : formatCurrencyDisplay(0, 'EUR')}
+    </div>
+  )
+}
+
+function AdvancePaymentAdvanceCell({ record }: { record: AdvancePayment }) {
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="advance-payment-advance-cell">
+      {formatCurrencyDisplay(record.amount, record.currency?.code ?? 'EUR')}
+    </div>
+  )
+}
+
+function AdvancePaymentMethodCell({ record }: { record: AdvancePayment }) {
+  const pm = record.paymentMethod
+  let label: string
+  if (!pm) {
+    label = 'N/A'
+  } else if (typeof pm === 'object' && pm !== null && 'value' in pm) {
+    label = getCatalogValue(pm)
+  } else if (typeof pm === 'string' && pm === 'DIRECT_DEPOSIT') {
+    label = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+      'Direct Deposit'
+    )
+  } else if (typeof pm === 'string' && pm === 'CASH_PAYMENT') {
+    label = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+      'Cash Payment'
+    )
+  } else {
+    label = 'N/A'
+  }
+  return (
+    <div className="gba:text-sm gba:truncate" data-testid="advance-payment-method-cell">
+      {label}
+    </div>
+  )
+}
+
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
   const contextProps = useMemo(
     () => ({
@@ -761,7 +835,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       const entry = newSorting[0]
       const field = entry?.id || 'createdAt'
-      const order = entry ? (entry.desc ? 'descend' : 'ascend') : 'descend'
+      let order: 'ascend' | 'descend' = 'descend'
+      if (entry) {
+        order = entry.desc ? 'descend' : 'ascend'
+      }
       if (field === sortField && order === sortOrder) return
       setSortField(field)
       setSortOrder(order)
@@ -818,12 +895,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           'Expense Plan'
         ),
         size: 200,
-        cell: ({ row }) => (
-          <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="advance-payment-expense-plan-cell">
-            {row.original.expensePlan?.title ??
-              getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_plan', 'No expense plan')}
-          </div>
-        )
+        cell: ({ row }) => <AdvancePaymentExpensePlanCell record={row.original} />
       },
       {
         id: 'planNumber',
@@ -833,25 +905,14 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           'Plan Number'
         ),
         size: 120,
-        cell: ({ row }) => (
-          <div className="gba:text-sm gba:truncate" data-testid="advance-payment-plan-number-cell">
-            {row.original.expensePlan?.code ?? 'N/A'}
-          </div>
-        )
+        cell: ({ row }) => <AdvancePaymentPlanNumberCell record={row.original} />
       },
       {
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
         size: 100,
-        cell: ({ row }) => {
-          const statusConfig = getAdvancePaymentStatusDisplay(row.original.status)
-          return (
-            <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-cell">
-              {statusConfig.label}
-            </Badge>
-          )
-        }
+        cell: ({ row }) => <AdvancePaymentStatusCell record={row.original} />
       },
       {
         id: 'amount',
@@ -859,19 +920,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount'),
         size: 120,
         meta: { align: 'right' as const },
-        cell: ({ row }) => (
-          <div
-            className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
-            data-testid="advance-payment-amount-cell"
-          >
-            {row.original.expensePlan?.totalAmount
-              ? formatCurrencyDisplay(
-                  row.original.expensePlan.totalAmount,
-                  row.original.expensePlan?.currency?.code ?? 'EUR'
-                )
-              : formatCurrencyDisplay(0, 'EUR')}
-          </div>
-        )
+        cell: ({ row }) => <AdvancePaymentAmountCell record={row.original} />
       },
       {
         id: 'advance',
@@ -882,14 +931,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         ),
         size: 120,
         meta: { align: 'right' as const },
-        cell: ({ row }) => (
-          <div
-            className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
-            data-testid="advance-payment-advance-cell"
-          >
-            {formatCurrencyDisplay(row.original.amount, row.original.currency?.code ?? 'EUR')}
-          </div>
-        )
+        cell: ({ row }) => <AdvancePaymentAdvanceCell record={row.original} />
       },
       {
         id: 'paymentMethod',
@@ -899,32 +941,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           'Payment Method'
         ),
         size: 140,
-        cell: ({ row }) => {
-          const pm = row.original.paymentMethod
-          let label: string
-          if (!pm) {
-            label = 'N/A'
-          } else if (typeof pm === 'object' && pm !== null && 'value' in pm) {
-            label = getCatalogValue(pm)
-          } else if (typeof pm === 'string' && pm === 'DIRECT_DEPOSIT') {
-            label = getTranslationFromI18nKeyAndLabel(
-              'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-              'Direct Deposit'
-            )
-          } else if (typeof pm === 'string' && pm === 'CASH_PAYMENT') {
-            label = getTranslationFromI18nKeyAndLabel(
-              'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-              'Cash Payment'
-            )
-          } else {
-            label = 'N/A'
-          }
-          return (
-            <div className="gba:text-sm gba:truncate" data-testid="advance-payment-method-cell">
-              {label}
-            </div>
-          )
-        }
+        cell: ({ row }) => <AdvancePaymentMethodCell record={row.original} />
       }
     ],
     []
