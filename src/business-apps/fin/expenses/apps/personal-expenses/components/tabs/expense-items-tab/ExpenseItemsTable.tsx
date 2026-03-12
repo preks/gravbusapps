@@ -97,6 +97,100 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   currenciesInitialized?: boolean
 }
 
+function ExpenseItemsTableSelectAllHeader({
+  items,
+  selectedRowKeys,
+  onSelectAll
+}: {
+  items: ExpenseItem[] | undefined
+  selectedRowKeys: React.Key[]
+  onSelectAll: (checked: boolean) => void
+}) {
+  const itemCount = items?.length ?? 0
+  const allSelected = itemCount > 0 && (items ?? []).every(item => selectedRowKeys.includes(item.id))
+  return (
+    <Checkbox
+      checked={allSelected}
+      onCheckedChange={checked => onSelectAll(checked === true)}
+      data-testid={`${DATA_TEST_ID_PREFIX}-select-all-checkbox`}
+    />
+  )
+}
+
+function ExpenseItemSelectionCell({
+  record,
+  isSelected,
+  onCheckedChange
+}: {
+  record: ExpenseItem
+  isSelected: boolean
+  onCheckedChange: (id: string, checked: boolean) => void
+}) {
+  return (
+    <Checkbox
+      checked={isSelected}
+      onCheckedChange={checked => onCheckedChange(record.id, checked === true)}
+      onClick={e => e.stopPropagation()}
+      data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${record.id}`}
+    />
+  )
+}
+
+function ExpenseItemTitleCell({ record }: { record: ExpenseItem }) {
+  return (
+    <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-title-cell">
+      {record.title}
+    </div>
+  )
+}
+
+function ExpenseItemExpenseDateCell({ record }: { record: ExpenseItem }) {
+  if (!record.expenseDate) {
+    return <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
+  }
+  let formatted: string
+  try {
+    formatted = formatDate(record.expenseDate, 'date.long') || 'N/A'
+  } catch {
+    formatted = 'N/A'
+  }
+  return (
+    <div className="gba:text-sm gba:truncate" data-testid="expense-expense-date-cell">
+      {formatted}
+    </div>
+  )
+}
+
+function ExpenseItemStatusCell({ record }: { record: ExpenseItem }) {
+  const statusConf = getExpenseItemStatusDisplay(record.status)
+  return (
+    <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
+      {statusConf.label}
+    </Badge>
+  )
+}
+
+function ExpenseItemAttachmentCell({ record }: { record: ExpenseItem }) {
+  const hasFiles = record.expenseItemFile && record.expenseItemFile.length > 0
+  return (
+    <div className="gba:flex gba:items-center gba:justify-center">
+      {hasFiles ? (
+        <FileTextIcon size={24} className="gba:text-blue-500" />
+      ) : (
+        <ImageIcon size={24} className="gba:text-gray-300" />
+      )}
+    </div>
+  )
+}
+
+function ExpenseItemReimbursableAmountCell({ record }: { record: ExpenseItem }) {
+  return (
+    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="expense-amount-cell">
+      {formatCurrencyDisplay(record.reimbursableAmount ?? 0, record.currency?.code)}
+    </div>
+  )
+}
+
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => {
   const {
     onAddExpenseItem,
@@ -636,18 +730,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         id: 'selection',
         size: 40,
         header: () => (
-          <Checkbox
-            checked={(items?.length ?? 0) > 0 && (items ?? []).every(item => selectedRowKeys.includes(item.id))}
-            onCheckedChange={handleSelectAll}
-            data-testid={`${DATA_TEST_ID_PREFIX}-select-all-checkbox`}
+          <ExpenseItemsTableSelectAllHeader
+            items={items}
+            selectedRowKeys={selectedRowKeys}
+            onSelectAll={handleSelectAll}
           />
         ),
         cell: ({ row }) => (
-          <Checkbox
-            checked={selectedRowKeys.includes(row.original.id)}
-            onCheckedChange={checked => handleRowSelectionChange(row.original.id, checked === true)}
-            onClick={e => e.stopPropagation()}
-            data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${row.original.id}`}
+          <ExpenseItemSelectionCell
+            record={row.original}
+            isSelected={selectedRowKeys.includes(row.original.id)}
+            onCheckedChange={handleRowSelectionChange}
           />
         )
       },
@@ -659,60 +752,28 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           'Title'
         ),
         size: 200,
-        cell: ({ row }) => (
-          <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-title-cell">
-            {row.original.title}
-          </div>
-        )
+        cell: ({ row }) => <ExpenseItemTitleCell record={row.original} />
       },
       {
         id: 'expenseDate',
         accessorKey: 'expenseDate',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date'),
         size: 120,
-        cell: ({ row }) =>
-          row.original.expenseDate ? (
-            <div className="gba:text-sm gba:truncate" data-testid="expense-expense-date-cell">
-              {(() => {
-                try {
-                  return formatDate(row.original.expenseDate, 'date.long') || 'N/A'
-                } catch {
-                  return 'N/A'
-                }
-              })()}
-            </div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
-          )
+        cell: ({ row }) => <ExpenseItemExpenseDateCell record={row.original} />
       },
       {
         id: 'status',
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         size: 100,
-        cell: ({ row }) => {
-          const statusConf = getExpenseItemStatusDisplay(row.original.status)
-          return (
-            <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
-              {statusConf.label}
-            </Badge>
-          )
-        }
+        cell: ({ row }) => <ExpenseItemStatusCell record={row.original} />
       },
       {
         id: 'attachment',
         accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment'),
         size: 80,
-        cell: ({ row }) => (
-          <div className="gba:flex gba:items-center gba:justify-center">
-            {row.original.expenseItemFile && row.original.expenseItemFile.length > 0 ? (
-              <FileTextIcon size={24} className="gba:text-blue-500" />
-            ) : (
-              <ImageIcon size={24} className="gba:text-gray-300" />
-            )}
-          </div>
-        )
+        cell: ({ row }) => <ExpenseItemAttachmentCell record={row.original} />
       },
       {
         id: 'reimbursableAmount',
@@ -723,11 +784,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         ),
         size: 140,
         meta: { align: 'right' as const },
-        cell: ({ row }) => (
-          <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="expense-amount-cell">
-            {formatCurrencyDisplay(row.original.reimbursableAmount ?? 0, row.original.currency?.code)}
-          </div>
-        )
+        cell: ({ row }) => <ExpenseItemReimbursableAmountCell record={row.original} />
       }
     ],
     [selectedRowKeys, items?.length, handleSelectAll, handleRowSelectionChange]
