@@ -35,12 +35,12 @@ export const Canvas: React.FC<CanvasProps> = ({
       {withHeader && (
         <div
           className={cn(
-            'gba:px-8 gba:py-4 gba:bg-background gba:sticky gba:top-0 gba:z-20',
+            'gba:px-4 gba:md:px-8 gba:py-4 gba:bg-background gba:sticky gba:top-0 gba:z-20',
             HEADER_HEIGHT_CLASS,
             'gba:flex gba:items-center gba:shrink-0'
           )}
         >
-          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:max-w-5xl gba:mx-auto">
+          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:max-w-full gba:md:max-w-5xl gba:mx-auto">
             <div>
               {title && (
                 <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:leading-tight">{title}</h2>
@@ -54,8 +54,10 @@ export const Canvas: React.FC<CanvasProps> = ({
         </div>
       )}
 
-      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-8 gba:py-6 gba:relative">
-        <div className={cn('gba:max-w-5xl gba:mx-auto', floatingAction && 'gba:pb-24')}>{children}</div>
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-4 gba:md:px-8 gba:py-4 gba:md:py-6 gba:relative">
+        <div className={cn('gba:max-w-full gba:md:max-w-5xl gba:mx-auto', floatingAction && 'gba:pb-24')}>
+          {children}
+        </div>
       </div>
 
       {floatingAction && (

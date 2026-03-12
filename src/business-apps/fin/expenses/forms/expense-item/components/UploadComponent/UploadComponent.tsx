@@ -2,26 +2,27 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { Modal, Upload } from 'antd'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 import { Button } from '@newwork/gravity-ui-catalog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Button as DSButton } from '@newwork/nw-design-system'
+import { PaperclipIcon } from '@phosphor-icons/react'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ACCEPTED_FILE_TYPES, isAllowedFileType, createUploadFileItem } from './uploadUtils'
+import { useReceiptPreview } from './useReceiptPreview'
 
 interface UploadComponentProps {
   fileList: any[]
   setFileList: (files: any[]) => void
 }
 
-const ALLOWED_FILE_TYPES = ['.pdf', '.PDF', '.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG']
-
 export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList }) => {
   const { currentStep, handleFileUpload, isProcessingFiles } = useExpenseItem()
+  const receiptPreview = useReceiptPreview(fileList)
 
   const t = getTranslationFromI18nKeyAndLabel
   const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false)
   const [showProcessing, setShowProcessing] = useState<boolean>(false)
-
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
-
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false)
 
   // Smooth out quick state flips: set immediately on start, delay hide to avoid flicker
@@ -43,12 +44,8 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
   }, [isProcessingFiles, isHandlingUpload])
 
   const validateFileType = (file: File) => {
-    const isValidType = ALLOWED_FILE_TYPES.some(type => {
-      const extension = `.${file.name.split('.').pop()}`
-      return type.toLowerCase() === extension.toLowerCase()
-    })
-
-    if (!isValidType) {
+    const valid = isAllowedFileType(file)
+    if (!valid) {
       showToast(
         t(
           'lowcoder:create_expense_type_item.error_file_type_message',
@@ -57,8 +54,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
         'error'
       )
     }
-
-    return isValidType
+    return valid
   }
 
   const handleBeforeUpload = (file: File) => {
@@ -73,14 +69,8 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
     }
 
     if (!isProcessingFiles && !isHandlingUpload) {
-      const newFile = {
-        uid: Date.now().toString(),
-        name: file.name,
-        status: 'done',
-        originFileObj: file
-      }
-      const newFileList = [...fileList, newFile]
-      setFileList(newFileList)
+      const newFile = createUploadFileItem(file, Date.now().toString())
+      setFileList([...fileList, newFile])
       processFiles([file])
     }
 
@@ -108,22 +98,12 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
       setIsModalVisible(false)
 
       if (keepExisting) {
-        const existingFiles = fileList.map(f => f.originFileObj).filter(Boolean)
-        const newFileListItems = pendingFiles.map(file => ({
-          uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-          name: file.name,
-          status: 'done',
-          originFileObj: file
-        }))
+        const existingFiles = fileList.map(f => f.originFileObj).filter(Boolean) as File[]
+        const newFileListItems = pendingFiles.map(f => createUploadFileItem(f))
         setFileList([...fileList, ...newFileListItems])
         processFiles([...existingFiles, ...pendingFiles])
       } else {
-        const newFileListItems = pendingFiles.map(file => ({
-          uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-          name: file.name,
-          status: 'done',
-          originFileObj: file
-        }))
+        const newFileListItems = pendingFiles.map(f => createUploadFileItem(f))
         setFileList(newFileListItems)
         processFiles(pendingFiles)
       }
@@ -283,8 +263,6 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
     }
   }
 
-  const acceptedFileTypes = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG'
-
   return (
     <div style={getContainerStyles()} data-testid="upload-container">
       {fileList.length === 0 ? (
@@ -295,7 +273,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
           onChange={handleChange}
           onRemove={handleRemove}
           multiple={true}
-          accept={acceptedFileTypes}
+          accept={ACCEPTED_FILE_TYPES}
           style={{ width: '100%', height: '100%' }}
           disabled={isProcessingFiles || isHandlingUpload}
           data-testid="upload-input-empty"
@@ -316,7 +294,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
               onChange={handleChange}
               onRemove={handleRemove}
               multiple={true}
-              accept={acceptedFileTypes}
+              accept={ACCEPTED_FILE_TYPES}
               style={{ width: '100%', height: '100%' }}
               showUploadList={{
                 showPreviewIcon: false,
@@ -327,27 +305,31 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
             />
           </div>
 
-          <div
-            style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}
-            data-testid="attach-button-row"
-          >
+          <div className="gba:flex gba:items-center gba:justify-end gba:gap-4 gba:mt-4" data-testid="attach-button-row">
+            {currentStep !== 'start' && (
+              <DSButton
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={receiptPreview.openReceiptPreview}
+                data-testid="receipt-preview-button"
+                className="gba:flex gba:items-center gba:gap-2 gba:font-medium gba:text-foreground"
+              >
+                <PaperclipIcon size={18} />
+                {t('lowcoder:expense.item.receiptPreview', 'Preview receipt')}
+              </DSButton>
+            )}
             <Upload
               showUploadList={false}
               beforeUpload={handleBeforeUpload}
               onChange={handleChange}
               multiple={true}
-              accept={acceptedFileTypes}
+              accept={ACCEPTED_FILE_TYPES}
               disabled={isProcessingFiles || isHandlingUpload}
               data-testid="attach-more-upload"
             >
               <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-end',
-                  cursor: 'pointer',
-                  gap: '16px'
-                }}
+                className="gba:flex gba:items-center gba:gap-4 gba:cursor-pointer"
                 data-testid="attach-more-container"
               >
                 {isProcessingFiles ? (
@@ -431,6 +413,42 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
           </div>
         </Modal>
       )}
+
+      <Dialog open={receiptPreview.previewOpen} onOpenChange={open => !open && receiptPreview.closeImagePreview()}>
+        <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.imagePreview', 'Image Preview')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="gba:mt-4 gba:flex gba:justify-center">
+            <img
+              src={receiptPreview.previewImage}
+              alt="Preview"
+              className="gba:max-w-full gba:max-h-[calc(90vh-120px)] gba:object-contain"
+              data-testid="receipt-image-preview"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={receiptPreview.pdfPreviewOpen} onOpenChange={open => !open && receiptPreview.closePdfPreview()}>
+        <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.pdfPreview', 'PDF Preview')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="gba:mt-4">
+            <iframe
+              src={receiptPreview.pdfPreviewUrl}
+              className="gba:w-full gba:h-[calc(90vh-120px)] gba:border-0"
+              title="PDF Preview"
+              data-testid="receipt-pdf-preview-iframe"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

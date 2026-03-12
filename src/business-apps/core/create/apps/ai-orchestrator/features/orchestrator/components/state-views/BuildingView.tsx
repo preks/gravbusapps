@@ -53,9 +53,9 @@ export const BuildingView: React.FC<BuildingViewProps> = ({
       )}
 
       <Canvas>
-        <div className="gba:space-y-4">
+        <div className="gba:space-y-3 gba:md:space-y-4">
           {/* Progress stats and phase timeline */}
-          <div className="gba:space-y-3">
+          <div className="gba:space-y-2 gba:md:space-y-3">
             <div className="gba:flex gba:items-center gba:gap-4 gba:flex-wrap gba:text-xs">
               <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-emerald-600">
                 <CheckCircle2 className="gba:w-3.5 gba:h-3.5" />
@@ -90,7 +90,7 @@ export const BuildingView: React.FC<BuildingViewProps> = ({
             />
           </div>
 
-          <BuildConsoleLog logs={buildLogs} currentOperation={phaseMessage} isBuilding={isBuilding} maxHeight="220px" />
+          <BuildConsoleLog logs={buildLogs} currentOperation={phaseMessage} isBuilding={isBuilding} />
 
           <div className="gba:min-h-0">
             <ProgressTilesGrid

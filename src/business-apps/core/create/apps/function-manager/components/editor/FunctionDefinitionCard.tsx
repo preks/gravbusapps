@@ -41,6 +41,10 @@ export interface FunctionDefinitionCardProps {
   inputSchema: string
   outputSchema: string
   configKeys: ConfigRow[]
+  connectionOptions: Array<{ id: string; name: string }>
+  selectedConnectionId: string | null
+  onSelectedConnectionIdChange: (connectionId: string | null) => void
+  isLoadingConnections: boolean
   onSourceChange: (v: string) => void
   onInputSchemaChange: (v: string) => void
   onOutputSchemaChange: (v: string) => void
@@ -79,6 +83,10 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   inputSchema,
   outputSchema,
   configKeys,
+  connectionOptions,
+  selectedConnectionId,
+  onSelectedConnectionIdChange,
+  isLoadingConnections,
   onSourceChange,
   onInputSchemaChange,
   onOutputSchemaChange,
@@ -323,7 +331,15 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
           </TabsContent>
 
           <TabsContent value="settings" className="gba:space-y-2 gba:pt-4" data-testid={`${testId}-panel-settings`}>
-            <SettingsEditor rows={configKeys} onChange={onConfigKeysChange} data-testid={`${testId}-settings`} />
+            <SettingsEditor
+              rows={configKeys}
+              onChange={onConfigKeysChange}
+              connectionOptions={connectionOptions}
+              selectedConnectionId={selectedConnectionId}
+              onConnectionChange={onSelectedConnectionIdChange}
+              isLoadingConnections={isLoadingConnections}
+              data-testid={`${testId}-settings`}
+            />
           </TabsContent>
 
           <TabsContent value="test" className="gba:pt-2" data-testid={`${testId}-panel-test`}>

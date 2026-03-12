@@ -39,7 +39,7 @@ export const employeeAttendanceMonthlyQuery = `
   }
 `
 
-// Fetch all attendance rows for a month (no pagination) to compute totals client-side
+// Fetch all attendance rows for a month (no pagination) to compute totals and display full table
 export const employeeAttendanceMonthlyAllQuery = `
   query GetEmployeeAttendanceAll(
     $employeeId: uuid!
@@ -55,12 +55,17 @@ export const employeeAttendanceMonthlyAllQuery = `
       orderBy: { attendanceDate: ASC, startTime: ASC }
     ) {
       id
-      attendanceDate
-      effectiveTime
-      breakTime
-      plannedTime
-      recordedTime
       version
+      attendanceDate
+      startTime
+      endTime
+      recordedTime
+      breakTime
+      effectiveTime
+      plannedTime
+      differenceTime
+      manualOverride
+      notes
       attendanceLocation
     }
   }

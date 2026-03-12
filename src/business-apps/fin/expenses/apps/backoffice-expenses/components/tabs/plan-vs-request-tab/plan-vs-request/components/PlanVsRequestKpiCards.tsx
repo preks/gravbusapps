@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { KpiCardData } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { KpiCardData, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../../../_i18n'
 
 interface PlanVsRequestKpiCardsProps {
   totalExpensePlan: number
@@ -31,7 +31,8 @@ export const usePlanVsRequestKpiCards = ({
   selectedCurrencyCode,
   formatCurrency
 }: PlanVsRequestKpiCardsProps): KpiCardData[] => {
-  // Helper: Get period display text (reduces nested ternary complexity)
+  const { t } = useTranslation(translations)
+
   const getPeriodDisplay = (): string => {
     if (selectedPeriod === 'year') {
       return currentYear
@@ -41,77 +42,63 @@ export const usePlanVsRequestKpiCards = ({
     }
     return `${currentMonth} ${currentYear}`
   }
+  const periodDisplay = getPeriodDisplay()
+  const percentVariance =
+    totalExpensePlan === 0 ? null : ((totalExpenseRequest - totalExpensePlan) / totalExpensePlan) * 100
+  const hasVariance = percentVariance !== null
+  const isOverBudget = totalExpenseRequest > totalExpensePlan
+
+  const varianceTrend = hasVariance
+    ? {
+        value: `${Math.abs(percentVariance).toFixed(1)}%`,
+        description: isOverBudget ? t('kpi-over-budget') : t('kpi-within-budget'),
+        trendIcon: isOverBudget ? 'up' : 'down',
+        badgeVariant: isOverBudget ? 'destructive' : 'success'
+      }
+    : undefined
 
   return useMemo(
     () => [
       {
         id: 'actual-vs-planned',
-        title: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', 'Actual vs Planned')} ${getPeriodDisplay()} (${selectedCurrencyCode})`,
-        value: (() => {
-          const planned = totalExpensePlan
-          const actual = totalExpenseRequest
-
-          if (planned === 0) return 'N/A'
-          const percentVariance = ((actual - planned) / planned) * 100
-          return Math.abs(percentVariance)
-        })(),
-        suffix: totalExpensePlan === 0 ? undefined : '%',
-        decimalPlaces: totalExpensePlan === 0 ? undefined : 1,
-        footer: `${getTranslationFromI18nKeyAndLabel('expense.plannedExpenses', 'Expense Plan')}: ${formatCurrency(totalExpensePlan)} | ${getTranslationFromI18nKeyAndLabel(
-          'expense.actualExpenses',
-          'Expense Request'
-        )}: ${formatCurrency(totalExpenseRequest)}`,
-        trend:
-          totalExpensePlan > 0
-            ? {
-                value:
-                  (() => {
-                    const planned = totalExpensePlan
-                    const actual = totalExpenseRequest
-                    const percentVariance = ((actual - planned) / planned) * 100
-                    return Math.abs(percentVariance).toFixed(1)
-                  })() + '%',
-                description:
-                  totalExpenseRequest <= totalExpensePlan
-                    ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.within_budget', 'Within Budget')
-                    : getTranslationFromI18nKeyAndLabel('lowcoder:cards.over_budget', 'Over Budget'),
-                trendIcon: totalExpenseRequest > totalExpensePlan ? 'up' : 'down',
-                badgeVariant: totalExpenseRequest > totalExpensePlan ? 'destructive' : 'success' // Red for over budget (bad), green for within budget (good)
-              }
-            : undefined
+        title: `${t('kpi-actual-vs-planned')} ${periodDisplay} (${selectedCurrencyCode})`,
+        value: hasVariance ? Math.abs(percentVariance) : t('common-not-available'),
+        suffix: hasVariance ? '%' : undefined,
+        decimalPlaces: hasVariance ? 1 : undefined,
+        footer: `${t('pvr-expense-plan-label')}: ${formatCurrency(totalExpensePlan)} | ${t('pvr-expense-request-label')}: ${formatCurrency(totalExpenseRequest)}`,
+        trend: varianceTrend
       },
       {
         id: 'overdue-plans',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.overdue_plans', 'Overdue Plans'),
+        title: t('pvr-overdue-plans'),
         value: loadingOverduePlans ? '-' : overduePlansCount,
-        footer: getTranslationFromI18nKeyAndLabel('lowcoder:cards.plans_past_end_date', 'Plans past end date')
+        footer: t('pvr-plans-past-end-date')
       },
       {
         id: 'over-budget',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.over_budget', 'Over Budget'),
+        title: t('kpi-over-budget'),
         value: loadingCategoryStats ? '-' : overBudgetCount,
-        footer: getTranslationFromI18nKeyAndLabel('lowcoder:cards.items_exceeding_plan', 'Items exceeding plan')
+        footer: t('pvr-items-exceeding-plan')
       },
       {
         id: 'potential-savings',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.potential_savings', 'Potential Savings'),
+        title: t('pvr-potential-savings'),
         value: '-',
-        footer: getTranslationFromI18nKeyAndLabel('lowcoder:cards.identified_opportunities', 'Identified opportunities')
+        footer: t('pvr-identified-opportunities')
       }
     ],
     [
-      totalExpensePlan,
-      totalExpenseRequest,
-      overduePlansCount,
-      overBudgetCount,
-      loadingOverduePlans,
+      t,
+      formatCurrency,
       loadingCategoryStats,
-      selectedPeriod,
-      currentYear,
-      currentQuarter,
-      currentMonth,
+      loadingOverduePlans,
+      overBudgetCount,
+      overduePlansCount,
+      periodDisplay,
+      percentVariance,
       selectedCurrencyCode,
-      formatCurrency
+      totalExpensePlan,
+      totalExpenseRequest
     ]
   )
 }

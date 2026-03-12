@@ -1,4 +1,5 @@
 // Shared flow management components
+export { ReadonlyTemplateFlowCanvas } from './ReadonlyTemplateFlowCanvas'
 export { FlowList } from './FlowList'
 export { FlowManagement } from './FlowManagement'
 

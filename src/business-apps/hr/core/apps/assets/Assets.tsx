@@ -602,6 +602,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         onUpdateAsset={handleUpdateAsset}
         onRetireAsset={handleRetireAsset}
         onRetrieveAsset={handleRetrieveAsset}
+        onGenerateDocument={handleGenerateDocument}
       />
 
       <Dialog open={dialogs.isRegisterOpen} onOpenChange={dialogs.closeRegister}>

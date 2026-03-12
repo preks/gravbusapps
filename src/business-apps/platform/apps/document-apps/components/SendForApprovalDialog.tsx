@@ -101,8 +101,7 @@ const sendApprovalRequest = async (
     const workflowIds: string[] = []
     const approverWorkflows: ApproverWorkflow[] = []
 
-    // Build the document URL
-    const documentUrl = `/platform/apps/document-apps?docId=${payload.documentId}&view=editor`
+    const documentUrl = `/platform/every-office/documents?docId=${payload.documentId}&view=editor`
 
     // Calculate due date in minutes from now (default 3 days = 4320 minutes)
     let dueInMinutes = 4320

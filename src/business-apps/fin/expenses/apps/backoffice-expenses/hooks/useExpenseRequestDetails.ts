@@ -5,8 +5,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
-// Types for expense request details
-export interface ExpenseRequestTrip {
+interface ExpenseRequestTrip {
   id: string
   description: string
   tripDateTime: string
@@ -18,7 +17,7 @@ export interface ExpenseRequestTrip {
   }
 }
 
-export interface ExpenseItem {
+interface ExpenseItem {
   id: string
   description: string
   category: string
@@ -29,16 +28,7 @@ export interface ExpenseItem {
   }
 }
 
-export interface ExpenseAllowance {
-  id: string
-  dayRate: number
-  description: string
-  currency?: {
-    code: string
-  }
-}
-
-export interface ApprovalMetadata {
+interface ApprovalMetadata {
   comment: string
   date: string
   author: string

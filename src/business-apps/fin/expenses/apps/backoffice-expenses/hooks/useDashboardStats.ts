@@ -17,7 +17,8 @@ import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
   GET_COMBINED_DASHBOARD_STATS_MONTHLY,
   GET_COMBINED_DASHBOARD_STATS_QUARTERLY,
-  GET_COMBINED_DASHBOARD_STATS_YEARLY
+  GET_COMBINED_DASHBOARD_STATS_YEARLY,
+  GET_DASHBOARD_MONTHLY_TRENDS
 } from '../queries/combinedDashboard.queries'
 import { DashboardStats } from '../types'
 
@@ -28,9 +29,11 @@ interface UseDashboardStatsResult {
   refetch: () => void
 }
 
+const EMPTY_FILTERS: { currency?: string; department?: string; period?: string } = {}
+
 export const useDashboardStats = ({
   accessToken,
-  filters = {},
+  filters = EMPTY_FILTERS,
   isActive = true
 }: Pick<BusinessAppContextProps, 'accessToken'> & {
   filters?: {
@@ -91,55 +94,62 @@ export const useDashboardStats = ({
   // Guard in fetchEssentialStats prevents requests when accessToken is empty
   const client = useGraphqlClient(accessToken || '')
 
-  // Helper: Calculate date ranges for all periods (reduces cognitive complexity)
   const calculateDateRanges = useCallback(() => {
-    const currentDate = new Date()
-    const currentYear = currentDate.getFullYear()
-    const previousYear = currentYear - 1
+    const now = new Date()
+    const Y = now.getFullYear()
+    const M = now.getMonth()
+    const D = now.getDate()
+    const h = now.getHours()
+    const m = now.getMinutes()
+    const s = now.getSeconds()
+    const prevY = Y - 1
 
-    // Year boundaries
-    const startOfYearTs = new Date(currentYear, 0, 1).toISOString().replace('Z', '')
-    const endOfYearTs = new Date(currentYear, 11, 31, 23, 59, 59).toISOString().replace('Z', '')
-    const currentYTD = currentDate.toISOString().replace('Z', '')
-    const previousYearStart = new Date(previousYear, 0, 1).toISOString().replace('Z', '')
-    const previousYTD = new Date(previousYear, currentDate.getMonth(), currentDate.getDate())
-      .toISOString()
-      .replace('Z', '')
-
-    // Month boundaries
-    const currentMonthStart = new Date(Date.UTC(currentYear, currentDate.getMonth(), 1)).toISOString().replace('Z', '')
-    const currentMonthEnd = new Date(Date.UTC(currentYear, currentDate.getMonth() + 1, 1))
-      .toISOString()
-      .replace('Z', '')
-    const previousMonthStart = new Date(currentYear, currentDate.getMonth() - 1, 1).toISOString().replace('Z', '')
-    const previousMonthEnd = new Date(currentYear, currentDate.getMonth(), 0, 23, 59, 59).toISOString().replace('Z', '')
-
-    // Quarter boundaries
-    const month = currentDate.getMonth()
-    const quarter = Math.floor(month / 3)
-    const quarterStartMonth = quarter * 3
-    const quarterEndMonth = quarterStartMonth + 2
-    const quarterStart = new Date(currentYear, quarterStartMonth, 1).toISOString().replace('Z', '')
-    const quarterEnd = new Date(currentYear, quarterEndMonth + 1, 0, 23, 59, 59).toISOString().replace('Z', '')
-
-    // Previous quarter
-    let previousQuarter = quarter - 1
-    let previousQuarterYear = currentYear
-    if (previousQuarter < 0) {
-      previousQuarter = 3
-      previousQuarterYear = currentYear - 1
+    const ts = (year: number, month: number, day: number, hh = 0, mm = 0, ss = 0) => {
+      const pad = (n: number) => String(n).padStart(2, '0')
+      return `${year}-${pad(month + 1)}-${pad(day)}T${pad(hh)}:${pad(mm)}:${pad(ss)}`
     }
-    const previousQuarterStartMonth = previousQuarter * 3
-    const previousQuarterEndMonth = previousQuarterStartMonth + 2
-    const previousQuarterStart = new Date(previousQuarterYear, previousQuarterStartMonth, 1)
-      .toISOString()
-      .replace('Z', '')
-    const previousQuarterEnd = new Date(previousQuarterYear, previousQuarterEndMonth + 1, 0, 23, 59, 59)
-      .toISOString()
-      .replace('Z', '')
+    const lastDay = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+
+    const startOfYearTs = ts(Y, 0, 1)
+    const endOfYearTs = ts(Y, 11, 31, 23, 59, 59)
+    const currentYTD = ts(Y, M, D, h, m, s)
+    const previousYearStart = ts(prevY, 0, 1)
+    const previousYTD = ts(prevY, M, D, h, m, s)
+
+    const currentMonthStart = ts(Y, M, 1)
+    const currentMonthEnd = ts(Y, M + 1, 1)
+    const prevM = M - 1 < 0 ? 11 : M - 1
+    const prevMYear = M - 1 < 0 ? Y - 1 : Y
+    const previousMonthStart = ts(prevMYear, prevM, 1)
+    const previousMonthEnd = ts(prevMYear, prevM, lastDay(prevMYear, prevM), 23, 59, 59)
+
+    const quarter = Math.floor(M / 3)
+    const qStart = quarter * 3
+    const qEnd = qStart + 2
+    const quarterStart = ts(Y, qStart, 1)
+    const quarterEnd = ts(Y, qEnd, lastDay(Y, qEnd), 23, 59, 59)
+
+    let prevQ = quarter - 1
+    let prevQYear = Y
+    if (prevQ < 0) {
+      prevQ = 3
+      prevQYear = Y - 1
+    }
+    const pqStart = prevQ * 3
+    const pqEnd = pqStart + 2
+    const previousQuarterStart = ts(prevQYear, pqStart, 1)
+    const previousQuarterEnd = ts(prevQYear, pqEnd, lastDay(prevQYear, pqEnd), 23, 59, 59)
+
+    const monthInQuarter = M - qStart
+    const sameQuarterLastYearStart = ts(prevY, qStart, 1)
+    const sameQuarterLastYearEnd = ts(prevY, qEnd, lastDay(prevY, qEnd), 23, 59, 59)
+    const previousQTD = ts(prevY, qStart + monthInQuarter, D, h, m, s)
+
+    const sameMonthLastYearStart = ts(prevY, M, 1)
+    const sameMonthLastYearEnd = ts(prevY, M + 1, 1)
 
     return {
-      currentYear,
+      currentYear: Y,
       startOfYearTs,
       endOfYearTs,
       currentYTD,
@@ -149,15 +159,30 @@ export const useDashboardStats = ({
       currentMonthEnd,
       previousMonthStart,
       previousMonthEnd,
+      sameMonthLastYearStart,
+      sameMonthLastYearEnd,
       quarterStart,
       quarterEnd,
       previousQuarterStart,
-      previousQuarterEnd
+      previousQuarterEnd,
+      currentQTD: currentYTD,
+      sameQuarterLastYearStart,
+      sameQuarterLastYearEnd,
+      previousQTD
     }
   }, [])
 
-  // Helper: Execute query based on period (reduces cognitive complexity)
-  const executeQueryForPeriod = useCallback(
+  const buildMonthTrendVars = useCallback((currentYear: number) => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const vars: Record<string, string> = {}
+    for (let i = 0; i < 12; i++) {
+      vars[`m${i + 1}Start`] = `${currentYear}-${pad(i + 1)}-01T00:00:00`
+      vars[`m${i + 1}End`] = i < 11 ? `${currentYear}-${pad(i + 2)}-01T00:00:00` : `${currentYear + 1}-01-01T00:00:00`
+    }
+    return vars
+  }, [])
+
+  const executeKpiQuery = useCallback(
     async (
       period: string,
       selectedCurrency: string,
@@ -170,12 +195,13 @@ export const useDashboardStats = ({
 
       if (period === 'yearly') {
         query = GET_COMBINED_DASHBOARD_STATS_YEARLY(hasDepartment)
+        const prevY = dateRanges.currentYear - 1
         variables = {
           selectedCurrency,
           currentYearStart: dateRanges.startOfYearTs,
           currentYearEnd: dateRanges.endOfYearTs,
-          previousYearStart: new Date(dateRanges.currentYear - 1, 0, 1).toISOString().replace('Z', ''),
-          previousYearEnd: new Date(dateRanges.currentYear - 1, 11, 31, 23, 59, 59).toISOString().replace('Z', ''),
+          previousYearStart: `${prevY}-01-01T00:00:00`,
+          previousYearEnd: `${prevY}-12-31T23:59:59`,
           currentYTD: dateRanges.currentYTD,
           previousYTD: dateRanges.previousYTD
         }
@@ -187,13 +213,15 @@ export const useDashboardStats = ({
           currentQuarterEnd: dateRanges.quarterEnd,
           previousQuarterStart: dateRanges.previousQuarterStart,
           previousQuarterEnd: dateRanges.previousQuarterEnd,
+          currentQTD: dateRanges.currentQTD,
+          sameQuarterLastYearStart: dateRanges.sameQuarterLastYearStart,
+          previousQTD: dateRanges.previousQTD,
           currentYearStart: dateRanges.startOfYearTs,
           currentYTD: dateRanges.currentYTD,
           previousYearStart: dateRanges.previousYearStart,
           previousYTD: dateRanges.previousYTD
         }
       } else {
-        // Monthly (default)
         query = GET_COMBINED_DASHBOARD_STATS_MONTHLY(hasDepartment)
         variables = {
           selectedCurrency,
@@ -201,18 +229,12 @@ export const useDashboardStats = ({
           currentMonthEnd: dateRanges.currentMonthEnd,
           previousMonthStart: dateRanges.previousMonthStart,
           previousMonthEnd: dateRanges.previousMonthEnd,
+          sameMonthLastYearStart: dateRanges.sameMonthLastYearStart,
+          sameMonthLastYearEnd: dateRanges.sameMonthLastYearEnd,
           currentYearStart: dateRanges.startOfYearTs,
           currentYTD: dateRanges.currentYTD,
           previousYearStart: dateRanges.previousYearStart,
           previousYTD: dateRanges.previousYTD
-        }
-
-        // Add 12 months of variables for bulk trends
-        for (let i = 0; i < 12; i++) {
-          variables[`m${i + 1}Start`] = new Date(Date.UTC(dateRanges.currentYear, i, 1)).toISOString().replace('Z', '')
-          variables[`m${i + 1}End`] = new Date(Date.UTC(dateRanges.currentYear, i + 1, 1))
-            .toISOString()
-            .replace('Z', '')
         }
       }
 
@@ -220,20 +242,45 @@ export const useDashboardStats = ({
         variables.selectedDepartment = selectedDepartment
       }
 
-      return await client.request(query, variables)
+      const result = await client.request(query, variables)
+      return result
     },
     [client]
   )
 
-  const fetchEssentialStats = useCallback(async () => {
-    // ⚡ CRITICAL: Validate accessToken before ANY requests (prevents 401 errors)
-    // Dashboard is default tab, so it loads before accessToken might be available
-    if (!accessToken || typeof accessToken !== 'string' || accessToken.trim() === '') {
-      setLoading(false)
-      return
-    }
+  const executeTrendsQuery = useCallback(
+    async (selectedCurrency: string, selectedDepartment: string | null, currentYear: number) => {
+      const hasDepartment = !!selectedDepartment
+      const variables: any = {
+        selectedCurrency,
+        ...buildMonthTrendVars(currentYear)
+      }
+      if (hasDepartment) {
+        variables.selectedDepartment = selectedDepartment
+      }
 
-    if (!client) {
+      const result = await client.request(GET_DASHBOARD_MONTHLY_TRENDS(hasDepartment), variables)
+      return result
+    },
+    [client, buildMonthTrendVars]
+  )
+
+  const calculatePercentChange = useCallback((currentValue: number, previousValue: number) => {
+    if (previousValue > 0) {
+      return {
+        percentChange: ((currentValue - previousValue) / previousValue) * 100,
+        isIncrease: currentValue > previousValue
+      }
+    }
+    return {
+      percentChange: null as any,
+      isIncrease: false
+    }
+  }, [])
+
+  const fetchEssentialStats = useCallback(async () => {
+    const hasValidAccessToken = Boolean(accessToken && typeof accessToken === 'string' && accessToken.trim() !== '')
+    if (!hasValidAccessToken || !client) {
       setLoading(false)
       return
     }
@@ -257,135 +304,115 @@ export const useDashboardStats = ({
       // Calculate all date ranges using extracted helper
       const dateRanges = calculateDateRanges()
 
-      const selectedCurrency = filters.currency && filters.currency.trim() !== '' ? filters.currency : 'Currency:v1:RON'
-      const selectedDepartment =
-        filters.department && filters.department.trim() !== '' && filters.department !== 'all'
-          ? filters.department
-          : null
+      const selectedCurrency = filters.currency && filters.currency.trim() !== '' ? filters.currency : 'Currency:v1:EUR'
+      const selectedDepartment = filters.department?.trim() && filters.department !== 'all' ? filters.department : null
 
-      // ⚡ OPTIMIZATION: Use ONE combined query instead of 10 separate queries
-      const combinedResponse = await executeQueryForPeriod(
-        filters.period || 'monthly',
-        selectedCurrency,
-        selectedDepartment,
-        dateRanges
-      )
+      const activePeriod = filters.period || 'yearly'
 
-      // ⚡ OPTIMIZATION: Monthly trends are now included in combinedResponse (no separate query)
+      const [combinedResponse, trendsResponse] = await Promise.all([
+        executeKpiQuery(activePeriod, selectedCurrency, selectedDepartment, dateRanges),
+        executeTrendsQuery(selectedCurrency, selectedDepartment, dateRanges.currentYear)
+      ])
+
       const monthlyTrendsResponse = Array.from({ length: 12 }, (_, index) => {
-        const reqAggKey = `m${index + 1}_req` as keyof typeof combinedResponse
-        const itemAggKey = `m${index + 1}_item` as keyof typeof combinedResponse
+        const itemAggKey = `m${index + 1}_item` as keyof typeof trendsResponse
         return {
-          reqAgg: combinedResponse[reqAggKey],
-          itemAgg: combinedResponse[itemAggKey]
+          itemAgg: trendsResponse[itemAggKey]
         } as any
       })
+
+      const safeNum = (val: any): number => val ?? 0
+
+      const getPeriodAgg = (current: boolean) => {
+        if (activePeriod === 'yearly') {
+          return current ? combinedResponse?.currentYearExpenses : combinedResponse?.previousYearExpenses
+        }
+        if (activePeriod === 'quarterly') {
+          return current ? combinedResponse?.currentQTDExpenses : combinedResponse?.previousQTDExpenses
+        }
+        return current ? combinedResponse?.currentMonthExpenses : combinedResponse?.sameMonthLastYearExpenses
+      }
+
+      const getComparisonAgg = (current: boolean) => {
+        if (activePeriod === 'yearly') {
+          return current
+            ? combinedResponse?.currentYearExpensesComparison
+            : combinedResponse?.previousYearExpensesComparison
+        }
+        if (activePeriod === 'quarterly') {
+          return current ? combinedResponse?.currentQuarterExpenses : combinedResponse?.previousQuarterExpenses
+        }
+        return current ? combinedResponse?.currentMonthExpenses : combinedResponse?.previousMonthExpenses
+      }
+
+      const currentPeriodAgg = getPeriodAgg(true)
+      const previousPeriodAgg = getPeriodAgg(false)
+      const currentComparisonAgg = getComparisonAgg(true)
+      const previousComparisonAgg = getComparisonAgg(false)
 
       // Process combined response into dashboard stats
       const processedStats: DashboardStats = {
         ytdStats: {
-          totalAmount: combinedResponse?.currentYearExpenses?.aggregate?.sum?.reimbursableAmount || 0,
-          count: combinedResponse?.currentYearExpenses?.aggregate?.count || 0,
-          previousTotalAmount: combinedResponse?.previousYearExpenses?.aggregate?.sum?.reimbursableAmount || 0,
-          previousCount: combinedResponse?.previousYearExpenses?.aggregate?.count || 0
+          totalAmount: safeNum(combinedResponse?.currentYearExpenses?.aggregate?.sum?.reimbursableAmount),
+          count: safeNum(combinedResponse?.currentYearExpenses?.aggregate?.count),
+          previousTotalAmount: safeNum(combinedResponse?.previousYearExpenses?.aggregate?.sum?.reimbursableAmount),
+          previousCount: safeNum(combinedResponse?.previousYearExpenses?.aggregate?.count)
         },
         monthlyTrends: monthlyTrendsResponse.map((response: any, index: number) => ({
           month: index + 1,
           monthName: new Date(dateRanges.currentYear, index).toLocaleString('default', { month: 'short' }),
-          totalAmount:
-            (response?.reqAgg?.aggregate?.sum?.totalAmount || 0) +
-            (response?.itemAgg?.aggregate?.sum?.reimbursableAmount || 0),
-          count: (response?.reqAgg?.aggregate?.count || 0) + (response?.itemAgg?.aggregate?.count || 0)
+          totalAmount: safeNum(response?.itemAgg?.aggregate?.sum?.reimbursableAmount),
+          count: safeNum(response?.itemAgg?.aggregate?.count)
         })),
         monthlySpendComparison: {
-          currentMonthTotal:
-            combinedResponse?.currentMonthExpenses?.aggregate?.sum?.reimbursableAmount ||
-            combinedResponse?.currentYearExpensesComparison?.aggregate?.sum?.reimbursableAmount ||
-            combinedResponse?.currentQuarterExpenses?.aggregate?.sum?.reimbursableAmount ||
-            0,
-          previousMonthTotal:
-            combinedResponse?.previousMonthExpenses?.aggregate?.sum?.reimbursableAmount ||
-            combinedResponse?.previousYearExpensesComparison?.aggregate?.sum?.reimbursableAmount ||
-            combinedResponse?.previousQuarterExpenses?.aggregate?.sum?.reimbursableAmount ||
-            0,
-          currentMonthCount:
-            combinedResponse?.currentMonthExpenses?.aggregate?.count ||
-            combinedResponse?.currentYearExpensesComparison?.aggregate?.count ||
-            combinedResponse?.currentQuarterExpenses?.aggregate?.count ||
-            0,
-          previousMonthCount:
-            combinedResponse?.previousMonthExpenses?.aggregate?.count ||
-            combinedResponse?.previousYearExpensesComparison?.aggregate?.count ||
-            combinedResponse?.previousQuarterExpenses?.aggregate?.count ||
-            0,
-          percentChange: null, // Will be calculated below (null if division by zero)
+          currentMonthTotal: safeNum(currentComparisonAgg?.aggregate?.sum?.reimbursableAmount),
+          previousMonthTotal: safeNum(previousComparisonAgg?.aggregate?.sum?.reimbursableAmount),
+          currentMonthCount: safeNum(currentComparisonAgg?.aggregate?.count),
+          previousMonthCount: safeNum(previousComparisonAgg?.aggregate?.count),
+          percentChange: null,
           isIncrease: false
         },
-        transferRequired: combinedResponse?.transferRequired?.aggregate?.sum?.totalAmount || 0,
-        pendingRequestsCount: combinedResponse?.pendingRequests?.aggregate?.count || 0,
-        avgSpendPerTrip: combinedResponse?.avgSpendPerTrip?.aggregate?.avg?.totalAmount || 0,
-        travelExpensesCount: 0, // Not available in current query
+        transferRequired: safeNum(combinedResponse?.transferRequired?.aggregate?.sum?.reimbursableAmount),
+        pendingRequestsCount: safeNum(combinedResponse?.pendingRequests?.aggregate?.count),
+        avgSpendPerTrip: safeNum(combinedResponse?.avgSpendPerTrip?.aggregate?.avg?.reimbursableAmount),
+        travelExpensesCount: 0,
         advancePaymentsApproved: {
-          count: combinedResponse?.advancePaymentsApproved?.aggregate?.count || 0,
-          totalAmount: combinedResponse?.advancePaymentsApproved?.aggregate?.sum?.amount || 0
+          count: safeNum(combinedResponse?.advancePaymentsApproved?.aggregate?.count),
+          totalAmount: safeNum(combinedResponse?.advancePaymentsApproved?.aggregate?.sum?.amount)
         },
         totalCompanySpend: {
-          currentPeriodTotal:
-            combinedResponse?.currentMonthExpenses?.aggregate?.sum?.reimbursableAmount ||
-            combinedResponse?.currentYearExpensesComparison?.aggregate?.sum?.reimbursableAmount ||
-            combinedResponse?.currentQuarterExpenses?.aggregate?.sum?.reimbursableAmount ||
-            0,
-          previousPeriodTotal:
-            combinedResponse?.previousMonthExpenses?.aggregate?.sum?.reimbursableAmount ||
-            combinedResponse?.previousYearExpensesComparison?.aggregate?.sum?.reimbursableAmount ||
-            combinedResponse?.previousQuarterExpenses?.aggregate?.sum?.reimbursableAmount ||
-            0,
-          currentPeriodCount:
-            combinedResponse?.currentMonthExpenses?.aggregate?.count ||
-            combinedResponse?.currentYearExpensesComparison?.aggregate?.count ||
-            combinedResponse?.currentQuarterExpenses?.aggregate?.count ||
-            0,
-          previousPeriodCount:
-            combinedResponse?.previousMonthExpenses?.aggregate?.count ||
-            combinedResponse?.previousYearExpensesComparison?.aggregate?.count ||
-            combinedResponse?.previousQuarterExpenses?.aggregate?.count ||
-            0,
-          percentChange: null, // Will be calculated below (null if division by zero)
+          currentPeriodTotal: safeNum(currentPeriodAgg?.aggregate?.sum?.reimbursableAmount),
+          previousPeriodTotal: safeNum(previousPeriodAgg?.aggregate?.sum?.reimbursableAmount),
+          currentPeriodCount: safeNum(currentPeriodAgg?.aggregate?.count),
+          previousPeriodCount: safeNum(previousPeriodAgg?.aggregate?.count),
+          percentChange: null,
           isIncrease: false
         },
         actualVsPlanned: {
           actualExpenses: {
-            totalAmount: combinedResponse?.actualExpenses?.aggregate?.sum?.reimbursableAmount || 0,
-            count: combinedResponse?.actualExpenses?.aggregate?.count || 0
+            totalAmount: safeNum(combinedResponse?.actualExpenses?.aggregate?.sum?.reimbursableAmount),
+            count: safeNum(combinedResponse?.actualExpenses?.aggregate?.count)
           },
           plannedExpenses: {
-            totalAmount: combinedResponse?.plannedExpenses?.aggregate?.sum?.totalAmount || 0,
-            count: combinedResponse?.plannedExpenses?.aggregate?.count || 0
+            totalAmount: safeNum(combinedResponse?.plannedExpenses?.aggregate?.sum?.totalAmount),
+            count: safeNum(combinedResponse?.plannedExpenses?.aggregate?.count)
           }
         }
       }
 
-      // Calculate percentages - if previous period is 0, ratio is undefined (division by zero)
-      const currentTotal = processedStats.monthlySpendComparison.currentMonthTotal
-      const previousTotal = processedStats.monthlySpendComparison.previousMonthTotal
-      if (previousTotal > 0) {
-        processedStats.monthlySpendComparison.percentChange = ((currentTotal - previousTotal) / previousTotal) * 100
-        processedStats.monthlySpendComparison.isIncrease = currentTotal > previousTotal
-      } else {
-        // When previous total is 0, the percentage change is undefined
-        processedStats.monthlySpendComparison.percentChange = null as any // null indicates undefined ratio
-      }
+      const monthlyChange = calculatePercentChange(
+        processedStats.monthlySpendComparison.currentMonthTotal,
+        processedStats.monthlySpendComparison.previousMonthTotal
+      )
+      processedStats.monthlySpendComparison.percentChange = monthlyChange.percentChange
+      processedStats.monthlySpendComparison.isIncrease = monthlyChange.isIncrease
 
-      const currentCompanyTotal = processedStats.totalCompanySpend.currentPeriodTotal
-      const previousCompanyTotal = processedStats.totalCompanySpend.previousPeriodTotal
-      if (previousCompanyTotal > 0) {
-        processedStats.totalCompanySpend.percentChange =
-          ((currentCompanyTotal - previousCompanyTotal) / previousCompanyTotal) * 100
-        processedStats.totalCompanySpend.isIncrease = currentCompanyTotal > previousCompanyTotal
-      } else {
-        // When previous total is 0, the percentage change is undefined
-        processedStats.totalCompanySpend.percentChange = null as any // null indicates undefined ratio
-      }
+      const companyChange = calculatePercentChange(
+        processedStats.totalCompanySpend.currentPeriodTotal,
+        processedStats.totalCompanySpend.previousPeriodTotal
+      )
+      processedStats.totalCompanySpend.percentChange = companyChange.percentChange
+      processedStats.totalCompanySpend.isIncrease = companyChange.isIncrease
 
       setStats(processedStats)
     } catch (err) {
@@ -394,8 +421,6 @@ export const useDashboardStats = ({
       setLoading(false)
       isLoadingRef.current = false
     }
-    // Note: executeQueryForPeriod is async but stable (wrapped in useCallback)
-    // React dependency arrays need the function reference, not its return value
   }, [
     accessToken,
     client,
@@ -403,7 +428,9 @@ export const useDashboardStats = ({
     filters.period,
     filters.department,
     calculateDateRanges,
-    executeQueryForPeriod
+    executeKpiQuery,
+    executeTrendsQuery,
+    calculatePercentChange
   ])
 
   useEffect(() => {

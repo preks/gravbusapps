@@ -84,13 +84,13 @@ export const getActivityTypeVariant = (
     case 'Call':
       return 'success'
     case 'Email':
-      return 'default'
+      return 'outline'
     case 'Meeting':
       return 'warning'
     case 'Task':
       return 'secondary'
     default:
-      return 'outline'
+      return 'secondary'
   }
 }
 

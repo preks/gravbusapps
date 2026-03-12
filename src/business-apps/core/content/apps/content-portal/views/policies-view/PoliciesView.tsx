@@ -26,7 +26,7 @@ import Banner, { BannerVariant } from '../../components/shared/Banner'
 import SearchInput from '../../components/shared/SearchInput'
 import translations from '../../_i18n'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { isPinnedPolicyContentEntry, isPolicyContentEntry } from '@/business-apps/core/content/utils/policyUtils'
+import { isPinnedPolicyContentEntry } from '@/business-apps/core/content/utils/policyUtils'
 
 const PAGE_SIZE = 30
 
@@ -67,14 +67,7 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRefs: [
-        ContentGroup.NEWS,
-        ContentGroup.KNOWLEDGE,
-        ContentGroup.DOCUMENT,
-        ContentGroup.QUESTION,
-        ContentGroup.INTRANET,
-        ContentGroup.GLOSSARY
-      ],
+      contentGroupRefs: [ContentGroup.POLICY],
       search: searchQuery,
       limit: PAGE_SIZE,
       offset,
@@ -132,10 +125,8 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
     }
   })
 
-  const allPolicies = useMemo(() => allLoadedEntries.filter(isPolicyContentEntry), [allLoadedEntries])
-
   const filteredPolicies = useMemo(() => {
-    return allPolicies.filter(p => {
+    return allLoadedEntries.filter(p => {
       const recordState = String((p as any)?.recordState || '').toLowerCase()
       const isDraft = recordState.includes('draft')
       const isActive = !isDraft
@@ -145,7 +136,7 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
 
       return true
     })
-  }, [allPolicies, statusFilter])
+  }, [allLoadedEntries, statusFilter])
 
   const isInitialLoad = offset === 0 && allLoadedEntries.length === 0
   const showLoading = isLoading || isInitialLoad
@@ -227,7 +218,7 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
                 contexts={[
                   {
                     context: FlowContextName.contentEntryCreate,
-                    contextData: { contentGroup: ContentGroup.KNOWLEDGE }
+                    contextData: { contentGroup: ContentGroup.POLICY }
                   }
                 ]}
                 accessToken={accessToken}

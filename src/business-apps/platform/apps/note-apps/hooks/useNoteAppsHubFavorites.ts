@@ -1,30 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useDriveFavorites } from '@/business-apps/platform/apps/shared/hooks/useDriveFavorites'
 
 export interface UseNoteAppsHubFavoritesParams {
+  accessToken?: string
   storageKey?: string
 }
 
 export interface UseNoteAppsHubFavoritesReturn {
   favorites: Set<string>
   setFavorites: React.Dispatch<React.SetStateAction<Set<string>>>
-}
-
-function readFavoritesFromStorage(storageKey: string): Set<string> {
-  try {
-    const saved = localStorage.getItem(storageKey)
-    return saved ? new Set(JSON.parse(saved)) : new Set()
-  } catch {
-    return new Set()
-  }
+  toggleFavorite: (entityId: string) => Promise<void>
 }
 
 export function useNoteAppsHubFavorites(params: UseNoteAppsHubFavoritesParams = {}): UseNoteAppsHubFavoritesReturn {
-  const { storageKey = 'note-favorites' } = params
-  const [favorites, setFavorites] = useState<Set<string>>(() => readFavoritesFromStorage(storageKey))
+  const { favorites, setFavorites, toggleFavorite } = useDriveFavorites({
+    accessToken: params.accessToken,
+    entityType: 'note'
+  })
 
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(Array.from(favorites)))
-  }, [favorites, storageKey])
-
-  return { favorites, setFavorites }
+  return { favorites, setFavorites, toggleFavorite }
 }

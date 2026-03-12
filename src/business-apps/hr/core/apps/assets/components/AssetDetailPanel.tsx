@@ -47,12 +47,15 @@ interface AssetDetailPanelProps {
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onGenerateDocument?: (assetId: string) => void
 }
 
 const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
   switch (status) {
     case AssetStatus.AVAILABLE:
       return 'success'
+    case AssetStatus.PENDING:
+      return 'default'
     case AssetStatus.ALLOCATED:
       return 'info'
     case AssetStatus.UNDER_REPAIR:
@@ -67,6 +70,9 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
 const formatStatus = (status: AssetStatus | string): string => {
   if (status === AssetStatus.AVAILABLE) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')
+  }
+  if (status === AssetStatus.PENDING) {
+    return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')
   }
   if (status === AssetStatus.ALLOCATED) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')
@@ -111,7 +117,8 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
-  onRetrieveAsset
+  onRetrieveAsset,
+  onGenerateDocument
 }) => {
   if (!asset) return null
 
@@ -189,8 +196,29 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
       })
     }
 
+    if (isRetired && onGenerateDocument) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
+        key: 'generate-document',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.export_certificate', 'Export certificate'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onGenerateDocument(asset.id)
+        }
+      })
+    }
+
     return actions
-  }, [asset.id, isAllocated, isRetired, onAllocateAsset, onUpdateAsset, onRetireAsset, onRetrieveAsset])
+  }, [
+    asset.id,
+    isAllocated,
+    isRetired,
+    onAllocateAsset,
+    onUpdateAsset,
+    onRetireAsset,
+    onRetrieveAsset,
+    onGenerateDocument
+  ])
 
   const userLocale = getCurrentActiveUserLocale()
   const localeCode = userLocale.split('-')[0].toLowerCase()
@@ -426,7 +454,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                   <div className="gba:space-y-4">
                     {sortedAllocations.map((allocation, index) => {
                       const effectivelyEnded = !!allocation.endDate || (isRetired && !allocation.endDate)
-                      const showCurrentBadge = !allocation.endDate && !isRetired
+                      const isActiveAllocation = !allocation.endDate && !isRetired
+                      const showCurrentBadge = isActiveAllocation && asset.assetStatus !== AssetStatus.PENDING
+                      const showPendingBadge = isActiveAllocation && asset.assetStatus === AssetStatus.PENDING
                       const endLabel = allocation.endDate
                         ? formatDate(allocation.endDate) || allocation.endDate
                         : isRetired
@@ -438,7 +468,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                             <div className="gba:flex gba:flex-col gba:items-center gba:pt-1">
                               <div
                                 className={`gba:w-3 gba:h-3 gba:rounded-full ${
-                                  effectivelyEnded ? 'gba:bg-muted' : 'gba:bg-success'
+                                  effectivelyEnded
+                                    ? 'gba:bg-muted'
+                                    : showPendingBadge
+                                      ? 'gba:bg-muted'
+                                      : 'gba:bg-success'
                                 }`}
                               />
                               {index < sortedAllocations.length - 1 && (
@@ -462,6 +496,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                                 {showCurrentBadge && (
                                   <Badge variant="success" data-testid={`allocation-status-${allocation.id}`}>
                                     {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
+                                  </Badge>
+                                )}
+                                {showPendingBadge && (
+                                  <Badge variant="default" data-testid={`allocation-status-pending-${allocation.id}`}>
+                                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')}
                                   </Badge>
                                 )}
                                 {isRetired && !allocation.endDate && (

@@ -80,6 +80,10 @@ export interface FlowExecutionState {
   nodeStates: Record<string, StepStatus>
   /** Currently active node ID */
   activeNodeId?: string
+  /** Node IDs that belong to the currently highlighted path */
+  pathNodeIds?: string[]
+  /** Edge IDs that belong to the currently highlighted path */
+  pathEdgeIds?: string[]
   /** Iteration counts per node (for rework loops) */
   iterations?: Record<string, number>
 }
@@ -123,6 +127,12 @@ export interface FlowCanvasViewProps {
   nodesDraggable?: boolean
   /** When true, nodes and edges are selectable. Default from provider isInteractive when no edit callbacks. */
   elementsSelectable?: boolean
+  /** Vertical alignment used after fitView. Defaults to top so flows open with the start node visible. */
+  fitViewVerticalAlign?: 'top' | 'center'
+  /** When false, hides the minimap. Defaults to true. */
+  showMiniMap?: boolean
+  /** When false, hides the canvas controls. Defaults to true. */
+  showControls?: boolean
   /** Test ID for automated testing */
   'data-testid'?: string
 }
